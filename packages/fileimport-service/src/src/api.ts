@@ -1,23 +1,57 @@
-'use strict'
-const crypto = require('crypto')
-const crs = require('crypto-random-string')
-const bcrypt = require('bcrypt')
-const { chunk } = require('lodash')
-const { logger: parentLogger } = require('../observability/logging')
+import crypto from 'crypto'
+import crs from 'crypto-random-string'
+import bcrypt from 'bcrypt'
+import { chunk } from 'lodash'
+import { logger as parentLogger } from '@/observability/logging.js'
+import Observability from '@speckle/shared/dist/commonjs/observability/index.js'
+import type { Knex } from 'knex'
+import type { Logger } from 'pino'
+import { ForceRequired } from '@speckle/shared/dist/commonjs/index.js'
 
-const Observability = require('@speckle/shared/dist/commonjs/observability/index.js')
-
-const tables = (db) => ({
+const tables = (db: Knex) => ({
   objects: db('objects'),
   closures: db('object_children_closure'),
-  branches: db('branches'),
+  branches: db<{
+    id: string
+    streamId: string
+    authorId: string
+    name: string
+    description: string
+  }>('branches'),
   streams: db('streams'),
   apiTokens: db('api_tokens'),
   tokenScopes: db('token_scopes')
 })
 
-module.exports = class ServerAPI {
-  constructor({ db, streamId, logger }) {
+type SpeckleObject = {
+  id?: string
+  hash?: string
+  streamId: string
+  __closure?: Record<string, number>
+  __tree?: unknown
+  speckleType: string
+  totalChildrenCount?: number
+  totalChildrenCountByDepth?: string
+  data: unknown
+}
+
+export class ServerAPI {
+  tables: ReturnType<typeof tables>
+  db: Knex
+  streamId: string
+  isSending: boolean
+  buffer: unknown[]
+  logger: Logger
+
+  constructor({
+    db,
+    streamId,
+    logger
+  }: {
+    db: Knex
+    streamId: string
+    logger: Logger
+  }) {
     this.tables = tables(db)
     this.db = db
     this.streamId = streamId
@@ -28,7 +62,7 @@ module.exports = class ServerAPI {
       Observability.extendLoggerComponent(parentLogger.child({ streamId }), 'ifc')
   }
 
-  async saveObject(obj) {
+  async saveObject(obj: SpeckleObject) {
     if (!obj) throw new Error('Null object')
 
     if (!obj.id) {
@@ -40,15 +74,21 @@ module.exports = class ServerAPI {
     return obj.id
   }
 
-  async saveObjectBatch(objs) {
+  async saveObjectBatch(objs: SpeckleObject[]) {
     return await this.createObjectsBatched(this.streamId, objs)
   }
 
-  async createObject({ streamId, object }) {
+  async createObject({
+    streamId,
+    object
+  }: {
+    streamId: string
+    object: SpeckleObject
+  }) {
     const insertionObject = this.prepInsertionObject(streamId, object)
 
     const closures = []
-    const totalChildrenCountByDepth = {}
+    const totalChildrenCountByDepth: Record<string, number> = {}
     if (object.__closure !== null) {
       for (const prop in object.__closure) {
         closures.push({
@@ -81,16 +121,21 @@ module.exports = class ServerAPI {
     return insertionObject.id
   }
 
-  async createObjectsBatched(streamId, objects) {
-    const closures = []
-    const objsToInsert = []
-    const ids = []
+  async createObjectsBatched(streamId: string, objects: SpeckleObject[]) {
+    const closures: {
+      streamId: string
+      parent: string | undefined
+      child: string | undefined
+      minDepth: number
+    }[] = []
+    const objsToInsert: ForceRequired<SpeckleObject, 'id'>[] = []
+    const ids: string[] = []
 
     // Prep objects up
     objects.forEach((obj) => {
       const insertionObject = this.prepInsertionObject(streamId, obj)
       let totalChildrenCountGlobal = 0
-      const totalChildrenCountByDepth = {}
+      const totalChildrenCountByDepth: Record<string, number> = {}
 
       if (obj.__closure !== null) {
         for (const prop in obj.__closure) {
@@ -159,7 +204,10 @@ module.exports = class ServerAPI {
     return ids
   }
 
-  prepInsertionObject(streamId, obj) {
+  prepInsertionObject(
+    streamId: string,
+    obj: SpeckleObject
+  ): ForceRequired<SpeckleObject, 'id'> {
     const maximumObjectSizeMB = parseInt(process.env['MAX_OBJECT_SIZE_MB'] || '10')
     const MAX_OBJECT_SIZE = maximumObjectSizeMB * 1024 * 1024
 
@@ -183,23 +231,31 @@ module.exports = class ServerAPI {
     }
   }
 
-  prepInsertionObjectBatch(batch) {
+  prepInsertionObjectBatch(batch: Array<{ id: string }>) {
     batch.sort((a, b) => (a.id > b.id ? 1 : -1))
   }
 
-  prepInsertionClosureBatch(batch) {
+  prepInsertionClosureBatch(
+    batch: Array<{ parent: string | undefined; child: string | undefined }>
+  ) {
     batch.sort((a, b) =>
-      a.parent > b.parent
+      a.parent && b.parent && a.parent > b.parent
         ? 1
         : a.parent === b.parent
-        ? a.child > b.child
+        ? a.child && b.child && a.child > b.child
           ? 1
           : -1
         : -1
     )
   }
 
-  async getBranchByNameAndStreamId({ streamId, name }) {
+  async getBranchByNameAndStreamId({
+    streamId,
+    name
+  }: {
+    streamId: string
+    name: string
+  }) {
     const query = this.tables.branches
       .select('*')
       .where({ streamId })
@@ -208,13 +264,24 @@ module.exports = class ServerAPI {
     return await query
   }
 
-  async createBranch({ name, description, streamId, authorId }) {
-    const branch = {}
-    branch.id = crs({ length: 10 })
-    branch.streamId = streamId
-    branch.authorId = authorId
-    branch.name = name.toLowerCase()
-    branch.description = description
+  async createBranch({
+    name,
+    description,
+    streamId,
+    authorId
+  }: {
+    name: string
+    description: string
+    streamId: string
+    authorId: string
+  }) {
+    const branch = {
+      id: crs({ length: 10 }),
+      streamId,
+      authorId,
+      name: name.toLowerCase(),
+      description
+    }
 
     await this.tables.branches.returning('id').insert(branch)
 
@@ -235,7 +302,17 @@ module.exports = class ServerAPI {
     return { tokenId, tokenString, tokenHash, lastChars }
   }
 
-  async createToken({ userId, name, scopes, lifespan }) {
+  async createToken({
+    userId,
+    name,
+    scopes,
+    lifespan
+  }: {
+    userId: string
+    name: string
+    scopes: string[]
+    lifespan: number
+  }) {
     const { tokenId, tokenString, tokenHash, lastChars } = await this.createBareToken()
 
     if (scopes.length === 0) throw new Error('No scopes provided')
@@ -256,7 +333,7 @@ module.exports = class ServerAPI {
     return { id: tokenId, token: tokenId + tokenString }
   }
 
-  async revokeTokenById(tokenId) {
+  async revokeTokenById(tokenId: string) {
     const delCount = await this.tables.apiTokens
       .where({ id: tokenId.slice(0, 10) })
       .del()
