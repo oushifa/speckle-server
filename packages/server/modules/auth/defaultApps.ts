@@ -74,7 +74,7 @@ const SpeckleConnectorsDUI = {
   description: 'Speckle desktop user interface for connectors.',
   trustByDefault: false, // NOTE: we do not wanna automatically authenticate in DUI because it uses cached account before which we wanna switch account. trustByDefault: true skips this step
   public: true,
-  redirectUrl: 'http://192.168.31.140:8082/authn/callback',
+  redirectUrl: 'http://47.100.77.97:64483/authn/callback',
   scopes: [
     Scopes.Streams.Read,
     Scopes.Streams.Write,
