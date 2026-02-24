@@ -284,6 +284,7 @@ const allow = async () => {
 
   try {
     const allowRes = await $fetch<{ redirectUrl: string }>(allowUrl.value)
+
     if (!allowRes?.redirectUrl) {
       throw new Error('Malformed authorization response, please contact site admins.')
     }
