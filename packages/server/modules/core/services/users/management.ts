@@ -173,7 +173,7 @@ export const createUserFactory =
     let finalUser: typeof user & NullableKeysToOptional<UserRecord> = {
       ...user,
       id: crs({ length: 10 }),
-      verified: user.verified || false,
+      verified: true,
       createdAt: new Date(),
       suuid: v4()
     }

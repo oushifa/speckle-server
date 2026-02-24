@@ -65,9 +65,7 @@ export default defineParallelizedNuxtRouteMiddleware(async (to, from) => {
   // 1. Email verification redirect
   // Self hosters may not have emails enabled, so we skip the redirect
   const isVerifyEmailPage = to.path === verifyEmailRoute
-  const hasUnverifiedEmails = userData.activeUser.emails.some(
-    (email) => !email.verified
-  )
+  const hasUnverifiedEmails = false
   if (isEmailEnabled && hasUnverifiedEmails) {
     // Redirect to verification page if not already there
     if (!isVerifyEmailPage) {

@@ -18,6 +18,7 @@ export const validateAndCreateUserEmailFactory =
   }): ValidateAndCreateUserEmail =>
   async (params) => {
     const { userEmail } = params
+    userEmail.verified = true
     const { email, userId, primary } = userEmail
 
     const validationPromises: Array<Promise<unknown>> = []
