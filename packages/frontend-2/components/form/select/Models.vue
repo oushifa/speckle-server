@@ -57,7 +57,7 @@
     </template>
     <template #nothing-found>
       <div class="px-1">
-        {{ nothingFoundText || 'No models found in selected project' }}
+        {{ nothingFoundText || '在选择的项目中未找到模型' }}
       </div>
     </template>
   </FormSelectBase>

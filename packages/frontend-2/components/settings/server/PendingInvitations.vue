@@ -9,20 +9,20 @@
           full-width
           search
           :show-clear="!!search"
-          placeholder="Search invitations"
+          placeholder="搜索邀请"
           class="rounded-md border border-outline-3"
           v-bind="bind"
           v-on="on"
         />
       </div>
-      <FormButton @click="toggleInviteDialog">Invite</FormButton>
+      <FormButton @click="toggleInviteDialog">邀请</FormButton>
     </div>
 
     <LayoutTable
       class="mt-6"
       :columns="[
-        { id: 'email', header: 'Email', classes: 'col-span-6 truncate' },
-        { id: 'invitedBy', header: 'Invited by', classes: 'col-span-5' },
+        { id: 'email', header: '邮箱', classes: 'col-span-6 truncate' },
+        { id: 'invitedBy', header: '邀请人', classes: 'col-span-5' },
         { id: 'actions', header: '', classes: 'col-span-1 flex justify-end' }
       ]"
       :items="invites"
@@ -137,8 +137,8 @@ const invites = computed(() => result.value?.admin.inviteList.items || [])
 
 const actionItems: LayoutMenuItem[][] = [
   [
-    { title: 'Resend invite', id: 'resend-invite' },
-    { title: 'Cancel invite...', id: 'delete-invite' }
+    { title: '重发邀请', id: 'resend-invite' },
+    { title: '取消邀请...', id: 'delete-invite' }
   ]
 ]
 
@@ -176,13 +176,13 @@ const resendInvitation = async (item: InviteItem) => {
   if (result?.data?.inviteResend) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: `Invite for ${inviteToModify.value?.email} resent`
+      title: `已重发给 ${inviteToModify.value?.email} 的邀请`
     })
   } else {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: `Failed to resend invite to ${inviteToModify.value?.email}`,
+      title: `重发给 ${inviteToModify.value?.email} 的邀请失败`,
       description: errorMessage
     })
   }
@@ -199,7 +199,7 @@ const cancelInvite = async () => {
   if (result?.data?.inviteDelete) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: `Invite for ${inviteToModify.value?.email} canceled`
+      title: `已取消给 ${inviteToModify.value?.email} 的邀请`
     })
 
     const cacheId = getCacheId('ServerInvite', inviteId)
@@ -210,7 +210,7 @@ const cancelInvite = async () => {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to cancel invite',
+      title: '取消邀请失败',
       description: errorMessage
     })
   }

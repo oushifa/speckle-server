@@ -1,18 +1,18 @@
 <template>
   <div class="px-4 py-2">
     <LayoutSidebarMenuGroup
-      title="Security"
+      title="安全"
       collapsible
       icon="add"
       :icon-click="
         () => navigateTo(settingsWorkspaceRoutes.security.route(workspace?.slug || ''))
       "
-      icon-text="Add domain"
+      icon-text="添加域名"
       no-hover
     >
       <div class="text-body-2xs text-foreground-2 pb-4 mt-1">
         <div class="flex flex-col gap-4">
-          Verified domains not set.
+          未设置已验证的域名。
           <FormButton
             color="outline"
             size="sm"
@@ -20,7 +20,7 @@
               navigateTo(settingsWorkspaceRoutes.security.route(workspace?.slug || ''))
             "
           >
-            Improve security
+            提高安全性
           </FormButton>
         </div>
       </div>

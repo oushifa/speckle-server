@@ -23,7 +23,7 @@
         @click="trackAndzoomExtentsOrSelection()"
       />
       <ViewerControlsButtonToggle
-        v-tippy="getTooltipProps('Camera controls', { placement: 'left' })"
+        v-tippy="getTooltipProps('相机控制', { placement: 'left' })"
         :icon="Video"
         :active="activePanel === 'cameraControls'"
         @click="toggleActivePanel('cameraControls')"

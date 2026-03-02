@@ -57,7 +57,7 @@
             :disabled="!canCreateModel.canClickCreate.value"
             @click.stop="$emit('create-submodel', model?.name || '')"
           >
-            submodel
+            创建子模型
           </FormButton>
         </div>
         <!-- Spacer -->

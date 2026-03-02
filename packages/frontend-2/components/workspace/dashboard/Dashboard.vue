@@ -3,7 +3,7 @@
     <Portal to="navigation">
       <HeaderNavLink
         :to="workspaceRoute(workspaceSlug)"
-        name="Projects"
+        name="项目管理"
         :separator="false"
       />
     </Portal>

@@ -53,7 +53,7 @@
             size="sm"
             @click.stop="showActionsMenu = !showActionsMenu"
           >
-            Menu
+            操作菜单
           </FormButton>
         </LayoutMenu>
       </div>
@@ -171,10 +171,10 @@ const canDeleteVersion = computed(() => {
 
 const deleteDisabledReason = computed(() => {
   if (isLoaded.value) {
-    return 'Cannot delete the currently viewed version'
+    return '不能删除当前查看的版本'
   }
   if (props.totalVersions && props.totalVersions <= 1) {
-    return 'Cannot delete the last version'
+    return '不能删除最后一个版本'
   }
   return undefined
 })
@@ -182,25 +182,25 @@ const deleteDisabledReason = computed(() => {
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'View changes',
+      title: '显示版本变更',
       id: 'view-changes',
       disabled: isLoaded.value || isLimited.value,
       disabledTooltip: isLoaded.value
-        ? 'Cannot compare current version with itself'
+        ? '不能与当前版本进行比较'
         : isLimited.value
-        ? 'Version comparison unavailable'
+        ? '超出工作空间版本限制'
         : undefined
     },
     {
-      title: 'Copy link to version',
+      title: '复制版本链接',
       id: 'copy-link-to-version',
       disabled: isLimited.value,
-      disabledTooltip: isLimited.value ? 'Outside workspace version limits' : undefined
+      disabledTooltip: isLimited.value ? '超出工作空间版本限制' : undefined
     }
   ],
   [
     {
-      title: 'Delete version...',
+      title: '删除版本...',
       id: 'remove-version',
       disabled: !canDeleteVersion.value,
       disabledTooltip: deleteDisabledReason.value

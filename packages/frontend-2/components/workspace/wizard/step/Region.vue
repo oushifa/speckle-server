@@ -1,22 +1,19 @@
 <template>
-  <WorkspaceWizardStep
-    title="Set a data region"
-    description="Choose where your workspace data is hosted"
-  >
+  <WorkspaceWizardStep title="设置数据区域" description="选择您的工作区数据托管位置">
     <form class="flex flex-col gap-4 w-full md:w-96" @submit="onSubmit">
       <CommonLoadingIcon v-if="isQueryLoading" class="justify-self-center" />
       <template v-else>
         <SettingsWorkspacesRegionsSelect
           v-model="defaultRegion"
           show-label
-          label="Default region"
+          label="默认区域"
           :items="availableRegions || []"
           label-position="top"
           size="lg"
         />
         <div class="flex flex-col gap-3 mt-4 w-full">
           <FormButton :disabled="!hasDefaultRegion" size="lg" full-width submit>
-            Continue
+            继续
           </FormButton>
           <FormButton
             color="subtle"
@@ -24,7 +21,7 @@
             full-width
             @click.stop="goToPreviousStep"
           >
-            Back
+            返回
           </FormButton>
         </div>
       </template>

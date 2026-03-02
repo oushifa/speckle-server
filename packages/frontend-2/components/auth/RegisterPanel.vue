@@ -37,7 +37,7 @@
             v-if="hasThirdPartyStrategies && hasLocalStrategy"
             class="text-center text-foreground-2 mb-3 text-body-2xs font-normal"
           >
-            Or sign up with your email
+            或者使用邮箱注册
           </div>
           <AuthRegisterWithEmailBlock
             v-if="serverInfo && hasLocalStrategy"

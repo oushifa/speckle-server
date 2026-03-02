@@ -7,14 +7,10 @@
       max-width="md"
     >
       <template #header>
-        {{ isInWorkspace && !isAdmin ? 'Add to project' : 'Invite to project' }}
+        {{ isInWorkspace && !isAdmin ? '添加到项目' : '邀请用户到项目' }}
       </template>
       <p v-if="isInWorkspace" class="text-foreground text-body-xs mb-3">
-        {{
-          isAdmin
-            ? 'Search for existing workspace users or invite new users.'
-            : 'Search for existing workspace users.'
-        }}
+        {{ isAdmin ? '搜索现有工作空间用户或邀请新用户。' : '搜索现有工作空间用户。' }}
       </p>
       <form @submit="onSubmit">
         <div class="flex flex-col gap-y-3 text-foreground">
@@ -34,14 +30,13 @@
           </template>
           <div>
             <FormButton color="subtle" :icon-left="PlusIcon" @click="addInviteItem">
-              Add another user
+              添加另一个用户
             </FormButton>
           </div>
         </div>
       </form>
       <p v-if="!isAdmin && isInWorkspace" class="text-foreground-2 text-body-2xs py-3">
-        As a project owner you can only add existing workspace users to the project. Ask
-        a workspace admin if you need to invite new users to the workspace.
+        作为项目所有者，您只能添加现有工作空间用户到项目中。如果需要邀请新用户到工作空间，请联系工作空间管理员。
       </p>
       <p v-else-if="workspaceCostInfo" class="text-foreground-2 text-body-2xs py-3">
         {{ workspaceCostInfo }}
@@ -143,7 +138,7 @@ const dialogButtons = computed((): LayoutDialogButton[] => [
 
 const workspaceCostInfo = computed(() => {
   if (!isPaidPlan.value || !isInWorkspace.value) return ''
-  return `Viewer seats are free. You'll be charged ${editorSeatPriceWithIntervalFormatted.value} for each Editor seat when they accept. We'll use any unused Editor seats from your plan first.`
+  return `查看器席位免费。您将为每个 Editor 席位支付 ${editorSeatPriceWithIntervalFormatted.value} 。我们将先使用您计划中的任何未使用 Editor 席位。`
 })
 
 const purchasableEditorCount = computed(() => {

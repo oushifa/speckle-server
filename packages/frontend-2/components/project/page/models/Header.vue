@@ -4,7 +4,7 @@
       class="flex flex-col space-y-2 xl:space-y-0 xl:flex-row xl:justify-between xl:items-center mb-4 mt-3"
     >
       <div class="flex justify-between items-center flex-wrap xl:flex-nowrap">
-        <h1 class="block text-heading-lg">Models</h1>
+        <h1 class="block text-heading-lg">模型</h1>
         <div class="flex items-center space-x-2 w-full mt-2 sm:w-auto sm:mt-0">
           <FormButton
             color="outline"
@@ -12,7 +12,7 @@
             class="grow inline-flex sm:grow-0 lg:hidden"
             @click="onViewAllClick"
           >
-            View all in 3D
+            在 3D 中查看全部
           </FormButton>
 
           <div
@@ -30,7 +30,7 @@
             >
               <FormButton color="primary" @click="showMenu = !showMenu">
                 <div class="flex items-center gap-1">
-                  Add model
+                  添加模型
                   <ChevronDownIcon class="h-3 w-3" />
                 </div>
               </FormButton>
@@ -40,7 +40,7 @@
                 :disabled="!canCreateModel.canClickCreate.value"
                 @click="handleCreateModelClick"
               >
-                New model
+                新建模型
               </FormButton>
             </div>
           </div>
@@ -53,7 +53,7 @@
           v-model="localSearch"
           name="modelsearch"
           :show-label="false"
-          placeholder="Search models..."
+          placeholder="搜索模型..."
           color="foundation"
           wrapper-classes="grow lg:grow-0 xl:ml-2 xl:w-40 min-w-40 shrink-0"
           :show-clear="localSearch !== ''"
@@ -67,8 +67,8 @@
             v-model="finalSelectedMembers"
             :users="team"
             multiple
-            selector-placeholder="All members"
-            label="Filter by members"
+            selector-placeholder="所有成员"
+            label="按成员过滤"
             class="grow shrink sm:w-[120px] md:w-44"
             clearable
             fixed-height
@@ -78,8 +78,8 @@
               v-model="finalSelectedApps"
               :items="availableSourceApps"
               multiple
-              selector-placeholder="All sources"
-              label="Filter by sources"
+              selector-placeholder="所有来源"
+              label="按来源过滤"
               class="grow shrink sm:w-[120px] md:w-44"
               clearable
               fixed-height
@@ -94,7 +94,7 @@
             :disabled="project?.models.totalCount === 0"
             @click="onViewAllClick"
           >
-            View all in 3D
+            在 3D 中查看全部
           </FormButton>
           <div class="hidden lg:inline-flex shrink-0">
             <LayoutMenu
@@ -108,7 +108,7 @@
             >
               <FormButton color="primary" @click="showMenu = !showMenu">
                 <div class="flex items-center gap-1">
-                  Add model
+                  添加模型
                   <ChevronDownIcon class="h-3 w-3" />
                 </div>
               </FormButton>
@@ -118,7 +118,7 @@
                 :disabled="!canCreateModel.canClickCreate.value"
                 @click="handleCreateModelClick"
               >
-                New model
+                新建模型
               </FormButton>
             </div>
           </div>
@@ -287,7 +287,7 @@ const { integration, checkConnection } = useAccIntegration()
 const menuItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'Create new model...',
+      title: '创建新模型...',
       id: AddNewModelActionTypes.NewModel,
       disabled: !canCreateModel.canClickCreate.value,
       disabledTooltip: canCreateModel.cantClickCreateReason.value
@@ -295,7 +295,7 @@ const menuItems = computed<LayoutMenuItem[][]>(() => [
     // TODO ACC: Upload a file
     {
       // TODO: Do we show this disabled in all non-enterprise cases?
-      title: 'Sync from ACC...',
+      title: '从 ACC 同步...',
       id: AddNewModelActionTypes.NewAccSyncItem,
       // I believe for now sync limits corralate with model limit since new sync creates new model, once we have limits for syncs, this should change
       disabled: !canCreateModel.canClickCreate.value,

@@ -8,7 +8,7 @@
         class="hidden sm:flex"
         :icon-right="open ? ChevronUpIcon : ChevronDownIcon"
       >
-        Share
+        分享看板
       </FormButton>
       <!-- Mobile Button -->
       <FormButton
@@ -18,7 +18,7 @@
         :icon-right="ShareIcon"
         hide-text
       >
-        Share
+        分享看板
       </FormButton>
     </MenuButton>
 
@@ -34,7 +34,7 @@
           @click="handleCopyLink"
           @keypress="keyboardClick(handleCopyLink)"
         >
-          Copy link
+          复制链接
         </div>
       </MenuItem>
       <MenuItem v-if="!isFederated" v-slot="{ active }">
@@ -46,7 +46,7 @@
           @click="handleCopyId"
           @keypress="keyboardClick(handleCopyId)"
         >
-          Copy ID
+          复制ID
         </div>
       </MenuItem>
       <MenuItem v-slot="{ active }">
@@ -58,7 +58,7 @@
           @click="handleEmbed"
           @keypress="keyboardClick(handleEmbed)"
         >
-          Embed model
+          嵌入看板
         </div>
       </MenuItem>
     </MenuItems>

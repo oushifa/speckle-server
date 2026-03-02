@@ -7,24 +7,24 @@
     prevent-close-on-click-outside
     :on-submit="onSubmit"
   >
-    <template #header>Create a new region</template>
+    <template #header>创建新区域</template>
     <div class="flex flex-col gap-y-4 mb-2">
       <FormTextInput
         name="name"
-        label="Region name"
-        placeholder="Name"
+        label="区域名称"
+        placeholder="名称"
         color="foundation"
         :rules="[isRequired, isStringOfLength({ maxLength: 64 })]"
         auto-focus
         autocomplete="off"
         show-required
         show-label
-        help="Human readable name for the region."
+        help="区域的可读名称。"
       />
       <FormTextArea
         name="description"
-        label="Region description"
-        placeholder="Description"
+        label="区域描述"
+        placeholder="描述"
         color="foundation"
         size="lg"
         show-label
@@ -35,10 +35,10 @@
         show-label
         name="key"
         :items="availableRegionKeys"
-        label="Region key"
+        label="区域键"
         :rules="[isRequired]"
         show-required
-        help="These keys come from the server multi region configuration file."
+        help="这些键来自服务器多区域配置文件。"
       />
     </div>
   </LayoutDialog>
@@ -81,12 +81,12 @@ const loading = useMutationLoading()
 const dialogButtons = computed((): LayoutDialogButton[] => {
   return [
     {
-      text: 'Cancel',
+      text: '取消',
       props: { color: 'outline' },
       onClick: () => (open.value = false)
     },
     {
-      text: isEditMode.value ? 'Update' : 'Create',
+      text: isEditMode.value ? '更新' : '创建',
       props: {
         submit: true,
         disabled: loading.value,

@@ -52,7 +52,7 @@
           color="outline"
           @click="onCancel"
         >
-          Cancel
+          取消
         </FormButton>
         <FormButton
           v-else-if="step.id === DialogStepId.workspace"
@@ -60,7 +60,7 @@
           full-width
           @click="navigateTo(workspaceCreateRoute)"
         >
-          Create a new workspace
+          创建新工作空间
         </FormButton>
       </div>
     </template>

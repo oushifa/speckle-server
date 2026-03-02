@@ -395,11 +395,11 @@ const threadAuthors = computed(() => {
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'Copy link',
+      title: '复制链接',
       id: ActionTypes.CopyLink
     },
     {
-      title: 'Pop in',
+      title: '弹出',
       id: ActionTypes.PopIn,
       disabled: !isDragged.value
     }

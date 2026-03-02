@@ -1,12 +1,10 @@
 <template>
   <LayoutDialog v-model:open="open" max-width="sm">
-    <template #header>Share dashboard</template>
+    <template #header>分享看板</template>
     <div class="flex items-center justify-between mt-2 mb-6">
       <div>
-        <p class="text-body-xs font-medium text-foreground">Enable public access</p>
-        <p class="text-body-2xs text-foreground-2">
-          Let anyone view the dashboard. No sign-in required.
-        </p>
+        <p class="text-body-xs font-medium text-foreground">启用公共访问</p>
+        <p class="text-body-2xs text-foreground-2">允许任何人查看看板。无需登录。</p>
       </div>
       <div
         v-tippy="
@@ -32,13 +30,12 @@
       <hr class="mb-6 border-outline-3" />
 
       <p class="text-body-2xs text-foreground-2 mb-3">
-        Permissions for who can view and edit dashboards is based on the workspace
-        seats. Editor seats can edit, Viewer seats can view.
+        看板的权限基于工作空间席位。编辑席位可以编辑，查看席位可以查看。
         <NuxtLink
           :to="settingsWorkspaceRoutes.members.route(workspaceSlug)"
           class="text-primary"
         >
-          Manage seats.
+          管理席位。
         </NuxtLink>
       </p>
     </template>

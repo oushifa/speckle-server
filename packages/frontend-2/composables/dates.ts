@@ -29,17 +29,17 @@ const customRelativeTime = (
 
   if (diffInDays > 14) {
     return pastDate.year() === now.year()
-      ? pastDate.format('MMM D')
-      : pastDate.format('MMM D, YYYY')
+      ? pastDate.format('M月D日')
+      : pastDate.format('YYYY年MM月D日')
   } else if (diffInDays >= 1) {
-    return diffInDays === 1 ? '1 day ago' : `${diffInDays} days ago`
+    return diffInDays === 1 ? '1天前' : `${diffInDays}天前`
   } else if (diffInHours <= 23 && diffInHours >= 1) {
-    return diffInHours === 1 ? '1 hour ago' : `${diffInHours} hours ago`
+    return diffInHours === 1 ? '1小时前' : `${diffInHours}小时前`
   } else if (diffInMinutes <= 59 && diffInMinutes >= 1) {
-    return diffInMinutes === 1 ? '1 minute ago' : `${diffInMinutes} minutes ago`
+    return diffInMinutes === 1 ? '1分钟前' : `${diffInMinutes}分钟前`
   }
 
-  return capitalize ? 'Just now' : 'just now'
+  return capitalize ? '刚刚' : '刚刚'
 }
 
 /**
@@ -65,7 +65,7 @@ const isTimeframe = (date: ConfigType, now: ConfigType, tz: Optional<string>) =>
  * formattedFullDate('2023-12-01') - returns "Dec 12, 2023"
  */
 const formattedFullDate = (date: ConfigType, tz: Optional<string>): string =>
-  createDayjs(date, tz).format('MMM D, YYYY, H:mm')
+  createDayjs(date, tz).format('YYYY年M月D日, H:mm')
 
 /**
  * Formats a given date input into a date string without time
@@ -73,7 +73,7 @@ const formattedFullDate = (date: ConfigType, tz: Optional<string>): string =>
  * formattedDateOnly('2023-12-01') - returns "Dec 12, 2023"
  */
 const formattedDateOnly = (date: ConfigType, tz: Optional<string>): string =>
-  createDayjs(date, tz).format('MMM D, YYYY')
+  createDayjs(date, tz).format('YYYY年M月D日')
 
 /**
  * Formats a given date input into a relative time string with optional prefix
@@ -93,7 +93,7 @@ const formattedRelativeDate = (
   if (options?.prefix) {
     return isTimeframe(date, now, tz)
       ? customRelativeTime(date, now, tz, options?.capitalize)
-      : `on ${customRelativeTime(date, now, tz)}`
+      : `${customRelativeTime(date, now, tz)}`
   } else {
     return customRelativeTime(date, now, tz, options?.capitalize)
   }

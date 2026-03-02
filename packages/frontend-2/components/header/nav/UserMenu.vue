@@ -28,7 +28,7 @@
                   'text-body-xs flex px-2 py-1 text-foreground cursor-pointer transition mx-1 rounded'
                 ]"
               >
-                Settings
+                设置
               </NuxtLink>
             </MenuItem>
             <MenuItem v-if="isAdmin" v-slot="{ active }">
@@ -39,7 +39,7 @@
                   'text-body-xs flex px-2 py-1 text-foreground cursor-pointer transition mx-1 rounded'
                 ]"
               >
-                Server settings
+                服务器设置
               </NuxtLink>
             </MenuItem>
             <MenuItem v-slot="{ active }">
@@ -50,7 +50,7 @@
                 ]"
                 @click="toggleTheme"
               >
-                {{ isDarkTheme ? 'Light mode' : 'Dark mode' }}
+                {{ isDarkTheme ? '浅色模式' : '深色模式' }}
               </NuxtLink>
             </MenuItem>
             <MenuItem v-if="activeUser && !isGuest" v-slot="{ active }">
@@ -61,7 +61,7 @@
                 ]"
                 @click="toggleInviteDialog"
               >
-                Invite to Speckle
+                邀请加入项目
               </NuxtLink>
             </MenuItem>
           </div>
@@ -74,7 +74,7 @@
                 ]"
                 @click="logout"
               >
-                Log out
+                登出
               </NuxtLink>
             </MenuItem>
             <MenuItem v-if="!activeUser && loginUrl" v-slot="{ active }">
@@ -85,7 +85,7 @@
                 ]"
                 :to="loginUrl"
               >
-                Log in
+                登录
               </NuxtLink>
             </MenuItem>
 
@@ -93,14 +93,14 @@
               class="border-t border-outline-3 py-1 mt-1 text-xs text-foreground-2 px-3 gap-1 flex flex-col"
             >
               <MenuItem v-if="version">
-                <div>Version {{ version }}</div>
+                <div>版本 {{ version }}</div>
               </MenuItem>
               <MenuItem>
                 <NuxtLink
                   class="cursor-pointer text-foreground-2 hover:text-foreground"
                   @click="copySupportReference"
                 >
-                  Copy support reference
+                  复制支持参考码
                 </NuxtLink>
               </MenuItem>
             </div>

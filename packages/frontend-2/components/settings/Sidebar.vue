@@ -15,7 +15,7 @@
 
         <NuxtLink :to="exitSettingsRoute" class="flex items-center">
           <FormButton :icon-left="ChevronLeftIcon" hide-text color="subtle" />
-          <p class="text-body-xs font-medium text-foreground">Settings</p>
+          <p class="text-body-xs font-medium text-foreground">设置</p>
         </NuxtLink>
       </div>
     </Portal>
@@ -30,12 +30,12 @@
               class="items-center gap-x-1.5 px-2.5 flex"
             >
               <ChevronLeftIcon class="h-3 w-3 text-foreground-2" />
-              <p class="text-body-xs font-medium text-foreground">Exit settings</p>
+              <p class="text-body-xs font-medium text-foreground">退出设置</p>
             </NuxtLink>
           </LayoutSidebarMenuGroup>
 
           <div class="flex flex-col gap-y-2 lg:gap-y-4">
-            <LayoutSidebarMenuGroup title="User settings">
+            <LayoutSidebarMenuGroup title="用户设置">
               <template #title-icon>
                 <IconAccount class="size-4" />
               </template>
@@ -51,7 +51,7 @@
                 />
               </NuxtLink>
             </LayoutSidebarMenuGroup>
-            <LayoutSidebarMenuGroup v-if="isServerAdmin" title="Server settings">
+            <LayoutSidebarMenuGroup v-if="isServerAdmin" title="服务器设置">
               <template #title-icon>
                 <IconServer class="size-4" />
               </template>
@@ -67,10 +67,7 @@
                 />
               </NuxtLink>
             </LayoutSidebarMenuGroup>
-            <LayoutSidebarMenuGroup
-              v-if="showWorkspaceSettings"
-              title="Workspace settings"
-            >
+            <LayoutSidebarMenuGroup v-if="showWorkspaceSettings" title="工作区设置">
               <template #title-icon>
                 <IconWorkspaces class="size-4" />
               </template>
@@ -90,7 +87,7 @@
                   :active="route.name?.toString().startsWith(workspaceMenuItem.name)"
                   :tooltip-text="
                     needsSsoSession(workspaceMenuItem.name)
-                      ? 'Log in with your SSO provider to access this page'
+                      ? '使用您的 SSO 提供商登录以访问此页面'
                       : workspaceMenuItem.tooltipText
                   "
                   :disabled="

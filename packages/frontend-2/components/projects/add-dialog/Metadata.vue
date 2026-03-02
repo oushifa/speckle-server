@@ -3,8 +3,8 @@
     <div class="flex flex-col gap-y-4 mb-2">
       <FormTextInput
         name="name"
-        label="Project name"
-        placeholder="Name"
+        label="项目名称"
+        placeholder="名称"
         color="foundation"
         :rules="[isRequired, isStringOfLength({ maxLength: 512 })]"
         auto-focus
@@ -13,8 +13,8 @@
       />
       <FormTextArea
         name="description"
-        label="Project description"
-        placeholder="Description"
+        label="项目描述"
+        placeholder="描述"
         color="foundation"
         size="lg"
         show-label
@@ -22,7 +22,7 @@
         :rules="[isStringOfLength({ maxLength: 65536 })]"
       />
       <div>
-        <h3 class="label mb-2">Access permissions</h3>
+        <h3 class="label mb-2">访问权限</h3>
         <ProjectVisibilitySelect
           v-model="visibility"
           mount-menu-on-body
@@ -37,11 +37,9 @@
         :disabled="isDisabled"
         @click="() => (supportGoBack ? $emit('back') : $emit('canceled'))"
       >
-        {{ supportGoBack ? 'Back' : 'Cancel' }}
+        {{ supportGoBack ? '返回' : '取消' }}
       </FormButton>
-      <FormButton type="submit" color="primary" :loading="isDisabled">
-        Create
-      </FormButton>
+      <FormButton type="submit" color="primary" :loading="isDisabled">创建</FormButton>
     </div>
   </form>
 </template>

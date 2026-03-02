@@ -31,7 +31,12 @@ import type { FormUsersSelectItemFragment } from '~~/lib/common/generated/gql/gr
 import { projectModelsPageQuery } from '~~/lib/projects/graphql/queries'
 import { useProjectPageItemViewType } from '~~/lib/projects/composables/projectPages'
 
+const attrs = useAttrs() as {
+  project: ProjectPageProjectFragment
+}
+console.log(attrs, 'attrs')
 const route = useRoute()
+console.log(route, 'route')
 const projectId = computed(() => route.params.id as string)
 
 const selectedMembers = ref([] as FormUsersSelectItemFragment[])

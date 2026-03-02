@@ -3,11 +3,9 @@
     class="flex flex-col gap-y-2 md:gap-y-0 md:flex-row md:justify-between md:items-center mt-3"
   >
     <h1 class="text-heading-lg flex items-center gap-3">
-      Automations
+      自动化
       <CommonBadge
-        v-tippy="
-          'Speckle Automate is in public beta. Help us improve by giving us lots of feedback!'
-        "
+        v-tippy="'Speckle Automate 处于公开测试阶段。请给我们多提反馈以帮助我们改进！'"
       >
         BETA
       </CommonBadge>
@@ -16,7 +14,7 @@
       <FormTextInput
         name="search"
         color="foundation"
-        placeholder="Search automations..."
+        placeholder="搜索自动化..."
         wrapper-classes="shrink-0"
         show-clear
         v-bind="bind"
@@ -31,7 +29,7 @@
           :disabled="!!creationDisabledMessage"
           @click="$emit('new-automation')"
         >
-          New automation
+          新建自动化
         </FormButton>
       </div>
     </div>
@@ -55,7 +53,7 @@ const props = defineProps<{
 }>()
 
 const exploreFunctionsMessage = computed(() =>
-  props.workspaceSlug ? 'View functions' : 'Explore functions'
+  props.workspaceSlug ? '查看函数' : '探索函数'
 )
 const exploreFunctionsRoute = computed(() =>
   props.workspaceSlug

@@ -14,7 +14,7 @@
       <template #title>
         <span v-if="objects.length === 1">Detached object</span>
         <span v-else-if="objects.length > 1">Detached objects</span>
-        <span v-else>Models</span>
+        <span v-else>模型</span>
       </template>
       <template #actions>
         <ViewerModelsActions
@@ -112,8 +112,8 @@
           class="flex flex-col items-center justify-center gap-4 h-full -mt-8"
         >
           <IllustrationEmptystateModels />
-          <span class="text-body-xs text-foreground-2">No models loaded, yet.</span>
-          <FormButton @click="showAddModel = true">Add model</FormButton>
+          <span class="text-body-xs text-foreground-2">暂无模型，可添加模型。</span>
+          <FormButton @click="showAddModel = true">添加模型</FormButton>
         </div>
       </div>
     </ViewerLayoutSidePanel>

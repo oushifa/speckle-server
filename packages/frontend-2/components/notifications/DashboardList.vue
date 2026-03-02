@@ -1,12 +1,12 @@
 <template>
   <div class="grid gap-y-2 mt-">
-    <p class="caption text-foreground-2">Pending invites</p>
+    <p class="caption text-foreground-2">待处理邀请</p>
     <div
       class="flex items-center justify-between rounded-xl text-white pl-4 pr-2 py-2 shadow hover:shadow-lg transition bg-primary"
     >
-      <div class="text-sm">Check out the Design System.</div>
+      <div class="text-sm">查看设计系统。</div>
       <div>
-        <FormButton class="ml-2" to="/designsystem">Take me there</FormButton>
+        <FormButton class="ml-2" to="/designsystem">带我去</FormButton>
       </div>
     </div>
     <template v-for="(notification, i) in notifications" :key="i">
@@ -35,12 +35,12 @@
 <script setup lang="ts">
 const notifications = [
   {
-    message: 'Dimitrie invites you to Super Something Pants Project.',
-    actions: ['Accept', 'X']
+    message: 'Dimitrie 邀请你加入 Super Something Pants 项目。',
+    actions: ['接受', '拒绝']
   },
   {
-    message: 'Fabians wants to share  with you.',
-    actions: ['Accept', 'X']
+    message: 'Fabians 想与你分享。',
+    actions: ['接受', '拒绝']
   } /* ,
   {
     message: 'Fabians requests access to Pasta Project',

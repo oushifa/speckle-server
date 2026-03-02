@@ -1,6 +1,6 @@
 <template>
   <LayoutDialog v-model:open="open" max-width="md">
-    <template #header>Add model</template>
+    <template #header>添加模型</template>
     <div class="flex flex-col gap-y-4">
       <LayoutTabsHorizontal v-model:active-item="activeTab" :items="tabItems">
         <template #default="{ activeItem }">
@@ -37,8 +37,8 @@ const { zoom } = useCameraUtilities()
 const { triggerNotification } = useGlobalToast()
 
 const tabItems = ref<LayoutTabItem[]>([
-  { title: 'By model', id: 'model' },
-  { title: 'By object URL', id: 'object' }
+  { title: '按模型添加', id: 'model' },
+  { title: '按对象 URL 添加', id: 'object' }
 ])
 
 const activeTab = ref(tabItems.value[0])
@@ -53,9 +53,9 @@ const mp = useMixpanel()
 const triggerZoomNotification = () => {
   triggerNotification({
     type: ToastNotificationType.Success,
-    title: 'Model added successfully',
+    title: '模型添加成功',
     cta: {
-      title: 'Zoom to fit',
+      title: '缩放以适应',
       onClick: () => {
         zoom()
       }

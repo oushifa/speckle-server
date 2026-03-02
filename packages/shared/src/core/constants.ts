@@ -27,58 +27,57 @@ export const Roles = Object.freeze(<const>{
 export const RoleInfo = Object.freeze(<const>{
   Stream: {
     [Roles.Stream.Owner]: {
-      title: 'Owner',
-      description: 'Can edit project, including settings, collaborators and all models',
+      title: '所有者',
+      description: '可以编辑项目，包括设置、协作者和所有模型',
       weight: 1000
     },
     [Roles.Stream.Contributor]: {
-      title: 'Can edit',
-      description:
-        'Can publish and load models from connectors and view and comment in the web viewer',
+      title: '可以编辑',
+      description: '可以从连接器发布和加载模型，并在网络查看器中查看和评论',
       weight: 500
     },
     [Roles.Stream.Reviewer]: {
-      title: 'Can view',
-      description: 'Can view and comment on models in the web viewer',
+      title: '可以查看',
+      description: '可以在网络查看器中查看模型并评论',
       weight: 100
     }
   },
   Server: {
     [Roles.Server.Admin]: {
-      title: 'Admin',
-      description: 'Can edit server, including settings, users and all projects',
+      title: '管理员',
+      description: '可以编辑服务器，包括设置、用户和所有项目',
       weight: 1000
     },
     [Roles.Server.User]: {
-      title: 'User',
-      description: 'Can create and own projects',
+      title: '用户',
+      description: '可以创建和拥有项目',
       weight: 100
     },
     [Roles.Server.Guest]: {
-      title: 'Guest',
-      description: "Can contribute to projects they're invited to",
+      title: '访客',
+      description: '可以参与被邀请的项目',
       weight: 50
     },
     [Roles.Server.ArchivedUser]: {
-      title: 'Archived',
-      description: 'Can no longer access server',
+      title: '已归档用户',
+      description: '无法再访问服务器',
       weight: 10
     }
   },
   Workspace: {
     [Roles.Workspace.Admin]: {
-      title: 'Admin',
-      description: 'Can edit workspace, including settings, members and all projects',
+      title: '管理员',
+      description: '可以编辑工作区，包括设置、成员和所有项目',
       weight: 1000
     },
     [Roles.Workspace.Member]: {
-      title: 'Member',
-      description: 'Can create and own projects',
+      title: '成员',
+      description: '可以创建和拥有项目',
       weight: 100
     },
     [Roles.Workspace.Guest]: {
-      title: 'Guest',
-      description: "Can contribute to projects they're invited to",
+      title: '访客',
+      description: '可以参与被邀请的项目',
       weight: 50
     }
   }

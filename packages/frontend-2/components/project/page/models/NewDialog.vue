@@ -5,20 +5,20 @@
     hide-closer
     :buttons="dialogButtons"
   >
-    <template #header>Create new model</template>
+    <template #header>创建新模型</template>
     <form @submit="onSubmit">
       <div class="flex flex-col space-y-6 mb-4">
         <FormTextInput
           v-model="newModelName"
           color="foundation"
           name="name"
-          label="Model name"
+          label="模型名称"
           show-label
           placeholder="model/name/here"
           :custom-icon="CubeIcon"
           :rules="rules"
           :disabled="anyMutationsLoading"
-          help="Use forward slashes in the model name to nest it below other models."
+          help="使用斜杠嵌套模型，例如：a/b/c"
           autocomplete="off"
         />
         <FormTextArea
@@ -27,8 +27,8 @@
           name="description"
           show-label
           show-optional
-          label="Model description"
-          placeholder="Description"
+          label="模型描述"
+          placeholder="描述"
           size="lg"
           :disabled="anyMutationsLoading"
         />
@@ -120,14 +120,14 @@ watch(
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       openState.value = false
     }
   },
   {
-    text: 'Create',
+    text: '创建',
     props: {},
     onClick: () => {
       onSubmit()

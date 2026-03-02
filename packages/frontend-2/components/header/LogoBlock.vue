@@ -5,18 +5,13 @@
     :to="to"
     :target="target"
   >
-    <img
-      class="h-8 w-8 block mr-1"
-      src="~~/assets/images/speckle_logo_big.png"
-      alt="Speckle"
-    />
-
+    <IconBimSvg class="h-8 w-8 block mr-1" />
     <div
       v-if="!minimal"
       class="text-sm mt-0 font-medium"
       :class="showTextOnMobile ? '' : 'hidden md:flex'"
     >
-      Speckle
+      数智南北
     </div>
   </Component>
 </template>
@@ -30,7 +25,8 @@ const props = withDefaults(
     noLink?: boolean
   }>(),
   {
-    to: '/'
+    to: '/',
+    noLink: true
   }
 )
 

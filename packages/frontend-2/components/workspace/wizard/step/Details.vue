@@ -1,14 +1,14 @@
 <template>
   <WorkspaceWizardStep
-    title="Create a workspace"
-    description="A workspace is a shared space for your projects and collaborators"
+    title="创建工作区"
+    description="工作区是您与协作者共享项目的地方"
   >
     <form class="flex flex-col gap-4 w-full md:w-96" @submit="onSubmit">
       <FormTextInput
         id="workspace-name"
         v-model:model-value="state.name"
         name="name"
-        label="Workspace name"
+        label="工作区名称"
         color="foundation"
         :rules="[isRequired, isStringOfLength({ maxLength: 512 })]"
         show-label
@@ -22,7 +22,7 @@
           id="workspace-slug"
           v-model:model-value="state.slug"
           name="short-id"
-          label="Short ID"
+          label="短 ID"
           color="foundation"
           :loading="loading"
           :rules="isStringOfLength({ maxLength: 30, minLength: 3 })"
@@ -37,7 +37,7 @@
         </p>
       </div>
       <FormButton size="lg" :disabled="disableContinue" submit full-width class="mt-4">
-        Continue
+        继续
       </FormButton>
     </form>
   </WorkspaceWizardStep>
@@ -75,9 +75,7 @@ const { error, loading } = useQuery(
 const shortIdManuallyEdited = ref(false)
 const baseUrl = useRuntimeConfig().public.baseUrl
 
-const getShortIdHelp = computed(
-  () => `Preview: ${baseUrl}/workspaces/${state.value.slug}`
-)
+const getShortIdHelp = computed(() => `预览: ${baseUrl}/workspaces/${state.value.slug}`)
 const disableContinue = computed(
   () =>
     !state.value.name ||

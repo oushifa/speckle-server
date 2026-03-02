@@ -7,7 +7,7 @@
       size="sm"
       @click="shareDialogOpen = true"
     >
-      Share
+      分享看板
     </FormButton>
     <DashboardsShareDialog
       v-model:open="shareDialogOpen"

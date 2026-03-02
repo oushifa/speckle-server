@@ -9,24 +9,24 @@
           full-width
           search
           :show-clear="!!search"
-          placeholder="Search users"
+          placeholder="搜索用户"
           class="rounded-md border border-outline-3"
           v-bind="bind"
           v-on="on"
         />
       </div>
-      <FormButton @click="toggleInviteDialog">Invite</FormButton>
+      <FormButton @click="toggleInviteDialog">邀请</FormButton>
     </div>
 
     <LayoutTable
       class="mt-6"
       :columns="[
-        { id: 'name', header: 'Name', classes: 'col-span-2 truncate' },
+        { id: 'name', header: '姓名', classes: 'col-span-2 truncate' },
         { id: 'id', header: 'ID', classes: 'col-span-2 truncate' },
-        { id: 'email', header: 'Email', classes: 'col-span-3 truncate' },
-        { id: 'company', header: 'Company', classes: 'col-span-2 truncate' },
-        { id: 'role', header: 'Role', classes: 'col-span-1' },
-        { id: 'emailState', header: 'Email state', classes: 'col-span-2' },
+        { id: 'email', header: '邮箱', classes: 'col-span-3 truncate' },
+        { id: 'company', header: '公司', classes: 'col-span-2 truncate' },
+        { id: 'role', header: '角色', classes: 'col-span-1' },
+        { id: 'emailState', header: '邮箱状态', classes: 'col-span-2' },
         { id: 'actions', header: '', classes: 'absolute right-2 top-0.5' }
       ]"
       :items="users"
@@ -51,10 +51,10 @@
       <template #emailState="{ item }">
         <div class="flex items-center gap-2 select-none text-foreground-2">
           <template v-if="isUser(item) && item.verified">
-            <span>Verified</span>
+            <span>已验证</span>
           </template>
           <template v-else>
-            <span>Not verified</span>
+            <span>未验证</span>
           </template>
         </div>
       </template>
@@ -168,11 +168,11 @@ const showActionsMenu = ref<Record<string, boolean>>({})
 const actionItems: LayoutMenuItem[][] = [
   [
     {
-      title: 'Change role...',
+      title: '更改角色...',
       id: ActionTypes.ChangeRole
     },
     {
-      title: 'Remove user...',
+      title: '移除用户...',
       id: ActionTypes.RemoveUser
     }
   ]

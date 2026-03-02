@@ -16,8 +16,8 @@
       >
         <ArrowFilled
           v-if="collapsible"
-          :class="[isCollapsed ? '-rotate-90' : '', noHover ? '-ml-1' : '']"
           class="text-foreground-2 shrink-0"
+          :class="[isCollapsed ? '-rotate-90' : '', noHover ? '-ml-1' : '', arrowClass]"
         />
         <div
           v-if="$slots['title-icon']"
@@ -29,7 +29,10 @@
         <div class="flex flex-1 items-center truncate justify-between">
           <h6
             class="truncate text-body-2xs pr-2"
-            :class="[nested ? 'text-foreground' : 'font-semibold text-foreground-2']"
+            :class="[
+              nested ? 'text-foreground' : 'font-semibold text-foreground-2',
+              titleClass
+            ]"
           >
             {{ title }}
           </h6>
@@ -81,6 +84,8 @@ defineProps<{
   noHover?: boolean
   nested?: boolean
   alwaysShowIcon?: boolean
+  titleClass?: string
+  arrowClass?: string
 }>()
 
 const isCollapsed = defineModel<boolean>('collapsed')

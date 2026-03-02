@@ -3,24 +3,30 @@
     <Portal to="navigation">
       <HeaderNavLink
         v-if="showWorkspaceLink"
+        link-class="text-white/60 hover:!text-white/80"
         :to="workspaceRoute(project.workspace?.slug)"
-        name="Projects"
+        name="项目管理"
         :separator="false"
+        active-class="!text-white"
       />
       <HeaderNavLink
         v-else-if="!isWorkspacesEnabled"
+        link-class="text-white/60 hover:!text-white/80"
         :to="projectsRoute"
-        name="Projects"
+        name="项目管理"
         :separator="false"
+        active-class="!text-white"
       />
       <HeaderNavLink
+        link-class="text-white/60 hover:!text-white/80"
         :to="projectRoute(project.id)"
         :name="project.name"
         :separator="showWorkspaceLink || !isWorkspacesEnabled"
+        active-class="!text-white"
       />
     </Portal>
 
-    <div class="flex gap-x-3">
+    <!-- <div class="flex gap-x-3">
       <WorkspaceAvatar
         v-if="project.workspace && isWorkspacesEnabled && !project.workspace.role"
         v-tippy="project.workspace.name"
@@ -33,7 +39,7 @@
         :title="project.name"
         :description="project.description"
       />
-    </div>
+    </div> -->
   </div>
 </template>
 

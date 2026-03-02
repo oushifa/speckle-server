@@ -1,6 +1,6 @@
 <template>
   <div class="mt-3">
-    <h1 class="block text-heading-lg mb-4 sm:mb-8">Settings</h1>
+    <h1 class="block text-heading-lg mb-4 sm:mb-8">设置</h1>
     <LayoutTabsVertical
       v-model:active-item="activeSettingsPageTab"
       :items="settingsTabItems"
@@ -59,12 +59,12 @@ const canReadAccIntegrationSettings = computed(
 )
 
 useHead({
-  title: `Settings | ${projectName.value}`
+  title: `设置 | ${projectName.value}`
 })
 
 const settingsTabItems = computed((): LayoutPageTabItem[] => [
   {
-    title: 'General',
+    title: '常规',
     id: 'general'
   },
   {
@@ -80,7 +80,7 @@ const settingsTabItems = computed((): LayoutPageTabItem[] => [
     disabledMessage: canReadEmbedTokens.value.message
   },
   {
-    title: 'Integrations',
+    title: '集成',
     id: 'integrations',
     disabled: isAccEnabled && !canReadAccIntegrationSettings.value.authorized,
     disabledMessage: canReadAccIntegrationSettings.value.message

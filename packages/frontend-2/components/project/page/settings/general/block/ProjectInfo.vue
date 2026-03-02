@@ -1,11 +1,11 @@
 <template>
   <div class="flex flex-col gap-4">
-    <ProjectPageSettingsBlock background title="Project info" :auth-check="canUpdate">
+    <ProjectPageSettingsBlock background title="项目信息" :auth-check="canUpdate">
       <FormTextInput
         v-model="localProjectName"
         name="projectName"
-        label="Project name"
-        placeholder="Project name"
+        label="项目名称"
+        placeholder="项目名称"
         show-label
         color="foundation"
         class="mb-2"
@@ -14,8 +14,8 @@
       <FormTextArea
         v-model="localProjectDescription"
         name="projectDescription"
-        label="Project description"
-        placeholder="Description"
+        label="项目描述"
+        placeholder="描述"
         show-label
         show-optional
         color="foundation"
@@ -23,9 +23,9 @@
       />
       <template #bottom-buttons>
         <FormButton color="subtle" :disabled="!hasChanges" @click="resetLocalState">
-          Cancel
+          取消
         </FormButton>
-        <FormButton :disabled="!hasChanges" @click="emitUpdate">Update</FormButton>
+        <FormButton :disabled="!hasChanges" @click="emitUpdate">更新</FormButton>
       </template>
     </ProjectPageSettingsBlock>
 
@@ -34,9 +34,9 @@
       max-width="md"
       :buttons="dialogButtons"
     >
-      <template #header>Unsaved changes</template>
+      <template #header>未保存的更改</template>
       <div class="space-y-4">
-        <p>You have unsaved changes. Do you want to save them before leaving?</p>
+        <p>您有未保存的更改。是否要在离开前保存？</p>
       </div>
     </LayoutDialog>
   </div>
@@ -113,12 +113,12 @@ const resetLocalState = () => {
 
 const dialogButtons = computed<LayoutDialogButton[]>(() => [
   {
-    text: 'Discard changes',
+    text: '放弃更改',
     props: { color: 'outline' },
     onClick: handleRedirection
   },
   {
-    text: 'Save changes',
+    text: '保存更改',
     props: {
       submit: true
     },

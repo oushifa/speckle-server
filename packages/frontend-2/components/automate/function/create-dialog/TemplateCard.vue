@@ -20,7 +20,7 @@
           target="_blank"
           size="sm"
         >
-          Read more
+          阅读更多
         </CommonTextLink>
       </div>
     </div>

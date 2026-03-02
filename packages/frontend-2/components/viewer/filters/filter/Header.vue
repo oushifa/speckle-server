@@ -11,7 +11,7 @@
       :class="{ 'opacity-50': !filter.isApplied }"
     >
       <FormButton
-        v-tippy="'Change filter property'"
+        v-tippy="'更改过滤器属性'"
         color="subtle"
         class="m-0 gap-3 min-w-0"
         size="sm"
@@ -54,7 +54,7 @@
         ></FormButton>
       </LayoutMenu>
       <FormButton
-        v-tippy="collapsed ? 'Show details' : 'Hide details'"
+        v-tippy="collapsed ? '显示详情' : '隐藏详情'"
         color="subtle"
         size="sm"
         hide-text
@@ -64,7 +64,7 @@
       />
       <FormButton
         v-if="props.filter.type !== FilterType.Boolean"
-        v-tippy="'Toggle coloring for this property'"
+        v-tippy="'切换此属性的着色'"
         :color="isColoringActive ? 'primary' : 'subtle'"
         size="sm"
         hide-text
@@ -142,13 +142,13 @@ const toggleCollapsed = () => {
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: props.filter.isApplied ? 'Disable filter' : 'Enable filter',
+      title: props.filter.isApplied ? '禁用过滤器' : '启用过滤器',
       id: 'toggle-visibility'
     }
   ],
   [
     {
-      title: 'Remove filter',
+      title: '移除过滤器',
       id: 'remove-filter'
     }
   ]

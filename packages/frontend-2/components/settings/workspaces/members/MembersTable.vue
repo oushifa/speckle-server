@@ -2,17 +2,16 @@
   <div>
     <CommonAlert color="neutral" hide-icon class="mb-6 mt-2">
       <template #description>
-        Workspace members can view all projects by default. If on a Viewer seat, they
-        can view projects on web and comment. If on an Editor seat, they can create new
-        projects in the workspace and fully contribute to other projects if given the
-        permission.
+        默认情况下，工作区成员可以查看所有项目。如果是 Viewer 席位，他们可以在 Web
+        上查看项目并发表评论。如果是 Editor
+        席位，他们可以在工作区中创建新项目，并在获得许可的情况下完全参与其他项目。
       </template>
     </CommonAlert>
     <SettingsWorkspacesMembersTableHeader
       v-model:search="search"
       v-model:role="roleFilter"
       v-model:seat-type="seatTypeFilter"
-      search-placeholder="Search members..."
+      search-placeholder="搜索成员..."
       :workspace="workspace"
       show-role-filter
       show-seat-filter
@@ -20,10 +19,10 @@
     <LayoutTable
       class="mt-6 mb-12"
       :columns="[
-        { id: 'name', header: 'Name', classes: 'col-span-3' },
-        { id: 'email', header: 'Email', classes: 'col-span-4' },
-        { id: 'seat', header: 'Seat', classes: 'col-span-2' },
-        { id: 'joined', header: 'Joined', classes: 'col-span-2' },
+        { id: 'name', header: '名称', classes: 'col-span-3' },
+        { id: 'email', header: '邮箱', classes: 'col-span-4' },
+        { id: 'seat', header: '席位', classes: 'col-span-2' },
+        { id: 'joined', header: '加入时间', classes: 'col-span-2' },
         {
           id: 'actions',
           header: '',
@@ -33,9 +32,7 @@
       :items="members"
       :loading="isVeryFirstLoading"
       :empty-message="
-        search.length || seatTypeFilter || roleFilter
-          ? 'No results'
-          : 'This workspace has no members'
+        search.length || seatTypeFilter || roleFilter ? '无结果' : '此工作区没有成员'
       "
     >
       <template #name="{ item }">
@@ -53,7 +50,7 @@
               v-if="item.id === activeUser?.id"
               class="text-foreground-3 text-body-3xs"
             >
-              (You)
+              (你)
             </span>
           </span>
           <CommonBadge
@@ -61,16 +58,14 @@
             rounded
             color-classes="bg-highlight-3 text-foreground-2"
           >
-            Admin
+            管理员
           </CommonBadge>
           <div
             v-if="
               item.user.workspaceDomainPolicyCompliant === false &&
               item.role !== Roles.Workspace.Guest
             "
-            v-tippy="
-              'This user does not comply with the domain policy set on this workspace'
-            "
+            v-tippy="'此用户不符合此工作区设置的域名策略'"
           >
             <ExclamationCircleIcon class="text-danger w-5" />
           </div>

@@ -2,13 +2,13 @@
   <ViewerLayoutSidePanel disable-scrollbar class="relative" @close="$emit('close')">
     <template #title>
       <div class="flex justify-between items-center">
-        <div>Views</div>
+        <div>视图</div>
       </div>
     </template>
     <template #actions>
       <div class="flex items-center gap-0.5">
         <FormButton
-          v-tippy="getTooltipProps('Search views')"
+          v-tippy="getTooltipProps('搜索视图')"
           size="sm"
           color="subtle"
           :icon-left="Search"
@@ -17,7 +17,7 @@
         />
         <div v-tippy="canCreateViewOrGroup?.errorMessage" class="flex items-center">
           <FormButton
-            v-tippy="getTooltipProps('Create group')"
+            v-tippy="getTooltipProps('创建分组')"
             size="sm"
             color="subtle"
             :icon-left="FolderPlus"
@@ -29,7 +29,7 @@
         </div>
         <div v-tippy="canCreateViewOrGroup?.errorMessage" class="flex items-center">
           <FormButton
-            v-tippy="getTooltipProps('Create view')"
+            v-tippy="getTooltipProps('创建视图')"
             size="sm"
             color="subtle"
             :icon-left="Plus"
@@ -46,7 +46,7 @@
         <FormTextInput
           v-bind="bind"
           name="search"
-          placeholder="Search views..."
+          placeholder="搜索视图..."
           color="foundation"
           auto-focus
           size="sm"
@@ -92,8 +92,8 @@
       class="absolute bottom-0 left-0 right-0 p-2"
     >
       <CommonPromoAlert
-        title="Save your views"
-        text="With an Editor seat, unlock the option to save views. A workspace admin can update your seat type."
+        title="保存您的视图"
+        text="使用 Editor 席位解锁保存视图的功能。工作区管理员可以更新您的席位类型。"
         show-closer
         @close="hideViewerSeatDisclaimer = true"
       />

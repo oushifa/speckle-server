@@ -3,8 +3,8 @@
     <div class="flex flex-col gap-4">
       <FormTextInput
         v-model="formData.providerName"
-        label="Provider"
-        help="The label on the button displayed on the login screen."
+        label="提供商"
+        help="登录屏幕上显示的按钮标签。"
         name="providerName"
         color="foundation"
         show-label
@@ -15,7 +15,7 @@
       <hr class="border-outline-3" />
       <FormTextInput
         v-model="formData.clientId"
-        label="Client ID"
+        label="客户端 ID"
         name="clientId"
         color="foundation"
         show-label
@@ -26,7 +26,7 @@
       <hr class="border-outline-3" />
       <FormTextInput
         v-model="formData.clientSecret"
-        label="Client secret"
+        label="客户端密钥"
         name="clientSecret"
         color="foundation"
         autocomplete="off"
@@ -38,7 +38,7 @@
       <hr class="border-outline-3" />
       <FormTextInput
         v-model="formData.issuerUrl"
-        label="Issuer URL"
+        label="发行者 URL"
         name="issuerUrl"
         color="foundation"
         show-label
@@ -48,9 +48,9 @@
       />
       <div class="flex gap-2 mt-4">
         <FormButton :disabled="!challenge" color="primary" type="submit">
-          Add
+          添加
         </FormButton>
-        <FormButton color="outline" @click="$emit('cancel')">Cancel</FormButton>
+        <FormButton color="outline" @click="$emit('cancel')">取消</FormButton>
       </div>
     </div>
   </form>
