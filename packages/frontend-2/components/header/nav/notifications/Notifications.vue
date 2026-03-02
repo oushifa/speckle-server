@@ -6,7 +6,7 @@
           class="relative cursor-pointer p-1 w-8 h-8 flex items-center justify-center rounded-md"
           :class="menuOpen ? 'border border-outline-2' : ''"
         >
-          <span class="sr-only">Open notifications menu</span>
+          <span class="sr-only">打开通知菜单</span>
           <div class="relative">
             <div
               v-if="!menuOpen && hasNotifications"
@@ -29,12 +29,12 @@
         <MenuItems
           class="absolute z-50 right-0 md:right-20 top-10 mt-1.5 w-full sm:w-72 origin-top-right bg-foundation outline outline-2 outline-primary-muted rounded-md shadow-lg overflow-hidden pb-1"
         >
-          <div class="px-3.5 pt-2 text-body-xs font-medium">Notifications</div>
+          <div class="px-3.5 pt-2 text-body-xs font-medium">通知</div>
           <p
             v-if="!hasNotifications"
             class="px-3.5 pt-2 pb-2.5 text-body-xs text-foreground-2 text-center"
           >
-            No notifications
+            暂无通知
           </p>
           <MenuItem v-for="projectInvite in projectsInvites" :key="projectInvite?.id">
             <HeaderNavNotificationsProjectInvite :invite="projectInvite" />

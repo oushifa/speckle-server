@@ -6,18 +6,18 @@
     >
       <template #current-state>
         <div class="flex flex-col">
-          <div class="text-foreground-2 text-body-3xs">Project</div>
+          <div class="text-foreground-2 text-body-3xs">项目</div>
           <div class="flex items-center gap-4 justify-between">
             <div class="text-heading-sm mt-1">{{ project.name }}</div>
             <div class="text-body-2xs font-medium">
-              {{ project.modelCount.totalCount }} models
+              {{ project.modelCount.totalCount }} 模型
             </div>
           </div>
         </div>
       </template>
       <template #new-state>
         <div class="flex flex-col">
-          <div class="text-foreground-2 text-body-3xs">Workspace</div>
+          <div class="text-foreground-2 text-body-3xs">工作区</div>
           <div class="text-heading-sm mt-1">{{ workspace.name }}</div>
         </div>
       </template>
@@ -55,8 +55,8 @@
       </div>
 
       <div class="flex justify-end gap-2 mt-4">
-        <FormButton color="outline" @click="$emit('back')">Back</FormButton>
-        <FormButton color="primary" @click="triggerAction">Move</FormButton>
+        <FormButton color="outline" @click="$emit('back')">返回</FormButton>
+        <FormButton color="primary" @click="triggerAction">移动</FormButton>
       </div>
     </div>
     <WorkspaceRegionStaticDataDisclaimer

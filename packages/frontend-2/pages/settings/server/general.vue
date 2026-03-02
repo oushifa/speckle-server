@@ -1,17 +1,17 @@
 <template>
   <section>
     <div class="md:max-w-xl md:mx-auto pb-6 md:pb-0">
-      <SettingsSectionHeader title="General" text="Manage your server settings" />
+      <SettingsSectionHeader title="常规" text="管理您的服务器设置" />
       <div class="flex flex-col space-y-6">
-        <SettingsSectionHeader title="Server details" subheading />
+        <SettingsSectionHeader title="服务器详情" subheading />
         <form class="flex flex-col gap-2" @submit="onSubmit">
           <div class="flex flex-col gap-4">
             <FormTextInput
               v-model="name"
-              label="Server public name"
+              label="服务器公开名称"
               name="serverName"
               color="foundation"
-              placeholder="Server name"
+              placeholder="服务器名称"
               show-label
               label-position="left"
               :rules="requiredRule"
@@ -21,9 +21,9 @@
             <FormTextArea
               v-model="description"
               color="foundation"
-              label="Description"
+              label="描述"
               name="description"
-              placeholder="Description"
+              placeholder="描述"
               show-label
               label-position="left"
             />
@@ -31,9 +31,9 @@
             <FormTextInput
               v-model="company"
               color="foundation"
-              label="Owner"
+              label="所有者"
               name="owner"
-              placeholder="Owner"
+              placeholder="所有者"
               show-label
               label-position="left"
             />
@@ -41,9 +41,9 @@
             <FormTextInput
               v-model="adminContact"
               color="foundation"
-              label="Admin email"
+              label="管理员邮箱"
               name="adminEmail"
-              placeholder="Admin email"
+              placeholder="管理员邮箱"
               show-label
               type="email"
               label-position="left"
@@ -52,7 +52,7 @@
             <FormTextInput
               v-model="termsOfService"
               color="foundation"
-              label="URL to the Terms of Service"
+              label="服务条款 URL"
               name="terms"
               show-label
               label-position="left"
@@ -60,8 +60,8 @@
             <hr class="border-outline-3" />
             <FormCheckbox
               v-model="inviteOnly"
-              label="Invite only mode"
-              description="Only users with an invitation will be able to join the server"
+              label="仅邀请模式"
+              description="只有拥有邀请的用户才能加入服务器"
               label-position="left"
               name="inviteOnly"
               show-label
@@ -69,14 +69,14 @@
             <hr class="border-outline-3" />
             <FormCheckbox
               v-model="guestModeEnabled"
-              label="Guest mode"
-              description="Enables the 'Guest' server role, which allows users to only contribute to projects that they're invited to"
+              label="访客模式"
+              description="启用“访客”服务器角色，允许用户仅参与他们被邀请的项目"
               label-position="left"
               name="guestModeEnabled"
               show-label
             />
             <div class="mt-6">
-              <FormButton color="primary" @click="onSubmit">Save changes</FormButton>
+              <FormButton color="primary" @click="onSubmit">保存更改</FormButton>
             </div>
           </div>
         </form>
@@ -187,15 +187,15 @@ const onSubmit = handleSubmit(async () => {
   if (result && result.data) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Successfully saved',
-      description: 'Your server settings have been saved.'
+      title: '保存成功',
+      description: '您的服务器设置已保存。'
     })
   } else {
     logger.error(result && result.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Saving failed',
-      description: 'Failed to update server info'
+      title: '保存失败',
+      description: '更新服务器信息失败'
     })
   }
 })

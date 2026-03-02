@@ -176,21 +176,21 @@ const removeEnabled = computed(() => items.value.length > 1)
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'Copy link to model',
+      title: '复制模型链接',
       id: 'copy-link-to-model'
     },
     {
-      title: 'Show version history',
+      title: '显示版本历史',
       id: 'show-version-history'
     },
     {
-      title: 'Load latest version',
+      title: '加载最新版本',
       id: 'load-latest-version',
       disabled: isLatest.value,
       disabledTooltip: 'Already on the latest version'
     },
     {
-      title: 'Show version changes',
+      title: '显示版本变更',
       id: 'show-version-changes',
       disabled: isLatest.value,
       disabledTooltip: 'No changes to show for the latest version'
@@ -198,7 +198,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
   ],
   [
     {
-      title: 'Remove model',
+      title: '删除模型',
       id: 'remove-model',
       disabled: !removeEnabled.value,
       disabledTooltip: 'You cannot remove the last model'

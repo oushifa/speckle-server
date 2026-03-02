@@ -17,8 +17,8 @@
     <NuxtLink
       :to="disableLink ? undefined : to"
       class="flex gap-1 items-center text-body-xs ml-0.5 text-foreground-2 select-none truncate"
-      :class="disableLink ? '' : 'hover:!text-foreground'"
-      active-class="group is-active !text-foreground font-medium"
+      :class="[disableLink ? '' : 'hover:!text-foreground', linkClass]"
+      :active-class="'group is-active !text-foreground font-medium' + ' ' + activeClass"
     >
       <div class="truncate">
         {{ name || to }}
@@ -49,6 +49,14 @@ defineProps({
   disableLink: {
     type: Boolean,
     default: false
+  },
+  linkClass: {
+    type: String,
+    default: ''
+  },
+  activeClass: {
+    type: String,
+    default: ''
   }
 })
 </script>

@@ -6,8 +6,8 @@
         v-model="email"
         type="email"
         name="email"
-        label="Work email"
-        placeholder="Email"
+        label="工作邮箱"
+        placeholder="邮箱"
         size="lg"
         color="foundation"
         :rules="emailRules"
@@ -19,8 +19,8 @@
       <FormTextInput
         type="text"
         name="name"
-        label="Full name"
-        placeholder="My name"
+        label="全名"
+        placeholder="我的名字"
         size="lg"
         :rules="nameRules"
         color="foundation"
@@ -32,8 +32,8 @@
         v-model="password"
         type="password"
         name="password"
-        label="Password"
-        placeholder="Type a strong password"
+        label="密码"
+        placeholder="输入强密码"
         color="foundation"
         size="lg"
         :rules="passwordRules"
@@ -53,12 +53,12 @@
       class="mt-5"
       :disabled="loading || !isMounted"
     >
-      Sign up
+      注册
     </FormButton>
     <AuthRegisterTerms v-if="serverInfo.termsOfService" :server-info="serverInfo" />
     <div v-if="!inviteEmail" class="mt-2 sm:mt-4 text-center text-body-xs">
-      <span class="mr-2 text-foreground-3">Already have an account?</span>
-      <NuxtLink class="text-foreground" :to="finalLoginRoute">Log in</NuxtLink>
+      <span class="mr-2 text-foreground-3">已有账号？</span>
+      <NuxtLink class="text-foreground" :to="finalLoginRoute">登录</NuxtLink>
     </div>
   </form>
 </template>
@@ -133,7 +133,7 @@ const onSubmit = handleSubmit(async (fullUser) => {
   } catch (e) {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Registration failed',
+      title: '注册失败',
       description: `${ensureError(e).message}`
     })
   } finally {

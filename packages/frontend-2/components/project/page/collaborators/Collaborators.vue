@@ -2,10 +2,10 @@
   <div>
     <div v-if="project" class="pt-3">
       <div class="flex justify-between space-x-2 items-center">
-        <h1 class="block text-heading-lg">Collaborators</h1>
+        <h1 class="block text-heading-lg">协同管理</h1>
         <div v-tippy="canInviteTooltip">
           <FormButton :disabled="!canInvite" @click="toggleInviteDialog">
-            Invite to project
+            邀请用户
           </FormButton>
         </div>
       </div>
@@ -25,7 +25,7 @@
           class="flex flex-col flex-grow gap-y-3"
           :class="project.workspace ? 'xl:col-span-2' : 'col-span-3'"
         >
-          <p class="text-body-2xs text-foreground-2 font-medium">Project members</p>
+          <p class="text-body-2xs text-foreground-2 font-medium">成员</p>
           <div>
             <ProjectPageCollaboratorsRow
               v-for="collaborator in collaboratorListItems"

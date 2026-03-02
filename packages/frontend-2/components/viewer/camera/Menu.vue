@@ -17,7 +17,7 @@
       <hr class="w-full border-outline-2" />
       <div class="p-1 flex flex-col gap-1">
         <ViewerMenuItem
-          label="Orthographic projection"
+          label="正交投影"
           :active="isOrthoProjection"
           :shortcut="
             getShortcutDisplayText(shortcuts.ToggleProjection, { hideName: true }) as string
@@ -25,7 +25,7 @@
           @click="trackAndtoggleProjection()"
         />
         <ViewerMenuItem
-          label="Free orbit"
+          label="自由轨道"
           :active="!localViewerSettings.turntableMode"
           @click="toggleTurntableMode()"
         />

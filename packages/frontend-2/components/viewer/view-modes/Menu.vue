@@ -3,14 +3,10 @@
   <div>
     <ViewerLayoutPanel v-if="showSettings">
       <div class="p-3 py-2.5 flex items-center justify-between">
-        <span class="text-body-2xs font-medium text-foreground leading-none">
-          Edges
-        </span>
+        <span class="text-body-2xs font-medium text-foreground leading-none">边线</span>
         <div
           v-tippy="
-            currentViewMode === ViewMode.PEN
-              ? 'Edges are always enabled in Pen mode'
-              : undefined
+            currentViewMode === ViewMode.PEN ? '笔触模式下边线始终启用' : undefined
           "
         >
           <FormSwitch
@@ -28,14 +24,14 @@
           <FormRange
             :model-value="edgesWeight"
             name="edge-stroke"
-            label="Weight"
+            label="粗细"
             :min="0.5"
             :max="3"
             :step="0.1"
             @update:model-value="setEdgesWeight"
           />
           <div class="flex items-center justify-between my-1">
-            <div class="text-body-2xs">Color</div>
+            <div class="text-body-2xs">颜色</div>
             <div class="flex items-center gap-1 bg-highlight-1 rounded-lg p-1">
               <button
                 v-for="(color, index) in edgesColorOptions"

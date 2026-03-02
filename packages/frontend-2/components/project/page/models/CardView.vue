@@ -31,7 +31,7 @@
         />
       </div>
       <div v-else class="text-center my-6">
-        <p class="text-heading-sm text-foreground">No models</p>
+        <p class="text-heading-sm text-foreground">暂无模型</p>
       </div>
     </template>
     <InfiniteLoading

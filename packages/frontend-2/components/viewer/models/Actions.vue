@@ -8,10 +8,10 @@
         color="subtle"
         @click="$emit('showVersions')"
       >
-        Versions
+        版本管理
       </FormButton>
     </div>
-    <div v-tippy="'Add model'" class="flex">
+    <div v-tippy="'添加模型'" class="flex">
       <FormButton
         :icon-left="Plus"
         hide-text
@@ -19,7 +19,7 @@
         color="subtle"
         @click="$emit('addModel')"
       >
-        Add model
+        添加模型
       </FormButton>
     </div>
   </div>

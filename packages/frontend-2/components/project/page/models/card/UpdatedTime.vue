@@ -1,9 +1,9 @@
 <template>
   <div class="select-none">
-    Updated
     <span v-tippy="updatedAtFormatted.full">
       {{ updatedAtFormatted.relative }}
     </span>
+    更新
   </div>
 </template>
 <script setup lang="ts">

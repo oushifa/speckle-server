@@ -26,20 +26,19 @@
       class="mb-6"
       :value="shareUrl"
       cta-color="primary"
-      cta-text="Copy link"
+      cta-text="复制链接"
     />
 
     <hr class="mb-6 border-outline-3" />
 
     <p class="text-body-2xs text-foreground-2 mb-3">
-      Permissions for who can view and edit the presentation is based on the project
-      roles.
+      权限基于项目角色。
       <NuxtLink
         v-if="isProjectOwner"
         :to="projectRoute(projectId, 'collaborators')"
         class="text-primary"
       >
-        Manage project roles.
+        管理项目角色。
       </NuxtLink>
     </p>
   </LayoutDialog>

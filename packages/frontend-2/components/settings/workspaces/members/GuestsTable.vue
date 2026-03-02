@@ -2,30 +2,28 @@
   <div class="pb-24">
     <CommonAlert color="neutral" hide-icon class="mb-6 mt-2">
       <template #description>
-        The guest role is meant for external collaborators. Guests can access only the
-        specific projects they're invited to, and their email doesn't need to follow any
-        of the allowed email domains that you may have set up. If on a Viewer seat, they
-        can view projects on web and comment. If on an Editor seat, they can contribute
-        to projects if given the permission. They can never create new projects.
+        访客角色适用于外部协作者。访客只能访问他们被邀请的特定项目，并且他们的电子邮件不需要遵循您可能设置的任何允许的电子邮件域。如果是
+        Viewer 席位，他们可以在 Web 上查看项目并发表评论。如果是 Editor
+        席位，他们可以在获得许可的情况下参与项目。他们永远无法创建新项目。
       </template>
     </CommonAlert>
     <SettingsWorkspacesMembersTableHeader
       v-model:search="search"
       v-model:seat-type="seatTypeFilter"
-      search-placeholder="Search guests..."
+      search-placeholder="搜索访客..."
       :workspace="workspace"
       show-seat-filter
     />
     <LayoutTable
       class="mt-6 md:mt-8"
       :columns="[
-        { id: 'name', header: 'Name', classes: 'col-span-3' },
+        { id: 'name', header: '名称', classes: 'col-span-3' },
         ...(canReadMemberEmail
-          ? [{ id: 'email', header: 'Email', classes: 'col-span-3' }]
+          ? [{ id: 'email', header: '邮箱', classes: 'col-span-3' }]
           : []),
-        { id: 'seat', header: 'Seat', classes: 'col-span-1' },
-        { id: 'joined', header: 'Joined', classes: 'col-span-2' },
-        { id: 'projects', header: 'Projects', classes: 'col-span-2' },
+        { id: 'seat', header: '席位', classes: 'col-span-1' },
+        { id: 'joined', header: '加入时间', classes: 'col-span-2' },
+        { id: 'projects', header: '项目', classes: 'col-span-2' },
         {
           id: 'actions',
           header: '',
@@ -34,9 +32,7 @@
       ]"
       :items="guests"
       :loading="loading"
-      :empty-message="
-        search.length || seatTypeFilter ? 'No results' : 'This workspace has no guests'
-      "
+      :empty-message="search.length || seatTypeFilter ? '无结果' : '此工作区没有访客'"
     >
       <template #name="{ item }">
         <div class="flex items-center gap-2">
@@ -86,11 +82,11 @@
           "
         >
           {{ item.projectRoles.length }}
-          {{ item.projectRoles.length === 1 ? 'project' : 'projects' }}
+          {{ item.projectRoles.length === 1 ? '个项目' : '个项目' }}
         </FormButton>
         <div v-else class="text-foreground max-w-max text-body-2xs select-none">
           {{ item.projectRoles.length }}
-          {{ item.projectRoles.length === 1 ? 'project' : 'projects' }}
+          {{ item.projectRoles.length === 1 ? '个项目' : '个项目' }}
         </div>
       </template>
       <template #actions="{ item }">

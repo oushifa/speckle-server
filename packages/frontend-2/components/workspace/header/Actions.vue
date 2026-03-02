@@ -28,14 +28,14 @@ const showActionsMenu = ref(false)
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'Edit...',
+      title: '重命名...',
       id: 'rename'
     },
-    { title: 'Copy link', id: 'copy' }
+    { title: '复制链接', id: 'copy' }
   ],
   [
     {
-      title: 'Delete...',
+      title: '删除...',
       id: 'delete'
     }
   ]

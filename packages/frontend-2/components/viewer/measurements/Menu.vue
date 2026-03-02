@@ -2,7 +2,7 @@
   <div>
     <ViewerLayoutPanel v-if="showSettings" class="p-3 pb-2">
       <span class="flex flex-col gap-1.5">
-        <label class="text-body-2xs" for="units">Units</label>
+        <label class="text-body-2xs" for="units">单位</label>
         <ViewerMeasurementsUnitSelect
           v-model="measurementOptions.units"
           mount-menu-on-body
@@ -14,7 +14,7 @@
         <FormRange
           v-model="measurementOptions.precision"
           name="precision"
-          label="Precision"
+          label="精度"
           :min="1"
           :max="5"
           :step="1"
@@ -27,6 +27,7 @@
           label-position="right"
           label-classes="text-body-2xs font-normal"
           :model-value="measurementOptions.chain"
+          label="连续测量"
           @update:model-value="toggleMeasurementsChaining"
         />
 
@@ -35,6 +36,7 @@
           label-position="right"
           label-classes="text-body-2xs font-normal"
           :model-value="measurementOptions.vertexSnap"
+          label="捕捉顶点"
           @update:model-value="toggleMeasurementsSnap"
         />
       </div>
@@ -61,7 +63,7 @@
             tabindex="-1"
             @click="clearMeasurements"
           >
-            Delete all
+            全部删除
           </FormButton>
           <button
             class="size-6 flex items-center justify-center rounded-md"
@@ -125,28 +127,28 @@ const toggleMeasurementsSnap = () => {
 
 const measurementTypeOptions = [
   {
-    title: 'Point to Point',
+    title: '点对点',
     icon: 'IconMeasurePointToPoint',
     value: MeasurementType.POINTTOPOINT,
-    description: 'Measure between two points'
+    description: '测量两点间距离'
   },
   {
-    title: 'Perpendicular',
+    title: '垂直',
     icon: 'IconMeasurePerpendicular',
     value: MeasurementType.PERPENDICULAR,
-    description: 'Measure at a 90° angle'
+    description: '测量 90° 角'
   },
   {
-    title: 'Area',
+    title: '面积',
     icon: 'IconMeasureArea',
     value: MeasurementType.AREA,
-    description: 'Measure area between points'
+    description: '测量多点围成的面积'
   },
   {
-    title: 'Point coordinates',
+    title: '点坐标',
     icon: 'IconMeasurePoint',
     value: MeasurementType.POINT,
-    description: 'Measure XYZ coordinates'
+    description: '测量 XYZ 坐标'
   }
 ]
 </script>

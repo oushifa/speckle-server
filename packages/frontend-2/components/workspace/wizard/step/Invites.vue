@@ -1,8 +1,5 @@
 <template>
-  <WorkspaceWizardStep
-    title="Invite your team"
-    description="Workspaces are made for collaboration"
-  >
+  <WorkspaceWizardStep title="邀请您的团队" description="工作区专为协作而生">
     <form
       class="flex flex-col gap-4 w-full md:max-w-lg items-center"
       @submit="onSubmit"
@@ -15,17 +12,17 @@
           :name="`email-${field.key}`"
           color="foundation"
           size="lg"
-          placeholder="Email address"
+          placeholder="邮箱地址"
           show-clear
           full-width
           use-label-in-errors
-          label="Email"
+          label="邮箱"
           :rules="[isEmailOrEmpty]"
           @blur="field.value = field.value?.trim()"
         />
         <div>
           <FormButton color="subtle" :icon-left="PlusIcon" @click="onAddInvite">
-            Add another
+            添加另一个
           </FormButton>
         </div>
       </div>
@@ -34,13 +31,13 @@
           <FormCheckbox
             v-model="enableDomainDiscoverabilityModel"
             name="enableDomainDiscoverability"
-            :label="`Make workspace discoverable to @${verifiedDomain} users`"
+            :label="`允许 @${verifiedDomain} 用户发现此工作区`"
           />
           <div class="ml-6 text-body-2xs text-foreground-2 select-none">
             <p>
-              Users signing up with a
+              使用
               <span class="font-medium">@{{ verifiedDomain }}</span>
-              email will be able to find and request to join this workspace.
+              邮箱注册的用户将能够找到并申请加入此工作区。
             </p>
           </div>
         </CommonCard>
@@ -48,7 +45,7 @@
       <div class="flex flex-col gap-3 mt-4 w-full md:max-w-96">
         <FormButton size="lg" submit full-width>{{ nextButtonText }}</FormButton>
         <FormButton color="subtle" size="lg" full-width @click.stop="goToPreviousStep">
-          Back
+          返回
         </FormButton>
       </div>
     </form>
@@ -98,9 +95,7 @@ const enableDomainDiscoverabilityModel = computed({
 })
 
 const nextButtonText = computed(() =>
-  fields.value.filter((field) => !!field.value).length > 0
-    ? 'Continue'
-    : 'Continue without inviting'
+  fields.value.filter((field) => !!field.value).length > 0 ? '继续' : '跳过邀请'
 )
 
 const verifiedDomain = computed(() => {

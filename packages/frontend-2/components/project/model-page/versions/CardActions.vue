@@ -60,7 +60,7 @@ const showActionsMenu = computed({
 const actionsItems = computed<LayoutMenuItem<VersionActionTypes>[][]>(() => [
   [
     {
-      title: 'Edit message...',
+      title: '编辑消息...',
       id: VersionActionTypes.EditMessage,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value
@@ -68,26 +68,26 @@ const actionsItems = computed<LayoutMenuItem<VersionActionTypes>[][]>(() => [
   ],
   [
     {
-      title: 'Select',
+      title: '选择',
       id: VersionActionTypes.Select,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value
     },
     {
-      title: 'Move to...',
+      title: '移动到...',
       id: VersionActionTypes.MoveTo,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value
     }
   ],
   [
-    { title: 'Copy link', id: VersionActionTypes.Share },
-    { title: 'Copy ID', id: VersionActionTypes.CopyId },
-    { title: 'Embed model...', id: VersionActionTypes.EmbedModel }
+    { title: '复制链接', id: VersionActionTypes.Share },
+    { title: '复制ID', id: VersionActionTypes.CopyId },
+    { title: '嵌入看板...', id: VersionActionTypes.EmbedModel }
   ],
   [
     {
-      title: 'Delete...',
+      title: '删除...',
       id: VersionActionTypes.Delete,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value

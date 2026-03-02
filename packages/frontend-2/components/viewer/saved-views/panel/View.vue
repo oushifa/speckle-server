@@ -239,17 +239,17 @@ const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => [
     },
     {
       id: MenuItems.ReplaceView,
-      title: 'Replace view',
+      title: '替换视图',
       disabled: !canUpdate.value?.authorized || isLoading.value,
       disabledTooltip: canUpdate.value?.errorMessage
     },
     {
       id: MenuItems.CopyLink,
-      title: 'Copy link'
+      title: '复制链接'
     },
     {
       id: MenuItems.LoadOriginalVersions,
-      title: 'Load with original model version',
+      title: '加载原始模型版本',
       disabled: !canLoadOriginal.value.authorized || isLoading.value,
       disabledTooltip: canLoadOriginal.value.message
     }
@@ -257,20 +257,20 @@ const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => [
   [
     {
       id: MenuItems.SetAsHomeView,
-      title: 'Set as home view',
+      title: '设置为首页视图',
       active: !!isHomeView.value,
       disabled: !canSetHomeView.value.authorized,
       disabledTooltip: canSetHomeView.value.message
     },
     {
       id: MenuItems.ChangeVisibility,
-      title: isOnlyVisibleToMe.value ? 'Make view shared' : 'Make view private',
+      title: isOnlyVisibleToMe.value ? '将视图设为共享' : '将视图设为私有',
       disabled: !canToggleVisibility.value.authorized,
       disabledTooltip: canToggleVisibility.value.message
     },
     {
       id: MenuItems.Embed,
-      title: 'Embed view',
+      title: '嵌入视图',
       disabled: !canEmbed.value?.authorized,
       disabledTooltip: canEmbed.value?.errorMessage
     }
@@ -278,7 +278,7 @@ const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => [
   [
     {
       id: MenuItems.Delete,
-      title: 'Delete view...',
+      title: '删除视图...',
       disabled: !canUpdate.value?.authorized || isLoading.value,
       disabledTooltip: canUpdate.value?.errorMessage
     }

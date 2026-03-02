@@ -103,7 +103,7 @@
             class="text-body-3xs text-danger hover:text-danger-lighter cursor-pointer"
             @click.stop="actions?.showUploads()"
           >
-            Last upload failed
+            上次上传失败
           </NuxtLink>
         </div>
         <div class="flex items-center gap-1">
@@ -118,7 +118,7 @@
             </span>
           </div>
           <FormButton
-            v-tippy="'View Versions'"
+            v-tippy="'查看版本'"
             color="subtle"
             size="sm"
             class="flex items-center gap-1 !text-foreground-2"

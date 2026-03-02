@@ -3,7 +3,7 @@
     <div class="text-body-xs font-medium text-foreground flex">
       <span class="flex-1">{{ label }}</span>
       <CommonTextLink size="sm" @click="toggleEditor">
-        {{ isEditing ? 'Preview' : 'Editor' }}
+        {{ isEditing ? '预览' : '编辑器' }}
       </CommonTextLink>
     </div>
     <FormTextArea
@@ -26,15 +26,15 @@
       <CommonProseMarkdownDescription :markdown="value" />
     </LayoutPanel>
     <p class="text-body-xs text-foreground-2">
-      This field supports markdown.
+      此字段支持 Markdown。
       <NuxtLink
         href="https://www.markdownguide.org/basic-syntax/"
         class="underline"
         external
       >
-        Click here
+        点击这里
       </NuxtLink>
-      for more info.
+      了解更多信息。
     </p>
   </div>
 </template>

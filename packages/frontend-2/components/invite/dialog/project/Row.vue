@@ -15,7 +15,7 @@
                 full-width
                 use-label-in-errors
                 :show-label="showLabel"
-                label="Email"
+                label="邮箱"
                 :rules="[isEmailOrEmpty]"
                 @paste="handlePaste"
               />
@@ -72,7 +72,7 @@
                           v-else-if="filteredSuggestions.length === 0"
                           class="flex items-center justify-center p-4 text-foreground-2 text-body-xs leading-none"
                         >
-                          No results
+                          没有搜索结果
                         </div>
                         <div
                           v-else
@@ -106,7 +106,7 @@
           <FormSelectProjectRoles
             v-if="showProjectRoles"
             v-model="projectRole"
-            label="Project role"
+            label="项目角色"
             :name="`fields.${index}.projectRole`"
             mount-menu-on-body
             :show-label="showLabel"

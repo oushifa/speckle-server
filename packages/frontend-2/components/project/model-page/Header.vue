@@ -4,13 +4,13 @@
       <HeaderNavLink
         v-if="showWorkspaceLink"
         :to="workspaceRoute(project.workspace?.slug)"
-        name="Projects"
+        name="项目管理"
         :separator="false"
       />
       <HeaderNavLink
         v-else-if="!isWorkspacesEnabled"
         :to="projectsRoute"
-        name="Projects"
+        name="项目管理"
         :separator="false"
       />
       <HeaderNavLink

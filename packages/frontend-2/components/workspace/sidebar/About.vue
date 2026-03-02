@@ -1,7 +1,7 @@
 <template>
   <div class="px-4 py-2">
     <LayoutSidebarMenuGroup
-      title="About"
+      title="关于"
       collapsible
       :icon="iconName"
       :icon-click="iconClick"
@@ -17,7 +17,7 @@
             color="foundation"
             size="sm"
             name="Workspace description"
-            placeholder="Workspace description"
+            placeholder="工作区描述"
             :rules="[isStringOfLength({ maxLength: 512 })]"
             validate-on-value-update
             @keyup.enter="saveDescription"
@@ -25,16 +25,14 @@
           />
           <div class="flex gap-1 mt-2">
             <FormButton size="sm" color="primary" @click="saveDescription">
-              Save
+              保存
             </FormButton>
-            <FormButton size="sm" color="outline" @click="cancelEdit">
-              Cancel
-            </FormButton>
+            <FormButton size="sm" color="outline" @click="cancelEdit">取消</FormButton>
           </div>
         </div>
         <template v-else>
           <div class="whitespace-pre-wrap">
-            {{ workspace?.description || 'No workspace description' }}
+            {{ workspace?.description || '无工作区描述' }}
           </div>
           <FormButton
             v-if="!workspace?.description && isWorkspaceAdmin"
@@ -42,7 +40,7 @@
             size="sm"
             @click="startEdit"
           >
-            Add description
+            添加描述
           </FormButton>
         </template>
       </div>
@@ -99,7 +97,7 @@ const iconClick = computed(() => {
 const iconText = computed(() => {
   if (!props.isWorkspaceAdmin) return undefined
   if (isEditing.value) return undefined
-  return props.workspace?.description ? 'Edit description' : 'Add description'
+  return props.workspace?.description ? '编辑描述' : '添加描述'
 })
 
 const startEdit = () => {
@@ -125,7 +123,7 @@ const saveDescription = async () => {
   if (result?.data) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Description updated'
+      title: '描述已更新'
     })
     mixpanel.track('Workspace General Settings Updated', {
       fields: ['description'],
@@ -138,7 +136,7 @@ const saveDescription = async () => {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to update description',
+      title: '更新描述失败',
       description: errorMessage
     })
   }

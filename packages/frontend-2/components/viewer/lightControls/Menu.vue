@@ -3,12 +3,12 @@
     <div class="flex flex-col gap-2 p-3">
       <CommonAlert v-if="!isLightingSupported" class="mb-1" size="xs" color="info">
         <template #title>
-          <span class="block text-body-2xs">Not available in current view mode.</span>
+          <span class="block text-body-2xs">当前视图模式下不可用。</span>
         </template>
       </CommonAlert>
 
       <div class="flex gap-2 items-center justify-between">
-        <span class="text-foreground text-body-2xs">Sun shadows</span>
+        <span class="text-foreground text-body-2xs">太阳阴影</span>
         <FormSwitch
           v-model="sunlightShadows"
           name="sunShadows"
@@ -20,7 +20,7 @@
         <FormRange
           v-model="intensity"
           name="intensity"
-          label="Intensity"
+          label="强度"
           :min="1"
           :max="10"
           :step="0.05"
@@ -29,7 +29,7 @@
         <FormRange
           v-model="elevation"
           name="elevation"
-          label="Elevation"
+          label="仰角"
           :min="0"
           :max="Math.PI"
           :step="0.05"
@@ -38,7 +38,7 @@
         <FormRange
           v-model="azimuth"
           name="azimuth"
-          label="Azimuth"
+          label="方位角"
           :min="-Math.PI * 0.5"
           :max="Math.PI * 0.5"
           :step="0.05"
@@ -47,7 +47,7 @@
         <FormRange
           v-model="indirectLightIntensity"
           name="indirect"
-          label="Indirect"
+          label="间接光"
           :min="0"
           :max="5"
           :step="0.05"

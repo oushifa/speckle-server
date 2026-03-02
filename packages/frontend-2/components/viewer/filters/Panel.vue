@@ -1,6 +1,6 @@
 <template>
   <ViewerLayoutSidePanel max-height-class="max-h-[calc(100dvh-5rem)]" disable-scrollbar>
-    <template #title>Filters</template>
+    <template #title>过滤器</template>
     <template #actions>
       <div class="flex gap-x-0.5 items-center">
         <FormButton
@@ -10,10 +10,10 @@
           tabindex="-1"
           @click="resetFilters()"
         >
-          Reset
+          重置
         </FormButton>
         <FormButton
-          v-tippy="showPropertySelection ? undefined : 'Add new filter'"
+          v-tippy="showPropertySelection ? undefined : '添加新过滤器'"
           color="subtle"
           size="sm"
           :class="showPropertySelection ? '!bg-highlight-3 !pointer-events-none' : ''"
@@ -31,7 +31,8 @@
         class="flex items-center pr-4 text-body-3xs text-foreground-2 select-none"
       >
         <span>
-          {{ filteredObjectsCount }} result{{ filteredObjectsCount === 1 ? '' : 's' }}
+          {{ filteredObjectsCount }}
+          {{ filteredObjectsCount === 1 ? '个结果' : '个结果' }}
         </span>
       </div>
     </div>
@@ -60,7 +61,7 @@
             hide-text
             @click="addNewEmptyFilter"
           >
-            Add filter
+            添加过滤器
           </FormButton>
         </div>
       </div>

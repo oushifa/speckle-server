@@ -5,20 +5,20 @@
     hide-closer
     :buttons="[
       {
-        text: 'Cancel',
+        text: '取消',
         props: { color: 'outline' },
         onClick: () => {
           open = false
         }
       },
       {
-        text: 'Remove',
+        text: '删除',
         props: { color: 'danger' },
         onClick: onConfirm
       }
     ]"
   >
-    <template #header>Remove sync</template>
+    <template #header>删除同步</template>
   </LayoutDialog>
 </template>
 

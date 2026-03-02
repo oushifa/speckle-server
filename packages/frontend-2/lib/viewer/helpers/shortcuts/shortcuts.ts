@@ -3,43 +3,43 @@ import { ViewMode } from '@speckle/viewer'
 
 export const PanelShortcuts = {
   ToggleModels: {
-    name: 'Models',
-    description: 'Toggle models panel',
+    name: '模型',
+    description: '切换模型面板',
     modifiers: [ModifierKeys.Shift],
     key: 'M',
     action: 'ToggleModels'
   },
   ToggleFilters: {
-    name: 'Filters',
-    description: 'Toggle filters panel',
+    name: '筛选器',
+    description: '切换筛选器面板',
     modifiers: [ModifierKeys.Shift],
     key: 'F',
     action: 'ToggleFilters'
   },
   ToggleDiscussions: {
-    name: 'Discussions',
-    description: 'Toggle discussions panel',
+    name: '讨论',
+    description: '切换讨论面板',
     modifiers: [ModifierKeys.Shift],
     key: 'D',
     action: 'ToggleDiscussions'
   },
   ToggleDevMode: {
-    name: 'Dev Mode',
-    description: 'Toggle dev mode',
+    name: '开发模式',
+    description: '切换开发模式',
     modifiers: [ModifierKeys.Shift],
     key: 'X',
     action: 'ToggleDevMode'
   },
   ToggleSavedViews: {
-    name: 'Saved views',
-    description: 'Toggle saved views panel',
+    name: '保存视图',
+    description: '切换保存视图面板',
     modifiers: [ModifierKeys.Shift],
     key: 'S',
     action: 'ToggleSavedViews'
   },
   ToggleViewModes: {
-    name: 'View modes',
-    description: 'Toggle view modes panel',
+    name: '视图模式',
+    description: '切换视图模式面板',
     modifiers: [ModifierKeys.Shift],
     key: 'V',
     action: 'ToggleViewModes'
@@ -48,43 +48,43 @@ export const PanelShortcuts = {
 
 export const ToolShortcuts = {
   ToggleMeasurements: {
-    name: 'Measure',
-    description: 'Toggle measurement mode',
+    name: '测量',
+    description: '切换测量模式',
     modifiers: [ModifierKeys.Shift],
     key: 'R',
     action: 'ToggleMeasurements'
   },
   ToggleProjection: {
-    name: 'Projection',
-    description: 'Toggle between orthographic and perspective projection',
+    name: '投影',
+    description: '切换正交投影和透视投影',
     modifiers: [ModifierKeys.Shift],
     key: 'P',
     action: 'ToggleProjection'
   },
   ToggleSectionBox: {
-    name: 'Section',
-    description: 'Toggle section box',
+    name: '截面',
+    description: '切换截面框',
     modifiers: [ModifierKeys.Shift],
     key: 'B',
     action: 'ToggleSectionBox'
   },
   ToggleExplode: {
-    name: 'Explode',
-    description: 'Toggle explode mode',
+    name: '爆炸',
+    description: '切换爆炸模式',
     modifiers: [ModifierKeys.Shift],
     key: 'E',
     action: 'ToggleExplode'
   },
   ZoomExtentsOrSelection: {
-    name: 'Fit',
-    description: 'Zoom to fit selection or entire model',
+    name: '缩放',
+    description: '缩放以适合选择或整个模型',
     modifiers: [ModifierKeys.Shift],
     key: 'space',
     action: 'ZoomExtentsOrSelection'
   },
   ToggleLightControls: {
-    name: 'Light controls',
-    description: 'Toggle light controls panel',
+    name: '灯光控制',
+    description: '切换灯光控制面板',
     modifiers: [ModifierKeys.Shift],
     key: 'L',
     action: 'ToggleLightControls'
@@ -93,45 +93,40 @@ export const ToolShortcuts = {
 
 export const ViewModeShortcuts = {
   SetViewModeDefault: {
-    name: 'Rendered',
-    description:
-      'A realistic view of your model rendered with available materials for surfaces.',
+    name: '渲染',
+    description: '一个逼真的模型渲染视图，使用可用的材料为表面。',
     modifiers: [ModifierKeys.Shift],
     key: 'Digit1',
     action: 'SetViewModeDefault',
     viewMode: ViewMode.DEFAULT
   },
   SetViewModeShaded: {
-    name: 'Shaded',
-    description:
-      'A shaded view of your model using available colors for surfaces and curves.',
+    name: '阴影',
+    description: '使用可用颜色为表面和曲线的模型阴影视图。',
     modifiers: [ModifierKeys.Shift],
     key: 'Digit2',
     action: 'SetViewModeShaded',
     viewMode: ViewMode.SHADED
   },
   SetViewModeArctic: {
-    name: 'Arctic',
-    description:
-      'A white conceptual view of your model without any materials or colors.',
+    name: '北极',
+    description: '一个白色概念视图，没有任何材料或颜色。',
     modifiers: [ModifierKeys.Shift],
     key: 'Digit3',
     action: 'SetViewModeArctic',
     viewMode: ViewMode.ARCTIC
   },
   SetViewModeSolid: {
-    name: 'Solid',
-    description:
-      'A basic shaded view of your model using our default material, with edges.',
+    name: '实心',
+    description: '使用我们默认材料的基本阴影视图，带有边缘。',
     modifiers: [ModifierKeys.Shift],
     key: 'Digit4',
     action: 'SetViewModeSolid',
     viewMode: ViewMode.SOLID
   },
   SetViewModePen: {
-    name: 'Pen',
-    description:
-      'A stylized black and white drawing view of your model, without any lighting or shadows.',
+    name: '钢笔',
+    description: '没有任何照明或阴影的模型的黑白绘制视图。',
     modifiers: [ModifierKeys.Shift],
     key: 'Digit5',
     action: 'SetViewModePen',
@@ -141,36 +136,36 @@ export const ViewModeShortcuts = {
 
 export const ViewShortcuts = {
   SetViewTop: {
-    name: 'Top',
-    description: 'Set view to Top',
+    name: '顶部',
+    description: '设置视图为顶部',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit1',
     action: 'SetViewTop'
   },
   SetViewFront: {
-    name: 'Front',
-    description: 'Set view to Front',
+    name: '正面',
+    description: '设置视图为正面',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit2',
     action: 'SetViewFront'
   },
   SetViewLeft: {
-    name: 'Left',
-    description: 'Set view to Left',
+    name: '左侧',
+    description: '设置视图为左侧',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit3',
     action: 'SetViewLeft'
   },
   SetViewBack: {
-    name: 'Back',
-    description: 'Set view to Back',
+    name: '背面',
+    description: '设置视图为背面',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit4',
     action: 'SetViewBack'
   },
   SetViewRight: {
-    name: 'Right',
-    description: 'Set view to Right',
+    name: '右侧',
+    description: '设置视图为右侧',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit5',
     action: 'SetViewRight'

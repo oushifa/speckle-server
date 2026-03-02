@@ -34,7 +34,7 @@ const open = defineModel<boolean>('open', {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       emit('cancel')
@@ -42,7 +42,7 @@ const dialogButtons = computed((): LayoutDialogButton[] => [
     }
   },
   {
-    text: 'Confirm',
+    text: '确认',
     onClick: () => {
       emit('confirm')
       open.value = false

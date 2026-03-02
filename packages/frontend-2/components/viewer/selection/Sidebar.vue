@@ -13,7 +13,7 @@
     >
       <template #title>
         <div class="flex items-center gap-x-2">
-          <span>Selected</span>
+          <span>已选择</span>
           <CommonBadge v-if="objects.length > 1" rounded>
             {{ objects.length }}
           </CommonBadge>
@@ -64,14 +64,12 @@
       </div>
       <div v-if="itemCount <= objects.length" class="mb-2">
         <FormButton size="sm" text full-width @click="itemCount += 10">
-          View more ({{ objects.length - itemCount }})
+          查看更多 ({{ objects.length - itemCount }})
         </FormButton>
       </div>
 
       <template #footer>
-        <p class="text-foreground-2 text-body-3xs">
-          Hold "shift" to select multiple objects
-        </p>
+        <p class="text-foreground-2 text-body-3xs">按住 "shift" 键可选择多个对象</p>
       </template>
     </ViewerSidebar>
   </ViewerCommentsPortalOrDiv>
@@ -162,9 +160,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
       title:
-        allTargetIds.value.length > 1
-          ? 'Open objects in new tab'
-          : 'Open object in new tab',
+        allTargetIds.value.length > 1 ? '在新标签页中打开对象' : '在新标签页中打开对象',
       id: ActionTypes.OpenInNewTab
     }
   ]

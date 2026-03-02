@@ -45,6 +45,22 @@
             {{ emptyStateHeading }}
           </p>
           <p v-if="!isDisabled" :class="paragraphClasses">
+            使用连接器发布{{ modelName ? '' : '新的模型' }}版本到{{
+              modelName ? '该模型' : '该项目'
+            }},或者拖拽
+            <span
+              v-if="isRhinoFileImporterEnabled"
+              v-tippy="
+                ['ifc', ...Array.from(rhinoImporterSupportedFileExtensions)].join(', ')
+              "
+              class="underline"
+            >
+              支持的文件
+            </span>
+            <span v-else>IFC 文件</span>
+            到这里上传。
+          </p>
+          <!-- <p v-if="!isDisabled" :class="paragraphClasses">
             Use
             <NuxtLink :to="connectorsRoute" class="font-medium">
               <span class="underline">connectors</span>
@@ -61,13 +77,13 @@
               a supported file here.
             </span>
             <span v-else>an IFC file.</span>
-          </p>
+          </p> -->
           <div v-if="showEmptyState && !isDisabled" :class="buttonsClasses">
             <FormButton :to="connectorsRoute" size="sm" color="outline">
-              Install connectors
+              安装连接器
             </FormButton>
             <FormButton size="sm" color="outline" @click="openFilePicker">
-              Upload a file
+              上传文件
             </FormButton>
           </div>
         </div>
@@ -198,12 +214,14 @@ const showEmptyState = computed(
 )
 const emptyStateHeading = computed(() => {
   if (showEmptyState.value) {
+    return props.emptyStateVariant === 'modelsSection' ? '该项目暂无模型' : '暂无模型'
     return props.emptyStateVariant === 'modelsSection'
       ? 'The project has no models, yet.'
       : 'No models, yet.'
   }
 
   if (isDisabled.value) {
+    return modelName.value ? '改模型暂无历史版本' : '该项目暂无模型'
     return modelName.value
       ? 'The model has no versions, yet.'
       : 'The project has no models, yet.'

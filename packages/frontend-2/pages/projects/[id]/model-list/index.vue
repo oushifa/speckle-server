@@ -3,3 +3,4 @@
     <ProjectPageModelsTab />
   </div>
 </template>
+<script></script>

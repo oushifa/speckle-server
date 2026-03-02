@@ -4,14 +4,14 @@
     max-width="sm"
     :buttons="[
       {
-        text: 'Cancel',
+        text: '取消',
         props: { color: 'outline' },
         onClick: () => {
           isOpen = false
         }
       },
       {
-        text: 'Save',
+        text: '保存',
         props: {},
         onClick: () => {
           onSubmit()
@@ -19,29 +19,29 @@
       }
     ]"
   >
-    <template #header>Edit model</template>
+    <template #header>编辑模型</template>
     <form class="flex flex-col text-foreground" @submit="onSubmit">
       <div class="flex flex-col gap-4 mb-4">
         <FormTextInput
           v-model="newName"
           name="name"
           show-label
-          label="Model name"
-          placeholder="model/name/here"
+          label="模型名称"
+          placeholder="模型/名称/这里"
           :rules="rules"
           auto-focus
           color="foundation"
           :disabled="loading"
-          help="Use forward slashes in the model name to nest it below other models."
+          help="在模型名称中使用斜杠将其嵌套在其他模型下。"
           autocomplete="off"
         />
         <FormTextArea
           v-model="newDescription"
           name="description"
           show-label
-          label="Model description"
+          label="模型描述"
           show-optional
-          placeholder="Description"
+          placeholder="描述"
           color="foundation"
           :disabled="loading"
         />

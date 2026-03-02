@@ -10,7 +10,7 @@
     >
       <label :for="name" :class="labelClasses">
         <span>{{ title }}</span>
-        <div v-if="!showRequired" class="text-body-2xs font-normal">(optional)</div>
+        <div v-if="!showRequired" class="text-body-2xs font-normal">(可选填)</div>
       </label>
       <span
         v-if="labelPosition === 'left' && helpTipIdLeft"

@@ -193,7 +193,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
     ? [
         [
           {
-            title: 'Edit model...',
+            title: '重命名...',
             id: ActionTypes.Rename,
             disabled: !canEdit.value.authorized,
             disabledTooltip: canEdit.value.message || 'Insufficient permissions'
@@ -211,7 +211,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
           disabledTooltip: canEditAccSync.value.message
         },
         {
-          title: 'Remove sync...',
+          title: '删除同步...',
           id: ActionTypes.DeleteSync,
           disabled: !canEditAccSync.value.authorized,
           disabledTooltip: canEditAccSync.value.message
@@ -219,17 +219,17 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
       ]
     : [
         {
-          title: 'View versions',
+          title: '查看版本',
           id: ActionTypes.ViewVersions
         },
         {
-          title: 'View uploads',
+          title: '查看上传',
           id: ActionTypes.ViewUploads
         },
         ...(isLoggedIn.value
           ? [
               {
-                title: 'Upload new version...',
+                title: '上传新版本...',
                 id: ActionTypes.UploadVersion,
                 disabled: uploadVersionDisabled.value.disabled,
                 disabledTooltip: uploadVersionDisabled.value.tooltip
@@ -238,15 +238,15 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
           : [])
       ],
   [
-    { title: 'Copy link', id: ActionTypes.Share },
-    { title: 'Copy ID', id: ActionTypes.CopyId },
-    { title: 'Embed model...', id: ActionTypes.Embed }
+    { title: '复制链接', id: ActionTypes.Share },
+    { title: '复制 ID', id: ActionTypes.CopyId },
+    { title: '嵌入模型...', id: ActionTypes.Embed }
   ],
   ...(isLoggedIn.value
     ? [
         [
           {
-            title: 'Delete...',
+            title: '删除...',
             id: ActionTypes.Delete,
             // TODO:
             disabled: !canDelete.value.authorized,

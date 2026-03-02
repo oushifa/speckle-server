@@ -4,8 +4,8 @@
       <FormTextInput
         type="email"
         name="email"
-        label="E-mail"
-        placeholder="Enter your email"
+        label="邮箱"
+        placeholder="输入您的邮箱"
         size="lg"
         color="foundation"
         :rules="emailRules"
@@ -17,8 +17,8 @@
       <FormTextInput
         type="password"
         name="password"
-        label="Password"
-        placeholder="Enter your password"
+        label="密码"
+        placeholder="输入您的密码"
         color="foundation"
         size="lg"
         :rules="passwordRules"
@@ -34,13 +34,11 @@
       class="mt-8 mb-4"
       :disabled="loading || !isMounted"
     >
-      Log in
+      登录
     </FormButton>
     <div class="mt-1 text-center text-body-xs text-foreground-3 select-none">
-      Forgot your password?
-      <NuxtLink :to="forgottenPasswordRoute" class="text-foreground">
-        Reset password
-      </NuxtLink>
+      忘记密码？
+      <NuxtLink :to="forgottenPasswordRoute" class="text-foreground">重置密码</NuxtLink>
     </div>
   </form>
 </template>
@@ -95,7 +93,7 @@ const onSubmit = handleSubmit(async ({ email, password }) => {
   } catch (e) {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Login failed',
+      title: '登录失败',
       description: `${ensureError(e).message}`
     })
   } finally {

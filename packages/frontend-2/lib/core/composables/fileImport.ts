@@ -81,7 +81,7 @@ export const useFailedFileImportJobUtils = () => {
     upload: UseFailedFileImportJobUtils_FileUploadFragment
   ): FailedFileImportJob => {
     if (upload.convertedStatus !== FileUploadConvertedStatus.Error) {
-      throw new Error('Cannot convert upload to failed job if it is not in error state')
+      throw new Error('无法将非错误状态的文件上传转换为失败作业')
     }
 
     return {
@@ -92,8 +92,7 @@ export const useFailedFileImportJobUtils = () => {
       date: dayjs(upload.updatedAt).toDate(),
       error: {
         type: FailedFileImportJobError.ImportFailed,
-        message:
-          upload.convertedMessage || 'An unknown error occurred during file import'
+        message: upload.convertedMessage || '文件导入失败，未知错误发生'
       }
     }
   }
@@ -101,29 +100,27 @@ export const useFailedFileImportJobUtils = () => {
   const getErrorMessage = (job: FailedFileImportJob) => {
     switch (job.error.type) {
       case FailedFileImportJobError.FileTooLarge: {
-        let base = `The file is too large to be uploaded. The maximum file size is ${prettyFileSize(
+        let base = `文件${job.fileName}太大，无法上传。最大文件大小为 ${prettyFileSize(
           maxSizeInBytes.value
         )}`
 
         if (job.file) {
-          base += ` while the file you tried to upload is ${prettyFileSize(
-            job.file.size
-          )}.`
+          base += ` 而你尝试上传的文件大小为 ${prettyFileSize(job.file.size)}.`
         } else {
           base += '.'
         }
         return base
       }
       case FailedFileImportJobError.MissingFileExtensionError:
-        return `The file you tried to upload does not have a valid file extension.`
+        return `文件${job.fileName}没有有效的文件扩展名。`
       case FailedFileImportJobError.InvalidFileType: {
         const fileExtension = resolveFileExtension(job.fileName)
-        return `The file you tried to upload (${fileExtension}) is not a supported file type. Only ${accept.value} are supported by this server.`
+        return `文件${job.fileName}（${fileExtension}）不是受支持的文件类型。此服务器仅支持 ${accept.value}。`
       }
       case FailedFileImportJobError.ImportFailed:
         return trimEnd(job.error.message, '.') + '.'
       case FailedFileImportJobError.UploadFailed: {
-        const base = `The file upload failed unexpectedly.`
+        const base = `文件${job.fileName}上传失败，未知错误发生`
         return base
       }
       default:
@@ -213,6 +210,7 @@ export const useFileImportApi = () => {
     public: { FF_LEGACY_FILE_IMPORTS_ENABLED }
   } = useRuntimeConfig()
   const apollo = useApolloClient().client
+  console.log(apollo, 'appolo')
   const { registerActiveUpload, unregisterActiveUpload } = useGlobalFileImportManager()
 
   const importFileV2: ImportFile = async (params, callbacks) => {
@@ -235,7 +233,7 @@ export const useFileImportApi = () => {
     if (!generateUploadUrl) {
       const errMsg = getFirstGqlErrorMessage(
         generateUploadUrlResponse.errors,
-        "Couldn't generate upload URL"
+        '文件上传失败，无法生成上传URL'
       )
       throw new Error(errMsg)
     }
@@ -259,7 +257,7 @@ export const useFileImportApi = () => {
         // Collect etag
         const etag = request.getResponseHeader('ETag')
         if (!etag) {
-          return uploadPromise.reject(new Error('No ETag in upload response'))
+          return uploadPromise.reject(new Error('文件上传失败，上传响应中没有ETag'))
         }
         return uploadPromise.resolve({ etag })
       } else {
@@ -268,7 +266,7 @@ export const useFileImportApi = () => {
           /<Message>(.*?)<\/Message>/
         )?.[1]
         return uploadPromise.reject(
-          new Error(errorMessage || `Upload failed unexpectedly`)
+          new Error(errorMessage || `文件${file.name}上传失败，未知错误发生`)
         )
       }
     }
@@ -295,7 +293,7 @@ export const useFileImportApi = () => {
     if (!fileImportStarted) {
       const errMsg = getFirstGqlErrorMessage(
         startFileImportResponse.errors,
-        "Couldn't start file import"
+        '文件导入失败，无法启动文件导入'
       )
       throw new Error(errMsg)
     }
@@ -465,7 +463,7 @@ export function useFileImport(params: {
     if (!error) {
       error = {
         type: FailedFileImportJobError.UploadFailed,
-        message: 'An unknown error occurred during file upload'
+        message: '文件上传失败，未知错误发生'
       }
     }
 
@@ -483,7 +481,7 @@ export function useFileImport(params: {
       {
         failedJob
       },
-      'File import failed'
+      '文件导入失败'
     )
 
     errorCallback({ failedJob })
@@ -504,7 +502,7 @@ export function useFileImport(params: {
     isUploading.value = true
     try {
       if (!upload.value.model) {
-        throw new Error('No model provided for file import')
+        throw new Error('文件导入失败，未提供模型')
       }
 
       const res = await importFile(

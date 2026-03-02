@@ -7,14 +7,14 @@
           <template v-if="project?.workspace && isWorkspacesEnabled">
             <HeaderNavLink
               :to="workspaceRoute(project?.workspace.slug)"
-              name="Projects"
+              name="项目管理"
               :separator="false"
             />
           </template>
           <HeaderNavLink
             v-else
             :to="projectsRoute"
-            name="Projects"
+            name="项目管理"
             :separator="false"
           />
           <HeaderNavLink :to="`/projects/${project?.id}`" :name="project?.name" />

@@ -9,14 +9,14 @@
         <div class="flex flex-col">
           <CommonBadge
             v-if="!project.workspace?.id && isWorkspacesEnabled && isOwner"
-            v-tippy="'As the project owner you can move this project to a workspace'"
+            v-tippy="'只能项目所有者才能将项目移动到工作空间'"
             class="mb-2 max-w-max"
             rounded
           >
-            Ready to move
+            准备移动
           </CommonBadge>
           <NuxtLink
-            :to="projectRoute(project.id)"
+            :to="projectRoute(project.id) + '/workbench'"
             class="break-words hover:text-primary text-heading mb-2"
           >
             {{ project.name }}
@@ -25,8 +25,7 @@
             v-tippy="updatedAt.full"
             class="text-body-3xs mb-1 text-foreground-2 select-none"
           >
-            Updated
-            {{ updatedAt.relative }}
+            {{ updatedAt.relative }}更新
           </span>
           <span
             v-if="project.role"
@@ -39,7 +38,7 @@
         <div class="pt-3">
           <NuxtLink
             v-if="project.workspace && showWorkspaceLink && isWorkspacesEnabled"
-            :to="workspaceRoute(project.workspace.slug)"
+            :to="workspaceRoute(project.workspace.slug) + '/workbench'"
             class="my-3 flex items-center"
           >
             <WorkspaceAvatar
@@ -58,19 +57,11 @@
               color="outline"
               :icon-right="ChevronRightIcon"
             >
-              {{
-                `${modelItemTotalCount} ${
-                  modelItemTotalCount === 1 ? 'model' : 'models'
-                }`
-              }}
+              {{ `${modelItemTotalCount} 个模型` }}
             </FormButton>
             <div
               v-if="!project.workspace?.id && isWorkspacesEnabled"
-              v-tippy="
-                !isOwner
-                  ? 'Only the project owner can move this project into a workspace'
-                  : undefined
-              "
+              v-tippy="!isOwner ? '只能项目所有者才能将项目移动到工作空间' : undefined"
             >
               <FormButton
                 size="sm"
@@ -78,7 +69,7 @@
                 :disabled="!isOwner"
                 @click="$emit('moveProject')"
               >
-                Move project
+                移动项目
               </FormButton>
             </div>
           </div>

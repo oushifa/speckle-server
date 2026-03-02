@@ -3,7 +3,9 @@
     class="bg-foundation border border-outline-3 rounded-xl shadow-md flex items-center h-10"
   >
     <div class="flex items-center justify-between space-x-1 p-1">
-      <FormButton v-if="isLoggedIn" @click="showShareDialog = true">Share</FormButton>
+      <FormButton v-if="isLoggedIn" @click="showShareDialog = true">
+        分享看板
+      </FormButton>
 
       <PresentationFloatingPanelButton
         v-if="isMdOrLarger"

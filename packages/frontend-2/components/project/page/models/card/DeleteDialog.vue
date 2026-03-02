@@ -3,14 +3,14 @@
     v-model:open="isOpen"
     :buttons="[
       {
-        text: 'Cancel',
+        text: '取消',
         props: { color: 'outline' },
         onClick: () => {
           isOpen = false
         }
       },
       {
-        text: 'Delete',
+        text: '删除',
         props: { color: 'danger', disabled: loading },
         onClick: () => {
           onDelete()
@@ -19,17 +19,14 @@
     ]"
     max-width="sm"
   >
-    <template #header>Delete model</template>
+    <template #header>删除模型</template>
     <div class="flex flex-col text-foreground">
       <p class="mb-2">
-        Are you sure you want to delete the model
+        您确定要删除模型
         <span class="inline font-medium">{{ model.name }}</span>
-        ?
+        吗？
       </p>
-      <p>
-        This action is irreversible and all of the versions inside of this model will be
-        deleted.
-      </p>
+      <p>此操作不可逆，所有此模型中的版本都将被删除。</p>
     </div>
   </LayoutDialog>
 </template>

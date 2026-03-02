@@ -1,6 +1,6 @@
 <template>
   <CommonEmptyState :cta="cta">
-    {{ search ? 'No items matching your search query found' : message }}
+    {{ search ? '未找到符合搜索条件的项目' : message }}
   </CommonEmptyState>
 </template>
 <script setup lang="ts">
@@ -12,12 +12,12 @@ const props = withDefaults(
     message?: string
   }>(),
   {
-    message: 'No items found!'
+    message: '未找到项目！'
   }
 )
 
 const clearSearchCta = ref({
-  text: 'Clear search',
+  text: '清除搜索',
   onClick: () => emit('clear-search')
 })
 

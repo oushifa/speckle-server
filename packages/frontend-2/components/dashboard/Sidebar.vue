@@ -27,7 +27,7 @@
         :class="isOpenMobile ? '' : '-translate-x-[13rem] lg:translate-x-0'"
       >
         <LayoutSidebar
-          class="border-r border-outline-3 px-2 pt-3 pb-2 bg-foundation-page"
+          class="border-r border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
         >
           <LayoutSidebarMenu>
             <LayoutSidebarMenuGroup
@@ -41,22 +41,120 @@
               <LayoutSidebarMenuGroup>
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  :to="projectsLink"
+                  to="workbench"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem
-                    label="Projects"
-                    :active="
-                      route.name === 'workspaces-slug' || isActive(projectsRoute)
-                    "
+                    :class="[
+                      isActive(workbenchRoute) && 'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="工作台"
                   >
                     <template #icon>
-                      <IconProjects class="size-4 text-foreground-2" />
+                      <IconHome class="size-4 text-white" />
                     </template>
                   </LayoutSidebarMenuGroupItem>
                 </NuxtLink>
 
                 <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  :to="projectsLink"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      isActive(projectsRoute) && 'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="项目管理"
+                  >
+                    <template #icon>
+                      <IconProjects class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  to="progress"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      isActive(progressRoute) && 'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="进度管理"
+                  >
+                    <template #icon>
+                      <IconProcess class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  to="quality-acceptance"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      isActive(qualityAcceptanceRoute) &&
+                        'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="质量验收"
+                  >
+                    <template #icon>
+                      <IconCircleCheck class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  to="work-valuation"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      isActive(workValuationRoute) &&
+                        'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="验工计价"
+                  >
+                    <template #icon>
+                      <IconCalculator class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  to="archives"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      isActive(archivesRoute) && 'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="档案管理"
+                  >
+                    <template #icon>
+                      <IconFile class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+                <!-- <NuxtLink
                   v-if="showWorkspaceLinks && canListDashboards"
                   :to="dashboardsRoute(activeWorkspaceSlug)"
                   @click="isOpenMobile = false"
@@ -69,9 +167,9 @@
                       <LayoutDashboard class="size-4 text-foreground-2" />
                     </template>
                   </LayoutSidebarMenuGroupItem>
-                </NuxtLink>
+                </NuxtLink> -->
 
-                <NuxtLink :to="connectorsRoute" @click="isOpenMobile = false">
+                <!-- <NuxtLink :to="connectorsRoute" @click="isOpenMobile = false">
                   <LayoutSidebarMenuGroupItem
                     label="Connectors"
                     :active="isActive(connectorsRoute)"
@@ -80,13 +178,13 @@
                       <IconConnectors class="size-4 text-foreground-2" />
                     </template>
                   </LayoutSidebarMenuGroupItem>
-                </NuxtLink>
+                </NuxtLink> -->
               </LayoutSidebarMenuGroup>
 
-              <LayoutSidebarMenuGroup title="Resources" collapsible>
+              <!-- <LayoutSidebarMenuGroup title="资源" collapsible>
                 <LayoutSidebarMenuGroupItem
                   v-if="isWorkspacesEnabled"
-                  label="Give us feedback"
+                  label="给我们反馈"
                   @click="openChat"
                 >
                   <template #icon>
@@ -96,7 +194,7 @@
 
                 <NuxtLink :to="tutorialsRoute" @click="isOpenMobile = false">
                   <LayoutSidebarMenuGroupItem
-                    label="Tutorials"
+                    label="教程"
                     :active="isActive(tutorialsRoute)"
                   >
                     <template #icon>
@@ -110,7 +208,7 @@
                   target="_blank"
                   @click="isOpenMobile = false"
                 >
-                  <LayoutSidebarMenuGroupItem label="Community forum" external>
+                  <LayoutSidebarMenuGroupItem label="社区论坛" external>
                     <template #icon>
                       <IconCommunity class="size-4 text-foreground-2" />
                     </template>
@@ -122,7 +220,7 @@
                   target="_blank"
                   @click="isOpenMobile = false"
                 >
-                  <LayoutSidebarMenuGroupItem label="Documentation" external>
+                  <LayoutSidebarMenuGroupItem label="文档" external>
                     <template #icon>
                       <IconDocumentation class="size-4 text-foreground-2" />
                     </template>
@@ -134,7 +232,7 @@
                   target="_blank"
                   @click="isOpenMobile = false"
                 >
-                  <LayoutSidebarMenuGroupItem label="Changelog" external>
+                  <LayoutSidebarMenuGroupItem label="更新日志" external>
                     <template #icon>
                       <IconChangelog class="size-4 text-foreground-2" />
                     </template>
@@ -143,7 +241,7 @@
 
                 <div v-if="isWorkspacesEnabled">
                   <LayoutSidebarMenuGroupItem
-                    label="Getting started"
+                    label="入门指南"
                     @click="openExplainerVideoDialog"
                   >
                     <template #icon>
@@ -154,7 +252,7 @@
                     v-model:open="showExplainerVideoDialog"
                   />
                 </div>
-              </LayoutSidebarMenuGroup>
+              </LayoutSidebarMenuGroup> -->
             </div>
           </LayoutSidebarMenu>
           <template v-if="showSpeckleCon25Promo" #promo>
@@ -175,11 +273,12 @@ import {
 } from '@speckle/ui-components'
 import {
   projectsRoute,
-  connectorsRoute,
   workspaceRoute,
-  tutorialsRoute,
-  docsPageUrl,
-  dashboardsRoute
+  workbenchRoute,
+  progressRoute,
+  qualityAcceptanceRoute,
+  workValuationRoute,
+  archivesRoute
 } from '~/lib/common/helpers/route'
 import { useRoute } from 'vue-router'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -189,7 +288,6 @@ import { graphql } from '~/lib/common/generated/gql'
 import { useQuery } from '@vue/apollo-composable'
 import dayjs from 'dayjs'
 import { useActiveUserMeta } from '~/lib/user/composables/meta'
-import { LayoutDashboard } from 'lucide-vue-next'
 
 const dashboardSidebarQuery = graphql(`
   query DashboardSidebar {
@@ -263,6 +361,10 @@ const projectsLink = computed(() => {
       ? workspaceRoute(activeWorkspaceSlug.value)
       : projectsRoute
     : projectsRoute
+})
+
+const workbenchLink = computed(() => {
+  return isWorkspacesEnabled.value ? activeWorkspaceSlug.value : workbenchRoute
 })
 
 const openChat = () => {

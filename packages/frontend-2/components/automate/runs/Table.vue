@@ -2,21 +2,21 @@
   <div>
     <LayoutTable
       :columns="[
-        { id: 'status', header: 'Status', classes: 'col-span-2' },
-        { id: 'runId', header: 'Run ID', classes: 'col-span-3' },
-        { id: 'modelVersion', header: 'Model version', classes: 'col-span-3' },
-        { id: 'date', header: 'Date', classes: 'col-span-2' },
-        { id: 'duration', header: 'Duration', classes: 'col-span-2' }
+        { id: 'status', header: '状态', classes: 'col-span-2' },
+        { id: 'runId', header: '运行 ID', classes: 'col-span-3' },
+        { id: 'modelVersion', header: '模型版本', classes: 'col-span-3' },
+        { id: 'date', header: '日期', classes: 'col-span-2' },
+        { id: 'duration', header: '时长', classes: 'col-span-2' }
       ]"
       :items="runs"
       :buttons="[
         {
           icon: EyeIcon,
-          label: 'View',
+          label: '查看',
           action: onView
         }
       ]"
-      empty-message="Automation does not have any runs"
+      empty-message="该自动化没有任何运行记录"
     >
       <template #status="{ item }">
         <AutomateRunsStatusBadge :run="item" />
@@ -36,7 +36,7 @@
         >
           {{ item.trigger.version.id }}
         </CommonTextLink>
-        <span v-else class="italic">unknown</span>
+        <span v-else class="italic">未知</span>
       </template>
       <template #date="{ item }">
         <span class="caption">{{ runDate(item) }}</span>

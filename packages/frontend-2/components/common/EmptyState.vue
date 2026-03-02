@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col space-y-2 items-center justify-center p-4 min-h-32">
     <div class="text-sm mb-2">
-      <slot>No data found!</slot>
+      <slot>未找到数据！</slot>
     </div>
     <FormButton v-if="cta" :to="cta?.to" color="outline" @click="onCtaClick">
       {{ cta.text }}

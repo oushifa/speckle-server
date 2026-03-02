@@ -8,7 +8,7 @@
       />
       <div class="flex items-center gap-2 mb-2">
         <Squares2X2Icon class="h-5 w-5" />
-        <h1 class="text-heading-lg">Projects</h1>
+        <h1 class="text-heading-lg">项目管理</h1>
       </div>
 
       <div class="flex flex-col lg:flex-row gap-2 lg:items-center justify-between">
@@ -41,9 +41,7 @@
             />
           </div>
         </div>
-        <FormButton v-if="canClickCreate" @click="onClickCreate">
-          New project
-        </FormButton>
+        <FormButton v-if="canClickCreate" @click="onClickCreate">新建项目</FormButton>
       </div>
     </div>
     <CommonLoadingBar :loading="showLoadingBar" class="my-2" />
