@@ -1,4 +1,3 @@
 <template>
-  <div>质量验收</div>
+  <ProjectsQualityAcceptancePage />
 </template>
-<script></script>

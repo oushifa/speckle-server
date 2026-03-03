@@ -238,6 +238,14 @@ export const useFileImportApi = () => {
       throw new Error(errMsg)
     }
 
+    console.log(generateUploadUrl, 'generateUploadUrl')
+
+    generateUploadUrl.url = generateUploadUrl.url.replace(
+      /192\.168\.3\.34:9000/g,
+      '47.100.77.97:64485'
+    )
+
+    console.log(generateUploadUrl, 'generateUploadUrl')
     const { url: uploadUrl, fileId } = generateUploadUrl
 
     // Upload to S3 compatible endpoint

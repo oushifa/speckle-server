@@ -3,8 +3,7 @@
     <Portal to="current-page">
       <div>工作台</div>
     </Portal>
-    <!-- <ProjectPageModelsTab /> -->
-    工作台
+    <ProjectsWorkbenchPage />
   </div>
 </template>
 

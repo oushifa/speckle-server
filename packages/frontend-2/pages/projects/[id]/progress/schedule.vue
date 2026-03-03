@@ -1,5 +1,4 @@
 <template>
-  <div>计划进度</div>
+  <ProjectsProgressSchedulePage />
 </template>
-
 <script></script>

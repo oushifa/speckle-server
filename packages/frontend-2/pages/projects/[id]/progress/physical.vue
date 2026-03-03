@@ -1,5 +1,5 @@
 <template>
-  <div>形象进度</div>
+  <ProjectsProgressPhysicalPage />
 </template>
 
 <script></script>
