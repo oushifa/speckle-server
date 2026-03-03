@@ -3,6 +3,7 @@ import traceback
 from pathlib import Path
 from pprint import pprint
 
+
 from speckleifc.main import open_and_convert_file
 from specklepy.logging import metrics
 
@@ -17,7 +18,7 @@ from ifc_importer.domain import (
 
 def process_job(
     work_dir_path: str,
-    job_payload: str,
+    job_payload: str
 ) -> None:
     work_dir = Path(work_dir_path)
     outcome = None
@@ -26,11 +27,11 @@ def process_job(
         # we don't want it to reuse any server/user ids between jobs
         metrics.METRICS_TRACKER = None
         metrics.HOST_APP = "ifc"
-        print(job_payload)
+        print(f"------------Job payload: {job_payload}")
 
         job = FileimportPayload.model_validate_json(job_payload)
         start = time.time()
-
+        print(f"------------Job processed: {job}")
         client = setup_client(job)
 
         file_path = client.file_import.download_file(
@@ -39,7 +40,7 @@ def process_job(
         download_end = time.time()
         download_duration = download_end - start
         project = client.project.get(job.project_id)
-
+        print(f"------------Project: {project}")
         version = open_and_convert_file(
             file_path=str(file_path),
             client=client,
@@ -47,6 +48,7 @@ def process_job(
             model_id=job.model_id,
             version_message=f"Created from {job.file_name} upload.",
         )
+        print(f"------------Version: {version}")
         parse_end = time.time()
         parse_duration = parse_end - download_end
         outcome = FileimportSuccess(
