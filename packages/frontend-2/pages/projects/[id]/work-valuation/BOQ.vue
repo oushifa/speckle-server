@@ -1,4 +1,4 @@
 <template>
-  <div>清单管理</div>
+  <ProjectsWorkValuationBOQPage />
 </template>
 <script></script>

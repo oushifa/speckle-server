@@ -1,4 +1,4 @@
 <template>
-  <div>实际进度</div>
+  <ProjectsProgressActualPage />
 </template>
 <script></script>

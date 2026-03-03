@@ -1,4 +1,4 @@
 <template>
-  <div>档案管理</div>
+  <ProjectsArchiveArchivesPage />
 </template>
 <script></script>

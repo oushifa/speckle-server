@@ -1,4 +1,4 @@
 <template>
-  <div>月量验工</div>
+  <ProjectsWorkValuationMonthlyMeasurementPage />
 </template>
 <script></script>
