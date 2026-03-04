@@ -6,13 +6,13 @@
       :buttons="functionsSectionButtons"
     >
       <p class="text-body-xs text-foreground-2 mt-2">
-        View and manage functions accessible only to projects in your workspace
+        查看和管理仅对工作空间项目可用的函数
       </p>
     </SettingsSectionHeader>
     <LayoutTable
       :columns="[
-        { id: 'name', header: 'Name', classes: 'col-span-3' },
-        { id: 'owner', header: 'Owner', classes: 'col-span-3' },
+        { id: 'name', header: '名称', classes: 'col-span-3' },
+        { id: 'owner', header: '所有者', classes: 'col-span-3' },
         { id: 'id', header: 'ID', classes: 'col-span-5' },
         { id: 'actions', header: '', classes: 'col-span-1 flex justify-end' }
       ]"
@@ -39,7 +39,7 @@
             no-bg
           />
           <span class="truncate text-body-xs text-foreground">
-            {{ item.creator?.name }}
+            {{ item.creator?.name || '系统' }}
           </span>
         </div>
       </template>
@@ -97,7 +97,7 @@ const functionsSectionButtons = computed<LayoutHeaderButton[]>(() => [
       target: '_blank',
       external: true
     },
-    label: 'Open docs'
+    label: '打开文档'
   }
 ])
 

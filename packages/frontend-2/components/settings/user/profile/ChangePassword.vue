@@ -1,13 +1,13 @@
 <template>
   <div class="flex flex-col space-y-6">
-    <SettingsSectionHeader title="Password change" subheading />
+    <SettingsSectionHeader title="更改密码" subheading />
     <CommonCard class="text-body-xs bg-foundation">
-      Press the button below to start the password reset process.
+      点击下方按钮开始重置密码流程。
       <br />
-      Once pressed, you will receive an e-mail with further instructions.
+      重置完成后，您将收到一封包含进一步说明的电子邮件。
     </CommonCard>
     <div>
-      <FormButton color="primary" @click="onClick">Reset password</FormButton>
+      <FormButton color="primary" @click="onClick">重置密码</FormButton>
     </div>
   </div>
 </template>

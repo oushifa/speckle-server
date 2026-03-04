@@ -2,14 +2,11 @@
   <section>
     <div class="md:max-w-5xl md:mx-auto pb-6 md:pb-0">
       <div class="flex flex-col">
-        <SettingsSectionHeader
-          title="Developer settings"
-          text="Manage your tokens and authorized app"
-        />
+        <SettingsSectionHeader title="开发人员设置" text="管理您的令牌和已授权应用" />
         <div class="flex flex-col gap-6">
           <div class="flex flex-col">
             <SettingsSectionHeader
-              title="Explore GraphQL"
+              title="探索 GraphQL"
               class="md:gap-0"
               subheading
               :buttons="[
@@ -20,7 +17,7 @@
                     external: true
                   },
                   onClick: goToExplorer,
-                  label: 'Open explorer'
+                  label: '打开浏览器'
                 }
               ]"
             />

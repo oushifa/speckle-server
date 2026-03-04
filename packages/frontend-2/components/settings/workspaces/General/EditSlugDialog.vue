@@ -1,25 +1,20 @@
 <template>
   <LayoutDialog
     v-model:open="isOpen"
-    title="Edit workspace short ID"
+    title="编辑工作区短 ID"
     max-width="sm"
     :buttons="dialogButtons"
     :on-submit="updateSlug"
   >
+    <p class="text-body-xs text-foreground mb-2">更改工作区短 ID 会有重要影响。</p>
     <p class="text-body-xs text-foreground mb-2">
-      Changing the workspace short ID has important implications.
+      使用旧短 ID 生成的所有链接都将无效。这可能会打破 书签或之前共享的链接。
     </p>
-    <p class="text-body-xs text-foreground mb-2">
-      All links generated using the old short ID will become invalid. This may break
-      bookmarks or previously shared links.
-    </p>
-    <p class="text-body-xs text-foreground font-medium mb-2">
-      Are you sure you want to proceed?
-    </p>
+    <p class="text-body-xs text-foreground font-medium mb-2">您确定要继续吗？</p>
     <FormTextInput
       v-model:model-value="workspaceShortId"
       name="slug"
-      label="New short ID"
+      label="新短 ID"
       :help="`${baseUrl}${workspaceRoute(workspaceShortId || '')}`"
       color="foundation"
       :rules="[isStringOfLength({ maxLength: 50, minLength: 3 })]"
@@ -89,14 +84,14 @@ const updateSlug = handleSubmit(() => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: 'Update',
+    text: '更新',
     props: {
       color: 'primary',
       disabled: workspaceShortId.value === props.workspace?.slug || error.value !== null

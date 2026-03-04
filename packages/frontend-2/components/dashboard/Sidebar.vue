@@ -1,7 +1,7 @@
 <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
 <!-- eslint-disable vuejs-accessibility/no-static-element-interactions -->
 <template>
-  <div class="group h-full">
+  <div class="group h-full bg-gradient-to-b from-[#2c3e50] to-[#34495e]">
     <template v-if="isLoggedIn">
       <Portal to="mobile-navigation">
         <div class="lg:hidden">
@@ -23,12 +23,13 @@
         @click="isOpenMobile = false"
       />
       <div
-        class="absolute z-40 lg:static h-full flex w-[13rem] shrink-0 transition-all"
-        :class="isOpenMobile ? '' : '-translate-x-[13rem] lg:translate-x-0'"
+        class="absolute z-40 lg:static h-full flex w-[185px] shrink-0 transition-all"
+        :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
       >
-        <LayoutSidebar
-          class="border-r border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
-        >
+        <div
+          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
+        ></div>
+        <LayoutSidebar class="border-outline-3 px-2 pt-3 pb-2">
           <LayoutSidebarMenu>
             <LayoutSidebarMenuGroup
               v-if="isWorkspacesEnabled && isLoggedIn"
@@ -46,6 +47,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(workbenchRoute) && 'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
                       'hover:bg-slate-300'
@@ -65,6 +67,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(projectsRoute) && 'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
                       'hover:bg-slate-300'
@@ -84,6 +87,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(progressRoute) && 'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
                       'hover:bg-slate-300'
@@ -103,6 +107,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(qualityAcceptanceRoute) &&
                         'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
@@ -123,6 +128,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(workValuationRoute) &&
                         'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
@@ -143,6 +149,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isActive(archivesRoute) && 'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
                       'hover:bg-slate-300'
@@ -384,3 +391,10 @@ const isActive = (...routes: string[]): boolean => {
   return routes.some((routeTo) => route.path === routeTo)
 }
 </script>
+
+<style scoped>
+.layout-sidebar-bg {
+  background: url('~~/assets/images/layout/side_bg.png');
+  background-size: 100% 100%;
+}
+</style>

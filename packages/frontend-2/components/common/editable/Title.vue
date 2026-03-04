@@ -1,7 +1,7 @@
 <template>
   <div class="flex group">
     <label class="max-w-full overflow-hidden">
-      <div class="sr-only">Edit title</div>
+      <div class="sr-only">编辑标题</div>
       <div
         :class="titleInputClasses"
         class="grow-textarea"
@@ -11,7 +11,7 @@
           name="Title"
           maxlength="512"
           :class="titleInputClasses"
-          placeholder="Please enter a valid title"
+          placeholder="请输入有效标题"
           rows="1"
           spellcheck="false"
           :disabled="disabled"

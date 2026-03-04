@@ -1,7 +1,7 @@
 <template>
   <div>
     <nav
-      class="fixed z-40 top-0 h-12 bg-gradient-to-r from-[#2c3e50] to-[#34495e] text-white shadow-xl border-outline-2"
+      class="fixed z-40 top-0 h-12 bg-gradient-to-r from-[#2c3e50] to-[#34495e] text-white border-outline-2"
     >
       <div
         class="flex gap-4 items-center justify-between h-full w-screen px-2 lg:pl-1.5"
@@ -80,4 +80,6 @@ const loginUrl = computed(() =>
     }
   })
 )
+
+console.log(isWorkspacesEnabled.value, isLoggedIn.value, 'check loggin')
 </script>

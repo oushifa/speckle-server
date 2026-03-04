@@ -5,14 +5,11 @@
     :to="to"
     :target="target"
   >
-    <IconBimSvg class="h-8 w-8 block mr-1" />
-    <div
-      v-if="!minimal"
-      class="text-sm mt-0 font-medium"
-      :class="showTextOnMobile ? '' : 'hidden md:flex'"
-    >
-      数智南北
-    </div>
+    <img
+      class="block -ml-2 mr-1"
+      src="~~/assets/images/layout/logo.png"
+      alt="数智南北"
+    />
   </Component>
 </template>
 <script setup lang="ts">

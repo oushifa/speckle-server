@@ -36,16 +36,16 @@
             <div class="line-through text-foreground-2">
               {{ seatPrice }}/{{ billingInterval }}
             </div>
-            <div class="text-primary">Free</div>
+            <div class="text-primary">免费</div>
           </template>
           <template v-else-if="isFreePlan || isUnlimitedPlan">
-            <div class="text-primary">Free</div>
+            <div class="text-primary">免费</div>
           </template>
           <template v-else>
             <div class="text-primary">{{ seatPrice }}/{{ billingInterval }}</div>
           </template>
         </div>
-        <div v-else class="ml-auto text-primary font-medium">Free</div>
+        <div v-else class="ml-auto text-primary font-medium">免费</div>
       </div>
     </template>
   </BillingTransitionCards>
@@ -65,18 +65,18 @@ const props = defineProps<{
 }>()
 
 const editorDescription = computed(() =>
-  props.isGuest ? 'Can edit projects' : 'Can create and edit projects'
+  props.isGuest ? '可以编辑项目' : '可以创建和编辑项目'
 )
 
 const SeatTypes = {
   viewer: {
     icon: EyeIcon,
-    title: 'Viewer seat',
-    description: 'Can view and comment on projects'
+    title: '查看者',
+    description: '可以查看和评论项目'
   },
   editor: {
     icon: PencilIcon,
-    title: 'Editor seat',
+    title: '编辑者',
     description: editorDescription.value
   }
 } as const
