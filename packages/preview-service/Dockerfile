@@ -98,28 +98,15 @@ RUN groupadd -g 30000 -r pptruser && \
 # overriding this value via `--build-arg CACHE_BUST=$(date +%s)` will cause the latest google chrome to be fetched
 ARG CACHE_BUST=1
 
-# install google chrome
-# hadolint ignore=DL3008
+# install chromium from Debian repositories
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     --no-install-recommends \
-    # wget has different versions for different architectures so we cannot pin version
-    wget && \
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg && \
-    sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] https://dl-ssl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
-    # remove wget after use
-    DEBIAN_FRONTEND=noninteractive apt-get remove -y \
-    wget && \
-    # update packages in order to use google chrome repo
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    --no-install-recommends \
-    google-chrome-stable && \
-    # Clean up
+    chromium && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/google-chrome"
+ENV CHROMIUM_EXECUTABLE_PATH="/usr/bin/chromium"
 ENV USER_DATA_DIR='/tmp/puppeteer'
 
 # Run everything after as non-privileged user.

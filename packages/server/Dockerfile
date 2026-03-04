@@ -61,7 +61,7 @@ ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV}
 RUN PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn workspaces focus --production
 
-FROM gcr.io/distroless/nodejs22-debian12@sha256:8d8b9363b0c9d1153f845824f9b754fdb050ada4fa190583eca2da13fdd3138c AS production-stage
+FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS production-stage
 
 COPY --link --from=build-stage /usr/bin/tini /usr/bin/tini
 
@@ -88,4 +88,4 @@ ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV} \
   SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION}
 
-ENTRYPOINT [ "tini", "--", "/nodejs/bin/node", "--import=./esmLoader.js", "./bin/www" ]
+ENTRYPOINT [ "tini", "--", "node", "--import=./esmLoader.js", "./bin/www" ]

@@ -56,7 +56,7 @@ ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV}
 RUN PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn workspaces focus --production
 
-FROM gcr.io/distroless/nodejs22-debian12:nonroot@sha256:ed26b3ab750110c51d9dbdfd6c697561dc40a01c296460c3494d47b550ef4126 AS production-stage
+FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS production-stage
 
 WORKDIR /speckle-server/packages/webhook-service/
 COPY packages/webhook-service/src .
@@ -69,4 +69,4 @@ COPY --link --from=dependency-stage /speckle-server/node_modules ./node_modules
 ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV}
 
-ENTRYPOINT [ "tini", "--", "/nodejs/bin/node", "main.js" ]
+ENTRYPOINT [ "tini", "--", "node", "main.js" ]

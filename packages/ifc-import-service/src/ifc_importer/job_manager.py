@@ -85,6 +85,8 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         ).decode()
                     }"
                 )
+                # 打印
+                logger.info(f"------------Running command: {cmd}")
                 # subprocess
                 process = await asyncio.create_subprocess_shell(
                     cmd,
