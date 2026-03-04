@@ -16,7 +16,7 @@
           <FormTextInput
             name="modelsearch"
             :show-label="false"
-            placeholder="Search..."
+            placeholder="搜索项目..."
             :custom-icon="MagnifyingGlassIcon"
             color="foundation"
             wrapper-classes="grow md:grow-0 md:w-60"

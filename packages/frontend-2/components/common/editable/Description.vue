@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-x-2 group">
     <label>
-      <div class="sr-only">Edit description</div>
+      <div class="sr-only">编辑描述</div>
       <div
         class="grow-textarea"
         :data-replicated-value="visibleDescription"
@@ -13,9 +13,7 @@
             ...descriptionInputClasses,
             visibleDescription ? 'focus:min-w-0' : 'min-w-[260px]'
           ]"
-          :placeholder="
-            visibleDescription ? undefined : 'Click here to add a description.'
-          "
+          :placeholder="visibleDescription ? undefined : '点击这里添加描述'"
           :disabled="disabled"
           rows="1"
           spellcheck="false"

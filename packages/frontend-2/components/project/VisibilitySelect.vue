@@ -10,11 +10,7 @@
     :label-id="labelId"
     :button-id="buttonId"
     by="id"
-    :help="
-      disabled
-        ? 'You must be an Owner of this project to change this setting'
-        : undefined
-    "
+    :help="disabled ? '您必须是此项目的所有者才能更改此设置' : undefined"
   >
     <template #something-selected="{ value }">
       <div>
@@ -58,22 +54,22 @@ const buttonId = useId()
 const items = computed(() => ({
   [SupportedProjectVisibility.Public]: {
     id: SupportedProjectVisibility.Public,
-    description: 'Anyone with the link can view',
-    title: 'Public'
+    description: '任何人都可以通过链接查看',
+    title: '公开'
   },
   ...(props.workspaceId
     ? {
         [SupportedProjectVisibility.Workspace]: {
           id: SupportedProjectVisibility.Workspace,
-          description: 'All workspace members can view',
-          title: 'Workspace'
+          description: '所有工作区成员都可以查看',
+          title: '工作区'
         }
       }
     : {}),
   [SupportedProjectVisibility.Private]: {
     id: SupportedProjectVisibility.Private,
-    description: 'Only for project members and admins',
-    title: 'Private'
+    description: '仅项目成员和管理员可见',
+    title: '私有'
   }
 }))
 

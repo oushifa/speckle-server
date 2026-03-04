@@ -210,7 +210,6 @@ export const useFileImportApi = () => {
     public: { FF_LEGACY_FILE_IMPORTS_ENABLED }
   } = useRuntimeConfig()
   const apollo = useApolloClient().client
-  console.log(apollo, 'appolo')
   const { registerActiveUpload, unregisterActiveUpload } = useGlobalFileImportManager()
 
   const importFileV2: ImportFile = async (params, callbacks) => {
@@ -238,14 +237,6 @@ export const useFileImportApi = () => {
       throw new Error(errMsg)
     }
 
-    console.log(generateUploadUrl, 'generateUploadUrl')
-
-    generateUploadUrl.url = generateUploadUrl.url.replace(
-      /192\.168\.3\.34:9000/g,
-      '47.100.77.97:64485'
-    )
-
-    console.log(generateUploadUrl, 'generateUploadUrl')
     const { url: uploadUrl, fileId } = generateUploadUrl
 
     // Upload to S3 compatible endpoint

@@ -11,7 +11,7 @@
       <div
         v-for="(card, index) in summaryCards"
         :key="index"
-        class="bg-foundation-page border border-outline-3 rounded-xl p-6 flex items-center shadow-sm"
+        class="border border-outline-3 rounded-xl p-6 flex items-center shadow-sm"
       >
         <div
           class="p-4 rounded-xl mr-4 flex items-center justify-center"
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Project Progress Details -->
-    <div class="bg-foundation-page border border-outline-3 rounded-xl p-6">
+    <div class="border border-outline-3 rounded-xl p-6">
       <h2 class="text-heading-md font-bold text-foreground mb-6">项目进度详情</h2>
 
       <LayoutTable

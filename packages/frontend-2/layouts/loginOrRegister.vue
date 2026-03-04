@@ -2,7 +2,6 @@
   <main class="flex items-center justify-center">
     <div class="absolute inset-0 pointer-events-none px-4 py-3">
       <div class="flex justify-between">
-        <LogoBlock />
         <div class="flex gap-2 items-center">
           <FormButton size="sm" text class="pointer-events-auto" @click="toggleTheme">
             <Icon class="w-4 h-4" />

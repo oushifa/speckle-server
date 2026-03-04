@@ -23,19 +23,16 @@
         @click="isOpenMobile = false"
       />
       <div
-        class="absolute z-40 lg:static h-full flex w-[13rem] shrink-0 transition-all"
-        :class="isOpenMobile ? '' : '-translate-x-[13rem] lg:translate-x-0'"
+        class="absolute z-40 lg:static h-full flex w-[185px] shrink-0 transition-all"
+        :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
       >
+        <div
+          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
+        ></div>
         <LayoutSidebar
-          class="border-r border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
+          class="border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
         >
           <LayoutSidebarMenu>
-            <LayoutSidebarMenuGroup class="hidden lg:block lg:mb-4">
-              <NuxtLink to="/projects" class="items-center gap-x-1.5 px-2.5 flex">
-                <ChevronLeftIcon class="h-3 w-3 text-white" />
-                <p class="text-body-xs font-medium text-white">返回项目管理</p>
-              </NuxtLink>
-            </LayoutSidebarMenuGroup>
             <LayoutSidebarMenuGroup
               v-if="isWorkspacesEnabled && isLoggedIn"
               class="lg:hidden mb-4"
@@ -52,6 +49,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isProjectActive('/workbench') &&
                         'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
@@ -82,11 +80,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/model-list') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="文件管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -97,11 +97,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/collaborate') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="协同管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -124,11 +126,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/progress/schedule') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="进度计划"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -139,11 +143,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/progress/actual') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="实际进度"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -154,11 +160,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/progress/physical') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="形象进度"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -171,6 +179,7 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
+                      'py-2 mb-1',
                       isProjectActive('/quality-acceptance') &&
                         'bg-slate-400 hover:!bg-slate-400',
                       'text-white',
@@ -201,11 +210,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/work-valuation/BOQ') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="清单管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -216,11 +227,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/work-valuation/monthly-measurement') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="月度验工"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -243,11 +256,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/archive/model-to-site') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="实模一致性检查"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -258,11 +273,13 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
+                        'py-2 mb-1',
                         isProjectActive('/archive/archives') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
                       ]"
+                      extra-padding
                       label="档案管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
@@ -370,3 +387,10 @@ const isActive = (...routes: string[]): boolean => {
   return routes.some((routeTo) => route.path === routeTo)
 }
 </script>
+
+<style scoped>
+.layout-sidebar-bg {
+  background: url('~~/assets/images/layout/side_bg.png');
+  background-size: 100% 100%;
+}
+</style>

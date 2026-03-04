@@ -1,15 +1,15 @@
 <template>
   <LayoutDialog
     v-model:open="isOpen"
-    :title="isAdding ? 'Stop adding email?' : 'Delete email address'"
+    :title="isAdding ? '停止添加电子邮件?' : '删除电子邮件地址'"
     max-width="xs"
     :buttons="dialogButtons"
   >
     <p class="text-body-xs text-foreground mb-2">
       {{
         isAdding
-          ? `Do you want to stop adding ${email?.email}? Any progress will be discarded.`
-          : `Are you sure you want to delete ${email?.email} from your account?`
+          ? `您确定要停止添加 ${email?.email} 吗？任何进行中的操作都将被丢弃。`
+          : `您确定要从您的账户删除 ${email?.email} 吗？`
       }}
     </p>
   </LayoutDialog>
