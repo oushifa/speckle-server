@@ -4,7 +4,7 @@
     :items="roles"
     :clearable="clearable"
     name="projectRoles"
-    label="Project roles"
+    label="项目角色"
     class="min-w-[100px]"
     :label-id="labelId"
     :button-id="buttonId"
@@ -16,7 +16,7 @@
     menu-open-direction="left"
     mount-menu-on-body
   >
-    <template #nothing-selected>Select role</template>
+    <template #nothing-selected>选择角色</template>
     <template #something-selected="{ value }">
       <template v-if="isMultiItemArrayValue(value)">
         <div ref="elementToWatchForChanges" class="flex items-center space-x-0.5">

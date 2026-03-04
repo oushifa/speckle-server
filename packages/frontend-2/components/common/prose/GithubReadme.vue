@@ -2,7 +2,7 @@
 <template>
   <div v-if="cleanReadmeHtml.length" :class="proseClasses" v-html="cleanReadmeHtml" />
   <div v-else class="text-foreground-2 text-body-xs text-center italic">
-    No readme found
+    未找到 README 文件
   </div>
 </template>
 <script setup lang="ts">

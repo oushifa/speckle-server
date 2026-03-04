@@ -3,7 +3,7 @@
     v-model="selectedValue"
     :items="items"
     :name="name || 'models'"
-    :label="label || 'Models'"
+    :label="label || '模型'"
     :show-label="showLabel"
     :multiple="multiple"
     :disabled="!items.length"
@@ -16,7 +16,7 @@
   >
     <template #nothing-selected>
       <div class="label label--light">
-        {{ multiple ? 'Select models' : 'Select a model' }}
+        {{ multiple ? '选择模型' : '选择一个模型' }}
       </div>
     </template>
     <template #something-selected="{ value }">

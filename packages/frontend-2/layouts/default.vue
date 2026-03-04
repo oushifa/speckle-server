@@ -7,12 +7,20 @@
 
       <div class="relative flex h-[calc(100dvh-3rem)]">
         <DashboardSidebar />
-
-        <main class="w-full h-full overflow-y-auto simple-scrollbar pt-4 lg:pt-6 pb-16">
-          <div class="container mx-auto px-6 md:px-8">
-            <slot />
+        <div class="size-full bg-[#2c3e50]">
+          <div
+            style="border-top-left-radius: 30px"
+            class="size-full bg-white overflow-hidden"
+          >
+            <main
+              class="w-full h-full overflow-y-auto simple-scrollbar pt-4 lg:pt-6 pb-16"
+            >
+              <div class="container mx-auto px-6 md:px-8">
+                <slot />
+              </div>
+            </main>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   </div>

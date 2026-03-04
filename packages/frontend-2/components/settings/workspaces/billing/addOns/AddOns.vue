@@ -1,24 +1,24 @@
 <template>
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
     <SettingsWorkspacesBillingAddOnsCard
-      title="Unlimited projects and models"
+      title="无限制项目和模型"
       :subtitle="`${addonPrice} per editor/month`"
-      info="Power through with unlimited projects and models in your workspace."
-      disclaimer="Only on Business plan"
+      info="在您的工作区中无限制地创建项目和模型。"
+      disclaimer="仅在 Business 计划上可用"
       :button="unlimitedAddOnButton"
     />
 
     <SettingsWorkspacesBillingAddOnsCard
-      title="Extra data regions"
+      title="额外数据区域"
       :subtitle="`${currency === Currency.Gbp ? '£' : '$'}500 per region/month`"
-      info="Unlock per-project data residency by adding additional data regions to your workspace."
-      disclaimer="Only on Business plan"
+      info="通过为您的工作区添加额外的数据区域，解锁每个项目的数据驻留。"
+      disclaimer="仅在 Business 计划上可用"
       :button="contactButton"
     />
 
     <SettingsWorkspacesBillingAddOnsCard
-      title="Priority support"
-      subtitle="Talk to us"
+      title="优先支持"
+      subtitle="与我们联系"
       info="White-glove treatment with private support channel, onboarding calls and more."
       disclaimer="Only on Business plan"
       :button="contactButton"

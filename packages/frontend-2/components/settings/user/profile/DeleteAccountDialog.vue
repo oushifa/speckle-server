@@ -1,25 +1,21 @@
 <template>
-  <LayoutDialog v-model:open="isOpen" title="Delete account" max-width="md">
+  <LayoutDialog v-model:open="isOpen" title="删除账户" max-width="md">
     <form class="flex flex-col gap-y-3" @submit="onDelete">
       <p class="text-body-xs">
-        <span class="font-medium">
-          Are you sure you want to permanently delete your account? This action cannot
-          be undone.
-        </span>
-        We will delete all projects where you are the sole owner, and any associated
-        data.
+        <span class="font-medium">您确定要永久删除您的账户吗？此操作无法撤销。</span>
+        我们将删除您是唯一所有者的所有项目，以及任何关联数据。
       </p>
 
       <p class="text-body-xs">
-        To confirm, type your
-        <HelpText :text="emailPlaceholder">e-mail address</HelpText>
-        below.
+        要确认，请在下方输入您的
+        <HelpText :text="emailPlaceholder">电子邮件地址</HelpText>
+        。
       </p>
 
       <div class="flex gap-2 mt-3 mb-6">
         <FormTextInput
           name="deleteEmail"
-          label="Your e-mail address"
+          label="您的电子邮件地址"
           :placeholder="emailPlaceholder"
           color="foundation"
           full-width
@@ -33,7 +29,7 @@
           submit
           :disabled="!!Object.values(errors).length || loading"
         >
-          Delete
+          删除账户
         </FormButton>
       </div>
     </form>

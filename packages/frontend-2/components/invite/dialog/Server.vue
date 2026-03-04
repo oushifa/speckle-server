@@ -1,6 +1,6 @@
 <template>
   <LayoutDialog v-model:open="isOpen" max-width="md" :buttons="dialogButtons">
-    <template #header>Invite to Speckle</template>
+    <template #header>邀请加入</template>
     <form @submit="onSubmit">
       <div class="flex flex-col gap-y-5 text-foreground">
         <div v-for="(item, index) in fields" :key="item.key" class="flex gap-x-3">
@@ -12,19 +12,19 @@
                   v-model="item.value.email"
                   :name="`email-${item.key}`"
                   color="foundation"
-                  placeholder="Email address"
+                  placeholder="邮箱地址"
                   show-clear
                   full-width
                   use-label-in-errors
                   show-label
-                  label="Email"
+                  label="邮箱"
                   :rules="[isEmail]"
                 />
               </div>
               <FormSelectServerRoles
                 v-if="allowServerRoleSelect"
                 v-model="item.value.serverRole"
-                label="Select role"
+                label="选择角色"
                 :name="`role-${item.key}`"
                 class="sm:w-48"
                 show-label
@@ -36,7 +36,7 @@
             </div>
             <FormSelectProjects
               v-model="item.value.project"
-              label="Select project"
+              label="选择项目"
               class="w-full"
               owned-only
               show-optional
@@ -62,7 +62,7 @@
           :disabled="anyMutationsLoading"
           @click="addInviteItem"
         >
-          Invite another user
+          邀请另一个用户
         </FormButton>
       </div>
     </form>

@@ -44,7 +44,7 @@ def process_job(
             file_path=str(file_path),
             client=client,
             project=project,
-            model_id=job.model_id,
+            model_ingestion_id=job.model_id,
             version_message=f"Created from {job.file_name} upload.",
         )
         parse_end = time.time()

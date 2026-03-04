@@ -10,7 +10,7 @@
         color-classes="text-foreground bg-outline-3"
         rounded
       >
-        Unverified
+        未验证
       </CommonBadge>
       <FormButton
         v-if="!emailData.verified"
@@ -18,7 +18,7 @@
         size="sm"
         @click="handleVerifyEmail"
       >
-        Verify email
+        验证电子邮件
       </FormButton>
     </div>
     <div class="flex flex-col md:flex-row">
@@ -50,7 +50,7 @@
             size="sm"
             @click="toggleDeleteDialog"
           >
-            Delete
+            删除
           </FormButton>
         </div>
       </div>
@@ -81,18 +81,18 @@ const showSetPrimaryDialog = ref(false)
 
 const primaryTooltip = computed(() => {
   if (props.emailData.primary) {
-    return 'This is already your primary email'
+    return '这已是您的主要电子邮件'
   } else if (!props.emailData.verified) {
-    return 'Unverified emails cannot be set as primary'
+    return '未验证的电子邮件不能设置为主要电子邮件'
   }
   return undefined
 })
 
 const description = computed(() => {
   if (props.emailData.primary) {
-    return 'Used for signing in and notifications'
+    return '用于登录和通知'
   } else if (!props.emailData.verified) {
-    return 'Unverified emails cannot be set as primary'
+    return '未验证的电子邮件不能设置为主要电子邮件'
   }
   return null
 })

@@ -2,7 +2,7 @@
   <div>
     <template v-if="user">
       <div class="md:max-w-xl md:mx-auto pb-6 md:pb-0">
-        <SettingsSectionHeader title="Profile" text="Manage your profile" />
+        <SettingsSectionHeader title="个人资料" text="管理您的个人资料" />
         <SettingsUserProfileDetails :user="user" />
         <hr class="my-6 md:my-8 border-outline-2" />
         <SettingsUserProfileChangePassword :user="user" />
@@ -11,7 +11,7 @@
         <hr class="my-6 md:my-8 border-outline-2" />
         <div class="text-body-2xs text-foreground-2 w-full flex flex-col space-y-2">
           <div class="flex">
-            User ID: #{{ user.id }}
+            用户 ID: #{{ user.id }}
             <ClipboardIcon
               class="w-4 h-4 ml-2 cursor-pointer hover:text-foreground transition"
               @click="copyUserId"
@@ -35,7 +35,7 @@ import { useActiveUser } from '~/lib/auth/composables/activeUser'
 import { ClipboardIcon } from '@heroicons/vue/24/outline'
 
 useHead({
-  title: 'Settings - Profile'
+  title: '设置 - 个人资料'
 })
 
 definePageMeta({

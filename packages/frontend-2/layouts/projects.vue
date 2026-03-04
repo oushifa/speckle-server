@@ -8,20 +8,27 @@
       <div class="relative flex h-[calc(100dvh-3rem)]">
         <ProjectsSidebar />
 
-        <main class="w-full h-full overflow-y-auto simple-scrollbar py-6 lg:py-8">
-          <div class="container mx-auto px-6 md:px-8">
-            <div class="breadcrumbs flex text-sm font-medium text-slate-600">
-              <div>项目管理</div>
-              <ClientOnly>
-                <PortalTarget name="current-page"></PortalTarget>
-                <PortalTarget name="current-project"></PortalTarget>
-              </ClientOnly>
-            </div>
-            <div>
-              <slot />
-            </div>
+        <div class="size-full bg-[#2c3e50]">
+          <div
+            style="border-top-left-radius: 30px"
+            class="size-full bg-white overflow-hidden"
+          >
+            <main class="w-full h-full overflow-y-auto simple-scrollbar py-6 lg:py-8">
+              <div class="container mx-auto px-6 md:px-8">
+                <div class="breadcrumbs flex text-sm font-medium text-slate-600">
+                  <NuxtLink to="/projects">项目管理</NuxtLink>
+                  <ClientOnly>
+                    <PortalTarget name="current-page"></PortalTarget>
+                    <PortalTarget name="current-project"></PortalTarget>
+                  </ClientOnly>
+                </div>
+                <div>
+                  <slot />
+                </div>
+              </div>
+            </main>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   </div>

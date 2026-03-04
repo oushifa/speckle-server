@@ -69,24 +69,24 @@ const pendingVisibility = ref<SupportedProjectVisibility | null>(null)
 const radioOptions = computed(() => [
   {
     value: SupportedProjectVisibility.Public,
-    title: 'Public',
-    introduction: 'Anyone with the link can view',
+    title: '公开',
+    introduction: '任何人都可以通过链接查看',
     icon: GlobeAltIcon
   },
   ...(props.project.workspaceId
     ? [
         {
           value: SupportedProjectVisibility.Workspace,
-          introduction: 'All workspace members can view',
-          title: 'Workspace',
+          introduction: '所有工作区成员都可以查看',
+          title: '工作区',
           icon: BuildingOfficeIcon
         }
       ]
     : []),
   {
     value: SupportedProjectVisibility.Private,
-    title: 'Private',
-    introduction: 'Only for project members and admins',
+    title: '私有',
+    introduction: '只有项目成员和管理员才能查看',
     icon: LockClosedIcon
   }
 ])

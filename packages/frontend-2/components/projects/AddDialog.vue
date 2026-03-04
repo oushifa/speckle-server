@@ -51,7 +51,7 @@ const { step, resetStep, goToNextStep, previousStep, goToPreviousStep } =
       },
       {
         id: DialogStepId.Metadata,
-        title: 'Create a new project'
+        title: '创建新项目'
       }
     ]),
     resolveNextStep: () => {

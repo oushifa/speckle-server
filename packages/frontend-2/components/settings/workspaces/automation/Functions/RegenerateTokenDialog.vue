@@ -3,18 +3,18 @@
     <template #header>Regenerate token</template>
     <div class="flex flex-col gap-2 text-body-xs text-foreground mb-2">
       <div v-if="!newToken">
-        <p>Are you sure you want to regenerate this function's token?</p>
+        <p>您确定要重新生成此函数的令牌吗？</p>
         <p>
-          Existing token(s) for
+          已为
           <strong>{{ workspaceFunction.name }}</strong>
-          will be
-          <strong>permanently</strong>
-          invalidated.
+          的令牌将
+          <strong>永久</strong>
+          无效。
         </p>
       </div>
       <div v-else class="flex flex-col gap-4 text-foreground">
         <div class="flex flex-col gap-1">
-          <h6 class="font-medium">Your new token:</h6>
+          <h6 class="font-medium">新令牌：</h6>
           <div class="w-full">
             <CommonClipboardInputWithToast :value="newToken" />
           </div>
@@ -24,10 +24,10 @@
         >
           <div class="max-w-md text-body-2xs">
             <p>
-              <span class="font-medium">Note:</span>
-              This is the first and last time you will be able to see the full token.
+              <span class="font-medium">注意：</span>
+              这是您第一次查看完整令牌的机会。
             </p>
-            <p class="font-medium">Please copy paste it somewhere safe now.</p>
+            <p class="font-medium">请将其安全地复制粘贴到某处。</p>
           </div>
         </div>
       </div>
@@ -74,14 +74,14 @@ const handleRegenerateToken = async () => {
     newToken.value = token
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Token regenerated',
-      description: 'A new token has been generated for your function.'
+      title: '令牌已重新生成',
+      description: '为您的函数生成了一个新令牌。'
     })
   } else {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to regenerate token',
+      title: '重新生成令牌失败',
       description: errorMessage
     })
   }
@@ -89,12 +89,12 @@ const handleRegenerateToken = async () => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: (): boolean => (isOpen.value = false)
   },
   {
-    text: 'Regenerate',
+    text: '重新生成',
     props: { color: 'danger' },
     disabled: loading.value || !!newToken.value,
     onClick: handleRegenerateToken

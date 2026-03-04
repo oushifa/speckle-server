@@ -4,7 +4,7 @@
       <section class="flex items-center gap-2">
         <div class="flex flex-col gap-2 flex-1">
           <div class="flex items-center gap-2">
-            <h1 class="text-heading-sm md:text-heading line-clamp-2">Connectors</h1>
+            <h1 class="text-heading-sm md:text-heading line-clamp-2">连接器</h1>
           </div>
         </div>
       </section>
@@ -13,7 +13,7 @@
           <FormTextInput
             name="modelsearch"
             :show-label="false"
-            placeholder="Search connectors..."
+            placeholder="搜索连接器..."
             :custom-icon="MagnifyingGlassIcon"
             color="foundation"
             wrapper-classes="grow"
@@ -46,12 +46,12 @@
         <ConnectorsBanner v-if="filteredConnectors.length === connectors.length" />
         <div>
           <p class="text-body-2xs text-foreground-3 leading-none">
-            Looking for V2 connectors? Get them
+            正在寻找 V2 连接器？点击
             <NuxtLink
               class="text-foreground-3 hover:text-foreground-2 underline"
-              to="https://releases.speckle.systems/legacy-connectors"
+              to="/"
             >
-              here.
+              这里。
             </NuxtLink>
           </p>
         </div>
@@ -67,7 +67,7 @@
           v-if="!filteredConnectors.length"
           class="text-body-xs text-foreground text-center w-full my-4"
         >
-          No results.
+          没有结果。
         </p>
       </section>
     </div>

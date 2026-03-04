@@ -39,19 +39,19 @@ export const useSettingsMenu = () => {
 
   const workspaceMenuItems = shallowRef<WorkspaceSettingsMenuItem[]>([
     {
-      title: 'General',
+      title: '一般',
       name: settingsWorkspaceRoutes.general.name,
       route: (slug?: string) => settingsWorkspaceRoutes.general.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member, Roles.Workspace.Guest]
     },
     {
-      title: 'People',
+      title: '成员',
       name: settingsWorkspaceRoutes.members.name,
       route: (slug?: string) => settingsWorkspaceRoutes.members.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
     },
     {
-      title: 'Projects',
+      title: '项目',
       name: settingsWorkspaceRoutes.projects.name,
       route: (slug?: string) => settingsWorkspaceRoutes.projects.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
@@ -59,7 +59,7 @@ export const useSettingsMenu = () => {
     ...(isAutomateEnabled.value
       ? [
           {
-            title: 'Automation',
+            title: '自动化',
             name: settingsWorkspaceRoutes.automation.name,
             route: (slug?: string) => settingsWorkspaceRoutes.automation.route(slug),
             permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
@@ -67,25 +67,25 @@ export const useSettingsMenu = () => {
         ]
       : []),
     {
-      title: 'Integrations',
+      title: '集成',
       name: settingsWorkspaceRoutes.integrations.name,
       route: (slug?: string) => settingsWorkspaceRoutes.integrations.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
     },
     {
-      title: 'Security',
+      title: '安全',
       name: settingsWorkspaceRoutes.security.name,
       route: (slug?: string) => settingsWorkspaceRoutes.security.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
     },
     {
-      title: 'Billing',
+      title: '计费',
       name: settingsWorkspaceRoutes.billing.name,
       route: (slug?: string) => settingsWorkspaceRoutes.billing.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member]
     },
     {
-      title: 'Data residency',
+      title: '数据 residency',
       name: settingsWorkspaceRoutes.regions.name,
       route: (slug?: string) => settingsWorkspaceRoutes.regions.route(slug),
       permission: [Roles.Workspace.Admin, Roles.Workspace.Member],
@@ -102,21 +102,21 @@ export const useSettingsMenu = () => {
 
   const userMenuItems = shallowRef<GenericSettingsMenuItem[]>([
     {
-      title: 'Profile',
+      title: '个人资料',
       route: settingsUserRoutes.profile
     },
     {
-      title: 'Notifications',
+      title: '通知',
       route: settingsUserRoutes.notifications
     },
     {
-      title: 'Developer',
+      title: '开发者',
       route: settingsUserRoutes.developerSettings
     },
     ...(isMultipleEmailsEnabled
       ? [
           {
-            title: 'Emails',
+            title: '邮箱',
             route: settingsUserRoutes.emails
           }
         ]
@@ -125,21 +125,21 @@ export const useSettingsMenu = () => {
 
   const serverMenuItems = shallowRef<GenericSettingsMenuItem[]>([
     {
-      title: 'General',
+      title: '一般',
       route: settingsServerRoutes.general
     },
     {
-      title: 'Members',
+      title: '成员',
       route: settingsServerRoutes.members
     },
     {
-      title: 'Projects',
+      title: '项目',
       route: settingsServerRoutes.projects
     },
     ...(isMultiRegionEnabled
       ? [
           {
-            title: 'Regions',
+            title: '数据 residency',
             route: settingsServerRoutes.regions
           }
         ]
@@ -232,49 +232,49 @@ export const useSettingsMembersActions = (params: {
 
     if (showMakeAdmin.value) {
       mainItems.push({
-        title: 'Make admin...',
+        title: '成为管理员...',
         id: WorkspaceUserActionTypes.MakeAdmin
       })
     }
     if (showRemoveAdmin.value) {
       mainItems.push({
-        title: 'Revoke admin access...',
+        title: '撤销管理员权限...',
         id: WorkspaceUserActionTypes.RemoveAdmin,
         disabled: isOnlyAdmin.value,
-        disabledTooltip: 'There must be at least one admin in this workspace'
+        disabledTooltip: '至少有一个管理员在工作空间'
       })
     }
     if (showMakeGuest.value) {
       mainItems.push({
-        title: 'Make guest...',
+        title: '成为访客...',
         id: WorkspaceUserActionTypes.MakeGuest,
         disabled: targetUserRole.value === Roles.Workspace.Admin,
-        disabledTooltip: 'Admins must be on an Member seat'
+        disabledTooltip: '管理员不能成为访客'
       })
     }
     if (showMakeMember.value) {
       mainItems.push({
-        title: 'Make member...',
+        title: '成为成员...',
         id: WorkspaceUserActionTypes.MakeMember
       })
     }
     if (showUpgradeEditor.value) {
       headerItems.push({
-        title: 'Upgrade to editor...',
+        title: '升级为编辑者...',
         id: WorkspaceUserActionTypes.UpgradeEditor,
         disabled: statusIsCanceled.value,
-        disabledTooltip: 'This workspace has a canceled plan'
+        disabledTooltip: '此工作空间已取消计划'
       })
     }
     if (showDowngradeEditor.value) {
       headerItems.push({
-        title: 'Downgrade to viewer...',
+        title: '降级为查看者...',
         id: WorkspaceUserActionTypes.DowngradeEditor,
         disabled:
           targetUserRole.value === Roles.Workspace.Admin || statusIsCanceled.value,
         disabledTooltip: statusIsCanceled.value
-          ? 'This workspace has a canceled plan'
-          : 'Admins must be on an Editor seat'
+          ? '此工作空间已取消计划'
+          : '管理员必须在编辑者座位上'
       })
     }
     // This will return post new workspace plan launch
@@ -289,18 +289,18 @@ export const useSettingsMembersActions = (params: {
 
     if (showRemoveFromWorkspace.value) {
       footerItems.push({
-        title: 'Remove from workspace...',
+        title: '从工作空间移除...',
         id: WorkspaceUserActionTypes.RemoveFromWorkspace,
         disabled: isOnlyAdmin.value && targetUserRole.value === Roles.Workspace.Admin,
-        disabledTooltip: 'There must be at least one admin in this workspace'
+        disabledTooltip: '至少有一个管理员在工作空间'
       })
     }
     if (showLeaveWorkspace.value) {
       footerItems.push({
-        title: 'Leave workspace...',
+        title: '离开工作空间...',
         id: WorkspaceUserActionTypes.LeaveWorkspace,
         disabled: isOnlyAdmin.value,
-        disabledTooltip: 'You are the only admin of this workspace'
+        disabledTooltip: '您是此工作空间唯一的管理员'
       })
     }
 

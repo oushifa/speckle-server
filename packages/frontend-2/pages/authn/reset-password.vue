@@ -6,7 +6,7 @@ const route = useRoute()
 const token = ref('')
 
 useHead({
-  title: 'Reset password'
+  title: '重置密码'
 })
 
 definePageMeta({

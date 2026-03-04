@@ -17,8 +17,8 @@ defineProps({
 
 const handleCopy = async (value: string) => {
   await copy(value, {
-    successMessage: 'Value copied to clipboard',
-    failureMessage: 'Failed to copy value to clipboard'
+    successMessage: '值已复制到剪贴板',
+    failureMessage: '复制值到剪贴板失败'
   })
 }
 </script>

@@ -3,7 +3,7 @@
     v-model="selectedValue"
     :multiple="multiple"
     :search="true"
-    :search-placeholder="searchPlaceholder"
+    :search-placeholder="'搜索项目'"
     :get-search-results="invokeSearch"
     :show-optional="showOptional"
     :label="label"
@@ -19,7 +19,7 @@
         {{ selectorPlaceholder }}
       </template>
       <template v-else>
-        {{ multiple ? 'Select projects' : 'Select a project' }}
+        {{ multiple ? '选择项目' : '选择一个项目' }}
       </template>
     </template>
     <template #something-selected="{ value }">

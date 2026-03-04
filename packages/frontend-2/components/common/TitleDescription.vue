@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-1">
     <h2 class="text-heading">{{ title }}</h2>
     <p class="text-body-sm text-foreground-2 line-clamp-2">
-      {{ description ? description : 'No description' }}
+      {{ description ? description : '未提供描述' }}
     </p>
   </div>
 </template>

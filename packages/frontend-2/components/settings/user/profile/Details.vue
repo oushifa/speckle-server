@@ -1,10 +1,10 @@
 <template>
   <div class="flex flex-col gap-y-4">
-    <SettingsSectionHeader title="Your details" subheading />
+    <SettingsSectionHeader title="您的详细信息" subheading />
     <FormTextInput
       v-model="name"
       color="foundation"
-      label="Name"
+      label="您的姓名"
       name="name"
       placeholder="John Doe"
       show-label
@@ -15,7 +15,7 @@
     <FormTextInput
       v-model="company"
       color="foundation"
-      label="Company"
+      label="您的公司"
       name="company"
       placeholder="Example Ltd."
       show-label
@@ -26,9 +26,9 @@
     <hr class="border-outline-2 my-3" />
     <div class="grid md:grid-cols-2">
       <div class="flex flex-col">
-        <span class="text-body-xs font-medium text-foreground">Avatar</span>
+        <span class="text-body-xs font-medium text-foreground">您的头像</span>
         <span class="text-body-2xs text-foreground-2 max-w-[230px]">
-          Upload your profile avatar image or use your initials.
+          上传您的个人头像图片或使用您的姓名首字母。
         </span>
       </div>
       <div class="flex items-center justify-center">

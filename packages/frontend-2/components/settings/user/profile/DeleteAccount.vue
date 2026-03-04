@@ -1,13 +1,13 @@
 <template>
   <div>
     <div class="flex flex-col space-y-6">
-      <SettingsSectionHeader title="Delete account" subheading />
+      <SettingsSectionHeader title="删除账户" subheading />
       <CommonCard class="text-body-xs bg-foundation">
-        We will delete all projects where you are the sole owner, and any associated
-        data. We will ask you to type in your email address and press the delete button.
+        我们将删除您是唯一所有者的所有项目，以及任何关联数据。
+        我们将要求您输入您的电子邮件地址并点击删除按钮。
       </CommonCard>
       <div>
-        <FormButton @click="toggleDeleteDialog">Delete account</FormButton>
+        <FormButton @click="toggleDeleteDialog">删除账户</FormButton>
       </div>
     </div>
 

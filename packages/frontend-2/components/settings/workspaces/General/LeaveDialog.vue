@@ -1,14 +1,14 @@
 <template>
   <LayoutDialog
     v-model:open="isOpen"
-    title="Leave workspace"
+    title="退出工作区"
     max-width="xs"
     :buttons="dialogButtons"
   >
     <p class="text-body-xs text-foreground mb-2">
-      Are you sure you want to leave
+      您确定要退出
       <span class="font-medium">{{ workspace?.name }}</span>
-      ?
+      吗？
     </p>
   </LayoutDialog>
 </template>
@@ -115,14 +115,14 @@ const onLeave = async () => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: 'Leave',
+    text: '退出',
     props: {
       color: 'primary'
     },

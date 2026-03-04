@@ -1,14 +1,14 @@
 <template>
   <LayoutDialog
     v-model:open="isOpen"
-    title="Change primary email address"
+    title="更改主要电子邮件地址"
     max-width="xs"
     :buttons="dialogButtons"
   >
     <p class="text-body-xs text-foreground mb-2">
-      Are you sure you want to make
+      您确定要将
       <span class="font-medium">{{ email }}</span>
-      your primary email?
+      设置为主要电子邮件吗？
     </p>
   </LayoutDialog>
 </template>
@@ -39,14 +39,14 @@ const { distinctId } = useActiveUser()
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline', outline: true },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: 'Make primary',
+    text: '设置为主要电子邮件',
     props: { color: 'primary' },
     onClick: () => {
       onSetPrimary()
@@ -76,7 +76,7 @@ const onSetPrimary = async () => {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: errorMessage
+      title: errorMessage || '设置主要电子邮件失败'
     })
   }
 }

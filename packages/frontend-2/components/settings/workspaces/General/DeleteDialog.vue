@@ -6,15 +6,15 @@
     :buttons="dialogButtons"
   >
     <p class="text-body-xs text-foreground mb-2">
-      Are you sure you want to permanently delete
-      <span class="font-medium">{{ workspace?.name }}?</span>
-      This action cannot be undone.
+      您确定要永久删除
+      <span class="font-medium">{{ workspace?.name }}？</span>
+      此操作无法撤销。
     </p>
     <FormTextInput
       v-model="workspaceNameInput"
       name="workspaceNameConfirm"
-      label="To confirm deletion, type the workspace name below."
-      placeholder="Type the workspace name here..."
+      label="要确认删除，请在下面输入工作区名称。"
+      placeholder="请输入工作区名称..."
       full-width
       show-label
       hide-error-message
@@ -125,14 +125,14 @@ const onDelete = async () => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: 'Delete',
+    text: '删除',
     props: {
       color: 'danger',
       disabled: workspaceNameInput.value !== props.workspace?.name

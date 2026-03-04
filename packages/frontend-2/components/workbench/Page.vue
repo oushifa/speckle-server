@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full w-full bg-slate-50 text-slate-800 font-sans">
+  <div class="h-full w-full text-slate-800 font-sans">
     <div class="mx-auto">
       <div class="flex items-center gap-2 mb-6">
         <IconHome class="h-5 w-5" />

@@ -6,7 +6,7 @@
         <h1
           class="text-center text-heading-xl inline-block text-foreground bg-clip-text"
         >
-          Authorize application
+          授权应用
         </h1>
         <template v-if="activeUser && app && !action">
           <div class="space-y-2 flex flex-col">
@@ -19,7 +19,7 @@
               :icon-right="ArrowsRightLeftIcon"
               @click="onSwitchAccounts"
             >
-              Not you? Switch accounts
+              不是您？切换账号
             </CommonTextLink>
           </div>
           <div class="text-foreground h4 text-center">
@@ -30,7 +30,7 @@
               />
               {{ app?.name }}
             </span>
-            wants to access your Speckle account.
+            想要访问您的账号。
           </div>
           <div v-if="!trustByDefault" class="w-full">
             <Disclosure v-slot="{ open }">
@@ -40,7 +40,7 @@
                 <div class="flex space-x-2 items-center">
                   <InformationCircleIcon class="h-5 w-5 shrink-0" />
                   <span class="font-medium text-left">
-                    App info & requested permissions ({{ app.scopes.length }})
+                    应用信息 & 请求权限 ({{ app.scopes.length }})
                   </span>
                 </div>
                 <ChevronUpIcon
@@ -127,24 +127,24 @@
             <template v-if="app">
               <template v-if="action === ChosenAction.Allow">
                 <span class="font-medium text-primary">{{ app?.name }}</span>
-                is connected to your
+                已连接到您的
                 <span class="font-medium">Speckle</span>
-                account.
+                账号。
               </template>
               <template v-else>
                 <span class="font-medium text-primary">{{ app?.name }}</span>
-                has not been connected to your
+                未连接到您的
                 <span class="font-medium">Speckle</span>
-                account.
+                账号。
               </template>
             </template>
             <div v-else class="flex space-x-2 items-center">
-              <span>Could not resolve app.</span>
-              <CommonTextLink :to="homeRoute">Go home</CommonTextLink>
+              <span>无法解析应用。</span>
+              <CommonTextLink :to="homeRoute">返回首页</CommonTextLink>
             </div>
           </div>
           <div v-if="action" class="label-light text-foreground-2">
-            You will be redirected automatically, please wait a moment.
+            您将自动被重定向，无需等待。
           </div>
         </div>
       </div>

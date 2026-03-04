@@ -8,7 +8,7 @@
     <div class="flex flex-col gap-4">
       <div v-if="!workspaceInvite" class="flex flex-col items-center gap-y-2 pb-4">
         <h1 class="text-heading-xl text-center inline-block">
-          {{ title }}
+          {{ dialogMode ? '登录' : title }}
         </h1>
         <h2 class="text-body-sm text-center text-foreground-2">
           {{ subtitle }}
@@ -39,13 +39,6 @@
           :challenge="challenge"
           :workspace-invite="workspaceInvite || undefined"
         />
-        <div
-          v-if="!forcedInviteEmail"
-          class="text-center text-body-xs text-foreground-3 mt-2 select-none"
-        >
-          Don't have an account?
-          <NuxtLink class="text-foreground" :to="finalRegisterRoute">Sign up</NuxtLink>
-        </div>
       </div>
     </div>
   </Component>
@@ -70,7 +63,7 @@ const props = withDefaults(
   }>(),
   {
     dialogMode: false,
-    title: 'Speckle 登录'
+    title: 'BIM 登录'
   }
 )
 

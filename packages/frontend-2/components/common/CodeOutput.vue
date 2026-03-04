@@ -37,7 +37,7 @@ const onCopy = async () => {
   await copy(props.content)
   triggerNotification({
     type: ToastNotificationType.Info,
-    title: 'Value copied to clipboard'
+    title: '值已复制到剪贴板'
   })
 }
 </script>
