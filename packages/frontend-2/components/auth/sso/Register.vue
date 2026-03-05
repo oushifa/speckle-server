@@ -8,7 +8,7 @@
     />
 
     <h1 class="text-heading-xl text-center">
-      Sign up to access {{ workspace?.name || 'your Workspace' }}
+      注册访问 {{ workspace?.name || '您的工作空间' }}
     </h1>
 
     <div class="w-full max-w-xs">
@@ -22,7 +22,7 @@
           :disabled="loading"
           @click="handleContinue"
         >
-          Continue with {{ workspace?.ssoProviderName || 'SSO' }}
+          继续使用 {{ workspace?.ssoProviderName || 'SSO' }}
         </FormButton>
       </div>
       <AuthRegisterTerms v-if="serverInfo" :server-info="serverInfo" />

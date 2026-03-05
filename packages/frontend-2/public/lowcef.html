@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>兼容版本</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f7f7f8;
+        color: #202124;
+      }
+      .container {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      .panel {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+      }
+      h1 {
+        margin: 0 0 20px;
+        font-size: 26px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        object-fit: cover;
+        background: #e5e7eb;
+      }
+      .name {
+        font-weight: 600;
+      }
+      .subtitle {
+        margin: 12px 0 20px;
+        line-height: 1.6;
+      }
+      .app-name {
+        color: #2563eb;
+        font-weight: 600;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      button {
+        appearance: none;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #111827;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .switch {
+        border: 0;
+        background: transparent;
+        color: #2563eb;
+        padding: 0;
+        margin-top: 6px;
+      }
+      details {
+        border-top: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 0;
+        margin-top: 18px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      .error {
+        color: #b91c1c;
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 12px 0;
+      }
+      .success {
+        color: #166534;
+      }
+      .denied {
+        color: #b91c1c;
+      }
+      .spaced {
+        margin-top: 14px;
+      }
+      ul {
+        margin: 8px 0;
+        padding-left: 18px;
+      }
+      .tos {
+        margin: 14px auto 0;
+        font-size: 12px;
+        color: #6b7280;
+        text-align: center;
+        max-width: 680px;
+      }
+      .loader {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="app" class="panel"></div>
+    </div>
+    <div id="tos" class="tos"></div>
+    <script>
+      ;(function () {
+        var COOKIE_AUTH = 'authn'
+        var COOKIE_POST_AUTH_REDIRECT = 'postAuthRedirect'
+        var apiOrigin = 'http://47.100.77.97:64482'
+        var state = {
+          loading: false,
+          initialized: false,
+          view: 'loading',
+          action: null,
+          error: '',
+          app: null,
+          activeUser: null,
+          groupedScopes: {},
+          termsOfService: '',
+          context: null,
+          autoAllowTriggered: false
+        }
+
+        function getCookie(name) {
+          var key = name + '='
+          var items = document.cookie ? document.cookie.split('; ') : []
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].indexOf(key) === 0)
+              return decodeURIComponent(items[i].slice(key.length))
+          }
+          return ''
+        }
+
+        function setCookie(name, value, maxAgeSeconds) {
+          var cookie =
+            name +
+            '=' +
+            encodeURIComponent(value) +
+            '; Path=/; SameSite=Lax' +
+            (location.protocol === 'https:' ? '; Secure' : '')
+          if (typeof maxAgeSeconds === 'number')
+            cookie += '; Max-Age=' + String(maxAgeSeconds)
+          document.cookie = cookie
+        }
+
+        function deleteCookie(name) {
+          document.cookie = name + '=; Path=/; Max-Age=0'
+        }
+
+        function parseContext() {
+          var url = new URL(window.location.href)
+          var parts = url.pathname.split('/').filter(Boolean)
+          var verifyIndex = parts.indexOf('verify')
+          var appIdFromPath = verifyIndex > -1 ? parts[verifyIndex + 1] || '' : ''
+          var challengeFromPath = verifyIndex > -1 ? parts[verifyIndex + 2] || '' : ''
+          var appId = 'sdui'
+          var challenge = url.searchParams.get('challenge') || challengeFromPath
+          return { appId: appId, challenge: challenge }
+        }
+
+        function escapeHtml(value) {
+          var str = value == null ? '' : String(value)
+          return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+        }
+
+        function upperFirst(val) {
+          if (!val || !val.length) return ''
+          return val.charAt(0).toUpperCase() + val.slice(1)
+        }
+
+        function toNewProductTerminology(str) {
+          if (!str) return ''
+          var isUpper = function (val) {
+            return val && val.length
+              ? val.charAt(0) === val.charAt(0).toUpperCase()
+              : false
+          }
+          return String(str)
+            .replace(/stream(?=$|s|\W)/gi, function (match) {
+              return isUpper(match) ? 'Project' : 'project'
+            })
+            .replace(/branch(es)?(?=$|\W)/gi, function (match) {
+              var shouldUpper = isUpper(match)
+              if (match.toLowerCase() === 'branches')
+                return shouldUpper ? 'Models' : 'models'
+              return shouldUpper ? 'Model' : 'model'
+            })
+            .replace(/commit(?=$|s|\W)/gi, function (match) {
+              return isUpper(match) ? 'Version' : 'version'
+            })
+        }
+
+        function groupScopes(scopes) {
+          var grouped = {}
+          var list = Array.isArray(scopes) ? scopes : []
+          for (var i = 0; i < list.length; i++) {
+            var item = list[i] || {}
+            var name = toNewProductTerminology(item.name || '')
+            var description = toNewProductTerminology(item.description || '')
+            var key = upperFirst((name.split(':')[0] || '').trim() || 'Other')
+            if (!grouped[key]) grouped[key] = []
+            grouped[key].push(description)
+          }
+          return grouped
+        }
+
+        async function graphqlRequest(query, variables, operationName) {
+          var headers = { 'Content-Type': 'application/json' }
+          var authToken = getCookie(COOKIE_AUTH)
+          if (authToken) {
+            headers.Authorization = 'Bearer ' + authToken
+            // apollographql-client-namefrontend-2
+            headers['apollographql-client-name'] = 'frontend-2'
+          }
+          var body = {
+            query: query,
+            variables: variables || {}
+          }
+          if (operationName) {
+            body.operationName = operationName
+          }
+          var res = await fetch(apiOrigin + '/graphql', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(body)
+          })
+          if (!res.ok) throw new Error('请求失败: ' + res.status)
+          var data = await res.json()
+          if (data.errors && data.errors.length) {
+            throw new Error(data.errors[0].message || 'GraphQL 请求失败')
+          }
+          return data.data || {}
+        }
+
+        async function fetchServerInfo() {
+          var data = await graphqlRequest(
+            'query LowCefServerInfo { serverInfo { termsOfService } }',
+            {},
+            'LowCefServerInfo'
+          )
+          state.termsOfService =
+            data && data.serverInfo ? data.serverInfo.termsOfService || '' : ''
+        }
+
+        async function fetchActiveUser() {
+          var data = await graphqlRequest(
+            'query ActiveUserMainMetadata { activeUser { id email emails { id email verified primary } company bio name role avatar isOnboardingFinished createdAt verified notificationPreferences versions(limit: 0) { totalCount } ...ProjectsAdd_User } } fragment FullPermissionCheckResult on PermissionCheckResult { authorized code message payload errorMessage } fragment UseCanCreatePersonalProject_User on User { permissions { canCreatePersonalProject { ...FullPermissionCheckResult } } } fragment ProjectsAdd_User on User { id permissions { canCreatePersonalProject { ...FullPermissionCheckResult } } ...UseCanCreatePersonalProject_User }',
+            {},
+            'ActiveUserMainMetadata'
+          )
+          state.activeUser = data ? data.activeUser || null : null
+        }
+
+        async function fetchApp() {
+          var data = await graphqlRequest(
+            'query AuthorizableAppMetadata($id: String!) { app(id: $id) { id name description trustByDefault redirectUrl scopes { name description } author { id name avatar } } }',
+            { id: state.context.appId },
+            'AuthorizableAppMetadata'
+          )
+          state.app = data ? data.app || null : null
+          state.groupedScopes = state.app ? groupScopes(state.app.scopes) : {}
+        }
+
+        function getDenyUrl() {
+          if (!state.app || !state.app.redirectUrl) return ''
+          var finalUrl = new URL(state.app.redirectUrl)
+          finalUrl.searchParams.set('denied', 'true')
+          return finalUrl.toString()
+        }
+
+        function getAllowUrl() {
+          if (!state.app || !state.context) return ''
+          var authToken = getCookie(COOKIE_AUTH)
+          if (!authToken) return ''
+          var finalUrl = new URL('/auth/accesscode', apiOrigin)
+          finalUrl.searchParams.set('appId', state.app.id)
+          finalUrl.searchParams.set('challenge', state.context.challenge)
+          finalUrl.searchParams.set('token', authToken)
+          finalUrl.searchParams.set('preventRedirect', 'true')
+          return finalUrl.toString()
+        }
+
+        function isSameOrigin(url) {
+          try {
+            return new URL(url, window.location.href).origin === window.location.origin
+          } catch (e) {
+            return false
+          }
+        }
+
+        function goToFinalUrl(url) {
+          console.log(url)
+          debugger
+          setTimeout(function () {
+            window.location.replace(url)
+          }, 2000)
+        }
+
+        function renderTos() {
+          var el = document.getElementById('tos')
+          if (!el) return
+          el.innerHTML = state.termsOfService || ''
+        }
+
+        function renderScopes() {
+          var keys = Object.keys(state.groupedScopes || {})
+          if (!keys.length) return '<div class="muted spaced">无额外权限说明。</div>'
+          var html = ''
+          for (var i = 0; i < keys.length; i++) {
+            var key = keys[i]
+            var items = state.groupedScopes[key] || []
+            var itemHtml = ''
+            for (var j = 0; j < items.length; j++) {
+              itemHtml += '<li>' + escapeHtml(items[j]) + '</li>'
+            }
+            html +=
+              '<li><strong>' +
+              escapeHtml(key) +
+              '</strong><ul>' +
+              itemHtml +
+              '</ul></li>'
+          }
+          return '<ul>' + html + '</ul>'
+        }
+
+        function renderAuthorizeView() {
+          var app = state.app
+          var user = state.activeUser
+          var trustByDefault = !!(app && app.trustByDefault)
+          var author =
+            app && app.author
+              ? '<div class="spaced muted">作者：' +
+                escapeHtml(app.author.name || '') +
+                '</div>'
+              : ''
+          var description =
+            app && app.description
+              ? '<div class="spaced muted">' + escapeHtml(app.description) + '</div>'
+              : ''
+          var avatar =
+            user && user.avatar
+              ? '<img class="avatar" src="' + escapeHtml(user.avatar) + '" />'
+              : '<div class="avatar"></div>'
+          return (
+            '<h1>授权应用</h1>' +
+            '<div class="row">' +
+            avatar +
+            '<div class="name">' +
+            escapeHtml(user ? user.name : '') +
+            '</div></div>' +
+            '<button id="switchAccount" class="switch" type="button">不是您？切换账号</button>' +
+            '<p class="subtitle"><span class="app-name">' +
+            escapeHtml(app ? app.name : '') +
+            '</span> 想要访问您的账号。</p>' +
+            (trustByDefault
+              ? '<div class="muted">该应用已被标记为默认信任，正在自动授权。</div>'
+              : '<details><summary>应用信息与请求权限</summary>' +
+                author +
+                description +
+                '<div class="spaced"><strong>Permissions</strong></div>' +
+                renderScopes() +
+                '</details>') +
+            '<div id="errorBox"></div>' +
+            '<div class="actions">' +
+            '<button id="denyBtn" type="button" ' +
+            (state.loading ? 'disabled' : '') +
+            '>拒绝</button>' +
+            '<button id="allowBtn" class="primary" type="button" ' +
+            (state.loading ? 'disabled' : '') +
+            '>授权</button>' +
+            '</div>'
+          )
+        }
+
+        function renderLoginView() {
+          return (
+            '<h1>登录</h1>' +
+            '<p class="muted">请输入账号信息以继续授权。</p>' +
+            '<form id="loginForm" class="spaced">' +
+            '<div class="spaced"><label>邮箱</label><br />' +
+            '<input id="loginEmail" type="email" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px" /></div>' +
+            '<div class="spaced"><label>密码</label><br />' +
+            '<input id="loginPassword" type="password" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px" /></div>' +
+            '<div id="loginError"></div>' +
+            '<div class="actions"><button id="loginBtn" class="primary" type="submit" ' +
+            (state.loading ? 'disabled' : '') +
+            '>登录并继续</button></div>' +
+            '</form>'
+          )
+        }
+
+        function renderResultView() {
+          var appName = state.app ? escapeHtml(state.app.name || '') : ''
+          if (!state.app) {
+            return (
+              '<h1>错误</h1>' +
+              '<div class="error">无法解析应用。</div>' +
+              '<a href="/">返回首页</a>'
+            )
+          }
+          if (state.action === 'allow') {
+            return (
+              '<h1 class="success">Success</h1>' +
+              '<p><span class="app-name">' +
+              appName +
+              '</span> 已连接到您的 Speckle 账号。</p>' +
+              '<div class="muted">您将自动被重定向，无需等待。</div>'
+            )
+          }
+          return (
+            '<h1 class="denied">Denied</h1>' +
+            '<p><span class="app-name">' +
+            appName +
+            '</span> 未连接到您的 Speckle 账号。</p>' +
+            '<div class="muted">您将自动被重定向，无需等待。</div>'
+          )
+        }
+
+        function renderLoadingView() {
+          return '<h1>授权应用</h1><p class="loader muted">正在加载中...</p>'
+        }
+
+        function renderErrorView() {
+          return (
+            '<h1>授权应用</h1><div class="error">' + escapeHtml(state.error) + '</div>'
+          )
+        }
+
+        function render() {
+          var root = document.getElementById('app')
+          if (!root) return
+          if (!state.initialized) {
+            root.innerHTML = renderLoadingView()
+          } else if (state.error) {
+            root.innerHTML = renderErrorView()
+          } else if (state.view === 'login') {
+            root.innerHTML = renderLoginView()
+            bindLoginAction()
+          } else if (state.activeUser && state.app && !state.action) {
+            root.innerHTML = renderAuthorizeView()
+            bindAuthActions()
+            maybeAutoAllow()
+          } else {
+            root.innerHTML = renderResultView()
+          }
+          renderTos()
+        }
+
+        function setError(message) {
+          state.error = message || '未知错误'
+          state.loading = false
+          render()
+        }
+
+        function showInlineError(message) {
+          var el = document.getElementById('errorBox')
+          if (!el) return
+          el.innerHTML = '<div class="error">' + escapeHtml(message) + '</div>'
+        }
+
+        function clearInlineError() {
+          var el = document.getElementById('errorBox')
+          if (!el) return
+          el.innerHTML = ''
+        }
+
+        function bindAuthActions() {
+          var allowBtn = document.getElementById('allowBtn')
+          var denyBtn = document.getElementById('denyBtn')
+          var switchBtn = document.getElementById('switchAccount')
+          if (allowBtn) {
+            allowBtn.onclick = function () {
+              void allow()
+            }
+          }
+          if (denyBtn) {
+            denyBtn.onclick = deny
+          }
+          if (switchBtn) {
+            switchBtn.onclick = switchAccounts
+          }
+        }
+
+        function bindLoginAction() {
+          var form = document.getElementById('loginForm')
+          if (!form) return
+          form.onsubmit = function (event) {
+            event.preventDefault()
+            void login()
+          }
+        }
+
+        function maybeAutoAllow() {
+          if (!state.app || !state.activeUser || state.action) return
+          if (!state.app.trustByDefault || state.autoAllowTriggered) return
+          state.autoAllowTriggered = true
+          void allow()
+        }
+
+        function deny() {
+          if (state.loading || !state.activeUser || !state.app) return
+          var denyUrl = getDenyUrl()
+          if (!denyUrl) return
+          clearInlineError()
+          state.loading = true
+          state.action = 'deny'
+          render()
+          goToFinalUrl(denyUrl)
+        }
+
+        async function allow() {
+          console.log(state)
+          if (state.loading || !state.app) return
+          var allowUrl = getAllowUrl()
+          console.log(allowUrl)
+          if (!allowUrl) {
+            deleteCookie(COOKIE_AUTH)
+            state.view = 'login'
+            state.action = null
+            state.loading = false
+            render()
+            return
+          }
+          clearInlineError()
+          state.loading = true
+          render()
+          try {
+            var res = await fetch(
+              allowUrl,
+              isSameOrigin(allowUrl) ? { credentials: 'include' } : {}
+            )
+            if (!res.ok) throw new Error('授权失败: ' + res.status)
+            var data = await res.json()
+            if (!data || !data.redirectUrl) {
+              throw new Error('授权响应格式错误，请联系管理员。')
+            }
+            state.action = 'allow'
+            state.loading = false
+            state.view = 'result'
+            render()
+            goToFinalUrl(data.redirectUrl)
+          } catch (e) {
+            state.loading = false
+            render()
+            showInlineError(e && e.message ? e.message : '授权失败')
+          }
+        }
+
+        function switchAccounts() {
+          deleteCookie(COOKIE_AUTH)
+          state.view = 'login'
+          state.action = null
+          render()
+        }
+
+        function resolveAccessCode(res) {
+          return new Promise(function (resolve, reject) {
+            if (!res.redirected) {
+              res
+                .json()
+                .then(function (body) {
+                  var msg = ''
+                  if (body && body.err) {
+                    msg = typeof body.err === 'string' ? body.err : body.message
+                  } else if (body && body.error && body.error.message) {
+                    msg = body.error.message
+                  } else if (body && body.message) {
+                    msg = body.message
+                  }
+                  reject(new Error(msg || '登录失败'))
+                })
+                .catch(function () {
+                  reject(new Error('登录失败'))
+                })
+              return
+            }
+            var accessCode = new URL(res.url).searchParams.get('access_code')
+            if (!accessCode) {
+              reject(new Error('无法解析 access_code'))
+              return
+            }
+            resolve(accessCode)
+          })
+        }
+
+        function getAccessCode(email, password) {
+          var loginUrl = new URL('/auth/local/login', apiOrigin)
+          loginUrl.searchParams.set('challenge', state.context.challenge)
+          return fetch(loginUrl.toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            redirect: 'follow',
+            body: JSON.stringify({ email: email, password: password })
+          }).then(resolveAccessCode)
+        }
+
+        function getTokenFromAccessCode(accessCode) {
+          var url = new URL('/auth/token', apiOrigin)
+          return fetch(url.toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accessCode: accessCode,
+              appId: 'sdui',
+              appSecret: 'sdui',
+              challenge: state.context.challenge
+            })
+          })
+            .then(function (res) {
+              return res.json()
+            })
+            .then(function (data) {
+              if (!data || !data.token) throw new Error('无法解析 token')
+              return data.token
+            })
+        }
+
+        function showLoginError(message) {
+          var el = document.getElementById('loginError')
+          if (!el) return
+          el.innerHTML = '<div class="error">' + escapeHtml(message) + '</div>'
+        }
+
+        function clearLoginError() {
+          var el = document.getElementById('loginError')
+          if (!el) return
+          el.innerHTML = ''
+        }
+
+        async function login() {
+          if (state.loading) return
+          var emailEl = document.getElementById('loginEmail')
+          var passwordEl = document.getElementById('loginPassword')
+          var email = emailEl && emailEl.value ? String(emailEl.value).trim() : ''
+          var password = passwordEl && passwordEl.value ? String(passwordEl.value) : ''
+          if (!email || !password) {
+            showLoginError('请输入邮箱和密码')
+            return
+          }
+          clearLoginError()
+          state.loading = true
+          render()
+          try {
+            var accessCode = await getAccessCode(email, password)
+            var token = await getTokenFromAccessCode(accessCode)
+            setCookie(COOKIE_AUTH, token, 60 * 60 * 24 * 30)
+            await Promise.all([fetchServerInfo(), fetchApp(), fetchActiveUser()])
+            if (!state.activeUser) {
+              deleteCookie(COOKIE_AUTH)
+              state.loading = false
+              state.view = 'login'
+              render()
+              showLoginError('登录失败，请重试')
+              return
+            }
+            state.loading = false
+            state.view = 'authorize'
+            render()
+            maybeAutoAllow()
+          } catch (e) {
+            state.loading = false
+            render()
+            showLoginError(e && e.message ? e.message : '登录失败')
+          }
+        }
+
+        async function init() {
+          state.context = parseContext()
+          if (!state.context.appId || !state.context.challenge) {
+            state.initialized = true
+            setError('缺少 appId 或 challenge 参数。')
+            return
+          }
+          console.log(getCookie(COOKIE_AUTH))
+          state.view = getCookie(COOKIE_AUTH) ? 'loading' : 'login'
+          try {
+            if (state.view === 'login') {
+              state.initialized = true
+              render()
+              return
+            }
+            await Promise.all([fetchServerInfo(), fetchApp(), fetchActiveUser()])
+            state.initialized = true
+            state.view = 'authorize'
+            console.log(state)
+            render()
+            if (!state.activeUser) {
+              switchAccounts()
+            }
+          } catch (e) {
+            state.initialized = true
+            console.log(state)
+            setError(e && e.message ? e.message : '初始化失败')
+          }
+        }
+
+        render()
+        void init()
+      })()
+    </script>
+  </body>
+</html>
