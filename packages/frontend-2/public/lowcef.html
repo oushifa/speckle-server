@@ -187,7 +187,7 @@
           var verifyIndex = parts.indexOf('verify')
           var appIdFromPath = verifyIndex > -1 ? parts[verifyIndex + 1] || '' : ''
           var challengeFromPath = verifyIndex > -1 ? parts[verifyIndex + 2] || '' : ''
-          var appId = 'sdui'
+          var appId = 'DUI'
           var challenge = url.searchParams.get('challenge') || challengeFromPath
           return { appId: appId, challenge: challenge }
         }

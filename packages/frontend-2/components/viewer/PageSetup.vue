@@ -52,6 +52,10 @@
             ref="leftControls"
             @force-close-panels="() => closeAllPanels('left')"
           />
+          <ViewerControlsTop
+            ref="topControls"
+            @force-close-panels="() => closeAllPanels('top')"
+          />
           <ViewerControlsBottom
             ref="bottomControls"
             @force-close-panels="() => closeAllPanels('bottom')"
@@ -153,6 +157,7 @@ const breakpoints = useBreakpoints(TailwindBreakpoints)
 const isMobile = breakpoints.smaller('sm')
 
 const leftControls = ref()
+const topControls = ref()
 const bottomControls = ref()
 const selectionSidebar = ref()
 const anchoredPoints = ref()
@@ -292,7 +297,7 @@ watch(
   { immediate: true }
 )
 
-const closeAllPanels = (except?: 'left' | 'bottom' | 'threads') => {
+const closeAllPanels = (except?: 'left' | 'bottom' | 'threads' | 'top') => {
   if (except !== 'left' && leftControls.value?.forceClosePanels) {
     leftControls.value.forceClosePanels()
   }
@@ -301,6 +306,9 @@ const closeAllPanels = (except?: 'left' | 'bottom' | 'threads') => {
   }
   if (except !== 'threads' && anchoredPoints.value?.forceCloseThreads) {
     anchoredPoints.value.forceCloseThreads()
+  }
+  if (except !== 'top' && topControls.value?.forceClosePanels) {
+    topControls.value.forceClosePanels()
   }
 
   selectionSidebar.value.forceClose()
