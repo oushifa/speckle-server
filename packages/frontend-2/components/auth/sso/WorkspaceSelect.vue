@@ -2,10 +2,10 @@
   <FormSelectBase
     v-bind="props"
     v-model="selectedValue"
-    label="Select workspace"
+    label="选择工作空间"
     name="workspace"
     :rules="workspaceRules"
-    help="You may need to authenticate separately for each workspace you want to access."
+    help="您可能需要为每个您要访问的工作空间分别进行身份验证。"
   >
     <template #option="{ item }">
       <div class="flex items-center gap-2">
@@ -13,7 +13,7 @@
         <span>{{ item.name }}</span>
       </div>
     </template>
-    <template #nothing-selected>Select a workspace</template>
+    <template #nothing-selected>选择一个工作空间</template>
     <template #something-selected="{ value }">
       <div v-if="!isArrayValue(value)" class="flex items-center gap-2">
         <WorkspaceAvatar :logo="value.logo" :name="value.name" size="xs" />
