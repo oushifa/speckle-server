@@ -81,7 +81,7 @@
           class="h-5 w-5 md:h-6 md:w-6"
         />
       </ViewerControlsButtonToggle>
-      <div
+      <!-- <div
         v-if="!isEmbedEnabled && (!isTablet || activePanel !== 'none')"
         class="mt-auto flex flex-col gap-2"
       >
@@ -116,7 +116,7 @@
           secondary
           @click="openIntercomChat"
         />
-      </div>
+      </div> -->
     </div>
 
     <!-- Resize handle -->
