@@ -141,6 +141,7 @@
         var COOKIE_AUTH = 'authn'
         var COOKIE_POST_AUTH_REDIRECT = 'postAuthRedirect'
         var apiOrigin = 'http://47.100.77.97:64482'
+        // var apiOrigin = 'http://127.0.0.1:3000'
         var state = {
           loading: false,
           initialized: false,
@@ -187,7 +188,7 @@
           var verifyIndex = parts.indexOf('verify')
           var appIdFromPath = verifyIndex > -1 ? parts[verifyIndex + 1] || '' : ''
           var challengeFromPath = verifyIndex > -1 ? parts[verifyIndex + 2] || '' : ''
-          var appId = 'DUI'
+          var appId = 'sdui'
           var challenge = url.searchParams.get('challenge') || challengeFromPath
           return { appId: appId, challenge: challenge }
         }
@@ -328,8 +329,6 @@
         }
 
         function goToFinalUrl(url) {
-          console.log(url)
-          debugger
           setTimeout(function () {
             window.location.replace(url)
           }, 2000)
@@ -640,8 +639,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               accessCode: accessCode,
-              appId: 'DUI',
-              appSecret: 'DUI',
+              appId: 'spklwebapp',
+              appSecret: 'spklwebapp',
               challenge: state.context.challenge
             })
           })
