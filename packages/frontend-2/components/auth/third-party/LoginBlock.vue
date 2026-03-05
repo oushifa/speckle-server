@@ -16,7 +16,6 @@ import { useAuthManager } from '~~/lib/auth/composables/auth'
 import { AuthStrategy } from '~~/lib/auth/helpers/strategies'
 import { graphql } from '~~/lib/common/generated/gql'
 import type { AuthStategiesServerInfoFragmentFragment } from '~~/lib/common/generated/gql/graphql'
-import { useMixpanel } from '~~/lib/core/composables/mp'
 
 /**
  * TODO:
@@ -46,7 +45,6 @@ const props = defineProps<{
 }>()
 
 const apiOrigin = useApiOrigin()
-const mixpanel = useMixpanel()
 const { inviteToken } = useAuthManager()
 
 const NuxtLink = resolveComponent('NuxtLink')
@@ -95,11 +93,6 @@ const onClick = (strat: StrategyType) => {
   if (!import.meta.client) return
 
   const redirectUrl = buildAuthUrl(strat)
-  mixpanel.track('Log In', {
-    isInvite: !!inviteToken.value,
-    type: 'action',
-    provider: strat.name
-  })
 
   window.location.href = redirectUrl
 }

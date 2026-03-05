@@ -1,14 +1,14 @@
 <template>
   <form method="post" @submit="onSubmit">
     <div class="flex flex-col gap-4">
-      <h1 class="text-heading-xl text-center mb-8">Speckle SSO login</h1>
+      <h1 class="text-heading-xl text-center mb-8">SSO 登录</h1>
 
       <FormTextInput
         v-model="email"
         type="email"
         name="email"
-        label="Your work email"
-        placeholder="Enter your email"
+        label="您的工作邮箱"
+        placeholder="输入您的邮箱"
         size="lg"
         color="foundation"
         :rules="[isEmail, isRequired]"
@@ -33,7 +33,7 @@
         {{ buttonText }}
       </FormButton>
       <FormButton size="lg" color="subtle" full-width :to="loginRoute">
-        Back to login
+        返回登录页
       </FormButton>
     </div>
   </form>
@@ -101,14 +101,14 @@ const {
 const helpText = computed(() => {
   if (isChecking.value) return 'Checking SSO availability...'
   if (availableWorkspaces.value.length === 0 && emailCheckState.value === 'checked') {
-    return 'No SSO-enabled workspaces found for this email'
+    return '此邮箱未关联任何启用 SSO 的工作空间'
   }
   return undefined
 })
 
 const errorMessage = computed(() => {
   if (emailCheckState.value === 'checked' && availableWorkspaces.value.length === 0) {
-    return 'This email is not associated with any SSO-enabled workspaces'
+    return '此邮箱未关联任何启用 SSO 的工作空间'
   }
   return undefined
 })
@@ -131,9 +131,9 @@ const isValid = computed(
 )
 
 const buttonText = computed(() => {
-  if (isChecking.value) return 'Checking...'
-  if (!isValid.value) return 'Single Sign-On'
-  return values.workspace?.name ? `Sign in to ${values.workspace.name}` : 'Sign in'
+  if (isChecking.value) return '检查中...'
+  if (!isValid.value) return 'SSO 登录'
+  return values.workspace?.name ? `登录 ${values.workspace.name}` : '登录'
 })
 
 const debouncedCheckEmail = useDebounceFn((value: string) => {
@@ -165,9 +165,8 @@ const onSubmit = handleSubmit((values) => {
     logger.error('SSO login failed:', error)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'SSO login failed',
-      description:
-        error instanceof Error ? error.message : 'An unexpected error occurred'
+      title: 'SSO 登录失败',
+      description: error instanceof Error ? error.message : '发生了未知错误'
     })
   } finally {
     loading.value = false

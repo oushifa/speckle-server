@@ -29,7 +29,7 @@
         size="lg"
         :to="ssoLoginRoute"
       >
-        Continue with SSO
+        使用 SSO 登录
       </FormButton>
 
       <div class="h-px w-full bg-outline-3 mt-2 shrink-0" />

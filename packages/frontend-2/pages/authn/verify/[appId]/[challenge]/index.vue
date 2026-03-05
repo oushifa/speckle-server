@@ -97,11 +97,9 @@
           </div>
           <div class="flex space-x-2 w-full">
             <FormButton color="outline" full-width :disabled="loading" @click="deny">
-              Deny
+              拒绝
             </FormButton>
-            <FormButton full-width :disabled="loading" @click="allow">
-              Authorize
-            </FormButton>
+            <FormButton full-width :disabled="loading" @click="allow">授权</FormButton>
           </div>
         </template>
         <div
