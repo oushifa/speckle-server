@@ -56,29 +56,29 @@ export function useViewerContextMenu(params: {
       [
         {
           id: 'hide',
-          title: 'Hide selection',
+          title: '隐藏选择',
           icon: undefined
         },
         {
           id: isIsolated ? 'unisolate' : 'isolate',
-          title: isIsolated ? 'Un-isolate selection' : 'Isolate selection',
+          title: isIsolated ? '取消筛选' : '筛选',
           icon: undefined
         },
         {
           id: 'fit-to-view',
-          title: 'Fit to view',
+          title: '缩放至选择',
           icon: undefined
         },
         {
           id: 'copy-id',
-          title: 'Copy Object ID',
+          title: '复制对象ID',
           icon: undefined
         }
       ],
       [
         {
           id: 'clear-selection',
-          title: 'Clear selection',
+          title: '清除选择',
           icon: undefined
         }
       ]

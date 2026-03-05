@@ -1,6 +1,6 @@
 <template>
   <ViewerLayoutSidePanel max-height-class="max-h-[calc(100dvh-5rem)]" disable-scrollbar>
-    <template #title>过滤器</template>
+    <template #title>筛选器</template>
     <template #actions>
       <div class="flex gap-x-0.5 items-center">
         <FormButton
@@ -13,7 +13,7 @@
           重置
         </FormButton>
         <FormButton
-          v-tippy="showPropertySelection ? undefined : '添加新过滤器'"
+          v-tippy="showPropertySelection ? undefined : '添加新筛选器'"
           color="subtle"
           size="sm"
           :class="showPropertySelection ? '!bg-highlight-3 !pointer-events-none' : ''"
@@ -61,7 +61,7 @@
             hide-text
             @click="addNewEmptyFilter"
           >
-            添加过滤器
+            添加筛选器
           </FormButton>
         </div>
       </div>

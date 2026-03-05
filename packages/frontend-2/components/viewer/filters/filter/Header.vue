@@ -11,7 +11,7 @@
       :class="{ 'opacity-50': !filter.isApplied }"
     >
       <FormButton
-        v-tippy="'更改过滤器属性'"
+        v-tippy="'更改筛选器属性'"
         color="subtle"
         class="m-0 gap-3 min-w-0"
         size="sm"
@@ -142,13 +142,13 @@ const toggleCollapsed = () => {
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: props.filter.isApplied ? '禁用过滤器' : '启用过滤器',
+      title: props.filter.isApplied ? '禁用筛选器' : '启用筛选器',
       id: 'toggle-visibility'
     }
   ],
   [
     {
-      title: '移除过滤器',
+      title: '移除筛选器',
       id: 'remove-filter'
     }
   ]
