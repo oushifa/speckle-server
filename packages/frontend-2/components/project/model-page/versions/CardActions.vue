@@ -60,7 +60,7 @@ const showActionsMenu = computed({
 const actionsItems = computed<LayoutMenuItem<VersionActionTypes>[][]>(() => [
   [
     {
-      title: '编辑消息...',
+      title: '编辑版本信息...',
       id: VersionActionTypes.EditMessage,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value
@@ -80,11 +80,11 @@ const actionsItems = computed<LayoutMenuItem<VersionActionTypes>[][]>(() => [
       disabledTooltip: disabledMessage.value
     }
   ],
-  [
-    { title: '复制链接', id: VersionActionTypes.Share },
-    { title: '复制ID', id: VersionActionTypes.CopyId },
-    { title: '嵌入看板...', id: VersionActionTypes.EmbedModel }
-  ],
+  // [
+  //   { title: '复制链接', id: VersionActionTypes.Share },
+  //   { title: '复制ID', id: VersionActionTypes.CopyId },
+  //   { title: '嵌入看板...', id: VersionActionTypes.EmbedModel }
+  // ],
   [
     {
       title: '删除...',

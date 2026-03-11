@@ -2,7 +2,7 @@
   <div class="relative grid grid-cols-1 gap-2">
     <FormTextInput
       v-model="searchText"
-      :placeholder="totalCount === 0 ? 'New model name' : 'Search models'"
+      :placeholder="totalCount === 0 ? '新建模型名称' : '搜索模型'"
       name="search"
       autocomplete="off"
       :show-clear="!!searchText"

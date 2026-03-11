@@ -34,7 +34,7 @@ const { result: pageData } = useQuery(projectModelPageQuery, () => ({
 const project = computed(() => pageData.value?.project)
 
 const title = computed(() =>
-  project.value?.model.name.length ? `Versions - ${project.value.model.name}` : ''
+  project.value?.model.name.length ? `版本 - ${project.value.model.name}` : ''
 )
 
 useHead({ title })

@@ -81,11 +81,22 @@
           class="h-5 w-5 md:h-6 md:w-6"
         />
       </ViewerControlsButtonToggle>
-      <!-- <div
+      <div
         v-if="!isEmbedEnabled && (!isTablet || activePanel !== 'none')"
         class="mt-auto flex flex-col gap-2"
       >
         <ViewerControlsButtonToggle
+          v-tippy="
+            getTooltipProps('返回上一级', {
+              placement: 'right'
+            })
+          "
+          :active="activePanel === 'devMode'"
+          :icon="LogOut"
+          secondary
+          @click="toggleActivePanel('devMode')"
+        />
+        <!-- <ViewerControlsButtonToggle
           v-tippy="
             getTooltipProps(
               getShortcutDisplayText(shortcuts.ToggleDevMode, { format: 'separate' }),
@@ -115,8 +126,8 @@
           :icon="CircleQuestionMark"
           secondary
           @click="openIntercomChat"
-        />
-      </div> -->
+        /> -->
+      </div>
     </div>
 
     <!-- Resize handle -->
@@ -208,7 +219,8 @@ import {
   Box,
   ListFilter,
   MessageSquareText,
-  CircleQuestionMark
+  CircleQuestionMark,
+  LogOut
 } from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'

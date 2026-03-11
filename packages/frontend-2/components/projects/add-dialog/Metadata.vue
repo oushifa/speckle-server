@@ -21,14 +21,14 @@
         show-optional
         :rules="[isStringOfLength({ maxLength: 65536 })]"
       />
-      <div>
+      <!-- <div>
         <h3 class="label mb-2">访问权限</h3>
         <ProjectVisibilitySelect
           v-model="visibility"
           mount-menu-on-body
           :workspace-id="workspaceId"
         />
-      </div>
+      </div> -->
     </div>
     <div class="flex justify-end gap-2 my-2">
       <FormButton
@@ -91,7 +91,7 @@ const onSubmit = handleSubmit(async (values) => {
     const newProject = await createProject({
       name: values.name,
       description: values.description,
-      visibility: visibility.value,
+      visibility: 'WORKSPACE',
       ...(props.workspaceId ? { workspaceId: props.workspaceId } : {})
     })
 

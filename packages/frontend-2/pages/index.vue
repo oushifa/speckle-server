@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-useHead({ title: 'Dashboard' })
+useHead({ title: '工作台' })
 
 definePageMeta({
   middleware: ['auth', 'dashboard-redirect']

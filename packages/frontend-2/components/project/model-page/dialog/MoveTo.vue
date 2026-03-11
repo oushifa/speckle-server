@@ -4,9 +4,7 @@
     max-width="xs"
     @fully-closed="$emit('fully-closed')"
   >
-    <template #header>
-      Move {{ versions.length }} version{{ versions.length > 1 ? 's' : '' }}
-    </template>
+    <template #header>将 {{ versions.length }} 个版本移动到新模型或现有模型中</template>
     <div class="flex flex-col space-y-4">
       <LayoutTabsHorizontal v-model:active-item="activeTab" :items="tabItems">
         <template #default="{ activeItem }">
@@ -65,8 +63,8 @@ const loading = ref(false)
 
 // Define tab items
 const tabItems = ref<LayoutPageTabItem[]>([
-  { title: 'Existing model', id: 'existing-model' },
-  { title: 'New model', id: 'new-model' }
+  { title: '现有模型', id: 'existing-model' },
+  { title: '新模型', id: 'new-model' }
 ])
 
 // Manage active tab state

@@ -41,7 +41,7 @@ export const useSavedViewValidationHelpers = (params: {
     MaybeNullOrUndefined<UseSavedViewValidationHelpers_SavedViewFragment>
   >
 }) => {
-  const homeViewPrivateError = 'A home view must be shared'
+  const homeViewPrivateError = 'Home 视图必须分享'
 
   const isLoading = useMutationLoading()
   const {
@@ -69,9 +69,9 @@ export const useSavedViewValidationHelpers = (params: {
     if (params.view.value?.visibility !== SavedViewVisibility.Public) {
       return {
         authorized: false,
-        errorMessage: 'Only shared views can be embedded',
+        errorMessage: '仅分享视图才能嵌入',
         code: 'FORBIDDEN',
-        message: 'Only shared views can be embedded'
+        message: '仅分享视图才能嵌入'
       }
     }
 
@@ -108,14 +108,14 @@ export const useSavedViewValidationHelpers = (params: {
   const visibilityOptions = computed((): FormRadioGroupItem<SavedViewVisibility>[] => [
     {
       value: SavedViewVisibility.Public,
-      title: 'Shared',
-      introduction: 'Visible to anyone with access to the model',
+      title: '分享',
+      introduction: '可见给所有有访问模型权限的用户',
       icon: Globe
     },
     {
       value: SavedViewVisibility.AuthorOnly,
-      title: 'Private',
-      introduction: 'Visible only to the view author',
+      title: '仅分享给我',
+      introduction: '仅可见给视图作者',
       icon: User,
       ...(params.view.value?.isHomeView
         ? {
@@ -138,7 +138,7 @@ export const useSavedViewValidationHelpers = (params: {
       if (isFederatedView.value) {
         return {
           authorized: false,
-          message: "Home view settings can't be updated while in a federated view"
+          message: '在联合视图中无法更新 Home 视图设置'
         }
       }
 

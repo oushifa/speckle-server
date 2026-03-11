@@ -12,10 +12,10 @@
       <FormTextInput
         size="lg"
         name="name"
-        label="Function name"
-        placeholder="Name"
+        label="函数名称"
+        placeholder="名称"
         color="foundation"
-        help="This will be the function's display and repository name."
+        help="这将是函数的显示名称和存储库名称。"
         show-label
         :rules="nameRules"
         validate-on-value-update
@@ -25,7 +25,7 @@
     </div>
     <FormMarkdownEditor
       name="description"
-      label="Description"
+      label="描述"
       show-label
       show-required
       :rules="descriptionRules"
@@ -34,12 +34,12 @@
     <FormSelectBase
       v-if="workspaces?.length"
       name="workspace"
-      label="Workspace"
-      placeholder="Select a workspace"
+      label="工作空间"
+      placeholder="选择一个工作空间"
       show-label
       allow-unset
       clearable
-      help="Allow automations in one of your workspaces to use this function."
+      help="允许您工作空间中的自动化使用此函数。"
       :items="workspaces"
     >
       <template #something-selected="{ value }">
@@ -57,10 +57,10 @@
     </FormSelectBase>
     <FormSelectSourceApps
       name="allowedSourceApps"
-      label="Supported source apps"
+      label="支持的应用"
       show-label
       multiple
-      help="Versions submitted from these apps will support this function. If left empty, all apps will be supported."
+      help="来自这些应用的版本将支持此函数。如果留空，所有应用都将被支持。"
       clearable
       button-style="tinted"
       validate-on-value-update
@@ -69,24 +69,24 @@
     <FormTags
       name="tags"
       color="foundation"
-      label="Tags"
+      label="标签"
       show-label
       show-clear
-      help="Appropriate tags will help other people find your function."
+      help="适当的标签将帮助其他用户找到您的函数。"
       validate-on-value-update
       show-optional
     />
     <FormSelectBase
       v-if="githubOrgs?.length"
       name="org"
-      label="Organization"
+      label="组织"
       show-label
       allow-unset
       button-style="tinted"
       clearable
       show-optional
-      placeholder="Choose a GitHub organization"
-      help="Choose an organization to publish your Git repository to. If left empty, it will be published to your personal account."
+      placeholder="选择一个 GitHub 组织"
+      help="选择一个组织将发布您的 Git 存储库。如果留空，它将发布到您的个人账号。"
       :items="githubOrgs"
       mount-menu-on-body
       validate-on-value-update

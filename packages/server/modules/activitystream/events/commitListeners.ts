@@ -48,7 +48,7 @@ const addCommitCreatedActivityFactory =
           versionId: commit.id
         }
       },
-      message: `Commit created on branch ${branchName}: ${commitId} (${input.message})`
+      message: `提交创建于分支 ${branchName}: ${commitId} (${input.message})`
     })
   }
 
@@ -68,7 +68,7 @@ const addCommitUpdatedActivityFactory =
       actionType: StreamActionTypes.Commit.Update,
       userId,
       info: { old: originalCommit, new: update },
-      message: `Commit updated: ${commitId}`
+      message: `提交更新: ${commitId}`
     })
   }
 
@@ -90,7 +90,7 @@ const addCommitMovedActivityFactory =
       actionType: StreamActionTypes.Commit.Move,
       userId,
       info: { originalBranchId, newBranchId },
-      message: `Commit moved: ${commitId}`
+      message: `提交移动: ${commitId}`
     })
   }
 
@@ -115,7 +115,7 @@ const addCommitDeletedActivityFactory =
       actionType: StreamActionTypes.Commit.Delete,
       userId,
       info: { commit },
-      message: `Commit deleted: ${commitId}`
+      message: `提交删除: ${commitId}`
     })
   }
 
@@ -139,7 +139,7 @@ const addCommitReceivedActivityFactory =
         sourceApplication,
         message
       },
-      message: `Commit $commitId} was received by user ${userId}`
+      message: `提交 ${commitId} 已由用户 ${userId} 接收`
     })
   }
 

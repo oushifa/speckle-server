@@ -1,7 +1,7 @@
 <template>
   <div class="w-full flex justify-center">
     <FormButton :to="to" color="outline" @click="$emit('click', $event)">
-      View all
+      查看所有
     </FormButton>
   </div>
 </template>

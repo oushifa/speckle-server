@@ -44,7 +44,7 @@ const sortMenuItems = computed<LayoutMenuItem[][]>(() => [
     },
     {
       id: SortMode.SelectedFirst,
-      title: 'Selected first',
+      title: '已选优先',
       active: modelValue.value === SortMode.SelectedFirst
     }
   ]

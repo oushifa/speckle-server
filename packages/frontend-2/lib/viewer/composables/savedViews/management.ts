@@ -96,7 +96,7 @@ export const useCreateSavedView = () => {
     if (!res?.id) {
       const err = getFirstGqlErrorMessage(result?.errors)
       triggerNotification({
-        title: "Couldn't create saved view",
+        title: '创建保存视图失败',
         description: err,
         type: ToastNotificationType.Danger
       })
@@ -159,13 +159,13 @@ export const useDeleteSavedView = () => {
     const res = result?.data?.projectMutations.savedViewMutations.deleteView
     if (res) {
       triggerNotification({
-        title: 'View deleted',
+        title: '视图已删除',
         type: ToastNotificationType.Success
       })
     } else {
       const err = getFirstGqlErrorMessage(result?.errors)
       triggerNotification({
-        title: "Couldn't delete saved view",
+        title: '删除视图失败',
         description: err,
         type: ToastNotificationType.Danger
       })
@@ -247,13 +247,13 @@ export const useUpdateSavedView = () => {
     if (!options?.skipToast) {
       if (res?.id) {
         triggerNotification({
-          title: 'View updated',
+          title: '视图已更新',
           type: ToastNotificationType.Success
         })
       } else {
         const err = getFirstGqlErrorMessage(result?.errors)
         triggerNotification({
-          title: "Couldn't update view",
+          title: '更新视图失败',
           description: err,
           type: ToastNotificationType.Danger
         })
@@ -307,13 +307,13 @@ export const useCreateSavedViewGroup = () => {
     const res = ret?.data?.projectMutations.savedViewMutations.createGroup
     if (res?.id) {
       triggerNotification({
-        title: 'Group created',
+        title: '已创建视图组',
         type: ToastNotificationType.Success
       })
     } else {
       const err = getFirstGqlErrorMessage(ret?.errors)
       triggerNotification({
-        title: "Couldn't create group",
+        title: '创建视图组失败',
         description: err,
         type: ToastNotificationType.Danger
       })
@@ -368,13 +368,13 @@ export const useDeleteSavedViewGroup = () => {
     const res = result?.data?.projectMutations.savedViewMutations.deleteGroup
     if (res) {
       triggerNotification({
-        title: 'Group deleted',
+        title: '已删除视图组',
         type: ToastNotificationType.Success
       })
     } else {
       const err = getFirstGqlErrorMessage(result?.errors)
       triggerNotification({
-        title: "Couldn't delete group",
+        title: '删除视图组失败',
         description: err,
         type: ToastNotificationType.Danger
       })
@@ -451,13 +451,13 @@ export const useUpdateSavedViewGroup = () => {
     const res = result?.data?.projectMutations.savedViewMutations.updateGroup
     if (res?.id) {
       triggerNotification({
-        title: 'Group updated',
+        title: '已更新视图组',
         type: ToastNotificationType.Success
       })
     } else {
       const err = getFirstGqlErrorMessage(result?.errors)
       triggerNotification({
-        title: "Couldn't update group",
+        title: '更新视图组失败',
         description: err,
         type: ToastNotificationType.Danger
       })

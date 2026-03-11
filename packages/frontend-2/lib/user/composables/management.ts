@@ -49,13 +49,13 @@ export function useUpdateUserProfile() {
       if (result?.data?.activeUserMutations.update.id) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Profile updated'
+          title: '个人资料已更新'
         })
       } else {
         const errMsg = getFirstErrorMessage(result?.errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Profile update failed',
+          title: '更新个人资料失败',
           description: errMsg
         })
       }
@@ -94,13 +94,13 @@ export function useUpdateNotificationPreferences() {
       if (result?.data?.userNotificationPreferencesUpdate) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Notification preferences updated'
+          title: '通知偏好已更新'
         })
       } else {
         const errMsg = getFirstErrorMessage(result?.errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Notification preferences update failed',
+          title: '更新通知偏好失败',
           description: errMsg
         })
       }
@@ -128,14 +128,14 @@ export function useDeleteAccount() {
       if (isSuccess) {
         triggerNotification({
           type: ToastNotificationType.Info,
-          title: 'Account deleted',
-          description: 'You have been logged out'
+          title: '账户已删除',
+          description: '您已被注销'
         })
       } else {
         const errMsg = getFirstErrorMessage(result?.errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Account deletion failed',
+          title: '删除账户失败',
           description: errMsg
         })
       }

@@ -4,7 +4,7 @@
       v-model="search"
       name="modelsearch"
       :show-label="false"
-      placeholder="Search models..."
+      placeholder="搜索模型..."
       color="foundation"
       full-width
       :show-clear="search !== ''"

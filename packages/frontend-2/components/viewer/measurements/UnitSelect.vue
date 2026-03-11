@@ -40,14 +40,14 @@ const buttonId = useId()
 
 // Use a ref for unitDisplayNames
 const unitDisplayNames = ref<UnitDisplayNames>({
-  mm: 'Millimeters',
-  cm: 'Centimeters',
-  m: 'Meters',
-  km: 'Kilometers',
-  in: 'Inches',
-  ft: 'Feet',
-  yd: 'Yards',
-  mi: 'Miles'
+  mm: '毫米',
+  cm: '厘米',
+  m: '米',
+  km: '千米',
+  in: '英寸',
+  ft: '英尺',
+  yd: ' yard',
+  mi: '英里'
 })
 
 function getFullUnitName(unit: string): string {

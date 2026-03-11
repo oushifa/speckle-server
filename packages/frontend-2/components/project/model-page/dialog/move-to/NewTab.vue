@@ -2,19 +2,19 @@
   <form @submit="onSubmit">
     <div class="flex flex-col space-y-4">
       <div class="">
-        Create a new model to which
-        <template v-if="versions.length > 1">all of the selected versions</template>
+        创建一个新模型，将
+        <template v-if="versions.length > 1">所有选中的版本</template>
         <template v-else-if="versions.length">
-          the selected version
-          <span class="font-medium">"{{ versions[0].message || 'no message' }}"</span>
+          选中的版本
+          <span class="font-medium">"{{ versions[0].message || '无版本信息' }}"</span>
         </template>
-        will be moved to.
+        移动到该模型中。
       </div>
       <FormTextInput
         name="name"
-        label="Model Name"
-        placeholder="model/name/here"
-        help="Use forward slashes in the model name to nest it below other models."
+        label="模型名称"
+        placeholder="模型/子模型/子子模型"
+        help="使用斜杠将模型嵌套在其他模型下面。"
         color="foundation"
         :custom-icon="CubeIcon"
         :rules="rules"
@@ -22,7 +22,7 @@
         autocomplete="off"
       />
       <div class="flex justify-end">
-        <FormButton submit :disabled="disabled">Move</FormButton>
+        <FormButton submit :disabled="disabled">移动</FormButton>
       </div>
     </div>
   </form>

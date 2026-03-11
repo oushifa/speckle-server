@@ -1,13 +1,13 @@
 <template>
   <div>
-    <h1 class="block text-heading-lg my-4">Versions</h1>
+    <h1 class="block text-heading-lg my-4">版本</h1>
     <div
       v-if="selectedItems.length"
       class="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center"
     >
       <div>
-        {{ `${selectedItems.length} version${selectedItems.length > 1 ? 's' : ''}` }}
-        selected
+        已选择
+        {{ `${selectedItems.length} 个版本` }}
       </div>
       <div
         class="flex flex-wrap space-y-2 sm:items-center sm:space-x-2 sm:space-y-0 sm:flex-nowrap"
@@ -17,12 +17,12 @@
           class="w-full sm:w-auto"
           @click="selectedItems = []"
         >
-          Clear selection
+          清除选择
         </FormButton>
         <div class="flex space-x-2 w-full sm:w-auto">
-          <FormButton class="grow" @click="onBatchMoveTo">Move to</FormButton>
+          <FormButton class="grow" @click="onBatchMoveTo">移动到</FormButton>
           <FormButton color="danger" class="grow" @click="onBatchDelete">
-            Delete
+            删除
           </FormButton>
         </div>
       </div>

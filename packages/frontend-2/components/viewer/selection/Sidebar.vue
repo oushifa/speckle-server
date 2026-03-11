@@ -209,22 +209,11 @@ const isolateOrUnisolateSelection = () => {
     })
   } else {
     isolateObjects(allTargetIds.value)
-    mp.track('Viewer Action', {
-      type: 'action',
-      name: 'selection',
-      action: 'isolate'
-    })
   }
 }
 
 const trackAndClearSelection = () => {
   clearSelection()
-  mp.track('Viewer Action', {
-    type: 'action',
-    name: 'selection',
-    action: 'clear',
-    source: 'sidebar-x-button'
-  })
 }
 
 const onClose = () => {

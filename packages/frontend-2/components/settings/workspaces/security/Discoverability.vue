@@ -2,26 +2,23 @@
   <section class="py-8">
     <SettingsSectionHeader title="Discoverable workspace" subheading />
     <p class="text-body-xs text-foreground-2 mt-2 mb-6">
-      Make the workspace discoverable to coworkers for easy joining.
+      使工作空间对合作人员可见，方便加入。
     </p>
 
     <div class="flex flex-col space-y-6">
       <div class="flex items-center">
         <div class="flex-1 flex-col pr-6 gap-y-1">
-          <p class="text-body-xs font-medium text-foreground">
-            Enable workspace discoverability
-          </p>
+          <p class="text-body-xs font-medium text-foreground">启用工作空间可见性</p>
           <p class="text-body-2xs text-foreground-2 leading-5 max-w-md mt-1">
-            Users can discover the workspace if they sign up with a verified email
-            domain.
+            合作人员可以通过使用已验证域名的电子邮件地址加入工作空间。
           </p>
         </div>
         <div
           v-tippy="
             !isWorkspaceAdmin
-              ? 'You must be a workspace admin'
+              ? '您必须是工作空间管理员'
               : !hasWorkspaceDomains
-              ? 'Your workspace must have at least one verified domain'
+              ? '您的工作空间必须至少有一个已验证域名'
               : undefined
           "
         >
@@ -36,10 +33,10 @@
 
       <div v-if="isDomainDiscoverabilityEnabled" class="flex flex-col gap-2">
         <p class="text-body-xs font-medium text-foreground">
-          When someone wants to join
+          当合作人员使用已验证域名的电子邮件地址加入工作空间时，他们的加入策略为
         </p>
         <div
-          v-tippy="!isWorkspaceAdmin ? 'You must be a workspace admin' : undefined"
+          v-tippy="!isWorkspaceAdmin ? '您必须是工作空间管理员' : undefined"
           class="max-w-max"
         >
           <FormRadio
@@ -65,8 +62,7 @@
       @cancel="handleJoinPolicyCancel"
     >
       <p class="text-body-xs text-foreground mb-2">
-        This will allow users with verified domain emails to join automatically without
-        admin approval.
+        合作人员使用已验证域名的电子邮件地址加入工作空间时，他们将自动加入，无需管理员审批。
         <span
           v-if="
             workspace.defaultSeatType === SeatTypes.Editor &&
@@ -74,10 +70,10 @@
             isPaidPlan
           "
         >
-          They will join on a paid Editor seat.
+          他们将加入付费编辑器席位。
         </span>
       </p>
-      <p class="text-body-xs text-foreground">Are you sure you want to enable this?</p>
+      <p class="text-body-xs text-foreground">您确定要启用此功能吗？</p>
     </SettingsConfirmDialog>
   </section>
 </template>
@@ -153,10 +149,10 @@ const isDomainDiscoverabilityEnabled = computed({
     if (result?.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Workspace discoverability updated',
-        description: `Workspace discoverability has been ${
-          newVal ? 'enabled' : 'disabled'
-        }`
+        title: '工作空间发现性已更新',
+        description: `合作人员使用已验证域名的电子邮件地址加入工作空间时，他们的加入策略已更新为 ${
+          newVal ? '自动加入' : '工作空间管理员必须接受加入请求'
+        }。`
       })
       mixpanel.track('Workspace Discoverability Toggled', {
         value: newVal,
@@ -202,11 +198,11 @@ const joinPolicy = computed({
 
 const radioOptions = shallowRef([
   {
-    title: 'A workspace admin has to accept a join request',
+    title: '工作空间管理员必须接受加入请求',
     value: JoinPolicy.AdminApproval
   },
   {
-    title: 'Users can join immediately without admin approval',
+    title: '用户可以立即加入，无需管理员审批',
     value: JoinPolicy.AutoJoin
   }
 ] as const)
@@ -241,13 +237,14 @@ const handleJoinPolicyUpdate = async (newValue: JoinPolicy, confirmed = false) =
     const notificationConfig =
       newValue === JoinPolicy.AutoJoin
         ? {
-            title: 'Join without admin approval enabled',
+            title: '用户可以立即加入，无需管理员审批',
             description:
-              'Users with a verified domain can now join without admin approval'
+              '合作人员使用已验证域名的电子邮件地址加入工作空间时，他们将自动加入，无需管理员审批。'
           }
         : {
-            title: 'Admin approval enabled',
-            description: 'Admin approval is now required for new users to join'
+            title: '工作空间管理员必须接受加入请求',
+            description:
+              '合作人员使用已验证域名的电子邮件地址加入工作空间时，他们必须由工作空间管理员接受加入请求。'
           }
 
     triggerNotification({
