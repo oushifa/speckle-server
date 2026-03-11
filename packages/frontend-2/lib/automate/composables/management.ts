@@ -63,13 +63,13 @@ export const useCreateAutomateFunction = () => {
     if (res?.data?.automateMutations.createFunction.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Function successfully created'
+        title: '函数已成功创建'
       })
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create function',
+        title: '创建函数失败',
         description: errMsg
       })
     }
@@ -90,13 +90,13 @@ export const useUpdateAutomateFunction = () => {
     if (res?.data?.automateMutations.updateFunction.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Function successfully updated'
+        title: '函数已成功更新'
       })
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update function',
+        title: '更新函数失败',
         description: errMsg
       })
     }

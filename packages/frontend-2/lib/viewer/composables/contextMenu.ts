@@ -61,7 +61,7 @@ export function useViewerContextMenu(params: {
         },
         {
           id: isIsolated ? 'unisolate' : 'isolate',
-          title: isIsolated ? '取消筛选' : '筛选',
+          title: isIsolated ? '非隔离' : '隔离',
           icon: undefined
         },
         {

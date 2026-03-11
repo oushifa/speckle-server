@@ -37,10 +37,10 @@
           color="subtle"
           @click="onReset"
         >
-          Reset
+          重置
         </FormButton>
         <FormButton tabindex="-1" size="sm" @click="onActivePanelClose">
-          Done
+          完成
         </FormButton>
       </div>
 
@@ -116,7 +116,7 @@ const viewerLoaded = ref(false)
 const panels = shallowRef({
   [ActivePanel.measurements]: {
     id: ActivePanel.measurements,
-    name: 'Measure',
+    name: '测量',
     icon: Ruler,
     tooltip: getShortcutDisplayText(shortcuts.ToggleMeasurements, {
       format: 'separate'
@@ -125,28 +125,28 @@ const panels = shallowRef({
   },
   [ActivePanel.sectionBox]: {
     id: ActivePanel.sectionBox,
-    name: 'Section',
+    name: '截面',
     icon: Scissors,
     tooltip: getShortcutDisplayText(shortcuts.ToggleSectionBox, { format: 'separate' }),
     extraClasses: ''
   },
   [ActivePanel.explode]: {
     id: ActivePanel.explode,
-    name: 'Explode',
+    name: '爆炸视图',
     icon: Layers2,
     tooltip: getShortcutDisplayText(shortcuts.ToggleExplode, { format: 'separate' }),
     extraClasses: 'hidden md:flex'
   },
   [ActivePanel.viewModes]: {
     id: ActivePanel.viewModes,
-    name: 'View modes',
+    name: '视图模式',
     icon: Glasses,
     tooltip: getShortcutDisplayText(shortcuts.ToggleViewModes, { format: 'separate' }),
     extraClasses: ''
   },
   [ActivePanel.lightControls]: {
     id: ActivePanel.lightControls,
-    name: 'Light controls',
+    name: '灯光控制',
     icon: Sun,
     tooltip: getShortcutDisplayText(shortcuts.ToggleLightControls, {
       format: 'separate'

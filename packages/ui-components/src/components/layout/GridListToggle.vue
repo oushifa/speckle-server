@@ -15,13 +15,13 @@
         />
       </div>
       <div
-        v-tippy="'List View'"
+        v-tippy="'列表视图'"
         class="relative z-10 flex space-x-1 items-center p-1 rounded-l"
       >
         <Bars3Icon class="h-5 w-5" />
       </div>
       <div
-        v-tippy="'Grid View'"
+        v-tippy="'网格视图'"
         class="relative z-10 flex space-x-1 items-center p-1 rounded-r"
       >
         <Squares2X2Icon class="h-5 w-5" />

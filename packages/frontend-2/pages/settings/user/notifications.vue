@@ -1,14 +1,11 @@
 <template>
   <section>
     <div class="md:max-w-xl md:mx-auto pb-6 md:pb-0">
-      <SettingsSectionHeader
-        title="Notifications"
-        text="Your notification preferences"
-      />
+      <SettingsSectionHeader title="通知" text="您的通知偏好" />
       <table class="table-auto w-full rounded-t overflow-hidden">
         <thead class="text-foreground-1">
           <tr>
-            <th class="pb-4 font-medium text-sm text-left">Notification type</th>
+            <th class="pb-4 font-medium text-sm text-left">通知类型</th>
             <th
               v-for="channel in notificationChannels"
               :key="channel"

@@ -29,8 +29,7 @@
             {{ updatedAt.relative }}
           </span>
           <span class="ml-4 text-body-xs font-medium text-primary">
-            {{ thread.repliesCount.totalCount }}
-            {{ thread.repliesCount.totalCount === 1 ? 'reply' : 'replies' }}
+            {{ thread.repliesCount.totalCount }}个回复
           </span>
         </div>
       </div>

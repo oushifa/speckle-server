@@ -109,14 +109,14 @@ export const useInviteUserToWorkspace = () => {
       const err = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Invitation failed',
+        title: '邀请发送失败',
         description: err
       })
     } else {
       if (!hideNotifications) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Invite successfully sent'
+          title: '邀请已发送'
         })
       }
     }
@@ -221,7 +221,7 @@ export const useProcessWorkspaceInvite = () => {
     if (data?.workspaceMutations.invites.use) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: input.accept ? 'Workspace invite accepted' : 'Workspace invite dismissed'
+        title: input.accept ? '工作空间邀请已接受' : '工作空间邀请已拒绝'
       })
 
       mp.track('Workspace Joined', {
@@ -245,7 +245,7 @@ export const useProcessWorkspaceInvite = () => {
         const err = getFirstErrorMessage(errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Failed to process invite',
+          title: '处理邀请失败',
           description: err
         })
       }
@@ -427,7 +427,7 @@ export function useCreateWorkspace() {
       if (!options?.hideNotifications) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Workspace successfully created'
+          title: '工作空间创建成功'
         })
       }
 
@@ -438,7 +438,7 @@ export function useCreateWorkspace() {
       const err = getFirstErrorMessage(res.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Workspace creation failed',
+        title: '创建工作空间失败',
         description: err
       })
     }
@@ -514,10 +514,8 @@ export const useWorkspaceUpdateRole = () => {
     if (result?.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: input.role ? 'User role updated' : 'User removed',
-        description: input.role
-          ? 'The user role has been updated'
-          : 'The user has been removed from the workspace'
+        title: input.role ? '用户角色已更新' : '用户已从工作空间移除',
+        description: input.role ? '用户角色已更新' : '用户已从工作空间移除'
       })
 
       if (input.role) {
@@ -536,7 +534,7 @@ export const useWorkspaceUpdateRole = () => {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: input.role ? 'Failed to update role' : 'Failed to remove user',
+        title: input.role ? '更新用户角色失败' : '移除用户失败',
         description: errorMessage
       })
     }
@@ -585,8 +583,8 @@ export const useWorkspaceUpdateSeatType = () => {
       if (!hideNotifications) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Seat updated',
-          description: `The user's seat has been updated to ${input.seatType}`
+          title: '座位类型已更新',
+          description: `用户的座位类型已更新为 ${input.seatType}`
         })
       }
 
@@ -599,7 +597,7 @@ export const useWorkspaceUpdateSeatType = () => {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update seat type',
+        title: '更新座位类型失败',
         description: errorMessage
       })
     }
@@ -612,7 +610,7 @@ export const copyWorkspaceLink = async (slug: string) => {
   const url = new URL(workspaceRoute(slug), window.location.toString()).toString()
 
   await copy(url, {
-    successMessage: 'Copied workspace link to clipboard'
+    successMessage: '已将工作空间链接复制到剪贴板'
   })
 }
 
@@ -629,13 +627,13 @@ export const useSetDefaultWorkspaceRegion = () => {
     if (res?.data?.workspaceMutations.setDefaultRegion) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Default region set successfully'
+        title: '默认区域已设置'
       })
     } else {
       const err = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to set default region',
+        title: '设置默认区域失败',
         description: err
       })
     }

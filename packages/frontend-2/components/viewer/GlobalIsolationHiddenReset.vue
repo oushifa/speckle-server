@@ -19,13 +19,13 @@ const { resetHiddenAndIsolations, hasAnyIsolationsApplied, hasAnyHiddenApplied }
 
 const buttonText = computed(() => {
   if (hasAnyIsolationsApplied.value && hasAnyHiddenApplied.value) {
-    return 'Reset isolations/hidden'
+    return '非隔离所有对象并显示所有对象'
   } else if (hasAnyIsolationsApplied.value) {
-    return 'Reset isolations'
+    return '非隔离所有对象'
   } else if (hasAnyHiddenApplied.value) {
-    return 'Reset hidden'
+    return '显示所有对象'
   }
-  return 'Reset'
+  return '重置'
 })
 
 const mp = useMixpanel()

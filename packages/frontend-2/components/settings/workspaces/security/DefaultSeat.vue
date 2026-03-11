@@ -2,24 +2,24 @@
   <section class="flex flex-col space-y-3 pb-8">
     <div class="flex flex-col sm:flex-row gap-y-3 sm:items-center">
       <div class="flex-1 flex-col pr-6 gap-y-1">
-        <p class="text-body-xs font-medium text-foreground">Default seat type</p>
+        <p class="text-body-xs font-medium text-foreground">默认席位类型</p>
         <p class="text-body-2xs text-foreground-2 leading-5 max-w-[250px] mt-1">
-          Set the default seat type assigned to new people who join the workspace.
+          设置新加入工作空间的用户默认分配的席位类型。
         </p>
       </div>
       <FormSelectBase
         v-model="seatTypeModel"
-        v-tippy="!isWorkspaceAdmin ? 'You must be a workspace admin' : undefined"
+        v-tippy="!isWorkspaceAdmin ? '您必须是工作空间管理员' : undefined"
         :items="defaultSeatTypeOptions"
         :disabled="!isWorkspaceAdmin"
         name="defaultSeatType"
-        label="Default seat type"
+        label="默认席位类型"
         class="min-w-[240px]"
         :allow-unset="false"
         :show-label="false"
         fully-control-value
       >
-        <template #nothing-selected>Select default</template>
+        <template #nothing-selected>选择默认席位类型</template>
         <template #something-selected="{ value }">
           <div class="text-foreground font-medium capitalize">
             {{ Array.isArray(value) ? value[0] : value }}
@@ -46,16 +46,16 @@
         v-if="workspace.discoverabilityAutoJoinEnabled"
         class="text-body-xs text-foreground mb-2"
       >
-        You have
-        <span class="font-medium">Join without admin approval</span>
-        enabled.
+        您已启用
+        <span class="font-medium">加入无需管理员审批</span>
+        。
       </p>
       <p class="text-body-xs text-foreground mb-2">
-        Setting the default seat type to
-        <span class="font-medium">Editor</span>
-        means each user who joins will consume a paid seat and incur charges.
+        将默认席位类型设置为
+        <span class="font-medium">编辑器</span>
+        意味着每个加入的用户都将消耗一个付费席位并产生费用。
       </p>
-      <p class="text-body-xs text-foreground">Are you sure you want to enable this?</p>
+      <p class="text-body-xs text-foreground">您确定要将默认席位类型设置为编辑器吗？</p>
     </SettingsConfirmDialog>
   </section>
 </template>
@@ -140,10 +140,10 @@ const applySeatTypeChange = async (seatTypeValue: WorkspaceSeatType) => {
 
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Default seat type updated',
-      description: `New members will now be assigned ${
+      title: '默认席位类型已更新',
+      description: `新成员将默认分配 ${
         seatTypeValue.charAt(0).toUpperCase() + seatTypeValue.slice(1)
-      } seats by default`
+      } 席位`
     })
 
     mixpanel.track('Workspace Default Seat Type Updated', {
@@ -154,7 +154,7 @@ const applySeatTypeChange = async (seatTypeValue: WorkspaceSeatType) => {
   } else {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to update default seat type',
+      title: '更新默认席位类型失败',
       description: getFirstErrorMessage(result?.errors)
     })
   }

@@ -3,7 +3,7 @@
     <div
       class="text-center bg-highlight-1 rounded-md p-2 text-body-3xs text-foreground font-medium"
     >
-      {{ displayCount }} objects
+      {{ displayCount }} 个对象
     </div>
   </div>
 </template>

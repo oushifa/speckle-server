@@ -1,12 +1,12 @@
 export const Units = {
-  Millimeters: 'mm',
-  Centimeters: 'cm',
-  Meters: 'm',
-  Kilometers: 'km',
-  Inches: 'in',
-  Feet: 'ft',
-  Yards: 'yd',
-  Miles: 'mi'
+  Millimeters: '毫米',
+  Centimeters: '厘米',
+  Meters: '米',
+  Kilometers: '千米',
+  Inches: '英寸',
+  Feet: '英尺',
+  Yards: ' yard',
+  Miles: '英里'
 }
 
 export function getConversionFactor(from, to = Units.Meters) {

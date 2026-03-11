@@ -16,7 +16,7 @@
           <span class="font-medium">
             {{ planPrice }}
           </span>
-          per editor seat/month
+          编辑器席位/月
         </p>
         <template v-if="plan !== WorkspacePlans.Free">
           <div class="flex items-center gap-x-2 mt-3 px-1">
@@ -131,16 +131,15 @@ const planFeatures = computed(
 
 const commonFeatures = shallowRef([
   {
-    displayName: 'Unlimited members and guests',
-    description: 'You can have unlimited people in your workspace'
+    displayName: '无限制成员和访客',
+    description: '您可以在您的工作空间中拥有无限制的人员'
   },
   {
-    displayName: 'Free viewer seats',
-    description:
-      'People on a viewer seat can view and comment on models in the web viewer free of charge.'
+    displayName: '免费查看席位',
+    description: '在网络查看器上，查看和评论模型的人员可以免费使用。'
   },
   {
-    displayName: `${planLimits.value.projectCount} project${
+    displayName: `${planLimits.value.projectCount} 项目${
       planLimits.value.projectCount === 1 ? '' : 's'
     }`,
     description:
@@ -152,21 +151,20 @@ const commonFeatures = shallowRef([
     displayName: `${planLimits.value.modelCount} models per workspace`,
     description:
       props.plan === WorkspacePlans.Pro
-        ? 'Your maximum number of models. Can be extended with the Unlimited projects and models add-on.'
-        : 'Your maximum number of models'
+        ? '您可以在您的工作空间中拥有无限制的模型。可以通过 Unlimited projects and models add-on 扩展。'
+        : '您可以在您的工作空间中拥有无限制的模型'
   },
   {
     displayName: planLimits.value.versionsHistory
-      ? `${planLimits.value.versionsHistory.value} day version history`
-      : 'Full version history',
-    description:
-      'Access and compare earlier versions of your models. Latest version is always accessible.'
+      ? `${planLimits.value.versionsHistory.value} 天版本历史记录`
+      : '完整版本历史记录',
+    description: '您可以访问和比较您模型的早期版本。最新版本始终可访问。'
   },
   {
     displayName: planLimits.value.versionsHistory
-      ? `${planLimits.value.versionsHistory.value} day comment history`
-      : 'Full comment history',
-    description: 'Access past comments in the 3D web viewer'
+      ? `${planLimits.value.versionsHistory.value} 天评论历史记录`
+      : '完整评论历史记录',
+    description: '在 3D 网络查看器中访问过去的评论'
   }
 ])
 const planPrice = computed(() => {
@@ -309,7 +307,7 @@ const buttonText = computed(() => {
     isCurrentPlan.value &&
     props.currentPlan?.status !== WorkspacePlanStatuses.Canceled
   ) {
-    return 'Current plan'
+    return '当前计划'
   }
 
   // Allow if current plan is Free, or the current plan is expired/canceled
@@ -317,21 +315,21 @@ const buttonText = computed(() => {
     props.currentPlan?.name === WorkspacePlans.Free ||
     props.currentPlan?.status === WorkspacePlanStatuses.Canceled
   ) {
-    return `Subscribe to ${formatName(props.plan)}`
+    return `订阅 ${formatName(props.plan)}`
   }
   // Billing interval and lower plan case
   if (isDowngrade.value) {
-    return `Downgrade to ${formatName(props.plan)}`
+    return `降级到 ${formatName(props.plan)}`
   }
   // Billing interval change and current plan
   if (isAnnualToMonthly.value) {
-    return 'Change to monthly plan'
+    return '切换到月度计划'
   }
   if (isMonthlyToAnnual.value) {
-    return 'Change to annual plan'
+    return '切换到年度计划'
   }
   // Upgrade case
-  return canUpgradeToPlan.value ? `Upgrade to ${formatName(props.plan)}` : ''
+  return canUpgradeToPlan.value ? `升级到 ${formatName(props.plan)}` : ''
 })
 
 const buttonTooltip = computed(() => {
@@ -342,25 +340,25 @@ const buttonTooltip = computed(() => {
     return undefined
 
   if (!props.canUpgrade) {
-    return 'You must be a workspace admin.'
+    return '您必须是工作空间管理员。'
   }
 
   if (props.currentPlan?.status === WorkspacePlanStatuses.Canceled) {
     if (!canUpgradeToPlan.value && !isMatchingTier.value) {
-      return 'You can only resubcribe to the same or higher plan'
+      return '您只能重新订阅相同或更高的计划'
     }
   }
 
   if (props.currentPlan?.status === WorkspacePlanStatuses.CancelationScheduled) {
-    return 'You must renew your subscription first'
+    return '您必须先续订订阅'
   }
 
   if (isDowngrade.value) {
-    return 'Downgrading is not supported at the moment. Please contact billing@speckle.systems.'
+    return '降级计划目前不支持。请联系 billing@speckle.systems。'
   }
 
   if (isAnnualToMonthly.value) {
-    return 'Changing from an annual to a monthly plan is currently not supported. Please contact billing@speckle.systems.'
+    return '从年度计划切换到月度计划目前不支持。请联系 billing@speckle.systems。'
   }
 
   if (
@@ -368,7 +366,7 @@ const buttonTooltip = computed(() => {
     !isYearlyIntervalSelected.value &&
     canUpgradeToPlan.value
   ) {
-    return 'Upgrading from an annual plan to a monthly plan is not supported. Please contact billing@speckle.systems.'
+    return '从年度计划升级到月度计划目前不支持。请联系 billing@speckle.systems。'
   }
 
   return undefined
@@ -386,8 +384,8 @@ const displayAddons = computed(() => {
   if (props.plan === WorkspacePlans.Pro) {
     return [
       {
-        title: 'Unlimited projects and models',
-        tooltip: 'You can purchase this in the next step'
+        title: '无限制项目和模型',
+        tooltip: '您可以在下一步购买此功能'
       }
     ]
   }

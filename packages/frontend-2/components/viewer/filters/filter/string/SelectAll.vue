@@ -21,7 +21,7 @@
       />
       <div class="flex items-center">
         <div class="text-foreground ml-0.5">
-          {{ areAllValuesSelected ? 'Deselect all' : 'Select all' }}
+          {{ areAllValuesSelected ? '取消全选' : '全选' }}
         </div>
         <div class="text-foreground-2 text-body-3xs ml-1">
           ({{ selectedCount }} of {{ totalCount }})

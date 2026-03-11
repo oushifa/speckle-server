@@ -12,6 +12,7 @@ import {
   type RevitMaterialPropertyInfo,
   type RevitMaterialInfo
 } from '~/lib/viewer/helpers/filters/types'
+import { REVIT_PROPERTY_NAME_ZH_MAP } from './constants'
 
 export const revitPropertyRegex = /^parameters\./
 export const revitPropertyRegexDui3000InstanceProps = /^properties\.Instance/
@@ -95,7 +96,11 @@ export const getPropertyName = (
     }
   }
 
-  return key.split('.').pop() || key
+  const propertyName = key.split('.').pop() || key
+
+  const propertyZhName = REVIT_PROPERTY_NAME_ZH_MAP[propertyName]
+
+  return propertyZhName ?? propertyName
 }
 
 /**

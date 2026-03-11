@@ -9,7 +9,7 @@ import type { Optional } from '@speckle/shared'
  */
 
 definePageMeta({
-  name: 'generic-error'
+  name: '错误'
 })
 
 const route = useRoute()
@@ -22,6 +22,6 @@ const error = computed(() => ({
 }))
 
 useHead({
-  title: computed(() => `Error: ${error.value.message}`)
+  title: computed(() => `错误: ${error.value.message}`)
 })
 </script>

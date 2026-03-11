@@ -2,14 +2,14 @@
   <section class="py-8">
     <SettingsSectionHeader subheading title="Domain protection" />
     <p class="text-body-xs text-foreground-2 mt-2 mb-6">
-      Secure access to the workspace with your verified domains.
+      保护工作空间访问，仅允许使用已验证域名的用户加入。
     </p>
 
     <div class="flex items-center">
       <div class="flex-1 flex-col pr-6 gap-y-1">
-        <p class="text-body-xs font-medium text-foreground">Enable domain protection</p>
+        <p class="text-body-xs font-medium text-foreground">启用域保护</p>
         <p class="text-body-2xs text-foreground-2 leading-5 max-w-md mt-1">
-          Only allow users with verified domains to join the workspace.
+          仅允许使用已验证域名的用户加入工作空间。
         </p>
       </div>
       <div
@@ -89,8 +89,8 @@ const isDomainProtectionEnabled = computed({
     if (result?.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Domain protection updated',
-        description: `Domain protection has been ${newVal ? 'enabled' : 'disabled'}`
+        title: '域保护已更新',
+        description: `域保护已${newVal ? '启用' : '禁用'}`
       })
       mixpanel.track('Workspace Domain Protection Toggled', {
         value: newVal,
@@ -100,8 +100,8 @@ const isDomainProtectionEnabled = computed({
     } else {
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update domain protection',
-        description: 'Please try again later'
+        title: '域保护更新失败',
+        description: '请稍后重试'
       })
     }
   }
@@ -115,11 +115,9 @@ const switchDisabled = computed(() => {
 })
 
 const tooltipText = computed(() => {
-  if (props.workspace?.role !== Roles.Workspace.Admin)
-    return 'You must be a workspace admin'
+  if (props.workspace?.role !== Roles.Workspace.Admin) return '您必须是工作空间管理员'
   if (isDomainProtectionEnabled.value) return undefined
-  if (!hasWorkspaceDomains.value)
-    return 'Your workspace must have at least one verified domain'
+  if (!hasWorkspaceDomains.value) return '您的工作空间必须至少有一个已验证域名'
   return undefined
 })
 </script>

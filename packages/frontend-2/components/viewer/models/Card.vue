@@ -36,12 +36,8 @@
           >
             {{ modelName.header }}
           </div>
-          <div v-if="isLatest" class="text-body-3xs text-foreground">
-            Latest version
-          </div>
-          <div v-else class="text-body-3xs text-primary truncate">
-            Viewing old version
-          </div>
+          <div v-if="isLatest" class="text-body-3xs text-foreground">最新版本</div>
+          <div v-else class="text-body-3xs text-primary truncate">查看旧版本</div>
           <div class="flex items-center gap-1 text-body-3xs text-foreground-2 min-w-0">
             <div
               v-if="loadedVersion?.sourceApplication"
@@ -187,13 +183,13 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
       title: '加载最新版本',
       id: 'load-latest-version',
       disabled: isLatest.value,
-      disabledTooltip: 'Already on the latest version'
+      disabledTooltip: '您已在最新版本'
     },
     {
       title: '显示版本变更',
       id: 'show-version-changes',
       disabled: isLatest.value,
-      disabledTooltip: 'No changes to show for the latest version'
+      disabledTooltip: '最新版本没有变更'
     }
   ],
   [
@@ -201,7 +197,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
       title: '删除模型',
       id: 'remove-model',
       disabled: !removeEnabled.value,
-      disabledTooltip: 'You cannot remove the last model'
+      disabledTooltip: '您不能删除最后一个模型'
     }
   ]
 ])

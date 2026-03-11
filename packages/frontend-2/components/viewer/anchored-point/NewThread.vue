@@ -10,7 +10,7 @@
   >
     <div class="relative">
       <button
-        v-tippy="!modelValue.isExpanded ? 'New comment' : 'Close'"
+        v-tippy="!modelValue.isExpanded ? '新增评论' : '关闭'"
         class="bg-foundation-2 outline outline-2 outline-primary rounded-tr-full rounded-tl-full rounded-br-full w-8 h-8 -top-10 absolute flex justify-center items-center hover:shadow-md"
         @click="onThreadClick"
       >
@@ -25,8 +25,8 @@
           v-if="modelValue.isExpanded && !isEmbedEnabled"
           class="bg-foundation p-3 text-body-2xs text-foreground font-semibold sm:hidden flex justify-between items-center"
         >
-          Add Comment
-          <button v-tippy="'Close'" @click="onThreadClick">
+          新增评论
+          <button v-tippy="'关闭'" @click="onThreadClick">
             <Plus class="w-4 h-4 text-foreground-2 rotate-45" />
           </button>
         </div>
@@ -50,7 +50,7 @@
             <ViewerCommentsEditor
               ref="editor"
               v-model="commentValue"
-              prompt="Add comment"
+              prompt="新增评论"
               max-height="300px"
               autofocus
               disable-drop-zone

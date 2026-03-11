@@ -599,13 +599,13 @@ export function useUpdateVersion() {
     if (data?.versionMutations.update.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: `Version successfully updated`
+        title: '版本已成功更新'
       })
     } else {
       const errMsg = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Version update failed',
+        title: '更新版本失败',
         description: errMsg
       })
     }

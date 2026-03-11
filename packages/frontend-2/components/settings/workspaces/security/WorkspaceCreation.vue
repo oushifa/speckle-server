@@ -2,18 +2,15 @@
   <section class="py-8">
     <SettingsSectionHeader title="Exclusive workspace" subheading />
     <p class="text-body-xs text-foreground-2 mt-2 mb-6">
-      Control whether workspace members can create new workspaces.
+      控制工作空间成员是否可以创建新的工作空间。
     </p>
 
     <div class="flex flex-col space-y-6">
       <div class="flex items-center">
         <div class="flex-1 flex-col pr-6 gap-y-1">
-          <p class="text-body-xs font-medium text-foreground">
-            Restrict member workspace creation
-          </p>
+          <p class="text-body-xs font-medium text-foreground">限制成员工作空间创建</p>
           <p class="text-body-2xs text-foreground-2 leading-5 max-w-md mt-1">
-            Prevent workspace members from creating new workspaces. Admins and guests
-            can still create workspaces.
+            防止工作空间成员创建新的工作空间。管理员和访客仍可以创建工作空间。
           </p>
         </div>
         <div
@@ -37,7 +34,7 @@
           size="sm"
           color="outline"
         >
-          Contact us
+          联系我们
         </FormButton>
       </div>
     </div>
@@ -94,10 +91,10 @@ const isExclusive = computed({
     if (result?.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Workspace creation restriction updated',
-        description: `Member workspace creation has been ${
-          newVal ? 'restricted' : 'allowed'
-        }`
+        title: '工作空间创建限制已更新',
+        description: `成员工作空间创建已被 ${
+          newVal ? '限制' : '允许'
+        }。管理员和访客仍可以创建工作空间。`
       })
       mixpanel.track('Workspace Creation Restriction Toggled', {
         value: newVal,
@@ -107,7 +104,7 @@ const isExclusive = computed({
     } else {
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update workspace creation restriction'
+        title: '更新工作空间创建限制失败'
       })
     }
   }

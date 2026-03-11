@@ -32,7 +32,7 @@
             canDownload
               ? undefined
               : {
-                  content: `Please <a href='${loginRoute}'>login</a> or <a href='${registerRoute}'>register</a> to download connectors`,
+                  content: `请先登录或注册以下载连接器`,
                   allowHTML: true,
                   interactive: true
                 }
@@ -50,7 +50,7 @@
               })
             "
           >
-            {{ connector.isComingSoon ? 'Coming soon' : 'Install for Windows' }}
+            {{ connector.isComingSoon ? '即将发布' : '安装 Windows 版本' }}
           </FormButton>
         </div>
         <FormButton

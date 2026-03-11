@@ -4,15 +4,15 @@ import type { LayoutPageTabItem } from '~~/src/helpers/layout/components'
 import { useStorybookVmodel } from '~~/src/composables/testing'
 
 const items: LayoutPageTabItem[] = [
-  { title: 'Models', id: 'models', count: 300 },
-  { title: 'Discussions', id: 'discussions' },
-  { title: 'Automations', id: 'automations', tag: 'New' },
-  { title: 'Settings', id: 'settings' },
+  { title: '模型', id: 'models', count: 300 },
+  { title: '问题讨论', id: 'discussions' },
+  { title: '自动操作', id: 'automations', tag: 'New' },
+  { title: '设置', id: 'settings' },
   {
-    title: 'Disabled Item',
+    title: '已禁用项',
     id: 'disabled',
     disabled: true,
-    disabledMessage: 'Example disabled message'
+    disabledMessage: '示例禁用消息'
   }
 ]
 
@@ -21,23 +21,22 @@ export default {
   parameters: {
     docs: {
       description: {
-        component:
-          'This component displays a set of horizontal tabs, allowing user interaction and selection.'
+        component: '此组件显示一组水平选项卡，允许用户交互和选择。'
       }
     }
   },
   argTypes: {
     items: {
-      description: 'Array of items to display in the tabs'
+      description: '要显示在选项卡中的项目数组'
     },
     title: {
-      description: 'Title of the tabs, displayed above the tabs if provided'
+      description: '选项卡上方显示的标题'
     },
     activeItem: {
-      description: 'The active item model. Not required.'
+      description: '当前活动项模型。不需要。'
     },
     'update:activeItem': {
-      description: 'Event emitted when the active item changes',
+      description: '当活动项更改时触发的事件',
       type: 'function',
       action: 'v-model:activeItem'
     }
@@ -61,7 +60,7 @@ export const Default: StoryObj = {
   }),
   args: {
     items,
-    title: 'Tab Example',
+    title: '选项卡示例',
     activeItem: items[2]
   }
 }

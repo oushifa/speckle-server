@@ -26,13 +26,13 @@ export function useUpdateWorkspace() {
       if (result?.data) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Workspace updated'
+          title: '工作空间已更新'
         })
       } else {
         const errorMessage = getFirstErrorMessage(result?.errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Workspace update failed',
+          title: '更新工作空间失败',
           description: errorMessage
         })
       }
@@ -82,13 +82,13 @@ export function useAddWorkspaceDomain() {
       if (result?.data) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Domain added',
-          description: `The verified domain ${input.domain} has been added to your workspace`
+          title: '已添加验证域名',
+          description: `已将验证域名 ${input.domain} 添加到您的工作空间`
         })
       } else {
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Failed to add verified domain',
+          title: '添加验证域名失败',
           description: getFirstErrorMessage(result?.errors)
         })
       }

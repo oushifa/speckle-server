@@ -1,5 +1,5 @@
 <template>
-  <div v-tippy="getTooltipProps(isIsolated ? 'Unisolate' : 'Isolate')">
+  <div v-tippy="getTooltipProps(isIsolated ? '非隔离' : '隔离')">
     <FormButton
       color="subtle"
       size="sm"
@@ -7,7 +7,7 @@
       hide-text
       @click.stop="$emit('click', $event)"
     >
-      {{ isIsolated ? 'Unisolate' : 'Isolate' }}
+      {{ isIsolated ? '非隔离' : '隔离' }}
     </FormButton>
   </div>
 </template>

@@ -6,7 +6,7 @@
         <ViewerMenuItem
           v-for="shortcut in viewShortcuts"
           :key="shortcut.name"
-          :label="shortcut.name"
+          :label="shortcut.label"
           hide-active-tick
           :active="activeView === shortcut.name.toLowerCase()"
           :shortcut="getShortcutDisplayText(shortcut, { hideName: true }) as string"
@@ -102,12 +102,6 @@ const handleViewChange = (v: CanonicalView | SpeckleView, isShortcut = false) =>
   if (isShortcut) {
     open.value = true
   }
-
-  mixpanel.track('Viewer Action', {
-    type: 'action',
-    name: 'set-view',
-    view: (v as SpeckleView)?.name || v
-  })
 }
 
 const trackAndtoggleProjection = () => {

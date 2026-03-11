@@ -9,7 +9,7 @@
     <ViewerFiltersPropertySelectionSearch
       ref="searchComponent"
       v-model="searchQuery"
-      placeholder="Search for a property..."
+      placeholder="搜索属性..."
       input-id="property-search"
       @keydown="handleSearchKeydown"
     />
@@ -23,11 +23,9 @@
       v-else-if="hasSearchQuery && filteredOptions.length === 0"
       class="flex-1 flex flex-col items-center justify-center p-6 gap-2"
     >
-      <p class="text-body-2xs text-center">No properties found</p>
+      <p class="text-body-2xs text-center">未找到属性</p>
 
-      <FormButton color="outline" size="sm" @click="clearSearch">
-        Clear search
-      </FormButton>
+      <FormButton color="outline" size="sm" @click="clearSearch">清除搜索</FormButton>
     </div>
 
     <!-- Property list -->
@@ -75,8 +73,10 @@ import {
   FILTERS_POPULAR_PROPERTIES,
   PROPERTY_SELECTION_ITEM_HEIGHT,
   PROPERTY_SELECTION_MAX_HEIGHT,
-  PROPERTY_SELECTION_OVERSCAN
+  PROPERTY_SELECTION_OVERSCAN,
+  REVIT_PROPERTY_NAME_ZH_MAP
 } from '~/lib/viewer/helpers/filters/constants'
+import { isRevitProperty } from '~/lib/viewer/helpers/filters/utils'
 import { useFilteringDataStore } from '~/lib/viewer/composables/filtering/dataStore'
 
 const props = defineProps<{
@@ -104,19 +104,50 @@ const isLoading = computed(() => {
   return dataStore.dataSources.value.length === 0
 })
 
+const getLocalizedPropertyLabel = (option: PropertyOption): string => {
+  const keySegment = option.value.split('.').pop() || option.value
+  const translatedName =
+    REVIT_PROPERTY_NAME_ZH_MAP[option.value] ||
+    REVIT_PROPERTY_NAME_ZH_MAP[keySegment] ||
+    REVIT_PROPERTY_NAME_ZH_MAP[option.label]
+
+  if (!translatedName) return option.label
+  if (isRevitProperty(option.value) || REVIT_PROPERTY_NAME_ZH_MAP[option.value]) {
+    return translatedName
+  }
+
+  return option.label
+}
+
 const optionsWithLowercase = computed(() => {
-  return props.options.map((option) => ({
-    ...option,
-    _searchLabel: option.label.toLowerCase(),
-    _searchValue: option.value.toLowerCase(),
-    _searchParentPath: option.parentPath.toLowerCase(),
-    _searchType: option.type.toLowerCase()
-  }))
+  return props.options.map((option) => {
+    const localizedLabel = getLocalizedPropertyLabel(option)
+    return {
+      ...option,
+      label: localizedLabel,
+      _searchLabel: localizedLabel.toLowerCase(),
+      _searchOriginalLabel: option.label.toLowerCase(),
+      _searchValue: option.value.toLowerCase(),
+      _searchParentPath: option.parentPath.toLowerCase(),
+      _searchType: option.type.toLowerCase()
+    }
+  })
 })
 
 const filteredOptions = computed(() => {
+  const normalizedOptions = optionsWithLowercase.value.map(
+    ({
+      _searchLabel,
+      _searchOriginalLabel,
+      _searchValue,
+      _searchParentPath,
+      _searchType,
+      ...option
+    }) => option
+  )
+
   if (!debouncedSearchQuery.value.trim()) {
-    return props.options
+    return normalizedOptions
   }
 
   const searchTerm = debouncedSearchQuery.value.toLowerCase().trim()
@@ -124,13 +155,20 @@ const filteredOptions = computed(() => {
     .filter(
       (option) =>
         option._searchLabel.includes(searchTerm) ||
+        option._searchOriginalLabel.includes(searchTerm) ||
         option._searchValue.includes(searchTerm) ||
         option._searchParentPath.includes(searchTerm) ||
         option._searchType.includes(searchTerm)
     )
     .map(
-      ({ _searchLabel, _searchValue, _searchParentPath, _searchType, ...option }) =>
-        option
+      ({
+        _searchLabel,
+        _searchOriginalLabel,
+        _searchValue,
+        _searchParentPath,
+        _searchType,
+        ...option
+      }) => option
     )
 })
 
@@ -153,7 +191,7 @@ const listItems = computed((): PropertySelectionListItem[] => {
     .slice(0, 6) // Show max 6 popular filters
 
   if (availablePopular.length > 0) {
-    items.push({ type: 'header', title: 'Popular properties' })
+    items.push({ type: 'header', title: '常用属性' })
     const popularItems = availablePopular.map((property) => ({
       type: 'property' as const,
       property: property!
@@ -163,7 +201,7 @@ const listItems = computed((): PropertySelectionListItem[] => {
 
   items.push({
     type: 'header',
-    title: `All properties (${filteredOptions.value.length})`
+    title: `所有属性 (${filteredOptions.value.length})`
   })
 
   const allPropertyItems = filteredOptions.value.map((property) => ({

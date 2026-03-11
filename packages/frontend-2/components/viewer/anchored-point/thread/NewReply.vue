@@ -17,7 +17,7 @@
         <ViewerCommentsEditor
           ref="editor"
           v-model="commentValue"
-          prompt="Add reply"
+          prompt="新增回复"
           autofocus
           disable-drop-zone
           @keydown="onKeyDownHandler"

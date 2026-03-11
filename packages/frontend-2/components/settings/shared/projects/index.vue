@@ -7,14 +7,14 @@
           :custom-icon="MagnifyingGlassIcon"
           color="foundation"
           search
-          placeholder="Search projects"
+          placeholder="搜索项目"
           v-bind="bind"
           v-on="on"
         />
       </div>
       <div v-tippy="createDisabledTooltip">
         <FormButton :disabled="isCreateDisabled" @click="openNewProject = true">
-          Create
+          创建项目
         </FormButton>
       </div>
     </div>
@@ -22,13 +22,13 @@
     <LayoutTable
       class="mt-6"
       :columns="[
-        { id: 'name', header: 'Name', classes: 'col-span-2 truncate' },
-        { id: 'created', header: 'Created', classes: 'col-span-2' },
-        { id: 'visibility', header: 'Visibility', classes: 'col-span-2' },
-        { id: 'modified', header: 'Modified', classes: 'col-span-2' },
-        { id: 'models', header: 'Models', classes: 'col-span-1' },
-        { id: 'versions', header: 'Versions', classes: 'col-span-1' },
-        { id: 'contributors', header: 'Project members', classes: 'col-span-2 pr-8' },
+        { id: 'name', header: '项目名称', classes: 'col-span-2 truncate' },
+        { id: 'created', header: '创建时间', classes: 'col-span-2' },
+        { id: 'visibility', header: '可见性', classes: 'col-span-2' },
+        { id: 'modified', header: '修改时间', classes: 'col-span-2' },
+        { id: 'models', header: '模型数量', classes: 'col-span-1' },
+        { id: 'versions', header: '版本数量', classes: 'col-span-1' },
+        { id: 'contributors', header: '项目成员', classes: 'col-span-2 pr-8' },
         { id: 'actions', header: '', classes: 'absolute right-2 top-0.5' }
       ]"
       :items="projects"
@@ -241,19 +241,19 @@ const actionItems = computed((): { [projectId: string]: LayoutMenuItem[][] } =>
     ret[project.id] = [
       [
         {
-          title: 'View project',
+          title: '查看项目',
           id: ActionTypes.ViewProject,
           disabled: !canRead?.authorized,
           disabledTooltip: canRead?.message
         },
         {
-          title: 'Edit members',
+          title: '编辑成员',
           id: ActionTypes.EditMembers,
           disabled: !canReadSettings?.authorized,
           disabledTooltip: canReadSettings?.message
         },
         {
-          title: 'Delete project...',
+          title: '删除项目...',
           id: ActionTypes.DeleteProject,
           disabled: !canDelete?.authorized,
           disabledTooltip: canDelete?.message

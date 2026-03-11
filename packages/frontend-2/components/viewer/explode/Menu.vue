@@ -4,7 +4,7 @@
       <FormRange
         v-model="explodeFactor"
         name="intensity"
-        label="Intensity"
+        label="强度"
         :min="0"
         :max="1"
         :step="0.01"

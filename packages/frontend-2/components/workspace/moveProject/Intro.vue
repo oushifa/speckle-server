@@ -15,7 +15,7 @@
           <span
             class="h-[30px] flex place-items-center text-foreground-3 text-body-3xs font-medium"
           >
-            My workspace
+            我的工作空间
           </span>
         </div>
         <ul
@@ -45,44 +45,49 @@
     <div class="w-full bg-foundation-page flex flex-col gap-6 p-6">
       <div class="flex flex-col gap-y-4 select-none">
         <h4 class="text-heading-sm text-foreground">
-          <template v-if="!limitType">Move your projects to a workspace to:</template>
+          <template v-if="!limitType">将您的项目移动到工作空间以:</template>
           <template v-else-if="limitType === ViewerLimitsDialogType.Version">
-            Personal projects limit reached
+            个人项目限制已达
           </template>
           <template v-else-if="limitType === ViewerLimitsDialogType.Federated">
-            The federated models couldn't be loaded
+            无法加载联合模型
           </template>
         </h4>
         <template v-if="!limitType">
-          → Create new projects and models,
+          → 创建新项目和模型,
           <br />
-          → Invite new project collaborators,
+          → 邀请新项目协作者,
           <br />
-          → View comments and versions older than {{ versionLimitFormatted }} (paid
-          plans only)
+          → 查看评论和版本历史记录 {{ versionLimitFormatted }} (仅付费计划)
         </template>
         <template v-else-if="limitType === ViewerLimitsDialogType.Version">
-          The version you're trying to load is older than the
-          {{ versionLimitFormatted }} version history limit allowed for Personal
-          projects. Move your project to a workspace to gain access.
+          您尝试加载的版本早于
+          {{
+            versionLimitFormatted
+          }}
+          版本历史记录限制允许的个人项目。将项目移动到工作空间以获取访问权限。
+          {{
+            versionLimitFormatted
+          }}
+          版本历史记录限制允许的个人项目。将项目移动到工作空间以获取访问权限。
         </template>
         <template v-else-if="limitType === ViewerLimitsDialogType.Federated">
-          One of the models is older than the {{ versionLimitFormatted }} version
-          history limit allowed for Personal projects. Move your project to a workspace
-          to gain access.
+          联合模型包含的一个或多个版本早于
+          {{
+            versionLimitFormatted
+          }}
+          版本历史记录限制允许的个人项目。将项目移动到工作空间以获取访问权限。
         </template>
       </div>
       <CommonAlert v-if="isNotOwner" color="warning" hide-icon>
-        <template #title>
-          You can't move the project because you're not a project owner.
-        </template>
+        <template #title>您不能移动项目，因为您不是项目所有者。</template>
       </CommonAlert>
       <div class="flex gap-2 justify-end">
         <FormButton v-if="!limitType" color="subtle" @click="$emit('cancel')">
-          Cancel
+          取消
         </FormButton>
         <FormButton v-else color="subtle" @click="loadLatestVersion">
-          Load latest version
+          加载最新版本
         </FormButton>
         <div
           v-tippy="
@@ -93,7 +98,7 @@
             :disabled="!canMoveProject?.authorized"
             @click="$emit('continue')"
           >
-            Move project
+            移动项目
           </FormButton>
         </div>
       </div>

@@ -17,7 +17,7 @@ export const PanelShortcuts = {
     action: 'ToggleFilters'
   },
   ToggleDiscussions: {
-    name: '讨论',
+    name: '问题讨论',
     description: '切换讨论面板',
     modifiers: [ModifierKeys.Shift],
     key: 'D',
@@ -136,35 +136,40 @@ export const ViewModeShortcuts = {
 
 export const ViewShortcuts = {
   SetViewTop: {
-    name: '顶部',
+    name: 'top',
+    label: '顶部',
     description: '设置视图为顶部',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit1',
     action: 'SetViewTop'
   },
   SetViewFront: {
-    name: '正面',
+    name: 'front',
+    label: '正面',
     description: '设置视图为正面',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit2',
     action: 'SetViewFront'
   },
   SetViewLeft: {
-    name: '左侧',
+    name: 'left',
+    label: '左侧',
     description: '设置视图为左侧',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit3',
     action: 'SetViewLeft'
   },
   SetViewBack: {
-    name: '背面',
+    name: 'back',
+    label: '背面',
     description: '设置视图为背面',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit4',
     action: 'SetViewBack'
   },
   SetViewRight: {
-    name: '右侧',
+    name: 'right',
+    label: '右侧',
     description: '设置视图为右侧',
     modifiers: [ModifierKeys.AltOrOpt],
     key: 'Digit5',

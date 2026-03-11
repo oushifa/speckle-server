@@ -10,18 +10,19 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useTheme } from '~~/lib/core/composables/theme'
+// import { useTheme } from '~~/lib/core/composables/theme'
 import { useAuthManager } from '~~/lib/auth/composables/auth'
 import { useFixBraveSafariCookies } from '~~/lib/common/composables/reactiveCookie'
 
-const { isDarkTheme } = useTheme()
+// const { isDarkTheme } = useTheme()
 
 useHead({
   // Title suffix
-  titleTemplate: (titleChunk) => (titleChunk ? `${titleChunk} | Speckle` : 'Speckle'),
+  titleTemplate: (titleChunk) => (titleChunk ? `${titleChunk} | 数智南北` : '数智南北'),
   htmlAttrs: {
-    class: computed(() => (isDarkTheme.value ? `dark` : ``)),
-    lang: 'en'
+    // class: computed(() => (isDarkTheme.value ? `dark` : ``)),
+    class: computed(() => ``),
+    lang: 'zh-CN'
   },
   bodyAttrs: {
     class:

@@ -1,9 +1,7 @@
 <template>
-  <ProjectPageSettingsBlock background title="Discussions" :auth-check="canUpdate">
+  <ProjectPageSettingsBlock background title="问题讨论" :auth-check="canUpdate">
     <template #introduction>
-      <p class="text-body-xs text-foreground">
-        Control who can leave comments on this project.
-      </p>
+      <p class="text-body-xs text-foreground">控制谁可以在这个项目上发表评论。</p>
     </template>
     <FormRadioGroup
       v-model="selectedOption"
@@ -62,19 +60,19 @@ const canUpdate = computed(() => props.project.permissions.canUpdateAllowPublicC
 const radioOptions = computed(() => [
   {
     value: CommentPermission.Anyone,
-    title: 'Anyone',
-    introduction: 'Anyone can comment',
+    title: '任何用户',
+    introduction: '任何用户都可以在这个项目上发表评论。',
     icon: UserGroupIcon
   },
   {
     value: CommentPermission.TeamMembers,
-    title: 'Collaborators',
-    introduction: 'Only collaborators can comment',
+    title: '团队成员',
+    introduction: '只有团队成员才能在这个项目上发表评论。',
     icon: UserCircleIcon,
     help:
       castToSupportedVisibility(props.project.visibility) !==
       SupportedProjectVisibility.Public
-        ? 'Only collaborators can comment on private projects'
+        ? '只有团队成员才能在私有项目上发表评论。'
         : undefined
   }
 ])

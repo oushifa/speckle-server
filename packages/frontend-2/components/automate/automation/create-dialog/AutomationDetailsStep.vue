@@ -3,9 +3,9 @@
     <FormSelectProjects
       v-if="!preselectedProject"
       v-model="project"
-      label="Speckle project"
+      label="项目"
       show-label
-      help="Choose the project where your target model is located"
+      help="选择您目标模型所在的项目"
       show-required
       mount-menu-on-body
       :rules="projectRules"
@@ -18,7 +18,7 @@
       v-if="project?.id"
       v-model="model"
       :project-id="project.id"
-      label="Model"
+      label="模型"
       show-label
       :help="selectModelHelpText"
       show-required
@@ -30,11 +30,11 @@
     <FormTextInput
       v-model="automationName"
       name="automationName"
-      label="Automation name"
+      label="自动化名称"
       color="foundation"
       show-label
-      help="Give your automation a name"
-      placeholder="Name"
+      help="为您的自动化命名"
+      placeholder="名称"
       :rules="nameRules"
       show-required
       validate-on-value-update
@@ -73,8 +73,8 @@ const nameRules = computed(() => [
 
 const selectModelHelpText = computed(() => {
   return props.isTestAutomation
-    ? 'Local function executions will be provided the latest version of this model'
-    : 'The model that should trigger this automation'
+    ? '本地函数执行将提供此模型的最新版本'
+    : '触发此自动化的模型'
 })
 
 watch(

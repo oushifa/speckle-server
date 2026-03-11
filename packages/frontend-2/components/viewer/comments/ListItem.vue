@@ -13,7 +13,7 @@
         <UserAvatarGroup :users="threadAuthors" size="sm" />
         <FormButton
           v-if="!isLimited"
-          v-tippy="thread.archived ? 'Unresolve' : 'Resolve'"
+          v-tippy="thread.archived ? '重新打开' : '已解决'"
           :icon-left="thread.archived ? CheckCircleIcon : CheckCircleIconOutlined"
           text
           hide-text
@@ -58,10 +58,7 @@
             <IconCircleExclamation class="size-3 text-foreground-2" />
           </div>
         </div>
-        <span>
-          {{ thread.replies.totalCount }}
-          {{ thread.replies.totalCount === 1 ? 'reply' : 'replies' }}
-        </span>
+        <span>{{ thread.replies.totalCount }}个回复</span>
       </div>
     </div>
   </div>
@@ -157,7 +154,7 @@ const toggleCommentResolvedStatus = async () => {
     status: !props.thread.archived
   })
   triggerNotification({
-    title: `Thread ${props.thread.archived ? 'reopened.' : 'resolved.'}`,
+    title: `问题 ${props.thread.archived ? '已重新打开。' : '已解决。'}`,
     type: ToastNotificationType.Info
   })
 }

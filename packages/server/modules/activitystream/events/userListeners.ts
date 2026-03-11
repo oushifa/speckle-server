@@ -40,7 +40,7 @@ const addUserUpdatedActivityFactory =
       actionType: StreamActionTypes.User.Update,
       userId: updaterId,
       info: { old: oldUser, new: update },
-      message: 'User updated'
+      message: '用户更新'
     })
   }
 
@@ -56,7 +56,7 @@ const addUserDeletedActivityFactory =
       actionType: StreamActionTypes.User.Delete,
       userId: invokerUserId,
       info: {},
-      message: 'User deleted'
+      message: '用户删除'
     })
   }
 

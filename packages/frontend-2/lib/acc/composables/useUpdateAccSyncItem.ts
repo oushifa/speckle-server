@@ -36,8 +36,8 @@ export const useUpdateAccSyncItem = () => {
     if (result.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'ACC sync updated',
-        description: 'Successfully updated ACC sync'
+        title: 'ACC 同步已更新',
+        description: '成功更新 ACC 同步'
       })
     } else {
       const errMsg = getFirstGqlErrorMessage(result?.errors)

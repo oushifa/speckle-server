@@ -1,5 +1,5 @@
 <template>
-  <div v-tippy="getTooltipProps(isHidden ? 'Show' : 'Hide')">
+  <div v-tippy="getTooltipProps(isHidden ? '显示' : '隐藏')">
     <FormButton
       color="subtle"
       size="sm"
@@ -7,7 +7,7 @@
       hide-text
       @click.stop="$emit('click', $event)"
     >
-      {{ isHidden ? 'Show' : 'Hide' }}
+      {{ isHidden ? '显示' : '隐藏' }}
     </FormButton>
   </div>
 </template>

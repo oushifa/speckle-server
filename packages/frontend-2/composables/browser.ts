@@ -18,9 +18,8 @@ export const useClipboard = () => {
         failureMessage?: string
       }>
     ) => {
-      const successMessage = options?.successMessage || 'Value copied to clipboard'
-      const failureMessage =
-        options?.failureMessage || 'Failed to copy value to clipboard'
+      const successMessage = options?.successMessage || '已复制到剪贴板'
+      const failureMessage = options?.failureMessage || '复制到剪贴板失败'
 
       try {
         await copy(text)

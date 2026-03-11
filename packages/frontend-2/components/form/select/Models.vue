@@ -105,7 +105,7 @@ const props = defineProps({
    */
   searchPlaceholder: {
     type: String,
-    default: 'Search models'
+    default: '搜索模型'
   },
   selectorPlaceholder: {
     type: String as PropType<Optional<string>>,

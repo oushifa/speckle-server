@@ -114,6 +114,7 @@ const emit = defineEmits<{
 }>()
 
 const isColoringActive = computed(() => {
+  console.log(props.filter)
   return filters.activeColorFilterId.value === props.filter.id
 })
 

@@ -211,7 +211,7 @@ export const useBillingActions = () => {
         cancelCheckoutSession(String(sessionIdQuery), workspace.id)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: 'Your payment was canceled'
+          title: '您的支付已取消'
         })
 
         mixpanel.track('Workspace Upgrade Cancelled', {
@@ -221,7 +221,7 @@ export const useBillingActions = () => {
       } else {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Your workspace plan was successfully updated'
+          title: '您的工作空间计划已成功更新'
         })
 
         const metaData = {

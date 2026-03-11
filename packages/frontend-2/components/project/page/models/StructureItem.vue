@@ -17,7 +17,7 @@
           <template v-if="model">
             <NuxtLink
               v-if="showLastUploadFailed"
-              v-tippy="'Last upload failed'"
+              v-tippy="'最后一次上传失败'"
               v-keyboard-clickable
               class="text-body-3xs text-danger hover:text-danger-lighter cursor-pointer"
               @click.stop="actions?.showUploads()"
@@ -26,7 +26,7 @@
             </NuxtLink>
             <IntegrationsAccSyncStatusModelItem
               v-if="accSyncItem"
-              v-tippy=""
+              v-tippy="'构造云同步状态'"
               :item="accSyncItem"
             />
             <ProjectPageModelsActions
@@ -93,7 +93,7 @@
         </template>
         <div v-else-if="hasVersions" class="hidden sm:flex items-center gap-x-2">
           <div class="text-body-3xs text-foreground-2 text-right">
-            Updated
+            更新
             <span v-tippy="updatedAt.full">
               {{ updatedAt.relative }}
             </span>
@@ -211,7 +211,7 @@
             </div>
           </div> -->
           <div class="text-body-2xs text-foreground-2">
-            Updated
+            更新
             <span v-tippy="updatedAt.full">
               {{ updatedAt.relative }}
             </span>
@@ -223,7 +223,7 @@
             :disabled="!viewAllUrl"
             @click.stop="trackFederateModels"
           >
-            View all
+            查看所有
           </FormButton>
         </div>
       </button>
@@ -357,15 +357,6 @@ const actions = ref(
   }>
 )
 const isVersionUploading = ref(false)
-
-const mp = useMixpanel()
-const trackFederateModels = () =>
-  mp.track('Viewer Action', {
-    type: 'action',
-    name: 'federation',
-    action: 'view-all',
-    source: 'model grid item'
-  })
 
 const showActionsMenu = ref(false)
 

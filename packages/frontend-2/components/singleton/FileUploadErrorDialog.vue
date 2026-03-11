@@ -1,17 +1,12 @@
 <template>
   <LayoutDialog v-model:open="open" :title="title" :buttons="buttons">
-    <p class="text-foreground-2 my-2">
-      The following file upload{{ failedJobs.length > 1 ? 's' : '' }} failed. You can
-      retry {{ failedJobs.length > 1 ? 'them' : 'it' }} by re-uploading the file{{
-        failedJobs.length > 1 ? 's' : ''
-      }}.
-    </p>
+    <p class="text-foreground-2 my-2">上传文件失败，请重新上传。</p>
     <LayoutTable
       :items="failedJobs"
       :columns="[
-        { id: 'file', header: 'File', classes: 'col-span-4' },
-        { id: 'error', header: 'Error', classes: 'col-span-5' },
-        { id: 'date', header: 'Date', classes: 'col-span-2' },
+        { id: 'file', header: '文件', classes: 'col-span-4' },
+        { id: 'error', header: '错误', classes: 'col-span-5' },
+        { id: 'date', header: '日期', classes: 'col-span-2' },
         {
           id: 'actions',
           header: '',
@@ -49,7 +44,7 @@
       </template>
       <template #actions="{ item }">
         <FormButton
-          v-tippy="'Go to project'"
+          v-tippy="'前往项目'"
           :icon-left="ArrowRightIcon"
           hide-text
           size="sm"
@@ -88,9 +83,7 @@ const open = computed({
     }
   }
 })
-const title = computed(
-  () => `File upload${failedJobs.value.length > 1 ? 's' : ''} failed`
-)
+const title = computed(() => `文件上传失败`)
 
 const buttons = computed((): LayoutDialogButton[] => [
   {

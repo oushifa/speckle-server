@@ -10,9 +10,9 @@
           size="sm"
           @click="handleClose"
         >
-          Exit versions
+          退出版本
         </FormButton>
-        Versions
+        版本
       </div>
     </template>
 

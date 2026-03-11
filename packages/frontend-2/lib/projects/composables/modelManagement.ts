@@ -58,10 +58,9 @@ const isValidModelName: GenericValidateFunction<string> = (name) => {
     name.indexOf('//') !== -1 ||
     name.indexOf(',') !== -1
   )
-    return 'Value should not start with "#", "$", start or end with "/", have multiple slashes next to each other or contain commas'
+    return '值不应以 "#", "$", 开头或结尾, 包含多个连续的斜杠或包含逗号'
 
-  if (['globals', 'main'].includes(name))
-    return `'main' and 'globals' are reserved names`
+  if (['globals', 'main'].includes(name)) return `'main' 和 'globals' 是保留名称`
 
   return true
 }
@@ -121,13 +120,13 @@ export function useCreateNewModel() {
     if (data?.modelMutations?.create?.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'New model created'
+        title: '新模型已创建'
       })
     } else {
       const errMsg = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Model creation failed',
+        title: '模型创建失败',
         description: errMsg
       })
     }
@@ -153,13 +152,13 @@ export function useUpdateModel() {
     if (data?.modelMutations.update.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Model updated'
+        title: '模型已更新'
       })
     } else {
       const errMsg = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Model update failed',
+        title: '模型更新失败',
         description: errMsg
       })
     }
@@ -194,13 +193,13 @@ export function useDeleteModel() {
     if (data?.modelMutations.delete) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Model deleted'
+        title: '模型已删除'
       })
     } else {
       const errMsg = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Model delete failed',
+        title: '模型删除失败',
         description: errMsg
       })
     }
@@ -257,8 +256,8 @@ export function useProjectModelUpdateTracking(
 
         triggerNotification({
           type: ToastNotificationType.Info,
-          title: 'Model has been deleted',
-          description: 'Redirecting to project page home'
+          title: '模型已删除',
+          description: '正在重定向到项目页面'
         })
       }
     }
@@ -444,7 +443,7 @@ export function useCopyModelLink() {
     await copy(url)
     triggerNotification({
       type: ToastNotificationType.Info,
-      title: `Copied ${versionId ? 'version' : 'model'} link to clipboard`
+      title: `已复制 ${versionId ? '版本' : '模型'} 链接到剪贴板`
     })
   }
 }

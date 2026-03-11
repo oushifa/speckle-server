@@ -60,7 +60,7 @@ export const useLoadLatestVersion = (params: {
   }
 
   const createButton = (isPrimary = true): LayoutDialogButton => ({
-    text: 'Load latest version',
+    text: '加载最新版本',
     props: {
       color: isPrimary ? 'primary' : 'outline'
     },

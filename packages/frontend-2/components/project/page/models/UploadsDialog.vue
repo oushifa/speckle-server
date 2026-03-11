@@ -1,14 +1,14 @@
 <!-- eslint-disable vuejs-accessibility/no-static-element-interactions -->
 <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
 <template>
-  <LayoutDialog v-model:open="open" title="Model upload history" :buttons="buttons">
+  <LayoutDialog v-model:open="open" title="模型上传历史" :buttons="buttons">
     <LayoutTable
       :columns="[
-        { id: 'job', header: 'Job #', classes: 'col-span-1' },
-        { id: 'file', header: 'File', classes: 'col-span-4' },
-        { id: 'status', header: 'Status', classes: 'col-span-2' },
-        { id: 'size', header: 'Size', classes: 'col-span-2' },
-        { id: 'date', header: 'Date', classes: 'col-span-2' },
+        { id: 'job', header: 'id', classes: 'col-span-1' },
+        { id: 'file', header: '文件', classes: 'col-span-4' },
+        { id: 'status', header: '状态', classes: 'col-span-2' },
+        { id: 'size', header: '大小', classes: 'col-span-2' },
+        { id: 'date', header: '日期', classes: 'col-span-2' },
         {
           id: 'actions',
           header: '',
@@ -17,7 +17,7 @@
       ]"
       :items="items"
       :loading="isVeryFirstLoading"
-      empty-message="This model has no uploads"
+      empty-message="此模型暂无上传记录"
       style="max-height: 300px"
     >
       <template #job="{ item }">
@@ -233,7 +233,7 @@ const getStatusOptions = (item: ProjectPageModelsUploadsDialog_FileUploadFragmen
         ? {
             content:
               getErrorMessage(convertUploadToFailedJob(item)) +
-              ` Error: ${item.convertedMessage}`
+              ` 错误: ${item.convertedMessage}`
           }
         : undefined,
     colorClasses,

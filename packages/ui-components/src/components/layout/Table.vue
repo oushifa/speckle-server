@@ -106,7 +106,7 @@ const props = withDefaults(
     emptyMessage?: string
     loading?: boolean
   }>(),
-  { rowItemsAlign: 'center', emptyMessage: 'No data found' }
+  { rowItemsAlign: 'center', emptyMessage: '暂无数据' }
 )
 
 const tableClasses = computed(() => {

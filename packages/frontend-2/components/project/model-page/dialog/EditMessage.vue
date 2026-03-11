@@ -4,14 +4,14 @@
     max-width="xs"
     :buttons="[
       {
-        text: 'Cancel',
+        text: '取消',
         props: { color: 'outline' },
         onClick: () => {
           isOpen = false
         }
       },
       {
-        text: 'Save',
+        text: '保存',
         props: { disabled: loading },
         onClick: () => {
           onSubmit()
@@ -20,13 +20,13 @@
     ]"
     @fully-closed="$emit('fully-closed')"
   >
-    <template #header>Edit version message</template>
+    <template #header>编辑版本信息</template>
     <form class="flex flex-col text-foreground space-y-4 mb-2" @submit="onSubmit">
       <FormTextArea
         v-model="message"
         name="newMessage"
-        label="Version message"
-        placeholder="Version message"
+        label="版本信息"
+        placeholder="版本信息"
         show-label
         color="foundation"
         :rules="[isRequired]"
@@ -80,7 +80,6 @@ watch(
   },
   { deep: true, immediate: true }
 )
-const mp = useMixpanel()
 const onSubmit = handleSubmit(async ({ newMessage }) => {
   if (!props.version) return
 
@@ -91,10 +90,6 @@ const onSubmit = handleSubmit(async ({ newMessage }) => {
     message: newMessage
   }))
   loading.value = false
-  mp.track('Commit Action', {
-    type: 'action',
-    name: 'edit'
-  })
   if (success) isOpen.value = false
 })
 </script>

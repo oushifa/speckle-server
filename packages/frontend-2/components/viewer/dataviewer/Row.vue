@@ -41,7 +41,7 @@
             <ArrowUpRightIcon class="w-3" />
           </a>
           <button
-            title="isolate objects"
+            title="隔离对象"
             class="hover:text-primary"
             @click.stop="handleHighlight"
           >

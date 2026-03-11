@@ -232,7 +232,7 @@ export default class Sandbox {
 
   private addStreamControls(url: string) {
     const folder = this.tabs.pages[0].addFolder({
-      title: `Object: ${url.split('/').reverse()[0]}`
+      title: `对象: ${url.split('/').reverse()[0]}`
     })
 
     folder.addInput({ url }, 'url', {
@@ -256,7 +256,7 @@ export default class Sandbox {
 
     folder
       .addButton({
-        title: 'Unload'
+        title: '卸载'
       })
       .on('click', () => {
         this.removeStreamControls(url)
@@ -274,14 +274,14 @@ export default class Sandbox {
   private addViewControls() {
     const views = this.viewer.getViews()
     this.viewsFolder = this.tabs.pages[0].addFolder({
-      title: 'Views',
+      title: '相机视图',
       expanded: true
     })
     for (let k = 0; k < views.length; k++) {
       const view = views[k]
       this.viewsFolder
         .addButton({
-          title: view.name ? view.name : 'Unnamed'
+          title: view.name ? view.name : '未命名'
         })
         .on('click', () => {
           this.viewer.getExtension(CameraController).setCameraView(views[k], true)
@@ -298,7 +298,7 @@ export default class Sandbox {
       this.objectControls.dispose()
     }
     this.objectControls = this.tabs.pages[0].addFolder({
-      title: `Object: ${node.model.id}`
+      title: `对象: ${node.model.id}`
     })
 
     const rvs = this.viewer.getWorldTree().getRenderTree().getRenderViewsForNode(node)
@@ -321,7 +321,7 @@ export default class Sandbox {
     const rotation = { value: { x: 0, y: 0, z: 0 } }
     const scale = { value: { x: 1, y: 1, z: 1 } }
     this.objectControls
-      .addInput(position, 'value', { label: 'Position' })
+      .addInput(position, 'value', { label: '位置' })
       .on('change', () => {
         objects.forEach((obj: BatchObject) => {
           obj.position = new Vector3(
@@ -335,7 +335,7 @@ export default class Sandbox {
 
     this.objectControls
       .addInput(rotation, 'value', {
-        label: 'Rotation Euler',
+        label: '旋转欧拉',
         x: { step: 0.1 },
         y: { step: 0.1 },
         z: { step: 0.1 }
@@ -354,7 +354,7 @@ export default class Sandbox {
 
     this.objectControls
       .addInput(scale, 'value', {
-        label: 'Scale',
+        label: '缩放',
         x: { step: 0.1 },
         y: { step: 0.1 },
         z: { step: 0.1 }
@@ -373,7 +373,7 @@ export default class Sandbox {
     })
 
     const loadButton = this.tabs.pages[0].addButton({
-      title: 'Load Url'
+      title: '加载URL'
     })
 
     loadButton.on('click', () => {
@@ -381,7 +381,7 @@ export default class Sandbox {
     })
 
     const loadObjButton = this.tabs.pages[0].addButton({
-      title: 'Load OBJ'
+      title: '加载OBJ'
     })
     loadObjButton.on('click', async () => {
       /** Load from string */
@@ -410,7 +410,7 @@ export default class Sandbox {
     })
 
     const clearButton = this.tabs.pages[0].addButton({
-      title: 'Clear All'
+      title: '清除所有'
     })
 
     clearButton.on('click', () => {
@@ -421,7 +421,7 @@ export default class Sandbox {
     this.tabs.pages[0].addSeparator()
 
     const toggleSectionBox = this.tabs.pages[0].addButton({
-      title: 'Toggle Section Box'
+      title: '切换截面框'
     })
     toggleSectionBox.on('click', () => {
       let box = this.viewer.getRenderer().boxFromObjects(
@@ -436,7 +436,7 @@ export default class Sandbox {
     })
 
     const toggleSectionBoxVisibility = this.tabs.pages[0].addButton({
-      title: 'Toggle Section Box Visibility'
+      title: '切换截面框可见性'
     })
     toggleSectionBoxVisibility.on('click', () => {
       this.viewer.getExtension(SectionTool).visible =
@@ -445,14 +445,14 @@ export default class Sandbox {
     })
 
     const toggleProjection = this.tabs.pages[0].addButton({
-      title: 'Toggle Projection'
+      title: '切换投影'
     })
     toggleProjection.on('click', () => {
       this.viewer.getExtension(CameraController).toggleCameras()
     })
 
     const zoomExtents = this.tabs.pages[0].addButton({
-      title: 'Zoom Extents'
+      title: '缩放至全部'
     })
     zoomExtents.on('click', () => {
       this.viewer.getExtension(CameraController).setCameraView(
@@ -490,7 +490,7 @@ export default class Sandbox {
     })
 
     const screenshot = this.tabs.pages[0].addButton({
-      title: 'Screenshot'
+      title: '截图'
     })
     screenshot.on('click', async () => {
       console.warn(await this.viewer.screenshot())
@@ -572,7 +572,7 @@ export default class Sandbox {
     }
     this.tabs.pages[0]
       .addInput(pipeline, 'output', {
-        label: 'Pipeline',
+        label: '渲染模式',
         options: {
           DEFAULT: ViewMode.DEFAULT,
           SOLID: ViewMode.SOLID,
@@ -597,7 +597,7 @@ export default class Sandbox {
 
     this.tabs.pages[0]
       .addInput(pipeline, 'outlineThickness', {
-        label: 'Outline Thickness',
+        label: '轮廓厚度',
         min: 0.5,
         max: 5,
         step: 0.25
@@ -611,7 +611,7 @@ export default class Sandbox {
       })
     this.tabs.pages[0]
       .addInput(pipeline, 'outlineColor', {
-        label: 'Outline Color',
+        label: '轮廓颜色',
         view: 'color'
       })
       .on('change', () => {
@@ -624,7 +624,7 @@ export default class Sandbox {
 
     this.tabs.pages[0]
       .addInput(pipeline, 'outlineOpacity', {
-        label: 'Outline Opacity',
+        label: '轮廓透明度',
         min: 0.01,
         max: 1,
         step: 0.01
@@ -640,7 +640,7 @@ export default class Sandbox {
 
     this.tabs.pages[0]
       .addInput({ dampening: 30 }, 'dampening', {
-        label: 'Dampening',
+        label: '阻尼',
         min: 0,
         max: 300,
         step: 10
@@ -654,7 +654,7 @@ export default class Sandbox {
     this.tabs.pages[0].addSeparator()
 
     const canonicalViewsFolder = this.tabs.pages[0].addFolder({
-      title: 'Canonical Views',
+      title: '相机视图',
       expanded: false
     })
     const sides = ['front', 'back', 'top', 'bottom', 'right', 'left', '3d']
@@ -673,46 +673,50 @@ export default class Sandbox {
 
   makeSceneUI() {
     const worldFolder = this.tabs.pages[1].addFolder({
-      title: 'World',
+      title: '世界',
       expanded: true
     })
     worldFolder.addInput(this.sceneParams.worldSize, 'x', {
       disabled: true,
-      label: 'Size-x',
+      label: '大小-x',
       step: 0.00000001
     })
     worldFolder.addInput(this.sceneParams.worldSize, 'y', {
       disabled: true,
-      label: 'Size-y',
+      label: '大小-y',
       step: 0.00000001
     })
     worldFolder.addInput(this.sceneParams.worldSize, 'z', {
       disabled: true,
-      label: 'Size-z',
+      label: '大小-z',
       step: 0.00000001
     })
     worldFolder.addSeparator()
     worldFolder.addInput(this.sceneParams.worldOrigin, 'x', {
       disabled: true,
-      label: 'Origin-x'
+      label: '原点-x',
+      step: 0.00000001
     })
     worldFolder.addInput(this.sceneParams.worldOrigin, 'y', {
       disabled: true,
-      label: 'Origin-y'
+      label: '原点-y',
+      step: 0.00000001
     })
     worldFolder.addInput(this.sceneParams.worldOrigin, 'z', {
       disabled: true,
-      label: 'Origin-z'
+      label: '原点-z',
+      step: 0.00000001
     })
 
     this.tabs.pages[1].addSeparator()
     const postFolder = this.tabs.pages[1].addFolder({
-      title: 'Post',
+      title: '后处理',
       expanded: true
     })
 
     postFolder
       .addInput(this.sceneParams, 'tonemapping', {
+        label: '色调映射',
         options: {
           Linear: 1,
           ACES: 4
@@ -725,6 +729,7 @@ export default class Sandbox {
 
     postFolder
       .addInput(this.sceneParams, 'exposure', {
+        label: '曝光',
         min: 0,
         max: 1
       })
@@ -775,7 +780,7 @@ export default class Sandbox {
 
     postFolder
       .addInput(this.sceneParams, 'minRoughness', {
-        label: 'Shininess',
+        label: '光泽度',
         min: 0,
         max: 1,
         step: 0.05
@@ -794,30 +799,30 @@ export default class Sandbox {
       })
 
     const lightsFolder = this.tabs.pages[1].addFolder({
-      title: 'Lights',
+      title: '灯光',
       expanded: false
     })
     const directLightFolder = lightsFolder.addFolder({
-      title: 'Direct',
+      title: '直接',
       expanded: true
     })
     directLightFolder
       .addInput(this.lightParams, 'enabled', {
-        label: 'Sun Enabled'
+        label: '太阳已启用'
       })
       .on('change', () => {
         this.viewer.setLightConfiguration(this.lightParams)
       })
     directLightFolder
       .addInput(this.lightParams, 'castShadow', {
-        label: 'Sun Shadows'
+        label: '太阳阴影'
       })
       .on('change', () => {
         this.viewer.setLightConfiguration(this.lightParams)
       })
     directLightFolder
       .addInput(this.lightParams, 'intensity', {
-        label: 'Sun Intensity',
+        label: '太阳强度',
         min: 0,
         max: 10
       })
@@ -827,14 +832,14 @@ export default class Sandbox {
     directLightFolder
       .addInput(this.lightParams, 'color', {
         view: 'color',
-        label: 'Sun Color'
+        label: '太阳颜色'
       })
       .on('change', () => {
         this.viewer.setLightConfiguration(this.lightParams)
       })
     directLightFolder
       .addInput(this.lightParams, 'elevation', {
-        label: 'Sun Elevation',
+        label: '太阳仰角',
         min: 0,
         max: Math.PI
       })
@@ -843,7 +848,7 @@ export default class Sandbox {
       })
     directLightFolder
       .addInput(this.lightParams, 'azimuth', {
-        label: 'Sun Azimuth',
+        label: '太阳方位角',
         min: -Math.PI * 0.5,
         max: Math.PI * 0.5
       })
@@ -852,7 +857,7 @@ export default class Sandbox {
       })
     directLightFolder
       .addInput(this.lightParams, 'radius', {
-        label: 'Sun Radius',
+        label: '太阳半径',
         min: 0,
         max: 1000
       })
@@ -862,7 +867,7 @@ export default class Sandbox {
 
     directLightFolder
       .addInput({ bias: -0.001 }, 'bias', {
-        label: 'Shadow Bias',
+        label: '阴影偏置',
         min: -0.001,
         max: 0,
         step: 0.00001
@@ -874,7 +879,7 @@ export default class Sandbox {
 
     directLightFolder
       .addInput({ radius: 2 }, 'radius', {
-        label: 'Shadow Radius',
+        label: '阴影半径',
         min: 0,
         max: 6,
         step: 1
@@ -885,18 +890,18 @@ export default class Sandbox {
       })
 
     const indirectLightsFolder = lightsFolder.addFolder({
-      title: 'Indirect',
+      title: '间接',
       expanded: true
     })
     indirectLightsFolder
       .addInput(this.sceneParams, 'hdri', {
-        label: 'HDRI',
+        label: '环境光',
         options: {
-          Neutral,
-          Mild,
-          Mild2,
-          Sharp,
-          Bright
+          Neutral: '中性',
+          Mild: '柔和',
+          Mild2: '柔和2',
+          Sharp: '锐化',
+          Bright: '明亮'
         }
       })
       .on('change', async (value) => {
@@ -913,7 +918,7 @@ export default class Sandbox {
 
     indirectLightsFolder
       .addInput(this.lightParams, 'indirectLightIntensity', {
-        label: 'Probe Intensity',
+        label: '探针强度',
         min: 0,
         max: 10
       })
@@ -922,12 +927,12 @@ export default class Sandbox {
       })
 
     const shadowcatcherFolder = this.tabs.pages[1].addFolder({
-      title: 'Shadowcatcher',
+      title: '阴影捕获',
       expanded: true
     })
 
     shadowcatcherFolder
-      .addInput(this.lightParams, 'shadowcatcher', { label: 'Enabled' })
+      .addInput(this.lightParams, 'shadowcatcher', { label: '阴影捕获已启用' })
       .on('change', () => {
         this.viewer.setLightConfiguration(this.lightParams)
       })
@@ -941,7 +946,7 @@ export default class Sandbox {
     }
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'textureSize', {
-        label: 'Texture Size',
+        label: '纹理大小',
         min: 1,
         max: 1024,
         step: 1
@@ -951,7 +956,7 @@ export default class Sandbox {
       })
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'weights', {
-        label: 'weights',
+        label: '权重',
         x: { min: 0, max: 100 },
         y: { min: 0, max: 100 },
         z: { min: -100, max: 100 },
@@ -962,7 +967,7 @@ export default class Sandbox {
       })
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'blurRadius', {
-        label: 'Blur Radius',
+        label: '模糊半径',
         min: 1,
         max: 128,
         step: 1
@@ -972,7 +977,7 @@ export default class Sandbox {
       })
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'stdDeviation', {
-        label: 'Blur Std Deviation',
+        label: '模糊标准差',
         min: 1,
         max: 128,
         step: 1
@@ -982,7 +987,7 @@ export default class Sandbox {
       })
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'sigmoidRange', {
-        label: 'Sigmoid Range',
+        label: 'Sigmoid范围',
         min: -10,
         max: 10,
         step: 0.1
@@ -992,7 +997,7 @@ export default class Sandbox {
       })
     shadowcatcherFolder
       .addInput(this.shadowCatcherParams, 'sigmoidStrength', {
-        label: 'Sigmoid Strength',
+        label: 'Sigmoid强度',
         min: -10,
         max: 10,
         step: 0.1
@@ -1004,11 +1009,12 @@ export default class Sandbox {
 
   makeFilteringUI() {
     const filteringFolder = this.tabs.pages[2].addFolder({
-      title: 'Filtering',
+      title: '筛选',
       expanded: true
     })
 
     filteringFolder.addInput(this.filterParams, 'filterBy', {
+      label: '筛选依据',
       options: {
         Volume: 'parameters.HOST_VOLUME_COMPUTED.value',
         Area: 'parameters.HOST_AREA_COMPUTED.value',
@@ -1026,7 +1032,7 @@ export default class Sandbox {
 
     filteringFolder
       .addButton({
-        title: 'Apply Filter'
+        title: '应用筛选器'
       })
       .on('click', () => {
         const data = this.properties.find((value) => {
@@ -1038,7 +1044,7 @@ export default class Sandbox {
 
     filteringFolder
       .addButton({
-        title: 'Clear Filters'
+        title: '清除筛选器'
       })
       .on('click', () => {
         this.viewer.getExtension(FilteringExtension).resetFilters()
@@ -1048,7 +1054,7 @@ export default class Sandbox {
   public makeBatchesUI() {
     const container = this.tabs.pages[3]
     const showBatches = container.addButton({
-      title: 'ShowBatches'
+      title: '显示批次'
     })
     showBatches.on('click', () => {
       this.viewer.getRenderer().debugShowBatches()
@@ -1056,12 +1062,12 @@ export default class Sandbox {
     })
 
     container.addInput(this.batchesParams, 'totalBvhSize', {
-      label: 'BVH Size(MB)',
+      label: 'BVH大小(MB)',
       disabled: true
     })
     container
       .addInput(this.batchesParams, 'explode', {
-        label: 'Explode',
+        label: '爆炸',
         min: 0,
         max: 1,
         step: 0.001
@@ -1074,8 +1080,8 @@ export default class Sandbox {
         if (outlines) outlines.requestUpdate(true)
       })
     // container
-    //   .addInput(Sandbox.batchesParams, 'culling', {
-    //     label: 'Culling'
+    //   .addInput(this.batchesParams, 'culling', {
+    //     label: '裁剪'
     //   })
     //   .on('change', (value) => {
     //     this.viewer
@@ -1087,7 +1093,7 @@ export default class Sandbox {
   public makeDiffUI() {
     const container = this.tabs.pages[4]
     const diffButton = container.addButton({
-      title: 'Diff'
+      title: '对比'
     })
     const diffParams = {
       time: 0,
@@ -1145,7 +1151,7 @@ export default class Sandbox {
       )
     })
     const unDiffButton = container.addButton({
-      title: 'Undiff'
+      title: '取消差异'
     })
     unDiffButton.on('click', async () => {
       void this.viewer.getExtension(DiffExtension).undiff()
@@ -1153,7 +1159,7 @@ export default class Sandbox {
 
     container
       .addInput(diffParams, 'time', {
-        label: 'Diff Time',
+        label: '差异时间',
         min: 0,
         max: 1,
         step: 0.1
@@ -1165,6 +1171,7 @@ export default class Sandbox {
       })
     container
       .addInput(diffParams, 'mode', {
+        label: '差异模式',
         options: {
           COLORED: VisualDiffMode.COLORED,
           PLAIN: VisualDiffMode.PLAIN
@@ -1183,7 +1190,7 @@ export default class Sandbox {
     const container = this.tabs.pages[5]
     container
       .addInput(this.measurementsParams, 'enabled', {
-        label: 'Enabled'
+        label: '启用'
       })
       .on('change', () => {
         this.viewer.getExtension(SelectionExtension).enabled =
@@ -1193,7 +1200,7 @@ export default class Sandbox {
       })
     container
       .addInput(this.measurementsParams, 'visible', {
-        label: 'Visible'
+        label: '可见'
       })
       .on('change', () => {
         this.viewer.getExtension(MeasurementsExtension).options =
@@ -1201,7 +1208,7 @@ export default class Sandbox {
       })
     container
       .addInput(this.measurementsParams, 'type', {
-        label: 'Type',
+        label: '类型',
         options: {
           PERPENDICULAR: MeasurementType.PERPENDICULAR,
           POINTTOPOINT: MeasurementType.POINTTOPOINT,
@@ -1215,7 +1222,7 @@ export default class Sandbox {
       })
     container
       .addInput(this.measurementsParams, 'vertexSnap', {
-        label: 'Snap'
+        label: '顶点吸附'
       })
       .on('change', () => {
         this.viewer.getExtension(MeasurementsExtension).options =
@@ -1224,7 +1231,7 @@ export default class Sandbox {
 
     container
       .addInput(this.measurementsParams, 'units', {
-        label: 'Units',
+        label: '单位',
         options: Units
       })
       .on('change', () => {
@@ -1233,7 +1240,7 @@ export default class Sandbox {
       })
     container
       .addInput(this.measurementsParams, 'precision', {
-        label: 'Precision',
+        label: '精度',
         step: 1,
         min: 1,
         max: 5
@@ -1244,7 +1251,7 @@ export default class Sandbox {
       })
     container
       .addInput(this.measurementsParams, 'chain', {
-        label: 'Chain'
+        label: '链'
       })
       .on('change', () => {
         this.viewer.getExtension(MeasurementsExtension).options =
@@ -1252,14 +1259,14 @@ export default class Sandbox {
       })
     container
       .addButton({
-        title: 'Delete'
+        title: '删除'
       })
       .on('click', () => {
         this.viewer.getExtension(MeasurementsExtension).removeMeasurement()
       })
     container
       .addButton({
-        title: 'Delete All'
+        title: '删除所有'
       })
       .on('click', () => {
         this.viewer.getExtension(MeasurementsExtension).clearMeasurements()

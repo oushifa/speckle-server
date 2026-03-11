@@ -26,6 +26,7 @@
         { id: 'actions', header: '', classes: 'col-span-1 flex justify-end' }
       ]"
       :items="invites"
+      empty-message="暂无数据"
     >
       <template #email="{ item }">
         {{ isInvite(item) ? item.email : '' }}

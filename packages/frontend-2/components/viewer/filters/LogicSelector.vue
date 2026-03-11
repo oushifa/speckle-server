@@ -37,8 +37,8 @@ const { currentFilterLogic } = useFilteringDataStore()
 const showMenu = ref(false)
 
 const filterLogicOptions = ref([
-  { value: FilterLogic.All, label: 'Match all rules' },
-  { value: FilterLogic.Any, label: 'Match any rule' }
+  { value: FilterLogic.All, label: '符合所有筛选条件' },
+  { value: FilterLogic.Any, label: '符合任意筛选条件' }
 ])
 
 const menuItems = computed<LayoutMenuItem<FilterLogic>[][]>(() => [
