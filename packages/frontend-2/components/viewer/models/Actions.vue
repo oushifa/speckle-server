@@ -1,6 +1,6 @@
 <template>
   <div class="flex">
-    <div v-if="!hideVersions" v-tippy="'Versions'" class="flex">
+    <div v-if="!hideVersions" v-tippy="'版本'" class="flex">
       <FormButton
         :icon-left="History"
         hide-text

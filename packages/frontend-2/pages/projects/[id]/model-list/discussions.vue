@@ -13,6 +13,6 @@ const projectName = computed(() =>
 )
 
 useHead({
-  title: `Discussions | ${projectName.value}`
+  title: `问题讨论 | ${projectName.value}`
 })
 </script>

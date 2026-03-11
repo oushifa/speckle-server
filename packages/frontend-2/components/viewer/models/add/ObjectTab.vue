@@ -1,21 +1,21 @@
 <template>
   <div class="flex flex-col gap-y-4">
     <div class="text-foreground text-body-xs">
-      Add objects from the current project by their IDs or an Object URL.
+      从当前项目添加对象，通过其 ID 或 对象 URL。
     </div>
     <form class="flex flex-col gap-2" @submit="onSubmit">
       <FormTextInput
         name="objectIdsOrUrl"
-        label="Value"
+        label="值"
         size="lg"
         full-width
         :custom-icon="LinkIcon"
         :rules="[isRequired, isValidValue]"
-        help="Comma-delimited object IDs/URLs"
+        help="逗号分隔的对象 ID/URL"
         color="foundation"
         auto-focus
       />
-      <FormButton submit>Add</FormButton>
+      <FormButton submit>添加</FormButton>
     </form>
   </div>
 </template>
@@ -66,11 +66,10 @@ const removeRedundantIds = (objectIds: string[]) => {
 
 const isValidValue: RuleExpression<string> = (newVal) => {
   const ids = extractObjectIds(newVal)
-  if (!ids)
-    return 'Value must consist of comma-delimited object IDs or an URL to an object viewer page'
+  if (!ids) return '值必须是逗号分隔的对象 ID 或 对象查看器页面的 URL'
 
   const newIds = removeRedundantIds(ids)
-  if (!newIds) return 'All specified objects are already loaded in the viewer'
+  if (!newIds) return '所有指定的对象都已在查看器中加载'
 
   return true
 }

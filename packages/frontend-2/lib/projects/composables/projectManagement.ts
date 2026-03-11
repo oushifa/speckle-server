@@ -101,7 +101,7 @@ export function useProjectUpdateTracking(
       if (redirectOnDeletion || notifyOnUpdate) {
         triggerNotification({
           type: ToastNotificationType.Info,
-          title: isDeleted ? 'Project deleted' : 'Project updated'
+          title: isDeleted ? '项目已删除' : '项目已更新'
         })
       }
     }
@@ -175,7 +175,7 @@ export function useCreateProject() {
       const err = getFirstErrorMessage(res.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Project creation failed',
+        title: '项目创建失败',
         description: err
       })
     }
@@ -207,13 +207,13 @@ export function useUpdateUserRole(
       const err = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Permission update failed',
+        title: '权限更新失败',
         description: err
       })
     } else {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: input.role ? 'Project role updated' : 'User removed from project'
+        title: input.role ? '项目角色已更新' : '用户已从项目中移除'
       })
     }
 
@@ -241,13 +241,13 @@ export function useUpdateUserRole(
       const err = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Permission update failed',
+        title: '权限更新失败',
         description: err
       })
     } else {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: input.role ? 'Project role updated' : 'User removed from project'
+        title: input.role ? '项目角色已更新' : '用户已从项目中移除'
       })
     }
 
@@ -307,20 +307,14 @@ export function useInviteUserToProject() {
     if (err && !hideToasts) {
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title:
-          input.length > 1
-            ? "Couldn't send project invites"
-            : "Couldn't send project invite",
+        title: input.length > 1 ? '无法发送项目邀请' : '无法发送项目邀请',
         description: err
       })
     } else {
       if (!hideToasts) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title:
-            input.length > 1
-              ? 'Project invites successfully sent'
-              : 'Project invite successfully sent'
+          title: input.length > 1 ? '项目邀请已成功发送' : '项目邀请已成功发送'
         })
       }
     }
@@ -353,13 +347,13 @@ export function useCancelProjectInvite() {
       const err = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Invitation cancelation failed',
+        title: '邀请取消失败',
         description: err
       })
     } else {
       triggerNotification({
         type: ToastNotificationType.Info,
-        title: 'Invitation canceled'
+        title: '邀请已取消'
       })
     }
 
@@ -381,7 +375,7 @@ export function useUpdateProject() {
   ) => {
     if (!activeUser.value) return
 
-    const successMessage = options?.customSuccessMessage || 'Project updated'
+    const successMessage = options?.customSuccessMessage || '项目已更新'
 
     const result = await apollo
       .mutate({
@@ -400,7 +394,7 @@ export function useUpdateProject() {
       const errMsg = getFirstErrorMessage(result.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Project update failed',
+        title: '项目更新失败',
         description: errMsg
       })
     }
@@ -449,7 +443,7 @@ export function useDeleteProject() {
       const errMsg = getFirstErrorMessage(result.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Project deletion failed',
+        title: '项目删除失败',
         description: errMsg
       })
     }
@@ -495,13 +489,13 @@ export function useProcessProjectInvite() {
           type: input.accept
             ? ToastNotificationType.Success
             : ToastNotificationType.Info,
-          title: input.accept ? 'Project invite accepted' : 'Project invite dismissed'
+          title: input.accept ? '项目邀请已接受' : '项目邀请已拒绝'
         })
       } else {
         const errMsg = getFirstErrorMessage(errors)
         triggerNotification({
           type: ToastNotificationType.Danger,
-          title: "Couldn't process project invite",
+          title: '无法处理项目邀请',
           description: errMsg
         })
       }
@@ -537,7 +531,7 @@ export function useLeaveProject() {
     if (data?.projectMutations.leave) {
       triggerNotification({
         type: ToastNotificationType.Info,
-        title: "You've left the project"
+        title: '您已退出项目'
       })
 
       if (options?.goHome) navigateHome()
@@ -545,7 +539,7 @@ export function useLeaveProject() {
       const errMsg = getFirstErrorMessage(errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: "Couldn't leave project",
+        title: '项目退出失败',
         description: errMsg
       })
     }
@@ -608,7 +602,7 @@ export function useMoveProjectToWorkspace() {
     if (res?.data?.workspaceMutations.projects.moveToWorkspace.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: `Moved project to ${workspaceName}`
+        title: `已将项目移动到 ${workspaceName}`
       })
 
       mixpanel.track('Project Moved To Workspace', {
@@ -621,7 +615,7 @@ export function useMoveProjectToWorkspace() {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: "Couldn't move project",
+        title: '项目移动失败',
         description: errMsg
       })
     }
@@ -645,7 +639,7 @@ export function useCopyProjectLink() {
     await copy(url)
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Project link copied to clipboard'
+      title: '项目链接已复制到剪贴板'
     })
   }
 }

@@ -1,16 +1,16 @@
 <template>
   <LayoutDialog v-model:open="isOpen" max-width="sm" :buttons="dialogButtons">
     <template #header>
-      {{ props.application ? 'Edit application' : 'Create application' }}
+      {{ props.application ? '编辑应用程序' : '创建应用程序' }}
     </template>
     <form @submit="onSubmit">
       <div class="flex flex-col gap-3 mb-2">
         <FormTextInput
           v-model="name"
-          label="Name"
-          help="The name of your app"
+          label="应用程序名称"
+          help="应用程序名称"
           color="foundation"
-          name="hookName"
+          name="name"
           :rules="[isRequired]"
           show-label
           type="text"
@@ -18,9 +18,9 @@
         <FormSelectMulti
           v-model="scopes"
           name="scopes"
-          label="Scopes"
-          placeholder="Choose Scopes"
-          help="It's good practice to limit the scopes of your token to the absolute minimum."
+          label="作用域"
+          placeholder="选择作用域"
+          help="为令牌限制最小作用域是一种好的实践。"
           :rules="[isMultiItemSelected]"
           show-label
           :items="applicationScopes"
@@ -33,7 +33,7 @@
             <template v-if="value.length === 1">
               {{ value[0].text }}
             </template>
-            <template v-else>{{ value.length }} items selected</template>
+            <template v-else>{{ value.length }} 个作用域已选择</template>
           </template>
           <template #option="{ item }">
             <div class="flex items-center w-full">
@@ -43,8 +43,8 @@
         </FormSelectMulti>
         <FormTextInput
           v-model="redirectUrl"
-          label="Redirect URL"
-          help="After authentication, the users will be redirected (together with an access token) to this URL."
+          label="重定向 URL"
+          help="认证后，用户将被重定向（一起携带访问令牌）到此 URL。"
           name="redirectUrl"
           color="foundation"
           show-label
@@ -53,9 +53,9 @@
         />
         <FormTextInput
           v-model="description"
-          label="Description"
+          label="应用程序简介"
           color="foundation"
-          help="A short description of your application."
+          help="应用程序简介"
           name="description"
           show-label
           show-optional
@@ -161,14 +161,14 @@ const onSubmit = handleSubmit(async (applicationFormValues) => {
       resetFormFields()
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Application updated',
-        description: 'The application has been successfully updated'
+        title: '应用程序已更新',
+        description: '应用程序已成功更新'
       })
     } else {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update application',
+        title: '更新应用程序失败',
         description: errorMessage
       })
     }
@@ -188,14 +188,14 @@ const onSubmit = handleSubmit(async (applicationFormValues) => {
       emit('application-created', result.data.appCreate)
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Application created',
-        description: 'The application has been successfully created'
+        title: '应用程序已创建',
+        description: '应用程序已成功创建'
       })
     } else {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create application',
+        title: '创建应用程序失败',
         description: errorMessage
       })
     }
@@ -204,14 +204,14 @@ const onSubmit = handleSubmit(async (applicationFormValues) => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: props.application ? 'Save' : 'Create',
+    text: props.application ? '保存' : '创建',
     props: {},
     onClick: onSubmit
   }

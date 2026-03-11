@@ -28,7 +28,7 @@
       </PresentationFloatingPanelButton>
 
       <PresentationFloatingPanelButton
-        v-tippy="getTooltipProps(isSidebarOpen ? 'Hide slide info' : 'Show slide info')"
+        v-tippy="getTooltipProps(isSidebarOpen ? '隐藏幻灯片信息' : '显示幻灯片信息')"
         :is-active="isSidebarOpen"
         @click="emit('toggleSidebar')"
       >

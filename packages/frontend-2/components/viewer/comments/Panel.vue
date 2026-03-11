@@ -1,7 +1,7 @@
 <template>
   <ViewerLayoutSidePanel>
     <template #title>
-      <span>Discussions</span>
+      <span>问题讨论</span>
     </template>
     <template #actions>
       <div class="flex items-center leading-none">
@@ -139,17 +139,19 @@ watch(includeArchived, (newVal) =>
 const actionsItems = computed<LayoutMenuItem[][]>(() => [
   [
     {
-      title: 'Show in 3D model',
+      title: '显示问题讨论',
       id: ActionTypes.HideBubbles,
       active: !hideBubbles.value
     },
     {
-      title: `Show resolved (${commentThreadsMetadata.value?.totalArchivedCount || 0})`,
+      title: `显示已解决的问题 (${
+        commentThreadsMetadata.value?.totalArchivedCount || 0
+      })`,
       id: ActionTypes.IncludeArchived,
       active: !!includeArchived.value
     },
     {
-      title: 'Exclude threads from other versions',
+      title: '排除其他版本的线程',
       id: ActionTypes.LoadedVersionsOnly,
       active: !!loadedVersionsOnly.value
     }

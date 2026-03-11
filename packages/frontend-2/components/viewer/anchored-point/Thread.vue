@@ -89,7 +89,7 @@
                 </LayoutMenu>
               </div>
               <FormButton
-                v-tippy="modelValue.archived ? 'Unresolve' : 'Resolve'"
+                v-tippy="modelValue.archived ? '未解决' : '已解决'"
                 :icon-left="CircleCheck"
                 hide-text
                 :disabled="!canArchiveOrUnarchive"
@@ -463,7 +463,7 @@ const toggleCommentResolvedStatus = async () => {
     status: props.modelValue.archived
   })
   triggerNotification({
-    title: `Thread ${props.modelValue.archived ? 'reopened.' : 'resolved.'}`,
+    title: `问题 ${props.modelValue.archived ? '已重新打开。' : '已解决。'}`,
     type: ToastNotificationType.Info
   })
 }

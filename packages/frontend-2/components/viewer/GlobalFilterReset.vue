@@ -5,18 +5,15 @@
     class="pointer-events-auto"
     @click="trackAndResetFilters"
   >
-    Reset filters
+    重置所有筛选器
   </FormButton>
 </template>
 <script setup lang="ts">
-import { useMixpanel } from '~~/lib/core/composables/mp'
 import { useFilterUtilities } from '~/lib/viewer/composables/filtering/filtering'
 
 const { resetFilters } = useFilterUtilities()
 
-const mp = useMixpanel()
 const trackAndResetFilters = () => {
   resetFilters()
-  mp.track('Viewer Action', { type: 'action', name: 'filters', action: 'reset' })
 }
 </script>

@@ -104,23 +104,23 @@ export const useSettingsMenu = () => {
     {
       title: '个人资料',
       route: settingsUserRoutes.profile
-    },
-    {
-      title: '通知',
-      route: settingsUserRoutes.notifications
-    },
-    {
-      title: '开发者',
-      route: settingsUserRoutes.developerSettings
-    },
-    ...(isMultipleEmailsEnabled
-      ? [
-          {
-            title: '邮箱',
-            route: settingsUserRoutes.emails
-          }
-        ]
-      : [])
+    }
+    // {
+    //   title: '通知',
+    //   route: settingsUserRoutes.notifications
+    // },
+    // {
+    //   title: '开发者',
+    //   route: settingsUserRoutes.developerSettings
+    // },
+    // ...(isMultipleEmailsEnabled
+    //   ? [
+    //       {
+    //         title: '邮箱',
+    //         route: settingsUserRoutes.emails
+    //       }
+    //     ]
+    //   : [])
   ])
 
   const serverMenuItems = shallowRef<GenericSettingsMenuItem[]>([

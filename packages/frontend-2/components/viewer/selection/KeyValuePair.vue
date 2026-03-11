@@ -194,8 +194,8 @@ const handleCopy = async (kvp: KeyValuePair) => {
   const { copy } = useClipboard()
   if (isCopyable.value) {
     await copy(kvp.value as string, {
-      successMessage: `${kvp.key} copied to clipboard`,
-      failureMessage: `Failed to copy ${kvp.key} to clipboard`
+      successMessage: `${kvp.key} 已复制到剪贴板`,
+      failureMessage: `复制 ${kvp.key} 到剪贴板失败`
     })
   }
 }
@@ -204,21 +204,19 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => {
   return [
     [
       {
-        title: 'Copy value',
+        title: '复制值',
         id: 'copy-value',
         disabled: !isCopyable.value,
-        disabledTooltip: isCopyable.value
-          ? undefined
-          : 'Cannot copy objects, arrays, or null values'
+        disabledTooltip: isCopyable.value ? undefined : '无法复制对象、数组或 null 值'
       }
     ],
     [
       {
-        title: 'Add to filters',
+        title: '添加到筛选器',
         id: 'add-to-filters',
         disabled: !isFilterable.value,
         disabledTooltip: isFilterable.value
-          ? 'Add this property to filters'
+          ? '添加此属性到筛选器'
           : getDisabledReason.value
       }
     ]

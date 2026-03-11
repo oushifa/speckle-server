@@ -165,14 +165,14 @@ const onSubmit = handleSubmit(async (webhookFormValues) => {
       isOpen.value = false
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Webhook updated',
-        description: 'The webhook has been successfully updated'
+        title: 'Webhook 更新成功',
+        description: 'Webhook 已成功更新'
       })
     } else {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to update webhook',
+        title: '更新 Webhook 失败',
         description: errorMessage
       })
     }
@@ -193,14 +193,14 @@ const onSubmit = handleSubmit(async (webhookFormValues) => {
       emit('webhook-created')
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Webhook created',
-        description: 'The webhook has been successfully created'
+        title: 'Webhook 创建成功',
+        description: 'Webhook 已成功创建'
       })
     } else {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create webhook',
+        title: '创建 Webhook 失败',
         description: errorMessage
       })
     }
@@ -236,14 +236,14 @@ const resetWebhookModel = () => {
 
 const dialogButtons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Cancel',
+    text: '取消',
     props: { color: 'outline' },
     onClick: () => {
       isOpen.value = false
     }
   },
   {
-    text: props.webhook ? 'Save' : 'Create',
+    text: props.webhook ? '保存' : '创建',
     props: {},
     onClick: onSubmit
   }

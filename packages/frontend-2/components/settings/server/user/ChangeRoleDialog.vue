@@ -20,8 +20,8 @@
         class="rounded-lg p-3 border bg-foundation-2"
       >
         <div class="text-body-2xs text-foreground">
-          <p class="font-medium">Make sure you trust {{ user.name }}!</p>
-          <p>An admin on the server has access to every resource.</p>
+          <p class="font-medium">确保您信任 {{ user.name }}！</p>
+          <p>服务器上的管理员具有对所有资源的访问权限。</p>
         </div>
       </div>
     </div>
@@ -90,15 +90,15 @@ const changeUserRoleConfirmed = async () => {
   if (result?.data?.userRoleChange) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'User role updated',
-      description: 'The user role has been updated'
+      title: '用户角色已更新',
+      description: '用户角色已更新'
     })
     isOpen.value = false
   } else {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to update role',
+      title: '更新角色失败',
       description: errorMessage
     })
   }

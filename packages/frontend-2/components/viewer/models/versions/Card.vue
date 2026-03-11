@@ -31,9 +31,7 @@
         >
           {{ modelName.header }}
         </span>
-        <span v-if="isLatest" class="text-body-3xs text-foreground">
-          Latest version
-        </span>
+        <span v-if="isLatest" class="text-body-3xs text-foreground">最新版本</span>
         <span v-tippy="createdAtFormatted.full" class="text-body-3xs text-foreground-2">
           {{ createdAtFormatted.relative }}
         </span>

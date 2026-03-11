@@ -116,7 +116,7 @@ export const useOnProjectSavedViewsUpdated = (params: {
       })
 
       triggerNotification({
-        title: 'New view created',
+        title: '新视图创建',
         type: ToastNotificationType.Success
       })
     } else if (

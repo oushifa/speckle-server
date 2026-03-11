@@ -24,7 +24,7 @@
         <ViewerSearchInput
           v-if="!collapsed && filter.condition"
           v-model="searchQuery"
-          placeholder="Search values..."
+          placeholder="搜索..."
           class="pl-1 -mt-0.5 border-b border-outline-3"
         />
         <div
@@ -39,7 +39,7 @@
             :icon-left="X"
             @click="clearSearch"
           >
-            Clear
+            清除
           </FormButton>
         </div>
       </div>

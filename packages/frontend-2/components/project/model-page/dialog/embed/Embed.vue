@@ -98,7 +98,7 @@
                   <FormCheckbox
                     id="option-hide-logo"
                     v-model="hideSpeckleBranding"
-                    name="Hide Speckle logo"
+                    name="隐藏徽标"
                     hide-label
                     class="cursor-pointer"
                     :disabled="
@@ -111,7 +111,7 @@
                       :key="`hide-branding-tooltip-${workspaceHideSpeckleBrandingEnabled}`"
                       v-tippy="hideSpeckleBrandingTooltip"
                     >
-                      Hide Speckle logo
+                      隐藏徽标
                     </span>
                     <span
                       v-if="
@@ -404,8 +404,8 @@ const cantGenerateDialogDescription = computed(() => {
 
 const handleEmbedCodeCopy = async (value: string) => {
   await copy(value, {
-    successMessage: 'Embed code copied to clipboard',
-    failureMessage: 'Failed to copy embed code to clipboard'
+    successMessage: '嵌入代码已复制到剪贴板',
+    failureMessage: '复制嵌入代码到剪贴板失败'
   })
 }
 
@@ -416,32 +416,32 @@ const updateOption = (optionRef: Ref<boolean>, newValue: unknown) => {
 const embedDialogOptions = [
   {
     id: 'isTransparent',
-    label: 'Transparent background',
+    label: '透明背景',
     value: transparentBackground
   },
   {
     id: 'hideControls',
-    label: 'Hide viewer controls',
+    label: '隐藏查看器控件',
     value: hideViewerControls
   },
   {
     id: 'hideSelectionInfo',
-    label: 'Hide the selection info panel',
+    label: '隐藏选择信息面板',
     value: hideSelectionInfo
   },
   {
     id: 'disableModelLink',
-    label: 'No link back to web viewer',
+    label: '无链接返回到网络查看器',
     value: disableModelLink
   },
   {
     id: 'noScroll',
-    label: 'Prevent scrolling (zooming)',
+    label: '防止滚动（缩放）',
     value: preventScrolling
   },
   {
     id: 'manualLoad',
-    label: 'Load model manually',
+    label: '手动加载模型',
     value: manuallyLoadModel
   }
 ]

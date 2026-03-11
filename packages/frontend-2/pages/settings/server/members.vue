@@ -1,11 +1,7 @@
 <template>
   <section>
     <div class="md:max-w-5xl md:mx-auto pb-6 md:pb-0">
-      <SettingsSectionHeader
-        title="Members"
-        text="Manage members on your server"
-        hide-divider
-      />
+      <SettingsSectionHeader title="成员" text="管理服务器上的成员" hide-divider />
 
       <div class="mt-6">
         <LayoutTabsHorizontal v-model:active-item="activeTab" :items="tabItems">
@@ -40,12 +36,12 @@ const { result: usersResult } = useQuery(getUsersCountQuery)
 
 const tabItems = computed<LayoutPageTabItem[]>(() => [
   {
-    title: 'Members',
+    title: '成员',
     id: 'members',
     count: usersResult.value?.admin?.userList?.totalCount
   },
   {
-    title: 'Pending invites',
+    title: '待处理邀请',
     id: 'invites',
     count: invitesResult.value?.admin?.inviteList?.totalCount
   }

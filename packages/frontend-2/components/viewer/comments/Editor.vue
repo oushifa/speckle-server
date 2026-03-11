@@ -17,7 +17,7 @@
           isDraggingFiles && !disableDropZone && 'border-dashed'
         ]"
         :autofocus="autofocus"
-        :placeholder="prompt || 'Add comment'"
+        :placeholder="prompt || '新增评论'"
         :schema-options="{ multiLine: false }"
         :disabled="disabled"
         :project-id="projectId"

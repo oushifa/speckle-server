@@ -80,7 +80,7 @@
             :disabled="!isSelectionDisabled.authorized"
           />
           <div class="text-xs text-foreground-2 mr-1 truncate flex-1">
-            Created
+            创建时间
             <span v-tippy="createdAt.full">
               {{ createdAt.relative }}
             </span>
@@ -222,7 +222,7 @@ const isSelectionDisabled = computed(
     isPendingVersionFragment(props.version)
       ? {
           authorized: false,
-          message: 'You cannot select a pending version',
+          message: '您不能选择待处理版本',
           code: 'PENDING_VERSION_ERROR'
         }
       : props.version.permissions.canUpdate
@@ -230,8 +230,8 @@ const isSelectionDisabled = computed(
 
 const message = computed(() => {
   if (isPendingVersionFragment(props.version))
-    return `File upload: ${props.version.fileName}`
-  return props.version.message || 'no message'
+    return `文件上传: ${props.version.fileName}`
+  return props.version.message || '无版本信息'
 })
 
 const checkboxModel = computed({

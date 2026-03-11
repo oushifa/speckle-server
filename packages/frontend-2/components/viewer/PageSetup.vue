@@ -52,10 +52,6 @@
             ref="leftControls"
             @force-close-panels="() => closeAllPanels('left')"
           />
-          <ViewerControlsTop
-            ref="topControls"
-            @force-close-panels="() => closeAllPanels('top')"
-          />
           <ViewerControlsBottom
             ref="bottomControls"
             @force-close-panels="() => closeAllPanels('bottom')"
@@ -220,7 +216,7 @@ const title = computed(() => {
     const projectName = project.value.name || ''
 
     if (modelCount > 1) {
-      return projectName ? `Multiple models - ${projectName}` : 'Multiple models'
+      return projectName ? `多个模型 - ${projectName}` : '多个模型'
     } else if (modelCount === 1) {
       const modelName = project.value.models.items[0].name || ''
       return projectName ? `${modelName} - ${projectName}` : modelName
@@ -238,7 +234,7 @@ const modelName = computed(() => {
 })
 
 const embedName = computed(() => {
-  if (!modelName.value) return 'Loading...'
+  if (!modelName.value) return '加载中...'
 
   let ret = ''
   if (savedView.value) {
@@ -251,9 +247,9 @@ const embedName = computed(() => {
 
 const lastUpdate = computed(() => {
   if (project.value?.models?.items[0] && project.value.models.items[0].updatedAt) {
-    return 'Updated ' + dayjs(project.value.models.items[0].updatedAt).fromNow()
+    return '最后更新于 ' + dayjs(project.value.models.items[0].updatedAt).fromNow()
   } else if (project.value) {
-    return 'Created ' + dayjs(project.value.createdAt).fromNow()
+    return '创建于 ' + dayjs(project.value.createdAt).fromNow()
   } else return undefined
 })
 

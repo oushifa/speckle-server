@@ -14,7 +14,7 @@
           name="name"
           label="模型名称"
           show-label
-          placeholder="model/name/here"
+          placeholder="模型/子模型/子子模型"
           :custom-icon="CubeIcon"
           :rules="rules"
           :disabled="anyMutationsLoading"

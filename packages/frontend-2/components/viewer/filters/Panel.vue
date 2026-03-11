@@ -30,10 +30,7 @@
         v-if="propertyFilters.length > 0"
         class="flex items-center pr-4 text-body-3xs text-foreground-2 select-none"
       >
-        <span>
-          {{ filteredObjectsCount }}
-          {{ filteredObjectsCount === 1 ? '个结果' : '个结果' }}
-        </span>
+        <span>{{ filteredObjectsCount }}个结果</span>
       </div>
     </div>
     <div class="flex flex-col h-full justify-center select-none group/panel">

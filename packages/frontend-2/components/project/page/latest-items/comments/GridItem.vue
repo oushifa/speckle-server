@@ -42,8 +42,7 @@
           </div>
           <div class="space-x-2" :class="isLimited ? 'mt-0.5' : ''">
             <span class="text-body-2xs font-medium text-primary">
-              {{ thread.repliesCount.totalCount }}
-              {{ thread.repliesCount.totalCount === 1 ? 'reply' : 'replies' }}
+              {{ thread.repliesCount.totalCount }}个回复
             </span>
             <span v-tippy="updatedAt.full" class="text-foreground-2 text-body-2xs">
               {{ updatedAt.relative }}

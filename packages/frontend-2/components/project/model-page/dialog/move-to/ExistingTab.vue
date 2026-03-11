@@ -2,25 +2,25 @@
   <form @submit="onSubmit">
     <div class="flex flex-col gap-y-4">
       <div class="">
-        Please select the target branch to move
-        <template v-if="versions.length > 1">all of the selected versions</template>
+        把
+        <template v-if="versions.length > 1">所有选中的版本</template>
         <template v-else-if="versions.length">
-          the selected version
-          <span class="font-medium">"{{ versions[0].message || 'no message' }}"</span>
+          选中的版本
+          <span class="font-medium">"{{ versions[0].message || '无版本信息' }}"</span>
         </template>
-        to.
+        移动到目标模型。
       </div>
       <CommonModelSelect
         :project-id="projectId"
         name="model"
-        label="Target model"
+        label="目标模型"
         :rules="[isRequired]"
         :disabled="disabled"
         mount-menu-on-body
         :excluded-ids="modelId ? [modelId] : undefined"
       />
       <div class="flex justify-end">
-        <FormButton submit :disabled="disabled">Move</FormButton>
+        <FormButton submit :disabled="disabled">移动</FormButton>
       </div>
     </div>
   </form>

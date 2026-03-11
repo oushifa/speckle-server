@@ -4,7 +4,7 @@
       :project="project"
       @update-project="
         ({ name, description, onComplete }) =>
-          handleUpdate({ name, description }, 'Project info updated', onComplete)
+          handleUpdate({ name, description }, '项目信息已更新', onComplete)
       "
     />
 
@@ -12,7 +12,7 @@
       :project="project"
       @update-visibility="
         (newVisibility) =>
-          handleUpdate({ visibility: newVisibility }, 'Project access updated')
+          handleUpdate({ visibility: newVisibility }, '项目访问权限已更新')
       "
     />
     <ProjectPageSettingsGeneralBlockDiscussions
@@ -21,7 +21,7 @@
         (newCommentsPermission) =>
           handleUpdate(
             { allowPublicComments: newCommentsPermission },
-            'Comment permissions updated'
+            '项目讨论权限已更新'
           )
       "
     />
@@ -33,7 +33,7 @@
         (newCommentsPermission) =>
           handleUpdate(
             { allowPublicComments: newCommentsPermission },
-            'Comment permissions updated'
+            '项目删除权限已更新'
           )
       "
     />

@@ -237,11 +237,11 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
             ]
           : [])
       ],
-  [
-    { title: '复制链接', id: ActionTypes.Share },
-    { title: '复制 ID', id: ActionTypes.CopyId },
-    { title: '嵌入模型...', id: ActionTypes.Embed }
-  ],
+  // [
+  //   { title: '复制链接', id: ActionTypes.Share },
+  //   { title: '复制 ID', id: ActionTypes.CopyId },
+  //   { title: '嵌入模型...', id: ActionTypes.Embed }
+  // ],
   ...(isLoggedIn.value
     ? [
         [

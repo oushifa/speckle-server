@@ -7,9 +7,9 @@
         <FormTextInput
           v-model="name"
           color="foundation"
-          label="Name"
+          label="工作空间名称"
           name="name"
-          placeholder="Workspace name"
+          placeholder="工作空间名称"
           show-label
           :disabled="!isAdmin || needsSsoLogin"
           :tooltip-text="disabledTooltipText"
@@ -24,7 +24,7 @@
             id="short-id"
             v-model="slug"
             color="foundation"
-            label="Short ID"
+            label="工作空间短ID"
             name="shortId"
             :help="slugHelp"
             :disabled="disableSlugInput"
@@ -33,7 +33,7 @@
             :tooltip-text="disabledSlugTooltipText"
             read-only
             :right-icon="disableSlugInput ? undefined : IconEdit"
-            :right-icon-title="disableSlugInput ? undefined : 'Edit short ID'"
+            :right-icon-title="disableSlugInput ? undefined : '编辑工作空间短ID'"
             custom-help-class="!break-all"
             @right-icon-click="openSlugEditDialog"
           />
@@ -43,23 +43,23 @@
           id="settings-description"
           v-model="description"
           color="foundation"
-          label="Description"
+          label="工作空间描述"
           name="description"
-          placeholder="Workspace description"
+          placeholder="工作空间描述"
           :tooltip-text="disabledTooltipText"
           show-label
           label-position="left"
           :disabled="!isAdmin || needsSsoLogin"
           :rules="[isStringOfLength({ maxLength: 512 })]"
-          help="Maximum 512 characters"
+          help="最大512个字符"
           @change="save()"
         />
         <hr class="my-4 border-outline-3" />
         <div class="grid grid-cols-2 gap-4">
           <div class="flex flex-col">
-            <span class="text-body-xs font-medium text-foreground">Workspace icon</span>
+            <span class="text-body-xs font-medium text-foreground">工作空间图标</span>
             <span class="text-body-2xs text-foreground-2 max-w-[230px]">
-              Upload your icon image
+              上传工作空间图标
             </span>
           </div>
           <div :key="String(isAdmin)" v-tippy="disabledTooltipText">
@@ -75,10 +75,10 @@
         <div class="grid grid-cols-2 gap-4 pt-1">
           <div class="flex flex-col">
             <span class="text-body-xs font-medium text-foreground">
-              Speckle logo in embeds
+              嵌入模型时是否显示数智南北 logo
             </span>
             <span class="text-body-2xs text-foreground-2 max-w-[230px]">
-              Control the visibility of the Speckle logo in model embeds
+              控制模型嵌入时是否显示数智南北 logo
             </span>
           </div>
           <div class="flex h-full flex-col justify-center gap-y-2">
@@ -110,12 +110,12 @@
                 "
                 class="text-body-2xs text-foreground-2"
               >
-                This feature is only available on the business plan
+                此功能仅在商业计划中可用
                 <NuxtLink
                   :to="settingsWorkspaceRoutes.billing.route(slug)"
                   class="underline"
                 >
-                  upgrade now
+                  现在升级
                 </NuxtLink>
               </p>
             </ClientOnly>
@@ -126,11 +126,11 @@
       <div class="flex flex-col space-y-6">
         <SettingsSectionHeader title="Leave workspace" subheading />
         <CommonCard class="text-body-xs bg-foundation">
-          By clicking the button below you will leave this workspace.
+          点击下方按钮将退出此工作空间。
         </CommonCard>
         <div>
           <FormButton color="primary" @click="showLeaveDialog = true">
-            Leave workspace
+            退出工作空间
           </FormButton>
         </div>
       </div>
@@ -139,9 +139,7 @@
         <div class="flex flex-col space-y-6">
           <SettingsSectionHeader title="Delete workspace" subheading />
           <CommonCard class="text-body-xs bg-foundation">
-            We will delete all projects where you are the sole owner, and any associated
-            data. We will ask you to type in your email address and press the delete
-            button.
+            所有项目将被删除，包括所有版本和数据。
           </CommonCard>
 
           <div class="flex">
@@ -151,7 +149,7 @@
                 color="primary"
                 @click="showDeleteDialog = true"
               >
-                Delete workspace
+                删除工作空间
               </FormButton>
             </div>
           </div>
@@ -160,7 +158,7 @@
       <template v-if="workspaceResult?.workspaceBySlug?.id">
         <hr class="mb-6 mt-8 border-outline-2" />
         <p class="text-body-2xs text-foreground-2">
-          Workspace ID: #{{ workspaceResult?.workspaceBySlug?.id }}
+          工作空间 ID: #{{ workspaceResult?.workspaceBySlug?.id }}
         </p>
       </template>
     </div>
@@ -238,7 +236,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Settings | Workspace - General'
+  title: '设置 | 工作空间'
 })
 
 type FormValues = { name: string; description: string }
@@ -294,11 +292,10 @@ const canDeleteWorkspace = computed(
       workspaceResult.value?.workspaceBySlug?.plan?.name === WorkspacePlans.Free)
 )
 const deleteWorkspaceTooltip = computed(() => {
-  if (needsSsoLogin.value)
-    return 'You cannot delete a workspace that requires SSO without an active session'
+  if (needsSsoLogin.value) return '您无法删除需要SSO登录的工作空间，除非您已登录'
   if (!canDeleteWorkspace.value)
-    return 'You cannot delete a workspace with an active plan. Please cancel your plan before deleting.'
-  if (!isAdmin.value) return 'Only admins can delete workspaces'
+    return '您无法删除具有活动计划的工作空间。请先取消计划再删除。'
+  if (!isAdmin.value) return '仅管理员才能删除工作空间'
   return undefined
 })
 
@@ -317,7 +314,7 @@ const save = handleSubmit(async () => {
   if (result?.data) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Workspace updated'
+      title: '工作空间已更新'
     })
 
     mixpanel.track('Workspace General Settings Updated', {
@@ -332,7 +329,7 @@ const save = handleSubmit(async () => {
     const errorMessage = getFirstErrorMessage(result?.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Workspace update failed',
+      title: '工作空间更新失败',
       description: errorMessage
     })
   }
@@ -367,17 +364,15 @@ const canEditEmbedOptions = computed(
 )
 
 const disabledTooltipText = computed(() => {
-  if (!adminRef.value) return 'Only admins can edit this field'
-  if (needsSsoLogin.value) return 'Log in with your SSO provider to edit this field'
+  if (!adminRef.value) return '仅管理员才能编辑此字段'
+  if (needsSsoLogin.value) return '请使用您的SSO提供商登录以编辑此字段'
   return undefined
 })
 
 const disableSlugInput = computed(() => !isAdmin.value || hasSsoEnabled.value)
 
 const disabledSlugTooltipText = computed(() => {
-  return hasSsoEnabled.value
-    ? 'Short ID cannot be changed while SSO is enabled.'
-    : disabledTooltipText.value
+  return hasSsoEnabled.value ? '短ID不能在启用SSO时更改。' : disabledTooltipText.value
 })
 
 const openSlugEditDialog = () => {
@@ -404,7 +399,7 @@ const updateShowBranding = async () => {
 
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: `Speckle logo on embeds ${showBranding.value ? 'enabled' : 'disabled'}`
+      title: `已${showBranding.value ? '启用' : '禁用'}嵌入中的数智南北徽标`
     })
   }
 }
@@ -425,7 +420,7 @@ const updateWorkspaceSlug = async (newSlug: string) => {
   if (result && result.data) {
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: 'Workspace short ID updated'
+      title: '工作空间短ID已更新'
     })
 
     showEditSlugDialog.value = false
@@ -439,7 +434,7 @@ const updateWorkspaceSlug = async (newSlug: string) => {
     const errorMessage = getFirstErrorMessage(result && result.errors)
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Failed to update workspace slug',
+      title: '更新工作空间短ID失败',
       description: errorMessage
     })
   }

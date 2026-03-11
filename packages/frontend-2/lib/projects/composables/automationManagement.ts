@@ -50,13 +50,13 @@ export function useCreateAutomation() {
     if (res?.data?.projectMutations?.automationMutations?.create?.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Automation created'
+        title: '自动化已创建'
       })
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create automation',
+        title: '创建自动化失败',
         description: errMsg
       })
     }
@@ -103,13 +103,13 @@ export function useDeleteAutomation() {
     if (result?.data) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Automation deleted'
+        title: '自动化已删除'
       })
     } else {
       const errorMessage = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to delete automation',
+        title: '删除自动化失败',
         description: errorMessage
       })
     }
@@ -130,13 +130,13 @@ export function useCreateTestAutomation() {
     if (res?.data?.projectMutations?.automationMutations?.createTestAutomation?.id) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Test automation created'
+        title: '测试自动化已创建'
       })
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create test automation',
+        title: '创建测试自动化失败',
         description: errMsg
       })
     }
@@ -169,14 +169,14 @@ export function useUpdateAutomation() {
       if (!hideSuccessToast) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: messages?.success || 'Automation updated'
+          title: messages?.success || '自动化已更新'
         })
       }
     } else {
       const errMsg = getFirstErrorMessage(result?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: messages?.failure || 'Automation update failed',
+        title: messages?.failure || '自动化更新失败',
         description: errMsg
       })
     }
@@ -204,14 +204,14 @@ export function useCreateAutomationRevision() {
       if (!hideSuccessToast) {
         triggerNotification({
           type: ToastNotificationType.Success,
-          title: 'Automation revision created'
+          title: '自动化版本已创建'
         })
       }
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to create automation revision',
+        title: '创建自动化版本失败',
         description: errMsg
       })
     }
@@ -236,13 +236,13 @@ export const useTriggerAutomation = () => {
     if (res?.data?.projectMutations?.automationMutations?.trigger) {
       triggerNotification({
         type: ToastNotificationType.Success,
-        title: 'Automation triggered'
+        title: '自动化已触发'
       })
     } else {
       const errMsg = getFirstErrorMessage(res?.errors)
       triggerNotification({
         type: ToastNotificationType.Danger,
-        title: 'Failed to trigger automation',
+        title: '触发自动化失败',
         description: errMsg
       })
     }
