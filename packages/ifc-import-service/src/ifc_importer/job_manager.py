@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import sys
 import tempfile
 import time
 from math import floor
@@ -78,19 +79,15 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     job_timeout=job_timeout,
                 )
                 cmd = (
-                    f"python job_processor.py {temp_dir}"
+                    f"{sys.executable} job_processor.py {temp_dir}"
                     + f" {
                         base64.b64encode(
                             job.payload.model_dump_json().encode()
                         ).decode()
                     }"
                 )
-                # 打印
-                logger.info(f"------------Running command: {cmd}")
-                # subprocess
-                process = await asyncio.create_subprocess_shell(
-                    cmd,
-                )
+                # subprocess: use same interpreter so ifc_importer from site-packages is found
+                process = await asyncio.create_subprocess_shell(cmd)
                 try:
                     exit_code = await asyncio.wait_for(
                         process.wait(), timeout=job_timeout
@@ -206,9 +203,5 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         # which have reached these error conditions and moving
                         # them to a failed status.
                         await return_job_to_queued(connection, logger, job_id)
-                elif job_status == JobStatus.SUCCEEDED:
-                    # do nothing
-                    # we expect the job to already be marked as succeeded in the
-                    # database by the server (when the worker reported
-                    # the results back to the server)
-                    continue
+                # SUCCEEDED: do nothing, loop will continue after finally
+

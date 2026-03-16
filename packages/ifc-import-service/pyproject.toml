@@ -42,6 +42,10 @@ select = [
     "ASYNC",
 ]
 
+[tool.hatch.build.targets.wheel]
+# 显式指定 src layout 下的包，避免默认发现依赖 __init__.py 导致生产镜像中 ifc_importer 未正确打包
+packages = ["src/ifc_importer"]
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
