@@ -116,6 +116,7 @@
     "type-augmentations/**/*",
     "app.ts",
     "run.ts",
+    "env-config.ts",
     "bootstrap.js",
     "knexfile.ts",
     "codegen.ts"
