@@ -91,10 +91,9 @@
               placement: 'right'
             })
           "
-          :active="activePanel === 'devMode'"
           :icon="LogOut"
           secondary
-          @click="toggleActivePanel('devMode')"
+          @click="goBackToPreviousPage"
         />
         <!-- <ViewerControlsButtonToggle
           v-tippy="
@@ -209,19 +208,9 @@ import {
 } from '@vueuse/core'
 import { type Nullable, isNonNullable } from '@speckle/shared'
 import { useFunctionRunsStatusSummary } from '~/lib/automate/composables/runStatus'
-import { useIntercomEnabled } from '~~/lib/intercom/composables/enabled'
-import { viewerDocsRoute } from '~~/lib/common/helpers/route'
+import { projectRoute } from '~~/lib/common/helpers/route'
 import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/general'
-import {
-  Camera,
-  CodeXml,
-  BookOpen,
-  Box,
-  ListFilter,
-  MessageSquareText,
-  CircleQuestionMark,
-  LogOut
-} from 'lucide-vue-next'
+import { Camera, Box, ListFilter, MessageSquareText, LogOut } from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'
 
@@ -232,9 +221,9 @@ const emit = defineEmits<{
 
 const { width: windowWidth } = useWindowSize()
 
-const { isIntercomEnabled } = useIntercomEnabled()
 const { resourceItems, modelsAndVersionIds } = useInjectedViewerLoadedResources()
 const { registerShortcuts, getShortcutDisplayText, shortcuts } = useViewerShortcuts()
+const router = useSafeRouter()
 const { isEnabled: isEmbedEnabled } = useEmbed()
 const breakpoints = useBreakpoints(TailwindBreakpoints)
 const isMobile = breakpoints.smaller('sm')
@@ -243,11 +232,11 @@ const isLargerThanLg = breakpoints.greater('lg')
 const { getTooltipProps } = useSmartTooltipDelay()
 const isSavedViewsEnabled = useAreSavedViewsEnabled()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
-const { $intercom } = useNuxtApp()
 const {
   filters: { hasAnyFiltersApplied }
 } = useInjectedViewerInterfaceState()
 const {
+  projectId,
   ui: {
     panels: { active: activePanel, modelsSubView }
   }
@@ -372,18 +361,23 @@ const toggleActivePanel = (panel: ActivePanel) => {
   onPanelButtonClick(panel)
 }
 
+const exitViewerRoute = computed(() => projectRoute(projectId.value))
+
+const goBackToPreviousPage = async () => {
+  if (
+    import.meta.client &&
+    window.history.length > 1 &&
+    document.referrer.startsWith(window.location.origin)
+  ) {
+    router.back()
+    return
+  }
+
+  await router.push(() => exitViewerRoute.value)
+}
+
 const forceClosePanel = () => {
   activePanel.value = 'none'
-}
-
-const openDocs = () => {
-  window.open(viewerDocsRoute, '_blank')
-}
-
-const openIntercomChat = () => {
-  if (isIntercomEnabled.value) {
-    $intercom.show()
-  }
 }
 
 watch(activePanel, (newVal, oldVal) => {
