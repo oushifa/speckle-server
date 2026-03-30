@@ -123,6 +123,8 @@ const onDownloadClick = async () => {
 
 const attachmentList = computed(() => props.attachments?.text?.attachments || [])
 
+console.log(attachmentList.value)
+
 const dialogButtons = computed((): Optional<LayoutDialogButton[]> => {
   if (!dialogAttachment.value) return undefined
 

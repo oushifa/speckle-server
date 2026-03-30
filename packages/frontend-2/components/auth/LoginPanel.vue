@@ -49,7 +49,7 @@ import { useQuery } from '@vue/apollo-composable'
 import { AuthStrategy } from '~~/lib/auth/helpers/strategies'
 import { useLoginOrRegisterUtils, useAuthManager } from '~~/lib/auth/composables/auth'
 import { LayoutDialog } from '@speckle/ui-components'
-import { registerRoute, ssoLoginRoute } from '~~/lib/common/helpers/route'
+import { ssoLoginRoute } from '~~/lib/common/helpers/route'
 import {
   authLoginPanelQuery,
   authLoginPanelWorkspaceInviteQuery
@@ -70,7 +70,6 @@ const props = withDefaults(
 const { appId, challenge } = useLoginOrRegisterUtils()
 const { isLoggedIn } = useActiveUser()
 const { inviteToken } = useAuthManager()
-const router = useRouter()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const isSsoEnabled = useIsWorkspacesSsoEnabled()
 
@@ -86,20 +85,11 @@ const { result: workspaceInviteResult } = useQuery(
   })
 )
 
-const finalRegisterRoute = computed(() => {
-  const result = router.resolve({
-    path: registerRoute,
-    query: inviteToken.value ? { token: inviteToken.value } : {}
-  })
-  return result.fullPath
-})
-
 const concreteComponent = computed(() => {
   return props.dialogMode ? LayoutDialog : 'div'
 })
 
 const workspaceInvite = computed(() => workspaceInviteResult.value?.workspaceInvite)
-const forcedInviteEmail = computed(() => workspaceInvite.value?.email)
 
 const serverInfo = computed(() => result.value?.serverInfo)
 const hasLocalStrategy = computed(() =>

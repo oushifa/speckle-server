@@ -208,7 +208,7 @@ import {
 } from '@vueuse/core'
 import { type Nullable, isNonNullable } from '@speckle/shared'
 import { useFunctionRunsStatusSummary } from '~/lib/automate/composables/runStatus'
-import { projectRoute } from '~~/lib/common/helpers/route'
+import { projectsRoute } from '~~/lib/common/helpers/route'
 import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/general'
 import { Camera, Box, ListFilter, MessageSquareText, LogOut } from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
@@ -236,7 +236,6 @@ const {
   filters: { hasAnyFiltersApplied }
 } = useInjectedViewerInterfaceState()
 const {
-  projectId,
   ui: {
     panels: { active: activePanel, modelsSubView }
   }
@@ -361,19 +360,13 @@ const toggleActivePanel = (panel: ActivePanel) => {
   onPanelButtonClick(panel)
 }
 
-const exitViewerRoute = computed(() => projectRoute(projectId.value))
-
 const goBackToPreviousPage = async () => {
-  if (
-    import.meta.client &&
-    window.history.length > 1 &&
-    document.referrer.startsWith(window.location.origin)
-  ) {
+  if (import.meta.client && window.history.length > 1) {
     router.back()
     return
   }
 
-  await router.push(() => exitViewerRoute.value)
+  await router.push(() => projectsRoute)
 }
 
 const forceClosePanel = () => {

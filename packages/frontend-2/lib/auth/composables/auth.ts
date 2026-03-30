@@ -16,7 +16,6 @@ import { useApolloClient } from '@vue/apollo-composable'
 import { speckleWebAppId } from '~~/lib/auth/helpers/strategies'
 import { randomString } from '~~/lib/common/helpers/random'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
-import { useDeferredMixpanel } from '~~/lib/core/composables/mp'
 import {
   activeUserQuery,
   useResolveUserDistinctId,
@@ -207,6 +206,11 @@ export const useAuthCookie = () =>
     maxAge: 60 * 60 * 24 * 30 // 30 days
   })
 
+export const useThirdPartyTokenState = () => ({
+  oaToken: useState<string | null>('oa-token', () => null),
+  spToken: useState<string | null>('sp-token', () => null)
+})
+
 export const useAuthManager = (
   options?: Partial<{
     /**
@@ -228,7 +232,6 @@ export const useAuthManager = (
   const goHome = useNavigateToHome()
   const goToLogin = useNavigateToLogin()
   const { triggerNotification } = useGlobalToast()
-  const getMixpanel = useDeferredMixpanel()
   const postAuthRedirect = usePostAuthRedirect()
   const { markLoggedOut } = useJustLoggedOutTracking()
   const { logger } = useSafeLogger()
@@ -243,6 +246,7 @@ export const useAuthManager = (
    * Observable auth cookie
    */
   const authToken = useAuthCookie()
+  const thirdPartyTokenState = useThirdPartyTokenState()
 
   // NOTE: Refrain from using the name token as it overrides the authToken
   /**
@@ -458,8 +462,6 @@ export const useAuthManager = (
 
     // eslint-disable-next-line camelcase
     goHome({ query: { access_code: accessCode } })
-
-    getMixpanel()?.track('Log In', { type: 'action' })
   }
 
   /**
@@ -557,6 +559,23 @@ export const useAuthManager = (
     }
   }
 
+  const loginWithToken = async (params: {
+    token: string
+    oaToken?: string
+    skipRedirect?: boolean
+  }) => {
+    const { token, oaToken, skipRedirect } = params
+
+    if (!token?.trim().length) {
+      throw new AuthFailedError('Invalid token')
+    }
+
+    thirdPartyTokenState.oaToken.value = oaToken || null
+    thirdPartyTokenState.spToken.value = token
+
+    await saveNewToken(token, { skipRedirect })
+  }
+
   return {
     authToken,
     embedToken,
@@ -568,7 +587,8 @@ export const useAuthManager = (
     logout,
     watchAuthQueryString,
     inviteToken,
-    dashboardToken
+    dashboardToken,
+    loginWithToken
   }
 }
 

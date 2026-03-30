@@ -92,13 +92,13 @@
                   </NuxtLink>
                   <NuxtLink
                     v-if="showWorkspaceLinks"
-                    :to="projectBaseRoutePath + '/collaborate'"
+                    :to="projectBaseRoutePath + '/workbench/discussions'"
                     @click="isOpenMobile = false"
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
                         'py-2 mb-1',
-                        isProjectActive('/collaborate') &&
+                        isProjectActive('/workbench/discussions') &&
                           'bg-slate-400 hover:!bg-slate-400',
                         'text-white',
                         'hover:bg-slate-300'
