@@ -19,11 +19,17 @@
           :class="`h-3 w-3 shrink-0 ${headerClasses} ${unfold ? 'rotate-90' : ''}`"
         />
         <div :class="`truncate text-body-3xs font-medium ${headerClasses}`">
-          {{ title || headerAndSubheader.header }}
+          <!-- @vue-ignore -->
+          {{
+            REVIT_PROPERTY_NAME_ZH_MAP[title] ||
+            REVIT_PROPERTY_NAME_ZH_MAP[headerAndSubheader.header] ||
+            title ||
+            headerAndSubheader.header
+          }}
           <span
             v-if="(props.root || props.modifiedSibling) && isModifiedQuery.modified"
           >
-            {{ isModifiedQuery.isNew ? '(new)' : '(old)' }}
+            {{ isModifiedQuery.isNew ? '(新)' : '(旧)' }}
           </span>
         </div>
       </button>
@@ -60,7 +66,7 @@
             class="col-span-1 truncate text-body-3xs font-medium"
             :title="(kvp.key as string)"
           >
-            {{ kvp.key }}
+            {{ REVIT_PROPERTY_NAME_ZH_MAP[kvp.key] || kvp.key }}
           </div>
           <div
             class="col-span-2 flex w-full min-w-0 truncate text-body-3xs pl-1 text-foreground"
@@ -76,7 +82,7 @@
             class="col-span-1 truncate text-body-3xs font-medium pl-2 text-foreground-2"
             :title="(kvp.key as string)"
           >
-            {{ kvp.key }}
+            {{ REVIT_PROPERTY_NAME_ZH_MAP[kvp.key] || kvp.key }}
           </div>
           <div
             class="col-span-2 flex w-full min-w-0 truncate text-body-3xs text-foreground"
@@ -99,6 +105,7 @@ import { getHeaderAndSubheaderForSpeckleObject } from '~~/lib/object-sidebar/hel
 import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
 import { useHighlightedObjectsUtilities } from '~/lib/viewer/composables/ui'
 import type { KeyValuePair } from '~/components/viewer/selection/types'
+import { REVIT_PROPERTY_NAME_ZH_MAP } from '~/lib/viewer/helpers/filters/constants'
 
 const {
   ui: {

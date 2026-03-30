@@ -10,7 +10,7 @@
           class="col-span-1 truncate text-body-3xs mr-2 font-medium text-foreground-2"
           :title="kvp.key"
         >
-          {{ kvp.key }}
+          {{ REVIT_PROPERTY_NAME_ZH_MAP[kvp.key] || kvp.key }}
         </div>
         <div
           class="group col-span-2 pl-1 truncate text-body-3xs flex gap-1 items-center text-foreground"
@@ -82,6 +82,7 @@ import {
   type ExtendedPropertyInfo
 } from '~/lib/viewer/helpers/filters/types'
 import { isBooleanProperty } from '~/lib/viewer/helpers/filters/utils'
+import { REVIT_PROPERTY_NAME_ZH_MAP } from '~/lib/viewer/helpers/filters/constants'
 
 const props = defineProps<{
   kvp: KeyValuePair

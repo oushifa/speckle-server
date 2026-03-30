@@ -18,6 +18,6 @@ const projectName = computed(() =>
 )
 
 useHead({
-  title: `Collaborators | ${projectName.value}`
+  title: `协同管理 | ${projectName.value}`
 })
 </script>

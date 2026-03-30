@@ -67,7 +67,32 @@ export const REVIT_PROPERTY_NAME_ZH_MAP: Record<string, string> = {
   ['Material Quantities']: '材料数量',
   worksetId: '工作集ID',
   LEVEL_PARAM: '标高参数',
-  SCHDULE_LEVEL_PARAM: '计划标高参数'
+  SCHDULE_LEVEL_PARAM: '计划标高参数',
+  buildCategory: '建筑分类',
+  buildType: '内建类型',
+  materialCategory: '材料类别',
+  worksetName: '工作集名称',
+  materialName: '材料名称',
+  materialClass: '材料类型',
+  HOST_VOLUME_COMPUTED: '主体体积',
+  children: '子元素',
+  collectionType: '集合类型',
+  elements: '元素',
+  levelProxies: '标高代理',
+  renderMaterialProxies: '渲染材质代理',
+  instanceDefinitionProxies: '实例定义代理',
+  builtInCategory: '内建类别',
+  materialType: '材料类型',
+  density: '密度',
+  structuralAsset: '结构资产',
+  // eslint-disable-next-line camelcase
+  speckle_type: '数智南北类型',
+  RevitObject: 'Revit对象',
+  location: '位置',
+  properties: '属性',
+  Parameters: '参数',
+  ['Instance Parameters']: '实例参数',
+  ['Type Parameters']: '类型参数'
 }
 
 // UI Constants
