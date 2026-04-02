@@ -106,6 +106,14 @@
             上次上传失败
           </NuxtLink>
         </div>
+        <FormButton
+          color="subtle"
+          size="sm"
+          class="flex items-center gap-1 !text-foreground-2 cursor-pointer !border-zinc-300 border-solid border rounded-full"
+          @click.stop="startFlow"
+        >
+          待审核
+        </FormButton>
         <div class="flex items-center gap-1">
           <div
             v-if="!isPendingModelFragment(model)"
@@ -148,6 +156,7 @@ import type { Nullable, Optional } from '@speckle/shared'
 import type { FileAreaUploadingPayload } from '~/lib/form/helpers/fileUpload'
 import { FileUploadConvertedStatus } from '@speckle/shared/blobs'
 import dayjs from 'dayjs'
+import { Tag } from 'lucide-vue-next'
 
 graphql(`
   fragment ProjectPageModelsCardProject on Project {
@@ -309,6 +318,10 @@ const onCardClick = (event: KeyboardEvent | MouseEvent) => {
 
 const onVersionUploading = (payload: FileAreaUploadingPayload) => {
   isVersionUploading.value = payload.isUploading
+}
+
+const startFlow = () => {
+  console.log('startFlow')
 }
 
 const triggerVersionUpload = () => {

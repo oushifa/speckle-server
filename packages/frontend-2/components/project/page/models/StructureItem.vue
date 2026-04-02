@@ -63,7 +63,7 @@
         <!-- Spacer -->
         <div class="flex-grow"></div>
 
-        <template v-if="!isPendingFileUpload(item)">
+        <template v-if="isPendingFileUpload(item)">
           <div
             v-show="
               pendingVersion ||
@@ -125,6 +125,14 @@
               </FormButton>
             </div>
           </div>
+          <FormButton
+            color="subtle"
+            size="sm"
+            class="flex items-center gap-1 !text-foreground-2 cursor-pointer !border-zinc-300 border-solid border rounded-full"
+            @click.stop="startFlow"
+          >
+            待审核
+          </FormButton>
         </div>
         <ProjectPendingFileImportStatus
           v-else-if="pendingModel && itemType === StructureItemType.PendingModel"
@@ -344,7 +352,10 @@ const accSyncItem = computed(() =>
 
 const isPendingFileUpload = (
   i: SingleLevelModelTreeItemFragment | PendingFileUploadFragment
-): i is PendingFileUploadFragment => has(i, 'uploadDate')
+): i is PendingFileUploadFragment => {
+  console.log(i)
+  return has(i, 'uploadDate')
+}
 
 const importArea = ref(
   null as Nullable<{
@@ -514,4 +525,6 @@ const onVersionsClick = () => {
     router.push(modelVersionsRoute(props.project.id, model.value.id))
   }
 }
+
+const startFlow = () => {}
 </script>

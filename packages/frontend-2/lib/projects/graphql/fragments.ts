@@ -33,6 +33,7 @@ export const projectDashboardItemNoModelsFragment = graphql(`
   fragment ProjectDashboardItemNoModels on Project {
     id
     name
+    description
     createdAt
     updatedAt
     role

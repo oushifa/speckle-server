@@ -86,6 +86,7 @@ const props = withDefaults(
     contributors?: FormUsersSelectItemFragment[]
     smallView?: boolean
     hideFileUpload?: boolean
+    treeModelIds?: string[] | null
   }>(),
   {
     showActions: true,
@@ -95,10 +96,15 @@ const props = withDefaults(
 
 const logger = useLogger()
 const areQueriesLoading = useQueryLoading()
+const isTreeSelectionActive = computed(() => props.treeModelIds !== null)
+const isTreeSelectionEmpty = computed(
+  () => isTreeSelectionActive.value && !props.treeModelIds?.length
+)
 
 const latestModelsQueryVariables = computed(
   (): ProjectLatestModelsPaginationQueryVariables => {
     const shouldHaveFilter =
+      isTreeSelectionActive.value ||
       props.search?.length ||
       props.excludedIds?.length ||
       props.sourceApps?.length ||
@@ -111,6 +117,7 @@ const latestModelsQueryVariables = computed(
         ? {
             search: props.search || null,
             excludeIds: props.excludedIds || null,
+            ids: isTreeSelectionActive.value ? props.treeModelIds : null,
             onlyWithVersions: !!props.excludeEmptyModels,
             sourceApps: props.sourceApps?.length
               ? props.sourceApps.map((a) => a.searchKey)
@@ -132,7 +139,11 @@ const {
   result: baseResult,
   variables: latestModelsVariables,
   onResult: onBaseResult
-} = useQuery(latestModelsQuery, () => latestModelsQueryVariables.value)
+} = useQuery(
+  latestModelsQuery,
+  () => latestModelsQueryVariables.value,
+  () => ({ enabled: !isTreeSelectionEmpty.value })
+)
 
 // Pagination query
 const {
@@ -145,11 +156,12 @@ const {
     ...latestModelsQueryVariables.value,
     cursor: null as Nullable<string>
   }),
-  () => ({ enabled: !props.disablePagination })
+  () => ({ enabled: !props.disablePagination && !isTreeSelectionEmpty.value })
 )
 
 const isFiltering = computed(() => {
   const filter = latestModelsVariables.value?.filter
+  if (isTreeSelectionActive.value) return true
   if (filter?.contributors?.length) return true
   if (filter?.search?.length) return true
   if (filter?.sourceApps?.length) return true
@@ -157,7 +169,9 @@ const isFiltering = computed(() => {
 })
 
 const models = computed(() =>
-  extraPagesResult.value
+  isTreeSelectionEmpty.value
+    ? []
+    : extraPagesResult.value
     ? extraPagesResult.value?.project?.models?.items || []
     : baseResult.value?.project?.models?.items || []
 )
@@ -172,15 +186,19 @@ const items = computed(() =>
   )
 )
 const itemsCount = computed(() => items.value.length)
-const moreToLoad = computed(
-  () =>
-    !baseResult.value?.project ||
+const moreToLoad = computed(() => {
+  if (isTreeSelectionEmpty.value) return false
+  if (!baseResult.value?.project) return true
+  return (
     baseResult.value.project.models.items.length <
-      baseResult.value.project.models.totalCount
-)
+    baseResult.value.project.models.totalCount
+  )
+})
 const showViewAll = computed(() => moreToLoad.value && props.disablePagination)
 
 const infiniteLoad = async (state: InfiniteLoaderState) => {
+  if (isTreeSelectionEmpty.value) return state.complete()
+
   const cursor =
     extraPagesResult.value?.project?.models.cursor ||
     baseResult.value?.project?.models.cursor ||

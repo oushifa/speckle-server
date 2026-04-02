@@ -66,7 +66,7 @@ FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34
 ENV PORT=8080
 
 ENV NUXT_PUBLIC_MIXPANEL_TOKEN_ID=acd87c5a50b56df91a795e999812a3a4
-ENV NUXT_PUBLIC_MIXPANEL_API_HOST=https://analytics.speckle.systems
+ENV NUXT_PUBLIC_MIXPANEL_API_HOST=https://47.100.77.97:64482
 
 WORKDIR /speckle-server
 COPY --link --from=build-stage  /speckle-server/packages/frontend-2/.output .

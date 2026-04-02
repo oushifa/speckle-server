@@ -211,6 +211,8 @@ export const useThirdPartyTokenState = () => ({
   spToken: useState<string | null>('sp-token', () => null)
 })
 
+const ThirdPartyOaTokenLocalStorageKey = 'thirdPartyOaToken'
+
 export const useAuthManager = (
   options?: Partial<{
     /**
@@ -247,6 +249,10 @@ export const useAuthManager = (
    */
   const authToken = useAuthCookie()
   const thirdPartyTokenState = useThirdPartyTokenState()
+  if (import.meta.client && !thirdPartyTokenState.oaToken.value) {
+    thirdPartyTokenState.oaToken.value =
+      SafeLocalStorage.get(ThirdPartyOaTokenLocalStorageKey) || null
+  }
 
   // NOTE: Refrain from using the name token as it overrides the authToken
   /**
@@ -535,6 +541,9 @@ export const useAuthManager = (
     // lazy reset, we dont need it to finish before we can redirect to login page
     // (and we wanna avoid flashes of broken content)
     await saveNewToken(undefined, { skipRedirect: true, lazyStateReset: true })
+    thirdPartyTokenState.oaToken.value = null
+    thirdPartyTokenState.spToken.value = null
+    SafeLocalStorage.remove(ThirdPartyOaTokenLocalStorageKey)
 
     if (!options?.skipToast) {
       triggerNotification({
@@ -572,6 +581,11 @@ export const useAuthManager = (
 
     thirdPartyTokenState.oaToken.value = oaToken || null
     thirdPartyTokenState.spToken.value = token
+    if (oaToken?.trim().length) {
+      SafeLocalStorage.set(ThirdPartyOaTokenLocalStorageKey, oaToken)
+    } else {
+      SafeLocalStorage.remove(ThirdPartyOaTokenLocalStorageKey)
+    }
 
     await saveNewToken(token, { skipRedirect })
   }

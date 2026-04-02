@@ -86,7 +86,8 @@ export default defineNuxtConfig({
       intercomAppId: '',
       dashboardsOrigin: '',
       parallelMiddlewares: true,
-      disableViewerActivityBroadcasting: false
+      disableViewerActivityBroadcasting: false,
+      oaUrl: 'http://47.100.77.97:64487/'
     }
   },
 
