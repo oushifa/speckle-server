@@ -353,7 +353,6 @@ const accSyncItem = computed(() =>
 const isPendingFileUpload = (
   i: SingleLevelModelTreeItemFragment | PendingFileUploadFragment
 ): i is PendingFileUploadFragment => {
-  console.log(i)
   return has(i, 'uploadDate')
 }
 

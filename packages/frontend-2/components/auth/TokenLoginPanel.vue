@@ -80,7 +80,11 @@ enum LoginState {
 
 const route = useRoute()
 const { loginWithToken } = useAuthManager()
-const { oaToken: oaTokenState, spToken: spTokenState } = useThirdPartyTokenState()
+const {
+  oaToken: oaTokenState,
+  spToken: spTokenState,
+  oaUser: oaUserState
+} = useThirdPartyTokenState()
 
 const state = ref<LoginState>(LoginState.TokenChecking)
 const currentToken = ref('')
@@ -201,6 +205,7 @@ const runTokenLogin = async () => {
     }
 
     oaTokenState.value = oaToken
+    oaUserState.value = oaResponse.msg?.user || null
     state.value = LoginState.SigningIn
 
     const authorizationHeaders = new Headers()
@@ -221,6 +226,7 @@ const runTokenLogin = async () => {
     await loginWithToken({
       token: spToken,
       oaToken,
+      oaUser: oaUserState.value,
       skipRedirect: false
     })
     state.value = LoginState.Success

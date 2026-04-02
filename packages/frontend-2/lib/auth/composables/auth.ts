@@ -208,10 +208,12 @@ export const useAuthCookie = () =>
 
 export const useThirdPartyTokenState = () => ({
   oaToken: useState<string | null>('oa-token', () => null),
-  spToken: useState<string | null>('sp-token', () => null)
+  spToken: useState<string | null>('sp-token', () => null),
+  oaUser: useState<Record<string, unknown> | null>('oa-user', () => null)
 })
 
 const ThirdPartyOaTokenLocalStorageKey = 'thirdPartyOaToken'
+const ThirdPartyOaUserLocalStorageKey = 'thirdPartyOaUser'
 
 export const useAuthManager = (
   options?: Partial<{
@@ -249,9 +251,26 @@ export const useAuthManager = (
    */
   const authToken = useAuthCookie()
   const thirdPartyTokenState = useThirdPartyTokenState()
-  if (import.meta.client && !thirdPartyTokenState.oaToken.value) {
-    thirdPartyTokenState.oaToken.value =
-      SafeLocalStorage.get(ThirdPartyOaTokenLocalStorageKey) || null
+  if (import.meta.client) {
+    if (!thirdPartyTokenState.oaToken.value) {
+      thirdPartyTokenState.oaToken.value =
+        SafeLocalStorage.get(ThirdPartyOaTokenLocalStorageKey) || null
+    }
+
+    if (!thirdPartyTokenState.oaUser.value) {
+      const oaUser = SafeLocalStorage.get(ThirdPartyOaUserLocalStorageKey)
+      if (oaUser) {
+        try {
+          thirdPartyTokenState.oaUser.value = JSON.parse(oaUser) as Record<
+            string,
+            unknown
+          >
+        } catch {
+          SafeLocalStorage.remove(ThirdPartyOaUserLocalStorageKey)
+          thirdPartyTokenState.oaUser.value = null
+        }
+      }
+    }
   }
 
   // NOTE: Refrain from using the name token as it overrides the authToken
@@ -543,7 +562,9 @@ export const useAuthManager = (
     await saveNewToken(undefined, { skipRedirect: true, lazyStateReset: true })
     thirdPartyTokenState.oaToken.value = null
     thirdPartyTokenState.spToken.value = null
+    thirdPartyTokenState.oaUser.value = null
     SafeLocalStorage.remove(ThirdPartyOaTokenLocalStorageKey)
+    SafeLocalStorage.remove(ThirdPartyOaUserLocalStorageKey)
 
     if (!options?.skipToast) {
       triggerNotification({
@@ -571,20 +592,30 @@ export const useAuthManager = (
   const loginWithToken = async (params: {
     token: string
     oaToken?: string
+    oaUser?: Record<string, unknown> | null
     skipRedirect?: boolean
   }) => {
-    const { token, oaToken, skipRedirect } = params
+    const { token, oaToken, oaUser, skipRedirect } = params
 
     if (!token?.trim().length) {
       throw new AuthFailedError('Invalid token')
     }
 
-    thirdPartyTokenState.oaToken.value = oaToken || null
     thirdPartyTokenState.spToken.value = token
     if (oaToken?.trim().length) {
+      thirdPartyTokenState.oaToken.value = oaToken
+      thirdPartyTokenState.oaUser.value = oaUser || null
       SafeLocalStorage.set(ThirdPartyOaTokenLocalStorageKey, oaToken)
+      if (oaUser) {
+        SafeLocalStorage.set(ThirdPartyOaUserLocalStorageKey, JSON.stringify(oaUser))
+      } else {
+        SafeLocalStorage.remove(ThirdPartyOaUserLocalStorageKey)
+      }
     } else {
+      thirdPartyTokenState.oaToken.value = null
+      thirdPartyTokenState.oaUser.value = null
       SafeLocalStorage.remove(ThirdPartyOaTokenLocalStorageKey)
+      SafeLocalStorage.remove(ThirdPartyOaUserLocalStorageKey)
     }
 
     await saveNewToken(token, { skipRedirect })
