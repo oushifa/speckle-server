@@ -51,6 +51,13 @@ export const projectDashboardItemNoModelsFragment = graphql(`
 
 export const projectDashboardItemFragment = graphql(`
   fragment ProjectDashboardItem on Project {
+    address
+    progress
+    startDate
+    endDate
+    status
+    responsible
+    timeZone
     id
     ...ProjectDashboardItemNoModels
     ...ProjectCardImportFileArea_Project
@@ -131,6 +138,13 @@ export const projectUpdatableMetadataFragment = graphql(`
     id
     name
     description
+    address
+    progress
+    startDate
+    endDate
+    status
+    responsible
+    timeZone
     visibility
     allowPublicComments
     permissions {

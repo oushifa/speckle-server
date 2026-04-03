@@ -11,6 +11,7 @@ export const buildTestProject = (overrides?: Partial<Project>): Project =>
     {
       id: cryptoRandomString({ length: 10 }),
       name: cryptoRandomString({ length: 10 }),
+      address: cryptoRandomString({ length: 10 }),
       description: cryptoRandomString({ length: 10 }),
       clonedFrom: cryptoRandomString({ length: 10 }),
       createdAt: new Date(),

@@ -273,6 +273,13 @@ export const Streams = buildTableHelper(
   [
     'id',
     'name',
+    'address',
+    'progress',
+    'startDate',
+    'endDate',
+    'responsible',
+    'status',
+    'timeZone',
     'description',
     'clonedFrom',
     'createdAt',

@@ -122,6 +122,7 @@ describe('Activity digest notifications @notifications', () => {
         id: streamName,
         description: 'tester',
         name: streamName,
+        address: null,
         visibility: ProjectRecordVisibility.Public,
         clonedFrom: null,
         createdAt: new Date(),

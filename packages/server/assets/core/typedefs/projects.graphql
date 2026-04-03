@@ -34,15 +34,30 @@ input ProjectUpdateInput {
   description: String
   visibility: ProjectVisibility
   allowPublicComments: Boolean
+  address: String
+  progress: Int
+  startDate: BigInt
+  endDate: BigInt
+  timeZone: String
+  responsible: String
+  status: String
 }
 
 """
 Any values left null will be ignored
 """
 input ProjectCreateInput {
+  address: String
   name: String
   description: String
   visibility: ProjectVisibility
+  allowPublicComments: Boolean
+  timeZone: String
+  responsible: String
+  status: String
+  progress: Int
+  startDate: BigInt
+  endDate: BigInt
 }
 
 input ProjectUpdateRoleInput {
@@ -179,8 +194,18 @@ type ProjectCollaborator {
 type Project {
   id: ID!
   name: String!
+  address: String
+  progress: Int
+  startDate: BigInt
+  endDate: BigInt
+  timeZone: String
+  responsible: String
+  status: String
   description: String
   visibility: ProjectVisibility!
+  """
+  Whether comments are allowed on this project
+  """
   allowPublicComments: Boolean!
   """
   Active user's role for this project. `null` if request is not authenticated, or the project is not explicitly shared with you.

@@ -69,6 +69,13 @@ export type ProjectCreateArgs = {
   regionKey?: MaybeNullOrUndefined<string>
   workspaceId?: MaybeNullOrUndefined<string>
   ownerId: string
+  address?: MaybeNullOrUndefined<string>
+  timeZone?: MaybeNullOrUndefined<string>
+  responsible?: MaybeNullOrUndefined<string>
+  status?: MaybeNullOrUndefined<string>
+  progress?: MaybeNullOrUndefined<number>
+  startDate?: MaybeNullOrUndefined<bigint>
+  endDate?: MaybeNullOrUndefined<bigint>
 }
 
 export type CreateProject = (params: ProjectCreateArgs) => Promise<Project>

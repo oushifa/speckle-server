@@ -202,6 +202,13 @@ input WorkspaceProjectCreateInput {
   description: String
   visibility: ProjectVisibility
   workspaceId: String!
+  address: String
+  progress: Int
+  startDate: BigInt
+  endDate: BigInt
+  timeZone: String
+  responsible: String
+  status: String
 }
 
 type WorkspaceProjectMutations {

@@ -22,6 +22,7 @@ import { getProjectReplicationDbs } from '@/modules/multiregion/utils/dbSelector
 const createTestProject = (overrides?: Partial<Project>): Project => {
   const defaults: Project = {
     id: cryptoRandomString({ length: 10 }),
+    address: null,
     allowPublicComments: false,
     clonedFrom: null,
     createdAt: new Date(),

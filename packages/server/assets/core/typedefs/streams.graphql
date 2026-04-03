@@ -55,6 +55,13 @@ type Stream {
   id: String!
   name: String!
   description: String
+  address: String
+  progress: Int
+  startDate: BigInt
+  endDate: BigInt
+  timeZone: String
+  responsible: String
+  status: String
   """
   Whether the stream can be viewed by non-contributors
   """

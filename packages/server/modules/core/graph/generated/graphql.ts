@@ -2643,6 +2643,8 @@ export type Project = {
   __typename?: 'Project';
   accSyncItem: AccSyncItem;
   accSyncItems: AccSyncItemCollection;
+  address?: Maybe<Scalars['String']['output']>;
+  /** Whether comments are allowed on this project */
   allowPublicComments: Scalars['Boolean']['output'];
   /** Get a single automation by id. Error will be thrown if automation is not found or inaccessible. */
   automation: Automation;
@@ -2661,6 +2663,7 @@ export type Project = {
   /** Public project-level configuration for embedded viewer */
   embedOptions: ProjectEmbedOptions;
   embedTokens: EmbedTokenCollection;
+  endDate?: Maybe<Scalars['BigInt']['output']>;
   hasAccessToFeature: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   invitableCollaborators: WorkspaceCollaboratorCollection;
@@ -2690,6 +2693,8 @@ export type Project = {
   /** Returns a list models that are being created from a file import */
   pendingImportedModels: Array<FileUpload>;
   permissions: ProjectPermissionChecks;
+  progress?: Maybe<Scalars['Int']['output']>;
+  responsible?: Maybe<Scalars['String']['output']>;
   /** Active user's role for this project. `null` if request is not authenticated, or the project is not explicitly shared with you. */
   role?: Maybe<Scalars['String']['output']>;
   savedView: SavedView;
@@ -2700,7 +2705,10 @@ export type Project = {
   savedViews: SavedViewCollection;
   /** Source apps used in any models of this project */
   sourceApps: Array<Scalars['String']['output']>;
+  startDate?: Maybe<Scalars['BigInt']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
   team: Array<ProjectCollaborator>;
+  timeZone?: Maybe<Scalars['String']['output']>;
   ungroupedViewGroup: SavedViewGroup;
   updatedAt: Scalars['DateTime']['output'];
   /** Retrieve a specific project version by its ID */
@@ -3094,8 +3102,16 @@ export const ProjectCommentsUpdatedMessageType = {
 export type ProjectCommentsUpdatedMessageType = typeof ProjectCommentsUpdatedMessageType[keyof typeof ProjectCommentsUpdatedMessageType];
 /** Any values left null will be ignored */
 export type ProjectCreateInput = {
+  address?: InputMaybe<Scalars['String']['input']>;
+  allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  endDate?: InputMaybe<Scalars['BigInt']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  progress?: InputMaybe<Scalars['Int']['input']>;
+  responsible?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['BigInt']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  timeZone?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<ProjectVisibility>;
 };
 
@@ -3455,10 +3471,17 @@ export const ProjectTriggeredAutomationsStatusUpdatedMessageType = {
 export type ProjectTriggeredAutomationsStatusUpdatedMessageType = typeof ProjectTriggeredAutomationsStatusUpdatedMessageType[keyof typeof ProjectTriggeredAutomationsStatusUpdatedMessageType];
 /** Any values left null will be ignored, so only set the properties that you want updated */
 export type ProjectUpdateInput = {
+  address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  endDate?: InputMaybe<Scalars['BigInt']['input']>;
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
+  progress?: InputMaybe<Scalars['Int']['input']>;
+  responsible?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['BigInt']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  timeZone?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<ProjectVisibility>;
 };
 
@@ -4331,6 +4354,7 @@ export type Stream = {
    * @deprecated Part of the old API surface and will be removed in the future.
    */
   activity?: Maybe<ActivityCollection>;
+  address?: Maybe<Scalars['String']['output']>;
   allowPublicComments: Scalars['Boolean']['output'];
   /** @deprecated Part of the old API surface and will be removed in the future. Use Project.blob instead. */
   blob?: Maybe<BlobMetadata>;
@@ -4362,6 +4386,7 @@ export type Stream = {
   commits?: Maybe<CommitCollection>;
   createdAt: Scalars['DateTime']['output'];
   description?: Maybe<Scalars['String']['output']>;
+  endDate?: Maybe<Scalars['BigInt']['output']>;
   /** Date when you favorited this stream. `null` if stream isn't viewed from a specific user's perspective or if it isn't favorited. */
   favoritedDate?: Maybe<Scalars['DateTime']['output']>;
   favoritesCount: Scalars['Int']['output'];
@@ -4394,9 +4419,14 @@ export type Stream = {
   pendingAccessRequests?: Maybe<Array<StreamAccessRequest>>;
   /** Collaborators who have been invited, but not yet accepted. */
   pendingCollaborators?: Maybe<Array<PendingStreamCollaborator>>;
+  progress?: Maybe<Scalars['Int']['output']>;
+  responsible?: Maybe<Scalars['String']['output']>;
   /** Your role for this stream. `null` if request is not authenticated, or the stream is not explicitly shared with you. */
   role?: Maybe<Scalars['String']['output']>;
   size?: Maybe<Scalars['String']['output']>;
+  startDate?: Maybe<Scalars['BigInt']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  timeZone?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
   /** @deprecated Part of the old API surface and will be removed in the future. Use Project.webhooks instead. */
   webhooks: WebhookCollection;
@@ -6133,8 +6163,15 @@ export const WorkspacePlans = {
 
 export type WorkspacePlans = typeof WorkspacePlans[keyof typeof WorkspacePlans];
 export type WorkspaceProjectCreateInput = {
+  address?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  endDate?: InputMaybe<Scalars['BigInt']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  progress?: InputMaybe<Scalars['Int']['input']>;
+  responsible?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['BigInt']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  timeZone?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<ProjectVisibility>;
   workspaceId: Scalars['String']['input'];
 };
@@ -8290,6 +8327,7 @@ export type PriceResolvers<ContextType = GraphQLContext, ParentType extends Reso
 export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Project'] = ResolversParentTypes['Project']> = {
   accSyncItem?: Resolver<ResolversTypes['AccSyncItem'], ParentType, ContextType, RequireFields<ProjectAccSyncItemArgs, 'id'>>;
   accSyncItems?: Resolver<ResolversTypes['AccSyncItemCollection'], ParentType, ContextType, Partial<ProjectAccSyncItemsArgs>>;
+  address?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   allowPublicComments?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   automation?: Resolver<ResolversTypes['Automation'], ParentType, ContextType, RequireFields<ProjectAutomationArgs, 'id'>>;
   automations?: Resolver<ResolversTypes['AutomationCollection'], ParentType, ContextType, Partial<ProjectAutomationsArgs>>;
@@ -8303,6 +8341,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   embedOptions?: Resolver<ResolversTypes['ProjectEmbedOptions'], ParentType, ContextType>;
   embedTokens?: Resolver<ResolversTypes['EmbedTokenCollection'], ParentType, ContextType, Partial<ProjectEmbedTokensArgs>>;
+  endDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   hasAccessToFeature?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectHasAccessToFeatureArgs, 'featureName'>>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invitableCollaborators?: Resolver<ResolversTypes['WorkspaceCollaboratorCollection'], ParentType, ContextType, RequireFields<ProjectInvitableCollaboratorsArgs, 'limit'>>;
@@ -8319,6 +8358,8 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   pendingAccessRequests?: Resolver<Maybe<Array<ResolversTypes['ProjectAccessRequest']>>, ParentType, ContextType>;
   pendingImportedModels?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ProjectPendingImportedModelsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ProjectPermissionChecks'], ParentType, ContextType>;
+  progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   savedView?: Resolver<ResolversTypes['SavedView'], ParentType, ContextType, RequireFields<ProjectSavedViewArgs, 'id'>>;
   savedViewGroup?: Resolver<ResolversTypes['SavedViewGroup'], ParentType, ContextType, RequireFields<ProjectSavedViewGroupArgs, 'id'>>;
@@ -8326,7 +8367,10 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   savedViewIfExists?: Resolver<Maybe<ResolversTypes['SavedView']>, ParentType, ContextType, Partial<ProjectSavedViewIfExistsArgs>>;
   savedViews?: Resolver<ResolversTypes['SavedViewCollection'], ParentType, ContextType, RequireFields<ProjectSavedViewsArgs, 'input'>>;
   sourceApps?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  startDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   team?: Resolver<Array<ResolversTypes['ProjectCollaborator']>, ParentType, ContextType>;
+  timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   ungroupedViewGroup?: Resolver<ResolversTypes['SavedViewGroup'], ParentType, ContextType, RequireFields<ProjectUngroupedViewGroupArgs, 'input'>>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   version?: Resolver<ResolversTypes['Version'], ParentType, ContextType, RequireFields<ProjectVersionArgs, 'id'>>;
@@ -8857,6 +8901,7 @@ export type SmartTextEditorValueResolvers<ContextType = GraphQLContext, ParentTy
 
 export type StreamResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Stream'] = ResolversParentTypes['Stream']> = {
   activity?: Resolver<Maybe<ResolversTypes['ActivityCollection']>, ParentType, ContextType, RequireFields<StreamActivityArgs, 'limit'>>;
+  address?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   allowPublicComments?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   blob?: Resolver<Maybe<ResolversTypes['BlobMetadata']>, ParentType, ContextType, RequireFields<StreamBlobArgs, 'id'>>;
   blobs?: Resolver<Maybe<ResolversTypes['BlobMetadataCollection']>, ParentType, ContextType, RequireFields<StreamBlobsArgs, 'cursor' | 'limit' | 'query'>>;
@@ -8868,6 +8913,7 @@ export type StreamResolvers<ContextType = GraphQLContext, ParentType extends Res
   commits?: Resolver<Maybe<ResolversTypes['CommitCollection']>, ParentType, ContextType, RequireFields<StreamCommitsArgs, 'limit'>>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  endDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   favoritedDate?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
   favoritesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   fileUpload?: Resolver<Maybe<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<StreamFileUploadArgs, 'id'>>;
@@ -8879,8 +8925,13 @@ export type StreamResolvers<ContextType = GraphQLContext, ParentType extends Res
   object?: Resolver<Maybe<ResolversTypes['Object']>, ParentType, ContextType, RequireFields<StreamObjectArgs, 'id'>>;
   pendingAccessRequests?: Resolver<Maybe<Array<ResolversTypes['StreamAccessRequest']>>, ParentType, ContextType>;
   pendingCollaborators?: Resolver<Maybe<Array<ResolversTypes['PendingStreamCollaborator']>>, ParentType, ContextType>;
+  progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   size?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  startDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   webhooks?: Resolver<ResolversTypes['WebhookCollection'], ParentType, ContextType, Partial<StreamWebhooksArgs>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

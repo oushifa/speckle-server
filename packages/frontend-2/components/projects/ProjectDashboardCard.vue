@@ -44,19 +44,19 @@
           </div>
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
-              地址：{{ projectInfo?.address || '-' }}
+              地址：{{ project.address || '-' }}
             </span>
           </div>
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
-              进度：{{ formatProgress(projectInfo?.progress) }}
+              进度：{{ formatProgress(project.progress) }}
             </span>
           </div>
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
               开始时间：{{
-                projectInfo?.start_date
-                  ? dayjs(projectInfo?.start_date).format('YYYY-MM-DD HH:mm:ss')
+                project.startDate
+                  ? dayjs(project.startDate).format('YYYY-MM-DD HH:mm:ss')
                   : '-'
               }}
             </span>
@@ -64,20 +64,20 @@
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
               结束时间：{{
-                projectInfo?.end_date
-                  ? dayjs(projectInfo?.end_date).format('YYYY-MM-DD HH:mm:ss')
+                props.project.endDate
+                  ? dayjs(props.project.endDate).format('YYYY-MM-DD HH:mm:ss')
                   : '-'
               }}
             </span>
           </div>
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
-              当前状态：{{ projectInfo?.status || '-' }}
+              当前状态：{{ project.status || '-' }}
             </span>
           </div>
           <div>
             <span class="text-body-3xs text-foreground-2 select-none">
-              负责人：{{ projectInfo?.responsible || '-' }}
+              负责人：{{ project.responsible || '-' }}
             </span>
           </div>
           <span
@@ -296,11 +296,6 @@ import type { FileAreaUploadingPayload } from '~/lib/form/helpers/fileUpload'
 import { getModelItemRoute } from '~/lib/projects/helpers/models'
 import dayjs from 'dayjs'
 import {
-  createIwhaleFormData,
-  getIwhaleFormDataList,
-  updateIwhaleFormData
-} from '~/lib/iwhale/form/helpers'
-import {
   useDeleteProject,
   useUpdateProject
 } from '~/lib/projects/composables/projectManagement'
@@ -323,7 +318,6 @@ const deleteProject = useDeleteProject()
 const updateProject = useUpdateProject()
 
 const isModelUploading = ref(false)
-const projectInfo = ref<Record<string, string | number | null | undefined>>({})
 const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
 const updatingProjectInfo = ref(false)
@@ -338,7 +332,8 @@ const editForm = ref({
   startDate: '',
   endDate: '',
   status: '',
-  responsible: ''
+  responsible: '',
+  timeZone: ''
 })
 const originalDescription = ref('')
 
@@ -401,26 +396,6 @@ const gridClasses = computed(() => [
   '2xl:[&>*:nth-child(n+3)]:block'
 ])
 
-const getIwhaleProjectInfo = async () => {
-  const data = await getIwhaleFormDataList({
-    key: 'project_info',
-    page: 1,
-    pageSize: 1,
-    // eslint-disable-next-line camelcase
-    filter_cond: {
-      filters: [
-        {
-          field: 'project_id',
-          value: props.project.id,
-          op: '='
-        }
-      ],
-      nextop: 'and'
-    }
-  })
-  projectInfo.value = data.msg.rows[0] || {}
-}
-
 const parseTimestamp = (value?: string | number | null) => {
   if (value === null || value === undefined || value === '') return null
   const numberValue = typeof value === 'number' ? value : Number(String(value).trim())
@@ -454,12 +429,13 @@ const setEditFormValues = () => {
   editForm.value = {
     name: props.project.name,
     description: projectDescription.value || props.project.description || '',
-    address: String(projectInfo.value.address || ''),
-    progress: String(projectInfo.value.progress || ''),
-    startDate: toDatetimeLocal(projectInfo.value.start_date),
-    endDate: toDatetimeLocal(projectInfo.value.end_date),
-    status: String(projectInfo.value.status || ''),
-    responsible: String(projectInfo.value.responsible || '')
+    address: String(props.project.address || ''),
+    progress: String(props.project.progress || ''),
+    startDate: toDatetimeLocal(props.project.startDate),
+    endDate: toDatetimeLocal(props.project.endDate),
+    status: String(props.project.status || ''),
+    responsible: String(props.project.responsible || ''),
+    timeZone: String(props.project.timeZone || '')
   }
 }
 
@@ -480,16 +456,48 @@ const onSaveProjectInfo = async () => {
   if (!isOwner.value || updatingProjectInfo.value) return
   updatingProjectInfo.value = true
   try {
-    const updatePayload: Record<string, string> = {}
+    const updatePayload: Record<string, unknown> = {}
     const trimmedName = editForm.value.name.trim()
+    const trimmedAddress = editForm.value.address.trim()
+    const trimmedStatus = editForm.value.status.trim()
+    const trimmedResponsible = editForm.value.responsible.trim()
+    const currentAddress = String(props.project.address || '')
+    const currentStatus = String(props.project.status || '')
+    const currentResponsible = String(props.project.responsible || '')
+    const currentProgress = toNumberValue(props.project.progress)
+    const nextProgress = toNumberValue(editForm.value.progress)
+    const currentStartDate = toDatetimeLocal(props.project.startDate)
+    const nextStartDate = editForm.value.startDate
+    const currentEndDate = toDatetimeLocal(props.project.endDate)
+    const nextEndDate = editForm.value.endDate
+
     if (trimmedName && trimmedName !== props.project.name) {
       updatePayload.name = trimmedName
     }
     if (editForm.value.description !== originalDescription.value) {
       updatePayload.description = editForm.value.description
     }
+    if (trimmedAddress !== currentAddress) {
+      updatePayload.address = trimmedAddress
+    }
+    if (nextProgress !== currentProgress) {
+      updatePayload.progress = nextProgress
+    }
+    if (nextStartDate !== currentStartDate) {
+      updatePayload.startDate = toTimestamp(nextStartDate)
+    }
+    if (nextEndDate !== currentEndDate) {
+      updatePayload.endDate = toTimestamp(nextEndDate)
+    }
+    if (trimmedStatus !== currentStatus) {
+      updatePayload.status = trimmedStatus
+    }
+    if (trimmedResponsible !== currentResponsible) {
+      updatePayload.responsible = trimmedResponsible
+    }
 
     if (Object.keys(updatePayload).length) {
+      updatePayload.timeZone = dayjs.tz.guess() || ''
       await updateProject({
         id: props.project.id,
         ...updatePayload
@@ -497,30 +505,6 @@ const onSaveProjectInfo = async () => {
     }
     projectDescription.value = editForm.value.description
 
-    const values = {
-      ['project_id']: props.project.id,
-      address: editForm.value.address || '',
-      progress: toNumberValue(editForm.value.progress),
-      ['start_date']: toTimestamp(editForm.value.startDate),
-      ['end_date']: toTimestamp(editForm.value.endDate),
-      status: editForm.value.status || '',
-      responsible: editForm.value.responsible || ''
-    }
-    const recordId = String(projectInfo.value.id || '')
-    if (recordId) {
-      await updateIwhaleFormData({
-        key: 'project_info',
-        id: recordId,
-        values
-      })
-    } else {
-      const data = await createIwhaleFormData({
-        key: 'project_info',
-        values
-      })
-      projectInfo.value.id = data.msg.key
-    }
-    await getIwhaleProjectInfo()
     showEditDialog.value = false
   } catch (error) {
     logger.error('Failed to update iwhale project info:', error)
@@ -594,10 +578,6 @@ watch(
     }
   }
 )
-
-onMounted(() => {
-  getIwhaleProjectInfo()
-})
 
 const onModelUploading = (payload: FileAreaUploadingPayload) => {
   isModelUploading.value = payload.isUploading

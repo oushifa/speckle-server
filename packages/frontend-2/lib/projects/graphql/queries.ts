@@ -29,6 +29,13 @@ export const projectsDashboardQuery = graphql(`
         cursor
         totalCount
         items {
+          address
+          progress
+          startDate
+          endDate
+          status
+          responsible
+          timeZone
           ...ProjectDashboardItem
           ...WorkspaceMoveProject_Project
         }

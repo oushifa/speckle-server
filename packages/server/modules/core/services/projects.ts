@@ -31,13 +31,34 @@ export const createNewProjectFactory =
     storeProjectRole: StoreProjectRole
     emitEvent: EventBusEmit
   }): CreateProject =>
-  async ({ description, name, regionKey, visibility, workspaceId, ownerId }) => {
+  async ({
+    description,
+    name,
+    regionKey,
+    visibility,
+    workspaceId,
+    ownerId,
+    address,
+    timeZone,
+    responsible,
+    status,
+    progress,
+    startDate,
+    endDate
+  }) => {
     visibility =
       visibility ||
       (workspaceId ? ProjectVisibility.Workspace : ProjectVisibility.Private)
 
     const project: Project = {
       id: cryptoRandomString({ length: 10 }),
+      address: address || '',
+      progress: progress || 0,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      timeZone: timeZone || null,
+      responsible: responsible || null,
+      status: status || null,
       name: name || generateProjectName(),
       description: description || '',
       visibility: mapGqlToDbProjectVisibility(visibility),

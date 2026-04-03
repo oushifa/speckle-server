@@ -4,15 +4,13 @@
       <FormTextInput
         type="email"
         name="email"
-        label="邮箱"
-        placeholder="输入您的邮箱"
+        label="账号"
+        placeholder="输入您的账号"
         size="lg"
         color="foundation"
-        :rules="emailRules"
         show-label
         :disabled="!!(loading || shouldForceInviteEmail)"
         auto-focus
-        autocomplete="email"
       />
       <FormTextInput
         type="password"

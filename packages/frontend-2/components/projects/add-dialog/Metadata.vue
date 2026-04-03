@@ -166,6 +166,7 @@ const onSubmit = handleSubmit(async (values) => {
       name: values.name,
       description: values.description,
       visibility: 'WORKSPACE',
+      address: values.address || '',
       ...(props.workspaceId ? { workspaceId: props.workspaceId } : {})
     })
 

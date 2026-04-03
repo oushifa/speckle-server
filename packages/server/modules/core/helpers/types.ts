@@ -55,6 +55,13 @@ export type ProjectRecordVisibility =
 export type StreamRecord = {
   id: string
   name: string
+  address: Nullable<string>
+  progress: Nullable<number>
+  startDate: Nullable<bigint>
+  endDate: Nullable<bigint>
+  timeZone: Nullable<string>
+  responsible: Nullable<string>
+  status: Nullable<string>
   description: Nullable<string>
   clonedFrom: Nullable<string>
   createdAt: Date
