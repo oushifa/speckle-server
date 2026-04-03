@@ -143,6 +143,22 @@ export type BranchRecord = {
   updatedAt: Date
 }
 
+export type ModelFolderRecord = {
+  id: string
+  streamId: string
+  parentFolderId: Nullable<string>
+  name: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ModelFolderModelRecord = {
+  folderId: string
+  modelId: string
+  streamId: string
+  createdAt: Date
+}
+
 export type ObjectRecord = {
   id: string
   speckleType: string

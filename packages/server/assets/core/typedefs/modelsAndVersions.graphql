@@ -1,5 +1,13 @@
 extend type Project {
   """
+  Returns a flat list of all folders
+  """
+  folders(
+    cursor: String
+    limit: Int! = 25
+    filter: ProjectFoldersFilter
+  ): FolderCollection!
+  """
   Returns a flat list of all models
   """
   models(
@@ -51,6 +59,17 @@ extend type User {
     @isOwner
 }
 
+input ProjectFoldersFilter {
+  """
+  Parent folder ID. If null, returns root folders.
+  """
+  parentId: String
+  """
+  Filter by folder name
+  """
+  search: String
+}
+
 input ProjectModelsTreeFilter {
   """
   Search for specific models. If used, tree items from different levels may be mixed.
@@ -91,6 +110,7 @@ type Model {
     cursor: String
     filter: ModelVersionsFilter
   ): VersionCollection!
+  folders: [Folder!]!
   projectId: String!
 }
 
@@ -98,6 +118,22 @@ type ModelCollection {
   totalCount: Int!
   cursor: String
   items: [Model!]!
+}
+
+type Folder {
+  id: ID!
+  projectId: String!
+  parentId: String
+  name: String!
+  models: [Model!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type FolderCollection {
+  totalCount: Int!
+  cursor: String
+  items: [Folder!]!
 }
 
 type ModelsTreeItemCollection {
@@ -128,6 +164,44 @@ type ModelMutations {
   create(input: CreateModelInput!): Model!
   update(input: UpdateModelInput!): Model!
   delete(input: DeleteModelInput!): Boolean!
+}
+
+input CreateFolderInput {
+  projectId: ID!
+  name: String!
+  parentId: ID
+}
+
+input UpdateFolderInput {
+  projectId: ID!
+  id: ID!
+  name: String
+  parentId: ID
+}
+
+input DeleteFolderInput {
+  projectId: ID!
+  id: ID!
+}
+
+input AddModelToFolderInput {
+  projectId: ID!
+  folderId: ID!
+  modelId: ID!
+}
+
+input RemoveModelFromFolderInput {
+  projectId: ID!
+  folderId: ID!
+  modelId: ID!
+}
+
+type FolderMutations {
+  create(input: CreateFolderInput!): Folder!
+  update(input: UpdateFolderInput!): Folder!
+  delete(input: DeleteFolderInput!): Boolean!
+  addModel(input: AddModelToFolderInput!): Boolean!
+  removeModel(input: RemoveModelFromFolderInput!): Boolean!
 }
 
 input MoveVersionsInput {
@@ -181,6 +255,10 @@ type VersionMutations {
 
 extend type Mutation {
   modelMutations: ModelMutations!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:write")
+
+  folderMutations: FolderMutations!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:write")
 

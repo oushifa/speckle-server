@@ -19,16 +19,24 @@ import {
   ProjectSubscriptions
 } from '@/modules/shared/utils/subscriptions'
 import {
+  addModelToFolderFactory,
   createBranchFactory,
+  createFolderFactory,
+  deleteFolderFactory,
   deleteBranchByIdFactory,
   getBranchByIdFactory,
+  getFolderModelsFactory,
+  getModelFoldersFactory,
   getModelTreeItemsFactory,
   getModelTreeItemsFilteredFactory,
   getModelTreeItemsFilteredTotalCountFactory,
   getModelTreeItemsTotalCountFactory,
+  getPaginatedProjectFoldersFactory,
   getPaginatedProjectModelsItemsFactory,
   getPaginatedProjectModelsTotalCountFactory,
+  removeModelFromFolderFactory,
   getStreamBranchByNameFactory,
+  updateFolderFactory,
   updateBranchFactory
 } from '@/modules/core/repositories/branches'
 import { BranchNotFoundError } from '@/modules/core/errors/branch'
@@ -52,6 +60,7 @@ import { throwIfResourceAccessNotAllowed } from '@/modules/core/helpers/token'
 import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { getThumbnailUrl } from '@/modules/viewer/helpers/savedViews'
+import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 
 export default {
   User: {
@@ -80,6 +89,22 @@ export default {
     }
   },
   Project: {
+    async folders(
+      parent: {
+        id: string
+      },
+      args: {
+        cursor?: string | null
+        limit?: number | null
+        filter?: { parentId?: string | null; search?: string | null } | null
+      }
+    ) {
+      const projectDB = await getProjectDbClient({ projectId: parent.id })
+      const getPaginatedProjectFolders = getPaginatedProjectFoldersFactory({
+        db: projectDB
+      })
+      return await getPaginatedProjectFolders(parent.id, args)
+    },
     async models(parent, args, ctx) {
       const projectDB = await getProjectDbClient({ projectId: parent.id })
       // If limit=0 & no filter, short-cut full execution and use data loader
@@ -254,6 +279,11 @@ export default {
         filter: args.filter
       })
     },
+    async folders(parent: { streamId: string; id: string }) {
+      const projectDB = await getProjectDbClient({ projectId: parent.streamId })
+      const getModelFolders = getModelFoldersFactory({ db: projectDB })
+      return await getModelFolders(parent.streamId, parent.id)
+    },
     async version(parent, args, ctx) {
       const projectDB = await getProjectDbClient({ projectId: parent.streamId })
       const version = await ctx.loaders
@@ -289,8 +319,18 @@ export default {
       )
     }
   },
+  Folder: {
+    projectId: (parent: { streamId: string }) => parent.streamId,
+    parentId: (parent: { parentFolderId: string | null }) => parent.parentFolderId,
+    async models(parent: { streamId: string; id: string }) {
+      const projectDB = await getProjectDbClient({ projectId: parent.streamId })
+      const getFolderModels = getFolderModelsFactory({ db: projectDB })
+      return await getFolderModels(parent.streamId, parent.id)
+    }
+  },
   Mutation: {
-    modelMutations: () => ({})
+    modelMutations: () => ({}),
+    folderMutations: () => ({})
   },
   ModelMutations: {
     async create(_parent, args, ctx) {
@@ -414,6 +454,142 @@ export default {
           operationName: 'deleteModel',
           operationDescription: `Delete a Model`
         }
+      )
+    }
+  },
+  FolderMutations: {
+    async create(
+      _parent: unknown,
+      args: { input: { projectId: string; name: string; parentId?: string | null } },
+      ctx: GraphQLContext
+    ) {
+      const projectId = args.input.projectId
+      throwIfResourceAccessNotAllowed({
+        resourceId: projectId,
+        resourceAccessRules: ctx.resourceAccessRules,
+        resourceType: TokenResourceIdentifierType.Project
+      })
+
+      const canCreate = await ctx.authPolicies.project.model.canCreate({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canCreate)
+
+      const projectDB = await getProjectDbClient({ projectId })
+      const createFolder = createFolderFactory({ db: projectDB })
+      const folder = await createFolder({
+        projectId,
+        name: args.input.name.trim(),
+        parentId: args.input.parentId
+      })
+      if (!folder) throw new Error('Failed to create folder')
+      return folder
+    },
+    async update(
+      _parent: unknown,
+      args: {
+        input: {
+          projectId: string
+          id: string
+          name?: string | null
+          parentId?: string | null
+        }
+      },
+      ctx: GraphQLContext
+    ) {
+      const projectId = args.input.projectId
+      throwIfResourceAccessNotAllowed({
+        resourceId: projectId,
+        resourceAccessRules: ctx.resourceAccessRules,
+        resourceType: TokenResourceIdentifierType.Project
+      })
+
+      const canUpdate = await ctx.authPolicies.project.canUpdate({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canUpdate)
+
+      const projectDB = await getProjectDbClient({ projectId })
+      const updateFolder = updateFolderFactory({ db: projectDB })
+      const folder = await updateFolder({
+        projectId,
+        folderId: args.input.id,
+        name: args.input.name?.trim(),
+        parentId: args.input.parentId
+      })
+      if (!folder) throw new Error('Folder not found')
+      return folder
+    },
+    async delete(
+      _parent: unknown,
+      args: { input: { projectId: string; id: string } },
+      ctx: GraphQLContext
+    ) {
+      const projectId = args.input.projectId
+      throwIfResourceAccessNotAllowed({
+        resourceId: projectId,
+        resourceAccessRules: ctx.resourceAccessRules,
+        resourceType: TokenResourceIdentifierType.Project
+      })
+
+      const canDelete = await ctx.authPolicies.project.canUpdate({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canDelete)
+
+      const projectDB = await getProjectDbClient({ projectId })
+      const deleteFolder = deleteFolderFactory({ db: projectDB })
+      return await deleteFolder(projectId, args.input.id)
+    },
+    async addModel(
+      _parent: unknown,
+      args: { input: { projectId: string; folderId: string; modelId: string } },
+      ctx: GraphQLContext
+    ) {
+      const projectId = args.input.projectId
+      throwIfResourceAccessNotAllowed({
+        resourceId: projectId,
+        resourceAccessRules: ctx.resourceAccessRules,
+        resourceType: TokenResourceIdentifierType.Project
+      })
+
+      const canUpdate = await ctx.authPolicies.project.model.canUpdate({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canUpdate)
+
+      const projectDB = await getProjectDbClient({ projectId })
+      const addModelToFolder = addModelToFolderFactory({ db: projectDB })
+      return await addModelToFolder(projectId, args.input.folderId, args.input.modelId)
+    },
+    async removeModel(
+      _parent: unknown,
+      args: { input: { projectId: string; folderId: string; modelId: string } },
+      ctx: GraphQLContext
+    ) {
+      const projectId = args.input.projectId
+      throwIfResourceAccessNotAllowed({
+        resourceId: projectId,
+        resourceAccessRules: ctx.resourceAccessRules,
+        resourceType: TokenResourceIdentifierType.Project
+      })
+
+      const canUpdate = await ctx.authPolicies.project.model.canUpdate({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canUpdate)
+
+      const projectDB = await getProjectDbClient({ projectId })
+      const removeModelFromFolder = removeModelFromFolderFactory({ db: projectDB })
+      return await removeModelFromFolder(
+        projectId,
+        args.input.folderId,
+        args.input.modelId
       )
     }
   },

@@ -1,5 +1,12 @@
 import type { Optional } from '@speckle/shared'
-import { BranchCommits, Branches, Commits, knex } from '@/modules/core/dbSchema'
+import {
+  BranchCommits,
+  Branches,
+  Commits,
+  ModelFolderModels,
+  ModelFolders,
+  knex
+} from '@/modules/core/dbSchema'
 import { BranchNameError } from '@/modules/core/errors/branch'
 import type {
   ProjectModelsArgs,
@@ -9,7 +16,9 @@ import type { ModelsTreeItemGraphQLReturn } from '@/modules/core/helpers/graphTy
 import type {
   BranchCommitRecord,
   BranchRecord,
-  CommitRecord
+  CommitRecord,
+  ModelFolderModelRecord,
+  ModelFolderRecord
 } from '@/modules/core/helpers/types'
 import type { BatchedSelectOptions } from '@/modules/shared/helpers/dbHelper'
 import { executeBatchedSelect } from '@/modules/shared/helpers/dbHelper'
@@ -52,7 +61,18 @@ import type { ModelTreeItem } from '@/modules/core/domain/branches/types'
 const tables = {
   branches: (db: Knex) => db<BranchRecord>(Branches.name),
   commits: (db: Knex) => db<CommitRecord>(Commits.name),
-  branchCommits: (db: Knex) => db<BranchCommitRecord>(BranchCommits.name)
+  branchCommits: (db: Knex) => db<BranchCommitRecord>(BranchCommits.name),
+  modelFolders: (db: Knex) => db<ModelFolderRecord>(ModelFolders.name),
+  modelFolderModels: (db: Knex) => db<ModelFolderModelRecord>(ModelFolderModels.name)
+}
+
+type ProjectFoldersArgs = {
+  cursor?: string | null
+  limit?: number | null
+  filter?: {
+    parentId?: string | null
+    search?: string | null
+  } | null
 }
 
 export const generateBranchId: GenerateBranchId = () => crs({ length: 10 })
@@ -414,6 +434,225 @@ export const getPaginatedProjectModelsTotalCountFactory =
 
     const [res] = await q
     return parseInt(res?.count || '0')
+  }
+
+export const getPaginatedProjectFoldersFactory =
+  (deps: { db: Knex }) => async (projectId: string, params: ProjectFoldersArgs) => {
+    const limit = clamp(params.limit || 25, 1, getMaximumProjectModelsPerPage())
+    const hasParentIdFilter = Object.prototype.hasOwnProperty.call(
+      params.filter || {},
+      'parentId'
+    )
+
+    const buildBaseQuery = () => {
+      const q = tables.modelFolders(deps.db).where(ModelFolders.col.streamId, projectId)
+
+      if (params.filter?.search?.length) {
+        q.andWhereILike(ModelFolders.col.name, `%${params.filter.search}%`)
+      }
+
+      if (hasParentIdFilter) {
+        if (params.filter?.parentId) {
+          q.andWhere(ModelFolders.col.parentFolderId, params.filter.parentId)
+        } else {
+          q.whereNull(ModelFolders.col.parentFolderId)
+        }
+      } else {
+        q.whereNull(ModelFolders.col.parentFolderId)
+      }
+
+      return q
+    }
+
+    const countQ = buildBaseQuery()
+    const itemsQ = buildBaseQuery()
+      .orderBy(ModelFolders.col.updatedAt, 'desc')
+      .limit(limit)
+
+    if (params.cursor) {
+      itemsQ.andWhere(ModelFolders.col.updatedAt, '<', params.cursor)
+    }
+
+    const [countRows, items] = await Promise.all([
+      countQ.count<{ count: string }[]>('* as count'),
+      itemsQ.select<ModelFolderRecord[]>('*')
+    ])
+
+    return {
+      totalCount: parseInt(countRows[0]?.count || '0'),
+      items,
+      cursor: items.length ? items[items.length - 1].updatedAt.toISOString() : null
+    }
+  }
+
+export const getFolderByIdFactory =
+  (deps: { db: Knex }) => async (projectId: string, folderId: string) => {
+    return (
+      (await tables
+        .modelFolders(deps.db)
+        .where(ModelFolders.col.id, folderId)
+        .andWhere(ModelFolders.col.streamId, projectId)
+        .first()) || null
+    )
+  }
+
+export const createFolderFactory =
+  (deps: { db: Knex }) =>
+  async (params: { projectId: string; name: string; parentId?: string | null }) => {
+    const { projectId, name, parentId } = params
+    const getFolderById = getFolderByIdFactory(deps)
+    if (parentId) {
+      const parentFolder = await getFolderById(projectId, parentId)
+      if (!parentFolder) throw new Error('Parent folder not found')
+    }
+
+    const now = new Date()
+    const folderId = crs({ length: 10 })
+    await tables.modelFolders(deps.db).insert({
+      id: folderId,
+      streamId: projectId,
+      parentFolderId: parentId || null,
+      name,
+      createdAt: now,
+      updatedAt: now
+    })
+    return await getFolderById(projectId, folderId)
+  }
+
+export const updateFolderFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    folderId: string
+    name?: string | null
+    parentId?: string | null
+  }) => {
+    const { projectId, folderId, name, parentId } = params
+    const getFolderById = getFolderByIdFactory(deps)
+
+    const folder = await getFolderById(projectId, folderId)
+    if (!folder) throw new Error('Folder not found')
+
+    if (parentId === folderId) throw new Error('A folder cannot be parent of itself')
+
+    if (parentId) {
+      const parentFolder = await getFolderById(projectId, parentId)
+      if (!parentFolder) throw new Error('Parent folder not found')
+
+      const descendants = await deps.db.raw<{ rows: Array<{ id: string }> }>(
+        `
+        WITH RECURSIVE folder_tree AS (
+          SELECT "id", "parentFolderId"
+          FROM "${ModelFolders.name}"
+          WHERE "id" = ?
+          UNION ALL
+          SELECT f."id", f."parentFolderId"
+          FROM "${ModelFolders.name}" f
+          INNER JOIN folder_tree ft ON f."parentFolderId" = ft."id"
+        )
+        SELECT "id" FROM folder_tree WHERE "id" = ? LIMIT 1
+        `,
+        [folderId, parentId]
+      )
+      if (descendants.rows.length) {
+        throw new Error('Cannot move folder to its own descendant')
+      }
+    }
+
+    const updatePayload: Partial<ModelFolderRecord> = {
+      updatedAt: new Date()
+    }
+    if (name !== undefined && name !== null) updatePayload.name = name
+    if (parentId !== undefined) updatePayload.parentFolderId = parentId
+
+    await tables
+      .modelFolders(deps.db)
+      .where(ModelFolders.col.id, folderId)
+      .andWhere(ModelFolders.col.streamId, projectId)
+      .update(updatePayload)
+
+    return await getFolderById(projectId, folderId)
+  }
+
+export const deleteFolderFactory =
+  (deps: { db: Knex }) => async (projectId: string, folderId: string) => {
+    const deletedCount = await tables
+      .modelFolders(deps.db)
+      .where(ModelFolders.col.id, folderId)
+      .andWhere(ModelFolders.col.streamId, projectId)
+      .delete()
+    return !!deletedCount
+  }
+
+export const addModelToFolderFactory =
+  (deps: { db: Knex }) =>
+  async (projectId: string, folderId: string, modelId: string) => {
+    const [folder, model] = await Promise.all([
+      tables
+        .modelFolders(deps.db)
+        .where(ModelFolders.col.id, folderId)
+        .andWhere(ModelFolders.col.streamId, projectId)
+        .first(),
+      tables
+        .branches(deps.db)
+        .where(Branches.col.id, modelId)
+        .andWhere(Branches.col.streamId, projectId)
+        .first()
+    ])
+
+    if (!folder) throw new Error('Folder not found')
+    if (!model) throw new Error('Model not found')
+
+    await tables
+      .modelFolderModels(deps.db)
+      .insert({
+        folderId,
+        modelId,
+        streamId: projectId,
+        createdAt: new Date()
+      })
+      .onConflict(['folderId', 'modelId'])
+      .ignore()
+
+    return true
+  }
+
+export const removeModelFromFolderFactory =
+  (deps: { db: Knex }) =>
+  async (projectId: string, folderId: string, modelId: string) => {
+    const deletedCount = await tables
+      .modelFolderModels(deps.db)
+      .where(ModelFolderModels.col.streamId, projectId)
+      .andWhere(ModelFolderModels.col.folderId, folderId)
+      .andWhere(ModelFolderModels.col.modelId, modelId)
+      .delete()
+    return !!deletedCount
+  }
+
+export const getModelFoldersFactory =
+  (deps: { db: Knex }) => async (projectId: string, modelId: string) => {
+    return await tables
+      .modelFolders(deps.db)
+      .select<ModelFolderRecord[]>(`${ModelFolders.name}.*`)
+      .innerJoin(
+        ModelFolderModels.name,
+        ModelFolderModels.col.folderId,
+        ModelFolders.col.id
+      )
+      .where(ModelFolderModels.col.modelId, modelId)
+      .andWhere(ModelFolders.col.streamId, projectId)
+      .orderBy(ModelFolders.col.updatedAt, 'desc')
+  }
+
+export const getFolderModelsFactory =
+  (deps: { db: Knex }) => async (projectId: string, folderId: string) => {
+    return await tables
+      .branches(deps.db)
+      .select<BranchRecord[]>(`${Branches.name}.*`)
+      .innerJoin(ModelFolderModels.name, ModelFolderModels.col.modelId, Branches.col.id)
+      .where(ModelFolderModels.col.folderId, folderId)
+      .andWhere(Branches.col.streamId, projectId)
+      .orderBy(Branches.col.updatedAt, 'desc')
   }
 
 const getModelTreeItemsFilteredBaseQueryFactory =

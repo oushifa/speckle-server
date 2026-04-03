@@ -178,12 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  createIwhaleFormData,
-  deleteIwhaleFormData,
-  getIwhaleFormDataList,
-  updateIwhaleFormData
-} from '~/lib/iwhale/form/helpers'
+import { graphql } from '~~/lib/common/generated/gql'
 import { latestModelsPaginationQuery } from '~~/lib/projects/graphql/queries'
 import { useApolloClient } from '@vue/apollo-composable'
 import type { ProjectLatestModelsPaginationQuery } from '~~/lib/common/generated/gql/graphql'
@@ -193,9 +188,8 @@ type RawTreeItem = {
   name: string
   parent: string | null
   projectId?: string
-  createdAt?: number
-  updatedAt?: number
-  did?: number
+  createdAt?: string
+  updatedAt?: string
   relative?: string[]
 }
 
@@ -205,9 +199,6 @@ type VisibleRow = {
   level: number
   hasChildren: boolean
 }
-
-const ROOT_ID = '__building_model_root__'
-const ROOT_NAME = '建筑模型'
 
 const props = defineProps({
   project: {
@@ -219,6 +210,65 @@ const props = defineProps({
     default: ''
   }
 })
+
+const ROOT_ID = '__building_model_root__'
+const ROOT_NAME = props.project?.name || '建筑模型'
+
+const projectFoldersByParentQuery = graphql(`
+  query ProjectFoldersByParent($projectId: String!, $parentId: String) {
+    project(id: $projectId) {
+      id
+      folders(limit: 100, filter: { parentId: $parentId }) {
+        items {
+          id
+          name
+          projectId
+          parentId
+          createdAt
+          updatedAt
+          models {
+            id
+          }
+        }
+      }
+    }
+  }
+`)
+
+const createFolderMutation = graphql(`
+  mutation CreateFolder($input: CreateFolderInput!) {
+    folderMutations {
+      create(input: $input) {
+        id
+      }
+    }
+  }
+`)
+
+const deleteFolderMutation = graphql(`
+  mutation DeleteFolder($input: DeleteFolderInput!) {
+    folderMutations {
+      delete(input: $input)
+    }
+  }
+`)
+
+const addModelToFolderMutation = graphql(`
+  mutation AddModelToFolder($input: AddModelToFolderInput!) {
+    folderMutations {
+      addModel(input: $input)
+    }
+  }
+`)
+
+const removeModelFromFolderMutation = graphql(`
+  mutation RemoveModelFromFolder($input: RemoveModelFromFolderInput!) {
+    folderMutations {
+      removeModel(input: $input)
+    }
+  }
+`)
+
 const emit = defineEmits<{
   (e: 'update:selected-model-ids', val: string[] | null): void
 }>()
@@ -244,48 +294,24 @@ const apollo = useApolloClient().client
 type RawTreeItemFromApi = {
   id: string
   name: string
-  parent: string | null
-  project_id?: string
-  created_at?: number
-  updated_at?: number
-  did?: number
-  relative?: string[] | string | null
+  parentId: string | null
+  projectId?: string
+  createdAt?: string
+  updatedAt?: string
+  models?: Array<{ id: string }>
 }
 
 const normalizeItems = (payload: unknown): RawTreeItem[] => {
-  const data = payload as
-    | {
-        msg?: { rows?: RawTreeItemFromApi[] }
-        data?: { items?: RawTreeItemFromApi[]; list?: RawTreeItemFromApi[] }
-        list?: RawTreeItemFromApi[]
-        items?: RawTreeItemFromApi[]
-        result?: { items?: RawTreeItemFromApi[]; list?: RawTreeItemFromApi[] }
-      }
-    | RawTreeItemFromApi[]
-    | undefined
-
-  const rows = Array.isArray(data)
-    ? data
-    : data?.msg?.rows ||
-      data?.data?.items ||
-      data?.data?.list ||
-      data?.items ||
-      data?.list ||
-      data?.result?.items ||
-      data?.result?.list ||
-      []
+  const rows = (payload as RawTreeItemFromApi[]) || []
 
   return rows.map((item) => ({
     id: item.id,
     name: item.name,
-    parent: item.parent ?? null,
-    projectId: item.project_id,
-    createdAt: item.created_at,
-    updatedAt: item.updated_at,
-    did: item.did,
-    relative: Array.isArray(item.relative)
-      ? item.relative.filter((id): id is string => typeof id === 'string')
-      : []
+    parent: item.parentId ?? null,
+    projectId: item.projectId,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    relative: (item.models || []).map((m) => m.id)
   }))
 }
 
@@ -347,8 +373,8 @@ const emitSelectedModelIds = (id: string = selectedId.value) => {
     return
   }
 
-  const row = sourceItems.value.find((item) => item.id === id)
-  emit('update:selected-model-ids', row?.relative?.length ? row.relative : [])
+  const ids = sourceItems.value.find((item) => item.id === id)?.relative || []
+  emit('update:selected-model-ids', ids)
 }
 
 const selectRow = (id: string) => {
@@ -452,19 +478,42 @@ const confirmRelation = async () => {
 
   savingRelation.value = true
   try {
-    await updateIwhaleFormData({
-      key: 'model_tree',
-      id: relatingForId.value,
-      values: {
-        relative: relationSelectedIds.value
-      }
-    })
-
-    sourceItems.value = sourceItems.value.map((item) =>
-      item.id === relatingForId.value
-        ? { ...item, relative: [...relationSelectedIds.value], updatedAt: Date.now() }
-        : item
+    const targetFolder = sourceItems.value.find(
+      (item) => item.id === relatingForId.value
     )
+    const currentIds = new Set(targetFolder?.relative || [])
+    const nextIds = new Set(relationSelectedIds.value)
+    const idsToAdd = [...nextIds].filter((id) => !currentIds.has(id))
+    const idsToRemove = [...currentIds].filter((id) => !nextIds.has(id))
+
+    await Promise.all([
+      ...idsToAdd.map((modelId) =>
+        apollo.mutate({
+          mutation: addModelToFolderMutation,
+          variables: {
+            input: {
+              projectId: props.projectId,
+              folderId: relatingForId.value!,
+              modelId
+            }
+          }
+        })
+      ),
+      ...idsToRemove.map((modelId) =>
+        apollo.mutate({
+          mutation: removeModelFromFolderMutation,
+          variables: {
+            input: {
+              projectId: props.projectId,
+              folderId: relatingForId.value!,
+              modelId
+            }
+          }
+        })
+      )
+    ])
+
+    await getTree()
     if (selectedId.value === relatingForId.value) {
       emitSelectedModelIds(relatingForId.value)
     }
@@ -517,15 +566,23 @@ const confirmDelete = async () => {
 
   deleting.value = true
   try {
-    const allIds = [deletingForId.value, ...getDescendantIds(deletingForId.value)]
-    for (const id of allIds) {
-      await deleteIwhaleFormData({ key: 'model_tree', id })
-    }
+    await apollo.mutate({
+      mutation: deleteFolderMutation,
+      variables: {
+        input: {
+          projectId: props.projectId,
+          id: deletingForId.value
+        }
+      }
+    })
 
-    const deletedIdSet = new Set(allIds)
-    sourceItems.value = sourceItems.value.filter((item) => !deletedIdSet.has(item.id))
+    const deletedIdSet = new Set([
+      deletingForId.value,
+      ...getDescendantIds(deletingForId.value)
+    ])
+    await getTree()
 
-    if (deletingForId.value && selectedId.value && deletedIdSet.has(selectedId.value)) {
+    if (selectedId.value && deletedIdSet.has(selectedId.value)) {
       selectedId.value = ROOT_ID
       emitSelectedModelIds(ROOT_ID)
     }
@@ -554,23 +611,18 @@ const currentCreateParentName = computed(() => {
 const createChild = async () => {
   if (!newChildName.value || !creatingForId.value) return
 
-  const data = {
-    name: newChildName.value,
-    parent: creatingForId.value === ROOT_ID ? null : creatingForId.value,
-    projectId: props.projectId,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    did: 1,
-    relative: []
-  }
-
-  const formData = await createIwhaleFormData({ key: 'model_tree', values: data })
-
-  sourceItems.value.push({
-    id: formData.msg.key,
-    ...data
+  await apollo.mutate({
+    mutation: createFolderMutation,
+    variables: {
+      input: {
+        projectId: props.projectId,
+        name: newChildName.value,
+        parentId: creatingForId.value === ROOT_ID ? null : creatingForId.value
+      }
+    }
   })
 
+  await getTree()
   cancelCreate()
 }
 
@@ -579,17 +631,38 @@ const getTree = async () => {
   loading.value = true
 
   try {
-    const requestBody = {
-      page: 1,
-      pageSize: 100,
-      filterCond: {
-        filters: [{ field: 'project_id', value: props.projectId, op: '=' }],
-        op: 'and'
+    const rows: RawTreeItemFromApi[] = []
+
+    const traverse = async (parentId: string | null) => {
+      const res = await apollo.query({
+        query: projectFoldersByParentQuery,
+        variables: {
+          projectId: props.projectId,
+          parentId
+        },
+        fetchPolicy: 'no-cache'
+      })
+
+      const items = res.data?.project?.folders?.items || []
+      rows.push(
+        ...items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          parentId: item.parentId || null,
+          projectId: item.projectId,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          models: item.models || []
+        }))
+      )
+
+      for (const folder of items) {
+        await traverse(folder.id)
       }
     }
 
-    const res = await getIwhaleFormDataList({ key: 'model_tree', ...requestBody })
-    sourceItems.value = normalizeItems(res)
+    await traverse(null)
+    sourceItems.value = normalizeItems(rows)
   } finally {
     loading.value = false
   }

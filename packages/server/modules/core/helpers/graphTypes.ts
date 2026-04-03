@@ -15,6 +15,7 @@ import type {
   BranchRecord,
   CommitRecord,
   LimitedUserRecord,
+  ModelFolderRecord,
   ObjectRecord,
   ServerInfo,
   StreamRecord,
@@ -50,6 +51,8 @@ export type BranchGraphQLReturn = BranchRecord
 export type ProjectGraphQLReturn = StreamGraphQLReturn
 
 export type ModelGraphQLReturn = BranchRecord
+
+export type FolderGraphQLReturn = ModelFolderRecord
 
 export type VersionGraphQLReturn = CommitWithStreamBranchId
 

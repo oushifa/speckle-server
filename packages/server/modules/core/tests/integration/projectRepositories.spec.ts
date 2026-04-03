@@ -23,6 +23,12 @@ const createTestProject = (overrides?: Partial<Project>): Project => {
   const defaults: Project = {
     id: cryptoRandomString({ length: 10 }),
     address: null,
+    progress: 0,
+    startDate: null,
+    endDate: null,
+    timeZone: null,
+    responsible: null,
+    status: null,
     allowPublicComments: false,
     clonedFrom: null,
     createdAt: new Date(),

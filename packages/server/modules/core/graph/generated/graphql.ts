@@ -1,5 +1,5 @@
 import type { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
-import type { StreamGraphQLReturn, CommitGraphQLReturn, ProjectGraphQLReturn, ObjectGraphQLReturn, VersionGraphQLReturn, ServerInviteGraphQLReturnType, ModelGraphQLReturn, ModelsTreeItemGraphQLReturn, MutationsObjectGraphQLReturn, LimitedUserGraphQLReturn, UserGraphQLReturn, EmbedTokenGraphQLReturn, GraphQLEmptyReturn, StreamCollaboratorGraphQLReturn, ProjectCollaboratorGraphQLReturn, ServerInfoGraphQLReturn, BranchGraphQLReturn, UserMetaGraphQLReturn, ProjectPermissionChecksGraphQLReturn, ModelPermissionChecksGraphQLReturn, VersionPermissionChecksGraphQLReturn, RootPermissionChecksGraphQLReturn, PermissionCheckResultGraphQLReturn } from '@/modules/core/helpers/graphTypes';
+import type { StreamGraphQLReturn, CommitGraphQLReturn, ProjectGraphQLReturn, ObjectGraphQLReturn, VersionGraphQLReturn, ServerInviteGraphQLReturnType, ModelGraphQLReturn, ModelsTreeItemGraphQLReturn, MutationsObjectGraphQLReturn, LimitedUserGraphQLReturn, UserGraphQLReturn, EmbedTokenGraphQLReturn, GraphQLEmptyReturn, StreamCollaboratorGraphQLReturn, ProjectCollaboratorGraphQLReturn, ServerInfoGraphQLReturn, BranchGraphQLReturn, FolderGraphQLReturn, UserMetaGraphQLReturn, ProjectPermissionChecksGraphQLReturn, ModelPermissionChecksGraphQLReturn, VersionPermissionChecksGraphQLReturn, RootPermissionChecksGraphQLReturn, PermissionCheckResultGraphQLReturn } from '@/modules/core/helpers/graphTypes';
 import type { StreamAccessRequestGraphQLReturn, ProjectAccessRequestGraphQLReturn } from '@/modules/accessrequests/helpers/graphTypes';
 import type { AutomateFunctionPermissionChecksGraphQLReturn, AutomateFunctionGraphQLReturn, AutomateFunctionReleaseGraphQLReturn, AutomationGraphQLReturn, AutomationPermissionChecksGraphQLReturn, AutomationRevisionGraphQLReturn, AutomationRevisionFunctionGraphQLReturn, AutomateRunGraphQLReturn, AutomationRunTriggerGraphQLReturn, AutomationRevisionTriggerDefinitionGraphQLReturn, AutomateFunctionRunGraphQLReturn, TriggeredAutomationsStatusGraphQLReturn, ProjectAutomationMutationsGraphQLReturn, ProjectTriggeredAutomationsStatusUpdatedMessageGraphQLReturn, ProjectAutomationsUpdatedMessageGraphQLReturn, UserAutomateInfoGraphQLReturn } from '@/modules/automate/helpers/graphTypes';
 import type { CommentReplyAuthorCollectionGraphQLReturn, CommentGraphQLReturn, CommentPermissionChecksGraphQLReturn } from '@/modules/comments/helpers/graphTypes';
@@ -262,6 +262,12 @@ export type ActivityCollection = {
 export type AddDomainToWorkspaceInput = {
   domain: Scalars['String']['input'];
   workspaceId: Scalars['ID']['input'];
+};
+
+export type AddModelToFolderInput = {
+  folderId: Scalars['ID']['input'];
+  modelId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 /** Either the ID or slug must be set */
@@ -1202,6 +1208,12 @@ export type CreateEmbedTokenReturn = {
   tokenMetadata: EmbedToken;
 };
 
+export type CreateFolderInput = {
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  projectId: Scalars['ID']['input'];
+};
+
 export type CreateModelInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -1404,6 +1416,11 @@ export type DeleteAccSyncItemInput = {
   projectId: Scalars['String']['input'];
 };
 
+export type DeleteFolderInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 export type DeleteModelInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
@@ -1601,6 +1618,58 @@ export type FinishFileImportInput = {
   result: FileImportResultInput;
   status: JobResultStatus;
   warnings?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type Folder = {
+  __typename?: 'Folder';
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  models: Array<Model>;
+  name: Scalars['String']['output'];
+  parentId?: Maybe<Scalars['String']['output']>;
+  projectId: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type FolderCollection = {
+  __typename?: 'FolderCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<Folder>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type FolderMutations = {
+  __typename?: 'FolderMutations';
+  addModel: Scalars['Boolean']['output'];
+  create: Folder;
+  delete: Scalars['Boolean']['output'];
+  removeModel: Scalars['Boolean']['output'];
+  update: Folder;
+};
+
+
+export type FolderMutationsAddModelArgs = {
+  input: AddModelToFolderInput;
+};
+
+
+export type FolderMutationsCreateArgs = {
+  input: CreateFolderInput;
+};
+
+
+export type FolderMutationsDeleteArgs = {
+  input: DeleteFolderInput;
+};
+
+
+export type FolderMutationsRemoveModelArgs = {
+  input: RemoveModelFromFolderInput;
+};
+
+
+export type FolderMutationsUpdateArgs = {
+  input: UpdateFolderInput;
 };
 
 export type GendoAiRender = {
@@ -1880,6 +1949,7 @@ export type Model = {
   description?: Maybe<Scalars['String']['output']>;
   /** The shortened/display name that doesn't include the names of parent models */
   displayName: Scalars['String']['output'];
+  folders: Array<Folder>;
   /** The model's home view, if any */
   homeView?: Maybe<SavedView>;
   id: Scalars['ID']['output'];
@@ -2080,6 +2150,7 @@ export type Mutation = {
   commitsMove: Scalars['Boolean']['output'];
   dashboardMutations: DashboardMutations;
   fileUploadMutations: FileUploadMutations;
+  folderMutations: FolderMutations;
   /**
    * Delete a pending invite
    * Note: The required scope to invoke this is not given out to app or personal access tokens
@@ -2664,6 +2735,8 @@ export type Project = {
   embedOptions: ProjectEmbedOptions;
   embedTokens: EmbedTokenCollection;
   endDate?: Maybe<Scalars['BigInt']['output']>;
+  /** Returns a flat list of all folders */
+  folders: FolderCollection;
   hasAccessToFeature: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   invitableCollaborators: WorkspaceCollaboratorCollection;
@@ -2793,6 +2866,13 @@ export type ProjectDashboardsArgs = {
 export type ProjectEmbedTokensArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type ProjectFoldersArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<ProjectFoldersFilter>;
+  limit?: Scalars['Int']['input'];
 };
 
 
@@ -3138,6 +3218,13 @@ export const ProjectFileImportUpdatedMessageType = {
 } as const;
 
 export type ProjectFileImportUpdatedMessageType = typeof ProjectFileImportUpdatedMessageType[keyof typeof ProjectFileImportUpdatedMessageType];
+export type ProjectFoldersFilter = {
+  /** Parent folder ID. If null, returns root folders. */
+  parentId?: InputMaybe<Scalars['String']['input']>;
+  /** Filter by folder name */
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ProjectInviteCreateInput = {
   /** Either this or userId must be filled */
   email?: InputMaybe<Scalars['String']['input']>;
@@ -3829,6 +3916,12 @@ export type QueryWorkspaceInviteArgs = {
 
 export type QueryWorkspaceSsoByEmailArgs = {
   email: Scalars['String']['input'];
+};
+
+export type RemoveModelFromFolderInput = {
+  folderId: Scalars['ID']['input'];
+  modelId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 /** Deprecated: Used by old stream-based mutations */
@@ -4923,6 +5016,13 @@ export type UpdateAutomateFunctionInput = {
   supportedSourceApps?: InputMaybe<Array<Scalars['String']['input']>>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   workspaceIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type UpdateFolderInput = {
+  id: Scalars['ID']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type UpdateModelInput = {
@@ -6484,6 +6584,7 @@ export type ResolversTypes = {
   Activity: ResolverTypeWrapper<Activity>;
   ActivityCollection: ResolverTypeWrapper<ActivityCollectionGraphQLReturn>;
   AddDomainToWorkspaceInput: AddDomainToWorkspaceInput;
+  AddModelToFolderInput: AddModelToFolderInput;
   AdminAccessToWorkspaceFeatureInput: AdminAccessToWorkspaceFeatureInput;
   AdminInviteList: ResolverTypeWrapper<Omit<AdminInviteList, 'items'> & { items: Array<ResolversTypes['ServerInvite']> }>;
   AdminMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
@@ -6575,6 +6676,7 @@ export type ResolversTypes = {
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: ResolverTypeWrapper<Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['DashboardToken'] }>;
   CreateEmbedTokenReturn: ResolverTypeWrapper<Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['EmbedToken'] }>;
+  CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -6596,6 +6698,7 @@ export type ResolversTypes = {
   DashboardUpdateInput: DashboardUpdateInput;
   DateTime: ResolverTypeWrapper<Scalars['DateTime']['output']>;
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
+  DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
@@ -6617,6 +6720,9 @@ export type ResolversTypes = {
   FileUploadMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   FinishFileImportInput: FinishFileImportInput;
   Float: ResolverTypeWrapper<Scalars['Float']['output']>;
+  Folder: ResolverTypeWrapper<FolderGraphQLReturn>;
+  FolderCollection: ResolverTypeWrapper<Omit<FolderCollection, 'items'> & { items: Array<ResolversTypes['Folder']> }>;
+  FolderMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   GendoAIRender: ResolverTypeWrapper<GendoAIRenderGraphQLReturn>;
   GendoAIRenderCollection: ResolverTypeWrapper<Omit<GendoAiRenderCollection, 'items'> & { items: Array<Maybe<ResolversTypes['GendoAIRender']>> }>;
   GendoAIRenderInput: GendoAiRenderInput;
@@ -6682,6 +6788,7 @@ export type ResolversTypes = {
   ProjectEmbedOptions: ResolverTypeWrapper<ProjectEmbedOptions>;
   ProjectFileImportUpdatedMessage: ResolverTypeWrapper<Omit<ProjectFileImportUpdatedMessage, 'upload'> & { upload: ResolversTypes['FileUpload'] }>;
   ProjectFileImportUpdatedMessageType: ProjectFileImportUpdatedMessageType;
+  ProjectFoldersFilter: ProjectFoldersFilter;
   ProjectInviteCreateInput: ProjectInviteCreateInput;
   ProjectInviteMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   ProjectInviteUseInput: ProjectInviteUseInput;
@@ -6713,6 +6820,7 @@ export type ResolversTypes = {
   ProjectVersionsUpdatedMessageType: ProjectVersionsUpdatedMessageType;
   ProjectVisibility: ProjectVisibility;
   Query: ResolverTypeWrapper<{}>;
+  RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResolverTypeWrapper<ResourceIdentifier>;
   ResourceIdentifierInput: ResourceIdentifierInput;
@@ -6778,6 +6886,7 @@ export type ResolversTypes = {
   TriggeredAutomationsStatus: ResolverTypeWrapper<TriggeredAutomationsStatusGraphQLReturn>;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
+  UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -6907,6 +7016,7 @@ export type ResolversParentTypes = {
   Activity: Activity;
   ActivityCollection: ActivityCollectionGraphQLReturn;
   AddDomainToWorkspaceInput: AddDomainToWorkspaceInput;
+  AddModelToFolderInput: AddModelToFolderInput;
   AdminAccessToWorkspaceFeatureInput: AdminAccessToWorkspaceFeatureInput;
   AdminInviteList: Omit<AdminInviteList, 'items'> & { items: Array<ResolversParentTypes['ServerInvite']> };
   AdminMutations: MutationsObjectGraphQLReturn;
@@ -6994,6 +7104,7 @@ export type ResolversParentTypes = {
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['DashboardToken'] };
   CreateEmbedTokenReturn: Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['EmbedToken'] };
+  CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -7014,6 +7125,7 @@ export type ResolversParentTypes = {
   DashboardUpdateInput: DashboardUpdateInput;
   DateTime: Scalars['DateTime']['output'];
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
+  DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
@@ -7034,6 +7146,9 @@ export type ResolversParentTypes = {
   FileUploadMutations: MutationsObjectGraphQLReturn;
   FinishFileImportInput: FinishFileImportInput;
   Float: Scalars['Float']['output'];
+  Folder: FolderGraphQLReturn;
+  FolderCollection: Omit<FolderCollection, 'items'> & { items: Array<ResolversParentTypes['Folder']> };
+  FolderMutations: MutationsObjectGraphQLReturn;
   GendoAIRender: GendoAIRenderGraphQLReturn;
   GendoAIRenderCollection: Omit<GendoAiRenderCollection, 'items'> & { items: Array<Maybe<ResolversParentTypes['GendoAIRender']>> };
   GendoAIRenderInput: GendoAiRenderInput;
@@ -7093,6 +7208,7 @@ export type ResolversParentTypes = {
   ProjectDashboardsFilter: ProjectDashboardsFilter;
   ProjectEmbedOptions: ProjectEmbedOptions;
   ProjectFileImportUpdatedMessage: Omit<ProjectFileImportUpdatedMessage, 'upload'> & { upload: ResolversParentTypes['FileUpload'] };
+  ProjectFoldersFilter: ProjectFoldersFilter;
   ProjectInviteCreateInput: ProjectInviteCreateInput;
   ProjectInviteMutations: MutationsObjectGraphQLReturn;
   ProjectInviteUseInput: ProjectInviteUseInput;
@@ -7116,6 +7232,7 @@ export type ResolversParentTypes = {
   ProjectVersionsPreviewGeneratedMessage: ProjectVersionsPreviewGeneratedMessage;
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
   Query: {};
+  RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResourceIdentifier;
   ResourceIdentifierInput: ResourceIdentifierInput;
@@ -7174,6 +7291,7 @@ export type ResolversParentTypes = {
   TriggeredAutomationsStatus: TriggeredAutomationsStatusGraphQLReturn;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
+  UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -8011,6 +8129,33 @@ export type FileUploadMutationsResolvers<ContextType = GraphQLContext, ParentTyp
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type FolderResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Folder'] = ResolversParentTypes['Folder']> = {
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  models?: Resolver<Array<ResolversTypes['Model']>, ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  parentId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projectId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type FolderCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['FolderCollection'] = ResolversParentTypes['FolderCollection']> = {
+  cursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['Folder']>, ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type FolderMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['FolderMutations'] = ResolversParentTypes['FolderMutations']> = {
+  addModel?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FolderMutationsAddModelArgs, 'input'>>;
+  create?: Resolver<ResolversTypes['Folder'], ParentType, ContextType, RequireFields<FolderMutationsCreateArgs, 'input'>>;
+  delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FolderMutationsDeleteArgs, 'input'>>;
+  removeModel?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FolderMutationsRemoveModelArgs, 'input'>>;
+  update?: Resolver<ResolversTypes['Folder'], ParentType, ContextType, RequireFields<FolderMutationsUpdateArgs, 'input'>>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type GendoAiRenderResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['GendoAIRender'] = ResolversParentTypes['GendoAIRender']> = {
   camera?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -8121,6 +8266,7 @@ export type ModelResolvers<ContextType = GraphQLContext, ParentType extends Reso
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   displayName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  folders?: Resolver<Array<ResolversTypes['Folder']>, ParentType, ContextType>;
   homeView?: Resolver<Maybe<ResolversTypes['SavedView']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -8208,6 +8354,7 @@ export type MutationResolvers<ContextType = GraphQLContext, ParentType extends R
   commitsMove?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationCommitsMoveArgs, 'input'>>;
   dashboardMutations?: Resolver<ResolversTypes['DashboardMutations'], ParentType, ContextType>;
   fileUploadMutations?: Resolver<ResolversTypes['FileUploadMutations'], ParentType, ContextType>;
+  folderMutations?: Resolver<ResolversTypes['FolderMutations'], ParentType, ContextType>;
   inviteDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationInviteDeleteArgs, 'inviteId'>>;
   inviteResend?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationInviteResendArgs, 'inviteId'>>;
   modelMutations?: Resolver<ResolversTypes['ModelMutations'], ParentType, ContextType>;
@@ -8342,6 +8489,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   embedOptions?: Resolver<ResolversTypes['ProjectEmbedOptions'], ParentType, ContextType>;
   embedTokens?: Resolver<ResolversTypes['EmbedTokenCollection'], ParentType, ContextType, Partial<ProjectEmbedTokensArgs>>;
   endDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
+  folders?: Resolver<ResolversTypes['FolderCollection'], ParentType, ContextType, RequireFields<ProjectFoldersArgs, 'limit'>>;
   hasAccessToFeature?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectHasAccessToFeatureArgs, 'featureName'>>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   invitableCollaborators?: Resolver<ResolversTypes['WorkspaceCollaboratorCollection'], ParentType, ContextType, RequireFields<ProjectInvitableCollaboratorsArgs, 'limit'>>;
@@ -9627,6 +9775,9 @@ export type Resolvers<ContextType = GraphQLContext> = {
   FileUpload?: FileUploadResolvers<ContextType>;
   FileUploadCollection?: FileUploadCollectionResolvers<ContextType>;
   FileUploadMutations?: FileUploadMutationsResolvers<ContextType>;
+  Folder?: FolderResolvers<ContextType>;
+  FolderCollection?: FolderCollectionResolvers<ContextType>;
+  FolderMutations?: FolderMutationsResolvers<ContextType>;
   GendoAIRender?: GendoAiRenderResolvers<ContextType>;
   GendoAIRenderCollection?: GendoAiRenderCollectionResolvers<ContextType>;
   GenerateFileUploadUrlOutput?: GenerateFileUploadUrlOutputResolvers<ContextType>;

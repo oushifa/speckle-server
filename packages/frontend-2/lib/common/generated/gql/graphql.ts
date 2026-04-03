@@ -242,6 +242,12 @@ export type AddDomainToWorkspaceInput = {
   workspaceId: Scalars['ID']['input'];
 };
 
+export type AddModelToFolderInput = {
+  folderId: Scalars['ID']['input'];
+  modelId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 /** Either the ID or slug must be set */
 export type AdminAccessToWorkspaceFeatureInput = {
   featureFlagName: WorkspaceFeatureFlagName;
@@ -1175,6 +1181,12 @@ export type CreateEmbedTokenReturn = {
   tokenMetadata: EmbedToken;
 };
 
+export type CreateFolderInput = {
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  projectId: Scalars['ID']['input'];
+};
+
 export type CreateModelInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -1377,6 +1389,11 @@ export type DeleteAccSyncItemInput = {
   projectId: Scalars['String']['input'];
 };
 
+export type DeleteFolderInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 export type DeleteModelInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
@@ -1574,6 +1591,58 @@ export type FinishFileImportInput = {
   result: FileImportResultInput;
   status: JobResultStatus;
   warnings?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type Folder = {
+  __typename?: 'Folder';
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  models: Array<Model>;
+  name: Scalars['String']['output'];
+  parentId?: Maybe<Scalars['String']['output']>;
+  projectId: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type FolderCollection = {
+  __typename?: 'FolderCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<Folder>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type FolderMutations = {
+  __typename?: 'FolderMutations';
+  addModel: Scalars['Boolean']['output'];
+  create: Folder;
+  delete: Scalars['Boolean']['output'];
+  removeModel: Scalars['Boolean']['output'];
+  update: Folder;
+};
+
+
+export type FolderMutationsAddModelArgs = {
+  input: AddModelToFolderInput;
+};
+
+
+export type FolderMutationsCreateArgs = {
+  input: CreateFolderInput;
+};
+
+
+export type FolderMutationsDeleteArgs = {
+  input: DeleteFolderInput;
+};
+
+
+export type FolderMutationsRemoveModelArgs = {
+  input: RemoveModelFromFolderInput;
+};
+
+
+export type FolderMutationsUpdateArgs = {
+  input: UpdateFolderInput;
 };
 
 export type GendoAiRender = {
@@ -1853,6 +1922,7 @@ export type Model = {
   description?: Maybe<Scalars['String']['output']>;
   /** The shortened/display name that doesn't include the names of parent models */
   displayName: Scalars['String']['output'];
+  folders: Array<Folder>;
   /** The model's home view, if any */
   homeView?: Maybe<SavedView>;
   id: Scalars['ID']['output'];
@@ -2053,6 +2123,7 @@ export type Mutation = {
   commitsMove: Scalars['Boolean']['output'];
   dashboardMutations: DashboardMutations;
   fileUploadMutations: FileUploadMutations;
+  folderMutations: FolderMutations;
   /**
    * Delete a pending invite
    * Note: The required scope to invoke this is not given out to app or personal access tokens
@@ -2637,6 +2708,8 @@ export type Project = {
   embedOptions: ProjectEmbedOptions;
   embedTokens: EmbedTokenCollection;
   endDate?: Maybe<Scalars['BigInt']['output']>;
+  /** Returns a flat list of all folders */
+  folders: FolderCollection;
   hasAccessToFeature: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   invitableCollaborators: WorkspaceCollaboratorCollection;
@@ -2766,6 +2839,13 @@ export type ProjectDashboardsArgs = {
 export type ProjectEmbedTokensArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type ProjectFoldersArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<ProjectFoldersFilter>;
+  limit?: Scalars['Int']['input'];
 };
 
 
@@ -3111,6 +3191,13 @@ export const ProjectFileImportUpdatedMessageType = {
 } as const;
 
 export type ProjectFileImportUpdatedMessageType = typeof ProjectFileImportUpdatedMessageType[keyof typeof ProjectFileImportUpdatedMessageType];
+export type ProjectFoldersFilter = {
+  /** Parent folder ID. If null, returns root folders. */
+  parentId?: InputMaybe<Scalars['String']['input']>;
+  /** Filter by folder name */
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ProjectInviteCreateInput = {
   /** Either this or userId must be filled */
   email?: InputMaybe<Scalars['String']['input']>;
@@ -3802,6 +3889,12 @@ export type QueryWorkspaceInviteArgs = {
 
 export type QueryWorkspaceSsoByEmailArgs = {
   email: Scalars['String']['input'];
+};
+
+export type RemoveModelFromFolderInput = {
+  folderId: Scalars['ID']['input'];
+  modelId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 /** Deprecated: Used by old stream-based mutations */
@@ -4896,6 +4989,13 @@ export type UpdateAutomateFunctionInput = {
   supportedSourceApps?: InputMaybe<Array<Scalars['String']['input']>>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   workspaceIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type UpdateFolderInput = {
+  id: Scalars['ID']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type UpdateModelInput = {
@@ -6680,6 +6780,42 @@ export type ProjectModelsPageResults_ProjectFragment = { __typename?: 'Project',
 export type ProjectPageModelsStructureItem_ProjectFragment = { __typename?: 'Project', id: string, visibility: ProjectVisibility, permissions: { __typename?: 'ProjectPermissionChecks', canCreateModel: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null }, canReadAccIntegrationSettings: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null }, canCreateEmbedTokens: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null } }, workspace?: { __typename?: 'Workspace', id: string, slug: string, role?: string | null, embedOptions: { __typename?: 'WorkspaceEmbedOptions', hideSpeckleBranding: boolean }, permissions: { __typename?: 'WorkspacePermissionChecks', canEditEmbedOptions: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null } } } | null };
 
 export type SingleLevelModelTreeItemFragment = { __typename?: 'ModelsTreeItem', id: string, name: string, fullName: string, hasChildren: boolean, updatedAt: string, model?: { __typename?: 'Model', id: string, name: string, displayName: string, projectId: string, previewUrl?: string | null, createdAt: string, updatedAt: string, description?: string | null, resourceIdString: string, accSyncItem?: { __typename?: 'AccSyncItem', id: string, status: AccSyncItemStatus, updatedAt: string, accFileVersionIndex: number, accFileName: string } | null, versionCount: { __typename?: 'VersionCollection', totalCount: number }, commentThreadCount: { __typename?: 'CommentCollection', totalCount: number }, pendingImportedVersions: Array<{ __typename?: 'FileUpload', id: string, projectId: string, modelName: string, convertedStatus: number, convertedMessage?: string | null, uploadDate: string, convertedLastUpdate: string, fileType: string, fileName: string, userId: string, updatedAt: string }>, automationsStatus?: { __typename?: 'TriggeredAutomationsStatus', id: string, automationRuns: Array<{ __typename?: 'AutomateRun', id: string, functionRuns: Array<{ __typename?: 'AutomateFunctionRun', id: string, updatedAt: string, status: AutomateRunStatus, results?: {} | null, statusMessage?: string | null, contextView?: string | null, createdAt: string, function?: { __typename?: 'AutomateFunction', id: string, logo?: string | null, name: string } | null }>, automation: { __typename?: 'Automation', id: string, name: string } }> } | null, permissions: { __typename?: 'ModelPermissionChecks', canUpdate: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null }, canDelete: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null }, canCreateVersion: { __typename?: 'PermissionCheckResult', authorized: boolean, code: string, message: string, payload?: {} | null, errorMessage?: string | null } }, homeView?: { __typename?: 'SavedView', id: string, resourceIds: Array<string> } | null, lastUpload: { __typename?: 'FileUploadCollection', items: Array<{ __typename?: 'FileUpload', id: string, updatedAt: string, convertedStatus: number }> }, lastVersion: { __typename?: 'VersionCollection', items: Array<{ __typename?: 'Version', id: string, createdAt: string }> } } | null };
+
+export type ProjectFoldersByParentQueryVariables = Exact<{
+  projectId: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type ProjectFoldersByParentQuery = { __typename?: 'Query', project: { __typename?: 'Project', id: string, folders: { __typename?: 'FolderCollection', items: Array<{ __typename?: 'Folder', id: string, name: string, projectId: string, parentId?: string | null, createdAt: string, updatedAt: string, models: Array<{ __typename?: 'Model', id: string }> }> } } };
+
+export type CreateFolderMutationVariables = Exact<{
+  input: CreateFolderInput;
+}>;
+
+
+export type CreateFolderMutation = { __typename?: 'Mutation', folderMutations: { __typename?: 'FolderMutations', create: { __typename?: 'Folder', id: string } } };
+
+export type DeleteFolderMutationVariables = Exact<{
+  input: DeleteFolderInput;
+}>;
+
+
+export type DeleteFolderMutation = { __typename?: 'Mutation', folderMutations: { __typename?: 'FolderMutations', delete: boolean } };
+
+export type AddModelToFolderMutationVariables = Exact<{
+  input: AddModelToFolderInput;
+}>;
+
+
+export type AddModelToFolderMutation = { __typename?: 'Mutation', folderMutations: { __typename?: 'FolderMutations', addModel: boolean } };
+
+export type RemoveModelFromFolderMutationVariables = Exact<{
+  input: RemoveModelFromFolderInput;
+}>;
+
+
+export type RemoveModelFromFolderMutation = { __typename?: 'Mutation', folderMutations: { __typename?: 'FolderMutations', removeModel: boolean } };
 
 export type ProjectPageModelsUploadsDialog_FileUploadFragment = { __typename?: 'FileUpload', id: string, convertedStatus: number, convertedMessage?: string | null, fileName: string, fileSize: number, convertedLastUpdate: string, convertedVersionId?: string | null, uploadDate: string, uploadComplete: boolean, branchName: string, projectId: string, modelId?: string | null, updatedAt: string };
 
@@ -9232,6 +9368,11 @@ export const PresentationShareTokenDocument = {"kind":"Document","definitions":[
 export const PresentationShareEnableTokenDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PresentationShareEnableToken"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SavedViewGroupShareUpdateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"savedViewMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"enableShare"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"revoked"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]}}]}}]} as unknown as DocumentNode<PresentationShareEnableTokenMutation, PresentationShareEnableTokenMutationVariables>;
 export const PresentationShareDisableTokenDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PresentationShareDisableToken"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SavedViewGroupShareUpdateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"savedViewMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"disableShare"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"revoked"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]}}]}}]} as unknown as DocumentNode<PresentationShareDisableTokenMutation, PresentationShareDisableTokenMutationVariables>;
 export const InvitableCollaboratorsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"InvitableCollaborators"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"InvitableCollaboratorsFilter"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workspaceId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"invitableCollaborators"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"workspaceRole"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workspaceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workspaceId"}}}]}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<InvitableCollaboratorsQuery, InvitableCollaboratorsQueryVariables>;
+export const ProjectFoldersByParentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProjectFoldersByParent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"parentId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"folders"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"100"}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"parentId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"parentId"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"projectId"}},{"kind":"Field","name":{"kind":"Name","value":"parentId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"models"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<ProjectFoldersByParentQuery, ProjectFoldersByParentQueryVariables>;
+export const CreateFolderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateFolder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateFolderInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"folderMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<CreateFolderMutation, CreateFolderMutationVariables>;
+export const DeleteFolderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteFolder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteFolderInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"folderMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"delete"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]} as unknown as DocumentNode<DeleteFolderMutation, DeleteFolderMutationVariables>;
+export const AddModelToFolderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"AddModelToFolder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"AddModelToFolderInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"folderMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"addModel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]} as unknown as DocumentNode<AddModelToFolderMutation, AddModelToFolderMutationVariables>;
+export const RemoveModelFromFolderDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RemoveModelFromFolder"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RemoveModelFromFolderInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"folderMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"removeModel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]} as unknown as DocumentNode<RemoveModelFromFolderMutation, RemoveModelFromFolderMutationVariables>;
 export const GetModelUploadsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetModelUploads"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"modelId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"GetModelUploadsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"model"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"modelId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"uploads"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"cursor"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageModelsUploadsDialog_FileUpload"}}]}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UseFailedFileImportJobUtils_FileUpload"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"FileUpload"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"fileName"}},{"kind":"Field","name":{"kind":"Name","value":"projectId"}},{"kind":"Field","name":{"kind":"Name","value":"modelId"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"convertedStatus"}},{"kind":"Field","name":{"kind":"Name","value":"convertedMessage"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageModelsUploadsDialog_FileUpload"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"FileUpload"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"convertedStatus"}},{"kind":"Field","name":{"kind":"Name","value":"convertedMessage"}},{"kind":"Field","name":{"kind":"Name","value":"fileName"}},{"kind":"Field","name":{"kind":"Name","value":"fileSize"}},{"kind":"Field","name":{"kind":"Name","value":"convertedLastUpdate"}},{"kind":"Field","name":{"kind":"Name","value":"convertedVersionId"}},{"kind":"Field","name":{"kind":"Name","value":"uploadDate"}},{"kind":"Field","name":{"kind":"Name","value":"uploadComplete"}},{"kind":"Field","name":{"kind":"Name","value":"branchName"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"UseFailedFileImportJobUtils_FileUpload"}}]}}]} as unknown as DocumentNode<GetModelUploadsQuery, GetModelUploadsQueryVariables>;
 export const ProjectPageSettingsGeneralDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ProjectPageSettingsGeneral"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockProjectInfo_Project"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockAccess_Project"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockDiscussions_Project"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockLeave_Project"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockDelete_Project"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectPageTeamInternals_Project"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FullPermissionCheckResult"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PermissionCheckResult"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"authorized"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"payload"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LimitedUserAvatar"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LimitedUser"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectsDeleteDialog_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"models"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"0"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"versions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"0"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canDelete"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockProjectInfo_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canUpdate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockAccess_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"visibility"}},{"kind":"Field","name":{"kind":"Name","value":"workspaceId"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canUpdate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockDiscussions_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"visibility"}},{"kind":"Field","name":{"kind":"Name","value":"allowPublicComments"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canUpdateAllowPublicComments"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockLeave_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"team"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"LimitedUserAvatar"}},{"kind":"Field","name":{"kind":"Name","value":"role"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canLeave"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageSettingsGeneralBlockDelete_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectsDeleteDialog_Project"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canUpdate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectPageTeamInternals_Project"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Project"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"invitedTeam"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"inviteId"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"LimitedUserAvatar"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"team"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"seatType"}},{"kind":"Field","name":{"kind":"Name","value":"workspaceRole"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"LimitedUserAvatar"}}]}}]}}]}}]} as unknown as DocumentNode<ProjectPageSettingsGeneralQuery, ProjectPageSettingsGeneralQueryVariables>;
 export const WorkspaceAvailableEditorSeatsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"WorkspaceAvailableEditorSeats"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"slug"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspaceBySlug"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"slug"},"value":{"kind":"Variable","name":{"kind":"Name","value":"slug"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"seats"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"editors"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"available"}}]}}]}}]}}]}}]} as unknown as DocumentNode<WorkspaceAvailableEditorSeatsQuery, WorkspaceAvailableEditorSeatsQueryVariables>;
@@ -9569,6 +9710,9 @@ export type AllObjectTypes = {
   FileUpload: FileUpload,
   FileUploadCollection: FileUploadCollection,
   FileUploadMutations: FileUploadMutations,
+  Folder: Folder,
+  FolderCollection: FolderCollection,
+  FolderMutations: FolderMutations,
   GendoAIRender: GendoAiRender,
   GendoAIRenderCollection: GendoAiRenderCollection,
   GenerateFileUploadUrlOutput: GenerateFileUploadUrlOutput,
@@ -10251,6 +10395,27 @@ export type FileUploadMutationsFieldArgs = {
   generateUploadUrl: FileUploadMutationsGenerateUploadUrlArgs,
   startFileImport: FileUploadMutationsStartFileImportArgs,
 }
+export type FolderFieldArgs = {
+  createdAt: {},
+  id: {},
+  models: {},
+  name: {},
+  parentId: {},
+  projectId: {},
+  updatedAt: {},
+}
+export type FolderCollectionFieldArgs = {
+  cursor: {},
+  items: {},
+  totalCount: {},
+}
+export type FolderMutationsFieldArgs = {
+  addModel: FolderMutationsAddModelArgs,
+  create: FolderMutationsCreateArgs,
+  delete: FolderMutationsDeleteArgs,
+  removeModel: FolderMutationsRemoveModelArgs,
+  update: FolderMutationsUpdateArgs,
+}
 export type GendoAiRenderFieldArgs = {
   camera: {},
   createdAt: {},
@@ -10337,6 +10502,7 @@ export type ModelFieldArgs = {
   createdAt: {},
   description: {},
   displayName: {},
+  folders: {},
   homeView: {},
   id: {},
   name: {},
@@ -10412,6 +10578,7 @@ export type MutationFieldArgs = {
   commitsMove: MutationCommitsMoveArgs,
   dashboardMutations: {},
   fileUploadMutations: {},
+  folderMutations: {},
   inviteDelete: MutationInviteDeleteArgs,
   inviteResend: MutationInviteResendArgs,
   modelMutations: {},
@@ -10529,6 +10696,7 @@ export type ProjectFieldArgs = {
   embedOptions: {},
   embedTokens: ProjectEmbedTokensArgs,
   endDate: {},
+  folders: ProjectFoldersArgs,
   hasAccessToFeature: ProjectHasAccessToFeatureArgs,
   id: {},
   invitableCollaborators: ProjectInvitableCollaboratorsArgs,
@@ -11570,6 +11738,9 @@ export type AllObjectFieldArgTypes = {
   FileUpload: FileUploadFieldArgs,
   FileUploadCollection: FileUploadCollectionFieldArgs,
   FileUploadMutations: FileUploadMutationsFieldArgs,
+  Folder: FolderFieldArgs,
+  FolderCollection: FolderCollectionFieldArgs,
+  FolderMutations: FolderMutationsFieldArgs,
   GendoAIRender: GendoAiRenderFieldArgs,
   GendoAIRenderCollection: GendoAiRenderCollectionFieldArgs,
   GenerateFileUploadUrlOutput: GenerateFileUploadUrlOutputFieldArgs,

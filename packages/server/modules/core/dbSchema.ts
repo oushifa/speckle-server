@@ -511,6 +511,22 @@ export const BranchCommits = buildTableHelper('branch_commits', [
   'commitId'
 ])
 
+export const ModelFolders = buildTableHelper('model_folders', [
+  'id',
+  'streamId',
+  'parentFolderId',
+  'name',
+  'createdAt',
+  'updatedAt'
+])
+
+export const ModelFolderModels = buildTableHelper('model_folder_models', [
+  'folderId',
+  'modelId',
+  'streamId',
+  'createdAt'
+])
+
 export const Branches = buildTableHelper('branches', [
   'id',
   'streamId',

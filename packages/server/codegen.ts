@@ -55,6 +55,8 @@ const config: CodegenConfig = {
             '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           ModelMutations:
             '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
+          FolderMutations:
+            '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           VersionMutations:
             '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           FileUploadMutations:
@@ -162,6 +164,7 @@ const config: CodegenConfig = {
             '@/modules/auth/helpers/graphTypes#ServerAppListItemGraphQLReturn',
           ServerInfo: '@/modules/core/helpers/graphTypes#ServerInfoGraphQLReturn',
           Branch: '@/modules/core/helpers/graphTypes#BranchGraphQLReturn',
+          Folder: '@/modules/core/helpers/graphTypes#FolderGraphQLReturn',
           GendoAIRender:
             '@/modules/gendo/helpers/types/graphTypes#GendoAIRenderGraphQLReturn',
           ServerMultiRegionConfiguration:

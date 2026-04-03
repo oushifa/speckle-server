@@ -123,6 +123,11 @@ type Documents = {
     "\n  fragment ProjectModelsPageResults_Project on Project {\n    ...ProjectPageLatestItemsModels\n  }\n": typeof types.ProjectModelsPageResults_ProjectFragmentDoc,
     "\n  fragment ProjectPageModelsStructureItem_Project on Project {\n    id\n    ...ProjectPageModelsActions_Project\n    ...ProjectCardImportFileArea_Project\n    ...UseCanCreateModel_Project\n    permissions {\n      canCreateModel {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n": typeof types.ProjectPageModelsStructureItem_ProjectFragmentDoc,
     "\n  fragment SingleLevelModelTreeItem on ModelsTreeItem {\n    id\n    name\n    fullName\n    model {\n      ...ProjectPageLatestItemsModelItem\n      ...ProjectCardImportFileArea_Model\n      ...ProjectPageModelsCard_Model\n      accSyncItem {\n        id\n        ...SyncStatusModelItem_AccSyncItem\n      }\n    }\n    hasChildren\n    updatedAt\n  }\n": typeof types.SingleLevelModelTreeItemFragmentDoc,
+    "\n  query ProjectFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          projectId\n          parentId\n          createdAt\n          updatedAt\n          models {\n            id\n          }\n        }\n      }\n    }\n  }\n": typeof types.ProjectFoldersByParentDocument,
+    "\n  mutation CreateFolder($input: CreateFolderInput!) {\n    folderMutations {\n      create(input: $input) {\n        id\n      }\n    }\n  }\n": typeof types.CreateFolderDocument,
+    "\n  mutation DeleteFolder($input: DeleteFolderInput!) {\n    folderMutations {\n      delete(input: $input)\n    }\n  }\n": typeof types.DeleteFolderDocument,
+    "\n  mutation AddModelToFolder($input: AddModelToFolderInput!) {\n    folderMutations {\n      addModel(input: $input)\n    }\n  }\n": typeof types.AddModelToFolderDocument,
+    "\n  mutation RemoveModelFromFolder($input: RemoveModelFromFolderInput!) {\n    folderMutations {\n      removeModel(input: $input)\n    }\n  }\n": typeof types.RemoveModelFromFolderDocument,
     "\n  fragment ProjectPageModelsUploadsDialog_FileUpload on FileUpload {\n    id\n    convertedStatus\n    convertedMessage\n    fileName\n    fileSize\n    convertedLastUpdate\n    convertedVersionId\n    uploadDate\n    uploadComplete\n    branchName\n    ...UseFailedFileImportJobUtils_FileUpload\n  }\n": typeof types.ProjectPageModelsUploadsDialog_FileUploadFragmentDoc,
     "\n  query GetModelUploads(\n    $projectId: String!\n    $modelId: String!\n    $input: GetModelUploadsInput!\n  ) {\n    project(id: $projectId) {\n      id\n      model(id: $modelId) {\n        id\n        uploads(input: $input) {\n          totalCount\n          cursor\n          items {\n            id\n            ...ProjectPageModelsUploadsDialog_FileUpload\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetModelUploadsDocument,
     "\n  fragment ProjectPageModelsCardDeleteDialog on Model {\n    id\n    name\n  }\n": typeof types.ProjectPageModelsCardDeleteDialogFragmentDoc,
@@ -678,6 +683,11 @@ const documents: Documents = {
     "\n  fragment ProjectModelsPageResults_Project on Project {\n    ...ProjectPageLatestItemsModels\n  }\n": types.ProjectModelsPageResults_ProjectFragmentDoc,
     "\n  fragment ProjectPageModelsStructureItem_Project on Project {\n    id\n    ...ProjectPageModelsActions_Project\n    ...ProjectCardImportFileArea_Project\n    ...UseCanCreateModel_Project\n    permissions {\n      canCreateModel {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n": types.ProjectPageModelsStructureItem_ProjectFragmentDoc,
     "\n  fragment SingleLevelModelTreeItem on ModelsTreeItem {\n    id\n    name\n    fullName\n    model {\n      ...ProjectPageLatestItemsModelItem\n      ...ProjectCardImportFileArea_Model\n      ...ProjectPageModelsCard_Model\n      accSyncItem {\n        id\n        ...SyncStatusModelItem_AccSyncItem\n      }\n    }\n    hasChildren\n    updatedAt\n  }\n": types.SingleLevelModelTreeItemFragmentDoc,
+    "\n  query ProjectFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          projectId\n          parentId\n          createdAt\n          updatedAt\n          models {\n            id\n          }\n        }\n      }\n    }\n  }\n": types.ProjectFoldersByParentDocument,
+    "\n  mutation CreateFolder($input: CreateFolderInput!) {\n    folderMutations {\n      create(input: $input) {\n        id\n      }\n    }\n  }\n": types.CreateFolderDocument,
+    "\n  mutation DeleteFolder($input: DeleteFolderInput!) {\n    folderMutations {\n      delete(input: $input)\n    }\n  }\n": types.DeleteFolderDocument,
+    "\n  mutation AddModelToFolder($input: AddModelToFolderInput!) {\n    folderMutations {\n      addModel(input: $input)\n    }\n  }\n": types.AddModelToFolderDocument,
+    "\n  mutation RemoveModelFromFolder($input: RemoveModelFromFolderInput!) {\n    folderMutations {\n      removeModel(input: $input)\n    }\n  }\n": types.RemoveModelFromFolderDocument,
     "\n  fragment ProjectPageModelsUploadsDialog_FileUpload on FileUpload {\n    id\n    convertedStatus\n    convertedMessage\n    fileName\n    fileSize\n    convertedLastUpdate\n    convertedVersionId\n    uploadDate\n    uploadComplete\n    branchName\n    ...UseFailedFileImportJobUtils_FileUpload\n  }\n": types.ProjectPageModelsUploadsDialog_FileUploadFragmentDoc,
     "\n  query GetModelUploads(\n    $projectId: String!\n    $modelId: String!\n    $input: GetModelUploadsInput!\n  ) {\n    project(id: $projectId) {\n      id\n      model(id: $modelId) {\n        id\n        uploads(input: $input) {\n          totalCount\n          cursor\n          items {\n            id\n            ...ProjectPageModelsUploadsDialog_FileUpload\n          }\n        }\n      }\n    }\n  }\n": types.GetModelUploadsDocument,
     "\n  fragment ProjectPageModelsCardDeleteDialog on Model {\n    id\n    name\n  }\n": types.ProjectPageModelsCardDeleteDialogFragmentDoc,
@@ -1574,6 +1584,26 @@ export function graphql(source: "\n  fragment ProjectPageModelsStructureItem_Pro
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment SingleLevelModelTreeItem on ModelsTreeItem {\n    id\n    name\n    fullName\n    model {\n      ...ProjectPageLatestItemsModelItem\n      ...ProjectCardImportFileArea_Model\n      ...ProjectPageModelsCard_Model\n      accSyncItem {\n        id\n        ...SyncStatusModelItem_AccSyncItem\n      }\n    }\n    hasChildren\n    updatedAt\n  }\n"): (typeof documents)["\n  fragment SingleLevelModelTreeItem on ModelsTreeItem {\n    id\n    name\n    fullName\n    model {\n      ...ProjectPageLatestItemsModelItem\n      ...ProjectCardImportFileArea_Model\n      ...ProjectPageModelsCard_Model\n      accSyncItem {\n        id\n        ...SyncStatusModelItem_AccSyncItem\n      }\n    }\n    hasChildren\n    updatedAt\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProjectFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          projectId\n          parentId\n          createdAt\n          updatedAt\n          models {\n            id\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          projectId\n          parentId\n          createdAt\n          updatedAt\n          models {\n            id\n          }\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateFolder($input: CreateFolderInput!) {\n    folderMutations {\n      create(input: $input) {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation CreateFolder($input: CreateFolderInput!) {\n    folderMutations {\n      create(input: $input) {\n        id\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteFolder($input: DeleteFolderInput!) {\n    folderMutations {\n      delete(input: $input)\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteFolder($input: DeleteFolderInput!) {\n    folderMutations {\n      delete(input: $input)\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddModelToFolder($input: AddModelToFolderInput!) {\n    folderMutations {\n      addModel(input: $input)\n    }\n  }\n"): (typeof documents)["\n  mutation AddModelToFolder($input: AddModelToFolderInput!) {\n    folderMutations {\n      addModel(input: $input)\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveModelFromFolder($input: RemoveModelFromFolderInput!) {\n    folderMutations {\n      removeModel(input: $input)\n    }\n  }\n"): (typeof documents)["\n  mutation RemoveModelFromFolder($input: RemoveModelFromFolderInput!) {\n    folderMutations {\n      removeModel(input: $input)\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
