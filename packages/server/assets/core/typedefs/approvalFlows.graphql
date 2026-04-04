@@ -1,0 +1,195 @@
+enum ApprovalFlowResourceType {
+  MODEL
+}
+
+enum ApprovalFlowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+enum ApprovalFlowActionType {
+  STARTED
+  STEP_APPROVED
+  APPROVED
+  REJECTED
+  CANCELED
+  TIMEOUT_REJECTED
+}
+
+enum ApprovalFlowStepStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+type ApprovalFlowDefinition {
+  id: ID!
+  name: String!
+  resourceType: ApprovalFlowResourceType!
+  isActive: Boolean!
+  version: Int!
+  previousVersionId: ID
+  formSchema: [ApprovalFlowFormField!]!
+  createdBy: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  steps: [ApprovalFlowDefinitionStep!]!
+}
+
+type ApprovalFlowAction {
+  id: ID!
+  instanceId: ID!
+  stepId: ID
+  action: ApprovalFlowActionType!
+  fromStatus: ApprovalFlowStatus
+  toStatus: ApprovalFlowStatus
+  comment: String
+  metadata: JSONObject
+  actorId: ID!
+  actor: LimitedUser
+  createdAt: DateTime!
+}
+
+type ApprovalFlowDefinitionStep {
+  id: ID!
+  definitionId: ID!
+  name: String!
+  stepIndex: Int!
+  approverIds: [ID!]!
+  requiredApprovals: Int!
+  timeoutHours: Int
+  createdAt: DateTime!
+}
+
+type ApprovalFlowInstanceStep {
+  id: ID!
+  instanceId: ID!
+  definitionStepId: ID
+  name: String!
+  stepIndex: Int!
+  status: ApprovalFlowStepStatus!
+  approverIds: [ID!]!
+  requiredApprovals: Int!
+  approvedByIds: [ID!]!
+  startedAt: DateTime
+  dueAt: DateTime
+  completedAt: DateTime
+  createdAt: DateTime!
+}
+
+type ApprovalFlowInstance {
+  id: ID!
+  definitionId: ID!
+  definition: ApprovalFlowDefinition
+  resourceType: ApprovalFlowResourceType!
+  resourceId: ID
+  formData: JSONObject
+  status: ApprovalFlowStatus!
+  currentStep: Int!
+  createdBy: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  actions: [ApprovalFlowAction!]!
+  steps: [ApprovalFlowInstanceStep!]!
+}
+
+type ApprovalFlowFormField {
+  key: String!
+  name: String!
+  type: String!
+}
+
+type ApprovalFlowStats {
+  totalCount: Int!
+  pendingCount: Int!
+  approvedCount: Int!
+  rejectedCount: Int!
+  canceledCount: Int!
+  averageResolutionHours: Float!
+}
+
+type ApprovalFlowInstanceCollection {
+  totalCount: Int!
+  cursor: String
+  items: [ApprovalFlowInstance!]!
+}
+
+input CreateApprovalFlowDefinitionInput {
+  name: String!
+  isActive: Boolean
+  previousVersionId: ID
+  steps: [ApprovalFlowDefinitionStepInput!]
+  formSchema: [ApprovalFlowFormFieldInput!]
+}
+
+input ApprovalFlowDefinitionStepInput {
+  name: String!
+  approverIds: [ID!]
+  requiredApprovals: Int
+  timeoutHours: Int
+}
+
+input ApprovalFlowFormFieldInput {
+  key: String!
+  name: String!
+  type: String!
+}
+
+input StartApprovalFlowInput {
+  definitionId: ID!
+  resourceId: ID
+  formData: JSONObject
+}
+
+input ApproveApprovalFlowInput {
+  instanceId: ID!
+  comment: String
+}
+
+input RejectApprovalFlowInput {
+  instanceId: ID!
+  comment: String!
+  rollbackToStep: Int
+}
+
+input CancelApprovalFlowInput {
+  instanceId: ID!
+  comment: String
+}
+
+type ApprovalMutations {
+  createDefinition(input: CreateApprovalFlowDefinitionInput!): ApprovalFlowDefinition!
+  setDefinitionActive(definitionId: ID!, isActive: Boolean!): ApprovalFlowDefinition!
+  start(input: StartApprovalFlowInput!): ApprovalFlowInstance!
+  approve(input: ApproveApprovalFlowInput!): ApprovalFlowInstance!
+  reject(input: RejectApprovalFlowInput!): ApprovalFlowInstance!
+  cancel(input: CancelApprovalFlowInput!): ApprovalFlowInstance!
+  processTimeouts: Int!
+}
+
+extend type Query {
+  approvalFlowInstance(id: ID!): ApprovalFlowInstance
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
+  approvalFlowDefinitions(resourceType: ApprovalFlowResourceType): [ApprovalFlowDefinition!]!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
+  approvalFlowInstances(
+    limit: Int = 25
+    cursor: String
+    status: ApprovalFlowStatus
+  ): ApprovalFlowInstanceCollection! @hasServerRole(role: SERVER_GUEST) @hasScope(scope: "streams:read")
+  approvalFlowStats(rangeDays: Int = 30): ApprovalFlowStats!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
+}
+
+extend type Mutation {
+  approvalMutations: ApprovalMutations!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:write")
+}

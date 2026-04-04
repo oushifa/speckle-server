@@ -527,6 +527,81 @@ export const ModelFolderModels = buildTableHelper('model_folder_models', [
   'createdAt'
 ])
 
+export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitions', [
+  'id',
+  'projectId',
+  'name',
+  'resourceType',
+  'isActive',
+  'version',
+  'previousVersionId',
+  'triggerConfig',
+  'formSchema',
+  'createdBy',
+  'createdAt',
+  'updatedAt'
+])
+
+export const ApprovalFlowInstances = buildTableHelper('approval_flow_instances', [
+  'id',
+  'definitionId',
+  'projectId',
+  'resourceType',
+  'resourceId',
+  'formData',
+  'status',
+  'currentStep',
+  'createdBy',
+  'createdAt',
+  'updatedAt'
+])
+
+export const ApprovalFlowActions = buildTableHelper('approval_flow_actions', [
+  'id',
+  'instanceId',
+  'stepId',
+  'action',
+  'fromStatus',
+  'toStatus',
+  'comment',
+  'metadata',
+  'actorId',
+  'createdAt'
+])
+
+export const ApprovalFlowDefinitionSteps = buildTableHelper(
+  'approval_flow_definition_steps',
+  [
+    'id',
+    'definitionId',
+    'name',
+    'stepIndex',
+    'approverIds',
+    'requiredApprovals',
+    'timeoutHours',
+    'createdAt'
+  ]
+)
+
+export const ApprovalFlowInstanceSteps = buildTableHelper(
+  'approval_flow_instance_steps',
+  [
+    'id',
+    'instanceId',
+    'definitionStepId',
+    'name',
+    'stepIndex',
+    'status',
+    'approverIds',
+    'requiredApprovals',
+    'approvedByIds',
+    'startedAt',
+    'dueAt',
+    'completedAt',
+    'createdAt'
+  ]
+)
+
 export const Branches = buildTableHelper('branches', [
   'id',
   'streamId',

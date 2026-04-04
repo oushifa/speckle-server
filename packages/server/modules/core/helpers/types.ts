@@ -159,6 +159,81 @@ export type ModelFolderModelRecord = {
   createdAt: Date
 }
 
+export type ApprovalFlowDefinitionRecord = {
+  id: string
+  projectId: Nullable<string>
+  name: string
+  resourceType: string
+  isActive: boolean
+  version: number
+  previousVersionId: Nullable<string>
+  triggerConfig: Nullable<Record<string, unknown>>
+  formSchema: Nullable<
+    Array<{
+      key: string
+      name: string
+      type: string
+    }>
+  >
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ApprovalFlowInstanceRecord = {
+  id: string
+  definitionId: string
+  projectId: Nullable<string>
+  resourceType: string
+  resourceId: Nullable<string>
+  formData: Nullable<Record<string, unknown>>
+  status: string
+  currentStep: number
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ApprovalFlowActionRecord = {
+  id: string
+  instanceId: string
+  stepId: Nullable<string>
+  action: string
+  fromStatus: Nullable<string>
+  toStatus: Nullable<string>
+  comment: Nullable<string>
+  metadata: Nullable<Record<string, unknown>>
+  actorId: string
+  createdAt: Date
+}
+
+export type ApprovalFlowDefinitionStepRecord = {
+  id: string
+  definitionId: string
+  name: string
+  stepIndex: number
+  approverIds: string[]
+  requiredApprovals: number
+  timeoutHours: Nullable<number>
+  createdAt: Date
+}
+
+export type ApprovalFlowInstanceStepRecord = {
+  id: string
+  instanceId: string
+  definitionStepId: Nullable<string>
+  name: string
+  stepIndex: number
+  status: string
+  approverIds: string[]
+  requiredApprovals: number
+  approvedByIds: string[]
+  startedAt: Nullable<Date>
+  dueAt: Nullable<Date>
+  completedAt: Nullable<Date>
+  createdAt: Date
+}
+
 export type ObjectRecord = {
   id: string
   speckleType: string

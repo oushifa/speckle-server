@@ -1,5 +1,5 @@
 import type { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
-import type { StreamGraphQLReturn, CommitGraphQLReturn, ProjectGraphQLReturn, ObjectGraphQLReturn, VersionGraphQLReturn, ServerInviteGraphQLReturnType, ModelGraphQLReturn, ModelsTreeItemGraphQLReturn, MutationsObjectGraphQLReturn, LimitedUserGraphQLReturn, UserGraphQLReturn, EmbedTokenGraphQLReturn, GraphQLEmptyReturn, StreamCollaboratorGraphQLReturn, ProjectCollaboratorGraphQLReturn, ServerInfoGraphQLReturn, BranchGraphQLReturn, FolderGraphQLReturn, UserMetaGraphQLReturn, ProjectPermissionChecksGraphQLReturn, ModelPermissionChecksGraphQLReturn, VersionPermissionChecksGraphQLReturn, RootPermissionChecksGraphQLReturn, PermissionCheckResultGraphQLReturn } from '@/modules/core/helpers/graphTypes';
+import type { StreamGraphQLReturn, CommitGraphQLReturn, ProjectGraphQLReturn, ObjectGraphQLReturn, VersionGraphQLReturn, ServerInviteGraphQLReturnType, ModelGraphQLReturn, ModelsTreeItemGraphQLReturn, MutationsObjectGraphQLReturn, LimitedUserGraphQLReturn, UserGraphQLReturn, EmbedTokenGraphQLReturn, GraphQLEmptyReturn, StreamCollaboratorGraphQLReturn, ProjectCollaboratorGraphQLReturn, ServerInfoGraphQLReturn, BranchGraphQLReturn, FolderGraphQLReturn, ApprovalFlowDefinitionGraphQLReturn, ApprovalFlowInstanceGraphQLReturn, ApprovalFlowActionGraphQLReturn, ApprovalFlowDefinitionStepGraphQLReturn, ApprovalFlowInstanceStepGraphQLReturn, ApprovalFlowStatsGraphQLReturn, UserMetaGraphQLReturn, ProjectPermissionChecksGraphQLReturn, ModelPermissionChecksGraphQLReturn, VersionPermissionChecksGraphQLReturn, RootPermissionChecksGraphQLReturn, PermissionCheckResultGraphQLReturn } from '@/modules/core/helpers/graphTypes';
 import type { StreamAccessRequestGraphQLReturn, ProjectAccessRequestGraphQLReturn } from '@/modules/accessrequests/helpers/graphTypes';
 import type { AutomateFunctionPermissionChecksGraphQLReturn, AutomateFunctionGraphQLReturn, AutomateFunctionReleaseGraphQLReturn, AutomationGraphQLReturn, AutomationPermissionChecksGraphQLReturn, AutomationRevisionGraphQLReturn, AutomationRevisionFunctionGraphQLReturn, AutomateRunGraphQLReturn, AutomationRunTriggerGraphQLReturn, AutomationRevisionTriggerDefinitionGraphQLReturn, AutomateFunctionRunGraphQLReturn, TriggeredAutomationsStatusGraphQLReturn, ProjectAutomationMutationsGraphQLReturn, ProjectTriggeredAutomationsStatusUpdatedMessageGraphQLReturn, ProjectAutomationsUpdatedMessageGraphQLReturn, UserAutomateInfoGraphQLReturn } from '@/modules/automate/helpers/graphTypes';
 import type { CommentReplyAuthorCollectionGraphQLReturn, CommentGraphQLReturn, CommentPermissionChecksGraphQLReturn } from '@/modules/comments/helpers/graphTypes';
@@ -463,6 +463,198 @@ export type AppUpdateInput = {
   termsAndConditionsLink?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type ApprovalFlowAction = {
+  __typename?: 'ApprovalFlowAction';
+  action: ApprovalFlowActionType;
+  actor?: Maybe<LimitedUser>;
+  actorId: Scalars['ID']['output'];
+  comment?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  fromStatus?: Maybe<ApprovalFlowStatus>;
+  id: Scalars['ID']['output'];
+  instanceId: Scalars['ID']['output'];
+  metadata?: Maybe<Scalars['JSONObject']['output']>;
+  stepId?: Maybe<Scalars['ID']['output']>;
+  toStatus?: Maybe<ApprovalFlowStatus>;
+};
+
+export const ApprovalFlowActionType = {
+  Approved: 'APPROVED',
+  Canceled: 'CANCELED',
+  Rejected: 'REJECTED',
+  Started: 'STARTED',
+  StepApproved: 'STEP_APPROVED',
+  TimeoutRejected: 'TIMEOUT_REJECTED'
+} as const;
+
+export type ApprovalFlowActionType = typeof ApprovalFlowActionType[keyof typeof ApprovalFlowActionType];
+export type ApprovalFlowDefinition = {
+  __typename?: 'ApprovalFlowDefinition';
+  createdAt: Scalars['DateTime']['output'];
+  createdBy: Scalars['ID']['output'];
+  formSchema: Array<ApprovalFlowFormField>;
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  previousVersionId?: Maybe<Scalars['ID']['output']>;
+  resourceType: ApprovalFlowResourceType;
+  steps: Array<ApprovalFlowDefinitionStep>;
+  updatedAt: Scalars['DateTime']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type ApprovalFlowDefinitionStep = {
+  __typename?: 'ApprovalFlowDefinitionStep';
+  approverIds: Array<Scalars['ID']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  definitionId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  requiredApprovals: Scalars['Int']['output'];
+  stepIndex: Scalars['Int']['output'];
+  timeoutHours?: Maybe<Scalars['Int']['output']>;
+};
+
+export type ApprovalFlowDefinitionStepInput = {
+  approverIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+  name: Scalars['String']['input'];
+  requiredApprovals?: InputMaybe<Scalars['Int']['input']>;
+  timeoutHours?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type ApprovalFlowFormField = {
+  __typename?: 'ApprovalFlowFormField';
+  key: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
+export type ApprovalFlowFormFieldInput = {
+  key: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  type: Scalars['String']['input'];
+};
+
+export type ApprovalFlowInstance = {
+  __typename?: 'ApprovalFlowInstance';
+  actions: Array<ApprovalFlowAction>;
+  createdAt: Scalars['DateTime']['output'];
+  createdBy: Scalars['ID']['output'];
+  currentStep: Scalars['Int']['output'];
+  definition?: Maybe<ApprovalFlowDefinition>;
+  definitionId: Scalars['ID']['output'];
+  formData?: Maybe<Scalars['JSONObject']['output']>;
+  id: Scalars['ID']['output'];
+  resourceId?: Maybe<Scalars['ID']['output']>;
+  resourceType: ApprovalFlowResourceType;
+  status: ApprovalFlowStatus;
+  steps: Array<ApprovalFlowInstanceStep>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type ApprovalFlowInstanceCollection = {
+  __typename?: 'ApprovalFlowInstanceCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<ApprovalFlowInstance>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type ApprovalFlowInstanceStep = {
+  __typename?: 'ApprovalFlowInstanceStep';
+  approvedByIds: Array<Scalars['ID']['output']>;
+  approverIds: Array<Scalars['ID']['output']>;
+  completedAt?: Maybe<Scalars['DateTime']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  definitionStepId?: Maybe<Scalars['ID']['output']>;
+  dueAt?: Maybe<Scalars['DateTime']['output']>;
+  id: Scalars['ID']['output'];
+  instanceId: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  requiredApprovals: Scalars['Int']['output'];
+  startedAt?: Maybe<Scalars['DateTime']['output']>;
+  status: ApprovalFlowStepStatus;
+  stepIndex: Scalars['Int']['output'];
+};
+
+export const ApprovalFlowResourceType = {
+  Model: 'MODEL'
+} as const;
+
+export type ApprovalFlowResourceType = typeof ApprovalFlowResourceType[keyof typeof ApprovalFlowResourceType];
+export type ApprovalFlowStats = {
+  __typename?: 'ApprovalFlowStats';
+  approvedCount: Scalars['Int']['output'];
+  averageResolutionHours: Scalars['Float']['output'];
+  canceledCount: Scalars['Int']['output'];
+  pendingCount: Scalars['Int']['output'];
+  rejectedCount: Scalars['Int']['output'];
+  totalCount: Scalars['Int']['output'];
+};
+
+export const ApprovalFlowStatus = {
+  Approved: 'APPROVED',
+  Canceled: 'CANCELED',
+  Pending: 'PENDING',
+  Rejected: 'REJECTED'
+} as const;
+
+export type ApprovalFlowStatus = typeof ApprovalFlowStatus[keyof typeof ApprovalFlowStatus];
+export const ApprovalFlowStepStatus = {
+  Approved: 'APPROVED',
+  Canceled: 'CANCELED',
+  Pending: 'PENDING',
+  Rejected: 'REJECTED',
+  Waiting: 'WAITING'
+} as const;
+
+export type ApprovalFlowStepStatus = typeof ApprovalFlowStepStatus[keyof typeof ApprovalFlowStepStatus];
+export type ApprovalMutations = {
+  __typename?: 'ApprovalMutations';
+  approve: ApprovalFlowInstance;
+  cancel: ApprovalFlowInstance;
+  createDefinition: ApprovalFlowDefinition;
+  processTimeouts: Scalars['Int']['output'];
+  reject: ApprovalFlowInstance;
+  setDefinitionActive: ApprovalFlowDefinition;
+  start: ApprovalFlowInstance;
+};
+
+
+export type ApprovalMutationsApproveArgs = {
+  input: ApproveApprovalFlowInput;
+};
+
+
+export type ApprovalMutationsCancelArgs = {
+  input: CancelApprovalFlowInput;
+};
+
+
+export type ApprovalMutationsCreateDefinitionArgs = {
+  input: CreateApprovalFlowDefinitionInput;
+};
+
+
+export type ApprovalMutationsRejectArgs = {
+  input: RejectApprovalFlowInput;
+};
+
+
+export type ApprovalMutationsSetDefinitionActiveArgs = {
+  definitionId: Scalars['ID']['input'];
+  isActive: Scalars['Boolean']['input'];
+};
+
+
+export type ApprovalMutationsStartArgs = {
+  input: StartApprovalFlowInput;
+};
+
+export type ApproveApprovalFlowInput = {
+  comment?: InputMaybe<Scalars['String']['input']>;
+  instanceId: Scalars['ID']['input'];
+};
+
 export type ApproveWorkspaceJoinRequestInput = {
   userId: Scalars['String']['input'];
   workspaceId: Scalars['String']['input'];
@@ -839,6 +1031,11 @@ export type BulkUsersRetrievalInput = {
   limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type CancelApprovalFlowInput = {
+  comment?: InputMaybe<Scalars['String']['input']>;
+  instanceId: Scalars['ID']['input'];
+};
+
 export type CancelCheckoutSessionInput = {
   sessionId: Scalars['ID']['input'];
   workspaceId: Scalars['ID']['input'];
@@ -1157,6 +1354,14 @@ export type CreateAccSyncItemInput = {
   accRootProjectFolderUrn: Scalars['String']['input'];
   modelId: Scalars['String']['input'];
   projectId: Scalars['String']['input'];
+};
+
+export type CreateApprovalFlowDefinitionInput = {
+  formSchema?: InputMaybe<Array<ApprovalFlowFormFieldInput>>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name: Scalars['String']['input'];
+  previousVersionId?: InputMaybe<Scalars['ID']['input']>;
+  steps?: InputMaybe<Array<ApprovalFlowDefinitionStepInput>>;
 };
 
 export type CreateAutomateFunctionInput = {
@@ -2094,6 +2299,7 @@ export type Mutation = {
   appTokenCreate: Scalars['String']['output'];
   /** Update an existing third party application. **Note: This will invalidate all existing tokens, refresh tokens and access codes and will require existing users to re-authorize it.** */
   appUpdate: Scalars['Boolean']['output'];
+  approvalMutations: ApprovalMutations;
   automateFunctionRunStatusReport: Scalars['Boolean']['output'];
   automateMutations: AutomateMutations;
   /** @deprecated Part of the old API surface and will be removed in the future. Use ModelMutations.create instead. */
@@ -3652,6 +3858,10 @@ export type Query = {
   adminUsers?: Maybe<AdminUsersListCollection>;
   /** Gets a specific app from the server. */
   app?: Maybe<ServerApp>;
+  approvalFlowDefinitions: Array<ApprovalFlowDefinition>;
+  approvalFlowInstance?: Maybe<ApprovalFlowInstance>;
+  approvalFlowInstances: ApprovalFlowInstanceCollection;
+  approvalFlowStats: ApprovalFlowStats;
   /**
    * Returns all the publicly available apps on this server.
    * @deprecated Part of the old API surface and will be removed in the future.
@@ -3778,6 +3988,28 @@ export type QueryAdminUsersArgs = {
 
 export type QueryAppArgs = {
   id: Scalars['String']['input'];
+};
+
+
+export type QueryApprovalFlowDefinitionsArgs = {
+  resourceType?: InputMaybe<ApprovalFlowResourceType>;
+};
+
+
+export type QueryApprovalFlowInstanceArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryApprovalFlowInstancesArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  status?: InputMaybe<ApprovalFlowStatus>;
+};
+
+
+export type QueryApprovalFlowStatsArgs = {
+  rangeDays?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -3916,6 +4148,12 @@ export type QueryWorkspaceInviteArgs = {
 
 export type QueryWorkspaceSsoByEmailArgs = {
   email: Scalars['String']['input'];
+};
+
+export type RejectApprovalFlowInput = {
+  comment: Scalars['String']['input'];
+  instanceId: Scalars['ID']['input'];
+  rollbackToStep?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type RemoveModelFromFolderInput = {
@@ -4429,6 +4667,12 @@ export const SortDirection = {
 } as const;
 
 export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
+export type StartApprovalFlowInput = {
+  definitionId: Scalars['ID']['input'];
+  formData?: InputMaybe<Scalars['JSONObject']['input']>;
+  resourceId?: InputMaybe<Scalars['ID']['input']>;
+};
+
 export type StartFileImportInput = {
   /**
    * The etag is returned by the blob storage provider in the response body after a successful upload.
@@ -6602,6 +6846,22 @@ export type ResolversTypes = {
   AppCreateInput: AppCreateInput;
   AppTokenCreateInput: AppTokenCreateInput;
   AppUpdateInput: AppUpdateInput;
+  ApprovalFlowAction: ResolverTypeWrapper<ApprovalFlowActionGraphQLReturn>;
+  ApprovalFlowActionType: ApprovalFlowActionType;
+  ApprovalFlowDefinition: ResolverTypeWrapper<ApprovalFlowDefinitionGraphQLReturn>;
+  ApprovalFlowDefinitionStep: ResolverTypeWrapper<ApprovalFlowDefinitionStepGraphQLReturn>;
+  ApprovalFlowDefinitionStepInput: ApprovalFlowDefinitionStepInput;
+  ApprovalFlowFormField: ResolverTypeWrapper<ApprovalFlowFormField>;
+  ApprovalFlowFormFieldInput: ApprovalFlowFormFieldInput;
+  ApprovalFlowInstance: ResolverTypeWrapper<ApprovalFlowInstanceGraphQLReturn>;
+  ApprovalFlowInstanceCollection: ResolverTypeWrapper<Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversTypes['ApprovalFlowInstance']> }>;
+  ApprovalFlowInstanceStep: ResolverTypeWrapper<ApprovalFlowInstanceStepGraphQLReturn>;
+  ApprovalFlowResourceType: ApprovalFlowResourceType;
+  ApprovalFlowStats: ResolverTypeWrapper<ApprovalFlowStatsGraphQLReturn>;
+  ApprovalFlowStatus: ApprovalFlowStatus;
+  ApprovalFlowStepStatus: ApprovalFlowStepStatus;
+  ApprovalMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
+  ApproveApprovalFlowInput: ApproveApprovalFlowInput;
   ApproveWorkspaceJoinRequestInput: ApproveWorkspaceJoinRequestInput;
   ArchiveCommentInput: ArchiveCommentInput;
   AuthStrategy: ResolverTypeWrapper<AuthStrategy>;
@@ -6645,6 +6905,7 @@ export type ResolversTypes = {
   BranchDeleteInput: BranchDeleteInput;
   BranchUpdateInput: BranchUpdateInput;
   BulkUsersRetrievalInput: BulkUsersRetrievalInput;
+  CancelApprovalFlowInput: CancelApprovalFlowInput;
   CancelCheckoutSessionInput: CancelCheckoutSessionInput;
   CheckoutSession: ResolverTypeWrapper<CheckoutSession>;
   CheckoutSessionInput: CheckoutSessionInput;
@@ -6670,6 +6931,7 @@ export type ResolversTypes = {
   CommitsMoveInput: CommitsMoveInput;
   CountOnlyCollection: ResolverTypeWrapper<CountOnlyCollection>;
   CreateAccSyncItemInput: CreateAccSyncItemInput;
+  CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
   CreateAutomateFunctionInput: CreateAutomateFunctionInput;
   CreateAutomateFunctionWithoutVersionInput: CreateAutomateFunctionWithoutVersionInput;
   CreateCommentInput: CreateCommentInput;
@@ -6820,6 +7082,7 @@ export type ResolversTypes = {
   ProjectVersionsUpdatedMessageType: ProjectVersionsUpdatedMessageType;
   ProjectVisibility: ProjectVisibility;
   Query: ResolverTypeWrapper<{}>;
+  RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResolverTypeWrapper<ResourceIdentifier>;
@@ -6864,6 +7127,7 @@ export type ResolversTypes = {
   SetPrimaryUserEmailInput: SetPrimaryUserEmailInput;
   SmartTextEditorValue: ResolverTypeWrapper<SmartTextEditorValueGraphQLReturn>;
   SortDirection: SortDirection;
+  StartApprovalFlowInput: StartApprovalFlowInput;
   StartFileImportInput: StartFileImportInput;
   Stream: ResolverTypeWrapper<StreamGraphQLReturn>;
   StreamAccessRequest: ResolverTypeWrapper<StreamAccessRequestGraphQLReturn>;
@@ -7034,6 +7298,18 @@ export type ResolversParentTypes = {
   AppCreateInput: AppCreateInput;
   AppTokenCreateInput: AppTokenCreateInput;
   AppUpdateInput: AppUpdateInput;
+  ApprovalFlowAction: ApprovalFlowActionGraphQLReturn;
+  ApprovalFlowDefinition: ApprovalFlowDefinitionGraphQLReturn;
+  ApprovalFlowDefinitionStep: ApprovalFlowDefinitionStepGraphQLReturn;
+  ApprovalFlowDefinitionStepInput: ApprovalFlowDefinitionStepInput;
+  ApprovalFlowFormField: ApprovalFlowFormField;
+  ApprovalFlowFormFieldInput: ApprovalFlowFormFieldInput;
+  ApprovalFlowInstance: ApprovalFlowInstanceGraphQLReturn;
+  ApprovalFlowInstanceCollection: Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversParentTypes['ApprovalFlowInstance']> };
+  ApprovalFlowInstanceStep: ApprovalFlowInstanceStepGraphQLReturn;
+  ApprovalFlowStats: ApprovalFlowStatsGraphQLReturn;
+  ApprovalMutations: MutationsObjectGraphQLReturn;
+  ApproveApprovalFlowInput: ApproveApprovalFlowInput;
   ApproveWorkspaceJoinRequestInput: ApproveWorkspaceJoinRequestInput;
   ArchiveCommentInput: ArchiveCommentInput;
   AuthStrategy: AuthStrategy;
@@ -7073,6 +7349,7 @@ export type ResolversParentTypes = {
   BranchDeleteInput: BranchDeleteInput;
   BranchUpdateInput: BranchUpdateInput;
   BulkUsersRetrievalInput: BulkUsersRetrievalInput;
+  CancelApprovalFlowInput: CancelApprovalFlowInput;
   CancelCheckoutSessionInput: CancelCheckoutSessionInput;
   CheckoutSession: CheckoutSession;
   CheckoutSessionInput: CheckoutSessionInput;
@@ -7098,6 +7375,7 @@ export type ResolversParentTypes = {
   CommitsMoveInput: CommitsMoveInput;
   CountOnlyCollection: CountOnlyCollection;
   CreateAccSyncItemInput: CreateAccSyncItemInput;
+  CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
   CreateAutomateFunctionInput: CreateAutomateFunctionInput;
   CreateAutomateFunctionWithoutVersionInput: CreateAutomateFunctionWithoutVersionInput;
   CreateCommentInput: CreateCommentInput;
@@ -7232,6 +7510,7 @@ export type ResolversParentTypes = {
   ProjectVersionsPreviewGeneratedMessage: ProjectVersionsPreviewGeneratedMessage;
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
   Query: {};
+  RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResourceIdentifier;
@@ -7271,6 +7550,7 @@ export type ResolversParentTypes = {
   ServerWorkspacesInfo: GraphQLEmptyReturn;
   SetPrimaryUserEmailInput: SetPrimaryUserEmailInput;
   SmartTextEditorValue: SmartTextEditorValueGraphQLReturn;
+  StartApprovalFlowInput: StartApprovalFlowInput;
   StartFileImportInput: StartFileImportInput;
   Stream: StreamGraphQLReturn;
   StreamAccessRequest: StreamAccessRequestGraphQLReturn;
@@ -7631,6 +7911,117 @@ export type AppAuthorResolvers<ContextType = GraphQLContext, ParentType extends 
   avatar?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowActionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowAction'] = ResolversParentTypes['ApprovalFlowAction']> = {
+  action?: Resolver<ResolversTypes['ApprovalFlowActionType'], ParentType, ContextType>;
+  actor?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
+  actorId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  comment?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  fromStatus?: Resolver<Maybe<ResolversTypes['ApprovalFlowStatus']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  instanceId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  metadata?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
+  stepId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  toStatus?: Resolver<Maybe<ResolversTypes['ApprovalFlowStatus']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowDefinitionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowDefinition'] = ResolversParentTypes['ApprovalFlowDefinition']> = {
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  createdBy?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  formSchema?: Resolver<Array<ResolversTypes['ApprovalFlowFormField']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isActive?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  previousVersionId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  resourceType?: Resolver<ResolversTypes['ApprovalFlowResourceType'], ParentType, ContextType>;
+  steps?: Resolver<Array<ResolversTypes['ApprovalFlowDefinitionStep']>, ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  version?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowDefinitionStepResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowDefinitionStep'] = ResolversParentTypes['ApprovalFlowDefinitionStep']> = {
+  approverIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  definitionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  requiredApprovals?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stepIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  timeoutHours?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowFormFieldResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowFormField'] = ResolversParentTypes['ApprovalFlowFormField']> = {
+  key?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowInstanceResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowInstance'] = ResolversParentTypes['ApprovalFlowInstance']> = {
+  actions?: Resolver<Array<ResolversTypes['ApprovalFlowAction']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  createdBy?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  currentStep?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  definition?: Resolver<Maybe<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType>;
+  definitionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  formData?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  resourceId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  resourceType?: Resolver<ResolversTypes['ApprovalFlowResourceType'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['ApprovalFlowStatus'], ParentType, ContextType>;
+  steps?: Resolver<Array<ResolversTypes['ApprovalFlowInstanceStep']>, ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowInstanceCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowInstanceCollection'] = ResolversParentTypes['ApprovalFlowInstanceCollection']> = {
+  cursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['ApprovalFlowInstance']>, ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowInstanceStepResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowInstanceStep'] = ResolversParentTypes['ApprovalFlowInstanceStep']> = {
+  approvedByIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  approverIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  completedAt?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  definitionStepId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  dueAt?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  instanceId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  requiredApprovals?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  startedAt?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['ApprovalFlowStepStatus'], ParentType, ContextType>;
+  stepIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowStatsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowStats'] = ResolversParentTypes['ApprovalFlowStats']> = {
+  approvedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  averageResolutionHours?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  canceledCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  pendingCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  rejectedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalMutations'] = ResolversParentTypes['ApprovalMutations']> = {
+  approve?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsApproveArgs, 'input'>>;
+  cancel?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsCancelArgs, 'input'>>;
+  createDefinition?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsCreateDefinitionArgs, 'input'>>;
+  processTimeouts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  reject?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsRejectArgs, 'input'>>;
+  setDefinitionActive?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsSetDefinitionActiveArgs, 'definitionId' | 'isActive'>>;
+  start?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsStartArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -8334,6 +8725,7 @@ export type MutationResolvers<ContextType = GraphQLContext, ParentType extends R
   appRevokeAccess?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<MutationAppRevokeAccessArgs, 'appId'>>;
   appTokenCreate?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationAppTokenCreateArgs, 'token'>>;
   appUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationAppUpdateArgs, 'app'>>;
+  approvalMutations?: Resolver<ResolversTypes['ApprovalMutations'], ParentType, ContextType>;
   automateFunctionRunStatusReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationAutomateFunctionRunStatusReportArgs, 'input'>>;
   automateMutations?: Resolver<ResolversTypes['AutomateMutations'], ParentType, ContextType>;
   branchCreate?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<MutationBranchCreateArgs, 'branch'>>;
@@ -8757,6 +9149,10 @@ export type QueryResolvers<ContextType = GraphQLContext, ParentType extends Reso
   adminStreams?: Resolver<Maybe<ResolversTypes['StreamCollection']>, ParentType, ContextType, RequireFields<QueryAdminStreamsArgs, 'limit' | 'offset'>>;
   adminUsers?: Resolver<Maybe<ResolversTypes['AdminUsersListCollection']>, ParentType, ContextType, RequireFields<QueryAdminUsersArgs, 'limit' | 'offset' | 'query'>>;
   app?: Resolver<Maybe<ResolversTypes['ServerApp']>, ParentType, ContextType, RequireFields<QueryAppArgs, 'id'>>;
+  approvalFlowDefinitions?: Resolver<Array<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType, Partial<QueryApprovalFlowDefinitionsArgs>>;
+  approvalFlowInstance?: Resolver<Maybe<ResolversTypes['ApprovalFlowInstance']>, ParentType, ContextType, RequireFields<QueryApprovalFlowInstanceArgs, 'id'>>;
+  approvalFlowInstances?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesArgs, 'limit'>>;
+  approvalFlowStats?: Resolver<ResolversTypes['ApprovalFlowStats'], ParentType, ContextType, RequireFields<QueryApprovalFlowStatsArgs, 'rangeDays'>>;
   apps?: Resolver<Maybe<Array<Maybe<ResolversTypes['ServerAppListItem']>>>, ParentType, ContextType>;
   authenticatedAsApp?: Resolver<Maybe<ResolversTypes['ServerAppListItem']>, ParentType, ContextType>;
   automateFunction?: Resolver<ResolversTypes['AutomateFunction'], ParentType, ContextType, RequireFields<QueryAutomateFunctionArgs, 'id'>>;
@@ -9719,6 +10115,15 @@ export type Resolvers<ContextType = GraphQLContext> = {
   AdminUsersListItem?: AdminUsersListItemResolvers<ContextType>;
   ApiToken?: ApiTokenResolvers<ContextType>;
   AppAuthor?: AppAuthorResolvers<ContextType>;
+  ApprovalFlowAction?: ApprovalFlowActionResolvers<ContextType>;
+  ApprovalFlowDefinition?: ApprovalFlowDefinitionResolvers<ContextType>;
+  ApprovalFlowDefinitionStep?: ApprovalFlowDefinitionStepResolvers<ContextType>;
+  ApprovalFlowFormField?: ApprovalFlowFormFieldResolvers<ContextType>;
+  ApprovalFlowInstance?: ApprovalFlowInstanceResolvers<ContextType>;
+  ApprovalFlowInstanceCollection?: ApprovalFlowInstanceCollectionResolvers<ContextType>;
+  ApprovalFlowInstanceStep?: ApprovalFlowInstanceStepResolvers<ContextType>;
+  ApprovalFlowStats?: ApprovalFlowStatsResolvers<ContextType>;
+  ApprovalMutations?: ApprovalMutationsResolvers<ContextType>;
   AuthStrategy?: AuthStrategyResolvers<ContextType>;
   AutomateFunction?: AutomateFunctionResolvers<ContextType>;
   AutomateFunctionCollection?: AutomateFunctionCollectionResolvers<ContextType>;

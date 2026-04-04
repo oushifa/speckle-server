@@ -165,6 +165,20 @@ const config: CodegenConfig = {
           ServerInfo: '@/modules/core/helpers/graphTypes#ServerInfoGraphQLReturn',
           Branch: '@/modules/core/helpers/graphTypes#BranchGraphQLReturn',
           Folder: '@/modules/core/helpers/graphTypes#FolderGraphQLReturn',
+          ApprovalFlowDefinition:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowDefinitionGraphQLReturn',
+          ApprovalFlowInstance:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowInstanceGraphQLReturn',
+          ApprovalFlowAction:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowActionGraphQLReturn',
+          ApprovalFlowDefinitionStep:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowDefinitionStepGraphQLReturn',
+          ApprovalFlowInstanceStep:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowInstanceStepGraphQLReturn',
+          ApprovalFlowStats:
+            '@/modules/core/helpers/graphTypes#ApprovalFlowStatsGraphQLReturn',
+          ApprovalMutations:
+            '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           GendoAIRender:
             '@/modules/gendo/helpers/types/graphTypes#GendoAIRenderGraphQLReturn',
           ServerMultiRegionConfiguration:

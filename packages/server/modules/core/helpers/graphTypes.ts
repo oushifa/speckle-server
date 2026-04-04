@@ -12,6 +12,11 @@ import { StreamRole, ServerRole } from '@/modules/core/graph/generated/graphql'
 import type { ServerRoles, StreamRoles } from '@/modules/core/helpers/mainConstants'
 import { Roles } from '@/modules/core/helpers/mainConstants'
 import type {
+  ApprovalFlowActionRecord,
+  ApprovalFlowDefinitionStepRecord,
+  ApprovalFlowDefinitionRecord,
+  ApprovalFlowInstanceStepRecord,
+  ApprovalFlowInstanceRecord,
   BranchRecord,
   CommitRecord,
   LimitedUserRecord,
@@ -53,6 +58,25 @@ export type ProjectGraphQLReturn = StreamGraphQLReturn
 export type ModelGraphQLReturn = BranchRecord
 
 export type FolderGraphQLReturn = ModelFolderRecord
+
+export type ApprovalFlowDefinitionGraphQLReturn = ApprovalFlowDefinitionRecord
+
+export type ApprovalFlowInstanceGraphQLReturn = ApprovalFlowInstanceRecord
+
+export type ApprovalFlowActionGraphQLReturn = ApprovalFlowActionRecord
+
+export type ApprovalFlowDefinitionStepGraphQLReturn = ApprovalFlowDefinitionStepRecord
+
+export type ApprovalFlowInstanceStepGraphQLReturn = ApprovalFlowInstanceStepRecord
+
+export type ApprovalFlowStatsGraphQLReturn = {
+  totalCount: number
+  pendingCount: number
+  approvedCount: number
+  rejectedCount: number
+  canceledCount: number
+  averageResolutionHours: number
+}
 
 export type VersionGraphQLReturn = CommitWithStreamBranchId
 
