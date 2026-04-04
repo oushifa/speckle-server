@@ -88,4 +88,4 @@ ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV} \
   SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION}
 
-ENTRYPOINT [ "tini", "--", "node", "--import=./esmLoader.js", "./bin/www" ]
+ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate && node --import=./esmLoader.js ./bin/www" ]
