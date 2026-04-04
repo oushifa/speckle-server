@@ -470,6 +470,7 @@ export type ApprovalFlowDefinition = {
   __typename?: 'ApprovalFlowDefinition';
   createdAt: Scalars['DateTime']['output'];
   createdBy: Scalars['ID']['output'];
+  effectConfig?: Maybe<Scalars['JSONObject']['output']>;
   formSchema: Array<ApprovalFlowFormField>;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -504,13 +505,30 @@ export type ApprovalFlowFormField = {
   __typename?: 'ApprovalFlowFormField';
   key: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  options: Array<ApprovalFlowFormFieldOption>;
+  placeholder?: Maybe<Scalars['String']['output']>;
+  required: Scalars['Boolean']['output'];
   type: Scalars['String']['output'];
 };
 
 export type ApprovalFlowFormFieldInput = {
   key: Scalars['String']['input'];
   name: Scalars['String']['input'];
+  options?: InputMaybe<Array<ApprovalFlowFormFieldOptionInput>>;
+  placeholder?: InputMaybe<Scalars['String']['input']>;
+  required?: InputMaybe<Scalars['Boolean']['input']>;
   type: Scalars['String']['input'];
+};
+
+export type ApprovalFlowFormFieldOption = {
+  __typename?: 'ApprovalFlowFormFieldOption';
+  label: Scalars['String']['output'];
+  value: Scalars['String']['output'];
+};
+
+export type ApprovalFlowFormFieldOptionInput = {
+  label: Scalars['String']['input'];
+  value: Scalars['String']['input'];
 };
 
 export type ApprovalFlowInstance = {
@@ -1330,6 +1348,7 @@ export type CreateAccSyncItemInput = {
 };
 
 export type CreateApprovalFlowDefinitionInput = {
+  effectConfig?: InputMaybe<Scalars['JSONObject']['input']>;
   formSchema?: InputMaybe<Array<ApprovalFlowFormFieldInput>>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
@@ -2117,6 +2136,7 @@ export type MarkReceivedVersionInput = {
 export type Model = {
   __typename?: 'Model';
   accSyncItem?: Maybe<AccSyncItem>;
+  approveStatus?: Maybe<Scalars['String']['output']>;
   author?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** Return a model tree of children */
@@ -6830,12 +6850,21 @@ export type DashboardsShareDisableTokenMutationVariables = Exact<{
 
 export type DashboardsShareDisableTokenMutation = { __typename?: 'Mutation', dashboardMutations: { __typename?: 'DashboardMutations', disableShare: { __typename?: 'DashboardShareLink', id: string, revoked: boolean, content: string } } };
 
+export type DynamicFormInvitableCollaboratorsQueryVariables = Exact<{
+  projectId: Scalars['String']['input'];
+  limit: Scalars['Int']['input'];
+  search?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type DynamicFormInvitableCollaboratorsQuery = { __typename?: 'Query', project: { __typename?: 'Project', id: string, invitableCollaborators: { __typename?: 'WorkspaceCollaboratorCollection', items: Array<{ __typename?: 'WorkspaceCollaborator', user: { __typename?: 'LimitedUser', id: string, name: string } }> } } };
+
 export type FlowDefinitionsQueryVariables = Exact<{
   resourceType?: InputMaybe<ApprovalFlowResourceType>;
 }>;
 
 
-export type FlowDefinitionsQuery = { __typename?: 'Query', approvalFlowDefinitions: Array<{ __typename?: 'ApprovalFlowDefinition', id: string, name: string, resourceType: ApprovalFlowResourceType, isActive: boolean, version: number, previousVersionId?: string | null, formSchema: Array<{ __typename?: 'ApprovalFlowFormField', key: string, name: string, type: string }>, steps: Array<{ __typename?: 'ApprovalFlowDefinitionStep', id: string, name: string, stepIndex: number, requiredApprovals: number, approverIds: Array<string>, timeoutHours?: number | null }> }> };
+export type FlowDefinitionsQuery = { __typename?: 'Query', approvalFlowDefinitions: Array<{ __typename?: 'ApprovalFlowDefinition', id: string, name: string, resourceType: ApprovalFlowResourceType, isActive: boolean, version: number, previousVersionId?: string | null, effectConfig?: {} | null, formSchema: Array<{ __typename?: 'ApprovalFlowFormField', key: string, name: string, type: string, required: boolean, placeholder?: string | null, options: Array<{ __typename?: 'ApprovalFlowFormFieldOption', label: string, value: string }> }>, steps: Array<{ __typename?: 'ApprovalFlowDefinitionStep', id: string, name: string, stepIndex: number, requiredApprovals: number, approverIds: Array<string>, timeoutHours?: number | null }> }> };
 
 export type FlowInstancesQueryVariables = Exact<{
   cursor?: InputMaybe<Scalars['String']['input']>;
@@ -9667,7 +9696,8 @@ export const DashboardsSharDialogPermissionsDocument = {"kind":"Document","defin
 export const DashboardsShareTokenDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DashboardsShareToken"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"dashboardId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dashboardMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"share"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"dashboardId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"dashboardId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"revoked"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]}}]} as unknown as DocumentNode<DashboardsShareTokenMutation, DashboardsShareTokenMutationVariables>;
 export const DashboardsShareEnableTokenDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DashboardsShareEnableToken"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DashboardShareInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dashboardMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"enableShare"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"revoked"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]}}]} as unknown as DocumentNode<DashboardsShareEnableTokenMutation, DashboardsShareEnableTokenMutationVariables>;
 export const DashboardsShareDisableTokenDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DashboardsShareDisableToken"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DashboardShareInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dashboardMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"disableShare"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"revoked"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]}}]} as unknown as DocumentNode<DashboardsShareDisableTokenMutation, DashboardsShareDisableTokenMutationVariables>;
-export const FlowDefinitionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FlowDefinitions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resourceType"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ApprovalFlowResourceType"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalFlowDefinitions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"resourceType"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resourceType"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"resourceType"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}},{"kind":"Field","name":{"kind":"Name","value":"version"}},{"kind":"Field","name":{"kind":"Name","value":"previousVersionId"}},{"kind":"Field","name":{"kind":"Name","value":"formSchema"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"key"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}},{"kind":"Field","name":{"kind":"Name","value":"steps"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"stepIndex"}},{"kind":"Field","name":{"kind":"Name","value":"requiredApprovals"}},{"kind":"Field","name":{"kind":"Name","value":"approverIds"}},{"kind":"Field","name":{"kind":"Name","value":"timeoutHours"}}]}}]}}]}}]} as unknown as DocumentNode<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>;
+export const DynamicFormInvitableCollaboratorsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DynamicFormInvitableCollaborators"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"search"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"invitableCollaborators"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"search"},"value":{"kind":"Variable","name":{"kind":"Name","value":"search"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<DynamicFormInvitableCollaboratorsQuery, DynamicFormInvitableCollaboratorsQueryVariables>;
+export const FlowDefinitionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FlowDefinitions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resourceType"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ApprovalFlowResourceType"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalFlowDefinitions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"resourceType"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resourceType"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"resourceType"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}},{"kind":"Field","name":{"kind":"Name","value":"version"}},{"kind":"Field","name":{"kind":"Name","value":"previousVersionId"}},{"kind":"Field","name":{"kind":"Name","value":"effectConfig"}},{"kind":"Field","name":{"kind":"Name","value":"formSchema"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"key"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"required"}},{"kind":"Field","name":{"kind":"Name","value":"placeholder"}},{"kind":"Field","name":{"kind":"Name","value":"options"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"value"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"steps"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"stepIndex"}},{"kind":"Field","name":{"kind":"Name","value":"requiredApprovals"}},{"kind":"Field","name":{"kind":"Name","value":"approverIds"}},{"kind":"Field","name":{"kind":"Name","value":"timeoutHours"}}]}}]}}]}}]} as unknown as DocumentNode<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>;
 export const FlowInstancesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FlowInstances"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"cursor"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"status"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ApprovalFlowStatus"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalFlowStats"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"rangeDays"},"value":{"kind":"IntValue","value":"30"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"pendingCount"}},{"kind":"Field","name":{"kind":"Name","value":"approvedCount"}},{"kind":"Field","name":{"kind":"Name","value":"rejectedCount"}},{"kind":"Field","name":{"kind":"Name","value":"canceledCount"}},{"kind":"Field","name":{"kind":"Name","value":"averageResolutionHours"}}]}},{"kind":"Field","name":{"kind":"Name","value":"approvalFlowInstances"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"cursor"},"value":{"kind":"Variable","name":{"kind":"Name","value":"cursor"}}},{"kind":"Argument","name":{"kind":"Name","value":"status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"status"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"cursor"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"resourceType"}},{"kind":"Field","name":{"kind":"Name","value":"resourceId"}},{"kind":"Field","name":{"kind":"Name","value":"formData"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"currentStep"}},{"kind":"Field","name":{"kind":"Name","value":"createdBy"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"definition"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"resourceType"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}}]}},{"kind":"Field","name":{"kind":"Name","value":"actions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"stepId"}},{"kind":"Field","name":{"kind":"Name","value":"action"}},{"kind":"Field","name":{"kind":"Name","value":"fromStatus"}},{"kind":"Field","name":{"kind":"Name","value":"toStatus"}},{"kind":"Field","name":{"kind":"Name","value":"comment"}},{"kind":"Field","name":{"kind":"Name","value":"metadata"}},{"kind":"Field","name":{"kind":"Name","value":"actorId"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"actor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"steps"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"stepIndex"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"requiredApprovals"}},{"kind":"Field","name":{"kind":"Name","value":"approverIds"}},{"kind":"Field","name":{"kind":"Name","value":"approvedByIds"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"dueAt"}},{"kind":"Field","name":{"kind":"Name","value":"completedAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<FlowInstancesQuery, FlowInstancesQueryVariables>;
 export const FlowCreateDefinitionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowCreateDefinition"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateApprovalFlowDefinitionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createDefinition"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]} as unknown as DocumentNode<FlowCreateDefinitionMutation, FlowCreateDefinitionMutationVariables>;
 export const FlowSetDefinitionActiveDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowSetDefinitionActive"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setDefinitionActive"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"definitionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"isActive"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}}]}}]}}]}}]} as unknown as DocumentNode<FlowSetDefinitionActiveMutation, FlowSetDefinitionActiveMutationVariables>;
@@ -9978,6 +10008,7 @@ export type AllObjectTypes = {
   ApprovalFlowDefinition: ApprovalFlowDefinition,
   ApprovalFlowDefinitionStep: ApprovalFlowDefinitionStep,
   ApprovalFlowFormField: ApprovalFlowFormField,
+  ApprovalFlowFormFieldOption: ApprovalFlowFormFieldOption,
   ApprovalFlowInstance: ApprovalFlowInstance,
   ApprovalFlowInstanceCollection: ApprovalFlowInstanceCollection,
   ApprovalFlowInstanceStep: ApprovalFlowInstanceStep,
@@ -10361,6 +10392,7 @@ export type ApprovalFlowActionFieldArgs = {
 export type ApprovalFlowDefinitionFieldArgs = {
   createdAt: {},
   createdBy: {},
+  effectConfig: {},
   formSchema: {},
   id: {},
   isActive: {},
@@ -10384,7 +10416,14 @@ export type ApprovalFlowDefinitionStepFieldArgs = {
 export type ApprovalFlowFormFieldFieldArgs = {
   key: {},
   name: {},
+  options: {},
+  placeholder: {},
+  required: {},
   type: {},
+}
+export type ApprovalFlowFormFieldOptionFieldArgs = {
+  label: {},
+  value: {},
 }
 export type ApprovalFlowInstanceFieldArgs = {
   actions: {},
@@ -10913,6 +10952,7 @@ export type LimitedWorkspaceJoinRequestCollectionFieldArgs = {
 }
 export type ModelFieldArgs = {
   accSyncItem: {},
+  approveStatus: {},
   author: {},
   automationsStatus: {},
   childrenTree: {},
@@ -12113,6 +12153,7 @@ export type AllObjectFieldArgTypes = {
   ApprovalFlowDefinition: ApprovalFlowDefinitionFieldArgs,
   ApprovalFlowDefinitionStep: ApprovalFlowDefinitionStepFieldArgs,
   ApprovalFlowFormField: ApprovalFlowFormFieldFieldArgs,
+  ApprovalFlowFormFieldOption: ApprovalFlowFormFieldOptionFieldArgs,
   ApprovalFlowInstance: ApprovalFlowInstanceFieldArgs,
   ApprovalFlowInstanceCollection: ApprovalFlowInstanceCollectionFieldArgs,
   ApprovalFlowInstanceStep: ApprovalFlowInstanceStepFieldArgs,

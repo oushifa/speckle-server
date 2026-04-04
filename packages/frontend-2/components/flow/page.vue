@@ -97,7 +97,7 @@
           id="flow-definition-form-schema"
           v-model="formSchemaText"
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder='审批填写项，例如 [{"key":"test","name":"默认审批","type":"string"}]'
+          placeholder='审批填写项，例如 [{"key":"title","name":"标题","type":"string","required":true},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"}]}]'
         />
         <input
           id="flow-definition-steps"
@@ -105,6 +105,10 @@
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
           placeholder='步骤JSON，例如 [{"name":"专业负责人","requiredApprovals":1}]'
         />
+        <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
+          <input v-model="syncModelApproveStatus" type="checkbox" />
+          审批联动模型 approve_status
+        </label>
         <button
           class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
           :disabled="!definitionName.trim() || mutating"
@@ -147,6 +151,9 @@
                   ? JSON.stringify(definition.formSchema)
                   : '无'
               }}
+            </div>
+            <div class="text-body-xs text-foreground-2 mt-1">
+              联动模型状态：{{ isModelStatusSyncEnabled(definition) ? '是' : '否' }}
             </div>
             <div class="mt-2 space-y-1">
               <div
@@ -206,60 +213,11 @@
           发起
         </button>
       </div>
-      <div
-        v-if="selectedDefinitionFormSchema.length"
-        class="grid grid-cols-1 md:grid-cols-3 gap-3"
-      >
-        <div
-          v-for="field in selectedDefinitionFormSchema"
-          :key="field.key"
-          class="space-y-2"
-        >
-          <template v-if="field.type === 'boolean'">
-            <label
-              :for="`flow-start-form-${field.key}`"
-              class="inline-flex items-center gap-2 text-body-sm"
-            >
-              <input
-                :id="`flow-start-form-${field.key}`"
-                type="checkbox"
-                :checked="Boolean(formFieldValues[field.key])"
-                @change="
-                  setFormFieldValue(
-                    field.key,
-                    ($event.target as HTMLInputElement).checked
-                  )
-                "
-              />
-              {{ field.name }}
-            </label>
-          </template>
-          <template v-else>
-            <label
-              :for="`flow-start-form-${field.key}`"
-              class="text-body-xs text-foreground-2"
-            >
-              {{ field.name }} ({{ field.type }})
-            </label>
-            <input
-              :id="`flow-start-form-${field.key}`"
-              :type="field.type === 'number' ? 'number' : 'text'"
-              :value="String(formFieldValues[field.key] ?? '')"
-              class="w-full border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-              :placeholder="`请输入${field.name}`"
-              @input="
-                setFormFieldValue(
-                  field.key,
-                  field.type === 'number'
-                    ? ($event.target as HTMLInputElement).value === ''
-                      ? null
-                      : Number(($event.target as HTMLInputElement).value)
-                    : ($event.target as HTMLInputElement).value
-                )
-              "
-            />
-          </template>
-        </div>
+      <div v-if="selectedDefinitionFormSchema.length" class="space-y-2">
+        <DynamicApprovalForm
+          v-model="formFieldValues"
+          :schema="selectedDefinitionFormSchema"
+        />
       </div>
     </div>
 
@@ -362,6 +320,7 @@
 import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import DynamicApprovalForm from '~/components/flow/DynamicApprovalForm.vue'
 import type {
   ApprovalFlowDefinitionStepInput,
   ApprovalFlowFormFieldInput,
@@ -386,10 +345,17 @@ const flowDefinitionsQuery = graphql(`
       isActive
       version
       previousVersionId
+      effectConfig
       formSchema {
         key
         name
         type
+        required
+        placeholder
+        options {
+          label
+          value
+        }
       }
       steps {
         id
@@ -541,7 +507,6 @@ type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][nu
 type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
 type FlowStats = FlowInstancesQuery['approvalFlowStats']
 type JsonObject = Record<string, unknown>
-type FormFieldValue = string | number | boolean | null
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
@@ -553,9 +518,12 @@ const selectedDefinitionId = ref('')
 const selectedModelId = ref('')
 const definitionName = ref('')
 const definitionResourceType = ref<'MODEL'>('MODEL')
-const formSchemaText = ref('[{"key":"test","name":"默认审批","type":"string"}]')
+const formSchemaText = ref(
+  '[{"key":"title","name":"标题","type":"string","required":true,"placeholder":"请输入标题"},{"key":"reviewer","name":"审批人","type":"user","required":true},{"key":"targetProject","name":"目标项目","type":"project"},{"key":"targetModel","name":"目标模型","type":"model"},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"},{"label":"紧急","value":"urgent"}]}]'
+)
 const stepsConfigText = ref('[{"name":"默认审批","requiredApprovals":1}]')
-const formFieldValues = ref<Record<string, FormFieldValue>>({})
+const syncModelApproveStatus = ref(false)
+const formFieldValues = ref<Record<string, unknown>>({})
 const statusFilter = ref<'' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED'>('')
 const actionComment = ref('')
 const rollbackToStep = ref<number | null>(null)
@@ -584,6 +552,11 @@ const notify = (title: string, description: string, type: ToastNotificationType)
   })
 }
 
+const isModelStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
+  const config = definition.effectConfig as Record<string, unknown> | null | undefined
+  return Boolean(config?.syncModelApproveStatus)
+}
+
 const selectedDefinition = computed(
   () =>
     definitions.value.find(
@@ -595,42 +568,14 @@ const selectedDefinitionFormSchema = computed(
   () => selectedDefinition.value?.formSchema || []
 )
 
-const setFormFieldValue = (key: string, value: FormFieldValue) => {
-  formFieldValues.value = {
-    ...formFieldValues.value,
-    [key]: value
-  }
-}
-
-const syncFormFieldValues = () => {
-  const nextValues: Record<string, FormFieldValue> = {}
-  for (const field of selectedDefinitionFormSchema.value) {
-    const currentValue = formFieldValues.value[field.key]
-    if (currentValue !== undefined) {
-      nextValues[field.key] = currentValue
-      continue
-    }
-    if (field.type === 'number') {
-      nextValues[field.key] = null
-      continue
-    }
-    if (field.type === 'boolean') {
-      nextValues[field.key] = false
-      continue
-    }
-    nextValues[field.key] = ''
-  }
-  formFieldValues.value = nextValues
-}
-
 const buildFormData = (): JsonObject => {
-  const result: JsonObject = {}
-  for (const field of selectedDefinitionFormSchema.value) {
-    const value = formFieldValues.value[field.key]
-    if (value === undefined) continue
-    result[field.key] = value
-  }
-  return result
+  return Object.entries(formFieldValues.value).reduce<JsonObject>(
+    (acc, [key, value]) => {
+      acc[key] = value
+      return acc
+    },
+    {}
+  )
 }
 
 const parseStepsConfig = (): ApprovalFlowDefinitionStepInput[] | undefined => {
@@ -731,16 +676,43 @@ const createDefinition = async () => {
           const key = String(record.key || '').trim()
           const name = String(record.name || '').trim()
           const type = String(record.type || '').trim()
+          const required = Boolean(record.required)
+          const placeholder =
+            typeof record.placeholder === 'string' ? record.placeholder.trim() : null
+          const options = Array.isArray(record.options)
+            ? record.options
+                .filter(
+                  (item) => item && typeof item === 'object' && !Array.isArray(item)
+                )
+                .map((item, optionIndex) => {
+                  const optionRecord = item as Record<string, unknown>
+                  const label = String(optionRecord.label || '').trim()
+                  const value = String(optionRecord.value || '').trim()
+                  if (!label || !value) {
+                    throw new Error(
+                      `审批填写项 ${index + 1} 的 options[${
+                        optionIndex + 1
+                      }] 缺少 label/value`
+                    )
+                  }
+                  return { label, value }
+                })
+            : []
           if (!key || !name || !type) {
             throw new Error(`审批填写项 ${index + 1} 缺少 key/name/type`)
           }
-          return { key, name, type }
+          return { key, name, type, required, placeholder, options }
         })
       : []
     const steps = parseStepsConfig()
     const input: CreateApprovalFlowDefinitionInput = {
       name: definitionName.value.trim(),
       isActive: true,
+      effectConfig: syncModelApproveStatus.value
+        ? {
+            syncModelApproveStatus: true
+          }
+        : null,
       formSchema,
       steps
     }
@@ -923,7 +895,7 @@ watch(
 watch(
   () => [selectedDefinitionId.value, definitions.value.length],
   () => {
-    syncFormFieldValues()
+    formFieldValues.value = {}
   },
   { immediate: true }
 )

@@ -33,6 +33,7 @@ type ApprovalFlowDefinition {
   isActive: Boolean!
   version: Int!
   previousVersionId: ID
+  effectConfig: JSONObject
   formSchema: [ApprovalFlowFormField!]!
   createdBy: ID!
   createdAt: DateTime!
@@ -101,6 +102,14 @@ type ApprovalFlowFormField {
   key: String!
   name: String!
   type: String!
+  required: Boolean!
+  placeholder: String
+  options: [ApprovalFlowFormFieldOption!]!
+}
+
+type ApprovalFlowFormFieldOption {
+  label: String!
+  value: String!
 }
 
 type ApprovalFlowStats {
@@ -122,6 +131,7 @@ input CreateApprovalFlowDefinitionInput {
   name: String!
   isActive: Boolean
   previousVersionId: ID
+  effectConfig: JSONObject
   steps: [ApprovalFlowDefinitionStepInput!]
   formSchema: [ApprovalFlowFormFieldInput!]
 }
@@ -137,6 +147,14 @@ input ApprovalFlowFormFieldInput {
   key: String!
   name: String!
   type: String!
+  required: Boolean
+  placeholder: String
+  options: [ApprovalFlowFormFieldOptionInput!]
+}
+
+input ApprovalFlowFormFieldOptionInput {
+  label: String!
+  value: String!
 }
 
 input StartApprovalFlowInput {
@@ -175,14 +193,18 @@ extend type Query {
   approvalFlowInstance(id: ID!): ApprovalFlowInstance
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")
-  approvalFlowDefinitions(resourceType: ApprovalFlowResourceType): [ApprovalFlowDefinition!]!
+  approvalFlowDefinitions(
+    resourceType: ApprovalFlowResourceType
+  ): [ApprovalFlowDefinition!]!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")
   approvalFlowInstances(
     limit: Int = 25
     cursor: String
     status: ApprovalFlowStatus
-  ): ApprovalFlowInstanceCollection! @hasServerRole(role: SERVER_GUEST) @hasScope(scope: "streams:read")
+  ): ApprovalFlowInstanceCollection!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
   approvalFlowStats(rangeDays: Int = 30): ApprovalFlowStats!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")

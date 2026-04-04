@@ -84,8 +84,21 @@ export default {
       return await getApprovalFlowDefinitionStepsFactory({ db })(parent.id)
     },
     formSchema: (parent: {
-      formSchema?: Array<{ key: string; name: string; type: string }>
-    }) => parent.formSchema || []
+      formSchema?: Array<{
+        key: string
+        name: string
+        type: string
+        required?: boolean
+        placeholder?: string | null
+        options?: Array<{ label: string; value: string }>
+      }>
+    }) =>
+      (parent.formSchema || []).map((field) => ({
+        ...field,
+        required: Boolean(field.required),
+        placeholder: field.placeholder || null,
+        options: field.options || []
+      }))
   },
   ApprovalFlowInstanceStep: {
     approvedByIds: (parent: { approvedByIds?: string[] }) => parent.approvedByIds || [],
@@ -111,7 +124,15 @@ export default {
           name: string
           isActive?: boolean | null
           previousVersionId?: string | null
-          formSchema?: Array<{ key: string; name: string; type: string }> | null
+          effectConfig?: Record<string, unknown> | null
+          formSchema?: Array<{
+            key: string
+            name: string
+            type: string
+            required?: boolean | null
+            placeholder?: string | null
+            options?: Array<{ label: string; value: string }> | null
+          }> | null
           steps?: Array<{
             name: string
             approverIds?: string[] | null
@@ -127,11 +148,19 @@ export default {
         name: args.input.name.trim(),
         isActive: args.input.isActive ?? true,
         previousVersionId: args.input.previousVersionId || null,
+        effectConfig: args.input.effectConfig || null,
         formSchema:
           args.input.formSchema?.map((field) => ({
             key: field.key.trim(),
             name: field.name.trim(),
-            type: field.type.trim()
+            type: field.type.trim(),
+            required: Boolean(field.required),
+            placeholder: field.placeholder?.trim() || null,
+            options:
+              field.options?.map((option) => ({
+                label: option.label.trim(),
+                value: option.value.trim()
+              })) || []
           })) || [],
         steps:
           args.input.steps?.map((s) => ({

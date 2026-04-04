@@ -536,6 +536,7 @@ export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitio
   'version',
   'previousVersionId',
   'triggerConfig',
+  'effectConfig',
   'formSchema',
   'createdBy',
   'createdAt',
@@ -608,6 +609,7 @@ export const Branches = buildTableHelper('branches', [
   'authorId',
   'name',
   'description',
+  'approveStatus',
   'createdAt',
   'updatedAt'
 ])

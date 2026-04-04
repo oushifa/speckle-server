@@ -492,6 +492,7 @@ export type ApprovalFlowDefinition = {
   __typename?: 'ApprovalFlowDefinition';
   createdAt: Scalars['DateTime']['output'];
   createdBy: Scalars['ID']['output'];
+  effectConfig?: Maybe<Scalars['JSONObject']['output']>;
   formSchema: Array<ApprovalFlowFormField>;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
@@ -526,13 +527,30 @@ export type ApprovalFlowFormField = {
   __typename?: 'ApprovalFlowFormField';
   key: Scalars['String']['output'];
   name: Scalars['String']['output'];
+  options: Array<ApprovalFlowFormFieldOption>;
+  placeholder?: Maybe<Scalars['String']['output']>;
+  required: Scalars['Boolean']['output'];
   type: Scalars['String']['output'];
 };
 
 export type ApprovalFlowFormFieldInput = {
   key: Scalars['String']['input'];
   name: Scalars['String']['input'];
+  options?: InputMaybe<Array<ApprovalFlowFormFieldOptionInput>>;
+  placeholder?: InputMaybe<Scalars['String']['input']>;
+  required?: InputMaybe<Scalars['Boolean']['input']>;
   type: Scalars['String']['input'];
+};
+
+export type ApprovalFlowFormFieldOption = {
+  __typename?: 'ApprovalFlowFormFieldOption';
+  label: Scalars['String']['output'];
+  value: Scalars['String']['output'];
+};
+
+export type ApprovalFlowFormFieldOptionInput = {
+  label: Scalars['String']['input'];
+  value: Scalars['String']['input'];
 };
 
 export type ApprovalFlowInstance = {
@@ -1357,6 +1375,7 @@ export type CreateAccSyncItemInput = {
 };
 
 export type CreateApprovalFlowDefinitionInput = {
+  effectConfig?: InputMaybe<Scalars['JSONObject']['input']>;
   formSchema?: InputMaybe<Array<ApprovalFlowFormFieldInput>>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
@@ -2144,6 +2163,7 @@ export type MarkReceivedVersionInput = {
 export type Model = {
   __typename?: 'Model';
   accSyncItem?: Maybe<AccSyncItem>;
+  approveStatus?: Maybe<Scalars['String']['output']>;
   author?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** Return a model tree of children */
@@ -6853,6 +6873,8 @@ export type ResolversTypes = {
   ApprovalFlowDefinitionStepInput: ApprovalFlowDefinitionStepInput;
   ApprovalFlowFormField: ResolverTypeWrapper<ApprovalFlowFormField>;
   ApprovalFlowFormFieldInput: ApprovalFlowFormFieldInput;
+  ApprovalFlowFormFieldOption: ResolverTypeWrapper<ApprovalFlowFormFieldOption>;
+  ApprovalFlowFormFieldOptionInput: ApprovalFlowFormFieldOptionInput;
   ApprovalFlowInstance: ResolverTypeWrapper<ApprovalFlowInstanceGraphQLReturn>;
   ApprovalFlowInstanceCollection: ResolverTypeWrapper<Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversTypes['ApprovalFlowInstance']> }>;
   ApprovalFlowInstanceStep: ResolverTypeWrapper<ApprovalFlowInstanceStepGraphQLReturn>;
@@ -7304,6 +7326,8 @@ export type ResolversParentTypes = {
   ApprovalFlowDefinitionStepInput: ApprovalFlowDefinitionStepInput;
   ApprovalFlowFormField: ApprovalFlowFormField;
   ApprovalFlowFormFieldInput: ApprovalFlowFormFieldInput;
+  ApprovalFlowFormFieldOption: ApprovalFlowFormFieldOption;
+  ApprovalFlowFormFieldOptionInput: ApprovalFlowFormFieldOptionInput;
   ApprovalFlowInstance: ApprovalFlowInstanceGraphQLReturn;
   ApprovalFlowInstanceCollection: Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversParentTypes['ApprovalFlowInstance']> };
   ApprovalFlowInstanceStep: ApprovalFlowInstanceStepGraphQLReturn;
@@ -7932,6 +7956,7 @@ export type ApprovalFlowActionResolvers<ContextType = GraphQLContext, ParentType
 export type ApprovalFlowDefinitionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowDefinition'] = ResolversParentTypes['ApprovalFlowDefinition']> = {
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   createdBy?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  effectConfig?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   formSchema?: Resolver<Array<ResolversTypes['ApprovalFlowFormField']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isActive?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -7959,7 +7984,16 @@ export type ApprovalFlowDefinitionStepResolvers<ContextType = GraphQLContext, Pa
 export type ApprovalFlowFormFieldResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowFormField'] = ResolversParentTypes['ApprovalFlowFormField']> = {
   key?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  options?: Resolver<Array<ResolversTypes['ApprovalFlowFormFieldOption']>, ParentType, ContextType>;
+  placeholder?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  required?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ApprovalFlowFormFieldOptionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowFormFieldOption'] = ResolversParentTypes['ApprovalFlowFormFieldOption']> = {
+  label?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  value?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -8650,6 +8684,7 @@ export type LimitedWorkspaceJoinRequestCollectionResolvers<ContextType = GraphQL
 
 export type ModelResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Model'] = ResolversParentTypes['Model']> = {
   accSyncItem?: Resolver<Maybe<ResolversTypes['AccSyncItem']>, ParentType, ContextType>;
+  approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   author?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   automationsStatus?: Resolver<Maybe<ResolversTypes['TriggeredAutomationsStatus']>, ParentType, ContextType>;
   childrenTree?: Resolver<Array<ResolversTypes['ModelsTreeItem']>, ParentType, ContextType>;
@@ -10119,6 +10154,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   ApprovalFlowDefinition?: ApprovalFlowDefinitionResolvers<ContextType>;
   ApprovalFlowDefinitionStep?: ApprovalFlowDefinitionStepResolvers<ContextType>;
   ApprovalFlowFormField?: ApprovalFlowFormFieldResolvers<ContextType>;
+  ApprovalFlowFormFieldOption?: ApprovalFlowFormFieldOptionResolvers<ContextType>;
   ApprovalFlowInstance?: ApprovalFlowInstanceResolvers<ContextType>;
   ApprovalFlowInstanceCollection?: ApprovalFlowInstanceCollectionResolvers<ContextType>;
   ApprovalFlowInstanceStep?: ApprovalFlowInstanceStepResolvers<ContextType>;

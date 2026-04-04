@@ -139,6 +139,7 @@ export type BranchRecord = {
   authorId: string | null
   name: string
   description: Nullable<string>
+  approveStatus?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }
@@ -168,11 +169,18 @@ export type ApprovalFlowDefinitionRecord = {
   version: number
   previousVersionId: Nullable<string>
   triggerConfig: Nullable<Record<string, unknown>>
+  effectConfig: Nullable<Record<string, unknown>>
   formSchema: Nullable<
     Array<{
       key: string
       name: string
       type: string
+      required?: boolean
+      placeholder?: string | null
+      options?: Array<{
+        label: string
+        value: string
+      }>
     }>
   >
   createdBy: string

@@ -2,14 +2,13 @@
   <form method="post" @submit="onSubmit">
     <div class="flex flex-col space-y-2">
       <FormTextInput
-        type="email"
         name="email"
         label="账号"
         placeholder="输入您的账号"
         size="lg"
         color="foundation"
         show-label
-        :disabled="!!(loading || shouldForceInviteEmail)"
+        :disabled="loading"
         auto-focus
       />
       <FormTextInput

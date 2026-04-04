@@ -103,11 +103,14 @@
 <script setup lang="ts">
 import type { MaybeNullOrUndefined } from '@speckle/shared'
 import { useForm } from 'vee-validate'
+import dayjs from 'dayjs'
 import { SupportedProjectVisibility } from '~/lib/projects/helpers/visibility'
 import { isRequired, isStringOfLength } from '~~/lib/common/helpers/validation'
 import { useMixpanel } from '~~/lib/core/composables/mp'
-import { useCreateProject } from '~~/lib/projects/composables/projectManagement'
-import { createIwhaleFormData } from '~/lib/iwhale/form/helpers'
+import {
+  useCreateProject,
+  useUpdateProject
+} from '~~/lib/projects/composables/projectManagement'
 
 type FormValues = {
   name: string
@@ -132,6 +135,7 @@ const emit = defineEmits<{
 }>()
 
 const createProject = useCreateProject()
+const updateProject = useUpdateProject()
 const logger = useLogger()
 const { handleSubmit, isSubmitting } = useForm<FormValues>()
 
@@ -172,20 +176,38 @@ const onSubmit = handleSubmit(async (values) => {
 
     if (newProject?.id) {
       try {
-        await createIwhaleFormData({
-          key: 'project_info',
-          values: {
-            ['project_id']: newProject.id,
-            address: values.address || '',
-            progress: toNumberValue(values.progress),
-            ['start_date']: toTimestamp(values.start_date),
-            ['end_date']: toTimestamp(values.end_date),
-            status: values.status || '',
-            responsible: values.responsible || ''
-          }
-        })
+        const updatePayload: Record<string, unknown> = {}
+        const trimmedStatus = values.status?.trim() || ''
+        const trimmedResponsible = values.responsible?.trim() || ''
+        const nextProgress = toNumberValue(values.progress)
+        const nextStartDate = toTimestamp(values.start_date)
+        const nextEndDate = toTimestamp(values.end_date)
+
+        if (nextProgress !== '') {
+          updatePayload.progress = nextProgress
+        }
+        if (nextStartDate !== '') {
+          updatePayload.startDate = nextStartDate
+        }
+        if (nextEndDate !== '') {
+          updatePayload.endDate = nextEndDate
+        }
+        if (trimmedStatus) {
+          updatePayload.status = trimmedStatus
+        }
+        if (trimmedResponsible) {
+          updatePayload.responsible = trimmedResponsible
+        }
+
+        if (Object.keys(updatePayload).length) {
+          await updateProject({
+            id: newProject.id,
+            ...updatePayload,
+            timeZone: dayjs.tz.guess() || ''
+          })
+        }
       } catch (error) {
-        logger.error('Failed to create iwhale project info:', error)
+        logger.error('Failed to initialize project metadata:', error)
       }
 
       emit('created', { id: newProject.id })

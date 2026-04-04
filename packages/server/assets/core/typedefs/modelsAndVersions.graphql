@@ -97,6 +97,7 @@ type Model {
   displayName: String!
   author: LimitedUser
   description: String
+  approveStatus: String
   createdAt: DateTime!
   updatedAt: DateTime!
   previewUrl: String

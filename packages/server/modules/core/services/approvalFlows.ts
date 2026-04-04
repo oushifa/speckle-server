@@ -19,6 +19,7 @@ import {
   updateApprovalFlowInstanceStepFactory,
   updateApprovalFlowInstanceStatusFactory
 } from '@/modules/core/repositories/approvalFlows'
+import { updateBranchFactory } from '@/modules/core/repositories/branches'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { Knex } from 'knex'
 
@@ -27,13 +28,39 @@ const getStepDueAt = (startedAt: Date, timeoutHours?: number | null) => {
   return new Date(startedAt.getTime() + timeoutHours * 60 * 60 * 1000)
 }
 
+const shouldSyncModelApproveStatus = (effectConfig: Record<string, unknown> | null) =>
+  Boolean(effectConfig?.syncModelApproveStatus)
+
+const syncModelApproveStatus = async (params: {
+  trx: Knex
+  definitionEffectConfig: Record<string, unknown> | null
+  resourceType: string
+  resourceId?: string | null
+  approveStatus: string
+}) => {
+  if (!shouldSyncModelApproveStatus(params.definitionEffectConfig)) return
+  if (params.resourceType !== 'MODEL') return
+  if (!params.resourceId) return
+  await updateBranchFactory({ db: params.trx })(params.resourceId, {
+    approveStatus: params.approveStatus
+  })
+}
+
 export const createApprovalFlowDefinitionWithStepsFactory =
   (deps: { db: Knex }) =>
   async (params: {
     name: string
     isActive?: boolean
     previousVersionId?: string | null
-    formSchema?: Array<{ key: string; name: string; type: string }> | null
+    effectConfig?: Record<string, unknown> | null
+    formSchema?: Array<{
+      key: string
+      name: string
+      type: string
+      required?: boolean
+      placeholder?: string | null
+      options?: Array<{ label: string; value: string }>
+    }> | null
     steps: Array<{
       name: string
       approverIds?: string[]
@@ -59,6 +86,7 @@ export const createApprovalFlowDefinitionWithStepsFactory =
         version: nextVersion,
         previousVersionId: params.previousVersionId || null,
         triggerConfig: null,
+        effectConfig: params.effectConfig || null,
         formSchema: params.formSchema || null,
         createdBy: params.createdBy
       })
@@ -176,6 +204,15 @@ export const startApprovalFlowFactory =
         }
       })
 
+      await syncModelApproveStatus({
+        trx,
+        definitionEffectConfig:
+          (definition.effectConfig as Record<string, unknown> | null) || null,
+        resourceType: instance.resourceType,
+        resourceId: instance.resourceId,
+        approveStatus: ApprovalFlowInstanceStatus.Pending
+      })
+
       return instance
     })
   }
@@ -195,12 +232,15 @@ export const updateApprovalFlowStatusFactory =
       const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
       const updateStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
       const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
+      const getDefinitionById = getApprovalFlowDefinitionByIdFactory({ db: trx })
       const insertAction = insertApprovalFlowActionFactory({ db: trx })
 
       const instance = await getInstanceById({
         id: params.instanceId
       })
       if (!instance) throw new BadRequestError('Approval instance not found')
+      const definition = await getDefinitionById(instance.definitionId)
+      if (!definition) throw new BadRequestError('Approval definition not found')
       if (instance.status !== ApprovalFlowInstanceStatus.Pending) {
         throw new BadRequestError('Only pending instances can be updated')
       }
@@ -349,6 +389,35 @@ export const updateApprovalFlowStatusFactory =
         comment: params.comment || null
       })
 
+      if (finalStatus === ApprovalFlowInstanceStatus.Pending) {
+        await syncModelApproveStatus({
+          trx,
+          definitionEffectConfig:
+            (definition.effectConfig as Record<string, unknown> | null) || null,
+          resourceType: instance.resourceType,
+          resourceId: instance.resourceId,
+          approveStatus: ApprovalFlowInstanceStatus.Pending
+        })
+      } else if (finalStatus === ApprovalFlowInstanceStatus.Approved) {
+        await syncModelApproveStatus({
+          trx,
+          definitionEffectConfig:
+            (definition.effectConfig as Record<string, unknown> | null) || null,
+          resourceType: instance.resourceType,
+          resourceId: instance.resourceId,
+          approveStatus: ApprovalFlowInstanceStatus.Approved
+        })
+      } else if (finalStatus === ApprovalFlowInstanceStatus.Rejected) {
+        await syncModelApproveStatus({
+          trx,
+          definitionEffectConfig:
+            (definition.effectConfig as Record<string, unknown> | null) || null,
+          resourceType: instance.resourceType,
+          resourceId: instance.resourceId,
+          approveStatus: ApprovalFlowInstanceStatus.Rejected
+        })
+      }
+
       return updatedInstance
     })
   }
@@ -357,6 +426,7 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
   return await deps.db.transaction(async (trx) => {
     const getTimedOutSteps = getApprovalFlowTimedOutStepsFactory({ db: trx })
     const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
+    const getDefinitionById = getApprovalFlowDefinitionByIdFactory({ db: trx })
     const updateStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
     const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
     const insertAction = insertApprovalFlowActionFactory({ db: trx })
@@ -368,6 +438,8 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
         id: step.instanceId
       })
       if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending) continue
+      const definition = await getDefinitionById(instance.definitionId)
+      if (!definition) continue
 
       await updateStep({
         stepId: step.id,
@@ -386,6 +458,14 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
         fromStatus: ApprovalFlowInstanceStatus.Pending,
         toStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: 'Step timed out'
+      })
+      await syncModelApproveStatus({
+        trx,
+        definitionEffectConfig:
+          (definition.effectConfig as Record<string, unknown> | null) || null,
+        resourceType: instance.resourceType,
+        resourceId: instance.resourceId,
+        approveStatus: ApprovalFlowInstanceStatus.Rejected
       })
       affectedCount += 1
     }

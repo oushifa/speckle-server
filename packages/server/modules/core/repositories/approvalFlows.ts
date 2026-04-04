@@ -67,7 +67,15 @@ export const createApprovalFlowDefinitionFactory =
     version?: number
     previousVersionId?: string | null
     triggerConfig?: Record<string, unknown> | null
-    formSchema?: Array<{ key: string; name: string; type: string }> | null
+    effectConfig?: Record<string, unknown> | null
+    formSchema?: Array<{
+      key: string
+      name: string
+      type: string
+      required?: boolean
+      placeholder?: string | null
+      options?: Array<{ label: string; value: string }>
+    }> | null
     createdBy: string
   }) => {
     const now = new Date()
@@ -82,6 +90,7 @@ export const createApprovalFlowDefinitionFactory =
         version: params.version || 1,
         previousVersionId: params.previousVersionId || null,
         triggerConfig: jsonValue(deps.db, params.triggerConfig || null),
+        effectConfig: jsonValue(deps.db, params.effectConfig || null),
         formSchema: jsonValue(deps.db, params.formSchema || null),
         createdBy: params.createdBy,
         createdAt: now,
