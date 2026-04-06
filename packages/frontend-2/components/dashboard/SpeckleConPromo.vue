@@ -21,7 +21,7 @@
         Join global AEC leaders at SpeckleCon in London, Nov 7th.
       </p>
       <NuxtLink
-        to="https://conf.speckle.systems/"
+        to="http://47.100.77.97:64482/"
         target="_blank"
         external
         class="flex gap-1 items-center border-b border-transparent hover:border-highlight-3 max-w-max -mb-0.5"

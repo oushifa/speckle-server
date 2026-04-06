@@ -3,7 +3,7 @@
     <template #top-buttons>
       <FormButton
         color="outline"
-        to="https://docs.speckle.systems/beta/acc/overview"
+        to="http://47.100.77.97:64482/"
         external
         target="_blank"
       >

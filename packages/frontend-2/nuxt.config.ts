@@ -234,7 +234,7 @@ export default defineNuxtConfig({
     // Redirect old settings - End
     '/downloads': {
       redirect: {
-        to: 'https://www.speckle.systems/connectors',
+        to: 'http://47.100.77.97:64482/',
         statusCode: 301
       }
     },

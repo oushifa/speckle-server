@@ -20,7 +20,47 @@
         </div>
       </template>
       <template #actions>
-        <div class="flex gap-x-0.5 items-center">
+        <div class="relative flex gap-x-0.5 items-center">
+          <div ref="quickCardContainerRef">
+            <ViewerQuickCardButton
+              :active="showQuickCard"
+              @click="showQuickCard = !showQuickCard"
+            />
+            <Teleport to="body">
+              <div
+                v-if="showQuickCard"
+                ref="quickCardPanelRef"
+                class="z-40 bg-foundation border border-outline-2 rounded-lg shadow-xl overflow-hidden"
+                :style="quickCardPanelStyle"
+              >
+                <div
+                  class="h-10 pl-4 pr-2 flex items-center border-b border-outline-2 text-body-xs text-foreground font-medium leading-none"
+                >
+                  快捷卡片
+                </div>
+                <div class="simple-scrollbar overflow-y-auto max-h-[50dvh] py-1 pr-2">
+                  <div
+                    v-for="field in quickCardFieldsWithValues"
+                    :key="field.label"
+                    class="grid grid-cols-3 w-full pl-2 h-5 items-center"
+                  >
+                    <div
+                      class="col-span-1 truncate text-body-3xs mr-2 font-medium text-foreground-2"
+                      :title="field.label"
+                    >
+                      {{ field.label }}
+                    </div>
+                    <div
+                      class="col-span-2 pl-1 truncate text-body-3xs flex gap-1 items-center text-foreground"
+                      :title="field.value"
+                    >
+                      <span class="truncate">{{ field.value }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Teleport>
+          </div>
           <ViewerVisibilityButton
             :is-hidden="isHidden"
             :force-visible="showSubMenu"
@@ -75,7 +115,8 @@
   </ViewerCommentsPortalOrDiv>
 </template>
 <script setup lang="ts">
-import { onKeyStroke, useBreakpoints } from '@vueuse/core'
+import { onKeyStroke, useBreakpoints, useEventListener } from '@vueuse/core'
+import type { CSSProperties } from 'vue'
 import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
 import { getTargetObjectIds } from '~~/lib/object-sidebar/helpers'
 import { containsAll } from '~~/lib/common/helpers/utils'
@@ -117,6 +158,204 @@ const itemCount = ref(20)
 const sidebarOpen = ref(false)
 const sidebarWidth = ref(280)
 const showSubMenu = ref(false)
+const showQuickCard = ref(false)
+const quickCardContainerRef = ref<HTMLElement>()
+const quickCardPanelRef = ref<HTMLElement>()
+
+const quickCardPanelPosition = ref({
+  top: 0,
+  left: 0,
+  width: 320
+})
+
+const quickCardPanelStyle = computed<CSSProperties>(() => {
+  return {
+    position: 'fixed',
+    top: `${quickCardPanelPosition.value.top}px`,
+    left: `${quickCardPanelPosition.value.left}px`,
+    width: `${quickCardPanelPosition.value.width}px`,
+    maxWidth: 'calc(100vw - 1rem)'
+  }
+})
+
+type QuickCardField = {
+  label: string
+  aliases: string[]
+}
+
+type FlattenedEntry = {
+  key: string
+  path: string
+  value: unknown
+  units?: string
+}
+
+const quickCardFields: QuickCardField[] = [
+  { label: '名称', aliases: ['名称', 'name'] },
+  { label: '族名称', aliases: ['族名称', 'familyname', 'family'] },
+  { label: '类型名称', aliases: ['类型名称', 'typename', 'type name'] },
+  {
+    label: '构件编码',
+    aliases: ['构件编码', '构件编号', 'componentcode', 'elementcode']
+  },
+  { label: '分类对象代码', aliases: ['分类对象代码', 'classificationobjectcode'] },
+  { label: '空间代码', aliases: ['空间代码', 'spacecode'] },
+  { label: '分部分项代码', aliases: ['分部分项代码', 'sectionitemcode'] },
+  { label: '序号码', aliases: ['序号码', '序号', 'serialnumber'] },
+  { label: '结构材质', aliases: ['结构材质', '材质和装饰', '材质', 'material'] },
+  { label: '长度', aliases: ['长度', 'length'] },
+  { label: '面积', aliases: ['面积', 'area'] },
+  { label: '厚度', aliases: ['厚度', 'thickness'] },
+  { label: '顶部高程', aliases: ['顶部高程', 'topelevation'] },
+  { label: '底部高程', aliases: ['底部高程', 'bottomelevation'] },
+  { label: '体积', aliases: ['体积', 'volume'] },
+  {
+    label: '其他尺寸参数',
+    aliases: ['其他尺寸参数', '尺寸参数', 'otherdimensions', 'otherdimension']
+  }
+]
+
+const normalizedText = (value: string) => {
+  return value.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
+}
+
+const formatDisplayValue = (value: unknown, units?: string) => {
+  if (value === null || value === undefined || value === '') return '-'
+  const unitsSuffix = units?.trim().length ? ` ${units}` : ''
+  if (Array.isArray(value))
+    return value.length ? `${value.join(', ')}${unitsSuffix}` : '-'
+  if (typeof value === 'object') return '-'
+  return `${String(value)}${unitsSuffix}`
+}
+
+const flattenObjectEntries = (
+  input: unknown,
+  currentPath = '',
+  entries: FlattenedEntry[] = []
+) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return entries
+
+  const objectValue = input as Record<string, unknown>
+  const ignoredKeys = new Set([
+    '__closure',
+    'displayMesh',
+    'displayValue',
+    'totalChildrenCount',
+    '__importedUrl',
+    '__parents',
+    'bbox'
+  ])
+
+  for (const [key, rawValue] of Object.entries(objectValue)) {
+    if (ignoredKeys.has(key)) continue
+
+    const newPath = currentPath ? `${currentPath}.${key}` : key
+    if (
+      rawValue &&
+      typeof rawValue === 'object' &&
+      !Array.isArray(rawValue) &&
+      'name' in (rawValue as Record<string, unknown>) &&
+      'value' in (rawValue as Record<string, unknown>)
+    ) {
+      const param = rawValue as { name?: unknown; value?: unknown }
+      const parameterName =
+        typeof param.name === 'string' && param.name.length ? param.name : key
+      entries.push({
+        key: parameterName,
+        path: newPath,
+        value: param.value,
+        units:
+          'units' in param && typeof (param as { units?: unknown }).units === 'string'
+            ? ((param as { units?: string }).units as string)
+            : undefined
+      })
+      continue
+    }
+
+    if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      flattenObjectEntries(rawValue, newPath, entries)
+      continue
+    }
+
+    entries.push({
+      key,
+      path: newPath,
+      value: rawValue
+    })
+  }
+
+  return entries
+}
+
+const firstSelectedObjectEntries = computed(() => {
+  if (!objects.value.length) return [] as FlattenedEntry[]
+  return flattenObjectEntries(objects.value[0])
+})
+
+const findFieldValue = (aliases: string[]) => {
+  const normalizedAliases = aliases.map(normalizedText)
+
+  const exactMatch = firstSelectedObjectEntries.value.find((entry) => {
+    const keyNorm = normalizedText(entry.key)
+    const pathNorm = normalizedText(entry.path)
+    return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
+  })
+  if (exactMatch) return formatDisplayValue(exactMatch.value, exactMatch.units)
+
+  const fuzzyMatch = firstSelectedObjectEntries.value.find((entry) => {
+    const keyNorm = normalizedText(entry.key)
+    const pathNorm = normalizedText(entry.path)
+    return normalizedAliases.some(
+      (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
+    )
+  })
+  if (fuzzyMatch) return formatDisplayValue(fuzzyMatch.value, fuzzyMatch.units)
+
+  return '-'
+}
+
+const otherDimensionFieldValue = computed(() => {
+  const matched = firstSelectedObjectEntries.value.filter((entry) => {
+    const keyNorm = normalizedText(entry.key)
+    const pathNorm = normalizedText(entry.path)
+    return (
+      keyNorm.includes('宽度') ||
+      keyNorm.includes('高度') ||
+      keyNorm.includes('直径') ||
+      keyNorm.includes('半径') ||
+      pathNorm.includes('宽度') ||
+      pathNorm.includes('高度') ||
+      pathNorm.includes('直径') ||
+      pathNorm.includes('半径') ||
+      keyNorm === 'b' ||
+      keyNorm === 'h' ||
+      pathNorm.endsWith('.b') ||
+      pathNorm.endsWith('.h')
+    )
+  })
+
+  if (!matched.length) return '-'
+  return matched
+    .slice(0, 5)
+    .map((entry) => `${entry.key}: ${formatDisplayValue(entry.value, entry.units)}`)
+    .join('；')
+})
+
+const quickCardFieldsWithValues = computed(() => {
+  return quickCardFields.map((field) => {
+    if (field.label === '其他尺寸参数') {
+      return {
+        label: field.label,
+        value: otherDimensionFieldValue.value
+      }
+    }
+
+    return {
+      label: field.label,
+      value: findFieldValue(field.aliases)
+    }
+  })
+})
 
 const objectsUniqueByAppId = computed(() => {
   if (!diff.enabled.value) return objects.value
@@ -223,6 +462,62 @@ const onClose = () => {
 
 const forceClose = () => {
   sidebarOpen.value = false
+}
+
+const updateQuickCardPanelPosition = () => {
+  if (!import.meta.client || !quickCardContainerRef.value) return
+  const triggerRect = quickCardContainerRef.value.getBoundingClientRect()
+  const width = Math.min(380, Math.max(260, window.innerWidth - 16))
+  const gap = 4
+  const viewportPadding = 8
+  const preferredLeft = triggerRect.right - width
+  const left = Math.max(
+    viewportPadding,
+    Math.min(preferredLeft, window.innerWidth - width - viewportPadding)
+  )
+  const top = triggerRect.bottom + gap
+
+  quickCardPanelPosition.value = {
+    top,
+    left,
+    width
+  }
+}
+
+watch(showQuickCard, async (isOpen) => {
+  if (!isOpen) return
+  await nextTick()
+  updateQuickCardPanelPosition()
+})
+
+watch([sidebarOpen, shouldRenderSidebar], ([isOpen, shouldRender]) => {
+  if (!isOpen || !shouldRender) {
+    showQuickCard.value = false
+  }
+})
+
+if (import.meta.client) {
+  useEventListener(window, 'resize', () => {
+    if (!showQuickCard.value) return
+    updateQuickCardPanelPosition()
+  })
+
+  useEventListener(window, 'scroll', () => {
+    if (!showQuickCard.value) return
+    updateQuickCardPanelPosition()
+  })
+
+  useEventListener(document, 'mousedown', (event) => {
+    if (!showQuickCard.value) return
+    const target = event.target as Node | null
+    if (!target) return
+
+    const clickedTrigger = !!quickCardContainerRef.value?.contains(target)
+    const clickedPanel = !!quickCardPanelRef.value?.contains(target)
+    if (clickedTrigger || clickedPanel) return
+
+    showQuickCard.value = false
+  })
 }
 
 onKeyStroke('Escape', () => {

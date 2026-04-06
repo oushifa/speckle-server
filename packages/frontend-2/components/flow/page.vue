@@ -77,7 +77,9 @@
       <div
         class="relative h-full w-full max-w-3xl bg-foundation-page border-l border-outline-3 shadow-xl overflow-y-auto"
       >
-        <div class="p-4 border-b border-outline-3 flex items-center justify-between gap-3">
+        <div
+          class="p-4 border-b border-outline-3 flex items-center justify-between gap-3"
+        >
           <div class="min-w-0">
             <div class="text-body-sm font-medium truncate">
               {{ selectedInstance.definition?.name || '未命名流程' }}
@@ -113,7 +115,9 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div class="border border-outline-3 rounded-lg p-3">
                 <div class="text-body-xs text-foreground-2">状态</div>
-                <div class="text-body-sm">{{ selectedInstance.status }}</div>
+                <div class="text-body-sm">
+                  {{ formatStatusLabel(selectedInstance.status) }}
+                </div>
               </div>
               <div class="border border-outline-3 rounded-lg p-3">
                 <div class="text-body-xs text-foreground-2">当前步骤</div>
@@ -129,12 +133,17 @@
               </div>
               <div class="border border-outline-3 rounded-lg p-3">
                 <div class="text-body-xs text-foreground-2">发起时间</div>
-                <div class="text-body-sm">{{ formatDate(selectedInstance.createdAt) }}</div>
+                <div class="text-body-sm">
+                  {{ formatDate(selectedInstance.createdAt) }}
+                </div>
               </div>
             </div>
             <div class="border border-outline-3 rounded-lg p-3 space-y-2">
               <div class="text-body-xs text-foreground-2">流程内容</div>
-              <div v-if="getFormDisplayItems(selectedInstance).length" class="space-y-2">
+              <div
+                v-if="getFormDisplayItems(selectedInstance).length"
+                class="space-y-2"
+              >
                 <div
                   v-for="item in getFormDisplayItems(selectedInstance)"
                   :key="item.key"
@@ -188,32 +197,61 @@
               :key="action.id"
               class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
             >
-              {{ action.action }} · {{ action.actor?.name || action.actorId }} ·
+              {{ formatActionLabel(action.action) }} ·
+              {{ action.actor?.name || action.actorId }} ·
               {{ formatDate(action.createdAt) }}
-              <span v-if="action.comment"> · {{ action.comment }}</span>
+              <span v-if="action.toStatus">
+                · {{ formatStatusLabel(action.toStatus) }}
+              </span>
+              <span v-if="action.comment">· {{ action.comment }}</span>
             </div>
           </div>
 
-          <div v-else class="space-y-2">
+          <div v-else class="space-y-3">
+            <div class="flex flex-wrap gap-2 text-body-xs">
+              <span class="px-2 py-1 rounded-full bg-success/10 text-success">
+                已完成
+              </span>
+              <span class="px-2 py-1 rounded-full bg-primary/10 text-primary">
+                当前步骤
+              </span>
+              <span class="px-2 py-1 rounded-full bg-foundation-2 text-foreground-2">
+                未开始
+              </span>
+              <span class="px-2 py-1 rounded-full bg-danger/10 text-danger">
+                已拒绝/已取消
+              </span>
+            </div>
             <div
               v-for="step in selectedInstance.steps"
               :key="step.id"
-              class="border border-outline-3 rounded-lg p-3"
+              class="border rounded-lg p-3"
+              :class="getStepCardClass(step.status)"
             >
-              <div class="text-body-sm font-medium">
-                Step {{ step.stepIndex }} · {{ step.name }}
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-body-sm font-medium">
+                  Step {{ step.stepIndex }} · {{ step.name }}
+                </div>
+                <span
+                  class="text-body-xs px-2 py-0.5 rounded-full"
+                  :class="getStepTagClass(step.status)"
+                >
+                  {{ formatStepStatusLabel(step.status) }}
+                </span>
               </div>
               <div class="text-body-xs text-foreground-2 mt-1">
-                状态：{{ step.status }} · 审核：{{ step.approvedByIds.length }}/{{
-                  step.requiredApprovals
+                审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+              </div>
+              <div class="text-body-xs text-foreground-2 mt-1">
+                审核人：{{
+                  step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
                 }}
               </div>
               <div class="text-body-xs text-foreground-2 mt-1">
-                审核人：{{ step.approverIds.length ? step.approverIds.join('、') : '任意审批人' }}
-              </div>
-              <div class="text-body-xs text-foreground-2 mt-1">
-                开始：{{ formatDate(step.startedAt) }} · 截止：{{ formatDate(step.dueAt) }} ·
-                完成：{{ formatDate(step.completedAt) }}
+                开始：{{ formatDate(step.startedAt) }} · 截止：{{
+                  formatDate(step.dueAt)
+                }}
+                · 完成：{{ formatDate(step.completedAt) }}
               </div>
             </div>
           </div>
@@ -237,9 +275,44 @@ import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import type {
+  FlowDefinitionsQuery,
+  FlowDefinitionsQueryVariables,
   FlowInstancesQuery,
   FlowInstancesQueryVariables
 } from '~~/lib/common/generated/gql/graphql'
+
+const flowDefinitionsQuery = graphql(`
+  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
+    approvalFlowDefinitions(resourceType: $resourceType) {
+      id
+      name
+      resourceType
+      isActive
+      version
+      previousVersionId
+      effectConfig
+      formSchema {
+        key
+        name
+        type
+        required
+        placeholder
+        options {
+          label
+          value
+        }
+      }
+      steps {
+        id
+        name
+        stepIndex
+        requiredApprovals
+        approverIds
+        timeoutHours
+      }
+    }
+  }
+`)
 
 const flowInstancesQuery = graphql(`
   query FlowInstances($cursor: String, $status: ApprovalFlowStatus) {
@@ -337,6 +410,7 @@ const cancelFlowMutation = graphql(`
 
 type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
 type FlowStats = FlowInstancesQuery['approvalFlowStats']
+type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'content' | 'logs' | 'diagram'
 type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
@@ -355,6 +429,7 @@ const isReviewDialogOpen = ref(false)
 const selectedReviewAction = ref<FlowReviewAction>('approve')
 const selectedReviewInstanceId = ref<string | null>(null)
 const selectedInstance = ref<FlowListItem | null>(null)
+const definitions = ref<FlowDefinitionListItem[]>([])
 const detailTab = ref<FlowDetailTab>('content')
 const stats = ref<FlowStats>({
   totalCount: 0,
@@ -368,6 +443,56 @@ const stats = ref<FlowStats>({
 const formatDate = (date?: string | null) => {
   if (!date) return '-'
   return new Date(date).toLocaleString()
+}
+
+const formatStatusLabel = (status?: string | null) => {
+  const statusMap: Record<string, string> = {
+    PENDING: '进行中',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    CANCELED: '已取消'
+  }
+  if (!status) return '-'
+  return statusMap[status] || status
+}
+
+const formatStepStatusLabel = (status?: string | null) => {
+  const statusMap: Record<string, string> = {
+    WAITING: '未开始',
+    PENDING: '当前步骤',
+    APPROVED: '已完成',
+    REJECTED: '已驳回',
+    CANCELED: '已取消'
+  }
+  if (!status) return '-'
+  return statusMap[status] || status
+}
+
+const formatActionLabel = (action?: string | null) => {
+  const actionMap: Record<string, string> = {
+    STARTED: '发起流程',
+    STEP_APPROVED: '步骤通过',
+    APPROVED: '流程通过',
+    REJECTED: '流程驳回',
+    CANCELED: '流程取消',
+    TIMEOUT_REJECTED: '超时驳回'
+  }
+  if (!action) return '-'
+  return actionMap[action] || action
+}
+
+const getStepCardClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'border-success bg-success/5'
+  if (status === 'PENDING') return 'border-primary bg-primary/5'
+  if (status === 'REJECTED' || status === 'CANCELED') return 'border-danger bg-danger/5'
+  return 'border-outline-3 bg-foundation'
+}
+
+const getStepTagClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'bg-success/10 text-success'
+  if (status === 'PENDING') return 'bg-primary/10 text-primary'
+  if (status === 'REJECTED' || status === 'CANCELED') return 'bg-danger/10 text-danger'
+  return 'bg-foundation-2 text-foreground-2'
 }
 
 const notify = (title: string, description: string, type: ToastNotificationType) => {
@@ -412,7 +537,9 @@ const detailTabs = [
   { value: 'diagram' as FlowDetailTab, label: '流程图' }
 ]
 
-const getCurrentStep = (instance: FlowListItem): FlowListItem['steps'][number] | null => {
+const getCurrentStep = (
+  instance: FlowListItem
+): FlowListItem['steps'][number] | null => {
   const byStatus = instance.steps.find((step) => step.status === 'WAITING') || null
   if (byStatus) return byStatus
   const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
@@ -450,7 +577,11 @@ const formatFormValue = (value: unknown) => {
     return value
       .map((item) => {
         if (item === null || item === undefined) return '-'
-        if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+        if (
+          typeof item === 'string' ||
+          typeof item === 'number' ||
+          typeof item === 'boolean'
+        ) {
           return String(item)
         }
         return stringifyValue(item)
@@ -462,11 +593,29 @@ const formatFormValue = (value: unknown) => {
 
 const getFormDisplayItems = (instance: FlowListItem) => {
   const formData = normalizeFormData(instance.formData)
+  const definitionSchema =
+    definitions.value.find((definition) => definition.id === instance.definition?.id)
+      ?.formSchema || []
+  const fieldNameByKey = new Map(
+    definitionSchema.map((field) => [field.key, field.name || field.key])
+  )
   return Object.keys(formData).map((key) => ({
     key,
-    label: key,
+    label: fieldNameByKey.get(key) || key,
     value: formatFormValue(formData[key])
   }))
+}
+
+const loadDefinitions = async () => {
+  const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>({
+    query: flowDefinitionsQuery,
+    variables: {
+      resourceType: null
+    },
+    fetchPolicy: 'network-only'
+  })
+  definitions.value = (res.data.approvalFlowDefinitions ||
+    []) as FlowDefinitionListItem[]
 }
 
 const loadInstances = async (nextCursor?: string | null) => {
@@ -569,7 +718,7 @@ const submitReviewAction = async (payload: {
 }
 
 const refreshAll = async () => {
-  await loadInstances()
+  await Promise.all([loadDefinitions(), loadInstances()])
 }
 
 watch(

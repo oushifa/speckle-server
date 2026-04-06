@@ -23,10 +23,23 @@ import {
 } from '@/modules/core/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
+import {
+  ApprovalFlowSubscriptions,
+  filteredSubscribe,
+  publish
+} from '@/modules/shared/utils/subscriptions'
 
 const ensureUserId = (ctx: GraphQLContext) => {
   if (!ctx.userId) throw new BadRequestError('Authentication required')
   return ctx.userId
+}
+
+const publishApprovalFlowTodoCountUpdated = async () => {
+  await publish(ApprovalFlowSubscriptions.ApprovalFlowTodoCountUpdated, {
+    approvalFlowTodoCountUpdated: {
+      pendingForMeCount: 0
+    }
+  })
 }
 
 export default {
@@ -118,6 +131,14 @@ export default {
       return await ctx.loaders.users.getUser.load(parent.actorId)
     }
   },
+  Subscription: {
+    approvalFlowTodoCountUpdated: {
+      subscribe: filteredSubscribe(
+        ApprovalFlowSubscriptions.ApprovalFlowTodoCountUpdated,
+        (_payload, _args, ctx) => !!ctx.userId
+      )
+    }
+  },
   Mutation: {
     approvalMutations: () => ({})
   },
@@ -202,12 +223,14 @@ export default {
       ctx: GraphQLContext
     ) {
       const userId = ensureUserId(ctx)
-      return await startApprovalFlowFactory({ db })({
+      const instance = await startApprovalFlowFactory({ db })({
         definitionId: args.input.definitionId,
         resourceId: args.input.resourceId || null,
         formData: args.input.formData || null,
         userId
       })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
     },
     async approve(
       _parent: unknown,
@@ -230,13 +253,15 @@ export default {
       ) {
         throw new BadRequestError('Current user is not assigned to this step')
       }
-      return await updateApprovalFlowStatusFactory({ db })({
+      const instance = await updateApprovalFlowStatusFactory({ db })({
         instanceId: args.input.instanceId,
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Approved,
         comment: args.input.comment,
         nextStepApproverIds: args.input.nextStepApproverIds || null
       })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
     },
     async reject(
       _parent: unknown,
@@ -259,13 +284,15 @@ export default {
       ) {
         throw new BadRequestError('Current user is not assigned to this step')
       }
-      return await updateApprovalFlowStatusFactory({ db })({
+      const instance = await updateApprovalFlowStatusFactory({ db })({
         instanceId: args.input.instanceId,
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: args.input.comment,
         rollbackToStep: args.input.rollbackToStep || null
       })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
     },
     async cancel(
       _parent: unknown,
@@ -279,16 +306,20 @@ export default {
       if (currentStep && currentStep.status !== ApprovalFlowStepStatus.Pending) {
         throw new BadRequestError('No active step to cancel')
       }
-      return await updateApprovalFlowStatusFactory({ db })({
+      const instance = await updateApprovalFlowStatusFactory({ db })({
         instanceId: args.input.instanceId,
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Canceled,
         comment: args.input.comment
       })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
     },
     async processTimeouts(_parent: unknown, _args: unknown, ctx: GraphQLContext) {
       ensureUserId(ctx)
-      return await processApprovalFlowTimeoutsFactory({ db })()
+      const count = await processApprovalFlowTimeoutsFactory({ db })()
+      if (count > 0) await publishApprovalFlowTodoCountUpdated()
+      return count
     }
   }
 } as unknown as Resolvers

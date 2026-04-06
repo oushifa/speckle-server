@@ -163,10 +163,22 @@ export enum SavedViewSubscriptions {
   ProjectSavedViewGroupsUpdated = 'PROJECT_SAVED_VIEW_GROUPS_UPDATED'
 }
 
+export enum ApprovalFlowSubscriptions {
+  ApprovalFlowTodoCountUpdated = 'APPROVAL_FLOW_TODO_COUNT_UPDATED'
+}
+
 type NoVariables = Record<string, never>
 
 // Add mappings between expected event constant, its payload and variables
 type SubscriptionTypeMap = {
+  [ApprovalFlowSubscriptions.ApprovalFlowTodoCountUpdated]: {
+    payload: {
+      approvalFlowTodoCountUpdated: {
+        pendingForMeCount: number
+      }
+    }
+    variables: NoVariables
+  }
   [UserSubscriptions.UserProjectsUpdated]: {
     payload: {
       userProjectsUpdated: Merge<
@@ -430,6 +442,7 @@ type SubscriptionEvent =
   | CommentSubscriptions
   | FileImportSubscriptions
   | ProjectSubscriptions
+  | ApprovalFlowSubscriptions
   | StreamSubscriptions
   | UserSubscriptions
   | ViewerSubscriptions

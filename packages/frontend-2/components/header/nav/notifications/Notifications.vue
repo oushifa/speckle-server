@@ -45,15 +45,25 @@
           >
             <HeaderNavNotificationsWorkspaceInvite :invite="workspacesInvite" />
           </MenuItem>
+          <MenuItem v-if="flowTodoCount > 0" v-slot="{ active }">
+            <button
+              class="w-full text-left px-3.5 py-2 text-body-xs font-medium text-primary"
+              :class="active ? 'bg-foundation-2' : ''"
+              @click="goToFlow"
+            >
+              我的待办（{{ flowTodoCount }}）
+            </button>
+          </MenuItem>
         </MenuItems>
       </Transition>
     </Menu>
   </div>
 </template>
 <script setup lang="ts">
+import { gql } from '@apollo/client/core'
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
 import { XMarkIcon, BellIcon } from '@heroicons/vue/24/outline'
-import { useQuery } from '@vue/apollo-composable'
+import { useQuery, useSubscription } from '@vue/apollo-composable'
 import {
   navigationProjectInvitesQuery,
   navigationWorkspaceInvitesQuery
@@ -61,12 +71,35 @@ import {
 
 const menuButtonId = useId()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
+const router = useRouter()
+
+const navigationApprovalFlowTodoCountQuery = gql`
+  query NavigationApprovalFlowTodoCount {
+    approvalFlowStats(rangeDays: 30) {
+      pendingForMeCount
+    }
+  }
+`
+
+const navigationApprovalFlowTodoCountUpdatedSubscription = gql`
+  subscription NavigationApprovalFlowTodoCountUpdated {
+    approvalFlowTodoCountUpdated {
+      pendingForMeCount
+    }
+  }
+`
 
 const { result: projectInviteResult } = useQuery(navigationProjectInvitesQuery)
 const { result: workspaceInviteResult } = useQuery(
   navigationWorkspaceInvitesQuery,
   null,
   { enabled: isWorkspacesEnabled.value }
+)
+const { result: flowTodoResult, refetch: refetchFlowTodo } = useQuery(
+  navigationApprovalFlowTodoCountQuery
+)
+const { onResult: onFlowTodoUpdated } = useSubscription(
+  navigationApprovalFlowTodoCountUpdatedSubscription
 )
 
 const projectsInvites = computed(
@@ -86,6 +119,21 @@ const workspacesInvites = computed(() => {
 })
 
 const hasNotifications = computed(
-  () => projectsInvites.value?.length || workspacesInvites.value?.length
+  () =>
+    (projectsInvites.value?.length || 0) +
+    (workspacesInvites.value?.length || 0) +
+    (flowTodoCount.value || 0)
 )
+
+const flowTodoCount = computed(
+  () => flowTodoResult.value?.approvalFlowStats?.pendingForMeCount || 0
+)
+
+const goToFlow = async () => {
+  await router.push('/flow')
+}
+
+onFlowTodoUpdated(async () => {
+  await refetchFlowTodo()
+})
 </script>

@@ -81,7 +81,7 @@ const statusText = () => {
 }
 
 const openLearnMore = () => {
-  window.open('https://docs.speckle.systems/beta/acc/overview', '_blank')
+  window.open('http://47.100.77.97:64482/beta/acc/overview', '_blank')
 }
 
 const handleCTA = async () => {

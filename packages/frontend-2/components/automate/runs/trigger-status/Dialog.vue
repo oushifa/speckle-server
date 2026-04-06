@@ -35,7 +35,7 @@
           size="sm"
           target="_blank"
           external
-          to="https://speckle.systems/blog/automate-with-speckle/"
+          to="http://47.100.77.97:64482/"
           class="order-2 sm:order-1"
         >
           Learn more about Automate

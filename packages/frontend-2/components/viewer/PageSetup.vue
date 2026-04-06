@@ -267,7 +267,7 @@ useHead({ title })
 
 onMounted(() => {
   const referrer = document.referrer
-  const shouldTrackEvent = !referrer?.includes('speckle.systems') && !import.meta.dev
+  const shouldTrackEvent = !referrer?.includes('47.100.77.97:64482') && !import.meta.dev
 
   if (isEmbedEnabled.value && shouldTrackEvent) {
     mp.track('Embedded Model Load')

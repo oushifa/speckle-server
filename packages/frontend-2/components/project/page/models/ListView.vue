@@ -106,34 +106,49 @@ const isTreeSelectionActive = computed(() => props.treeModelIds !== null)
 const isTreeSelectionEmpty = computed(
   () => isTreeSelectionActive.value && !props.treeModelIds?.length
 )
+const shouldHaveTreeFilter = computed(
+  () =>
+    !!props.search?.length || !!props.sourceApps?.length || !!props.contributors?.length
+)
+const shouldHaveLatestModelsFilter = computed(
+  () =>
+    !!props.search?.length ||
+    !!props.sourceApps?.length ||
+    !!props.contributors?.length ||
+    !!props.treeModelIds?.length
+)
 
 const baseQueryVariables = computed(
   (): ProjectModelsTreeTopLevelQueryVariables => ({
     projectId: props.projectId,
-    filter: {
-      search: props.search || null,
-      sourceApps: props.sourceApps?.length
-        ? props.sourceApps.map((a) => a.searchKey)
-        : null,
-      contributors: props.contributors?.length
-        ? props.contributors.map((c) => c.id)
-        : null
-    }
+    filter: shouldHaveTreeFilter.value
+      ? {
+          search: props.search || null,
+          sourceApps: props.sourceApps?.length
+            ? props.sourceApps.map((a) => a.searchKey)
+            : null,
+          contributors: props.contributors?.length
+            ? props.contributors.map((c) => c.id)
+            : null
+        }
+      : null
   })
 )
 const latestModelsQueryVariables = computed(
   (): ProjectLatestModelsPaginationQueryVariables => ({
     projectId: props.projectId,
-    filter: {
-      search: props.search || null,
-      sourceApps: props.sourceApps?.length
-        ? props.sourceApps.map((a) => a.searchKey)
-        : null,
-      contributors: props.contributors?.length
-        ? props.contributors.map((c) => c.id)
-        : null,
-      ids: props.treeModelIds?.length ? props.treeModelIds : null
-    }
+    filter: shouldHaveLatestModelsFilter.value
+      ? {
+          search: props.search || null,
+          sourceApps: props.sourceApps?.length
+            ? props.sourceApps.map((a) => a.searchKey)
+            : null,
+          contributors: props.contributors?.length
+            ? props.contributors.map((c) => c.id)
+            : null,
+          ids: props.treeModelIds?.length ? props.treeModelIds : null
+        }
+      : null
   })
 )
 const isTreeModelIdsFiltering = computed(

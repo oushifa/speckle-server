@@ -25,7 +25,7 @@
         <div class="flex justify-center mt-4">
           <FormButton
             label="查看所有教程"
-            to="https://www.speckle.systems/tutorials"
+            to="http://47.100.77.97:64482/tutorials"
             target="_blank"
             color="outline"
             external

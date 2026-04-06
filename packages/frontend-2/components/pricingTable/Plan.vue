@@ -354,11 +354,11 @@ const buttonTooltip = computed(() => {
   }
 
   if (isDowngrade.value) {
-    return '降级计划目前不支持。请联系 billing@speckle.systems。'
+    return '降级计划目前不支持。请联系 billing@http://47.100.77.97:64482/'
   }
 
   if (isAnnualToMonthly.value) {
-    return '从年度计划切换到月度计划目前不支持。请联系 billing@speckle.systems。'
+    return '从年度计划切换到月度计划目前不支持。请联系 billing@http://47.100.77.97:64482/'
   }
 
   if (
@@ -366,7 +366,7 @@ const buttonTooltip = computed(() => {
     !isYearlyIntervalSelected.value &&
     canUpgradeToPlan.value
   ) {
-    return '从年度计划升级到月度计划目前不支持。请联系 billing@speckle.systems。'
+    return '从年度计划升级到月度计划目前不支持。请联系 billing@http://47.100.77.97:64482/'
   }
 
   return undefined

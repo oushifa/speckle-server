@@ -130,6 +130,10 @@ type ApprovalFlowInstanceCollection {
   items: [ApprovalFlowInstance!]!
 }
 
+type ApprovalFlowTodoCountUpdatedMessage {
+  pendingForMeCount: Int!
+}
+
 input CreateApprovalFlowDefinitionInput {
   name: String!
   isActive: Boolean
@@ -218,4 +222,10 @@ extend type Mutation {
   approvalMutations: ApprovalMutations!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:write")
+}
+
+extend type Subscription {
+  approvalFlowTodoCountUpdated: ApprovalFlowTodoCountUpdatedMessage!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
 }

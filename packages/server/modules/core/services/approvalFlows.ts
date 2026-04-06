@@ -31,6 +31,10 @@ const getStepDueAt = (startedAt: Date, timeoutHours?: number | null) => {
 const shouldSyncModelApproveStatus = (effectConfig: Record<string, unknown> | null) =>
   Boolean(effectConfig?.syncModelApproveStatus)
 
+const shouldAllowParallelInstancesForSameResource = (
+  effectConfig: Record<string, unknown> | null
+) => Boolean(effectConfig?.allowParallelInstancesForSameResource)
+
 const syncModelApproveStatus = async (params: {
   trx: Knex
   definitionEffectConfig: Record<string, unknown> | null
@@ -151,12 +155,17 @@ export const startApprovalFlowFactory =
       if (!definition.isActive) {
         throw new BadRequestError('Approval flow definition is inactive')
       }
-      const existingInstance = await getOpenInstanceForResource({
-        resourceType: definition.resourceType,
-        resourceId: params.resourceId || null
-      })
-      if (existingInstance) {
-        throw new BadRequestError('There is already an open approval instance')
+      const canRunInParallel = shouldAllowParallelInstancesForSameResource(
+        (definition.effectConfig as Record<string, unknown> | null) || null
+      )
+      if (!canRunInParallel) {
+        const existingInstance = await getOpenInstanceForResource({
+          resourceType: definition.resourceType,
+          resourceId: params.resourceId || null
+        })
+        if (existingInstance) {
+          throw new BadRequestError('There is already an open approval instance')
+        }
       }
 
       const definitionSteps = await getDefinitionSteps(definition.id)
@@ -396,7 +405,10 @@ export const updateApprovalFlowStatusFactory =
         instanceId: params.instanceId,
         stepId: currentStep.id,
         action:
-          finalStatus === ApprovalFlowInstanceStatus.Approved
+          params.targetStatus === ApprovalFlowInstanceStatus.Approved &&
+          finalStatus === ApprovalFlowInstanceStatus.Pending
+            ? ApprovalFlowActionType.StepApproved
+            : finalStatus === ApprovalFlowInstanceStatus.Approved
             ? ApprovalFlowActionType.Approved
             : finalStatus === ApprovalFlowInstanceStatus.Rejected
             ? ApprovalFlowActionType.Rejected

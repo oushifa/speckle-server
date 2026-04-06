@@ -235,7 +235,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  to="https://speckle.systems/updates"
+                  to="http://47.100.77.97:64482/updates"
                   target="_blank"
                   @click="isOpenMobile = false"
                 >

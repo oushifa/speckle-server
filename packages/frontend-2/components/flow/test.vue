@@ -41,6 +41,10 @@
           <input v-model="syncModelApproveStatus" type="checkbox" />
           审批联动模型 approve_status
         </label>
+        <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
+          <input v-model="allowParallelInstancesForSameResource" type="checkbox" />
+          允许同一资源多个实例并行
+        </label>
         <button
           class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
           :disabled="!definitionName.trim() || mutating"
@@ -91,6 +95,11 @@
             </div>
             <div class="text-body-xs text-foreground-2 mt-1">
               联动模型状态：{{ isModelStatusSyncEnabled(definition) ? '是' : '否' }}
+            </div>
+            <div class="text-body-xs text-foreground-2 mt-1">
+              同一资源并行实例：{{
+                isParallelInstancesEnabled(definition) ? '允许' : '不允许'
+              }}
             </div>
             <div class="mt-2 space-y-1">
               <div
@@ -242,6 +251,7 @@ const formSchemaText = ref(
 )
 const stepsConfigText = ref('[{"name":"默认审批","requiredApprovals":1}]')
 const syncModelApproveStatus = ref(false)
+const allowParallelInstancesForSameResource = ref(false)
 const isStartDialogOpen = ref(false)
 const selectedStartFlowId = ref<string | null>(null)
 
@@ -260,6 +270,11 @@ const activeDefinitions = computed(() =>
 const isModelStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
   const config = definition.effectConfig as Record<string, unknown> | null | undefined
   return Boolean(config?.syncModelApproveStatus)
+}
+
+const isParallelInstancesEnabled = (definition: FlowDefinitionListItem) => {
+  const config = definition.effectConfig as Record<string, unknown> | null | undefined
+  return Boolean(config?.allowParallelInstancesForSameResource)
 }
 
 const parseStepsConfig = (): ApprovalFlowDefinitionStepInput[] | undefined => {
@@ -359,14 +374,17 @@ const createDefinition = async () => {
         })
       : []
     const steps = parseStepsConfig()
+    const effectConfig: Record<string, unknown> = {}
+    if (syncModelApproveStatus.value) {
+      effectConfig.syncModelApproveStatus = true
+    }
+    if (allowParallelInstancesForSameResource.value) {
+      effectConfig.allowParallelInstancesForSameResource = true
+    }
     const input: CreateApprovalFlowDefinitionInput = {
       name: definitionName.value.trim(),
       isActive: true,
-      effectConfig: syncModelApproveStatus.value
-        ? {
-            syncModelApproveStatus: true
-          }
-        : null,
+      effectConfig: Object.keys(effectConfig).length ? effectConfig : null,
       formSchema,
       steps
     }
@@ -378,6 +396,8 @@ const createDefinition = async () => {
     })
     notify('创建成功', '流程定义已创建', ToastNotificationType.Success)
     definitionName.value = ''
+    allowParallelInstancesForSameResource.value = false
+    syncModelApproveStatus.value = false
   } catch (e) {
     notify('创建失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
