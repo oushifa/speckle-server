@@ -604,7 +604,10 @@ export type ApprovalFlowStats = {
   approvedCount: Scalars['Int']['output'];
   averageResolutionHours: Scalars['Float']['output'];
   canceledCount: Scalars['Int']['output'];
+  handledCount: Scalars['Int']['output'];
+  initiatedCount: Scalars['Int']['output'];
   pendingCount: Scalars['Int']['output'];
+  pendingForMeCount: Scalars['Int']['output'];
   rejectedCount: Scalars['Int']['output'];
   totalCount: Scalars['Int']['output'];
 };
@@ -8042,7 +8045,10 @@ export type ApprovalFlowStatsResolvers<ContextType = GraphQLContext, ParentType 
   approvedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   averageResolutionHours?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   canceledCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  handledCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  initiatedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   pendingCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  pendingForMeCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   rejectedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

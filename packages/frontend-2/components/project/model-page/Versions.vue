@@ -118,6 +118,7 @@ graphql(`
     role
     model(id: $modelId) {
       id
+      approveStatus
       versions(limit: 16, cursor: $versionsCursor) {
         cursor
         totalCount

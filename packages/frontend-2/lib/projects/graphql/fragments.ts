@@ -102,6 +102,7 @@ export const projectPageLatestItemsModelItemFragment = graphql(`
     name
     displayName
     projectId
+    approveStatus
     versionCount: versions(limit: 0) {
       totalCount
     }

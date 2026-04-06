@@ -118,6 +118,9 @@ type ApprovalFlowStats {
   approvedCount: Int!
   rejectedCount: Int!
   canceledCount: Int!
+  initiatedCount: Int!
+  handledCount: Int!
+  pendingForMeCount: Int!
   averageResolutionHours: Float!
 }
 
@@ -166,6 +169,7 @@ input StartApprovalFlowInput {
 input ApproveApprovalFlowInput {
   instanceId: ID!
   comment: String
+  nextStepApproverIds: [ID!]
 }
 
 input RejectApprovalFlowInput {

@@ -42,7 +42,7 @@
               <LayoutSidebarMenuGroup>
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  to="workbench"
+                  to="/workbench"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem
@@ -82,7 +82,7 @@
 
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  to="progress"
+                  to="/progress"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem
@@ -102,7 +102,7 @@
 
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  to="quality-acceptance"
+                  to="/quality-acceptance"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem
@@ -123,7 +123,7 @@
 
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  to="work-valuation"
+                  to="/work-valuation"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem
@@ -144,7 +144,7 @@
 
                 <NuxtLink
                   v-if="showWorkspaceLinks"
-                  to="archives"
+                  to="/archives"
                   @click="isOpenMobile = false"
                 >
                   <LayoutSidebarMenuGroupItem

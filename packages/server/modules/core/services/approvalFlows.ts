@@ -225,6 +225,7 @@ export const updateApprovalFlowStatusFactory =
     targetStatus: string
     comment?: string | null
     rollbackToStep?: number | null
+    nextStepApproverIds?: string[] | null
   }) => {
     return await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
@@ -278,10 +279,27 @@ export const updateApprovalFlowStatusFactory =
             (s) => s.stepIndex === currentStep.stepIndex + 1
           )
           if (nextStep) {
+            const hasNextStepApproverOverride =
+              params.nextStepApproverIds !== undefined &&
+              params.nextStepApproverIds !== null
+            const nextStepApproverIds = hasNextStepApproverOverride
+              ? Array.from(new Set(params.nextStepApproverIds))
+              : null
+            const nextStepRequiredApprovals =
+              nextStepApproverIds && nextStepApproverIds.length > 0
+                ? Math.max(
+                    1,
+                    Math.min(nextStep.requiredApprovals, nextStepApproverIds.length)
+                  )
+                : nextStep.requiredApprovals
             const now = new Date()
             await updateStep({
               stepId: nextStep.id,
               status: ApprovalFlowStepStatus.Pending,
+              approverIds: hasNextStepApproverOverride
+                ? nextStepApproverIds || []
+                : undefined,
+              requiredApprovals: nextStepRequiredApprovals,
               startedAt: now,
               dueAt: getStepDueAt(now, null)
             })

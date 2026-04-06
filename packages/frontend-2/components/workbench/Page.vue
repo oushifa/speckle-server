@@ -99,53 +99,95 @@
           </div>
         </div>
 
-        <!-- Time Assistant (Right Column - Spans 1 col) -->
         <div
           class="rounded-xl bg-white p-6 shadow-sm border border-outline-3 flex flex-col h-full"
         >
-          <div class="mb-6 flex items-center justify-between">
+          <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <CalendarDaysIcon class="h-5 w-5 text-blue-600" />
-              <h2 class="text-lg font-bold text-slate-900">时间助手</h2>
+              <ArrowPathIcon class="h-5 w-5 text-blue-600" />
+              <h2 class="text-lg font-bold text-slate-900">更新日志</h2>
             </div>
-            <button
-              class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
+            <NuxtLink
+              :to="workbenchPendingReviewsRoute"
+              class="text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
-              + 新建日程
-            </button>
+              查看全部
+            </NuxtLink>
           </div>
 
-          <!-- Today Box -->
-          <div class="mb-6 rounded-lg bg-blue-50 py-6 text-center">
-            <p class="text-sm font-medium text-slate-500">今天</p>
-            <p class="mt-1 text-2xl font-bold text-slate-900">2月24日</p>
-            <p class="text-sm text-slate-500">星期二</p>
+          <div class="mb-4 rounded-xl bg-blue-50 py-5 text-center">
+            <p class="text-xl font-bold text-slate-900">最近更新</p>
+            <p class="mt-1 text-4xl font-extrabold text-blue-700">
+              {{ totalReviewableModelCount }}
+            </p>
+            <p class="mt-1 text-base font-semibold text-slate-700">个模型</p>
           </div>
 
-          <!-- Schedule List -->
-          <div class="flex-1 space-y-0">
-            <div class="mb-2 text-sm font-semibold text-slate-900">今日日程</div>
+          <div class="mb-2 text-lg font-bold text-slate-900">最新动态</div>
+          <div class="flex-1 overflow-y-auto pr-1">
             <div
-              v-for="schedule in scheduleList"
-              :key="schedule.id"
-              class="group flex items-start justify-between border-b border-slate-50 py-3 last:border-0 hover:bg-slate-50 px-2 rounded transition-colors"
+              v-for="update in recentUpdates"
+              :key="update.id"
+              class="group border-b border-outline-3 px-1 py-2.5 last:border-0"
             >
-              <div class="flex gap-4">
-                <span class="text-sm font-bold text-blue-600">{{ schedule.time }}</span>
+              <div class="flex items-start justify-between gap-3">
                 <div>
-                  <p class="text-sm font-medium text-slate-900">{{ schedule.title }}</p>
-                  <p class="text-xs text-slate-500">{{ schedule.location }}</p>
+                  <div class="flex items-center gap-2">
+                    <CubeTransparentIcon class="h-5 w-5 text-blue-600" />
+                    <p class="text-base font-bold text-slate-900 leading-tight">
+                      {{ update.title }}
+                    </p>
+                    <span
+                      class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700"
+                    >
+                      {{ update.version }}
+                    </span>
+                  </div>
+                  <p class="mt-0.5 text-sm font-medium text-slate-700">
+                    {{ update.description }}
+                  </p>
+                  <p class="mt-1 text-xs font-semibold text-slate-400">
+                    {{ update.initiator }} ・ {{ update.time }}
+                  </p>
                 </div>
+                <button
+                  class="inline-flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors"
+                  :class="
+                    canStartFlowForModel(update.approveStatus) &&
+                    !mutating &&
+                    !loadingUpdates
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  "
+                  :disabled="
+                    !canStartFlowForModel(update.approveStatus) ||
+                    mutating ||
+                    loadingUpdates
+                  "
+                  @click="openReviewDialog(update)"
+                >
+                  <PaperAirplaneIcon class="h-4 w-4" />
+                  审核
+                </button>
               </div>
-              <button
-                class="text-slate-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-              >
-                <XMarkIcon class="h-4 w-4" />
-              </button>
+            </div>
+            <div
+              v-if="!recentUpdates.length && !loadingUpdates"
+              class="rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500"
+            >
+              暂无可审核模型
             </div>
           </div>
         </div>
       </div>
+      <CommonFlowStartDialog
+        v-model:open="isStartDialogOpen"
+        :definitions="targetFlowDefinitions"
+        :flow-id="resolvedTargetFlowId"
+        :default-resource-id="selectedResourceId"
+        :loading="mutating"
+        @submit="startApproval"
+      />
     </div>
   </div>
 </template>
@@ -154,18 +196,28 @@
 import {
   ArchiveBoxIcon,
   ArrowRightIcon,
+  ArrowPathIcon,
+  CubeTransparentIcon,
   DocumentTextIcon,
   UserIcon,
   ClockIcon,
   EyeIcon,
-  CalendarDaysIcon,
-  XMarkIcon,
+  PaperAirplaneIcon,
   ListBulletIcon,
   ClipboardDocumentCheckIcon,
   CalculatorIcon
 } from '@heroicons/vue/24/outline'
+import { useApolloClient } from '@vue/apollo-composable'
+import type { TypedDocumentNode } from '@apollo/client/core'
+import { graphql } from '~~/lib/common/generated/gql'
+import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
+import type {
+  FlowDefinitionsQuery,
+  FlowDefinitionsQueryVariables,
+  FlowStartMutationVariables
+} from '~~/lib/common/generated/gql/graphql'
 
-// Mock Data
 const metrics = [
   {
     label: '模型总数',
@@ -198,6 +250,147 @@ const metrics = [
 ]
 
 const todoCount = 4
+const targetFlowId = '5408aa67ee'
+
+const flowDefinitionsQuery = graphql(`
+  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
+    approvalFlowDefinitions(resourceType: $resourceType) {
+      id
+      name
+      resourceType
+      isActive
+      version
+      previousVersionId
+      effectConfig
+      formSchema {
+        key
+        name
+        type
+        required
+        placeholder
+        options {
+          label
+          value
+        }
+      }
+      steps {
+        id
+        name
+        stepIndex
+        requiredApprovals
+        approverIds
+        timeoutHours
+      }
+    }
+  }
+`)
+
+const startFlowMutation = graphql(`
+  mutation FlowStart($input: StartApprovalFlowInput!) {
+    approvalMutations {
+      start(input: $input) {
+        id
+      }
+    }
+  }
+`)
+
+const workbenchReviewUpdatesQuery = graphql(`
+  query WorkbenchReviewUpdates($cursor: String) {
+    activeUser {
+      id
+      projects(limit: 25, cursor: $cursor) {
+        cursor
+        items {
+          id
+          name
+          responsible
+          team {
+            user {
+              name
+            }
+          }
+          models(limit: 25) {
+            items {
+              id
+              name
+              displayName
+              description
+              updatedAt
+              approveStatus
+              versions(limit: 1) {
+                totalCount
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`) as TypedDocumentNode<WorkbenchReviewUpdatesResult, { cursor: string | null }>
+
+type ReviewableModel = {
+  id: string
+  name: string
+  displayName: string
+  description?: string | null
+  updatedAt: string
+  approveStatus?: string | null
+  versions: {
+    totalCount: number
+  }
+}
+type ReviewableProject = {
+  id: string
+  name: string
+  responsible?: string | null
+  team: Array<{ user: { name: string } }>
+  models: {
+    items: ReviewableModel[]
+  }
+}
+type WorkbenchReviewUpdatesResult = {
+  activeUser: {
+    projects: {
+      cursor?: string | null
+      items: ReviewableProject[]
+    }
+  } | null
+}
+type UpdateItem = {
+  id: string
+  resourceId: string
+  projectId: string
+  projectName: string
+  title: string
+  version: string
+  description: string
+  initiator: string
+  time: string
+  updatedAt: number
+  approveStatus: string | null | undefined
+}
+
+const apollo = useApolloClient().client
+const { triggerNotification } = useGlobalToast()
+const loadingUpdates = ref(false)
+const mutating = ref(false)
+const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
+const recentUpdates = ref<UpdateItem[]>([])
+const totalReviewableModelCount = ref(0)
+const isStartDialogOpen = ref(false)
+const selectedResourceId = ref<string | null>(null)
+
+const activeFlowDefinitions = computed(() =>
+  flowDefinitions.value
+    .filter((definition) => definition.isActive)
+    .sort((a, b) => b.version - a.version)
+)
+const targetFlowDefinitions = computed(() => activeFlowDefinitions.value.slice(0, 1))
+const hasActiveTargetFlow = computed(() => Boolean(targetFlowDefinitions.value.length))
+const resolvedTargetFlowId = computed(
+  () => targetFlowDefinitions.value[0]?.id || targetFlowId
+)
 
 const todoList = [
   {
@@ -242,24 +435,157 @@ const todoList = [
   }
 ]
 
-const scheduleList = [
-  {
-    id: 1,
-    time: '09:00',
-    title: '项目晨会',
-    location: '会议室A'
-  },
-  {
-    id: 2,
-    time: '14:00',
-    title: '质量检查验收',
-    location: '主楼3层'
-  },
-  {
-    id: 3,
-    time: '16:30',
-    title: '进度协调会',
-    location: '线上会议'
+const notify = (title: string, description: string, type: ToastNotificationType) => {
+  triggerNotification({
+    title,
+    description,
+    type
+  })
+}
+
+const normalizeApproveStatus = (status?: string | null) => {
+  if (typeof status !== 'string') return null
+  const normalized = status.trim().toLowerCase()
+  return normalized || null
+}
+
+const canStartFlowForModel = (status?: string | null) => {
+  const normalizedStatus = normalizeApproveStatus(status)
+  return (
+    !normalizedStatus ||
+    normalizedStatus === 'undefine' ||
+    normalizedStatus === 'undefined' ||
+    normalizedStatus === 'null'
+  )
+}
+
+const formatUpdateTime = (dateString?: string | null) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${month}-${day} ${hours}:${minutes}`
+}
+
+const buildRecentUpdates = (projects: ReviewableProject[]): UpdateItem[] => {
+  const items: UpdateItem[] = []
+  projects.forEach((project) => {
+    project.models.items.forEach((model) => {
+      if (!canStartFlowForModel(model.approveStatus)) return
+      const updateTimestamp = new Date(model.updatedAt).getTime() || 0
+      items.push({
+        id: `${project.id}-${model.id}`,
+        resourceId: model.id,
+        projectId: project.id,
+        projectName: project.name,
+        title: model.displayName || model.name,
+        version: `v${Math.max(1, model.versions.totalCount)}`,
+        description: model.description?.trim() || `来自项目 ${project.name}`,
+        initiator: project.responsible?.trim() || project.team[0]?.user.name || '系统',
+        time: formatUpdateTime(model.updatedAt),
+        updatedAt: updateTimestamp,
+        approveStatus: model.approveStatus
+      })
+    })
+  })
+  return items.sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+const loadRecentUpdates = async () => {
+  loadingUpdates.value = true
+  try {
+    const projects: ReviewableProject[] = []
+    let cursor: string | null = null
+    do {
+      const result = (await apollo.query({
+        query: workbenchReviewUpdatesQuery,
+        variables: {
+          cursor
+        },
+        fetchPolicy: 'network-only'
+      })) as { data: WorkbenchReviewUpdatesResult }
+      projects.push(...(result.data.activeUser?.projects.items || []))
+      cursor = result.data.activeUser?.projects.cursor || null
+    } while (cursor)
+    const allUpdates = buildRecentUpdates(projects)
+    totalReviewableModelCount.value = allUpdates.length
+    recentUpdates.value = allUpdates.slice(0, 5)
+  } catch (e) {
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    loadingUpdates.value = false
   }
-]
+}
+
+const loadFlowDefinitions = async () => {
+  try {
+    const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>(
+      {
+        query: flowDefinitionsQuery,
+        variables: {
+          resourceType: 'MODEL'
+        },
+        fetchPolicy: 'network-only'
+      }
+    )
+    flowDefinitions.value = res.data.approvalFlowDefinitions || []
+  } catch (e) {
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
+  }
+}
+
+const openReviewDialog = (item: UpdateItem) => {
+  if (!canStartFlowForModel(item.approveStatus)) {
+    notify(
+      '不可发起',
+      '仅 approve_status 为 undefine 或 null 的模型可发起流程',
+      ToastNotificationType.Warning
+    )
+    return
+  }
+  if (!targetFlowDefinitions.value.length || !hasActiveTargetFlow.value) {
+    notify(
+      '流程不可用',
+      '未找到已启用的模型审批流程定义',
+      ToastNotificationType.Warning
+    )
+    return
+  }
+  selectedResourceId.value = item.resourceId
+  isStartDialogOpen.value = true
+}
+
+const startApproval = async (payload: {
+  definitionId: string
+  resourceId: string | null
+  formData: Record<string, unknown>
+}) => {
+  mutating.value = true
+  try {
+    await apollo.mutate({
+      mutation: startFlowMutation,
+      variables: {
+        input: {
+          definitionId: payload.definitionId,
+          resourceId: payload.resourceId,
+          formData: payload.formData
+        }
+      } as FlowStartMutationVariables
+    })
+    notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
+    await loadRecentUpdates()
+  } catch (e) {
+    notify('发起失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    mutating.value = false
+  }
+}
+
+onMounted(async () => {
+  await loadFlowDefinitions()
+  await loadRecentUpdates()
+})
 </script>

@@ -111,9 +111,8 @@
           color="subtle"
           size="sm"
           :class="statusTagClass"
-          @click.stop="startFlow"
         >
-          {{ FlowStatus[flowStatus] || '未开始' }}
+          {{ approveStatusLabel }}
         </FormButton>
         <div class="flex items-center gap-1">
           <div
@@ -157,10 +156,6 @@ import type { Nullable, Optional } from '@speckle/shared'
 import type { FileAreaUploadingPayload } from '~/lib/form/helpers/fileUpload'
 import { FileUploadConvertedStatus } from '@speckle/shared/blobs'
 import dayjs from 'dayjs'
-import { FlowStatus } from './contant'
-import { Award } from 'lucide-vue-next'
-import { createIwhaleFormData, getIwhaleFormDataList } from '~/lib/iwhale/form/helpers'
-import { useThirdPartyTokenState } from '~/lib/auth/composables/auth'
 
 graphql(`
   fragment ProjectPageModelsCardProject on Project {
@@ -223,7 +218,6 @@ const props = withDefaults(
 
 const router = useRouter()
 const isAutomateModuleEnabled = useIsAutomateModuleEnabled()
-const flowStatus = ref(null)
 
 const importArea = ref(
   null as Nullable<{
@@ -240,7 +234,6 @@ const actions = ref(
 const isVersionUploading = ref(false)
 const showActionsMenu = ref(false)
 const hovered = ref(false)
-const oaUser = useThirdPartyTokenState().oaUser
 
 const showLastUploadFailed = computed(() => {
   if (isPendingModelFragment(props.model)) return false
@@ -326,50 +319,31 @@ const onVersionUploading = (payload: FileAreaUploadingPayload) => {
   isVersionUploading.value = payload.isUploading
 }
 
-const getFlowStatus = async () => {
-  const data = await getIwhaleFormDataList({
-    key: 'flow_approve',
-    page: 1,
-    pageSize: 1,
-    filter_cond: {
-      filters: [{ field: 'item_id', value: props.model.id, op: '=' }],
-      nextop: 'and'
-    }
-  })
-  console.log(data)
-  if (data.ret === 0) {
-    flowStatus.value = data.msg.rows[0]?.status
-  }
-}
+const modelApproveStatus = computed(() => {
+  if (isPendingModelFragment(props.model)) return null
+  return props.model.approveStatus || null
+})
+
+const approveStatusLabel = computed(() => {
+  const status = (modelApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING') return '审核中'
+  if (status === 'REJECTED') return '未通过'
+  if (status === 'APPROVED') return '已审核'
+  return '未开始'
+})
 
 const statusTagClass = computed(() => {
   const source =
     'flex items-center gap-1 cursor-pointer border-solid border rounded-full'
-  if (flowStatus.value === 0)
-    return source + ' !bg-outline-1 !text-white !border-outline-1'
-  if (flowStatus.value === 1)
-    return source + ' !bg-outline-1 !text-white !border-outline-1'
-  if (flowStatus.value === 2) return source + ' bg-danger !text-white'
-  if (flowStatus.value === 3) return source + ' bg-success !text-white'
-  return source + '!text-foreground-2 !border-zinc-300'
+  const status = (modelApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING')
+    return source + ' !bg-primary-muted !text-primary !border-primary-muted'
+  if (status === 'REJECTED') return source + ' !bg-danger !text-white !border-danger'
+  if (status === 'APPROVED') return source + ' !bg-success !text-white !border-success'
+  return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
 })
-
-const startFlow = async () => {
-  await createIwhaleFormData({
-    key: 'flow_approve',
-    values: {
-      item_id: props.model.id,
-      flow_code: 'flow_commit',
-      node_code: 'start',
-      next_approvers: oaUser.value?.id ? [oaUser.value?.id] : undefined
-    }
-  })
-  await getFlowStatus()
-}
 
 const triggerVersionUpload = () => {
   importArea.value?.triggerPicker()
 }
-
-onMounted(getFlowStatus)
 </script>

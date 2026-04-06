@@ -294,6 +294,8 @@ export const updateApprovalFlowInstanceStepFactory =
   async (params: {
     stepId: string
     status?: string
+    approverIds?: string[]
+    requiredApprovals?: number
     approvedByIds?: string[]
     startedAt?: Date | null
     dueAt?: Date | null
@@ -301,6 +303,10 @@ export const updateApprovalFlowInstanceStepFactory =
   }) => {
     const payload: Partial<ApprovalFlowInstanceStepRecord> = {}
     if (params.status) payload.status = params.status
+    if (params.approverIds !== undefined) payload.approverIds = params.approverIds
+    if (params.requiredApprovals !== undefined) {
+      payload.requiredApprovals = params.requiredApprovals
+    }
     if (params.approvedByIds) payload.approvedByIds = params.approvedByIds
     if (params.startedAt !== undefined) payload.startedAt = params.startedAt
     if (params.dueAt !== undefined) payload.dueAt = params.dueAt
@@ -451,38 +457,110 @@ export const getApprovalFlowInstancesFactory =
   }
 
 export const getApprovalFlowStatsFactory =
-  (deps: { db: Knex }) => async (params: { rangeDays?: number | null }) => {
+  (deps: { db: Knex }) =>
+  async (params: { rangeDays?: number | null; userId?: string | null }) => {
+    type AggregatedStatsRow = {
+      totalCount: number
+      pendingCount: number
+      approvedCount: number
+      rejectedCount: number
+      canceledCount: number
+      averageResolutionHours: number
+    }
+
     const fromDate = new Date()
     fromDate.setDate(fromDate.getDate() - (params.rangeDays || 30))
 
-    const rows = await tables
+    const aggregated = (await tables
       .instances(deps.db)
+      .select(
+        deps.db.raw('COUNT(*)::int as "totalCount"'),
+        deps.db.raw('COUNT(*) FILTER (WHERE ?? = ?)::int as "pendingCount"', [
+          ApprovalFlowInstances.col.status,
+          ApprovalFlowInstanceStatus.Pending
+        ]),
+        deps.db.raw('COUNT(*) FILTER (WHERE ?? = ?)::int as "approvedCount"', [
+          ApprovalFlowInstances.col.status,
+          ApprovalFlowInstanceStatus.Approved
+        ]),
+        deps.db.raw('COUNT(*) FILTER (WHERE ?? = ?)::int as "rejectedCount"', [
+          ApprovalFlowInstances.col.status,
+          ApprovalFlowInstanceStatus.Rejected
+        ]),
+        deps.db.raw('COUNT(*) FILTER (WHERE ?? = ?)::int as "canceledCount"', [
+          ApprovalFlowInstances.col.status,
+          ApprovalFlowInstanceStatus.Canceled
+        ]),
+        deps.db.raw(
+          'COALESCE(AVG(CASE WHEN ?? <> ? THEN EXTRACT(EPOCH FROM (?? - ??)) / 3600 END), 0)::float as "averageResolutionHours"',
+          [
+            ApprovalFlowInstances.col.status,
+            ApprovalFlowInstanceStatus.Pending,
+            ApprovalFlowInstances.col.updatedAt,
+            ApprovalFlowInstances.col.createdAt
+          ]
+        )
+      )
       .where(ApprovalFlowInstances.col.createdAt, '>=', fromDate)
+      .first()) as AggregatedStatsRow | undefined
 
     const stats = {
-      totalCount: rows.length,
-      pendingCount: 0,
-      approvedCount: 0,
-      rejectedCount: 0,
-      canceledCount: 0,
-      averageResolutionHours: 0
+      totalCount: Number(aggregated?.totalCount || 0),
+      pendingCount: Number(aggregated?.pendingCount || 0),
+      approvedCount: Number(aggregated?.approvedCount || 0),
+      rejectedCount: Number(aggregated?.rejectedCount || 0),
+      canceledCount: Number(aggregated?.canceledCount || 0),
+      initiatedCount: 0,
+      handledCount: 0,
+      pendingForMeCount: 0,
+      averageResolutionHours: Number(aggregated?.averageResolutionHours || 0)
     }
 
-    let resolvedCount = 0
-    let resolvedHoursTotal = 0
-    for (const row of rows) {
-      if (row.status === ApprovalFlowInstanceStatus.Pending) stats.pendingCount += 1
-      if (row.status === ApprovalFlowInstanceStatus.Approved) stats.approvedCount += 1
-      if (row.status === ApprovalFlowInstanceStatus.Rejected) stats.rejectedCount += 1
-      if (row.status === ApprovalFlowInstanceStatus.Canceled) stats.canceledCount += 1
-      if (row.status !== ApprovalFlowInstanceStatus.Pending) {
-        resolvedCount += 1
-        resolvedHoursTotal +=
-          (row.updatedAt.getTime() - row.createdAt.getTime()) / (1000 * 60 * 60)
-      }
-    }
+    if (!params.userId) return stats
 
-    stats.averageResolutionHours =
-      resolvedCount > 0 ? resolvedHoursTotal / resolvedCount : 0
+    const initiated = await tables
+      .instances(deps.db)
+      .count<{ count: string }[]>(`${ApprovalFlowInstances.col.id} as count`)
+      .where(ApprovalFlowInstances.col.createdAt, '>=', fromDate)
+      .andWhere(ApprovalFlowInstances.col.createdBy, params.userId)
+      .first()
+
+    const handled = await tables
+      .actions(deps.db)
+      .countDistinct<{ count: string }[]>(
+        `${ApprovalFlowActions.col.instanceId} as count`
+      )
+      .where(ApprovalFlowActions.col.createdAt, '>=', fromDate)
+      .andWhere(ApprovalFlowActions.col.actorId, params.userId)
+      .andWhere(ApprovalFlowActions.col.action, '!=', ApprovalFlowActionType.Started)
+      .first()
+
+    const pendingForMe = await tables
+      .instanceSteps(deps.db)
+      .countDistinct<{ count: string }[]>(
+        `${ApprovalFlowInstanceSteps.col.instanceId} as count`
+      )
+      .innerJoin(
+        ApprovalFlowInstances.name,
+        ApprovalFlowInstanceSteps.col.instanceId,
+        ApprovalFlowInstances.col.id
+      )
+      .where(ApprovalFlowInstances.col.createdAt, '>=', fromDate)
+      .andWhere(ApprovalFlowInstances.col.status, ApprovalFlowInstanceStatus.Pending)
+      .andWhere(ApprovalFlowInstanceSteps.col.status, ApprovalFlowStepStatus.Pending)
+      .andWhereRaw('(COALESCE(cardinality(??), 0) = 0 OR ? = ANY(??))', [
+        ApprovalFlowInstanceSteps.short.col.approverIds,
+        params.userId,
+        ApprovalFlowInstanceSteps.short.col.approverIds
+      ])
+      .andWhereRaw('NOT (? = ANY(??))', [
+        params.userId,
+        ApprovalFlowInstanceSteps.short.col.approvedByIds
+      ])
+      .first()
+
+    stats.initiatedCount = parseInt(initiated?.count || '0')
+    stats.handledCount = parseInt(handled?.count || '0')
+    stats.pendingForMeCount = parseInt(pendingForMe?.count || '0')
     return stats
   }

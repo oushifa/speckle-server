@@ -1,307 +1,65 @@
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <h1 class="text-heading-lg">流程审核</h1>
+    <div class="flex flex-wrap gap-2">
       <button
-        class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
-        :disabled="loadingInstances || mutating"
-        @click="refreshAll"
+        v-for="tag in headerTags"
+        :key="tag.value"
+        class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
+        :class="
+          currentTag === tag.value
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-outline-3 text-foreground-2'
+        "
+        @click="currentTag = tag.value"
       >
-        刷新
+        {{ tag.label }}
       </button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="space-y-2">
-        <label for="flow-status" class="text-body-xs text-foreground-2">状态筛选</label>
-        <select
-          id="flow-status"
-          v-model="statusFilter"
-          class="w-full border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-        >
-          <option value="">全部</option>
-          <option value="PENDING">PENDING</option>
-          <option value="APPROVED">APPROVED</option>
-          <option value="REJECTED">REJECTED</option>
-          <option value="CANCELED">CANCELED</option>
-        </select>
-      </div>
-      <div class="space-y-2">
-        <label for="flow-rollback-step" class="text-body-xs text-foreground-2">
-          驳回回退步骤
-        </label>
-        <input
-          id="flow-rollback-step"
-          v-model.number="rollbackToStep"
-          type="number"
-          min="1"
-          class="w-full border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder="可选：回退到步骤序号"
-        />
-      </div>
-      <div class="space-y-2">
-        <label for="flow-comment" class="text-body-xs text-foreground-2">
-          驳回/取消说明
-        </label>
-        <input
-          id="flow-comment"
-          v-model="actionComment"
-          class="w-full border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder="输入备注（驳回必填）"
-        />
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">总数</div>
-        <div class="text-heading-sm">{{ stats.totalCount }}</div>
-      </div>
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">待处理</div>
-        <div class="text-heading-sm">{{ stats.pendingCount }}</div>
-      </div>
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">已通过</div>
-        <div class="text-heading-sm">{{ stats.approvedCount }}</div>
-      </div>
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">已驳回</div>
-        <div class="text-heading-sm">{{ stats.rejectedCount }}</div>
-      </div>
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">已取消</div>
-        <div class="text-heading-sm">{{ stats.canceledCount }}</div>
-      </div>
-      <div class="border border-outline-3 rounded-lg p-3">
-        <div class="text-body-xs text-foreground-2">平均处理时长(h)</div>
-        <div class="text-heading-sm">{{ stats.averageResolutionHours.toFixed(2) }}</div>
-      </div>
-    </div>
-
-    <div class="border border-outline-3 rounded-xl p-4 space-y-4">
-      <div class="text-heading-sm">定义流程</div>
-      <div class="grid gap-3">
-        <label for="flow-definition-name" class="sr-only">流程名称</label>
-        <input
-          id="flow-definition-name"
-          v-model="definitionName"
-          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder="流程名称，例如：模型审核流程"
-        />
-        <label for="flow-definition-form-schema" class="sr-only">
-          审批填写项(JSON)
-        </label>
-        <label for="flow-definition-steps" class="sr-only">步骤(JSON)</label>
-        <input
-          id="flow-definition-form-schema"
-          v-model="formSchemaText"
-          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder='审批填写项，例如 [{"key":"title","name":"标题","type":"string","required":true},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"}]}]'
-        />
-        <input
-          id="flow-definition-steps"
-          v-model="stepsConfigText"
-          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder='步骤JSON，例如 [{"name":"专业负责人","requiredApprovals":1}]'
-        />
-        <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
-          <input v-model="syncModelApproveStatus" type="checkbox" />
-          审批联动模型 approve_status
-        </label>
-        <button
-          class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
-          :disabled="!definitionName.trim() || mutating"
-          @click="createDefinition"
-        >
-          创建定义
-        </button>
-      </div>
-
-      <div class="space-y-2">
-        <div class="text-body-xs text-foreground-2">流程定义列表</div>
-        <div v-if="!definitions.length" class="text-body-sm text-foreground-2">
-          暂无定义
-        </div>
-        <div v-else class="space-y-2">
-          <div
-            v-for="definition in definitions"
-            :key="definition.id"
-            class="border border-outline-3 rounded-lg p-3"
-          >
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-body-sm font-medium">{{ definition.name }}</span>
-              <span class="text-body-xs text-foreground-2">
-                v{{ definition.version }}
-              </span>
-              <span class="text-body-xs px-2 py-1 rounded bg-foundation-2">
-                {{ definition.isActive ? 'ACTIVE' : 'INACTIVE' }}
-              </span>
-              <button
-                class="ml-auto px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
-                :disabled="mutating"
-                @click="toggleDefinitionActive(definition.id, !definition.isActive)"
-              >
-                {{ definition.isActive ? '停用' : '启用' }}
-              </button>
-            </div>
-            <div class="text-body-xs text-foreground-2 mt-2">
-              审批填写项：{{
-                definition.formSchema.length
-                  ? JSON.stringify(definition.formSchema)
-                  : '无'
-              }}
-            </div>
-            <div class="text-body-xs text-foreground-2 mt-1">
-              联动模型状态：{{ isModelStatusSyncEnabled(definition) ? '是' : '否' }}
-            </div>
-            <div class="mt-2 space-y-1">
-              <div
-                v-for="step in definition.steps"
-                :key="step.id"
-                class="text-body-xs text-foreground-2"
-              >
-                Step {{ step.stepIndex }} · {{ step.name }} · required:
-                {{ step.requiredApprovals }} · approvers:
-                {{ step.approverIds.length ? step.approverIds.join(',') : 'any' }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="border border-outline-3 rounded-xl p-4 space-y-4">
       <div class="flex items-center justify-between">
-        <div class="text-heading-sm">发起审批</div>
-        <button
-          class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
-          :disabled="mutating"
-          @click="processTimeouts"
-        >
-          处理超时
-        </button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <label for="flow-start-definition" class="sr-only">流程定义</label>
-        <select
-          id="flow-start-definition"
-          v-model="selectedDefinitionId"
-          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-        >
-          <option value="">请选择流程定义</option>
-          <option
-            v-for="definition in definitions"
-            :key="definition.id"
-            :value="definition.id"
-          >
-            {{ definition.name }} (v{{ definition.version }})
-          </option>
-        </select>
-        <label for="flow-model-id" class="sr-only">模型ID(可选)</label>
-        <input
-          id="flow-model-id"
-          v-model="selectedModelId"
-          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder="模型ID（可为空）"
-        />
-        <button
-          class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
-          :disabled="!selectedDefinitionId || mutating"
-          @click="startApproval"
-        >
-          发起
-        </button>
-      </div>
-      <div v-if="selectedDefinitionFormSchema.length" class="space-y-2">
-        <DynamicApprovalForm
-          v-model="formFieldValues"
-          :schema="selectedDefinitionFormSchema"
-        />
-      </div>
-    </div>
-
-    <div class="border border-outline-3 rounded-xl p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="text-heading-sm">审批实例</div>
-        <div class="text-body-xs text-foreground-2">总数：{{ totalCount }}</div>
+        <div class="text-heading-sm">{{ activeTagLabel }}流程实例</div>
+        <div class="text-body-xs text-foreground-2">总数：{{ filteredTotalCount }}</div>
       </div>
 
       <div v-if="loadingInstances" class="text-body-sm text-foreground-2">
         加载中...
       </div>
-      <div v-else-if="!instances.length" class="text-body-sm text-foreground-2">
+      <div v-else-if="!filteredInstances.length" class="text-body-sm text-foreground-2">
         暂无数据
       </div>
       <div v-else class="space-y-3">
-        <div
-          v-for="instance in instances"
+        <button
+          v-for="instance in filteredInstances"
           :key="instance.id"
-          class="border border-outline-3 rounded-lg p-3 space-y-3"
+          class="w-full border border-outline-3 rounded-lg p-3 text-left hover:border-outline-5 transition-colors"
+          @click="openInstanceDrawer(instance)"
         >
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-body-sm font-medium">
-              {{ instance.definition?.name || '未命名流程' }}
-            </span>
-            <span class="text-body-xs text-foreground-2">#{{ instance.id }}</span>
-            <span class="text-body-xs text-foreground-2">
-              {{ instance.resourceType }}: {{ instance.resourceId }}
-            </span>
-            <span class="text-body-xs px-2 py-1 rounded bg-foundation-2">
-              {{ instance.status }}
-            </span>
-          </div>
-
-          <div class="flex flex-wrap gap-2">
-            <button
-              class="px-2 py-1 rounded bg-success text-foundation-page text-body-xs disabled:opacity-50"
-              :disabled="instance.status !== 'PENDING' || mutating"
-              @click="approveInstance(instance.id)"
-            >
-              通过
-            </button>
-            <button
-              class="px-2 py-1 rounded bg-danger text-foundation-page text-body-xs disabled:opacity-50"
-              :disabled="instance.status !== 'PENDING' || mutating"
-              @click="rejectInstance(instance.id)"
-            >
-              驳回
-            </button>
-            <button
-              class="px-2 py-1 rounded bg-warning text-foundation-page text-body-xs disabled:opacity-50"
-              :disabled="instance.status !== 'PENDING' || mutating"
-              @click="cancelInstance(instance.id)"
-            >
-              取消
-            </button>
-          </div>
-
-          <div class="space-y-2">
-            <div class="text-body-xs text-foreground-2">步骤</div>
-            <div
-              v-for="step in instance.steps"
-              :key="step.id"
-              class="text-body-xs text-foreground-2"
-            >
-              Step {{ step.stepIndex }} · {{ step.name }} · {{ step.status }} ·
-              {{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
-              <span v-if="step.dueAt">· due {{ formatDate(step.dueAt) }}</span>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div>
+              <div class="text-body-xs text-foreground-2">名称</div>
+              <div class="text-body-sm font-medium truncate">
+                {{ instance.definition?.name || '未命名流程' }}
+              </div>
+            </div>
+            <div>
+              <div class="text-body-xs text-foreground-2">当前步骤</div>
+              <div class="text-body-sm">
+                {{ getCurrentStep(instance)?.name || '-' }}
+              </div>
+            </div>
+            <div>
+              <div class="text-body-xs text-foreground-2">当前审核人</div>
+              <div class="text-body-sm truncate">
+                {{ getCurrentApprovers(instance) }}
+              </div>
+            </div>
+            <div>
+              <div class="text-body-xs text-foreground-2">流程发起时间</div>
+              <div class="text-body-sm">{{ formatDate(instance.createdAt) }}</div>
             </div>
           </div>
-
-          <div class="space-y-2">
-            <div class="text-body-xs text-foreground-2">时间线</div>
-            <div
-              v-for="action in instance.actions"
-              :key="action.id"
-              class="text-body-xs text-foreground-2"
-            >
-              {{ action.action }} · {{ action.actor?.name || action.actorId }} ·
-              {{ formatDate(action.createdAt) }}
-              <span v-if="action.comment">· {{ action.comment }}</span>
-            </div>
-          </div>
-        </div>
+        </button>
       </div>
 
       <button
@@ -313,6 +71,163 @@
         加载更多
       </button>
     </div>
+
+    <div v-if="selectedInstance" class="fixed inset-0 z-50 flex justify-end">
+      <button class="absolute inset-0 bg-black/40" @click="closeDrawer" />
+      <div
+        class="relative h-full w-full max-w-3xl bg-foundation-page border-l border-outline-3 shadow-xl overflow-y-auto"
+      >
+        <div class="p-4 border-b border-outline-3 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-body-sm font-medium truncate">
+              {{ selectedInstance.definition?.name || '未命名流程' }}
+            </div>
+            <div class="text-body-xs text-foreground-2">#{{ selectedInstance.id }}</div>
+          </div>
+          <button
+            class="px-2 py-1 rounded border border-outline-3 text-body-xs"
+            @click="closeDrawer"
+          >
+            关闭
+          </button>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="tab in detailTabs"
+              :key="tab.value"
+              class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
+              :class="
+                detailTab === tab.value
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-outline-3 text-foreground-2'
+              "
+              @click="detailTab = tab.value"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <div v-if="detailTab === 'content'" class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">状态</div>
+                <div class="text-body-sm">{{ selectedInstance.status }}</div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">当前步骤</div>
+                <div class="text-body-sm">
+                  {{ getCurrentStep(selectedInstance)?.name || '-' }}
+                </div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">资源</div>
+                <div class="text-body-sm">
+                  {{ selectedInstance.resourceType }}: {{ selectedInstance.resourceId }}
+                </div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">发起时间</div>
+                <div class="text-body-sm">{{ formatDate(selectedInstance.createdAt) }}</div>
+              </div>
+            </div>
+            <div class="border border-outline-3 rounded-lg p-3 space-y-2">
+              <div class="text-body-xs text-foreground-2">流程内容</div>
+              <div v-if="getFormDisplayItems(selectedInstance).length" class="space-y-2">
+                <div
+                  v-for="item in getFormDisplayItems(selectedInstance)"
+                  :key="item.key"
+                  class="grid grid-cols-1 md:grid-cols-3 gap-2 text-body-xs"
+                >
+                  <div class="text-foreground-2">{{ item.label }}</div>
+                  <div class="md:col-span-2 break-all">{{ item.value }}</div>
+                </div>
+              </div>
+              <pre v-else class="text-body-xs whitespace-pre-wrap break-all">{{
+                stringifyValue(selectedInstance.formData)
+              }}</pre>
+            </div>
+            <div
+              v-if="selectedInstance.status === 'PENDING'"
+              class="flex flex-wrap gap-2 border border-outline-3 rounded-lg p-3"
+            >
+              <button
+                class="px-2 py-1 rounded bg-success text-foundation-page text-body-xs disabled:opacity-50"
+                :disabled="mutating"
+                @click="openReviewDialog('approve', selectedInstance.id)"
+              >
+                通过
+              </button>
+              <button
+                class="px-2 py-1 rounded bg-danger text-foundation-page text-body-xs disabled:opacity-50"
+                :disabled="mutating"
+                @click="openReviewDialog('reject', selectedInstance.id)"
+              >
+                驳回
+              </button>
+              <button
+                class="px-2 py-1 rounded bg-warning text-foundation-page text-body-xs disabled:opacity-50"
+                :disabled="mutating"
+                @click="openReviewDialog('cancel', selectedInstance.id)"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="detailTab === 'logs'" class="space-y-2">
+            <div
+              v-if="!selectedInstance.actions.length"
+              class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
+            >
+              暂无流程日志
+            </div>
+            <div
+              v-for="action in selectedInstance.actions"
+              :key="action.id"
+              class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
+            >
+              {{ action.action }} · {{ action.actor?.name || action.actorId }} ·
+              {{ formatDate(action.createdAt) }}
+              <span v-if="action.comment"> · {{ action.comment }}</span>
+            </div>
+          </div>
+
+          <div v-else class="space-y-2">
+            <div
+              v-for="step in selectedInstance.steps"
+              :key="step.id"
+              class="border border-outline-3 rounded-lg p-3"
+            >
+              <div class="text-body-sm font-medium">
+                Step {{ step.stepIndex }} · {{ step.name }}
+              </div>
+              <div class="text-body-xs text-foreground-2 mt-1">
+                状态：{{ step.status }} · 审核：{{ step.approvedByIds.length }}/{{
+                  step.requiredApprovals
+                }}
+              </div>
+              <div class="text-body-xs text-foreground-2 mt-1">
+                审核人：{{ step.approverIds.length ? step.approverIds.join('、') : '任意审批人' }}
+              </div>
+              <div class="text-body-xs text-foreground-2 mt-1">
+                开始：{{ formatDate(step.startedAt) }} · 截止：{{ formatDate(step.dueAt) }} ·
+                完成：{{ formatDate(step.completedAt) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <CommonFlowReviewDialog
+      v-model:open="isReviewDialogOpen"
+      :action="selectedReviewAction"
+      :instance-id="selectedReviewInstanceId"
+      :loading="mutating"
+      @submit="submitReviewAction"
+    />
   </div>
 </template>
 
@@ -320,54 +235,11 @@
 import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
-import DynamicApprovalForm from '~/components/flow/DynamicApprovalForm.vue'
+import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import type {
-  ApprovalFlowDefinitionStepInput,
-  ApprovalFlowFormFieldInput,
-  ApprovalFlowResourceType,
-  CreateApprovalFlowDefinitionInput,
-  FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables,
   FlowInstancesQuery,
-  FlowInstancesQueryVariables,
-  FlowProcessTimeoutsMutation,
-  FlowStartMutationVariables,
-  FlowSetDefinitionActiveMutation,
-  FlowSetDefinitionActiveMutationVariables
+  FlowInstancesQueryVariables
 } from '~~/lib/common/generated/gql/graphql'
-
-const flowDefinitionsQuery = graphql(`
-  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
-    approvalFlowDefinitions(resourceType: $resourceType) {
-      id
-      name
-      resourceType
-      isActive
-      version
-      previousVersionId
-      effectConfig
-      formSchema {
-        key
-        name
-        type
-        required
-        placeholder
-        options {
-          label
-          value
-        }
-      }
-      steps {
-        id
-        name
-        stepIndex
-        requiredApprovals
-        approverIds
-        timeoutHours
-      }
-    }
-  }
-`)
 
 const flowInstancesQuery = graphql(`
   query FlowInstances($cursor: String, $status: ApprovalFlowStatus) {
@@ -430,46 +302,6 @@ const flowInstancesQuery = graphql(`
   }
 `)
 
-const createDefinitionMutation = graphql(`
-  mutation FlowCreateDefinition($input: CreateApprovalFlowDefinitionInput!) {
-    approvalMutations {
-      createDefinition(input: $input) {
-        id
-        name
-      }
-    }
-  }
-`)
-
-const setDefinitionActiveMutation = graphql(`
-  mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {
-    approvalMutations {
-      setDefinitionActive(definitionId: $definitionId, isActive: $isActive) {
-        id
-        isActive
-      }
-    }
-  }
-`)
-
-const processTimeoutsMutation = graphql(`
-  mutation FlowProcessTimeouts {
-    approvalMutations {
-      processTimeouts
-    }
-  }
-`)
-
-const startFlowMutation = graphql(`
-  mutation FlowStart($input: StartApprovalFlowInput!) {
-    approvalMutations {
-      start(input: $input) {
-        id
-      }
-    }
-  }
-`)
-
 const approveFlowMutation = graphql(`
   mutation FlowApprove($input: ApproveApprovalFlowInput!) {
     approvalMutations {
@@ -503,33 +335,27 @@ const cancelFlowMutation = graphql(`
   }
 `)
 
-type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
 type FlowStats = FlowInstancesQuery['approvalFlowStats']
-type JsonObject = Record<string, unknown>
+type FlowReviewAction = 'approve' | 'reject' | 'cancel'
+type FlowDetailTab = 'content' | 'logs' | 'diagram'
+type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
+const { userId } = useActiveUser()
 
 const loadingInstances = ref(false)
 const mutating = ref(false)
-const definitions = ref<FlowDefinitionListItem[]>([])
-const selectedDefinitionId = ref('')
-const selectedModelId = ref('')
-const definitionName = ref('')
-const definitionResourceType = ref<'MODEL'>('MODEL')
-const formSchemaText = ref(
-  '[{"key":"title","name":"标题","type":"string","required":true,"placeholder":"请输入标题"},{"key":"reviewer","name":"审批人","type":"user","required":true},{"key":"targetProject","name":"目标项目","type":"project"},{"key":"targetModel","name":"目标模型","type":"model"},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"},{"label":"紧急","value":"urgent"}]}]'
-)
-const stepsConfigText = ref('[{"name":"默认审批","requiredApprovals":1}]')
-const syncModelApproveStatus = ref(false)
-const formFieldValues = ref<Record<string, unknown>>({})
-const statusFilter = ref<'' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED'>('')
-const actionComment = ref('')
-const rollbackToStep = ref<number | null>(null)
+const currentTag = ref<FlowHeaderTag>('pending')
 const instances = ref<FlowListItem[]>([])
 const cursor = ref<string | null>(null)
 const totalCount = ref(0)
+const isReviewDialogOpen = ref(false)
+const selectedReviewAction = ref<FlowReviewAction>('approve')
+const selectedReviewInstanceId = ref<string | null>(null)
+const selectedInstance = ref<FlowListItem | null>(null)
+const detailTab = ref<FlowDetailTab>('content')
 const stats = ref<FlowStats>({
   totalCount: 0,
   pendingCount: 0,
@@ -552,84 +378,95 @@ const notify = (title: string, description: string, type: ToastNotificationType)
   })
 }
 
-const isModelStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
-  const config = definition.effectConfig as Record<string, unknown> | null | undefined
-  return Boolean(config?.syncModelApproveStatus)
-}
+const headerTags = [
+  { value: 'pending' as FlowHeaderTag, label: '待处理' },
+  { value: 'initiated' as FlowHeaderTag, label: '我发起的' },
+  { value: 'handled' as FlowHeaderTag, label: '我处理的' }
+]
 
-const selectedDefinition = computed(
-  () =>
-    definitions.value.find(
-      (definition) => definition.id === selectedDefinitionId.value
-    ) || null
+const activeTagLabel = computed(
+  () => headerTags.find((tag) => tag.value === currentTag.value)?.label || ''
 )
 
-const selectedDefinitionFormSchema = computed(
-  () => selectedDefinition.value?.formSchema || []
-)
-
-const buildFormData = (): JsonObject => {
-  return Object.entries(formFieldValues.value).reduce<JsonObject>(
-    (acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    },
-    {}
-  )
-}
-
-const parseStepsConfig = (): ApprovalFlowDefinitionStepInput[] | undefined => {
-  const raw = stepsConfigText.value.trim()
-  if (!raw) return undefined
-  const parsed: unknown = JSON.parse(raw)
-  if (!Array.isArray(parsed)) {
-    throw new Error('步骤配置必须是 JSON 数组')
+const filteredInstances = computed(() => {
+  if (!userId.value) return instances.value
+  if (currentTag.value === 'initiated') {
+    return instances.value.filter((instance) => instance.createdBy === userId.value)
   }
+  if (currentTag.value === 'handled') {
+    return instances.value.filter((instance) =>
+      instance.actions.some((action) => action.actorId === userId.value)
+    )
+  }
+  return instances.value
+})
 
-  return parsed.map((item, index) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
-      throw new Error(`步骤 ${index + 1} 不是有效对象`)
-    }
-    const record = item as Record<string, unknown>
-    const name = String(record.name || '').trim()
-    if (!name) {
-      throw new Error(`步骤 ${index + 1} 缺少 name`)
-    }
+const filteredTotalCount = computed(() => {
+  if (currentTag.value === 'pending') return totalCount.value
+  return filteredInstances.value.length
+})
 
-    const approverIds = Array.isArray(record.approverIds)
-      ? record.approverIds
-          .map((id) => String(id || '').trim())
-          .filter((id) => id.length > 0)
-      : undefined
+const detailTabs = [
+  { value: 'content' as FlowDetailTab, label: '流程内容' },
+  { value: 'logs' as FlowDetailTab, label: '流程日志' },
+  { value: 'diagram' as FlowDetailTab, label: '流程图' }
+]
 
-    const requiredApprovals =
-      typeof record.requiredApprovals === 'number'
-        ? Math.max(1, Math.floor(record.requiredApprovals))
-        : undefined
-
-    const timeoutHours =
-      typeof record.timeoutHours === 'number'
-        ? Math.max(1, Math.floor(record.timeoutHours))
-        : undefined
-
-    return {
-      name,
-      approverIds,
-      requiredApprovals,
-      timeoutHours
-    }
-  })
+const getCurrentStep = (instance: FlowListItem): FlowListItem['steps'][number] | null => {
+  const byStatus = instance.steps.find((step) => step.status === 'WAITING') || null
+  if (byStatus) return byStatus
+  const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
+  return byIndex || null
 }
 
-const loadDefinitions = async () => {
-  const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>({
-    query: flowDefinitionsQuery,
-    variables: {
-      resourceType: definitionResourceType.value as ApprovalFlowResourceType
-    },
-    fetchPolicy: 'network-only'
-  })
-  definitions.value = res.data.approvalFlowDefinitions || []
+const getCurrentApprovers = (instance: FlowListItem) => {
+  const step = getCurrentStep(instance)
+  if (!step) return '-'
+  return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
+}
+
+const stringifyValue = (value: unknown) => {
+  if (!value) return '-'
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const normalizeFormData = (formData: unknown) => {
+  if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
+    return {}
+  }
+  return formData as Record<string, unknown>
+}
+
+const formatFormValue = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return '-'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    if (!value.length) return '-'
+    return value
+      .map((item) => {
+        if (item === null || item === undefined) return '-'
+        if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+          return String(item)
+        }
+        return stringifyValue(item)
+      })
+      .join('，')
+  }
+  return stringifyValue(value)
+}
+
+const getFormDisplayItems = (instance: FlowListItem) => {
+  const formData = normalizeFormData(instance.formData)
+  return Object.keys(formData).map((key) => ({
+    key,
+    label: key,
+    value: formatFormValue(formData[key])
+  }))
 }
 
 const loadInstances = async (nextCursor?: string | null) => {
@@ -639,7 +476,7 @@ const loadInstances = async (nextCursor?: string | null) => {
       query: flowInstancesQuery,
       variables: {
         cursor: nextCursor || null,
-        status: statusFilter.value || null
+        status: currentTag.value === 'pending' ? 'PENDING' : null
       },
       fetchPolicy: 'network-only'
     })
@@ -665,206 +502,64 @@ const loadInstances = async (nextCursor?: string | null) => {
   }
 }
 
-const createDefinition = async () => {
-  if (!definitionName.value.trim()) return
+const openInstanceDrawer = (instance: FlowListItem) => {
+  selectedInstance.value = instance
+  detailTab.value = 'content'
+}
+
+const closeDrawer = () => {
+  selectedInstance.value = null
+}
+
+const openReviewDialog = (action: FlowReviewAction, instanceId: string) => {
+  selectedReviewAction.value = action
+  selectedReviewInstanceId.value = instanceId
+  isReviewDialogOpen.value = true
+}
+
+const submitReviewAction = async (payload: {
+  action: FlowReviewAction
+  instanceId: string
+  comment: string | null
+  rollbackToStep: number | null
+}) => {
   mutating.value = true
   try {
-    const parsedFormSchema = JSON.parse(formSchemaText.value.trim() || '[]')
-    const formSchema: ApprovalFlowFormFieldInput[] = Array.isArray(parsedFormSchema)
-      ? parsedFormSchema.map((item, index) => {
-          const record = item as Record<string, unknown>
-          const key = String(record.key || '').trim()
-          const name = String(record.name || '').trim()
-          const type = String(record.type || '').trim()
-          const required = Boolean(record.required)
-          const placeholder =
-            typeof record.placeholder === 'string' ? record.placeholder.trim() : null
-          const options = Array.isArray(record.options)
-            ? record.options
-                .filter(
-                  (item) => item && typeof item === 'object' && !Array.isArray(item)
-                )
-                .map((item, optionIndex) => {
-                  const optionRecord = item as Record<string, unknown>
-                  const label = String(optionRecord.label || '').trim()
-                  const value = String(optionRecord.value || '').trim()
-                  if (!label || !value) {
-                    throw new Error(
-                      `审批填写项 ${index + 1} 的 options[${
-                        optionIndex + 1
-                      }] 缺少 label/value`
-                    )
-                  }
-                  return { label, value }
-                })
-            : []
-          if (!key || !name || !type) {
-            throw new Error(`审批填写项 ${index + 1} 缺少 key/name/type`)
+    if (payload.action === 'approve') {
+      await apollo.mutate({
+        mutation: approveFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment
           }
-          return { key, name, type, required, placeholder, options }
-        })
-      : []
-    const steps = parseStepsConfig()
-    const input: CreateApprovalFlowDefinitionInput = {
-      name: definitionName.value.trim(),
-      isActive: true,
-      effectConfig: syncModelApproveStatus.value
-        ? {
-            syncModelApproveStatus: true
+        }
+      })
+      notify('操作成功', '审批已通过', ToastNotificationType.Success)
+    } else if (payload.action === 'reject') {
+      await apollo.mutate({
+        mutation: rejectFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment || '',
+            rollbackToStep: payload.rollbackToStep
           }
-        : null,
-      formSchema,
-      steps
+        }
+      })
+      notify('操作成功', '审批已驳回', ToastNotificationType.Success)
+    } else {
+      await apollo.mutate({
+        mutation: cancelFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment
+          }
+        }
+      })
+      notify('操作成功', '审批已取消', ToastNotificationType.Success)
     }
-
-    await apollo.mutate({
-      mutation: createDefinitionMutation,
-      variables: {
-        input
-      }
-    })
-    notify('创建成功', '流程定义已创建', ToastNotificationType.Success)
-  } catch (e) {
-    notify('创建失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadDefinitions()
-    await loadInstances()
-  }
-}
-
-const toggleDefinitionActive = async (definitionId: string, isActive: boolean) => {
-  mutating.value = true
-  try {
-    await apollo.mutate<
-      FlowSetDefinitionActiveMutation,
-      FlowSetDefinitionActiveMutationVariables
-    >({
-      mutation: setDefinitionActiveMutation,
-      variables: {
-        definitionId,
-        isActive
-      }
-    })
-    notify(
-      '操作成功',
-      `流程定义已${isActive ? '启用' : '停用'}`,
-      ToastNotificationType.Success
-    )
-  } catch (e) {
-    notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadDefinitions()
-    await loadInstances()
-  }
-}
-
-const processTimeouts = async () => {
-  mutating.value = true
-  try {
-    const res = await apollo.mutate<FlowProcessTimeoutsMutation, Record<string, never>>(
-      {
-        mutation: processTimeoutsMutation
-      }
-    )
-    notify(
-      '处理完成',
-      `已处理超时实例：${res.data?.approvalMutations.processTimeouts || 0} 个`,
-      ToastNotificationType.Success
-    )
-  } catch (e) {
-    notify('处理失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadInstances()
-  }
-}
-
-const startApproval = async () => {
-  if (!selectedDefinitionId.value) return
-  mutating.value = true
-  try {
-    const formData = buildFormData()
-    await apollo.mutate({
-      mutation: startFlowMutation,
-      variables: {
-        input: {
-          definitionId: selectedDefinitionId.value,
-          resourceId: selectedModelId.value || null,
-          formData
-        }
-      } as FlowStartMutationVariables
-    })
-    notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
-  } catch (e) {
-    notify('发起失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadInstances()
-  }
-}
-
-const approveInstance = async (instanceId: string) => {
-  mutating.value = true
-  try {
-    await apollo.mutate({
-      mutation: approveFlowMutation,
-      variables: {
-        input: {
-          instanceId,
-          comment: actionComment.value || null
-        }
-      }
-    })
-    notify('操作成功', '审批已通过', ToastNotificationType.Success)
-  } catch (e) {
-    notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadInstances()
-  }
-}
-
-const rejectInstance = async (instanceId: string) => {
-  if (!actionComment.value.trim()) {
-    notify('驳回失败', '驳回必须填写备注', ToastNotificationType.Warning)
-    return
-  }
-  mutating.value = true
-  try {
-    await apollo.mutate({
-      mutation: rejectFlowMutation,
-      variables: {
-        input: {
-          instanceId,
-          comment: actionComment.value.trim(),
-          rollbackToStep: rollbackToStep.value || null
-        }
-      }
-    })
-    notify('操作成功', '审批已驳回', ToastNotificationType.Success)
-  } catch (e) {
-    notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    mutating.value = false
-    await loadInstances()
-  }
-}
-
-const cancelInstance = async (instanceId: string) => {
-  mutating.value = true
-  try {
-    await apollo.mutate({
-      mutation: cancelFlowMutation,
-      variables: {
-        input: {
-          instanceId,
-          comment: actionComment.value || null
-        }
-      }
-    })
-    notify('操作成功', '审批已取消', ToastNotificationType.Success)
   } catch (e) {
     notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
@@ -874,31 +569,16 @@ const cancelInstance = async (instanceId: string) => {
 }
 
 const refreshAll = async () => {
-  await loadDefinitions()
   await loadInstances()
 }
 
 watch(
-  () => statusFilter.value,
+  () => currentTag.value,
   async () => {
     await loadInstances()
   }
 )
 
-watch(
-  () => definitionResourceType.value,
-  async () => {
-    await loadDefinitions()
-  }
-)
-
-watch(
-  () => [selectedDefinitionId.value, definitions.value.length],
-  () => {
-    formFieldValues.value = {}
-  },
-  { immediate: true }
-)
 onMounted(async () => {
   await refreshAll()
 })

@@ -84,8 +84,8 @@
               ref="importArea"
               empty-state-variant="modelList"
               :project="project"
-              :model-name="item.fullName"
-              :model="item.model || undefined"
+              :model-name="item.modelName"
+              :model="undefined"
               class="h-full w-full"
               @uploading="onVersionUploading"
             />
@@ -125,13 +125,8 @@
               </FormButton>
             </div>
           </div>
-          <FormButton
-            color="subtle"
-            size="sm"
-            class="flex items-center gap-1 !text-foreground-2 cursor-pointer !border-zinc-300 border-solid border rounded-full"
-            @click.stop="startFlow"
-          >
-            待审核
+          <FormButton color="subtle" size="sm" :class="approveStatusTagClass">
+            {{ approveStatusLabel }}
           </FormButton>
         </div>
         <ProjectPendingFileImportStatus
@@ -229,7 +224,6 @@
             color="outline"
             :to="viewAllUrl"
             :disabled="!viewAllUrl"
-            @click.stop="trackFederateModels"
           >
             查看所有
           </FormButton>
@@ -278,7 +272,6 @@ import { useQuery } from '@vue/apollo-composable'
 import { projectModelChildrenTreeQuery } from '~~/lib/projects/graphql/queries'
 import { has } from 'lodash-es'
 import type { Nullable } from '@speckle/shared'
-import { useMixpanel } from '~~/lib/core/composables/mp'
 import { useIsModelExpanded } from '~~/lib/projects/composables/models'
 import { HorizontalDirection } from '~~/lib/common/composables/window'
 import { useCanCreateModel } from '~/lib/projects/composables/permissions'
@@ -481,6 +474,30 @@ const modelLink = computed(() => {
   return getModelItemRoute(item)
 })
 
+const modelApproveStatus = computed(() => {
+  if (isPendingFileUpload(props.item)) return null
+  return props.item.model?.approveStatus || null
+})
+
+const approveStatusLabel = computed(() => {
+  const status = (modelApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING') return '审核中'
+  if (status === 'REJECTED') return '未通过'
+  if (status === 'APPROVED') return '已审核'
+  return '未开始'
+})
+
+const approveStatusTagClass = computed(() => {
+  const source =
+    'flex items-center gap-1 cursor-pointer border-solid border rounded-full'
+  const status = (modelApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING')
+    return source + ' !bg-primary-muted !text-primary !border-primary-muted'
+  if (status === 'REJECTED') return source + ' !bg-danger !text-white !border-danger'
+  if (status === 'APPROVED') return source + ' !bg-success !text-white !border-success'
+  return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
+})
+
 const viewAllUrl = computed(() => {
   if (isPendingFileUpload(props.item)) return undefined
   const fullName = props.item.fullName
@@ -524,6 +541,4 @@ const onVersionsClick = () => {
     router.push(modelVersionsRoute(props.project.id, model.value.id))
   }
 }
-
-const startFlow = () => {}
 </script>

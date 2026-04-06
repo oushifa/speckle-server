@@ -62,9 +62,14 @@ export default {
         items: page.items
       }
     },
-    async approvalFlowStats(_parent: unknown, args: { rangeDays?: number | null }) {
+    async approvalFlowStats(
+      _parent: unknown,
+      args: { rangeDays?: number | null },
+      ctx: GraphQLContext
+    ) {
       return await getApprovalFlowStatsFactory({ db })({
-        rangeDays: args.rangeDays || 30
+        rangeDays: args.rangeDays || 30,
+        userId: ctx.userId || null
       })
     }
   },
@@ -206,7 +211,13 @@ export default {
     },
     async approve(
       _parent: unknown,
-      args: { input: { instanceId: string; comment?: string | null } },
+      args: {
+        input: {
+          instanceId: string
+          comment?: string | null
+          nextStepApproverIds?: string[] | null
+        }
+      },
       ctx: GraphQLContext
     ) {
       const userId = ensureUserId(ctx)
@@ -223,7 +234,8 @@ export default {
         instanceId: args.input.instanceId,
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Approved,
-        comment: args.input.comment
+        comment: args.input.comment,
+        nextStepApproverIds: args.input.nextStepApproverIds || null
       })
     },
     async reject(

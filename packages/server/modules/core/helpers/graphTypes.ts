@@ -75,6 +75,9 @@ export type ApprovalFlowStatsGraphQLReturn = {
   approvedCount: number
   rejectedCount: number
   canceledCount: number
+  initiatedCount: number
+  handledCount: number
+  pendingForMeCount: number
   averageResolutionHours: number
 }
 
