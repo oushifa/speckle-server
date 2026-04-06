@@ -28,24 +28,6 @@
         <div class="text-body-sm mt-2 text-foreground">{{ statusMessage }}</div>
       </div>
 
-      <div class="rounded-lg border border-outline-3 p-4">
-        <div class="text-body-xs text-foreground-2">全局 Token 存储</div>
-        <div class="mt-2 grid grid-cols-1 gap-2">
-          <div class="flex items-center justify-between">
-            <span class="text-body-xs text-foreground-2">oaToken</span>
-            <span class="text-body-xs text-foreground">
-              {{ maskedOaToken || '未写入' }}
-            </span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-body-xs text-foreground-2">spToken</span>
-            <span class="text-body-xs text-foreground">
-              {{ maskedSpToken || '未写入' }}
-            </span>
-          </div>
-        </div>
-      </div>
-
       <div class="mt-8 space-y-4">
         <FormButton
           v-if="state !== LoginState.Success"
@@ -68,7 +50,7 @@
 
 <script setup lang="ts">
 import { homeRoute, loginRoute } from '~/lib/common/helpers/route'
-import { useAuthManager, useThirdPartyTokenState } from '~/lib/auth/composables/auth'
+import { useAuthManager } from '~/lib/auth/composables/auth'
 
 enum LoginState {
   TokenChecking = 'token-checking',
@@ -79,12 +61,8 @@ enum LoginState {
 }
 
 const route = useRoute()
+const apiOrigin = useApiOrigin()
 const { loginWithToken } = useAuthManager()
-const {
-  oaToken: oaTokenState,
-  spToken: spTokenState,
-  oaUser: oaUserState
-} = useThirdPartyTokenState()
 
 const state = ref<LoginState>(LoginState.TokenChecking)
 const currentToken = ref('')
@@ -102,15 +80,6 @@ const maskedToken = computed(() => {
   if (token.length <= 8) return `${token.slice(0, 2)}***`
   return `${token.slice(0, 4)}***${token.slice(-2)}`
 })
-
-const maskStoredToken = (token: string | null) => {
-  if (!token) return ''
-  if (token.length <= 8) return `${token.slice(0, 2)}***`
-  return `${token.slice(0, 4)}***${token.slice(-2)}`
-}
-
-const maskedOaToken = computed(() => maskStoredToken(oaTokenState.value))
-const maskedSpToken = computed(() => maskStoredToken(spTokenState.value))
 
 const isLoadingState = computed(
   () => state.value === LoginState.TokenChecking || state.value === LoginState.SigningIn
@@ -157,8 +126,7 @@ const submitText = computed(() => {
 
 const statusMessage = computed(() => {
   if (state.value === LoginState.TokenChecking) return '正在检查 token 格式与可用性'
-  if (state.value === LoginState.SigningIn)
-    return 'oaToken 已获取，正在交换 spToken 并完成登录'
+  if (state.value === LoginState.SigningIn) return 'token 校验通过，正在写入登录态'
   if (state.value === LoginState.Success) return '登录已完成，你可以继续进入系统'
   if (state.value === LoginState.Invalid) return errorDetails.value || 'token 校验失败'
   return '请通过 /authn/token-login?token=xxx 方式访问此页面'
@@ -171,68 +139,41 @@ const runTokenLogin = async () => {
 
   if (!token) {
     state.value = LoginState.Missing
-    oaTokenState.value = null
-    spTokenState.value = null
     return
   }
 
   state.value = LoginState.TokenChecking
   const requestHeaders = new Headers()
   requestHeaders.append('Content-Type', 'application/json')
-  const withNewUser = true
 
   const requestBody = JSON.stringify({
-    ['with_new_user']: withNewUser,
-    client: 'shangkan',
     token
   })
+  const loginUrl = new URL('/auth/sso/token-login', apiOrigin).toString()
 
   try {
-    const oaResponse = await fetch('http://47.100.77.97:64487/api/login/other', {
+    const ssoResponse = await fetch(loginUrl, {
       method: 'POST',
       headers: requestHeaders,
       body: requestBody,
       redirect: 'follow'
     }).then((response) => response.json())
 
-    const oaToken = oaResponse.msg?.token as string | undefined
-    if (!(oaResponse.ret === 0 && oaToken)) {
-      oaTokenState.value = null
-      spTokenState.value = null
+    const spToken = ssoResponse.token as string | undefined
+    if (!spToken) {
       state.value = LoginState.Invalid
-      errorDetails.value = oaResponse.msg || 'OA token 获取失败'
+      errorDetails.value = ssoResponse.err || ssoResponse.message || 'token 登录失败'
       return
     }
 
-    oaTokenState.value = oaToken
-    oaUserState.value = oaResponse.msg?.user || null
     state.value = LoginState.SigningIn
-
-    const authorizationHeaders = new Headers()
-    authorizationHeaders.append('Authorization', `Bearer ${oaToken}`)
-    const spResponse = await fetch('http://47.100.77.97:64487/api/getcode', {
-      method: 'GET',
-      headers: authorizationHeaders
-    }).then((response) => response.json())
-
-    const spToken = spResponse.msg?.token as string | undefined
-    if (!(spResponse.ret === 0 && spToken)) {
-      spTokenState.value = null
-      state.value = LoginState.Invalid
-      errorDetails.value = spResponse.msg || 'SP token 获取失败'
-      return
-    }
 
     await loginWithToken({
       token: spToken,
-      oaToken,
-      oaUser: oaUserState.value,
       skipRedirect: false
     })
     state.value = LoginState.Success
   } catch (error) {
-    oaTokenState.value = null
-    spTokenState.value = null
     state.value = LoginState.Invalid
     errorDetails.value = error instanceof Error ? error.message : '网络异常，请稍后重试'
   }

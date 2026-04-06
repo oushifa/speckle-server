@@ -5,7 +5,7 @@
     </template>
     <template #header-right>
       <div class="flex gap-2 items-center">
-        <FormButton
+        <!-- <FormButton
           v-if="!isOnboardingForced"
           class="opacity-70 hover:opacity-100 p-1"
           size="sm"
@@ -16,10 +16,10 @@
         </FormButton>
         <FormButton color="outline" @click="() => logout({ skipRedirect: false })">
           Sign out
-        </FormButton>
+        </FormButton> -->
       </div>
     </template>
-    <div class="flex flex-col items-center justify-center p-4 max-w-lg mx-auto">
+    <!-- <div class="flex flex-col items-center justify-center p-4 max-w-lg mx-auto">
       <h1 class="text-heading-xl text-foreground mb-2 font-normal">
         Tell us about yourself
       </h1>
@@ -27,13 +27,12 @@
         Your answers will help us improve
       </p>
       <OnboardingQuestionsForm />
-    </div>
+    </div> -->
   </HeaderWithEmptyPage>
 </template>
 
 <script setup lang="ts">
 import { useProcessOnboarding } from '~~/lib/auth/composables/onboarding'
-import { useAuthManager } from '~/lib/auth/composables/auth'
 import { homeRoute } from '~/lib/common/helpers/route'
 
 useHead({
@@ -45,12 +44,14 @@ definePageMeta({
   layout: 'empty'
 })
 
-const isOnboardingForced = useIsOnboardingForced()
 const { setUserOnboardingComplete } = useProcessOnboarding()
-const { logout } = useAuthManager()
 
-const onSkip = () => {
-  setUserOnboardingComplete()
-  navigateTo(homeRoute)
+const onSkip = async () => {
+  await setUserOnboardingComplete()
+  await navigateTo(homeRoute)
 }
+
+onMounted(async () => {
+  await onSkip()
+})
 </script>
