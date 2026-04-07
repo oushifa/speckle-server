@@ -13,9 +13,14 @@ const props = defineProps<{
   title?: string
   text?: string
   confirmText?: string
+  loading?: boolean
+  confirmDisabled?: boolean
+  closeOnConfirm?: boolean
 }>()
 
-const emit = defineEmits(['confirm'])
+const emit = defineEmits<{
+  confirm: []
+}>()
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -30,9 +35,15 @@ const dialogButtons = computed((): LayoutDialogButton[] => {
     },
     {
       text: props.confirmText ?? '确认',
+      disabled: props.confirmDisabled,
+      props: {
+        loading: props.loading
+      },
       onClick: () => {
-        open.value = false
         emit('confirm')
+        if (props.closeOnConfirm !== false) {
+          open.value = false
+        }
       }
     }
   ]

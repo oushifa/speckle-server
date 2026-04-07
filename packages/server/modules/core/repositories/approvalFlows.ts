@@ -61,6 +61,7 @@ export const generateApprovalFlowId = () => crs({ length: 10 })
 export const createApprovalFlowDefinitionFactory =
   (deps: { db: Knex }) =>
   async (params: {
+    id?: string
     name: string
     resourceType: string
     isActive?: boolean
@@ -82,7 +83,7 @@ export const createApprovalFlowDefinitionFactory =
     const [res] = await tables
       .definitions(deps.db)
       .insert({
-        id: generateApprovalFlowId(),
+        id: params.id || generateApprovalFlowId(),
         projectId: null,
         name: params.name,
         resourceType: params.resourceType,

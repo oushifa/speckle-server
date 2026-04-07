@@ -527,6 +527,22 @@ export const ModelFolderModels = buildTableHelper('model_folder_models', [
   'createdAt'
 ])
 
+export const BoqItems = buildTableHelper('boq_items', [
+  'id',
+  'projectId',
+  'parentId',
+  'type',
+  'code',
+  'name',
+  'unit',
+  'quantity',
+  'price',
+  'sortOrder',
+  'depth',
+  'createdAt',
+  'updatedAt'
+])
+
 export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitions', [
   'id',
   'projectId',

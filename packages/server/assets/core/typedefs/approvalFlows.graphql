@@ -135,6 +135,7 @@ type ApprovalFlowTodoCountUpdatedMessage {
 }
 
 input CreateApprovalFlowDefinitionInput {
+  id: ID
   name: String!
   isActive: Boolean
   previousVersionId: ID

@@ -180,14 +180,43 @@
           </div>
         </div>
       </div>
-      <CommonFlowStartDialog
+      <CommonConfirmDialog
         v-model:open="isStartDialogOpen"
-        :definitions="targetFlowDefinitions"
-        :flow-id="resolvedTargetFlowId"
-        :default-resource-id="selectedResourceId"
+        title="发起审核"
+        confirm-text="发起审核"
         :loading="mutating"
-        @submit="startApproval"
-      />
+        :confirm-disabled="mutating || !selectedResourceId"
+        :close-on-confirm="false"
+        @confirm="submitReviewApproval"
+      >
+        <div class="space-y-4">
+          <div
+            v-if="selectedUpdate"
+            class="rounded-lg border border-outline-3 bg-blue-50 p-3"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-sm font-semibold text-slate-900">待审核模型</div>
+              <span
+                class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-blue-700"
+              >
+                {{ selectedUpdate.version }}
+              </span>
+            </div>
+            <div class="mt-1 text-sm font-semibold text-slate-900">
+              {{ selectedUpdate.title }}
+            </div>
+            <div class="mt-1 text-xs text-slate-500">
+              {{ selectedUpdate.projectName }} ・ {{ selectedUpdate.initiator }} ・
+              {{ selectedUpdate.time }}
+            </div>
+          </div>
+          <FlowFieldsDynamicApprovalUserField
+            :field="reviewerField"
+            :value="reviewerFieldValue"
+            @update:value="reviewerFieldValue = $event"
+          />
+        </div>
+      </CommonConfirmDialog>
     </div>
   </div>
 </template>
@@ -212,6 +241,7 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
+import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import type {
   FlowDefinitionsQuery,
   FlowDefinitionsQueryVariables,
@@ -250,7 +280,7 @@ const metrics = [
 ]
 
 const todoCount = 4
-const targetFlowId = '5408aa67ee'
+const targetFlowId = 'test1'
 
 const flowDefinitionsQuery = graphql(`
   query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
@@ -370,6 +400,7 @@ type UpdateItem = {
   updatedAt: number
   approveStatus: string | null | undefined
 }
+type DefinitionItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
@@ -380,6 +411,8 @@ const recentUpdates = ref<UpdateItem[]>([])
 const totalReviewableModelCount = ref(0)
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
+const selectedUpdate = ref<UpdateItem | null>(null)
+const reviewerFieldValue = ref<unknown>('')
 
 const activeFlowDefinitions = computed(() =>
   flowDefinitions.value
@@ -391,6 +424,37 @@ const hasActiveTargetFlow = computed(() => Boolean(targetFlowDefinitions.value.l
 const resolvedTargetFlowId = computed(
   () => targetFlowDefinitions.value[0]?.id || targetFlowId
 )
+const targetFlowDefinition = computed<DefinitionItem | null>(
+  () => targetFlowDefinitions.value[0] || null
+)
+const reviewerField = computed<DynamicFormSchemaField>(() => {
+  const userFields = (targetFlowDefinition.value?.formSchema || [])
+    .filter((field) => field.type === 'user')
+    .map((field) => ({
+      key: field.key,
+      name: field.name,
+      type: field.type,
+      required: field.required || false,
+      multiple: false,
+      placeholder: field.placeholder || '请选择审核人',
+      options: []
+    }))
+  const preferredField =
+    userFields.find((field) =>
+      /approver|reviewer|审核人/i.test(`${field.key}${field.name}`)
+    ) || userFields[0]
+  return (
+    preferredField || {
+      key: 'nextApproverId',
+      name: '审核人',
+      type: 'user',
+      required: true,
+      multiple: false,
+      placeholder: '请选择审核人',
+      options: []
+    }
+  )
+})
 
 const todoList = [
   {
@@ -505,7 +569,7 @@ const loadRecentUpdates = async () => {
         variables: {
           cursor
         },
-        fetchPolicy: 'network-only'
+        fetchPolicy: 'no-cache'
       })) as { data: WorkbenchReviewUpdatesResult }
       projects.push(...(result.data.activeUser?.projects.items || []))
       cursor = result.data.activeUser?.projects.cursor || null
@@ -555,27 +619,41 @@ const openReviewDialog = (item: UpdateItem) => {
     return
   }
   selectedResourceId.value = item.resourceId
+  selectedUpdate.value = item
+  reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
   isStartDialogOpen.value = true
 }
 
-const startApproval = async (payload: {
-  definitionId: string
-  resourceId: string | null
-  formData: Record<string, unknown>
-}) => {
+const submitReviewApproval = async () => {
+  const selectedValue = reviewerFieldValue.value
+  const hasReviewer = Array.isArray(selectedValue)
+    ? selectedValue.length > 0
+    : Boolean(selectedValue)
+  if (reviewerField.value.required && !hasReviewer) {
+    notify('校验失败', '请选择审核人', ToastNotificationType.Warning)
+    return
+  }
+  const definitionId = resolvedTargetFlowId.value
+  if (!definitionId || !selectedResourceId.value) return
   mutating.value = true
   try {
     await apollo.mutate({
       mutation: startFlowMutation,
       variables: {
         input: {
-          definitionId: payload.definitionId,
-          resourceId: payload.resourceId,
-          formData: payload.formData
+          definitionId,
+          resourceId: selectedResourceId.value,
+          formData: {
+            [reviewerField.value.key]: reviewerFieldValue.value
+          }
         }
       } as FlowStartMutationVariables
     })
     notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
+    isStartDialogOpen.value = false
+    selectedUpdate.value = null
+    selectedResourceId.value = null
+    reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
     await loadRecentUpdates()
   } catch (e) {
     notify('发起失败', (e as Error).message, ToastNotificationType.Danger)

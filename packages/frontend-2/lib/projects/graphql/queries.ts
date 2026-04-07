@@ -212,6 +212,130 @@ export const projectModelVersionsQuery = graphql(`
   }
 `)
 
+export const projectBoqItemsQuery = graphql(`
+  query ProjectBoqItems($projectId: String!, $search: String) {
+    project(id: $projectId) {
+      id
+      name
+      boqItems(input: { search: $search }) {
+        id
+        projectId
+        parentId
+        type
+        code
+        name
+        unit
+        quantity
+        price
+        sortOrder
+        depth
+        hasChildren
+        createdAt
+        updatedAt
+        children {
+          id
+          projectId
+          parentId
+          type
+          code
+          name
+          unit
+          quantity
+          price
+          sortOrder
+          depth
+          hasChildren
+          createdAt
+          updatedAt
+          children {
+            id
+            projectId
+            parentId
+            type
+            code
+            name
+            unit
+            quantity
+            price
+            sortOrder
+            depth
+            hasChildren
+            createdAt
+            updatedAt
+            children {
+              id
+              projectId
+              parentId
+              type
+              code
+              name
+              unit
+              quantity
+              price
+              sortOrder
+              depth
+              hasChildren
+              createdAt
+              updatedAt
+              children {
+                id
+                projectId
+                parentId
+                type
+                code
+                name
+                unit
+                quantity
+                price
+                sortOrder
+                depth
+                hasChildren
+                createdAt
+                updatedAt
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const projectBoqSelectorOptionsQuery = graphql(`
+  query ProjectBoqSelectorOptions(
+    $projectId: String!
+    $parentId: ID
+    $search: String
+    $limit: Int! = 50
+  ) {
+    project(id: $projectId) {
+      id
+      boqSelectorOptions(
+        input: { parentId: $parentId, search: $search, limit: $limit }
+      ) {
+        totalCount
+        cursor
+        items {
+          id
+          projectId
+          parentId
+          type
+          code
+          name
+          unit
+          quantity
+          price
+          sortOrder
+          depth
+          hasChildren
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`)
+
 export const projectModelsPageQuery = graphql(`
   query ProjectModelsPage($projectId: String!) {
     project(id: $projectId) {

@@ -38,10 +38,27 @@
         />
       </div>
       <div
+        v-if="hasPrefixSlot"
+        ref="prefixElement"
+        class="absolute top-0 bottom-0 left-0 flex items-center text-foreground-2 text-body-xs max-w-[60%]"
+        :class="prefixClasses"
+      >
+        <slot name="prefix" />
+      </div>
+      <div
         v-if="loading"
         class="absolute top-0 h-full right-0 flex items-center pr-2 text-foreground-3"
       >
         <CommonLoadingIcon />
+      </div>
+      <div
+        v-if="hasSuffixSlot"
+        class="absolute top-0 bottom-0 right-0 flex items-center text-foreground-2 text-body-xs"
+        :class="suffixClasses"
+      >
+        <slot name="suffix">
+          <slot name="subfix" />
+        </slot>
       </div>
 
       <div v-tippy="tooltipText">
@@ -119,7 +136,16 @@
 <script setup lang="ts">
 import type { RuleExpression } from 'vee-validate'
 import { XMarkIcon } from '@heroicons/vue/20/solid'
-import { computed, ref, toRefs, useSlots } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  toRefs,
+  useSlots,
+  watch
+} from 'vue'
 import type { CSSProperties, PropType } from 'vue'
 import type { Nullable, Optional } from '@speckle/shared'
 import { useTextInputCore } from '~~/src/composables/form/textInput'
@@ -326,8 +352,13 @@ const emit = defineEmits<{
 }>()
 
 const slots = useSlots()
+const hasPrefixSlot = computed(() => !!slots.prefix)
+const hasSuffixSlot = computed(() => !!slots.suffix || !!slots.subfix)
 
 const inputElement = ref(null as Nullable<HTMLInputElement>)
+const prefixElement = ref(null as Nullable<HTMLElement>)
+const prefixPaddingLeft = ref<number | null>(null)
+let prefixResizeObserver: ResizeObserver | null = null
 
 const {
   coreClasses,
@@ -349,12 +380,16 @@ const {
 })
 
 const inputStyle = computed((): CSSProperties => {
-  if (props.color !== 'fully-transparent') return {}
+  const style: CSSProperties = {}
 
-  // In fully transparent mode, we want the input to fully blend in w/ parent styling
-  const style: CSSProperties = {
-    fontSize: 'inherit'
+  if (props.color === 'fully-transparent') {
+    style.fontSize = 'inherit'
   }
+
+  if (hasPrefixSlot.value && prefixPaddingLeft.value) {
+    style.paddingLeft = `${prefixPaddingLeft.value}px`
+  }
+
   return style
 })
 
@@ -386,8 +421,23 @@ const iconClasses = computed((): string => {
       classParts.push('pr-8')
     }
   }
+  if (hasSuffixSlot.value) {
+    classParts.push(
+      props.rightIcon || errorMessage.value || shouldShowClear.value ? 'pr-16' : 'pr-10'
+    )
+  }
 
   return classParts.join(' ')
+})
+
+const suffixClasses = computed(() => {
+  return props.rightIcon || errorMessage.value || shouldShowClear.value
+    ? 'pr-8'
+    : 'pr-2'
+})
+
+const prefixClasses = computed(() => {
+  return props.customIcon ? 'pl-8 pr-2 truncate' : 'pl-2 pr-2 truncate'
 })
 
 const sizeClasses = computed((): string => {
@@ -427,6 +477,58 @@ const computedWrapperClasses = computed(() => {
 const onRightIconClick = () => {
   emit('rightIconClick')
 }
+
+const updatePrefixPadding = () => {
+  if (!hasPrefixSlot.value || !prefixElement.value) {
+    prefixPaddingLeft.value = null
+    return
+  }
+
+  const measuredWidth = Math.ceil(prefixElement.value.getBoundingClientRect().width)
+  prefixPaddingLeft.value = measuredWidth + 8
+}
+
+watch(hasPrefixSlot, async (hasPrefix) => {
+  if (!hasPrefix) {
+    prefixPaddingLeft.value = null
+    if (prefixResizeObserver) {
+      prefixResizeObserver.disconnect()
+      prefixResizeObserver = null
+    }
+    return
+  }
+
+  await nextTick()
+  updatePrefixPadding()
+
+  if (typeof ResizeObserver !== 'undefined' && prefixElement.value) {
+    if (!prefixResizeObserver) {
+      prefixResizeObserver = new ResizeObserver(() => updatePrefixPadding())
+    }
+    prefixResizeObserver.disconnect()
+    prefixResizeObserver.observe(prefixElement.value)
+  }
+})
+
+onMounted(async () => {
+  await nextTick()
+  updatePrefixPadding()
+  if (
+    hasPrefixSlot.value &&
+    typeof ResizeObserver !== 'undefined' &&
+    prefixElement.value
+  ) {
+    prefixResizeObserver = new ResizeObserver(() => updatePrefixPadding())
+    prefixResizeObserver.observe(prefixElement.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (prefixResizeObserver) {
+    prefixResizeObserver.disconnect()
+    prefixResizeObserver = null
+  }
+})
 
 defineExpose({ focus })
 </script>

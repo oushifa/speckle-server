@@ -107,7 +107,7 @@
           </NuxtLink>
         </div>
         <FormButton
-          v-if="pendingVersion || !(isVersionUploading || !previewUrl)"
+          v-if="pendingVersion || !(isVersionUploading || !previewUrl) || true"
           color="subtle"
           size="sm"
           :class="statusTagClass"

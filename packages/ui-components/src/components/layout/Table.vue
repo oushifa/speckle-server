@@ -18,19 +18,55 @@
       >
         <CommonLoadingIcon />
       </div>
-      <template v-else-if="items?.length">
+      <template v-else-if="flatItems.length">
         <div
-          v-for="item in items"
-          :key="item.id"
+          v-for="row in flatItems"
+          :key="row.item.id"
           :style="{ paddingRight: paddingRightStyle }"
           :class="rowsWrapperClasses"
           tabindex="0"
-          @click="handleRowClick(item)"
-          @keypress="handleRowClick(item)"
+          @click="handleRowClick(row.item)"
+          @keypress="handleRowClick(row.item)"
         >
           <template v-for="(column, colIndex) in columns" :key="column.id">
             <div :class="getClasses(column.id, colIndex)" tabindex="0">
-              <slot :name="column.id" :item="item">
+              <div
+                v-if="colIndex === 0"
+                class="flex items-center min-w-0"
+                :style="{ paddingLeft: `${row.depth * 20}px` }"
+              >
+                <button
+                  v-if="row.hasChildren"
+                  type="button"
+                  class="w-5 h-5 mr-1 text-foreground-2 hover:text-foreground transition"
+                  @click.stop="toggleRow(row.item)"
+                >
+                  <ChevronRightIcon
+                    class="h-4 w-4 transition-transform duration-150"
+                    :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
+                  />
+                </button>
+                <span v-else class="w-5 h-5 mr-1" />
+                <div class="min-w-0 flex-1">
+                  <slot
+                    :name="column.id"
+                    :item="row.item"
+                    :depth="row.depth"
+                    :has-children="row.hasChildren"
+                    :expanded="isRowExpanded(row.item)"
+                  >
+                    <div class="text-foreground-2 font-medium order-1">Placeholder</div>
+                  </slot>
+                </div>
+              </div>
+              <slot
+                v-else
+                :name="column.id"
+                :item="row.item"
+                :depth="row.depth"
+                :has-children="row.hasChildren"
+                :expanded="isRowExpanded(row.item)"
+              >
                 <div class="text-foreground-2 font-medium order-1">Placeholder</div>
               </slot>
             </div>
@@ -49,7 +85,7 @@
                 :disabled="button.disabled"
                 :class="button.class"
                 :to="isString(button.action) ? button.action : undefined"
-                @click.stop="!isString(button.action) ? button.action(item) : noop"
+                @click.stop="!isString(button.action) ? button.action(row.item) : noop"
               />
             </div>
           </div>
@@ -75,7 +111,8 @@
 </template>
 <script setup lang="ts" generic="T extends {id: string}, C extends string">
 import { noop, isString } from '#lodash'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import type { PropAnyComponent } from '~~/src/helpers/common/components'
 import { CommonLoadingIcon, FormButton } from '~~/src/lib'
 import { directive as vTippy } from 'vue-tippy'
@@ -105,9 +142,22 @@ const props = withDefaults(
     rowItemsAlign?: 'center' | 'stretch'
     emptyMessage?: string
     loading?: boolean
+    childrenKey?: string
+    expandAllByDefault?: boolean
   }>(),
-  { rowItemsAlign: 'center', emptyMessage: '暂无数据' }
+  {
+    rowItemsAlign: 'center',
+    emptyMessage: '暂无数据',
+    childrenKey: 'children',
+    expandAllByDefault: true
+  }
 )
+
+type FlatItem<TItem> = {
+  item: TItem
+  depth: number
+  hasChildren: boolean
+}
 
 const tableClasses = computed(() => {
   const classParts = [
@@ -208,6 +258,69 @@ const getClasses = (
 
   return classParts.join(' ')
 }
+
+const expandedRows = ref<Set<string>>(new Set())
+
+const getChildren = (item: T): T[] => {
+  const children = (item as Record<string, unknown>)[props.childrenKey]
+  return Array.isArray(children) ? (children as T[]) : []
+}
+
+const collectExpandableIds = (items: T[] = []): string[] => {
+  return items.flatMap((item) => {
+    const children = getChildren(item)
+    if (!children.length) return []
+    return [item.id, ...collectExpandableIds(children)]
+  })
+}
+
+const syncExpandedRows = () => {
+  if (!props.expandAllByDefault) {
+    expandedRows.value = new Set()
+    return
+  }
+  expandedRows.value = new Set(collectExpandableIds(props.items || []))
+}
+
+watch(
+  () => props.items,
+  () => {
+    syncExpandedRows()
+  },
+  { immediate: true, deep: true }
+)
+
+const isRowExpanded = (item: T): boolean => {
+  return expandedRows.value.has(item.id)
+}
+
+const toggleRow = (item: T) => {
+  const children = getChildren(item)
+  if (!children.length) return
+  const updated = new Set(expandedRows.value)
+  if (updated.has(item.id)) {
+    updated.delete(item.id)
+  } else {
+    updated.add(item.id)
+  }
+  expandedRows.value = updated
+}
+
+const flatItems = computed<FlatItem<T>[]>(() => {
+  const rows: FlatItem<T>[] = []
+  const traverse = (items: T[], depth: number) => {
+    items.forEach((item) => {
+      const children = getChildren(item)
+      const hasChildren = children.length > 0
+      rows.push({ item, depth, hasChildren })
+      if (hasChildren && expandedRows.value.has(item.id)) {
+        traverse(children, depth + 1)
+      }
+    })
+  }
+  traverse(props.items || [], 0)
+  return rows
+})
 
 const handleRowClick = (item: T) => {
   props.onRowClick?.(item)

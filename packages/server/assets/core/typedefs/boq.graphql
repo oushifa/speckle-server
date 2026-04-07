@@ -1,0 +1,93 @@
+enum BoqItemType {
+  PROJECT
+  CATEGORY
+  SECTION
+  SUBSECTION
+  ITEM
+}
+
+type BoqItem {
+  id: ID!
+  projectId: ID!
+  parentId: ID
+  type: BoqItemType!
+  code: String!
+  name: String!
+  unit: String
+  quantity: Float
+  price: Float
+  sortOrder: Int!
+  depth: Int!
+  hasChildren: Boolean!
+  children: [BoqItem!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type BoqItemCollection {
+  totalCount: Int!
+  cursor: String
+  items: [BoqItem!]!
+}
+
+input ProjectBoqItemsInput {
+  search: String
+}
+
+input BoqSelectorOptionsInput {
+  parentId: ID
+  search: String
+  limit: Int! = 50
+}
+
+input CreateBoqItemInput {
+  projectId: ID!
+  parentId: ID
+  type: BoqItemType!
+  code: String!
+  name: String!
+  unit: String
+  quantity: Float
+  price: Float
+  sortOrder: Int
+}
+
+input UpdateBoqItemInput {
+  projectId: ID!
+  itemId: ID!
+  code: String
+  name: String
+  unit: String
+  quantity: Float
+  price: Float
+  sortOrder: Int
+}
+
+input MoveBoqItemInput {
+  projectId: ID!
+  itemId: ID!
+  parentId: ID
+  sortOrder: Int
+}
+
+input DeleteBoqItemInput {
+  projectId: ID!
+  itemId: ID!
+  cascade: Boolean = false
+}
+
+type BoqMutations {
+  createItem(input: CreateBoqItemInput!): BoqItem!
+  updateItem(input: UpdateBoqItemInput!): BoqItem!
+  moveItem(input: MoveBoqItemInput!): BoqItem!
+  deleteItem(input: DeleteBoqItemInput!): Boolean!
+}
+
+extend type Project {
+  boqItems(input: ProjectBoqItemsInput): [BoqItem!]!
+  boqSelectorOptions(input: BoqSelectorOptionsInput!): BoqItemCollection!
+}
+
+extend type ProjectMutations {
+  boqMutations: BoqMutations!
+}

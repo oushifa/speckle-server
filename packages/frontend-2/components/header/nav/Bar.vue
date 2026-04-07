@@ -16,6 +16,9 @@
           />
         </div>
         <div class="flex items-center truncate gap-6">
+          <FormButton color="primary" class="text-white hover:!text-blue-400">
+            BIM赋能
+          </FormButton>
           <!-- <ClientOnly>
             <PortalTarget name="mobile-navigation"></PortalTarget>
           </ClientOnly>

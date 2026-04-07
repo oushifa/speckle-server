@@ -21,6 +21,13 @@
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
           placeholder="流程名称，例如：模型审核流程"
         />
+        <label for="flow-definition-id" class="sr-only">流程ID(可选)</label>
+        <input
+          id="flow-definition-id"
+          v-model="definitionId"
+          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
+          placeholder="流程ID(可选)，例如：model_review_flow_v1"
+        />
         <label for="flow-definition-form-schema" class="sr-only">
           审批填写项(JSON)
         </label>
@@ -67,7 +74,9 @@
           >
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-body-sm font-medium">{{ definition.name }}</span>
-              <span class="text-body-xs text-foreground-2">v{{ definition.version }}</span>
+              <span class="text-body-xs text-foreground-2">
+                v{{ definition.version }}
+              </span>
               <span class="text-body-xs px-2 py-1 rounded bg-foundation-2">
                 {{ definition.isActive ? 'ACTIVE' : 'INACTIVE' }}
               </span>
@@ -245,6 +254,7 @@ const { triggerNotification } = useGlobalToast()
 const mutating = ref(false)
 const definitions = ref<FlowDefinitionListItem[]>([])
 const definitionName = ref('')
+const definitionId = ref('')
 const definitionResourceType = ref<'MODEL'>('MODEL')
 const formSchemaText = ref(
   '[{"key":"title","name":"标题","type":"string","required":true,"placeholder":"请输入标题"},{"key":"reviewer","name":"审批人","type":"user","required":true},{"key":"targetProject","name":"目标项目","type":"project"},{"key":"targetModel","name":"目标模型","type":"model"},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"},{"label":"紧急","value":"urgent"}]}]'
@@ -382,6 +392,7 @@ const createDefinition = async () => {
       effectConfig.allowParallelInstancesForSameResource = true
     }
     const input: CreateApprovalFlowDefinitionInput = {
+      id: definitionId.value.trim() || null,
       name: definitionName.value.trim(),
       isActive: true,
       effectConfig: Object.keys(effectConfig).length ? effectConfig : null,
@@ -396,6 +407,7 @@ const createDefinition = async () => {
     })
     notify('创建成功', '流程定义已创建', ToastNotificationType.Success)
     definitionName.value = ''
+    definitionId.value = ''
     allowParallelInstancesForSameResource.value = false
     syncModelApproveStatus.value = false
   } catch (e) {

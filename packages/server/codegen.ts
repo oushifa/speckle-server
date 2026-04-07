@@ -214,6 +214,7 @@ const config: CodegenConfig = {
             '@/modules/acc/helpers/graphTypes#AccSyncItemMutationsGraphQLReturn',
           SavedViewMutations:
             '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
+          BoqMutations: '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           SavedView: '@/modules/viewer/helpers/graphTypes#SavedViewGraphQLReturn',
           SavedViewGroup:
             '@/modules/viewer/helpers/graphTypes#SavedViewGroupGraphQLReturn',

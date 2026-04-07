@@ -278,7 +278,7 @@ const loadAllItems = async () => {
         variables: {
           cursor
         },
-        fetchPolicy: 'network-only'
+        fetchPolicy: 'no-cache'
       })) as { data: WorkbenchReviewUpdatesQuery }
       projects.push(
         ...((result.data.activeUser?.projects.items || []) as ReviewableProject[])

@@ -53,6 +53,7 @@ const syncModelApproveStatus = async (params: {
 export const createApprovalFlowDefinitionWithStepsFactory =
   (deps: { db: Knex }) =>
   async (params: {
+    id?: string | null
     name: string
     isActive?: boolean
     previousVersionId?: string | null
@@ -84,6 +85,7 @@ export const createApprovalFlowDefinitionWithStepsFactory =
         })) + 1
 
       const definition = await createApprovalFlowDefinitionFactory({ db: trx })({
+        id: params.id || undefined,
         name: params.name,
         resourceType: 'MODEL',
         isActive: params.isActive ?? true,

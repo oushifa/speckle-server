@@ -629,6 +629,11 @@ export const ApprovalFlowStepStatus = {
 } as const;
 
 export type ApprovalFlowStepStatus = typeof ApprovalFlowStepStatus[keyof typeof ApprovalFlowStepStatus];
+export type ApprovalFlowTodoCountUpdatedMessage = {
+  __typename?: 'ApprovalFlowTodoCountUpdatedMessage';
+  pendingForMeCount: Scalars['Int']['output'];
+};
+
 export type ApprovalMutations = {
   __typename?: 'ApprovalMutations';
   approve: ApprovalFlowInstance;
@@ -674,6 +679,7 @@ export type ApprovalMutationsStartArgs = {
 export type ApproveApprovalFlowInput = {
   comment?: InputMaybe<Scalars['String']['input']>;
   instanceId: Scalars['ID']['input'];
+  nextStepApproverIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
 export type ApproveWorkspaceJoinRequestInput = {
@@ -989,6 +995,75 @@ export type BlobMetadataCollection = {
   items?: Maybe<Array<BlobMetadata>>;
   totalCount: Scalars['Int']['output'];
   totalSize: Scalars['Int']['output'];
+};
+
+export type BoqItem = {
+  __typename?: 'BoqItem';
+  children: Array<BoqItem>;
+  code: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  depth: Scalars['Int']['output'];
+  hasChildren: Scalars['Boolean']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  parentId?: Maybe<Scalars['ID']['output']>;
+  price?: Maybe<Scalars['Float']['output']>;
+  projectId: Scalars['ID']['output'];
+  quantity?: Maybe<Scalars['Float']['output']>;
+  sortOrder: Scalars['Int']['output'];
+  type: BoqItemType;
+  unit?: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type BoqItemCollection = {
+  __typename?: 'BoqItemCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<BoqItem>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export const BoqItemType = {
+  Category: 'CATEGORY',
+  Item: 'ITEM',
+  Project: 'PROJECT',
+  Section: 'SECTION',
+  Subsection: 'SUBSECTION'
+} as const;
+
+export type BoqItemType = typeof BoqItemType[keyof typeof BoqItemType];
+export type BoqMutations = {
+  __typename?: 'BoqMutations';
+  createItem: BoqItem;
+  deleteItem: Scalars['Boolean']['output'];
+  moveItem: BoqItem;
+  updateItem: BoqItem;
+};
+
+
+export type BoqMutationsCreateItemArgs = {
+  input: CreateBoqItemInput;
+};
+
+
+export type BoqMutationsDeleteItemArgs = {
+  input: DeleteBoqItemInput;
+};
+
+
+export type BoqMutationsMoveItemArgs = {
+  input: MoveBoqItemInput;
+};
+
+
+export type BoqMutationsUpdateItemArgs = {
+  input: UpdateBoqItemInput;
+};
+
+export type BoqSelectorOptionsInput = {
+  limit?: Scalars['Int']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type Branch = {
@@ -1380,6 +1455,7 @@ export type CreateAccSyncItemInput = {
 export type CreateApprovalFlowDefinitionInput = {
   effectConfig?: InputMaybe<Scalars['JSONObject']['input']>;
   formSchema?: InputMaybe<Array<ApprovalFlowFormFieldInput>>;
+  id?: InputMaybe<Scalars['ID']['input']>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   previousVersionId?: InputMaybe<Scalars['ID']['input']>;
@@ -1402,6 +1478,18 @@ export type CreateAutomateFunctionInput = {
 export type CreateAutomateFunctionWithoutVersionInput = {
   description: Scalars['String']['input'];
   name: Scalars['String']['input'];
+};
+
+export type CreateBoqItemInput = {
+  code: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  price?: InputMaybe<Scalars['Float']['input']>;
+  projectId: Scalars['ID']['input'];
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+  type: BoqItemType;
+  unit?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateCommentInput = {
@@ -1641,6 +1729,12 @@ export type DashboardUpdateInput = {
 export type DeleteAccSyncItemInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['String']['input'];
+};
+
+export type DeleteBoqItemInput = {
+  cascade?: InputMaybe<Scalars['Boolean']['input']>;
+  itemId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 export type DeleteFolderInput = {
@@ -2290,6 +2384,13 @@ export type ModelsTreeItemCollection = {
   cursor?: Maybe<Scalars['String']['output']>;
   items: Array<ModelsTreeItem>;
   totalCount: Scalars['Int']['output'];
+};
+
+export type MoveBoqItemInput = {
+  itemId: Scalars['ID']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  projectId: Scalars['ID']['input'];
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type MoveVersionsInput = {
@@ -2952,6 +3053,8 @@ export type Project = {
   blob?: Maybe<BlobMetadata>;
   /** Get the metadata collection of blobs stored for this stream. */
   blobs?: Maybe<BlobMetadataCollection>;
+  boqItems: Array<BoqItem>;
+  boqSelectorOptions: BoqItemCollection;
   /** Get specific project comment/thread by ID */
   comment?: Maybe<Comment>;
   /** All comment threads in this project */
@@ -3064,6 +3167,16 @@ export type ProjectBlobsArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type ProjectBoqItemsArgs = {
+  input?: InputMaybe<ProjectBoqItemsInput>;
+};
+
+
+export type ProjectBoqSelectorOptionsArgs = {
+  input: BoqSelectorOptionsInput;
 };
 
 
@@ -3352,6 +3465,10 @@ export const ProjectAutomationsUpdatedMessageType = {
 } as const;
 
 export type ProjectAutomationsUpdatedMessageType = typeof ProjectAutomationsUpdatedMessageType[keyof typeof ProjectAutomationsUpdatedMessageType];
+export type ProjectBoqItemsInput = {
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ProjectCollaborator = {
   __typename?: 'ProjectCollaborator';
   id: Scalars['ID']['output'];
@@ -3575,6 +3692,7 @@ export type ProjectMutations = {
   automationMutations: ProjectAutomationMutations;
   /** Batch delete projects */
   batchDelete: Scalars['Boolean']['output'];
+  boqMutations: BoqMutations;
   /** Create new project */
   create: Project;
   createEmbedToken: CreateEmbedTokenReturn;
@@ -4940,6 +5058,7 @@ export type Subscription = {
   __typename?: 'Subscription';
   /** It's lonely in the void. */
   _?: Maybe<Scalars['String']['output']>;
+  approvalFlowTodoCountUpdated: ApprovalFlowTodoCountUpdatedMessage;
   /**
    * Subscribe to branch created event
    * @deprecated Part of the old API surface and will be removed in the future. Use 'projectModelsUpdated' instead.
@@ -5283,6 +5402,17 @@ export type UpdateAutomateFunctionInput = {
   supportedSourceApps?: InputMaybe<Array<Scalars['String']['input']>>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   workspaceIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type UpdateBoqItemInput = {
+  code?: InputMaybe<Scalars['String']['input']>;
+  itemId: Scalars['ID']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  price?: InputMaybe<Scalars['Float']['input']>;
+  projectId: Scalars['ID']['input'];
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+  unit?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateFolderInput = {
@@ -6885,6 +7015,7 @@ export type ResolversTypes = {
   ApprovalFlowStats: ResolverTypeWrapper<ApprovalFlowStatsGraphQLReturn>;
   ApprovalFlowStatus: ApprovalFlowStatus;
   ApprovalFlowStepStatus: ApprovalFlowStepStatus;
+  ApprovalFlowTodoCountUpdatedMessage: ResolverTypeWrapper<ApprovalFlowTodoCountUpdatedMessage>;
   ApprovalMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   ApproveApprovalFlowInput: ApproveApprovalFlowInput;
   ApproveWorkspaceJoinRequestInput: ApproveWorkspaceJoinRequestInput;
@@ -6924,6 +7055,11 @@ export type ResolversTypes = {
   BlobMetadata: ResolverTypeWrapper<BlobStorageItem>;
   BlobMetadataCollection: ResolverTypeWrapper<Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversTypes['BlobMetadata']>> }>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
+  BoqItem: ResolverTypeWrapper<BoqItem>;
+  BoqItemCollection: ResolverTypeWrapper<BoqItemCollection>;
+  BoqItemType: BoqItemType;
+  BoqMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
+  BoqSelectorOptionsInput: BoqSelectorOptionsInput;
   Branch: ResolverTypeWrapper<BranchGraphQLReturn>;
   BranchCollection: ResolverTypeWrapper<Omit<BranchCollection, 'items'> & { items?: Maybe<Array<ResolversTypes['Branch']>> }>;
   BranchCreateInput: BranchCreateInput;
@@ -6959,6 +7095,7 @@ export type ResolversTypes = {
   CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
   CreateAutomateFunctionInput: CreateAutomateFunctionInput;
   CreateAutomateFunctionWithoutVersionInput: CreateAutomateFunctionWithoutVersionInput;
+  CreateBoqItemInput: CreateBoqItemInput;
   CreateCommentInput: CreateCommentInput;
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: ResolverTypeWrapper<Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['DashboardToken'] }>;
@@ -6985,6 +7122,7 @@ export type ResolversTypes = {
   DashboardUpdateInput: DashboardUpdateInput;
   DateTime: ResolverTypeWrapper<Scalars['DateTime']['output']>;
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
+  DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
@@ -7039,6 +7177,7 @@ export type ResolversTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ResolverTypeWrapper<ModelsTreeItemGraphQLReturn>;
   ModelsTreeItemCollection: ResolverTypeWrapper<Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversTypes['ModelsTreeItem']> }>;
+  MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
   Mutation: ResolverTypeWrapper<{}>;
   Object: ResolverTypeWrapper<ObjectGraphQLReturn>;
@@ -7064,6 +7203,7 @@ export type ResolversTypes = {
   ProjectAutomationUpdateInput: ProjectAutomationUpdateInput;
   ProjectAutomationsUpdatedMessage: ResolverTypeWrapper<ProjectAutomationsUpdatedMessageGraphQLReturn>;
   ProjectAutomationsUpdatedMessageType: ProjectAutomationsUpdatedMessageType;
+  ProjectBoqItemsInput: ProjectBoqItemsInput;
   ProjectCollaborator: ResolverTypeWrapper<ProjectCollaboratorGraphQLReturn>;
   ProjectCollection: ResolverTypeWrapper<Omit<ProjectCollection, 'items'> & { items: Array<ResolversTypes['Project']> }>;
   ProjectCommentCollection: ResolverTypeWrapper<Omit<ProjectCommentCollection, 'items'> & { items: Array<ResolversTypes['Comment']> }>;
@@ -7175,6 +7315,7 @@ export type ResolversTypes = {
   TriggeredAutomationsStatus: ResolverTypeWrapper<TriggeredAutomationsStatusGraphQLReturn>;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
+  UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
@@ -7335,6 +7476,7 @@ export type ResolversParentTypes = {
   ApprovalFlowInstanceCollection: Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversParentTypes['ApprovalFlowInstance']> };
   ApprovalFlowInstanceStep: ApprovalFlowInstanceStepGraphQLReturn;
   ApprovalFlowStats: ApprovalFlowStatsGraphQLReturn;
+  ApprovalFlowTodoCountUpdatedMessage: ApprovalFlowTodoCountUpdatedMessage;
   ApprovalMutations: MutationsObjectGraphQLReturn;
   ApproveApprovalFlowInput: ApproveApprovalFlowInput;
   ApproveWorkspaceJoinRequestInput: ApproveWorkspaceJoinRequestInput;
@@ -7370,6 +7512,10 @@ export type ResolversParentTypes = {
   BlobMetadata: BlobStorageItem;
   BlobMetadataCollection: Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversParentTypes['BlobMetadata']>> };
   Boolean: Scalars['Boolean']['output'];
+  BoqItem: BoqItem;
+  BoqItemCollection: BoqItemCollection;
+  BoqMutations: MutationsObjectGraphQLReturn;
+  BoqSelectorOptionsInput: BoqSelectorOptionsInput;
   Branch: BranchGraphQLReturn;
   BranchCollection: Omit<BranchCollection, 'items'> & { items?: Maybe<Array<ResolversParentTypes['Branch']>> };
   BranchCreateInput: BranchCreateInput;
@@ -7405,6 +7551,7 @@ export type ResolversParentTypes = {
   CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
   CreateAutomateFunctionInput: CreateAutomateFunctionInput;
   CreateAutomateFunctionWithoutVersionInput: CreateAutomateFunctionWithoutVersionInput;
+  CreateBoqItemInput: CreateBoqItemInput;
   CreateCommentInput: CreateCommentInput;
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['DashboardToken'] };
@@ -7430,6 +7577,7 @@ export type ResolversParentTypes = {
   DashboardUpdateInput: DashboardUpdateInput;
   DateTime: Scalars['DateTime']['output'];
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
+  DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
@@ -7482,6 +7630,7 @@ export type ResolversParentTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ModelsTreeItemGraphQLReturn;
   ModelsTreeItemCollection: Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversParentTypes['ModelsTreeItem']> };
+  MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
   Mutation: {};
   Object: ObjectGraphQLReturn;
@@ -7504,6 +7653,7 @@ export type ResolversParentTypes = {
   ProjectAutomationRevisionCreateInput: ProjectAutomationRevisionCreateInput;
   ProjectAutomationUpdateInput: ProjectAutomationUpdateInput;
   ProjectAutomationsUpdatedMessage: ProjectAutomationsUpdatedMessageGraphQLReturn;
+  ProjectBoqItemsInput: ProjectBoqItemsInput;
   ProjectCollaborator: ProjectCollaboratorGraphQLReturn;
   ProjectCollection: Omit<ProjectCollection, 'items'> & { items: Array<ResolversParentTypes['Project']> };
   ProjectCommentCollection: Omit<ProjectCommentCollection, 'items'> & { items: Array<ResolversParentTypes['Comment']> };
@@ -7598,6 +7748,7 @@ export type ResolversParentTypes = {
   TriggeredAutomationsStatus: TriggeredAutomationsStatusGraphQLReturn;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
+  UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
@@ -8054,6 +8205,11 @@ export type ApprovalFlowStatsResolvers<ContextType = GraphQLContext, ParentType 
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ApprovalFlowTodoCountUpdatedMessageResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowTodoCountUpdatedMessage'] = ResolversParentTypes['ApprovalFlowTodoCountUpdatedMessage']> = {
+  pendingForMeCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ApprovalMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalMutations'] = ResolversParentTypes['ApprovalMutations']> = {
   approve?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsApproveArgs, 'input'>>;
   cancel?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsCancelArgs, 'input'>>;
@@ -8264,6 +8420,40 @@ export type BlobMetadataCollectionResolvers<ContextType = GraphQLContext, Parent
   items?: Resolver<Maybe<Array<ResolversTypes['BlobMetadata']>>, ParentType, ContextType>;
   totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   totalSize?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItem'] = ResolversParentTypes['BoqItem']> = {
+  children?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
+  code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  depth?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  hasChildren?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  parentId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  price?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  projectId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  quantity?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  sortOrder?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['BoqItemType'], ParentType, ContextType>;
+  unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BoqItemCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItemCollection'] = ResolversParentTypes['BoqItemCollection']> = {
+  cursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BoqMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqMutations'] = ResolversParentTypes['BoqMutations']> = {
+  createItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsCreateItemArgs, 'input'>>;
+  deleteItem?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<BoqMutationsDeleteItemArgs, 'input'>>;
+  moveItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsMoveItemArgs, 'input'>>;
+  updateItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsUpdateItemArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -8913,6 +9103,8 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   automations?: Resolver<ResolversTypes['AutomationCollection'], ParentType, ContextType, Partial<ProjectAutomationsArgs>>;
   blob?: Resolver<Maybe<ResolversTypes['BlobMetadata']>, ParentType, ContextType, RequireFields<ProjectBlobArgs, 'id'>>;
   blobs?: Resolver<Maybe<ResolversTypes['BlobMetadataCollection']>, ParentType, ContextType, RequireFields<ProjectBlobsArgs, 'cursor' | 'limit' | 'query'>>;
+  boqItems?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType, Partial<ProjectBoqItemsArgs>>;
+  boqSelectorOptions?: Resolver<ResolversTypes['BoqItemCollection'], ParentType, ContextType, RequireFields<ProjectBoqSelectorOptionsArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<ProjectCommentArgs, 'id'>>;
   commentThreads?: Resolver<ResolversTypes['ProjectCommentCollection'], ParentType, ContextType, Partial<ProjectCommentThreadsArgs>>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9076,6 +9268,7 @@ export type ProjectMutationsResolvers<ContextType = GraphQLContext, ParentType e
   accessRequestMutations?: Resolver<ResolversTypes['ProjectAccessRequestMutations'], ParentType, ContextType>;
   automationMutations?: Resolver<ResolversTypes['ProjectAutomationMutations'], ParentType, ContextType, RequireFields<ProjectMutationsAutomationMutationsArgs, 'projectId'>>;
   batchDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsBatchDeleteArgs, 'ids'>>;
+  boqMutations?: Resolver<ResolversTypes['BoqMutations'], ParentType, ContextType>;
   create?: Resolver<ResolversTypes['Project'], ParentType, ContextType, Partial<ProjectMutationsCreateArgs>>;
   createEmbedToken?: Resolver<ResolversTypes['CreateEmbedTokenReturn'], ParentType, ContextType, RequireFields<ProjectMutationsCreateEmbedTokenArgs, 'token'>>;
   createForOnboarding?: Resolver<ResolversTypes['Project'], ParentType, ContextType>;
@@ -9551,6 +9744,7 @@ export type StreamCollectionResolvers<ContextType = GraphQLContext, ParentType e
 
 export type SubscriptionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription']> = {
   _?: SubscriptionResolver<Maybe<ResolversTypes['String']>, "_", ParentType, ContextType>;
+  approvalFlowTodoCountUpdated?: SubscriptionResolver<ResolversTypes['ApprovalFlowTodoCountUpdatedMessage'], "approvalFlowTodoCountUpdated", ParentType, ContextType>;
   branchCreated?: SubscriptionResolver<Maybe<ResolversTypes['JSONObject']>, "branchCreated", ParentType, ContextType, RequireFields<SubscriptionBranchCreatedArgs, 'streamId'>>;
   branchDeleted?: SubscriptionResolver<Maybe<ResolversTypes['JSONObject']>, "branchDeleted", ParentType, ContextType, RequireFields<SubscriptionBranchDeletedArgs, 'streamId'>>;
   branchUpdated?: SubscriptionResolver<Maybe<ResolversTypes['JSONObject']>, "branchUpdated", ParentType, ContextType, RequireFields<SubscriptionBranchUpdatedArgs, 'streamId'>>;
@@ -10165,6 +10359,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   ApprovalFlowInstanceCollection?: ApprovalFlowInstanceCollectionResolvers<ContextType>;
   ApprovalFlowInstanceStep?: ApprovalFlowInstanceStepResolvers<ContextType>;
   ApprovalFlowStats?: ApprovalFlowStatsResolvers<ContextType>;
+  ApprovalFlowTodoCountUpdatedMessage?: ApprovalFlowTodoCountUpdatedMessageResolvers<ContextType>;
   ApprovalMutations?: ApprovalMutationsResolvers<ContextType>;
   AuthStrategy?: AuthStrategyResolvers<ContextType>;
   AutomateFunction?: AutomateFunctionResolvers<ContextType>;
@@ -10190,6 +10385,9 @@ export type Resolvers<ContextType = GraphQLContext> = {
   BigInt?: GraphQLScalarType;
   BlobMetadata?: BlobMetadataResolvers<ContextType>;
   BlobMetadataCollection?: BlobMetadataCollectionResolvers<ContextType>;
+  BoqItem?: BoqItemResolvers<ContextType>;
+  BoqItemCollection?: BoqItemCollectionResolvers<ContextType>;
+  BoqMutations?: BoqMutationsResolvers<ContextType>;
   Branch?: BranchResolvers<ContextType>;
   BranchCollection?: BranchCollectionResolvers<ContextType>;
   CheckoutSession?: CheckoutSessionResolvers<ContextType>;

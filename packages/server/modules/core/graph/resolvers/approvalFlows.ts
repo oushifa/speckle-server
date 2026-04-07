@@ -147,6 +147,7 @@ export default {
       _parent: unknown,
       args: {
         input: {
+          id?: string | null
           name: string
           isActive?: boolean | null
           previousVersionId?: string | null
@@ -171,6 +172,7 @@ export default {
     ) {
       const userId = ensureUserId(ctx)
       return await createApprovalFlowDefinitionWithStepsFactory({ db })({
+        id: args.input.id?.trim() || null,
         name: args.input.name.trim(),
         isActive: args.input.isActive ?? true,
         previousVersionId: args.input.previousVersionId || null,

@@ -190,6 +190,66 @@ export const updateVersionMutation = graphql(`
   }
 `)
 
+export const createBoqItemMutation = graphql(`
+  mutation CreateBoqItem($input: CreateBoqItemInput!) {
+    projectMutations {
+      boqMutations {
+        createItem(input: $input) {
+          id
+          projectId
+          parentId
+          type
+          code
+          name
+          unit
+          quantity
+          price
+          sortOrder
+          depth
+          hasChildren
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`)
+
+export const updateBoqItemMutation = graphql(`
+  mutation UpdateBoqItem($input: UpdateBoqItemInput!) {
+    projectMutations {
+      boqMutations {
+        updateItem(input: $input) {
+          id
+          projectId
+          parentId
+          type
+          code
+          name
+          unit
+          quantity
+          price
+          sortOrder
+          depth
+          hasChildren
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`)
+
+export const deleteBoqItemMutation = graphql(`
+  mutation DeleteBoqItem($input: DeleteBoqItemInput!) {
+    projectMutations {
+      boqMutations {
+        deleteItem(input: $input)
+      }
+    }
+  }
+`)
+
 export const deleteWebhookMutation = graphql(`
   mutation deleteWebhook($webhook: WebhookDeleteInput!) {
     webhookDelete(webhook: $webhook)
