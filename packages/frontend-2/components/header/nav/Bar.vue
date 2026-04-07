@@ -16,14 +16,6 @@
           />
         </div>
         <div class="flex items-center truncate gap-6">
-          <FormButton
-            v-for="link in links"
-            :key="link"
-            :color="link === 'BIM赋能' ? 'primary' : 'subtle'"
-            class="text-white hover:!text-blue-400"
-          >
-            {{ link }}
-          </FormButton>
           <!-- <ClientOnly>
             <PortalTarget name="mobile-navigation"></PortalTarget>
           </ClientOnly>
@@ -64,7 +56,6 @@ defineProps<{
   hideUserNav?: boolean
 }>()
 
-const links = ['前期要素', '勘察管控', 'BIM赋能', '风险预警', '智能决策', '孪生底座']
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const { activeUser, isLoggedIn } = useActiveUser()
 const route = useRoute()
@@ -80,6 +71,4 @@ const loginUrl = computed(() =>
     }
   })
 )
-
-console.log(isWorkspacesEnabled.value, isLoggedIn.value, 'check loggin')
 </script>
