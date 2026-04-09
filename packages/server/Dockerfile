@@ -86,6 +86,7 @@ ARG SPECKLE_SERVER_VERSION=custom
 # Consume the NODE_ENV ARG from the global scope
 ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV} \
-  SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION}
+  SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
+  FF_RHINO_FILE_IMPORTER_ENABLED=true
 
 ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate && node --import=./esmLoader.js ./bin/www" ]

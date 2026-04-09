@@ -61,10 +61,44 @@ export default {
     ) {
       const [totalCount, page] = await Promise.all([
         countApprovalFlowInstancesFactory({ db })({
-          status: args.status || null
+          status: args.status || null,
+          resourceType: null,
+          resourceId: null
         }),
         getApprovalFlowInstancesFactory({ db })({
           status: args.status || null,
+          resourceType: null,
+          resourceId: null,
+          cursor: args.cursor || null,
+          limit: args.limit || null
+        })
+      ])
+      return {
+        totalCount,
+        cursor: page.cursor,
+        items: page.items
+      }
+    },
+    async approvalFlowInstancesByResource(
+      _parent: unknown,
+      args: {
+        resourceType: string
+        resourceId: string
+        status?: string | null
+        cursor?: string | null
+        limit?: number | null
+      }
+    ) {
+      const [totalCount, page] = await Promise.all([
+        countApprovalFlowInstancesFactory({ db })({
+          status: args.status || null,
+          resourceType: args.resourceType,
+          resourceId: args.resourceId
+        }),
+        getApprovalFlowInstancesFactory({ db })({
+          status: args.status || null,
+          resourceType: args.resourceType,
+          resourceId: args.resourceId,
           cursor: args.cursor || null,
           limit: args.limit || null
         })
@@ -149,6 +183,7 @@ export default {
         input: {
           id?: string | null
           name: string
+          resourceType?: string | null
           isActive?: boolean | null
           previousVersionId?: string | null
           effectConfig?: Record<string, unknown> | null
@@ -174,6 +209,7 @@ export default {
       return await createApprovalFlowDefinitionWithStepsFactory({ db })({
         id: args.input.id?.trim() || null,
         name: args.input.name.trim(),
+        resourceType: args.input.resourceType || 'MODEL',
         isActive: args.input.isActive ?? true,
         previousVersionId: args.input.previousVersionId || null,
         effectConfig: args.input.effectConfig || null,

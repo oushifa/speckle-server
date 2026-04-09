@@ -11,10 +11,14 @@ import { useDiffBuilderUtilities } from '~~/lib/viewer/composables/setup/diff'
 
 export enum ViewerHashStateKeys {
   FocusedThreadId = 'threadId',
+  Isolate = 'isolate',
   Diff = 'diff',
   EmbedOptions = 'embed',
   SavedView = 'savedView'
 }
+
+const normalizeIsolateIds = (ids: string[]) =>
+  Array.from(new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0)))
 
 export function setupUrlHashState(): InjectableViewerState['urlHashState'] {
   const { hashState } = useRouteHashState()
@@ -31,6 +35,23 @@ export function setupUrlHashState(): InjectableViewerState['urlHashState'] {
     initialState: null,
     asyncRead: false
     // debugging: { log: { name: 'focusedThreadId' } }
+  })
+
+  const isolateObjectIds = writableAsyncComputed({
+    get: () => {
+      const urlValue = hashState.value[ViewerHashStateKeys.Isolate]
+      if (!urlValue) return []
+      return normalizeIsolateIds(urlValue.split(','))
+    },
+    set: async (newVal) => {
+      const isolateIds = normalizeIsolateIds(newVal || [])
+      await hashState.update({
+        ...hashState.value,
+        [ViewerHashStateKeys.Isolate]: isolateIds.length ? isolateIds.join(',') : null
+      })
+    },
+    initialState: [],
+    asyncRead: false
   })
 
   const diff = writableAsyncComputed({
@@ -65,6 +86,7 @@ export function setupUrlHashState(): InjectableViewerState['urlHashState'] {
 
   return {
     focusedThreadId,
+    isolateObjectIds,
     diff,
     savedView
   }

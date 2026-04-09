@@ -569,8 +569,8 @@ export const useAuthManager = (
     if (!options?.skipToast) {
       triggerNotification({
         type: ToastNotificationType.Info,
-        title: 'Goodbye!',
-        description: "You've been logged out"
+        title: '退出登录',
+        description: '您已成功退出登录'
       })
     }
 

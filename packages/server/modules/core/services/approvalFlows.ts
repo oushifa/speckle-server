@@ -20,8 +20,11 @@ import {
   updateApprovalFlowInstanceStatusFactory
 } from '@/modules/core/repositories/approvalFlows'
 import { updateBranchFactory } from '@/modules/core/repositories/branches'
+import { updateQualityAcceptanceFormFactory } from '@/modules/core/repositories/qualityAcceptanceForms'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { Knex } from 'knex'
+
+const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 
 const getStepDueAt = (startedAt: Date, timeoutHours?: number | null) => {
   if (!timeoutHours) return null
@@ -31,23 +34,65 @@ const getStepDueAt = (startedAt: Date, timeoutHours?: number | null) => {
 const shouldSyncModelApproveStatus = (effectConfig: Record<string, unknown> | null) =>
   Boolean(effectConfig?.syncModelApproveStatus)
 
+const shouldSyncQualityAcceptanceFormApproveStatus = (
+  effectConfig: Record<string, unknown> | null
+) =>
+  Boolean(
+    effectConfig?.syncQualityAcceptanceFormApproveStatus ||
+      effectConfig?.syncFormApproveStatus
+  )
+
 const shouldAllowParallelInstancesForSameResource = (
   effectConfig: Record<string, unknown> | null
 ) => Boolean(effectConfig?.allowParallelInstancesForSameResource)
 
-const syncModelApproveStatus = async (params: {
+const mapFlowStatusToQualityAcceptanceApproveStatus = (status: string) => {
+  if (status === ApprovalFlowInstanceStatus.Pending) return 0
+  if (status === ApprovalFlowInstanceStatus.Approved) return 1
+  if (status === ApprovalFlowInstanceStatus.Rejected) return 2
+  if (status === ApprovalFlowInstanceStatus.Canceled) return 3
+  return 0
+}
+
+const parseFormResourceId = (resourceId: string) => {
+  const idx = resourceId.indexOf(':')
+  if (idx === -1) return null
+  const formTable = resourceId.slice(0, idx)
+  const formId = resourceId.slice(idx + 1)
+  if (!formTable || !formId) return null
+  return { formTable, formId }
+}
+
+const syncResourceApproveStatus = async (params: {
   trx: Knex
   definitionEffectConfig: Record<string, unknown> | null
   resourceType: string
   resourceId?: string | null
   approveStatus: string
 }) => {
-  if (!shouldSyncModelApproveStatus(params.definitionEffectConfig)) return
-  if (params.resourceType !== 'MODEL') return
   if (!params.resourceId) return
-  await updateBranchFactory({ db: params.trx })(params.resourceId, {
-    approveStatus: params.approveStatus
-  })
+  if (
+    params.resourceType === 'MODEL' &&
+    shouldSyncModelApproveStatus(params.definitionEffectConfig)
+  ) {
+    await updateBranchFactory({ db: params.trx })(params.resourceId, {
+      approveStatus: params.approveStatus
+    })
+    return
+  }
+  if (
+    params.resourceType === 'FORMS' &&
+    shouldSyncQualityAcceptanceFormApproveStatus(params.definitionEffectConfig)
+  ) {
+    const parsed = parseFormResourceId(params.resourceId)
+    if (parsed?.formTable === QUALITY_ACCEPTANCE_FORM_TABLE) {
+      await updateQualityAcceptanceFormFactory({ db: params.trx })(parsed.formId, {
+        approveStatus: mapFlowStatusToQualityAcceptanceApproveStatus(
+          params.approveStatus
+        )
+      })
+    }
+  }
 }
 
 export const createApprovalFlowDefinitionWithStepsFactory =
@@ -55,6 +100,7 @@ export const createApprovalFlowDefinitionWithStepsFactory =
   async (params: {
     id?: string | null
     name: string
+    resourceType?: string | null
     isActive?: boolean
     previousVersionId?: string | null
     effectConfig?: Record<string, unknown> | null
@@ -81,13 +127,13 @@ export const createApprovalFlowDefinitionWithStepsFactory =
 
       const nextVersion =
         (await getLatestVersion({
-          resourceType: 'MODEL'
+          resourceType: params.resourceType || 'MODEL'
         })) + 1
 
       const definition = await createApprovalFlowDefinitionFactory({ db: trx })({
         id: params.id || undefined,
         name: params.name,
-        resourceType: 'MODEL',
+        resourceType: params.resourceType || 'MODEL',
         isActive: params.isActive ?? true,
         version: nextVersion,
         previousVersionId: params.previousVersionId || null,
@@ -215,7 +261,7 @@ export const startApprovalFlowFactory =
         }
       })
 
-      await syncModelApproveStatus({
+      await syncResourceApproveStatus({
         trx,
         definitionEffectConfig:
           (definition.effectConfig as Record<string, unknown> | null) || null,
@@ -422,7 +468,7 @@ export const updateApprovalFlowStatusFactory =
       })
 
       if (finalStatus === ApprovalFlowInstanceStatus.Pending) {
-        await syncModelApproveStatus({
+        await syncResourceApproveStatus({
           trx,
           definitionEffectConfig:
             (definition.effectConfig as Record<string, unknown> | null) || null,
@@ -431,7 +477,7 @@ export const updateApprovalFlowStatusFactory =
           approveStatus: ApprovalFlowInstanceStatus.Pending
         })
       } else if (finalStatus === ApprovalFlowInstanceStatus.Approved) {
-        await syncModelApproveStatus({
+        await syncResourceApproveStatus({
           trx,
           definitionEffectConfig:
             (definition.effectConfig as Record<string, unknown> | null) || null,
@@ -440,7 +486,7 @@ export const updateApprovalFlowStatusFactory =
           approveStatus: ApprovalFlowInstanceStatus.Approved
         })
       } else if (finalStatus === ApprovalFlowInstanceStatus.Rejected) {
-        await syncModelApproveStatus({
+        await syncResourceApproveStatus({
           trx,
           definitionEffectConfig:
             (definition.effectConfig as Record<string, unknown> | null) || null,
@@ -491,7 +537,7 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
         toStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: 'Step timed out'
       })
-      await syncModelApproveStatus({
+      await syncResourceApproveStatus({
         trx,
         definitionEffectConfig:
           (definition.effectConfig as Record<string, unknown> | null) || null,

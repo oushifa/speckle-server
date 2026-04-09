@@ -67,6 +67,7 @@ ENV PORT=8080
 
 ENV NUXT_PUBLIC_MIXPANEL_TOKEN_ID=acd87c5a50b56df91a795e999812a3a4
 ENV NUXT_PUBLIC_MIXPANEL_API_HOST=https://47.100.77.97:64482
+ENV NUXT_PUBLIC_FF_RHINO_FILE_IMPORTER_ENABLED=true
 
 WORKDIR /speckle-server
 COPY --link --from=build-stage  /speckle-server/packages/frontend-2/.output .

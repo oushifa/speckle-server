@@ -213,6 +213,7 @@ import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/gen
 import { Camera, Box, ListFilter, MessageSquareText, LogOut } from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'
+import { useSettingsMenuState } from '~/lib/settings/composables/menu'
 
 // TODO: Refactor all of this event business and just read/write panels state directly
 const emit = defineEmits<{
@@ -360,13 +361,19 @@ const toggleActivePanel = (panel: ActivePanel) => {
   onPanelButtonClick(panel)
 }
 
-const goBackToPreviousPage = async () => {
-  if (import.meta.client && window.history.length > 1) {
-    router.back()
-    return
-  }
+const settingsMenuState = useSettingsMenuState()
+const exitSettingsRoute = computed(() => {
+  return settingsMenuState.value.previousRoute || projectsRoute
+})
 
-  await router.push(() => projectsRoute)
+const goBackToPreviousPage = async () => {
+  // if (import.meta.client && window.history.length > 1) {
+  //   router.back()
+  //   return
+  // }
+
+  // await router.push(() => projectsRoute)
+  await router.push(() => exitSettingsRoute.value)
 }
 
 const forceClosePanel = () => {

@@ -336,6 +336,58 @@ export const projectBoqSelectorOptionsQuery = graphql(`
   }
 `)
 
+export const projectQualityAcceptanceFormsQuery = graphql(`
+  query ProjectQualityAcceptanceForms(
+    $projectId: String!
+    $search: String
+    $cursor: String
+    $limit: Int!
+  ) {
+    project(id: $projectId) {
+      id
+      qualityAcceptanceForms(
+        input: { search: $search, cursor: $cursor, limit: $limit }
+      ) {
+        totalCount
+        cursor
+        items {
+          id
+          name
+          code
+          inspectionLotNumber
+          acceptancePart
+          actualStartDate
+          actualFinishDate
+          inspector {
+            id
+            name
+          }
+          inspectorId
+          attachments {
+            id
+            fileName
+            fileType
+            fileSize
+          }
+          creator {
+            id
+            name
+          }
+          creatorId
+          projectId
+          workVolume
+          unit
+          BIMelement
+          timeZone
+          approveStatus
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`)
+
 export const projectModelsPageQuery = graphql(`
   query ProjectModelsPage($projectId: String!) {
     project(id: $projectId) {

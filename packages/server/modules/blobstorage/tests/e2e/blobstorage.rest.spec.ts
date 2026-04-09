@@ -89,6 +89,19 @@ describe('Blobs integration @blobstorage', () => {
     ])
   })
 
+  it('Preserves UTF-8 filename when uploading', async () => {
+    const streamId = await createStreamForTest(user)
+    const fileName = '中文文件名测试.png'
+    const response = await request(app)
+      .post(`/api/stream/${streamId}/blob`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('blob1', Buffer.alloc(10, 'a'), fileName)
+
+    expect(response.status).to.equal(201)
+    expect(response.body.uploadResults).to.have.lengthOf(1)
+    expect(response.body.uploadResults[0].fileName).to.equal(fileName)
+  })
+
   it('Errors for too big files, file is deleted', async () => {
     const streamId = await createStreamForTest(user)
     const response = await request(app)

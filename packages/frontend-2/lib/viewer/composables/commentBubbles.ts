@@ -34,6 +34,7 @@ import {
 } from '~~/lib/viewer/composables/serialization'
 import type { Merge } from 'type-fest'
 import { useSelectionUtilities } from '~~/lib/viewer/composables/ui'
+import { useFilterUtilities } from './filtering/filtering'
 
 graphql(`
   fragment ViewerCommentBubblesData on Comment {
@@ -333,6 +334,28 @@ export function useViewerThreadTracking() {
         }
       }
     }
+  })
+}
+
+/**
+ * Set up isolate objects on thread open
+ */
+export function useViewerIsolateObjects() {
+  if (import.meta.server) return
+
+  const { isolateObjects } = useFilterUtilities()
+
+  const state = useInjectedViewerState()
+
+  // Do this once viewer loads things
+  useOnViewerLoadComplete(({ isInitial }) => {
+    if (!isInitial) return
+    const isolateObjectIds = state.urlHashState.isolateObjectIds
+    setTimeout(() => {
+      if (isolateObjectIds.value?.length > 0) {
+        isolateObjects(isolateObjectIds.value, { replace: true })
+      }
+    })
   })
 }
 

@@ -49,7 +49,7 @@
                 />
               </DisclosureButton>
 
-              <DisclosurePanel
+              <!-- <DisclosurePanel
                 class="flex flex-col px-2 py-5 space-y-5 label-light border-b border-outline-3"
               >
                 <table v-if="app.author || app.description?.length" class="table-fixed">
@@ -71,11 +71,6 @@
                 </table>
                 <div class="space-y-4">
                   <div class="font-medium">Permissions:</div>
-                  <!-- <ul v-if="false" class="list-disc list-inside space-y-4">
-                  <li v-for="scope in app.scopes" :key="scope?.name">
-                    <span>{{ scope.description }}</span>
-                  </li>
-                </ul> -->
                   <ul class="list-inside space-y-2">
                     <template
                       v-for="[group, scope] in Object.entries(groupedScopes)"
@@ -92,7 +87,7 @@
                     </template>
                   </ul>
                 </div>
-              </DisclosurePanel>
+              </DisclosurePanel> -->
             </Disclosure>
           </div>
           <div class="flex space-x-2 w-full">

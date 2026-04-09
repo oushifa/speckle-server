@@ -25,19 +25,18 @@
               v-if="dialogAttachmentError"
               class="inline-flex space-x-2 items-center"
             >
-              Failed to load attachment preview
+              加载附件预览失败
             </span>
             <template
               v-else-if="isImage(dialogAttachment) && dialogAttachmentObjectUrl"
             >
-              <img :src="dialogAttachmentObjectUrl" alt="Attachment preview" />
+              <img :src="dialogAttachmentObjectUrl" alt="附件预览" />
             </template>
             <template v-else>
               <span class="inline-flex space-x-4 items-center">
                 <TriangleAlert class="w-6 h-6" />
                 <span>
-                  Please note: This file is user-uploaded and has not been scanned for
-                  security. Download at your own discretion.
+                  该文件是用户上传的，未进行安全扫描。请在下载前检查文件类型。
                 </span>
               </span>
             </template>
@@ -122,8 +121,6 @@ const onDownloadClick = async () => {
 }
 
 const attachmentList = computed(() => props.attachments?.text?.attachments || [])
-
-console.log(attachmentList.value)
 
 const dialogButtons = computed((): Optional<LayoutDialogButton[]> => {
   if (!dialogAttachment.value) return undefined

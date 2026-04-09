@@ -31,7 +31,7 @@
           <template v-for="(column, colIndex) in columns" :key="column.id">
             <div :class="getClasses(column.id, colIndex)" tabindex="0">
               <div
-                v-if="colIndex === 0"
+                v-if="colIndex === 0 && row.hasChildren"
                 class="flex items-center min-w-0"
                 :style="{ paddingLeft: `${row.depth * 20}px` }"
               >

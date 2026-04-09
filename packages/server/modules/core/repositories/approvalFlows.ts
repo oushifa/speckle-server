@@ -399,13 +399,24 @@ export const getApprovalFlowActionsFactory =
   }
 
 export const countApprovalFlowInstancesFactory =
-  (deps: { db: Knex }) => async (params: { status?: string | null }) => {
+  (deps: { db: Knex }) =>
+  async (params: {
+    status?: string | null
+    resourceType?: string | null
+    resourceId?: string | null
+  }) => {
     const q = tables
       .instances(deps.db)
       .count<{ count: string }[]>(`${ApprovalFlowInstances.col.id} as count`)
       .first()
     if (params.status) {
       q.andWhere(ApprovalFlowInstances.col.status, params.status)
+    }
+    if (params.resourceType) {
+      q.andWhere(ApprovalFlowInstances.col.resourceType, params.resourceType)
+    }
+    if (params.resourceId) {
+      q.andWhere(ApprovalFlowInstances.col.resourceId, params.resourceId)
     }
     const res = await q
     return parseInt(res?.count || '0')
@@ -415,6 +426,8 @@ export const getApprovalFlowInstancesFactory =
   (deps: { db: Knex }) =>
   async (params: {
     status?: string | null
+    resourceType?: string | null
+    resourceId?: string | null
     cursor?: string | null
     limit?: number | null
   }) => {
@@ -427,6 +440,12 @@ export const getApprovalFlowInstancesFactory =
 
     if (params.status) {
       q.andWhere(ApprovalFlowInstances.col.status, params.status)
+    }
+    if (params.resourceType) {
+      q.andWhere(ApprovalFlowInstances.col.resourceType, params.resourceType)
+    }
+    if (params.resourceId) {
+      q.andWhere(ApprovalFlowInstances.col.resourceId, params.resourceId)
     }
 
     if (params.cursor) {

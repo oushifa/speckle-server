@@ -144,6 +144,27 @@ export type BranchRecord = {
   updatedAt: Date
 }
 
+export type QualityAcceptanceFormRecord = {
+  id: string
+  name?: Nullable<string>
+  code?: Nullable<string>
+  inspectionLotNumber?: Nullable<string>
+  acceptancePart?: Nullable<string>
+  actualStartDate?: Nullable<string>
+  actualFinishDate?: Nullable<string>
+  inspector?: Nullable<string>
+  attachments?: Nullable<string[]>
+  creator?: Nullable<string>
+  project_id?: Nullable<string>
+  workVolume?: Nullable<number>
+  unit?: Nullable<string>
+  BIMelement?: Nullable<string[]>
+  timeZone?: Nullable<string>
+  approveStatus?: Nullable<number>
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type ModelFolderRecord = {
   id: string
   streamId: string

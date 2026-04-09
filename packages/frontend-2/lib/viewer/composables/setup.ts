@@ -402,6 +402,7 @@ export type InjectableViewerState = Readonly<{
    */
   urlHashState: {
     focusedThreadId: AsyncWritableComputedRef<Nullable<string>>
+    isolateObjectIds: AsyncWritableComputedRef<string[]>
     diff: AsyncWritableComputedRef<Nullable<DiffStateCommand>>
     /**
      * Core source of truth is under `resources.request.savedView`, but this allows

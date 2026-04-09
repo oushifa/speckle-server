@@ -392,12 +392,7 @@
             '</span> 想要访问您的账号。</p>' +
             (trustByDefault
               ? '<div class="muted">该应用已被标记为默认信任，正在自动授权。</div>'
-              : '<details><summary>应用信息与请求权限</summary>' +
-                author +
-                description +
-                '<div class="spaced"><strong>Permissions</strong></div>' +
-                renderScopes() +
-                '</details>') +
+              : '<details><summary>应用信息与请求权限</summary>' + '</details>') +
             '<div id="errorBox"></div>' +
             '<div class="actions">' +
             '<button id="denyBtn" type="button" ' +
@@ -441,7 +436,7 @@
               '<h1 class="success">Success</h1>' +
               '<p><span class="app-name">' +
               appName +
-              '</span> 已连接到您的 Speckle 账号。</p>' +
+              '</span> 已连接到您的 数智南北 账号。</p>' +
               '<div class="muted">您将自动被重定向，无需等待。</div>'
             )
           }
@@ -449,7 +444,7 @@
             '<h1 class="denied">Denied</h1>' +
             '<p><span class="app-name">' +
             appName +
-            '</span> 未连接到您的 Speckle 账号。</p>' +
+            '</span> 未连接到您的 数智南北 账号。</p>' +
             '<div class="muted">您将自动被重定向，无需等待。</div>'
           )
         }

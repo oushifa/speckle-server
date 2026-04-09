@@ -28,6 +28,15 @@
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
           placeholder="流程ID(可选)，例如：model_review_flow_v1"
         />
+        <label for="flow-definition-resource-type" class="sr-only">资源类型</label>
+        <select
+          id="flow-definition-resource-type"
+          v-model="definitionResourceType"
+          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
+        >
+          <option value="MODEL">模型</option>
+          <option value="FORMS">数据库表单</option>
+        </select>
         <label for="flow-definition-form-schema" class="sr-only">
           审批填写项(JSON)
         </label>
@@ -45,8 +54,12 @@
           placeholder='步骤JSON，例如 [{"name":"专业负责人","requiredApprovals":1}]'
         />
         <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
-          <input v-model="syncModelApproveStatus" type="checkbox" />
-          审批联动模型 approve_status
+          <input v-model="syncResourceApproveStatus" type="checkbox" />
+          {{
+            definitionResourceType === 'MODEL'
+              ? '审批联动模型 approveStatus'
+              : '审批联动质量验收表单 approveStatus'
+          }}
         </label>
         <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
           <input v-model="allowParallelInstancesForSameResource" type="checkbox" />
@@ -103,7 +116,7 @@
               }}
             </div>
             <div class="text-body-xs text-foreground-2 mt-1">
-              联动模型状态：{{ isModelStatusSyncEnabled(definition) ? '是' : '否' }}
+              联动资源状态：{{ isResourceStatusSyncEnabled(definition) ? '是' : '否' }}
             </div>
             <div class="text-body-xs text-foreground-2 mt-1">
               同一资源并行实例：{{
@@ -255,12 +268,12 @@ const mutating = ref(false)
 const definitions = ref<FlowDefinitionListItem[]>([])
 const definitionName = ref('')
 const definitionId = ref('')
-const definitionResourceType = ref<'MODEL'>('MODEL')
+const definitionResourceType = ref<'MODEL' | 'FORMS'>('MODEL')
 const formSchemaText = ref(
   '[{"key":"title","name":"标题","type":"string","required":true,"placeholder":"请输入标题"},{"key":"reviewer","name":"审批人","type":"user","required":true},{"key":"targetProject","name":"目标项目","type":"project"},{"key":"targetModel","name":"目标模型","type":"model"},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"},{"label":"紧急","value":"urgent"}]}]'
 )
 const stepsConfigText = ref('[{"name":"默认审批","requiredApprovals":1}]')
-const syncModelApproveStatus = ref(false)
+const syncResourceApproveStatus = ref(false)
 const allowParallelInstancesForSameResource = ref(false)
 const isStartDialogOpen = ref(false)
 const selectedStartFlowId = ref<string | null>(null)
@@ -277,8 +290,11 @@ const activeDefinitions = computed(() =>
   definitions.value.filter((definition) => definition.isActive)
 )
 
-const isModelStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
+const isResourceStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
   const config = definition.effectConfig as Record<string, unknown> | null | undefined
+  if (definition.resourceType === 'FORMS') {
+    return Boolean(config?.syncFormApproveStatus)
+  }
   return Boolean(config?.syncModelApproveStatus)
 }
 
@@ -385,8 +401,12 @@ const createDefinition = async () => {
       : []
     const steps = parseStepsConfig()
     const effectConfig: Record<string, unknown> = {}
-    if (syncModelApproveStatus.value) {
-      effectConfig.syncModelApproveStatus = true
+    if (syncResourceApproveStatus.value) {
+      if (definitionResourceType.value === 'FORMS') {
+        effectConfig.syncFormApproveStatus = true
+      } else {
+        effectConfig.syncModelApproveStatus = true
+      }
     }
     if (allowParallelInstancesForSameResource.value) {
       effectConfig.allowParallelInstancesForSameResource = true
@@ -394,6 +414,7 @@ const createDefinition = async () => {
     const input: CreateApprovalFlowDefinitionInput = {
       id: definitionId.value.trim() || null,
       name: definitionName.value.trim(),
+      resourceType: definitionResourceType.value as ApprovalFlowResourceType,
       isActive: true,
       effectConfig: Object.keys(effectConfig).length ? effectConfig : null,
       formSchema,
@@ -409,7 +430,7 @@ const createDefinition = async () => {
     definitionName.value = ''
     definitionId.value = ''
     allowParallelInstancesForSameResource.value = false
-    syncModelApproveStatus.value = false
+    syncResourceApproveStatus.value = false
   } catch (e) {
     notify('创建失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
@@ -499,6 +520,12 @@ const startApproval = async (payload: {
 }
 
 onMounted(async () => {
+  await loadDefinitions()
+})
+
+watch(definitionResourceType, async () => {
+  syncResourceApproveStatus.value = false
+  allowParallelInstancesForSameResource.value = false
   await loadDefinitions()
 })
 </script>

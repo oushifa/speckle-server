@@ -13,10 +13,10 @@
   </CommonAlert>
   <div v-else class="flex flex-col space-y-1">
     <div class="text-body-3xs text-foreground-2 pr-8 select-none">
-      Upgrade to view versions older than the {{ versionLimitFormatted }} limit.
+      升级您的计划以查看 {{ versionLimitFormatted }} 之前的版本。
     </div>
     <FormButton color="outline" size="sm" @click="handleUpgradeClick">
-      Upgrade
+      升级您的计划
     </FormButton>
   </div>
 </template>
@@ -58,14 +58,14 @@ const { commentLimitFormatted, versionLimitFormatted } = useWorkspaceLimits({
 
 const text = computed(() => {
   if (props.limitType === 'comment') {
-    return `Upgrade your plan to view comments older than ${commentLimitFormatted.value}.`
+    return `升级您的计划以查看 ${commentLimitFormatted.value} 之前的评论。`
   }
-  return `Upgrade your plan to view versions older than ${versionLimitFormatted.value}.`
+  return `升级您的计划以查看 ${versionLimitFormatted.value} 之前的版本。`
 })
 
 const actions = computed((): AlertAction[] => [
   {
-    title: 'Upgrade',
+    title: '升级',
     onClick: handleUpgradeClick
   }
 ])
@@ -73,9 +73,7 @@ const actions = computed((): AlertAction[] => [
 const handleUpgradeClick = () => {
   // Track the appropriate event based on the limit type
   mixpanel.track(
-    props.limitType === 'comment'
-      ? 'Hidden Comment Upgrade Button Clicked'
-      : 'Hidden Version Upgrade Button Clicked',
+    props.limitType === 'comment' ? '升级评论按钮点击' : '升级版本按钮点击',
     {
       location: 'viewer',
       // eslint-disable-next-line camelcase

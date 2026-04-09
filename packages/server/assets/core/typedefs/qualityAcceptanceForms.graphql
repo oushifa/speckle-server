@@ -1,0 +1,91 @@
+type QualityAcceptanceForm {
+  id: ID!
+  name: String
+  code: String
+  inspectionLotNumber: String
+  acceptancePart: String
+  actualStartDate: BigInt
+  actualFinishDate: BigInt
+  inspector: LimitedUser
+  inspectorId: ID
+  attachments: [BlobMetadata!]!
+  creator: LimitedUser
+  creatorId: ID
+  projectId: ID
+  workVolume: Float
+  unit: String
+  BIMelement: [String!]
+  timeZone: String
+  approveStatus: Int
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type QualityAcceptanceFormCollection {
+  totalCount: Int!
+  cursor: String
+  items: [QualityAcceptanceForm!]!
+}
+
+input ProjectQualityAcceptanceFormsInput {
+  search: String
+  cursor: String
+  limit: Int! = 25
+}
+
+input CreateQualityAcceptanceFormInput {
+  projectId: ID!
+  flowId: ID
+  name: String
+  code: String
+  inspectionLotNumber: String
+  acceptancePart: String
+  actualStartDate: BigInt
+  actualFinishDate: BigInt
+  inspector: ID
+  attachments: [String!]
+  workVolume: Float
+  unit: String
+  BIMelement: [String!]
+  timeZone: String
+  approveStatus: Int
+}
+
+input DeleteQualityAcceptanceFormInput {
+  projectId: ID!
+  id: ID!
+}
+
+input UpdateQualityAcceptanceFormInput {
+  projectId: ID!
+  id: ID!
+  name: String
+  code: String
+  inspectionLotNumber: String
+  acceptancePart: String
+  actualStartDate: BigInt
+  actualFinishDate: BigInt
+  inspector: ID
+  attachments: [String!]
+  workVolume: Float
+  unit: String
+  BIMelement: [String!]
+  timeZone: String
+  approveStatus: Int
+}
+
+type QualityAcceptanceMutations {
+  createForm(input: CreateQualityAcceptanceFormInput!): QualityAcceptanceForm!
+  updateForm(input: UpdateQualityAcceptanceFormInput!): QualityAcceptanceForm!
+  deleteForm(input: DeleteQualityAcceptanceFormInput!): Boolean!
+}
+
+extend type Project {
+  qualityAcceptanceForms(
+    input: ProjectQualityAcceptanceFormsInput
+  ): QualityAcceptanceFormCollection!
+}
+
+extend type ProjectMutations {
+  qualityAcceptanceMutations: QualityAcceptanceMutations!
+}

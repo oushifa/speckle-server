@@ -43,6 +43,7 @@ import {
 } from '~~/lib/viewer/composables/commentManagement'
 import { getCacheId } from '~~/lib/common/helpers/graphql'
 import {
+  useViewerIsolateObjects,
   useViewerOpenedThreadUpdateEmitter,
   useViewerThreadTracking
 } from '~~/lib/viewer/composables/commentBubbles'
@@ -579,12 +580,76 @@ function useViewerCameraIntegration() {
 function useViewerFiltersIntegration() {
   const state = useInjectedViewerState()
   const {
-    viewer: { instance },
-    ui: { filters }
+    viewer: { instance, hasDoneInitialLoad },
+    ui: { filters },
+    urlHashState: { isolateObjectIds }
   } = state
 
   useFilteringSetup()
   useFilterUtilities({ state })
+
+  const normalizeObjectIds = (ids: string[]) =>
+    uniq(ids.map((id) => id.trim()).filter((id) => id.length > 0)).sort()
+
+  let syncingFromState = false
+  let syncingFromUrl = false
+  let hasInitializedFromUrl = false
+
+  watch(
+    isolateObjectIds,
+    (newVal) => {
+      if (syncingFromState) return
+
+      const normalizedUrlIds = normalizeObjectIds(newVal || [])
+      const normalizedStateIds = normalizeObjectIds(
+        filters.isolatedObjectIds.value || []
+      )
+      if (arraysEqual(normalizedStateIds, normalizedUrlIds)) {
+        hasInitializedFromUrl = true
+        return
+      }
+
+      syncingFromUrl = true
+      try {
+        filters.isolatedObjectIds.value = normalizedUrlIds
+      } finally {
+        syncingFromUrl = false
+        hasInitializedFromUrl = true
+      }
+    },
+    {
+      immediate: true
+    }
+  )
+
+  watch(
+    filters.isolatedObjectIds,
+    async (newVal) => {
+      if (syncingFromUrl || !hasInitializedFromUrl) return
+
+      const normalizedStateIds = normalizeObjectIds(newVal || [])
+      const normalizedUrlIds = normalizeObjectIds(isolateObjectIds.value || [])
+      if (
+        normalizedStateIds.length === 0 &&
+        normalizedUrlIds.length > 0 &&
+        !hasDoneInitialLoad.value
+      ) {
+        return
+      }
+      if (arraysEqual(normalizedStateIds, normalizedUrlIds)) return
+
+      syncingFromState = true
+      try {
+        await isolateObjectIds.update(normalizedStateIds)
+      } finally {
+        syncingFromState = false
+      }
+    },
+    {
+      immediate: true,
+      deep: true
+    }
+  )
 
   watch(
     filters.selectedObjects,
@@ -923,4 +988,5 @@ export function useViewerPostSetup() {
   useHighlightingPostSetup()
   useCommentContextIntegration()
   setupDebugMode()
+  useViewerIsolateObjects()
 }

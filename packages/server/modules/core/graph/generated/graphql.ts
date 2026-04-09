@@ -595,6 +595,7 @@ export type ApprovalFlowInstanceStep = {
 };
 
 export const ApprovalFlowResourceType = {
+  Forms: 'FORMS',
   Model: 'MODEL'
 } as const;
 
@@ -1459,6 +1460,7 @@ export type CreateApprovalFlowDefinitionInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   previousVersionId?: InputMaybe<Scalars['ID']['input']>;
+  resourceType?: InputMaybe<ApprovalFlowResourceType>;
   steps?: InputMaybe<Array<ApprovalFlowDefinitionStepInput>>;
 };
 
@@ -1533,6 +1535,24 @@ export type CreateModelInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   projectId: Scalars['ID']['input'];
+};
+
+export type CreateQualityAcceptanceFormInput = {
+  BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
+  acceptancePart?: InputMaybe<Scalars['String']['input']>;
+  actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
+  actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
+  approveStatus?: InputMaybe<Scalars['Int']['input']>;
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  flowId?: InputMaybe<Scalars['ID']['input']>;
+  inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
+  inspector?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  projectId: Scalars['ID']['input'];
+  timeZone?: InputMaybe<Scalars['String']['input']>;
+  unit?: InputMaybe<Scalars['String']['input']>;
+  workVolume?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type CreateSavedViewGroupInput = {
@@ -1743,6 +1763,11 @@ export type DeleteFolderInput = {
 };
 
 export type DeleteModelInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
+export type DeleteQualityAcceptanceFormInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
 };
@@ -3099,6 +3124,7 @@ export type Project = {
   pendingImportedModels: Array<FileUpload>;
   permissions: ProjectPermissionChecks;
   progress?: Maybe<Scalars['Int']['output']>;
+  qualityAcceptanceForms: QualityAcceptanceFormCollection;
   responsible?: Maybe<Scalars['String']['output']>;
   /** Active user's role for this project. `null` if request is not authenticated, or the project is not explicitly shared with you. */
   role?: Maybe<Scalars['String']['output']>;
@@ -3271,6 +3297,11 @@ export type ProjectObjectArgs = {
 
 export type ProjectPendingImportedModelsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type ProjectQualityAcceptanceFormsArgs = {
+  input?: InputMaybe<ProjectQualityAcceptanceFormsInput>;
 };
 
 
@@ -3707,6 +3738,7 @@ export type ProjectMutations = {
   invites: ProjectInviteMutations;
   /** Leave a project. Only possible if you're not the last remaining owner. */
   leave: Scalars['Boolean']['output'];
+  qualityAcceptanceMutations: QualityAcceptanceMutations;
   revokeEmbedToken: Scalars['Boolean']['output'];
   revokeEmbedTokens: Scalars['Boolean']['output'];
   savedViewMutations: SavedViewMutations;
@@ -3823,6 +3855,12 @@ export type ProjectPermissionChecks = {
 
 export type ProjectPermissionChecksCanMoveToWorkspaceArgs = {
   workspaceId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ProjectQualityAcceptanceFormsInput = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: Scalars['Int']['input'];
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type ProjectRole = {
@@ -3979,6 +4017,59 @@ export const ProjectVisibility = {
 } as const;
 
 export type ProjectVisibility = typeof ProjectVisibility[keyof typeof ProjectVisibility];
+export type QualityAcceptanceForm = {
+  __typename?: 'QualityAcceptanceForm';
+  BIMelement?: Maybe<Array<Scalars['String']['output']>>;
+  acceptancePart?: Maybe<Scalars['String']['output']>;
+  actualFinishDate?: Maybe<Scalars['BigInt']['output']>;
+  actualStartDate?: Maybe<Scalars['BigInt']['output']>;
+  approveStatus?: Maybe<Scalars['Int']['output']>;
+  attachments: Array<BlobMetadata>;
+  code?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  creator?: Maybe<LimitedUser>;
+  creatorId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  inspectionLotNumber?: Maybe<Scalars['String']['output']>;
+  inspector?: Maybe<LimitedUser>;
+  inspectorId?: Maybe<Scalars['ID']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  projectId?: Maybe<Scalars['ID']['output']>;
+  timeZone?: Maybe<Scalars['String']['output']>;
+  unit?: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+  workVolume?: Maybe<Scalars['Float']['output']>;
+};
+
+export type QualityAcceptanceFormCollection = {
+  __typename?: 'QualityAcceptanceFormCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<QualityAcceptanceForm>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type QualityAcceptanceMutations = {
+  __typename?: 'QualityAcceptanceMutations';
+  createForm: QualityAcceptanceForm;
+  deleteForm: Scalars['Boolean']['output'];
+  updateForm: QualityAcceptanceForm;
+};
+
+
+export type QualityAcceptanceMutationsCreateFormArgs = {
+  input: CreateQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsDeleteFormArgs = {
+  input: DeleteQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsUpdateFormArgs = {
+  input: UpdateQualityAcceptanceFormInput;
+};
+
 export type Query = {
   __typename?: 'Query';
   /** Stare into the void. */
@@ -4002,6 +4093,7 @@ export type Query = {
   approvalFlowDefinitions: Array<ApprovalFlowDefinition>;
   approvalFlowInstance?: Maybe<ApprovalFlowInstance>;
   approvalFlowInstances: ApprovalFlowInstanceCollection;
+  approvalFlowInstancesByResource: ApprovalFlowInstanceCollection;
   approvalFlowStats: ApprovalFlowStats;
   /**
    * Returns all the publicly available apps on this server.
@@ -4145,6 +4237,15 @@ export type QueryApprovalFlowInstanceArgs = {
 export type QueryApprovalFlowInstancesArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
+  status?: InputMaybe<ApprovalFlowStatus>;
+};
+
+
+export type QueryApprovalFlowInstancesByResourceArgs = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  resourceId: Scalars['ID']['input'];
+  resourceType: ApprovalFlowResourceType;
   status?: InputMaybe<ApprovalFlowStatus>;
 };
 
@@ -5427,6 +5528,24 @@ export type UpdateModelInput = {
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
+};
+
+export type UpdateQualityAcceptanceFormInput = {
+  BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
+  acceptancePart?: InputMaybe<Scalars['String']['input']>;
+  actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
+  actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
+  approveStatus?: InputMaybe<Scalars['Int']['input']>;
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+  inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
+  inspector?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  projectId: Scalars['ID']['input'];
+  timeZone?: InputMaybe<Scalars['String']['input']>;
+  unit?: InputMaybe<Scalars['String']['input']>;
+  workVolume?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type UpdateSavedViewGroupInput = {
@@ -7102,6 +7221,7 @@ export type ResolversTypes = {
   CreateEmbedTokenReturn: ResolverTypeWrapper<Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['EmbedToken'] }>;
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
+  CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
   CreateServerRegionInput: CreateServerRegionInput;
@@ -7125,6 +7245,7 @@ export type ResolversTypes = {
   DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
+  DeleteQualityAcceptanceFormInput: DeleteQualityAcceptanceFormInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
   DeleteUserEmailInput: DeleteUserEmailInput;
@@ -7230,6 +7351,7 @@ export type ResolversTypes = {
   ProjectPendingVersionsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectPendingVersionsUpdatedMessage, 'version'> & { version: ResolversTypes['FileUpload'] }>;
   ProjectPendingVersionsUpdatedMessageType: ProjectPendingVersionsUpdatedMessageType;
   ProjectPermissionChecks: ResolverTypeWrapper<ProjectPermissionChecksGraphQLReturn>;
+  ProjectQualityAcceptanceFormsInput: ProjectQualityAcceptanceFormsInput;
   ProjectRole: ResolverTypeWrapper<ProjectRoleGraphQLReturn>;
   ProjectSavedViewGroupsUpdatedMessage: ResolverTypeWrapper<ProjectSavedViewGroupsUpdatedMessageGraphQLReturn>;
   ProjectSavedViewsInput: ProjectSavedViewsInput;
@@ -7246,6 +7368,9 @@ export type ResolversTypes = {
   ProjectVersionsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversTypes['Version']> }>;
   ProjectVersionsUpdatedMessageType: ProjectVersionsUpdatedMessageType;
   ProjectVisibility: ProjectVisibility;
+  QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']> }>;
+  QualityAcceptanceFormCollection: ResolverTypeWrapper<Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversTypes['QualityAcceptanceForm']> }>;
+  QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
@@ -7318,6 +7443,7 @@ export type ResolversTypes = {
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
+  UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
   UpdateServerRegionInput: UpdateServerRegionInput;
@@ -7558,6 +7684,7 @@ export type ResolversParentTypes = {
   CreateEmbedTokenReturn: Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['EmbedToken'] };
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
+  CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
   CreateServerRegionInput: CreateServerRegionInput;
@@ -7580,6 +7707,7 @@ export type ResolversParentTypes = {
   DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
+  DeleteQualityAcceptanceFormInput: DeleteQualityAcceptanceFormInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
   DeleteUserEmailInput: DeleteUserEmailInput;
@@ -7675,6 +7803,7 @@ export type ResolversParentTypes = {
   ProjectPendingModelsUpdatedMessage: Omit<ProjectPendingModelsUpdatedMessage, 'model'> & { model: ResolversParentTypes['FileUpload'] };
   ProjectPendingVersionsUpdatedMessage: Omit<ProjectPendingVersionsUpdatedMessage, 'version'> & { version: ResolversParentTypes['FileUpload'] };
   ProjectPermissionChecks: ProjectPermissionChecksGraphQLReturn;
+  ProjectQualityAcceptanceFormsInput: ProjectQualityAcceptanceFormsInput;
   ProjectRole: ProjectRoleGraphQLReturn;
   ProjectSavedViewGroupsUpdatedMessage: ProjectSavedViewGroupsUpdatedMessageGraphQLReturn;
   ProjectSavedViewsInput: ProjectSavedViewsInput;
@@ -7686,6 +7815,9 @@ export type ResolversParentTypes = {
   ProjectUpdatedMessage: Omit<ProjectUpdatedMessage, 'project'> & { project?: Maybe<ResolversParentTypes['Project']> };
   ProjectVersionsPreviewGeneratedMessage: ProjectVersionsPreviewGeneratedMessage;
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
+  QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']> };
+  QualityAcceptanceFormCollection: Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversParentTypes['QualityAcceptanceForm']> };
+  QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
@@ -7751,6 +7883,7 @@ export type ResolversParentTypes = {
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
+  UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
   UpdateServerRegionInput: UpdateServerRegionInput;
@@ -9132,6 +9265,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   pendingImportedModels?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ProjectPendingImportedModelsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ProjectPermissionChecks'], ParentType, ContextType>;
   progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  qualityAcceptanceForms?: Resolver<ResolversTypes['QualityAcceptanceFormCollection'], ParentType, ContextType, Partial<ProjectQualityAcceptanceFormsArgs>>;
   responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   savedView?: Resolver<ResolversTypes['SavedView'], ParentType, ContextType, RequireFields<ProjectSavedViewArgs, 'id'>>;
@@ -9275,6 +9409,7 @@ export type ProjectMutationsResolvers<ContextType = GraphQLContext, ParentType e
   delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsDeleteArgs, 'id'>>;
   invites?: Resolver<ResolversTypes['ProjectInviteMutations'], ParentType, ContextType>;
   leave?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsLeaveArgs, 'id'>>;
+  qualityAcceptanceMutations?: Resolver<ResolversTypes['QualityAcceptanceMutations'], ParentType, ContextType>;
   revokeEmbedToken?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsRevokeEmbedTokenArgs, 'projectId' | 'token'>>;
   revokeEmbedTokens?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsRevokeEmbedTokensArgs, 'projectId'>>;
   savedViewMutations?: Resolver<ResolversTypes['SavedViewMutations'], ParentType, ContextType>;
@@ -9376,6 +9511,44 @@ export type ProjectVersionsUpdatedMessageResolvers<ContextType = GraphQLContext,
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceForm'] = ResolversParentTypes['QualityAcceptanceForm']> = {
+  BIMelement?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  acceptancePart?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  actualFinishDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
+  actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
+  approveStatus?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  attachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
+  code?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  creator?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
+  creatorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  inspectionLotNumber?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  inspector?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
+  inspectorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projectId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  workVolume?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type QualityAcceptanceFormCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceFormCollection'] = ResolversParentTypes['QualityAcceptanceFormCollection']> = {
+  cursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['QualityAcceptanceForm']>, ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type QualityAcceptanceMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceMutations'] = ResolversParentTypes['QualityAcceptanceMutations']> = {
+  createForm?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsCreateFormArgs, 'input'>>;
+  deleteForm?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsDeleteFormArgs, 'input'>>;
+  updateForm?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsUpdateFormArgs, 'input'>>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type QueryResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
   _?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   activeUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -9386,6 +9559,7 @@ export type QueryResolvers<ContextType = GraphQLContext, ParentType extends Reso
   approvalFlowDefinitions?: Resolver<Array<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType, Partial<QueryApprovalFlowDefinitionsArgs>>;
   approvalFlowInstance?: Resolver<Maybe<ResolversTypes['ApprovalFlowInstance']>, ParentType, ContextType, RequireFields<QueryApprovalFlowInstanceArgs, 'id'>>;
   approvalFlowInstances?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesArgs, 'limit'>>;
+  approvalFlowInstancesByResource?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesByResourceArgs, 'limit' | 'resourceId' | 'resourceType'>>;
   approvalFlowStats?: Resolver<ResolversTypes['ApprovalFlowStats'], ParentType, ContextType, RequireFields<QueryApprovalFlowStatsArgs, 'rangeDays'>>;
   apps?: Resolver<Maybe<Array<Maybe<ResolversTypes['ServerAppListItem']>>>, ParentType, ContextType>;
   authenticatedAsApp?: Resolver<Maybe<ResolversTypes['ServerAppListItem']>, ParentType, ContextType>;
@@ -10475,6 +10649,9 @@ export type Resolvers<ContextType = GraphQLContext> = {
   ProjectUpdatedMessage?: ProjectUpdatedMessageResolvers<ContextType>;
   ProjectVersionsPreviewGeneratedMessage?: ProjectVersionsPreviewGeneratedMessageResolvers<ContextType>;
   ProjectVersionsUpdatedMessage?: ProjectVersionsUpdatedMessageResolvers<ContextType>;
+  QualityAcceptanceForm?: QualityAcceptanceFormResolvers<ContextType>;
+  QualityAcceptanceFormCollection?: QualityAcceptanceFormCollectionResolvers<ContextType>;
+  QualityAcceptanceMutations?: QualityAcceptanceMutationsResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   ResourceIdentifier?: ResourceIdentifierResolvers<ContextType>;
   Role?: RoleResolvers<ContextType>;

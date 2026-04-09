@@ -10,6 +10,7 @@ export const createBusboy = (req: Request) => {
     // Busboy does some validation of user input (headers) on creation
     busboy = Busboy({
       headers: req.headers,
+      defParamCharset: 'utf8',
       limits: { fileSize: getFileSizeLimit() }
     })
     return busboy

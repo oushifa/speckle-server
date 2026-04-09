@@ -56,56 +56,55 @@ export const isAuthPolicyError = (err: unknown): err is AuthError => {
 
 export const ProjectNotFoundError = defineAuthError({
   code: 'ProjectNotFound',
-  message: 'Project not found'
+  message: '未找到项目'
 })
 
 export const ProjectNoAccessError = defineAuthError({
   code: 'ProjectNoAccess',
-  message: 'You do not have access to the project'
+  message: '您没有访问项目的权限'
 })
 
 export const PersonalProjectsLimitedError = defineAuthError({
   code: 'PersonalProjectsLimited',
-  message: 'Non-workspaced/personal projects are limited'
+  message: '非工作空间项目被限制'
 })
 
 export const ProjectNotEnoughPermissionsError = defineAuthError({
   code: 'ProjectNotEnoughPermissions',
-  message: 'You do not have enough permissions in the project to perform this action'
+  message: '您没有足够的项目权限来执行此操作'
 })
 
 export const ProjectLastOwnerError = defineAuthError({
   code: 'ProjectLastOwner',
-  message: 'You are the last owner of this project'
+  message: '您是项目的最后一个所有者'
 })
 
 export const WorkspacesNotEnabledError = defineAuthError({
   code: 'WorkspacesNotEnabled',
-  message: 'This server does not support workspaces'
+  message: '此服务器不支持工作空间'
 })
 
 export const WorkspaceNoAccessError = defineAuthError({
   code: 'WorkspaceNoAccess',
-  message: 'You do not have access to the workspace'
+  message: '您没有访问工作空间的权限'
 })
 
 export const WorkspaceNotEnoughPermissionsError = defineAuthError({
   code: 'WorkspaceNotEnoughPermissions',
-  message: 'You do not have enough permissions in the workspace to perform this action'
+  message: '您没有足够的工作空间权限来执行此操作'
 })
 
 export const EligibleForExclusiveWorkspaceError = defineAuthError({
   code: 'UserEligibleForExclusiveWorkspace',
   message:
-    'Cannot create workspace: ' +
-    'You are a member or eligible to become a member of an exclusive workspace. ' +
-    'This is due to you having received an invite to the workspace ' +
-    'or having a matching verified email.'
+    '无法创建工作空间: ' +
+    '您是工作空间的成员或可成为成员。这是由于您已收到工作空间的邀请或' +
+    '或您已验证的电子邮件地址匹配。'
 })
 
 export const WorkspaceReadOnlyError = defineAuthError({
   code: 'WorkspaceReadOnly',
-  message: 'The workspace is in a read only mode, upgrade your plan to unlock it'
+  message: '工作空间已处于只读模式，升级您的计划以解锁它'
 })
 
 export const WorkspaceLimitsReachedError = defineAuthError<
@@ -113,17 +112,17 @@ export const WorkspaceLimitsReachedError = defineAuthError<
   { limit: keyof WorkspaceLimits }
 >({
   code: 'WorkspaceLimitsReached',
-  message: 'Workspace limits have been reached'
+  message: '工作空间限制已达'
 })
 
 export const WorkspacePlanNoFeatureAccessError = defineAuthError({
   code: 'WorkspacePlanNoFeatureAccessError',
-  message: 'Your workspace plan does not have access to this feature.'
+  message: '您的工作空间计划没有访问此功能的权限'
 })
 
 export const WorkspaceProjectMoveInvalidError = defineAuthError({
   code: 'WorkspaceProjectMoveInvalid',
-  message: 'Projects already in a workspace cannot be moved to another workspace.'
+  message: '工作空间项目不能移动到其他工作空间'
 })
 
 export const WorkspaceSsoSessionNoAccessError = defineAuthError<
@@ -133,113 +132,112 @@ export const WorkspaceSsoSessionNoAccessError = defineAuthError<
   }
 >({
   code: 'WorkspaceSsoSessionNoAccess',
-  message: 'Your workspace SSO session is expired or it does not exist'
+  message: '您的工作空间SSO会话已过期或不存在'
 })
 
 export const WorkspaceNoEditorSeatError = defineAuthError({
   code: 'WorkspaceNoEditorSeat',
-  message: 'You need an editor seat to perform this action'
+  message: '您需要一个编辑器席位才能执行此操作'
 })
 
 export const ServerNoAccessError = defineAuthError({
   code: 'ServerNoAccess',
-  message: 'You do not have access to this server'
+  message: '您没有访问此服务器的权限'
 })
 
 export const ServerNotEnoughPermissionsError = defineAuthError({
   code: 'ServerNotEnoughPermissions',
-  message: 'You do not have enough permissions in the server to perform this action'
+  message: '您没有足够的服务器权限来执行此操作'
 })
 
 export const ServerNoSessionError = defineAuthError({
   code: 'ServerNoSession',
-  message: 'You are not logged in to this server'
+  message: '您未登录到此服务器'
 })
 
 export const CommentNotFoundError = defineAuthError({
   code: 'CommentNotFound',
-  message: 'Comment not found'
+  message: '未找到评论'
 })
 
 export const CommentNoAccessError = defineAuthError({
   code: 'CommentNoAccess',
-  message: 'You do not have access to this comment'
+  message: '您没有访问此评论的权限'
 })
 
 export const ModelNotFoundError = defineAuthError({
   code: 'ModelNotFound',
-  message: 'Model not found'
+  message: '未找到模型'
 })
 
 export const ReservedModelNotDeletableError = defineAuthError({
   code: 'ReservedModelNotDeletable',
-  message: 'This model is reserved and cannot be deleted'
+  message: '此模型已被保留，不能删除'
 })
 
 export const VersionNotFoundError = defineAuthError({
   code: 'VersionNotFound',
-  message: 'Version not found'
+  message: '未找到版本'
 })
 
 export const AutomateNotEnabledError = defineAuthError({
   code: 'AutomateNotEnabled',
-  message: 'Automate is not enabled on this server'
+  message: '此服务器未启用自动操作'
 })
 
 export const AutomateFunctionNotFoundError = defineAuthError({
   code: 'AutomateFunctionNotFound',
-  message: 'Function not found'
+  message: '未找到函数'
 })
 
 export const AutomateFunctionNotCreatorError = defineAuthError({
   code: 'AutomateFunctionNotCreator',
-  message: 'You are not the function creator and cannot make changes to it.'
+  message: '您不是函数创建者，无法对其进行更改'
 })
 
 export const AccIntegrationNotEnabledError = defineAuthError({
   code: 'AccIntegrationNotEnabled',
-  message: 'The ACC Integration is not enabled on this server or project'
+  message: '此服务器或项目上未启用ACC集成'
 })
 
 export const SavedViewNotFoundError = defineAuthError({
   code: 'SavedViewNotFound',
-  message: 'Saved view not found'
+  message: '未找到保存的视图'
 })
 
 export const SavedViewNoAccessError = defineAuthError({
   code: 'SavedViewNoAccess',
-  message: 'You do not have access to this saved view'
+  message: '您没有访问此保存视图的权限'
 })
 
 export const SavedViewInvalidUpdateError = defineAuthError({
   code: 'SavedViewInvalidUpdate',
-  message: 'The requested update is invalid'
+  message: '请求的更新无效'
 })
 
 export const SavedViewGroupNotFoundError = defineAuthError({
   code: 'SavedViewGroupNotFound',
-  message: 'Saved view group not found'
+  message: '未找到保存视图组'
 })
 
 export const UngroupedSavedViewGroupLockError = defineAuthError({
   code: 'UngroupedSavedViewGroupLock',
-  message: 'The default/ungrouped group cannot be modified.'
+  message: '默认/未组分组不能修改'
 })
 
 export const DashboardsNotEnabledError = defineAuthError({
   code: 'DashboardsNotEnabled',
-  message: 'Dashboards are not enabled for this server or workspaces.'
+  message: '此服务器或工作空间未启用仪表板'
 })
 
 export const DashboardNotFoundError = defineAuthError({
   code: 'DashboardNotFound',
-  message: 'Dashboard not found'
+  message: '未找到看板'
 })
 
 export const DashboardNoProjectsError = defineAuthError({
   code: 'DashboardNoProjects',
-  message:
-    'Dashboard has no projects added to it. You need to add at least one project before sharing.'
+  message: '看板未添加项目。您需要添加至少一个项目才能共享。'
 })
 
 export const DashboardProjectsNotEnoughPermissionsError = defineAuthError<
@@ -249,12 +247,12 @@ export const DashboardProjectsNotEnoughPermissionsError = defineAuthError<
   }
 >({
   code: 'DashboardProjectsNotEnoughPermissions',
-  message: 'You do not have sufficient access to some projects in this workspace.'
+  message: '您没有足够的项目权限来执行此操作。'
 })
 
 export const DashboardNotOwnerError = defineAuthError({
   code: 'DashboardNotOwner',
-  message: 'You must be a dashboard owner to perform this action'
+  message: '您必须是看板所有者才能执行此操作'
 })
 
 // Resolve all exported error types

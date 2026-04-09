@@ -11,7 +11,7 @@
       "
     >
       <span class="text-body-xs mb-1 text-center">
-        {{ isSelfImport ? 'Processing upload' : 'Processing uploaded version' }}
+        {{ isSelfImport ? '正在处理上传' : '正在处理上传的版本' }}
       </span>
       <CommonLoadingBar loading class="max-w-[100px]" />
     </template>
@@ -21,14 +21,14 @@
       <span class="inline-flex items-center space-x-1">
         <CheckCircleIcon class="h-4 w-4 text-success" />
         <span>
-          {{ isSelfImport ? 'Import successful' : 'Version import successful' }}
+          {{ isSelfImport ? '导入成功' : '版本导入成功' }}
         </span>
       </span>
     </template>
     <template v-else>
       <span class="inline-flex items-center space-x-1">
         <ExclamationTriangleIcon class="h-4 w-4 text-danger" />
-        <span>{{ isSelfImport ? 'Import failed' : 'Version import failed' }}</span>
+        <span>{{ isSelfImport ? '导入失败' : '版本导入失败' }}</span>
       </span>
       <span v-if="upload.convertedMessage" class="text-center">
         {{ upload.convertedMessage }}

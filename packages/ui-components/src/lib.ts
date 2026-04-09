@@ -46,6 +46,7 @@ import {
 } from '~~/src/helpers/form/input'
 import LayoutDialog from '~~/src/components/layout/Dialog.vue'
 import LayoutDialogSection from '~~/src/components/layout/DialogSection.vue'
+import LayoutDrawer from '~~/src/components/layout/Drawer.vue'
 import LayoutDisclosure from '~~/src/components/layout/Disclosure.vue'
 import LayoutGridListToggle from '~~/src/components/layout/GridListToggle.vue'
 import type {
@@ -162,6 +163,7 @@ export {
   clientOs,
   LayoutDialog,
   LayoutDialogSection,
+  LayoutDrawer,
   LayoutDisclosure,
   LayoutGridListToggle,
   GridListToggleValue,

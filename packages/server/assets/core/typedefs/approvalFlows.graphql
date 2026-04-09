@@ -1,5 +1,6 @@
 enum ApprovalFlowResourceType {
   MODEL
+  FORMS
 }
 
 enum ApprovalFlowStatus {
@@ -137,6 +138,7 @@ type ApprovalFlowTodoCountUpdatedMessage {
 input CreateApprovalFlowDefinitionInput {
   id: ID
   name: String!
+  resourceType: ApprovalFlowResourceType
   isActive: Boolean
   previousVersionId: ID
   effectConfig: JSONObject
@@ -208,6 +210,15 @@ extend type Query {
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")
   approvalFlowInstances(
+    limit: Int = 25
+    cursor: String
+    status: ApprovalFlowStatus
+  ): ApprovalFlowInstanceCollection!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "streams:read")
+  approvalFlowInstancesByResource(
+    resourceType: ApprovalFlowResourceType!
+    resourceId: ID!
     limit: Int = 25
     cursor: String
     status: ApprovalFlowStatus

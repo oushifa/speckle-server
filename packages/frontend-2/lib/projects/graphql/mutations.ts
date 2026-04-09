@@ -250,6 +250,40 @@ export const deleteBoqItemMutation = graphql(`
   }
 `)
 
+export const createQualityAcceptanceFormMutation = graphql(`
+  mutation CreateQualityAcceptanceForm($input: CreateQualityAcceptanceFormInput!) {
+    projectMutations {
+      qualityAcceptanceMutations {
+        createForm(input: $input) {
+          id
+        }
+      }
+    }
+  }
+`)
+
+export const deleteQualityAcceptanceFormMutation = graphql(`
+  mutation DeleteQualityAcceptanceForm($input: DeleteQualityAcceptanceFormInput!) {
+    projectMutations {
+      qualityAcceptanceMutations {
+        deleteForm(input: $input)
+      }
+    }
+  }
+`)
+
+export const updateQualityAcceptanceFormMutation = graphql(`
+  mutation UpdateQualityAcceptanceForm($input: UpdateQualityAcceptanceFormInput!) {
+    projectMutations {
+      qualityAcceptanceMutations {
+        updateForm(input: $input) {
+          id
+        }
+      }
+    }
+  }
+`)
+
 export const deleteWebhookMutation = graphql(`
   mutation deleteWebhook($webhook: WebhookDeleteInput!) {
     webhookDelete(webhook: $webhook)

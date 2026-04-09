@@ -630,6 +630,27 @@ export const Branches = buildTableHelper('branches', [
   'updatedAt'
 ])
 
+export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms', [
+  'id',
+  'name',
+  'code',
+  'inspectionLotNumber',
+  'acceptancePart',
+  'actualStartDate',
+  'actualFinishDate',
+  'inspector',
+  'attachments',
+  'creator',
+  'project_id',
+  'workVolume',
+  'unit',
+  'BIMelement',
+  'timeZone',
+  'approveStatus',
+  'createdAt',
+  'updatedAt'
+])
+
 export const ScheduledTasks = buildTableHelper('scheduled_tasks', [
   'taskName',
   'lockExpiresAt'
