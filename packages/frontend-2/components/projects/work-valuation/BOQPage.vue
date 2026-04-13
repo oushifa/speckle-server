@@ -55,6 +55,10 @@
         <span class="text-foreground">{{ item.unit }}</span>
       </template>
 
+      <template #type="{ item }">
+        <span class="text-foreground">{{ childTypeLabelMap[item.type] }}</span>
+      </template>
+
       <template #quantity="{ item }">
         <span class="text-foreground">{{ formatNumber(item.quantity, 2) }}</span>
       </template>
@@ -102,6 +106,29 @@
         确认删除清单「{{ boqDialogTarget?.name }}」及其子级吗？
       </div>
       <div v-else class="flex flex-col gap-3">
+        <FormSelectBase
+          v-if="showChildTypeSelect"
+          v-model="boqDialogChildType"
+          name="boq-child-type"
+          label="下级类型"
+          show-label
+          show-required
+          :rules="[isRequired]"
+          :items="projectChildTypeOptions"
+          :allow-unset="false"
+        >
+          <template #nothing-selected>请选择下级类型</template>
+          <template #something-selected="{ value }">
+            {{
+              childTypeLabelMap[
+                (Array.isArray(value) ? value[0] : value) as UiBoqItemType
+              ]
+            }}
+          </template>
+          <template #option="{ item }">
+            {{ childTypeLabelMap[item as UiBoqItemType] }}
+          </template>
+        </FormSelectBase>
         <FormTextInput
           v-model="boqDialogCode"
           class="flex-1"
@@ -241,7 +268,8 @@ const { mutate: deleteBoqItem, loading: deleteBoqItemLoading } =
 
 const columns = [
   { id: 'code', header: '清单编码', classes: 'col-span-3' },
-  { id: 'name', header: '名称', classes: 'col-span-3' },
+  { id: 'name', header: '名称', classes: 'col-span-2' },
+  { id: 'type', header: '类型', classes: 'col-span-1' },
   { id: 'unit', header: '计量单位', classes: 'col-span-1' },
   { id: 'quantity', header: '工程量', classes: 'col-span-2' },
   { id: 'price', header: '综合单价（元）', classes: 'col-span-2' },
@@ -267,7 +295,7 @@ const units = [
 type BoqTreeItem = NonNullable<
   NonNullable<ProjectBoqItemsQuery['project']>['boqItems'][number]
 >
-type UiBoqItemType = BoqItemType | 'CATEGORY'
+type UiBoqItemType = BoqItemType | 'SUBPROJECT'
 
 const items = computed(() => {
   return (boqItemsResult.value?.project?.boqItems || []).filter(
@@ -315,11 +343,21 @@ const initializeBoq = async () => {
   await refreshBoq()
 }
 
-const childTypeMap: Partial<Record<UiBoqItemType, UiBoqItemType>> = {
-  PROJECT: 'CATEGORY',
-  CATEGORY: 'SECTION',
-  SECTION: 'SUBSECTION',
-  SUBSECTION: 'ITEM'
+const childTypeMap: Partial<Record<UiBoqItemType, UiBoqItemType[]>> = {
+  PROJECT: ['SUBPROJECT', 'CATEGORY'],
+  SUBPROJECT: ['CATEGORY'],
+  CATEGORY: ['SECTION'],
+  SECTION: ['SUBSECTION'],
+  SUBSECTION: ['ITEM']
+}
+
+const childTypeLabelMap: Record<UiBoqItemType, string> = {
+  PROJECT: '单位工程',
+  SUBPROJECT: '子单位工程',
+  CATEGORY: '分类工程',
+  SECTION: '分部工程',
+  SUBSECTION: '分项工程',
+  ITEM: '清单项'
 }
 
 type BoqDialogMode = 'edit' | 'delete' | 'addChild'
@@ -332,6 +370,7 @@ const boqDialogName = ref('')
 const boqDialogUnit = ref('')
 const boqDialogQuantity = ref('')
 const boqDialogPrice = ref('')
+const boqDialogChildType = ref<UiBoqItemType | undefined>(undefined)
 const boqDialogCodeError = ref('')
 const boqDialogNumericError = ref('')
 
@@ -356,20 +395,29 @@ const boqDialogPriceInput = computed({
 const dialogWorkingType = computed<UiBoqItemType | undefined>(() => {
   if (!boqDialogTarget.value) return undefined
   if (boqDialogMode.value === 'addChild') {
-    return childTypeMap[boqDialogTarget.value.type]
+    if (boqDialogTarget.value.type === 'PROJECT') {
+      const selectedType = boqDialogChildType.value
+      return selectedType ? selectedType : undefined
+    }
+    return childTypeMap[boqDialogTarget.value.type]?.[0]
   }
   return boqDialogTarget.value.type as UiBoqItemType
 })
 
+const projectChildTypeOptions = computed<UiBoqItemType[]>(() => {
+  return ['SUBPROJECT', 'CATEGORY']
+})
+
+const showChildTypeSelect = computed(() => {
+  return boqDialogMode.value === 'addChild' && boqDialogTarget.value?.type === 'PROJECT'
+})
+
 const activeCodePrefix = computed(() => {
   if (!boqDialogTarget.value) return ''
+  if (boqDialogMode.value === 'addChild') return ''
   const workingType = dialogWorkingType.value
   if (!workingType) return ''
   if (!['SECTION', 'SUBSECTION', 'ITEM'].includes(workingType)) return ''
-
-  if (boqDialogMode.value === 'addChild') {
-    return boqDialogTarget.value.code
-  }
 
   const parent = boqDialogTarget.value.parentId
     ? itemById.value.get(boqDialogTarget.value.parentId)
@@ -399,7 +447,12 @@ const boqDialogTitle = computed(() => {
   if (boqDialogMode.value === 'delete') return '删除清单'
   if (boqDialogMode.value === 'addChild') {
     const targetType = boqDialogTarget.value?.type as UiBoqItemType | undefined
-    if (targetType === 'PROJECT') return '新增分类'
+    if (targetType === 'PROJECT') {
+      if (boqDialogChildType.value === 'SUBPROJECT') return '新增子项目'
+      if (boqDialogChildType.value === 'CATEGORY') return '新增分类'
+      return '新增下级'
+    }
+    if (targetType === 'SUBPROJECT') return '新增分类'
     if (targetType === 'CATEGORY') return '新增分部'
     if (targetType === 'SECTION') return '新增分项'
     if (targetType === 'SUBSECTION') return '新增具体项'
@@ -440,6 +493,7 @@ const openDeleteDialog = (item: BoqTreeItem) => {
   boqDialogUnit.value = ''
   boqDialogQuantity.value = ''
   boqDialogPrice.value = ''
+  boqDialogChildType.value = undefined
   boqDialogOpen.value = true
 }
 
@@ -454,11 +508,12 @@ const openAddChildDialog = (item: BoqTreeItem) => {
   boqDialogUnit.value = ''
   boqDialogQuantity.value = ''
   boqDialogPrice.value = ''
+  boqDialogChildType.value = undefined
   boqDialogOpen.value = true
 }
 
 const canCreateChild = (type: UiBoqItemType) => {
-  return !!childTypeMap[type]
+  return !!childTypeMap[type]?.length
 }
 
 const handleEditItem = async (item: BoqTreeItem) => {
@@ -562,14 +617,17 @@ const submitBoqDialog = async () => {
       return
     }
 
-    const childType = childTypeMap[target.type]
+    const childType =
+      target.type === 'PROJECT'
+        ? boqDialogChildType.value || undefined
+        : childTypeMap[target.type]?.[0]
     if (!childType) return
 
     await createBoqItem({
       input: {
         projectId: projectId.value,
         parentId: target.id,
-        type: childType as BoqItemType,
+        type: childType as unknown as BoqItemType,
         code: nextCode,
         name: nextName,
         unit: nextUnit,
@@ -603,7 +661,8 @@ const boqDialogButtons = computed<LayoutDialogButton[]>(() => [
       disabled:
         rowMutationLoading.value ||
         (boqDialogMode.value !== 'delete' &&
-          (!boqDialogCode.value.trim().length ||
+          ((showChildTypeSelect.value && !boqDialogChildType.value) ||
+            !boqDialogCode.value.trim().length ||
             !boqDialogName.value.trim().length ||
             (isItemDetailsRequired.value &&
               (!boqDialogUnit.value.trim().length ||

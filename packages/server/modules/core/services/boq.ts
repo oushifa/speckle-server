@@ -5,26 +5,29 @@ import { BoqItemNotFoundError, BoqItemValidationError } from '@/modules/core/err
 import { clamp } from 'lodash-es'
 import cryptoRandomString from 'crypto-random-string'
 
-const typeDepthMap: Record<BoqItemType, number> = {
-  PROJECT: 0,
-  CATEGORY: 1,
-  SECTION: 2,
-  SUBSECTION: 3,
-  ITEM: 4
+const allowedDepthsByType: Record<BoqItemType, number[]> = {
+  PROJECT: [0],
+  SUBPROJECT: [1],
+  CATEGORY: [1, 2],
+  SECTION: [2, 3],
+  SUBSECTION: [3, 4],
+  ITEM: [4, 5]
 }
 
-const parentChildTypeMap: Partial<Record<BoqItemType, BoqItemType>> = {
-  PROJECT: 'CATEGORY',
-  CATEGORY: 'SECTION',
-  SECTION: 'SUBSECTION',
-  SUBSECTION: 'ITEM'
+const parentChildTypeMap: Partial<Record<BoqItemType, BoqItemType[]>> = {
+  PROJECT: ['SUBPROJECT', 'CATEGORY'],
+  SUBPROJECT: ['CATEGORY'],
+  CATEGORY: ['SECTION'],
+  SECTION: ['SUBSECTION'],
+  SUBSECTION: ['ITEM']
 }
 
-const requiredParentTypeMap: Partial<Record<BoqItemType, BoqItemType>> = {
-  CATEGORY: 'PROJECT',
-  SECTION: 'CATEGORY',
-  SUBSECTION: 'SECTION',
-  ITEM: 'SUBSECTION'
+const requiredParentTypeMap: Partial<Record<BoqItemType, BoqItemType[]>> = {
+  SUBPROJECT: ['PROJECT'],
+  CATEGORY: ['PROJECT', 'SUBPROJECT'],
+  SECTION: ['CATEGORY'],
+  SUBSECTION: ['SECTION'],
+  ITEM: ['SUBSECTION']
 }
 
 export type BoqItem = {
@@ -61,6 +64,12 @@ const toBoqItem = (item: BoqItemRecord): BoqItem => ({
 
 const validateType = (type: string): type is BoqItemType => {
   return boqItemTypes.includes(type as BoqItemType)
+}
+
+const ensureValidDepthForType = (type: BoqItemType, depth: number) => {
+  if (!allowedDepthsByType[type].includes(depth)) {
+    throw new BoqItemValidationError(`Invalid depth ${depth} for ${type}`)
+  }
 }
 
 const buildBoqTree = (items: BoqItemRecord[]) => {
@@ -135,7 +144,7 @@ export const getBoqSelectorOptionsFactory =
     getBoqItemsByParent: (params: {
       projectId: string
       parentId: string | null
-      type?: BoqItemType
+      type?: BoqItemType | BoqItemType[]
       search?: string | null
       limit?: number | null
     }) => Promise<BoqItemRecord[]>
@@ -146,7 +155,7 @@ export const getBoqSelectorOptionsFactory =
     }) => Promise<number>
   }): GetBoqSelectorOptions =>
   async ({ projectId, parentId, search, limit }) => {
-    let nextType: BoqItemType | undefined = 'PROJECT'
+    let nextType: BoqItemType | BoqItemType[] | undefined = 'PROJECT'
 
     if (parentId) {
       const parent = await deps.getBoqItem({ projectId, id: parentId })
@@ -221,23 +230,27 @@ export const createBoqItemFactory =
     }
 
     const resolvedParentId: string | null = parentId ?? null
+    let resolvedDepth = 0
     if (type === 'PROJECT') {
       if (resolvedParentId) {
         throw new BoqItemValidationError('PROJECT type cannot have parent')
       }
+      resolvedDepth = 0
     } else {
       if (!resolvedParentId) {
         throw new BoqItemValidationError(`${type} type must have parent`)
       }
       const parent = await deps.getBoqItem({ projectId, id: resolvedParentId })
       if (!parent) throw new BoqItemNotFoundError()
-      const requiredType = requiredParentTypeMap[type]
-      if (parent.type !== requiredType) {
+      const requiredTypes = requiredParentTypeMap[type]
+      if (!requiredTypes?.includes(parent.type)) {
         throw new BoqItemValidationError(
-          `Invalid parent type for ${type}, expected ${requiredType}`
+          `Invalid parent type for ${type}, expected ${requiredTypes?.join(' or ')}`
         )
       }
+      resolvedDepth = parent.depth + 1
     }
+    ensureValidDepthForType(type, resolvedDepth)
 
     const maxSortOrder = await deps.getSiblingMaxSortOrder({
       projectId,
@@ -255,7 +268,7 @@ export const createBoqItemFactory =
       quantity: quantity === null || quantity === undefined ? null : String(quantity),
       price: price === null || price === undefined ? null : String(price),
       sortOrder: sortOrder ?? (maxSortOrder !== null ? maxSortOrder + 1 : 0),
-      depth: typeDepthMap[type],
+      depth: resolvedDepth,
       createdAt: now,
       updatedAt: now
     }
@@ -293,6 +306,7 @@ export const updateBoqItemFactory =
           | 'quantity'
           | 'price'
           | 'sortOrder'
+          | 'depth'
           | 'updatedAt'
         >
       >
@@ -360,6 +374,7 @@ export const moveBoqItemFactory =
         Pick<
           BoqItemRecord,
           | 'parentId'
+          | 'depth'
           | 'code'
           | 'name'
           | 'unit'
@@ -375,25 +390,28 @@ export const moveBoqItemFactory =
     const item = await deps.getBoqItem({ projectId, id: itemId })
     if (!item) throw new BoqItemNotFoundError()
 
+    const allItems = await deps.getBoqItems({ projectId })
+    const byId = new Map(allItems.map((i) => [i.id, i]))
     const nextParentId = parentId ?? null
+    let nextDepth = item.depth
     if (item.type === 'PROJECT') {
       if (nextParentId) {
         throw new BoqItemValidationError('PROJECT type cannot have parent')
       }
+      nextDepth = 0
     } else {
       if (!nextParentId) {
         throw new BoqItemValidationError(`${item.type} type must have parent`)
       }
-      const parent = await deps.getBoqItem({ projectId, id: nextParentId })
+      const parent = byId.get(nextParentId)
       if (!parent) throw new BoqItemNotFoundError()
-      const requiredType = requiredParentTypeMap[item.type]
-      if (parent.type !== requiredType) {
+      const requiredTypes = requiredParentTypeMap[item.type]
+      if (!requiredTypes?.includes(parent.type)) {
         throw new BoqItemValidationError(
-          `Invalid parent type for ${item.type}, expected ${requiredType}`
+          `Invalid parent type for ${item.type}, expected ${requiredTypes?.join(' or ')}`
         )
       }
-      const allItems = await deps.getBoqItems({ projectId })
-      const byId = new Map(allItems.map((i) => [i.id, i]))
+      nextDepth = parent.depth + 1
       let cursor: string | null = nextParentId
       while (cursor) {
         if (cursor === item.id) {
@@ -402,6 +420,30 @@ export const moveBoqItemFactory =
         cursor = byId.get(cursor)?.parentId || null
       }
     }
+    ensureValidDepthForType(item.type, nextDepth)
+
+    const childrenByParentId = new Map<string, BoqItemRecord[]>()
+    allItems.forEach((entry) => {
+      if (!entry.parentId) return
+      const children = childrenByParentId.get(entry.parentId) ?? []
+      children.push(entry)
+      childrenByParentId.set(entry.parentId, children)
+    })
+
+    const descendants: BoqItemRecord[] = []
+    const stack = [...(childrenByParentId.get(item.id) ?? [])]
+    while (stack.length) {
+      const current = stack.pop()
+      if (!current) continue
+      descendants.push(current)
+      const children = childrenByParentId.get(current.id)
+      if (children?.length) stack.push(...children)
+    }
+
+    const depthDelta = nextDepth - item.depth
+    descendants.forEach((descendant) => {
+      ensureValidDepthForType(descendant.type, descendant.depth + depthDelta)
+    })
 
     const maxSortOrder = await deps.getSiblingMaxSortOrder({
       projectId,
@@ -416,14 +458,31 @@ export const moveBoqItemFactory =
       item: {
         parentId: nextParentId,
         sortOrder: nextSortOrder,
+        depth: nextDepth,
         updatedAt
       }
     })
+
+    if (depthDelta !== 0 && descendants.length) {
+      await Promise.all(
+        descendants.map(async (descendant) => {
+          await deps.updateBoqItem({
+            projectId,
+            id: descendant.id,
+            item: {
+              depth: descendant.depth + depthDelta,
+              updatedAt
+            }
+          })
+        })
+      )
+    }
 
     return toBoqItem({
       ...item,
       parentId: nextParentId,
       sortOrder: nextSortOrder,
+      depth: nextDepth,
       updatedAt
     })
   }

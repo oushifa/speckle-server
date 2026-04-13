@@ -30,6 +30,7 @@
         v-model="value"
         :name="name"
         :class="[
+          bordered ? '!border border-outline-5 rounded-md' : '',
           coreClasses,
           iconClasses,
           sizeClasses,
@@ -109,13 +110,15 @@ const props = withDefaults(
     size?: InputSize
     labelPosition?: LabelPosition
     wrapperClasses?: string
+    bordered?: boolean
   }>(),
   {
     useLabelInErrors: true,
     modelValue: '',
     color: 'page',
     labelPosition: 'top',
-    wrapperClasses: ''
+    wrapperClasses: '',
+    bordered: true
   }
 )
 

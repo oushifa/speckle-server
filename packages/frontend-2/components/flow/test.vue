@@ -88,7 +88,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-body-sm font-medium">{{ definition.name }}</span>
               <span class="text-body-xs text-foreground-2">
-                v{{ definition.version }}
+                {{ definition.id }}
               </span>
               <span class="text-body-xs px-2 py-1 rounded bg-foundation-2">
                 {{ definition.isActive ? 'ACTIVE' : 'INACTIVE' }}
@@ -137,26 +137,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="border border-outline-3 rounded-xl p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="text-heading-sm">发起审批</div>
-        <button
-          class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
-          :disabled="mutating"
-          @click="processTimeouts"
-        >
-          处理超时
-        </button>
-      </div>
-      <button
-        class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
-        :disabled="mutating || !activeDefinitions.length"
-        @click="openStartDialog()"
-      >
-        发起审批
-      </button>
     </div>
 
     <CommonFlowStartDialog

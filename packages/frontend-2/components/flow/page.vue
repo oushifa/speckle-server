@@ -324,7 +324,7 @@ const flowInstancesQuery = graphql(`
       canceledCount
       averageResolutionHours
     }
-    approvalFlowInstances(limit: 20, cursor: $cursor, status: $status) {
+    approvalFlowInstances(limit: 50, cursor: $cursor, status: $status) {
       totalCount
       cursor
       items {

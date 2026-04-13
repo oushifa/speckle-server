@@ -1029,6 +1029,7 @@ export const BoqItemType = {
   Item: 'ITEM',
   Project: 'PROJECT',
   Section: 'SECTION',
+  Subproject: 'SUBPROJECT',
   Subsection: 'SUBSECTION'
 } as const;
 
@@ -1539,6 +1540,7 @@ export type CreateModelInput = {
 
 export type CreateQualityAcceptanceFormInput = {
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
+  acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
   actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
@@ -4020,6 +4022,7 @@ export type ProjectVisibility = typeof ProjectVisibility[keyof typeof ProjectVis
 export type QualityAcceptanceForm = {
   __typename?: 'QualityAcceptanceForm';
   BIMelement?: Maybe<Array<Scalars['String']['output']>>;
+  acceptanceContent?: Maybe<Scalars['String']['output']>;
   acceptancePart?: Maybe<Scalars['String']['output']>;
   actualFinishDate?: Maybe<Scalars['BigInt']['output']>;
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
@@ -5532,6 +5535,7 @@ export type UpdateModelInput = {
 
 export type UpdateQualityAcceptanceFormInput = {
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
+  acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
   actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
@@ -9513,6 +9517,7 @@ export type ProjectVersionsUpdatedMessageResolvers<ContextType = GraphQLContext,
 
 export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceForm'] = ResolversParentTypes['QualityAcceptanceForm']> = {
   BIMelement?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  acceptanceContent?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   acceptancePart?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   actualFinishDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;

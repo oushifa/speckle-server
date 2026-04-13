@@ -6,15 +6,12 @@
         v-model="email"
         type="email"
         name="email"
-        label="工作邮箱"
-        placeholder="邮箱"
+        label="账号"
+        placeholder="账号"
         size="lg"
         color="foundation"
-        :rules="emailRules"
         show-label
-        :disabled="isEmailDisabled"
         auto-focus
-        autocomplete="email"
       />
       <FormTextInput
         type="text"
@@ -96,21 +93,13 @@ const router = useRouter()
 const { signUpWithEmail, inviteToken } = useAuthManager()
 const { triggerNotification } = useGlobalToast()
 const isMounted = useMounted()
-const isNoPersonalEmailsEnabled = useIsNoPersonalEmailsEnabled()
 
 const newsletterConsent = defineModel<boolean>('newsletterConsent', { required: true })
 const loading = ref(false)
 const password = ref('')
 const email = ref('')
 
-const emailRules = computed(() =>
-  inviteToken.value || !isNoPersonalEmailsEnabled.value
-    ? [isEmail]
-    : [isEmail, doesNotContainBlockedDomain]
-)
 const nameRules = [isRequired]
-
-const isEmailDisabled = computed(() => !!props.inviteEmail?.length || loading.value)
 
 const finalLoginRoute = computed(() => {
   const result = router.resolve({

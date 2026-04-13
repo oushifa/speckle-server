@@ -94,7 +94,7 @@
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { useEventListener } from '@vueuse/core'
-import { computed, useSlots } from 'vue'
+import { computed, useSlots, type Slots } from 'vue'
 import { FormButton } from '~~/src/lib'
 
 type DrawerPlacement = 'left' | 'right' | 'top' | 'bottom'
@@ -133,7 +133,7 @@ const props = withDefaults(
   }
 )
 
-const slots = useSlots()
+const slots: Slots = useSlots()
 
 const open = computed({
   get: () => props.open,
@@ -148,7 +148,7 @@ const normalizedHeight = computed(() =>
   typeof props.height === 'number' ? `${props.height}px` : props.height
 )
 
-const hasBuiltInHeader = computed(
+const hasBuiltInHeader = computed<boolean>(
   () => !!props.title || !!slots.title || !!slots.extra || props.closable
 )
 

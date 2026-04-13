@@ -1,5 +1,6 @@
 enum BoqItemType {
   PROJECT
+  SUBPROJECT
   CATEGORY
   SECTION
   SUBSECTION

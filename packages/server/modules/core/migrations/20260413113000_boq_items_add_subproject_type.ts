@@ -43,13 +43,13 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`
     ALTER TABLE "boq_items"
       ADD CONSTRAINT "boq_items_type_check"
-      CHECK ("type" IN ('PROJECT', 'SECTION', 'SUBSECTION', 'ITEM'));
+      CHECK ("type" IN ('PROJECT', 'CATEGORY', 'SECTION', 'SUBSECTION', 'ITEM'));
   `)
 
   await knex.raw(`
     ALTER TABLE "boq_items"
       ADD CONSTRAINT "boq_items_depth_check"
-      CHECK ("depth" >= 0 AND "depth" <= 3);
+      CHECK ("depth" >= 0 AND "depth" <= 4);
   `)
 
   await knex.raw(`
@@ -57,9 +57,10 @@ export async function down(knex: Knex): Promise<void> {
       ADD CONSTRAINT "boq_items_type_depth_check"
       CHECK (
         ("type" = 'PROJECT' AND "depth" = 0) OR
-        ("type" = 'SECTION' AND "depth" = 1) OR
-        ("type" = 'SUBSECTION' AND "depth" = 2) OR
-        ("type" = 'ITEM' AND "depth" = 3)
+        ("type" = 'CATEGORY' AND "depth" = 1) OR
+        ("type" = 'SECTION' AND "depth" = 2) OR
+        ("type" = 'SUBSECTION' AND "depth" = 3) OR
+        ("type" = 'ITEM' AND "depth" = 4)
       );
   `)
 }

@@ -107,6 +107,7 @@ const resolvers = {
           code?: string | null
           inspectionLotNumber?: string | null
           acceptancePart?: string | null
+          acceptanceContent?: string | null
           actualStartDate?: string | null
           actualFinishDate?: string | null
           inspector?: string | null
@@ -136,6 +137,7 @@ const resolvers = {
         code: args.input.code ?? null,
         inspectionLotNumber: args.input.inspectionLotNumber ?? null,
         acceptancePart: args.input.acceptancePart ?? null,
+        acceptanceContent: args.input.acceptanceContent ?? null,
         actualStartDate: args.input.actualStartDate ?? null,
         actualFinishDate: args.input.actualFinishDate ?? null,
         inspector: args.input.inspector ?? null,
@@ -189,6 +191,7 @@ const resolvers = {
           code?: string | null
           inspectionLotNumber?: string | null
           acceptancePart?: string | null
+          acceptanceContent?: string | null
           actualStartDate?: string | null
           actualFinishDate?: string | null
           inspector?: string | null
@@ -216,6 +219,7 @@ const resolvers = {
           code: args.input.code ?? null,
           inspectionLotNumber: args.input.inspectionLotNumber ?? null,
           acceptancePart: args.input.acceptancePart ?? null,
+          acceptanceContent: args.input.acceptanceContent ?? null,
           actualStartDate: args.input.actualStartDate ?? null,
           actualFinishDate: args.input.actualFinishDate ?? null,
           inspector: args.input.inspector ?? null,

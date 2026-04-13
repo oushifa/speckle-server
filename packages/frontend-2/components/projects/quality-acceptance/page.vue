@@ -37,11 +37,19 @@
           <template #code="{ item }">
             <span class="text-primary font-medium">{{ item.code }}</span>
           </template>
+          <template #actualFinishDate="{ item }">
+            <span class="font-medium">
+              {{ formatDate(item.actualFinishDate) || '-' }}
+            </span>
+          </template>
           <template #inspectionLotNumber="{ item }">
             <span class="text-foreground">{{ item.inspectionLotNumber }}</span>
           </template>
           <template #acceptancePart="{ item }">
             <span class="text-foreground">{{ item.acceptancePart }}</span>
+          </template>
+          <template #acceptanceContent="{ item }">
+            <span class="text-foreground">{{ item.acceptanceContent }}</span>
           </template>
           <template #workVolume="{ item }">
             <span class="text-foreground">{{ formatWorkVolume(item.workVolume) }}</span>
@@ -64,6 +72,9 @@
           </template>
           <template #inspector="{ item }">
             <span class="text-foreground">{{ item.inspectorName }}</span>
+          </template>
+          <template #unit="{ item }">
+            <span class="text-foreground">{{ item.unit }}</span>
           </template>
           <template #associationStatus="{ item }">
             <CommonBadge
@@ -227,6 +238,7 @@ import {
 import type { ProjectQualityAcceptanceFormsQuery } from '~/lib/common/generated/gql/graphql'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
+import dayjs from 'dayjs'
 
 type AcceptanceRow = QualityAcceptanceForm & {
   associationStatus: '已关联' | '未关联'
@@ -255,13 +267,13 @@ watch(
 )
 
 const columns = [
-  { id: 'name', header: '验收单名称', classes: 'col-span-2 font-medium' },
-  { id: 'code', header: '清单编码', classes: 'col-span-2' },
+  { id: 'acceptancePart', header: '区域部位', classes: 'col-span-1' },
   { id: 'inspectionLotNumber', header: '检验批编号', classes: 'col-span-2' },
-  { id: 'acceptancePart', header: '验收部位', classes: 'col-span-2' },
-  { id: 'inspector', header: '验收人', classes: 'col-span-1' },
-  { id: 'attachments', header: '附件', classes: 'col-span-1' },
+  { id: 'acceptanceContent', header: '检验批内容', classes: 'col-span-2' },
+  { id: 'actualFinishDate', header: '验收日期', classes: 'col-span-2 font-medium' },
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
+  { id: 'unit', header: '单位', classes: 'col-span-1' },
+  { id: 'attachments', header: '附件', classes: 'col-span-1' },
   { id: 'associationStatus', header: '关联状态', classes: 'col-span-1' }
 ]
 
@@ -315,6 +327,7 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
       code: item.code || '',
       inspectionLotNumber: item.inspectionLotNumber || '',
       acceptancePart: item.acceptancePart || '',
+      acceptanceContent: item.acceptanceContent || '',
       actualStartDate: Number(item.actualStartDate || 0),
       actualFinishDate: Number(item.actualFinishDate || 0),
       inspector: item.inspector?.id || item.inspectorId || '',
@@ -371,6 +384,7 @@ const editingInitialData = computed<QualityAcceptanceCreateInput | null>(() => {
     code: item.code,
     inspectionLotNumber: item.inspectionLotNumber,
     acceptancePart: item.acceptancePart,
+    acceptanceContent: item.acceptanceContent,
     actualStartDate: item.actualStartDate,
     actualFinishDate: item.actualFinishDate,
     inspector: item.inspector,
@@ -571,6 +585,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         code: payload.code,
         inspectionLotNumber: payload.inspectionLotNumber,
         acceptancePart: payload.acceptancePart,
+        acceptanceContent: payload.acceptanceContent,
         actualStartDate: payload.actualStartDate,
         actualFinishDate: payload.actualFinishDate,
         inspector: payload.inspector,
@@ -592,6 +607,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         code: payload.code,
         inspectionLotNumber: payload.inspectionLotNumber,
         acceptancePart: payload.acceptancePart,
+        acceptanceContent: payload.acceptanceContent,
         actualStartDate: payload.actualStartDate,
         actualFinishDate: payload.actualFinishDate,
         inspector: payload.inspector,
@@ -619,6 +635,10 @@ const getAssociationStatusColor = (status: string) => {
   if (status === '已关联') return 'bg-success-lighter text-success'
   if (status === '未关联') return 'bg-foundation-3 text-foreground-2'
   return 'bg-foundation text-foreground-2'
+}
+
+const formatDate = (date: number) => {
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 watch(attachmentsDialogOpen, (isOpen) => {

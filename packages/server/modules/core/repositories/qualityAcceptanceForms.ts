@@ -32,6 +32,10 @@ export const getQualityAcceptanceFormsFactory =
             `%${params.search}%`
           )
           .orWhereILike(QualityAcceptanceForms.col.acceptancePart, `%${params.search}%`)
+          .orWhereILike(
+            QualityAcceptanceForms.col.acceptanceContent,
+            `%${params.search}%`
+          )
       })
     }
 
@@ -80,6 +84,10 @@ export const countQualityAcceptanceFormsFactory =
             `%${params.search}%`
           )
           .orWhereILike(QualityAcceptanceForms.col.acceptancePart, `%${params.search}%`)
+          .orWhereILike(
+            QualityAcceptanceForms.col.acceptanceContent,
+            `%${params.search}%`
+          )
       })
     }
     const [res] = await q.count()

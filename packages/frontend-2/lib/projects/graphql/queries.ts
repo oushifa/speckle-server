@@ -292,6 +292,22 @@ export const projectBoqItemsQuery = graphql(`
                 hasChildren
                 createdAt
                 updatedAt
+                children {
+                  id
+                  projectId
+                  parentId
+                  type
+                  code
+                  name
+                  unit
+                  quantity
+                  price
+                  sortOrder
+                  depth
+                  hasChildren
+                  createdAt
+                  updatedAt
+                }
               }
             }
           }
@@ -356,6 +372,7 @@ export const projectQualityAcceptanceFormsQuery = graphql(`
           code
           inspectionLotNumber
           acceptancePart
+          acceptanceContent
           actualStartDate
           actualFinishDate
           inspector {

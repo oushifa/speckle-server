@@ -3,6 +3,7 @@ import type { Knex } from 'knex'
 
 export const boqItemTypes = [
   'PROJECT',
+  'SUBPROJECT',
   'CATEGORY',
   'SECTION',
   'SUBSECTION',
@@ -79,7 +80,7 @@ export const getBoqItemsByParentFactory =
   async (params: {
     projectId: string
     parentId: string | null
-    type?: BoqItemType
+    type?: BoqItemType | BoqItemType[]
     search?: string | null
     limit?: number | null
   }) => {
@@ -92,7 +93,10 @@ export const getBoqItemsByParentFactory =
     if (params.parentId === null) q.whereNull(BoqItems.col.parentId)
     else q.andWhere(BoqItems.col.parentId, params.parentId)
 
-    if (params.type) q.andWhere(BoqItems.col.type, params.type)
+    if (params.type) {
+      if (Array.isArray(params.type)) q.whereIn(BoqItems.col.type, params.type)
+      else q.andWhere(BoqItems.col.type, params.type)
+    }
 
     if (params.search?.length) {
       q.andWhere((qb) => {
@@ -139,6 +143,7 @@ export const updateBoqItemFactory =
         | 'quantity'
         | 'price'
         | 'sortOrder'
+        | 'depth'
         | 'updatedAt'
       >
     >

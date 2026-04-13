@@ -9,9 +9,16 @@
 </template>
 
 <script setup lang="ts">
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+
+dayjs.locale('zh-cn')
+
 useHead({
   title: '档案管理'
 })
+
+console.log(dayjs().from('2026-04-10'))
 
 definePageMeta({
   middleware: ['auth']

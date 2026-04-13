@@ -30,13 +30,6 @@
           placeholder="选择清单项后自动填充"
         />
         <FormTextInput
-          v-model="form.flowId"
-          name="quality-acceptance-flow-id"
-          label="流程ID"
-          show-label
-          placeholder="可选：输入流程定义ID，填写后创建即发起流程"
-        />
-        <FormTextInput
           v-model="form.inspectionLotNumber"
           name="quality-acceptance-inspection-lot-number"
           label="检验批号"
@@ -47,31 +40,28 @@
         <FormTextInput
           v-model="form.acceptancePart"
           name="quality-acceptance-part"
-          label="验收部位"
+          label="区域部位"
           show-label
           show-required
           placeholder="请输入验收部位，如：1层主体结构"
+          bordered
         />
-        <FormTextInput
-          v-model="actualStartDateInput"
-          name="quality-acceptance-actual-start-date"
-          label="实际开始时间"
-          type="date"
+        <FormTextArea
+          v-model="form.acceptanceContent"
+          name="quality-acceptance-content"
+          label="验收内容"
           show-label
           show-required
+          placeholder="请输入验收内容"
+          bordered
         />
         <FormTextInput
           v-model="actualFinishDateInput"
           name="quality-acceptance-actual-finish-date"
-          label="实际结束时间"
+          label="验收时间"
           type="date"
           show-label
           show-required
-        />
-        <DynamicApprovalUserField
-          :field="inspectorField"
-          :value="form.inspector"
-          @update:value="onInspectorValueChange"
         />
         <FormTextInput
           v-model="workVolumeInput"
@@ -158,8 +148,6 @@
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import type { QualityAcceptanceCreateInput } from './types'
 import BoqTreeSelect from '~/components/common/checklist/BoqTreeSelect.vue'
-import DynamicApprovalUserField from '~/components/flow/fields/DynamicApprovalUserField.vue'
-import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import { useAttachments } from '~/lib/core/composables/fileUpload'
 import { isSuccessfullyUploaded } from '~/lib/core/api/blobStorage'
 import { useServerFileUploadLimit } from '~/lib/common/composables/serverInfo'
@@ -193,6 +181,7 @@ const createDefaultForm = (): QualityAcceptanceCreateInput => ({
   code: '',
   inspectionLotNumber: '',
   acceptancePart: '',
+  acceptanceContent: '',
   actualStartDate: 0,
   actualFinishDate: 0,
   inspector: '',
@@ -221,14 +210,6 @@ const acceptValue = [
   UniqueFileTypeSpecifier.AnyImage,
   ...acceptedFileExtensions.map((fileExtension) => `.${fileExtension}`)
 ].join(',')
-const inspectorField: DynamicFormSchemaField = {
-  key: 'inspector',
-  name: '验收人',
-  type: 'user',
-  required: true,
-  multiple: false,
-  placeholder: '请输入验收人姓名'
-}
 
 const onChecklistSelected = (
   items: Array<{ id: string; code: string; name: string }>
@@ -237,10 +218,6 @@ const onChecklistSelected = (
   if (!first) return
   form.value.name = first.name
   form.value.code = first.code
-}
-
-const onInspectorValueChange = (value: string | string[]) => {
-  form.value.inspector = Array.isArray(value) ? value[0] || '' : value
 }
 
 const openFilePicker = () => {
@@ -265,12 +242,10 @@ const validate = () => {
   if (!form.value.code.trim()) return '清单项编码不能为空'
   if (!form.value.inspectionLotNumber.trim()) return '检验批号不能为空'
   if (!form.value.acceptancePart.trim()) return '验收部位不能为空'
-  if (!actualStartDateInput.value) return '实际开始时间不能为空'
+  if (!form.value.acceptanceContent.trim()) return '验收内容不能为空'
   if (!actualFinishDateInput.value) return '实际结束时间不能为空'
-  if (!form.value.inspector.trim()) return '验收人不能为空'
   if (workVolumeInput.value === '') return '工程量不能为空'
   if (!form.value.unit.trim()) return '计量单位不能为空'
-  if (!form.value.timeZone.trim()) return '时区不能为空'
   return ''
 }
 
@@ -311,14 +286,9 @@ const submit = () => {
     errorMessage.value = '工程量格式不正确'
     return
   }
-  const actualStartDate = new Date(actualStartDateInput.value).getTime()
   const actualFinishDate = new Date(actualFinishDateInput.value).getTime()
-  if (!actualStartDate || !actualFinishDate) {
-    errorMessage.value = '开始或结束时间格式不正确'
-    return
-  }
-  if (actualFinishDate < actualStartDate) {
-    errorMessage.value = '实际结束时间不能早于实际开始时间'
+  if (!actualFinishDate) {
+    errorMessage.value = '结束时间格式不正确'
     return
   }
   const hasPendingUploads = uploads.value.some(
@@ -335,9 +305,9 @@ const submit = () => {
     flowId: form.value.flowId?.trim() || undefined,
     inspectionLotNumber: form.value.inspectionLotNumber.trim(),
     acceptancePart: form.value.acceptancePart.trim(),
+    acceptanceContent: form.value.acceptanceContent.trim(),
     inspector: form.value.inspector.trim(),
     workVolume,
-    actualStartDate,
     actualFinishDate,
     attachments: Array.from(
       new Set([...(form.value.attachments || []), ...blobIds.value])

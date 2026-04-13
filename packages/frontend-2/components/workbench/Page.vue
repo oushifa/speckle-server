@@ -190,9 +190,11 @@
         @confirm="submitReviewApproval"
       >
         <div class="space-y-4">
+          <!-- eslint-disable-next-line -->
           <div
             v-if="selectedUpdate"
-            class="rounded-lg border border-outline-3 bg-blue-50 p-3"
+            class="rounded-lg border border-outline-3 bg-blue-50 p-3 hover:border-sky-400 cursor-pointer"
+            @click="openModelPage(selectedUpdate)"
           >
             <div class="flex items-center justify-between gap-2">
               <div class="text-sm font-semibold text-slate-900">待审核模型</div>
@@ -215,6 +217,7 @@
             :value="reviewerFieldValue"
             @update:value="reviewerFieldValue = $event"
           />
+          <div></div>
         </div>
       </CommonConfirmDialog>
     </div>
@@ -660,6 +663,10 @@ const submitReviewApproval = async () => {
   } finally {
     mutating.value = false
   }
+}
+
+const openModelPage = (item: UpdateItem) => {
+  window.open(`/projects/${item.projectId}/models/${item.resourceId}`)
 }
 
 onMounted(async () => {

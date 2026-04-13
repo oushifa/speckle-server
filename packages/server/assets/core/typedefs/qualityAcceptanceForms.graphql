@@ -4,6 +4,7 @@ type QualityAcceptanceForm {
   code: String
   inspectionLotNumber: String
   acceptancePart: String
+  acceptanceContent: String
   actualStartDate: BigInt
   actualFinishDate: BigInt
   inspector: LimitedUser
@@ -40,6 +41,7 @@ input CreateQualityAcceptanceFormInput {
   code: String
   inspectionLotNumber: String
   acceptancePart: String
+  acceptanceContent: String
   actualStartDate: BigInt
   actualFinishDate: BigInt
   inspector: ID
@@ -63,6 +65,7 @@ input UpdateQualityAcceptanceFormInput {
   code: String
   inspectionLotNumber: String
   acceptancePart: String
+  acceptanceContent: String
   actualStartDate: BigInt
   actualFinishDate: BigInt
   inspector: ID

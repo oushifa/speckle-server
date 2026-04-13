@@ -68,7 +68,13 @@
           v-model="value"
           :type="type"
           :name="name"
-          :class="[coreClasses, iconClasses, sizeClasses, inputClasses || '']"
+          :class="[
+            bordered ? '!border border-outline-5 rounded-md' : '',
+            coreClasses,
+            iconClasses,
+            sizeClasses,
+            inputClasses || ''
+          ]"
           :placeholder="placeholder"
           :disabled="disabled"
           :aria-invalid="errorMessage ? 'true' : 'false'"
@@ -338,6 +344,10 @@ const props = defineProps({
   customHelpClass: {
     type: String,
     default: undefined
+  },
+  bordered: {
+    type: Boolean,
+    default: true
   }
 })
 

@@ -150,6 +150,7 @@ export type QualityAcceptanceFormRecord = {
   code?: Nullable<string>
   inspectionLotNumber?: Nullable<string>
   acceptancePart?: Nullable<string>
+  acceptanceContent?: Nullable<string>
   actualStartDate?: Nullable<string>
   actualFinishDate?: Nullable<string>
   inspector?: Nullable<string>

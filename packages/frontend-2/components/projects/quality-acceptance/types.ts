@@ -11,6 +11,7 @@ export type QualityAcceptanceForm = {
   code: string
   inspectionLotNumber: string
   acceptancePart: string
+  acceptanceContent: string
   actualStartDate: number
   actualFinishDate: number
   inspector: string

@@ -12,13 +12,12 @@
                   v-model="item.value.email"
                   :name="`email-${item.key}`"
                   color="foundation"
-                  placeholder="邮箱地址"
+                  placeholder="请输入账号"
                   show-clear
                   full-width
                   use-label-in-errors
                   show-label
-                  label="邮箱"
-                  :rules="[isEmail]"
+                  label="账号"
                 />
               </div>
               <FormSelectServerRoles
@@ -80,7 +79,6 @@ import { useInviteUserToServer } from '~~/lib/server/composables/invites'
 import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import type { InviteServerForm, InviteServerItem } from '~~/lib/invites/helpers/types'
 import { emptyInviteServerItem } from '~~/lib/invites/helpers/constants'
-import { isEmail } from '~~/lib/common/helpers/validation'
 import { useGlobalToast } from '~~/lib/common/composables/toast'
 
 const isOpen = defineModel<boolean>('open', { required: true })
