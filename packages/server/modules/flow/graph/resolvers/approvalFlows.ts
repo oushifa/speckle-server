@@ -14,13 +14,13 @@ import {
   getApprovalFlowInstanceStepsFactory,
   getApprovalFlowStatsFactory,
   setApprovalFlowDefinitionActiveStateFactory
-} from '@/modules/core/repositories/approvalFlows'
+} from '@/modules/flow/repositories/approvalFlows'
 import {
   createApprovalFlowDefinitionWithStepsFactory,
   processApprovalFlowTimeoutsFactory,
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
-} from '@/modules/core/services/approvalFlows'
+} from '@/modules/flow/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import {
@@ -121,8 +121,33 @@ export default {
     }
   },
   ApprovalFlowInstance: {
-    async definition(parent: { definitionId: string }) {
-      return await getApprovalFlowDefinitionByIdFactory({ db })(parent.definitionId)
+    async definition(parent: {
+      definitionId?: string | null
+      flowSnapshot?: Record<string, unknown> | null
+    }) {
+      if (parent.definitionId) {
+        return await getApprovalFlowDefinitionByIdFactory({ db })(parent.definitionId)
+      }
+      const snapshot = parent.flowSnapshot
+      if (!snapshot || typeof snapshot !== 'object') return null
+      return {
+        id: String(snapshot.definitionId || ''),
+        templateId: String(snapshot.templateId || ''),
+        name: String(snapshot.name || ''),
+        resourceType: String(snapshot.resourceType || 'MODEL'),
+        isActive: false,
+        version: Number(snapshot.version || 1),
+        previousVersionId: null,
+        effectConfig:
+          snapshot.effectConfig && typeof snapshot.effectConfig === 'object'
+            ? snapshot.effectConfig
+            : null,
+        formSchema: Array.isArray(snapshot.formSchema) ? snapshot.formSchema : [],
+        createdBy: 'system',
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        steps: Array.isArray(snapshot.steps) ? snapshot.steps : []
+      }
     },
     async actions(parent: { id: string }) {
       return await getApprovalFlowActionsFactory({ db })(parent.id)
@@ -132,7 +157,8 @@ export default {
     }
   },
   ApprovalFlowDefinition: {
-    async steps(parent: { id: string }) {
+    async steps(parent: { id: string; steps?: unknown[] }) {
+      if (Array.isArray(parent.steps)) return parent.steps
       return await getApprovalFlowDefinitionStepsFactory({ db })(parent.id)
     },
     formSchema: (parent: {
@@ -182,6 +208,7 @@ export default {
       args: {
         input: {
           id?: string | null
+          templateId?: string | null
           name: string
           resourceType?: string | null
           isActive?: boolean | null
@@ -208,6 +235,7 @@ export default {
       const userId = ensureUserId(ctx)
       return await createApprovalFlowDefinitionWithStepsFactory({ db })({
         id: args.input.id?.trim() || null,
+        templateId: args.input.templateId?.trim() || null,
         name: args.input.name.trim(),
         resourceType: args.input.resourceType || 'MODEL',
         isActive: args.input.isActive ?? true,
@@ -253,7 +281,8 @@ export default {
       _parent: unknown,
       args: {
         input: {
-          definitionId: string
+          templateId?: string | null
+          definitionId?: string | null
           resourceId?: string | null
           formData?: Record<string, unknown> | null
         }
@@ -262,7 +291,8 @@ export default {
     ) {
       const userId = ensureUserId(ctx)
       const instance = await startApprovalFlowFactory({ db })({
-        definitionId: args.input.definitionId,
+        templateId: args.input.templateId || null,
+        definitionId: args.input.definitionId || null,
         resourceId: args.input.resourceId || null,
         formData: args.input.formData || null,
         userId

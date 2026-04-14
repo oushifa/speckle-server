@@ -500,6 +500,7 @@ export type ApprovalFlowDefinition = {
   previousVersionId?: Maybe<Scalars['ID']['output']>;
   resourceType: ApprovalFlowResourceType;
   steps: Array<ApprovalFlowDefinitionStep>;
+  templateId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
   version: Scalars['Int']['output'];
 };
@@ -560,13 +561,16 @@ export type ApprovalFlowInstance = {
   createdBy: Scalars['ID']['output'];
   currentStep: Scalars['Int']['output'];
   definition?: Maybe<ApprovalFlowDefinition>;
-  definitionId: Scalars['ID']['output'];
+  definitionId?: Maybe<Scalars['ID']['output']>;
+  definitionVersion?: Maybe<Scalars['Int']['output']>;
+  flowSnapshot?: Maybe<Scalars['JSONObject']['output']>;
   formData?: Maybe<Scalars['JSONObject']['output']>;
   id: Scalars['ID']['output'];
   resourceId?: Maybe<Scalars['ID']['output']>;
   resourceType: ApprovalFlowResourceType;
   status: ApprovalFlowStatus;
   steps: Array<ApprovalFlowInstanceStep>;
+  templateId: Scalars['ID']['output'];
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -592,6 +596,7 @@ export type ApprovalFlowInstanceStep = {
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: ApprovalFlowStepStatus;
   stepIndex: Scalars['Int']['output'];
+  stepSnapshot?: Maybe<Scalars['JSONObject']['output']>;
 };
 
 export const ApprovalFlowResourceType = {
@@ -1463,6 +1468,7 @@ export type CreateApprovalFlowDefinitionInput = {
   previousVersionId?: InputMaybe<Scalars['ID']['input']>;
   resourceType?: InputMaybe<ApprovalFlowResourceType>;
   steps?: InputMaybe<Array<ApprovalFlowDefinitionStepInput>>;
+  templateId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type CreateAutomateFunctionInput = {
@@ -4913,9 +4919,10 @@ export const SortDirection = {
 
 export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
 export type StartApprovalFlowInput = {
-  definitionId: Scalars['ID']['input'];
+  definitionId?: InputMaybe<Scalars['ID']['input']>;
   formData?: InputMaybe<Scalars['JSONObject']['input']>;
   resourceId?: InputMaybe<Scalars['ID']['input']>;
+  templateId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type StartFileImportInput = {
@@ -8255,6 +8262,7 @@ export type ApprovalFlowDefinitionResolvers<ContextType = GraphQLContext, Parent
   previousVersionId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   resourceType?: Resolver<ResolversTypes['ApprovalFlowResourceType'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['ApprovalFlowDefinitionStep']>, ParentType, ContextType>;
+  templateId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   version?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -8294,13 +8302,16 @@ export type ApprovalFlowInstanceResolvers<ContextType = GraphQLContext, ParentTy
   createdBy?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   currentStep?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   definition?: Resolver<Maybe<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType>;
-  definitionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  definitionId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  definitionVersion?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  flowSnapshot?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   formData?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   resourceId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   resourceType?: Resolver<ResolversTypes['ApprovalFlowResourceType'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['ApprovalFlowStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['ApprovalFlowInstanceStep']>, ParentType, ContextType>;
+  templateId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -8326,6 +8337,7 @@ export type ApprovalFlowInstanceStepResolvers<ContextType = GraphQLContext, Pare
   startedAt?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['ApprovalFlowStepStatus'], ParentType, ContextType>;
   stepIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stepSnapshot?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

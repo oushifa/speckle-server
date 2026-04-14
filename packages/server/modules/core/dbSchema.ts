@@ -545,6 +545,7 @@ export const BoqItems = buildTableHelper('boq_items', [
 
 export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitions', [
   'id',
+  'templateId',
   'projectId',
   'name',
   'resourceType',
@@ -562,10 +563,13 @@ export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitio
 export const ApprovalFlowInstances = buildTableHelper('approval_flow_instances', [
   'id',
   'definitionId',
+  'templateId',
+  'definitionVersion',
   'projectId',
   'resourceType',
   'resourceId',
   'formData',
+  'flowSnapshot',
   'status',
   'currentStep',
   'createdBy',
@@ -612,9 +616,27 @@ export const ApprovalFlowInstanceSteps = buildTableHelper(
     'approverIds',
     'requiredApprovals',
     'approvedByIds',
+    'stepSnapshot',
     'startedAt',
     'dueAt',
     'completedAt',
+    'createdAt'
+  ]
+)
+
+export const ApprovalFlowInstanceStepFormSnapshots = buildTableHelper(
+  'approval_flow_instance_step_form_snapshots',
+  [
+    'id',
+    'instanceId',
+    'stepId',
+    'stepIndex',
+    'snapshotType',
+    'sourceType',
+    'sourceId',
+    'triggeredBy',
+    'actionId',
+    'formSnapshot',
     'createdAt'
   ]
 )

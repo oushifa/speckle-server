@@ -12,7 +12,7 @@ import {
   hasBoqChildrenFactory,
   insertBoqItemFactory,
   updateBoqItemFactory
-} from '@/modules/core/repositories/boq'
+} from '@/modules/bop-item/repositories/boq'
 import {
   createBoqItemFactory,
   deleteBoqItemEntryFactory,
@@ -20,7 +20,7 @@ import {
   getBoqTreeFactory,
   moveBoqItemFactory,
   updateBoqItemFactory as updateBoqItemEntryFactory
-} from '@/modules/core/services/boq'
+} from '@/modules/bop-item/services/boq'
 
 const resolvers: Resolvers = {
   Project: {

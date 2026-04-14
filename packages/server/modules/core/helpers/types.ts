@@ -184,6 +184,7 @@ export type ModelFolderModelRecord = {
 
 export type ApprovalFlowDefinitionRecord = {
   id: string
+  templateId: string
   projectId: Nullable<string>
   name: string
   resourceType: string
@@ -212,11 +213,14 @@ export type ApprovalFlowDefinitionRecord = {
 
 export type ApprovalFlowInstanceRecord = {
   id: string
-  definitionId: string
+  definitionId: Nullable<string>
+  templateId: string
+  definitionVersion: Nullable<number>
   projectId: Nullable<string>
   resourceType: string
   resourceId: Nullable<string>
   formData: Nullable<Record<string, unknown>>
+  flowSnapshot: Nullable<Record<string, unknown>>
   status: string
   currentStep: number
   createdBy: string
@@ -258,9 +262,24 @@ export type ApprovalFlowInstanceStepRecord = {
   approverIds: string[]
   requiredApprovals: number
   approvedByIds: string[]
+  stepSnapshot: Nullable<Record<string, unknown>>
   startedAt: Nullable<Date>
   dueAt: Nullable<Date>
   completedAt: Nullable<Date>
+  createdAt: Date
+}
+
+export type ApprovalFlowInstanceStepFormSnapshotRecord = {
+  id: string
+  instanceId: string
+  stepId: string
+  stepIndex: number
+  snapshotType: string
+  sourceType: string
+  sourceId: Nullable<string>
+  triggeredBy: string
+  actionId: Nullable<string>
+  formSnapshot: Record<string, unknown>
   createdAt: Date
 }
 

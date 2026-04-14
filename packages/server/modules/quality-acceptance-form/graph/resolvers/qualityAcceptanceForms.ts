@@ -1,15 +1,15 @@
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
-import { getApprovalFlowDefinitionByIdFactory } from '@/modules/core/repositories/approvalFlows'
+import { getApprovalFlowDefinitionByIdFactory } from '@/modules/flow/repositories/approvalFlows'
 import {
   countQualityAcceptanceFormsFactory,
   createQualityAcceptanceFormFactory,
   deleteQualityAcceptanceFormFactory,
   getQualityAcceptanceFormsFactory,
   updateQualityAcceptanceFormFactory
-} from '@/modules/core/repositories/qualityAcceptanceForms'
-import { startApprovalFlowFactory } from '@/modules/core/services/approvalFlows'
+} from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
+import { startApprovalFlowFactory } from '@/modules/flow/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'

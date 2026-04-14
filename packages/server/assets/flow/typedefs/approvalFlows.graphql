@@ -29,6 +29,7 @@ enum ApprovalFlowStepStatus {
 
 type ApprovalFlowDefinition {
   id: ID!
+  templateId: ID!
   name: String!
   resourceType: ApprovalFlowResourceType!
   isActive: Boolean!
@@ -77,6 +78,7 @@ type ApprovalFlowInstanceStep {
   approverIds: [ID!]!
   requiredApprovals: Int!
   approvedByIds: [ID!]!
+  stepSnapshot: JSONObject
   startedAt: DateTime
   dueAt: DateTime
   completedAt: DateTime
@@ -85,11 +87,14 @@ type ApprovalFlowInstanceStep {
 
 type ApprovalFlowInstance {
   id: ID!
-  definitionId: ID!
+  definitionId: ID
+  templateId: ID!
+  definitionVersion: Int
   definition: ApprovalFlowDefinition
   resourceType: ApprovalFlowResourceType!
   resourceId: ID
   formData: JSONObject
+  flowSnapshot: JSONObject
   status: ApprovalFlowStatus!
   currentStep: Int!
   createdBy: ID!
@@ -137,6 +142,7 @@ type ApprovalFlowTodoCountUpdatedMessage {
 
 input CreateApprovalFlowDefinitionInput {
   id: ID
+  templateId: ID
   name: String!
   resourceType: ApprovalFlowResourceType
   isActive: Boolean
@@ -168,7 +174,8 @@ input ApprovalFlowFormFieldOptionInput {
 }
 
 input StartApprovalFlowInput {
-  definitionId: ID!
+  templateId: ID
+  definitionId: ID
   resourceId: ID
   formData: JSONObject
 }

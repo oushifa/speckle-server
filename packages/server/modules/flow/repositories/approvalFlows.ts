@@ -2,13 +2,16 @@ import {
   ApprovalFlowActions,
   ApprovalFlowDefinitionSteps,
   ApprovalFlowDefinitions,
+  ApprovalFlowInstanceStepFormSnapshots,
   ApprovalFlowInstanceSteps,
-  ApprovalFlowInstances
+  ApprovalFlowInstances,
+  QualityAcceptanceForms
 } from '@/modules/core/dbSchema'
 import type {
   ApprovalFlowActionRecord,
   ApprovalFlowDefinitionStepRecord,
   ApprovalFlowDefinitionRecord,
+  ApprovalFlowInstanceStepFormSnapshotRecord,
   ApprovalFlowInstanceStepRecord,
   ApprovalFlowInstanceRecord
 } from '@/modules/core/helpers/types'
@@ -24,7 +27,13 @@ const tables = {
   instances: (db: Knex) => db<ApprovalFlowInstanceRecord>(ApprovalFlowInstances.name),
   instanceSteps: (db: Knex) =>
     db<ApprovalFlowInstanceStepRecord>(ApprovalFlowInstanceSteps.name),
-  actions: (db: Knex) => db<ApprovalFlowActionRecord>(ApprovalFlowActions.name)
+  actions: (db: Knex) => db<ApprovalFlowActionRecord>(ApprovalFlowActions.name),
+  formSnapshots: (db: Knex) =>
+    db<ApprovalFlowInstanceStepFormSnapshotRecord>(
+      ApprovalFlowInstanceStepFormSnapshots.name
+    ),
+  qualityAcceptanceForms: (db: Knex) =>
+    db<Record<string, unknown>>(QualityAcceptanceForms.name)
 }
 
 const jsonValue = (db: Knex, value: unknown) =>
@@ -62,6 +71,7 @@ export const createApprovalFlowDefinitionFactory =
   (deps: { db: Knex }) =>
   async (params: {
     id?: string
+    templateId: string
     name: string
     resourceType: string
     isActive?: boolean
@@ -84,6 +94,7 @@ export const createApprovalFlowDefinitionFactory =
       .definitions(deps.db)
       .insert({
         id: params.id || generateApprovalFlowId(),
+        templateId: params.templateId,
         projectId: null,
         name: params.name,
         resourceType: params.resourceType,
@@ -102,12 +113,11 @@ export const createApprovalFlowDefinitionFactory =
   }
 
 export const getActiveApprovalFlowDefinitionFactory =
-  (deps: { db: Knex }) => async (params: { resourceType: string }) => {
+  (deps: { db: Knex }) => async (params: { templateId: string }) => {
     return await tables
       .definitions(deps.db)
-      .where(ApprovalFlowDefinitions.col.resourceType, params.resourceType)
+      .where(ApprovalFlowDefinitions.col.templateId, params.templateId)
       .andWhere(ApprovalFlowDefinitions.col.isActive, true)
-      .orderBy(ApprovalFlowDefinitions.col.version, 'desc')
       .orderBy(ApprovalFlowDefinitions.col.updatedAt, 'desc')
       .first()
   }
@@ -131,11 +141,19 @@ export const getApprovalFlowDefinitionByIdFactory =
       .first()
   }
 
+export const getApprovalFlowDefinitionsByTemplateFactory =
+  (deps: { db: Knex }) => async (templateId: string) => {
+    return await tables
+      .definitions(deps.db)
+      .where(ApprovalFlowDefinitions.col.templateId, templateId)
+      .orderBy(ApprovalFlowDefinitions.col.version, 'desc')
+  }
+
 export const getLatestApprovalFlowDefinitionVersionFactory =
-  (deps: { db: Knex }) => async (params: { resourceType: string }) => {
+  (deps: { db: Knex }) => async (params: { templateId: string }) => {
     const res = await tables
       .definitions(deps.db)
-      .where(ApprovalFlowDefinitions.col.resourceType, params.resourceType)
+      .where(ApprovalFlowDefinitions.col.templateId, params.templateId)
       .max<{ max: string }[]>(`${ApprovalFlowDefinitions.col.version} as max`)
       .first()
     return parseInt(res?.max || '0')
@@ -144,6 +162,21 @@ export const getLatestApprovalFlowDefinitionVersionFactory =
 export const setApprovalFlowDefinitionActiveStateFactory =
   (deps: { db: Knex }) =>
   async (params: { definitionId: string; isActive: boolean }) => {
+    const definition = await tables
+      .definitions(deps.db)
+      .where(ApprovalFlowDefinitions.col.id, params.definitionId)
+      .first()
+    if (!definition) return null
+    if (params.isActive) {
+      await tables
+        .definitions(deps.db)
+        .where(ApprovalFlowDefinitions.col.templateId, definition.templateId)
+        .andWhereNot(ApprovalFlowDefinitions.col.id, definition.id)
+        .update({
+          isActive: false,
+          updatedAt: new Date()
+        })
+    }
     const [res] = await tables
       .definitions(deps.db)
       .where(ApprovalFlowDefinitions.col.id, params.definitionId)
@@ -192,10 +225,13 @@ export const getApprovalFlowDefinitionStepsFactory =
 export const createApprovalFlowInstanceFactory =
   (deps: { db: Knex }) =>
   async (params: {
-    definitionId: string
+    definitionId?: string | null
+    templateId: string
+    definitionVersion?: number | null
     resourceType: string
     resourceId?: string | null
     formData?: Record<string, unknown> | null
+    flowSnapshot?: Record<string, unknown> | null
     status: string
     currentStep: number
     createdBy: string
@@ -205,11 +241,14 @@ export const createApprovalFlowInstanceFactory =
       .instances(deps.db)
       .insert({
         id: generateApprovalFlowId(),
-        definitionId: params.definitionId,
+        definitionId: params.definitionId || null,
+        templateId: params.templateId,
+        definitionVersion: params.definitionVersion || null,
         projectId: null,
         resourceType: params.resourceType,
         resourceId: params.resourceId || null,
         formData: jsonValue(deps.db, params.formData || null),
+        flowSnapshot: jsonValue(deps.db, params.flowSnapshot || null),
         status: params.status,
         currentStep: params.currentStep,
         createdBy: params.createdBy,
@@ -231,6 +270,7 @@ export const createApprovalFlowInstanceStepFactory =
     approverIds?: string[]
     requiredApprovals?: number
     approvedByIds?: string[]
+    stepSnapshot?: Record<string, unknown> | null
     startedAt?: Date | null
     dueAt?: Date | null
     completedAt?: Date | null
@@ -247,6 +287,7 @@ export const createApprovalFlowInstanceStepFactory =
         approverIds: params.approverIds || [],
         requiredApprovals: params.requiredApprovals || 1,
         approvedByIds: params.approvedByIds || [],
+        stepSnapshot: jsonValue(deps.db, params.stepSnapshot || null),
         startedAt: params.startedAt || null,
         dueAt: params.dueAt || null,
         completedAt: params.completedAt || null,
@@ -298,6 +339,7 @@ export const updateApprovalFlowInstanceStepFactory =
     approverIds?: string[]
     requiredApprovals?: number
     approvedByIds?: string[]
+    stepSnapshot?: Record<string, unknown> | null
     startedAt?: Date | null
     dueAt?: Date | null
     completedAt?: Date | null
@@ -309,6 +351,7 @@ export const updateApprovalFlowInstanceStepFactory =
       payload.requiredApprovals = params.requiredApprovals
     }
     if (params.approvedByIds) payload.approvedByIds = params.approvedByIds
+    if (params.stepSnapshot !== undefined) payload.stepSnapshot = params.stepSnapshot
     if (params.startedAt !== undefined) payload.startedAt = params.startedAt
     if (params.dueAt !== undefined) payload.dueAt = params.dueAt
     if (params.completedAt !== undefined) payload.completedAt = params.completedAt
@@ -318,6 +361,46 @@ export const updateApprovalFlowInstanceStepFactory =
       .update(payload)
       .returning('*')
     return res
+  }
+
+export const createApprovalFlowInstanceStepFormSnapshotFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    instanceId: string
+    stepId: string
+    stepIndex: number
+    snapshotType: string
+    sourceType: string
+    sourceId?: string | null
+    triggeredBy: string
+    actionId?: string | null
+    formSnapshot: Record<string, unknown>
+  }) => {
+    const [res] = await tables
+      .formSnapshots(deps.db)
+      .insert({
+        id: generateApprovalFlowId(),
+        instanceId: params.instanceId,
+        stepId: params.stepId,
+        stepIndex: params.stepIndex,
+        snapshotType: params.snapshotType,
+        sourceType: params.sourceType,
+        sourceId: params.sourceId || null,
+        triggeredBy: params.triggeredBy,
+        actionId: params.actionId || null,
+        formSnapshot: deps.db.raw('?::json', [JSON.stringify(params.formSnapshot)]),
+        createdAt: new Date()
+      })
+      .returning('*')
+    return res
+  }
+
+export const getQualityAcceptanceFormByIdFactory =
+  (deps: { db: Knex }) => async (formId: string) => {
+    return await tables
+      .qualityAcceptanceForms(deps.db)
+      .where(QualityAcceptanceForms.col.id, formId)
+      .first()
   }
 
 export const getApprovalFlowInstanceByIdFactory =
@@ -330,12 +413,19 @@ export const getApprovalFlowInstanceByIdFactory =
 
 export const getOpenApprovalFlowInstanceForResourceFactory =
   (deps: { db: Knex }) =>
-  async (params: { resourceType: string; resourceId?: string | null }) => {
+  async (params: {
+    templateId?: string | null
+    resourceType: string
+    resourceId?: string | null
+  }) => {
     const q = tables
       .instances(deps.db)
       .where(ApprovalFlowInstances.col.resourceType, params.resourceType)
       .whereIn(ApprovalFlowInstances.col.status, [ApprovalFlowInstanceStatus.Pending])
       .orderBy(ApprovalFlowInstances.col.updatedAt, 'desc')
+    if (params.templateId) {
+      q.andWhere(ApprovalFlowInstances.col.templateId, params.templateId)
+    }
     if (params.resourceId) {
       q.andWhere(ApprovalFlowInstances.col.resourceId, params.resourceId)
     } else {

@@ -1,7 +1,7 @@
 import type { Collection } from '@/modules/shared/helpers/dbHelper'
-import type { BoqItemRecord, BoqItemType } from '@/modules/core/repositories/boq'
-import { boqItemTypes } from '@/modules/core/repositories/boq'
-import { BoqItemNotFoundError, BoqItemValidationError } from '@/modules/core/errors/boq'
+import type { BoqItemRecord, BoqItemType } from '@/modules/bop-item/repositories/boq'
+import { boqItemTypes } from '@/modules/bop-item/repositories/boq'
+import { BoqItemNotFoundError, BoqItemValidationError } from '@/modules/bop-item/errors/boq'
 import { clamp } from 'lodash-es'
 import cryptoRandomString from 'crypto-random-string'
 
