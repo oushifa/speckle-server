@@ -217,7 +217,11 @@
             :value="reviewerFieldValue"
             @update:value="reviewerFieldValue = $event"
           />
-          <div></div>
+          <DynamicApprovalBasicField
+            :field="titleField"
+            :value="titleFieldValue"
+            @update:value="titleFieldValue = $event"
+          />
         </div>
       </CommonConfirmDialog>
     </div>
@@ -244,11 +248,11 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
+import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import type {
   FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables,
-  FlowStartMutationVariables
+  FlowDefinitionsQueryVariables
 } from '~~/lib/common/generated/gql/graphql'
 
 const metrics = [
@@ -283,12 +287,13 @@ const metrics = [
 ]
 
 const todoCount = 4
-const targetFlowId = 'test1'
+const templateId = 'model_aprv'
 
 const flowDefinitionsQuery = graphql(`
   query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
     approvalFlowDefinitions(resourceType: $resourceType) {
       id
+      templateId
       name
       resourceType
       isActive
@@ -316,7 +321,10 @@ const flowDefinitionsQuery = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
+  { resourceType: string | null }
+>
 
 const startFlowMutation = graphql(`
   mutation FlowStart($input: StartApprovalFlowInput!) {
@@ -326,7 +334,16 @@ const startFlowMutation = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalMutations: { start: { id: string } } },
+  {
+    input: {
+      templateId: string
+      resourceId: string
+      formData: Record<string, unknown>
+    }
+  }
+>
 
 const workbenchReviewUpdatesQuery = graphql(`
   query WorkbenchReviewUpdates($cursor: String) {
@@ -416,6 +433,7 @@ const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
 const selectedUpdate = ref<UpdateItem | null>(null)
 const reviewerFieldValue = ref<unknown>('')
+const titleFieldValue = ref<unknown>('')
 
 const activeFlowDefinitions = computed(() =>
   flowDefinitions.value
@@ -424,9 +442,7 @@ const activeFlowDefinitions = computed(() =>
 )
 const targetFlowDefinitions = computed(() => activeFlowDefinitions.value.slice(0, 1))
 const hasActiveTargetFlow = computed(() => Boolean(targetFlowDefinitions.value.length))
-const resolvedTargetFlowId = computed(
-  () => targetFlowDefinitions.value[0]?.id || targetFlowId
-)
+
 const targetFlowDefinition = computed<DefinitionItem | null>(
   () => targetFlowDefinitions.value[0] || null
 )
@@ -458,6 +474,15 @@ const reviewerField = computed<DynamicFormSchemaField>(() => {
     }
   )
 })
+
+const titleField = computed<DynamicFormSchemaField>(() => ({
+  key: 'title',
+  name: '备注说明',
+  type: 'string',
+  required: true,
+  placeholder: '请输入备注说明',
+  options: []
+}))
 
 const todoList = [
   {
@@ -624,6 +649,7 @@ const openReviewDialog = (item: UpdateItem) => {
   selectedResourceId.value = item.resourceId
   selectedUpdate.value = item
   reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
+  titleFieldValue.value = ''
   isStartDialogOpen.value = true
 }
 
@@ -636,27 +662,33 @@ const submitReviewApproval = async () => {
     notify('校验失败', '请选择审核人', ToastNotificationType.Warning)
     return
   }
-  const definitionId = resolvedTargetFlowId.value
-  if (!definitionId || !selectedResourceId.value) return
+  const titleValue = `${titleFieldValue.value || ''}`.trim()
+  if (titleField.value.required && !titleValue) {
+    notify('校验失败', '请输入备注说明', ToastNotificationType.Warning)
+    return
+  }
+  if (!templateId || !selectedResourceId.value) return
   mutating.value = true
   try {
     await apollo.mutate({
       mutation: startFlowMutation,
       variables: {
         input: {
-          definitionId,
+          templateId,
           resourceId: selectedResourceId.value,
           formData: {
-            [reviewerField.value.key]: reviewerFieldValue.value
+            [reviewerField.value.key]: reviewerFieldValue.value,
+            [titleField.value.key]: titleValue
           }
         }
-      } as FlowStartMutationVariables
+      }
     })
     notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
     isStartDialogOpen.value = false
     selectedUpdate.value = null
     selectedResourceId.value = null
     reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
+    titleFieldValue.value = ''
     await loadRecentUpdates()
   } catch (e) {
     notify('发起失败', (e as Error).message, ToastNotificationType.Danger)

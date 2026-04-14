@@ -26,8 +26,16 @@
           id="flow-definition-id"
           v-model="definitionId"
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
-          placeholder="流程ID(可选)，例如：model_review_flow_v1"
+          maxlength="10"
+          placeholder="流程ID(可选，最多10位)，例如：flowv0001"
         />
+        <div class="text-body-xs text-foreground-2">
+          {{
+            createMode === 'version'
+              ? `当前为新版本模式，将复用模板 ${baseTemplateIdForNewVersion || '-'}`
+              : '当前为新流程模式，模板ID将由系统随机生成'
+          }}
+        </div>
         <label for="flow-definition-resource-type" class="sr-only">资源类型</label>
         <select
           id="flow-definition-resource-type"
@@ -53,18 +61,15 @@
           class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page"
           placeholder='步骤JSON，例如 [{"name":"专业负责人","requiredApprovals":1}]'
         />
-        <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
-          <input v-model="syncResourceApproveStatus" type="checkbox" />
-          {{
-            definitionResourceType === 'MODEL'
-              ? '审批联动模型 approveStatus'
-              : '审批联动质量验收表单 approveStatus'
-          }}
+        <label for="flow-definition-effect-config" class="sr-only">
+          effectConfig(JSON)
         </label>
-        <label class="inline-flex items-center gap-2 text-body-sm text-foreground-2">
-          <input v-model="allowParallelInstancesForSameResource" type="checkbox" />
-          允许同一资源多个实例并行
-        </label>
+        <textarea
+          id="flow-definition-effect-config"
+          v-model="effectConfigText"
+          class="border border-outline-3 rounded-md px-3 py-2 bg-foundation-page min-h-[132px] font-mono text-body-xs"
+          placeholder='effectConfig JSON，例如 {"hooks":{"onInstanceApproved":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}]}}'
+        />
         <button
           class="px-3 py-2 rounded-md bg-primary text-foundation-page text-body-sm disabled:opacity-50"
           :disabled="!definitionName.trim() || mutating"
@@ -81,51 +86,101 @@
         </div>
         <div v-else class="space-y-2">
           <div
-            v-for="definition in definitions"
-            :key="definition.id"
+            v-for="group in groupedDefinitions"
+            :key="group.templateId"
             class="border border-outline-3 rounded-lg p-3"
           >
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-body-sm font-medium">{{ definition.name }}</span>
+              <span class="text-body-sm font-medium">{{ group.latest.name }}</span>
               <span class="text-body-xs text-foreground-2">
-                {{ definition.id }}
+                template: {{ group.templateId }}
               </span>
+              <label :for="`flow-version-select-${group.templateId}`" class="sr-only">
+                选择版本
+              </label>
+              <select
+                :id="`flow-version-select-${group.templateId}`"
+                :value="
+                  selectedVersionIdByTemplate[group.templateId] || group.latest.id
+                "
+                class="text-body-xs border border-outline-3 rounded px-2 py-1 bg-foundation-page"
+                @change="
+                  onTemplateVersionChange(
+                    group.templateId,
+                    ($event.target as HTMLSelectElement).value
+                  )
+                "
+              >
+                <option
+                  v-for="version in group.versions"
+                  :key="version.id"
+                  :value="version.id"
+                >
+                  v{{ version.version }} · {{ version.id }}
+                  {{ version.isActive ? ' (ACTIVE)' : '' }}
+                </option>
+              </select>
               <span class="text-body-xs px-2 py-1 rounded bg-foundation-2">
-                {{ definition.isActive ? 'ACTIVE' : 'INACTIVE' }}
+                {{
+                  getSelectedDefinitionInGroup(group)?.isActive ? 'ACTIVE' : 'INACTIVE'
+                }}
               </span>
               <button
                 class="ml-auto px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
                 :disabled="mutating"
-                @click="toggleDefinitionActive(definition.id, !definition.isActive)"
+                @click="
+                  toggleDefinitionActive(
+                    getSelectedDefinitionInGroup(group)?.id || '',
+                    !Boolean(getSelectedDefinitionInGroup(group)?.isActive)
+                  )
+                "
               >
-                {{ definition.isActive ? '停用' : '启用' }}
+                {{ getSelectedDefinitionInGroup(group)?.isActive ? '停用' : '启用' }}
               </button>
               <button
                 class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
-                :disabled="mutating || !definition.isActive"
-                @click="openStartDialog(definition.id)"
+                :disabled="mutating || !getSelectedDefinitionInGroup(group)"
+                @click="prepareCreateNewVersion(group.templateId)"
+              >
+                创建新版本
+              </button>
+              <button
+                class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
+                :disabled="mutating || !getSelectedDefinitionInGroup(group)?.isActive"
+                @click="
+                  openStartDialog(getSelectedDefinitionInGroup(group)?.id || undefined)
+                "
               >
                 发起
               </button>
             </div>
             <div class="text-body-xs text-foreground-2 mt-2">
               审批填写项：{{
-                definition.formSchema.length
-                  ? JSON.stringify(definition.formSchema)
+                getSelectedDefinitionInGroup(group)?.formSchema?.length
+                  ? JSON.stringify(getSelectedDefinitionInGroup(group)?.formSchema)
                   : '无'
               }}
             </div>
             <div class="text-body-xs text-foreground-2 mt-1">
-              联动资源状态：{{ isResourceStatusSyncEnabled(definition) ? '是' : '否' }}
+              联动资源状态：{{
+                isResourceStatusSyncEnabled(getSelectedDefinitionInGroup(group))
+                  ? '是'
+                  : '否'
+              }}
             </div>
             <div class="text-body-xs text-foreground-2 mt-1">
               同一资源并行实例：{{
-                isParallelInstancesEnabled(definition) ? '允许' : '不允许'
+                isParallelInstancesEnabled(getSelectedDefinitionInGroup(group))
+                  ? '允许'
+                  : '不允许'
               }}
+            </div>
+            <div class="text-body-xs text-foreground-2 mt-1">
+              effectConfig：{{ getSelectedDefinitionInGroup(group)?.effectConfig }}
             </div>
             <div class="mt-2 space-y-1">
               <div
-                v-for="step in definition.steps"
+                v-for="step in getSelectedDefinitionInGroup(group)?.steps || []"
                 :key="step.id"
                 class="text-body-xs text-foreground-2"
               >
@@ -152,24 +207,25 @@
 <script setup lang="ts">
 import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
+import type { TypedDocumentNode } from '@apollo/client/core'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import type {
   ApprovalFlowDefinitionStepInput,
   ApprovalFlowFormFieldInput,
   ApprovalFlowResourceType,
-  CreateApprovalFlowDefinitionInput,
   FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables,
   FlowProcessTimeoutsMutation,
-  FlowStartMutationVariables,
   FlowSetDefinitionActiveMutation,
   FlowSetDefinitionActiveMutationVariables
 } from '~~/lib/common/generated/gql/graphql'
+
+type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 
 const flowDefinitionsQuery = graphql(`
   query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
     approvalFlowDefinitions(resourceType: $resourceType) {
       id
+      templateId
       name
       resourceType
       isActive
@@ -197,7 +253,10 @@ const flowDefinitionsQuery = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
+  { resourceType: ApprovalFlowResourceType }
+>
 
 const createDefinitionMutation = graphql(`
   mutation FlowCreateDefinition($input: CreateApprovalFlowDefinitionInput!) {
@@ -208,7 +267,10 @@ const createDefinitionMutation = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalMutations: { createDefinition: { id: string; name: string } } },
+  { input: Record<string, unknown> }
+>
 
 const setDefinitionActiveMutation = graphql(`
   mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {
@@ -237,9 +299,10 @@ const startFlowMutation = graphql(`
       }
     }
   }
-`)
-
-type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
+`) as unknown as TypedDocumentNode<
+  { approvalMutations: { start: { id: string } } },
+  { input: Record<string, unknown> }
+>
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
@@ -253,10 +316,15 @@ const formSchemaText = ref(
   '[{"key":"title","name":"标题","type":"string","required":true,"placeholder":"请输入标题"},{"key":"reviewer","name":"审批人","type":"user","required":true},{"key":"targetProject","name":"目标项目","type":"project"},{"key":"targetModel","name":"目标模型","type":"model"},{"key":"level","name":"级别","type":"select","options":[{"label":"一般","value":"normal"},{"label":"紧急","value":"urgent"}]}]'
 )
 const stepsConfigText = ref('[{"name":"默认审批","requiredApprovals":1}]')
-const syncResourceApproveStatus = ref(false)
-const allowParallelInstancesForSameResource = ref(false)
+const effectConfigText = ref(
+  '{"hooks":{"onInstancePending":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}],"onInstanceApproved":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}],"onInstanceRejected":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}]}}'
+)
 const isStartDialogOpen = ref(false)
 const selectedStartFlowId = ref<string | null>(null)
+const createMode = ref<'new' | 'version'>('new')
+const baseTemplateIdForNewVersion = ref<string | null>(null)
+const previousVersionIdForNewVersion = ref<string | null>(null)
+const selectedVersionIdByTemplate = ref<Record<string, string>>({})
 
 const notify = (title: string, description: string, type: ToastNotificationType) => {
   triggerNotification({
@@ -270,7 +338,58 @@ const activeDefinitions = computed(() =>
   definitions.value.filter((definition) => definition.isActive)
 )
 
-const isResourceStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
+const getTemplateId = (definition: FlowDefinitionListItem) =>
+  (definition.templateId || definition.id).trim()
+
+const groupedDefinitions = computed(() => {
+  const groups: Record<
+    string,
+    {
+      templateId: string
+      latest: FlowDefinitionListItem
+      versions: FlowDefinitionListItem[]
+    }
+  > = {}
+  for (const definition of definitions.value) {
+    const templateId = getTemplateId(definition)
+    if (!groups[templateId]) {
+      groups[templateId] = {
+        templateId,
+        latest: definition,
+        versions: []
+      }
+    }
+    groups[templateId].versions.push(definition)
+  }
+  return Object.values(groups)
+    .map((group) => {
+      const sorted = [...group.versions].sort((a, b) => b.version - a.version)
+      return {
+        ...group,
+        latest: sorted[0],
+        versions: sorted
+      }
+    })
+    .sort((a, b) => b.latest.version - a.latest.version)
+})
+
+const getSelectedDefinitionInGroup = (group: {
+  templateId: string
+  versions: FlowDefinitionListItem[]
+}) => {
+  const selectedId = selectedVersionIdByTemplate.value[group.templateId]
+  return group.versions.find((v) => v.id === selectedId) || group.versions[0] || null
+}
+
+const onTemplateVersionChange = (templateId: string, definitionId: string) => {
+  selectedVersionIdByTemplate.value = {
+    ...selectedVersionIdByTemplate.value,
+    [templateId]: definitionId
+  }
+}
+
+const isResourceStatusSyncEnabled = (definition?: FlowDefinitionListItem | null) => {
+  if (!definition) return false
   const config = definition.effectConfig as Record<string, unknown> | null | undefined
   if (definition.resourceType === 'FORMS') {
     return Boolean(config?.syncFormApproveStatus)
@@ -278,7 +397,8 @@ const isResourceStatusSyncEnabled = (definition: FlowDefinitionListItem) => {
   return Boolean(config?.syncModelApproveStatus)
 }
 
-const isParallelInstancesEnabled = (definition: FlowDefinitionListItem) => {
+const isParallelInstancesEnabled = (definition?: FlowDefinitionListItem | null) => {
+  if (!definition) return false
   const config = definition.effectConfig as Record<string, unknown> | null | undefined
   return Boolean(config?.allowParallelInstancesForSameResource)
 }
@@ -327,7 +447,7 @@ const parseStepsConfig = (): ApprovalFlowDefinitionStepInput[] | undefined => {
 }
 
 const loadDefinitions = async () => {
-  const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>({
+  const res = await apollo.query({
     query: flowDefinitionsQuery,
     variables: {
       resourceType: definitionResourceType.value as ApprovalFlowResourceType
@@ -335,6 +455,12 @@ const loadDefinitions = async () => {
     fetchPolicy: 'network-only'
   })
   definitions.value = res.data.approvalFlowDefinitions || []
+  const nextSelected: Record<string, string> = {}
+  for (const group of groupedDefinitions.value) {
+    const active = group.versions.find((v) => v.isActive)
+    nextSelected[group.templateId] = active?.id || group.versions[0]?.id || ''
+  }
+  selectedVersionIdByTemplate.value = nextSelected
 }
 
 const createDefinition = async () => {
@@ -380,19 +506,30 @@ const createDefinition = async () => {
         })
       : []
     const steps = parseStepsConfig()
-    const effectConfig: Record<string, unknown> = {}
-    if (syncResourceApproveStatus.value) {
-      if (definitionResourceType.value === 'FORMS') {
-        effectConfig.syncFormApproveStatus = true
-      } else {
-        effectConfig.syncModelApproveStatus = true
-      }
+    const effectConfigRaw = effectConfigText.value.trim()
+    const parsedEffectConfig: unknown = effectConfigRaw
+      ? JSON.parse(effectConfigRaw)
+      : {}
+    if (
+      parsedEffectConfig === null ||
+      typeof parsedEffectConfig !== 'object' ||
+      Array.isArray(parsedEffectConfig)
+    ) {
+      throw new Error('effectConfig 必须是 JSON 对象')
     }
-    if (allowParallelInstancesForSameResource.value) {
-      effectConfig.allowParallelInstancesForSameResource = true
+    const effectConfig: Record<string, unknown> = {
+      ...(parsedEffectConfig as Record<string, unknown>)
     }
-    const input: CreateApprovalFlowDefinitionInput = {
+    const input = {
       id: definitionId.value.trim() || null,
+      templateId:
+        createMode.value === 'version'
+          ? baseTemplateIdForNewVersion.value || null
+          : null,
+      previousVersionId:
+        createMode.value === 'version'
+          ? previousVersionIdForNewVersion.value || null
+          : null,
       name: definitionName.value.trim(),
       resourceType: definitionResourceType.value as ApprovalFlowResourceType,
       isActive: true,
@@ -409,8 +546,9 @@ const createDefinition = async () => {
     notify('创建成功', '流程定义已创建', ToastNotificationType.Success)
     definitionName.value = ''
     definitionId.value = ''
-    allowParallelInstancesForSameResource.value = false
-    syncResourceApproveStatus.value = false
+    createMode.value = 'new'
+    baseTemplateIdForNewVersion.value = null
+    previousVersionIdForNewVersion.value = null
   } catch (e) {
     notify('创建失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
@@ -445,7 +583,7 @@ const toggleDefinitionActive = async (definitionId: string, isActive: boolean) =
   }
 }
 
-const processTimeouts = async () => {
+const _processTimeouts = async () => {
   mutating.value = true
   try {
     const res = await apollo.mutate<FlowProcessTimeoutsMutation, Record<string, never>>(
@@ -465,6 +603,29 @@ const processTimeouts = async () => {
   }
 }
 
+const prepareCreateNewVersion = (templateId: string) => {
+  const group = groupedDefinitions.value.find((g) => g.templateId === templateId)
+  if (!group) return
+  const base = getSelectedDefinitionInGroup(group)
+  if (!base) return
+  createMode.value = 'version'
+  baseTemplateIdForNewVersion.value = templateId
+  previousVersionIdForNewVersion.value = base.id
+  definitionName.value = base.name
+  definitionId.value = ''
+  definitionResourceType.value = base.resourceType as 'MODEL' | 'FORMS'
+  formSchemaText.value = JSON.stringify(base.formSchema || [])
+  stepsConfigText.value = JSON.stringify(
+    (base.steps || []).map((s) => ({
+      name: s.name,
+      approverIds: s.approverIds,
+      requiredApprovals: s.requiredApprovals,
+      timeoutHours: s.timeoutHours || null
+    }))
+  )
+  effectConfigText.value = JSON.stringify(base.effectConfig || {}, null, 2)
+}
+
 const openStartDialog = (flowId?: string) => {
   selectedStartFlowId.value = flowId || activeDefinitions.value[0]?.id || null
   if (!selectedStartFlowId.value) {
@@ -475,7 +636,7 @@ const openStartDialog = (flowId?: string) => {
 }
 
 const startApproval = async (payload: {
-  definitionId: string
+  templateId: string
   resourceId: string | null
   formData: Record<string, unknown>
 }) => {
@@ -485,11 +646,11 @@ const startApproval = async (payload: {
       mutation: startFlowMutation,
       variables: {
         input: {
-          definitionId: payload.definitionId,
+          templateId: payload.templateId,
           resourceId: payload.resourceId,
           formData: payload.formData
         }
-      } as FlowStartMutationVariables
+      }
     })
     notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
   } catch (e) {
@@ -504,8 +665,8 @@ onMounted(async () => {
 })
 
 watch(definitionResourceType, async () => {
-  syncResourceApproveStatus.value = false
-  allowParallelInstancesForSameResource.value = false
+  effectConfigText.value =
+    '{"hooks":{"onInstancePending":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}],"onInstanceApproved":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}],"onInstanceRejected":[{"type":"updateResourceFields","fields":{"approveStatus":"$STATUS"}}]}}'
   await loadDefinitions()
 })
 </script>

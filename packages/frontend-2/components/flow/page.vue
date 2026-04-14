@@ -127,7 +127,35 @@
               </div>
               <div class="border border-outline-3 rounded-lg p-3">
                 <div class="text-body-xs text-foreground-2">资源</div>
-                <div class="text-body-sm">
+                <div
+                  v-if="selectedInstance.resourceType === 'MODEL'"
+                  class="space-y-1 text-body-sm"
+                >
+                  <div>
+                    模型：{{
+                      selectedModelResourceMeta?.modelName ||
+                      selectedInstance.resourceId
+                    }}
+                  </div>
+                  <div class="text-body-xs text-foreground-2">
+                    项目：{{
+                      selectedModelResourceMeta?.projectName ||
+                      selectedModelResourceMeta?.projectId ||
+                      '-'
+                    }}
+                  </div>
+                  <button
+                    class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
+                    :disabled="
+                      !selectedModelResourceMeta?.projectId ||
+                      !selectedModelResourceMeta?.modelId
+                    "
+                    @click="openModelPreview"
+                  >
+                    预览模型
+                  </button>
+                </div>
+                <div v-else class="text-body-sm">
                   {{ selectedInstance.resourceType }}: {{ selectedInstance.resourceId }}
                 </div>
               </div>
@@ -272,6 +300,7 @@
 <script setup lang="ts">
 import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
+import type { TypedDocumentNode } from '@apollo/client/core'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import type {
@@ -285,6 +314,7 @@ const flowDefinitionsQuery = graphql(`
   query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
     approvalFlowDefinitions(resourceType: $resourceType) {
       id
+      templateId
       name
       resourceType
       isActive
@@ -312,7 +342,10 @@ const flowDefinitionsQuery = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
+  { resourceType: string | null }
+>
 
 const flowInstancesQuery = graphql(`
   query FlowInstances($cursor: String, $status: ApprovalFlowStatus) {
@@ -324,7 +357,7 @@ const flowInstancesQuery = graphql(`
       canceledCount
       averageResolutionHours
     }
-    approvalFlowInstances(limit: 50, cursor: $cursor, status: $status) {
+    approvalFlowInstances(limit: 20, cursor: $cursor, status: $status) {
       totalCount
       cursor
       items {
@@ -408,6 +441,47 @@ const cancelFlowMutation = graphql(`
   }
 `)
 
+const modelMetaByResourceQuery = graphql(`
+  query FlowModelMetaByResource($modelIds: [String!]) {
+    activeUser {
+      id
+      projects(limit: 100) {
+        items {
+          id
+          name
+          models(limit: 1, filter: { ids: $modelIds }) {
+            items {
+              id
+              name
+              projectId
+            }
+          }
+        }
+      }
+    }
+  }
+`) as unknown as TypedDocumentNode<
+  {
+    activeUser: {
+      id: string
+      projects: {
+        items: Array<{
+          id: string
+          name: string
+          models: {
+            items: Array<{
+              id: string
+              name: string
+              projectId: string
+            }>
+          }
+        }>
+      }
+    } | null
+  },
+  { modelIds: string[] }
+>
+
 type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
 type FlowStats = FlowInstancesQuery['approvalFlowStats']
 type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
@@ -429,6 +503,12 @@ const isReviewDialogOpen = ref(false)
 const selectedReviewAction = ref<FlowReviewAction>('approve')
 const selectedReviewInstanceId = ref<string | null>(null)
 const selectedInstance = ref<FlowListItem | null>(null)
+const selectedModelResourceMeta = ref<{
+  modelId: string
+  modelName: string
+  projectId: string
+  projectName: string
+} | null>(null)
 const definitions = ref<FlowDefinitionListItem[]>([])
 const detailTab = ref<FlowDetailTab>('content')
 const stats = ref<FlowStats>({
@@ -651,13 +731,61 @@ const loadInstances = async (nextCursor?: string | null) => {
   }
 }
 
+const loadSelectedModelResourceMeta = async (instance: FlowListItem) => {
+  if (instance.resourceType !== 'MODEL' || !instance.resourceId) {
+    selectedModelResourceMeta.value = null
+    return
+  }
+
+  try {
+    const modelRes = await apollo.query({
+      query: modelMetaByResourceQuery,
+      variables: {
+        modelIds: [instance.resourceId]
+      },
+      fetchPolicy: 'network-only'
+    })
+    const projects = modelRes.data?.activeUser?.projects?.items || []
+    const matchedProject = projects.find(
+      (project) => (project.models?.items || []).length > 0
+    )
+    const model = matchedProject?.models?.items?.[0]
+    if (!matchedProject?.id || !model?.id) {
+      selectedModelResourceMeta.value = null
+      return
+    }
+
+    selectedModelResourceMeta.value = {
+      modelId: model.id,
+      modelName: model.name || model.id,
+      projectId: model.projectId || matchedProject.id,
+      projectName: matchedProject.name || ''
+    }
+  } catch {
+    selectedModelResourceMeta.value = null
+  }
+}
+
+const openModelPreview = () => {
+  if (
+    !selectedModelResourceMeta.value?.projectId ||
+    !selectedModelResourceMeta.value?.modelId
+  )
+    return
+  window.open(
+    `/projects/${selectedModelResourceMeta.value.projectId}/models/${selectedModelResourceMeta.value.modelId}`
+  )
+}
+
 const openInstanceDrawer = (instance: FlowListItem) => {
   selectedInstance.value = instance
   detailTab.value = 'content'
+  void loadSelectedModelResourceMeta(instance)
 }
 
 const closeDrawer = () => {
   selectedInstance.value = null
+  selectedModelResourceMeta.value = null
 }
 
 const openReviewDialog = (action: FlowReviewAction, instanceId: string) => {

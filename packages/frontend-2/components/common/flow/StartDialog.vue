@@ -54,7 +54,7 @@ const emit = defineEmits<{
   (
     e: 'submit',
     payload: {
-      definitionId: string
+      templateId: string
       resourceId: string | null
       formData: Record<string, unknown>
     }
@@ -107,7 +107,9 @@ const submit = () => {
   const definitionId = effectiveDefinitionId.value
   if (!definitionId) return
   emit('submit', {
-    definitionId,
+    templateId:
+      (selectedDefinition.value as { templateId?: string } | null)?.templateId ||
+      definitionId,
     resourceId: resourceId.value.trim() || null,
     formData: { ...formFieldValues.value }
   })

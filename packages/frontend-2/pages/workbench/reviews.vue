@@ -96,14 +96,13 @@
 <script setup lang="ts">
 import { useApolloClient } from '@vue/apollo-composable'
 import { PaperAirplaneIcon } from '@heroicons/vue/24/outline'
+import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchRoute } from '~~/lib/common/helpers/route'
 import {
   WorkbenchReviewUpdatesDocument,
   type FlowDefinitionsQuery,
-  type FlowDefinitionsQueryVariables,
-  type FlowStartMutationVariables,
   type WorkbenchReviewUpdatesQuery
 } from '~~/lib/common/generated/gql/graphql'
 
@@ -122,6 +121,7 @@ const flowDefinitionsQuery = graphql(`
   query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
     approvalFlowDefinitions(resourceType: $resourceType) {
       id
+      templateId
       name
       resourceType
       isActive
@@ -149,7 +149,10 @@ const flowDefinitionsQuery = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
+  { resourceType: string | null }
+>
 
 const startFlowMutation = graphql(`
   mutation FlowStart($input: StartApprovalFlowInput!) {
@@ -159,7 +162,16 @@ const startFlowMutation = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<
+  { approvalMutations: { start: { id: string } } },
+  {
+    input: {
+      templateId: string
+      resourceId: string | null
+      formData: Record<string, unknown>
+    }
+  }
+>
 
 type ReviewableProject = NonNullable<
   WorkbenchReviewUpdatesQuery['activeUser']
@@ -189,7 +201,11 @@ const selectedResourceId = ref<string | null>(null)
 const currentPage = ref(1)
 
 const targetFlowDefinitions = computed(() =>
-  flowDefinitions.value.filter((definition) => definition.id === targetFlowId)
+  flowDefinitions.value.filter(
+    (definition) =>
+      (definition as { templateId?: string }).templateId === targetFlowId ||
+      definition.id === targetFlowId
+  )
 )
 
 const totalCount = computed(() => allItems.value.length)
@@ -295,16 +311,15 @@ const loadAllItems = async () => {
 
 const loadFlowDefinitions = async () => {
   try {
-    const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>(
-      {
-        query: flowDefinitionsQuery,
-        variables: {
-          resourceType: 'MODEL'
-        },
-        fetchPolicy: 'network-only'
-      }
-    )
-    flowDefinitions.value = res.data.approvalFlowDefinitions || []
+    const res = await apollo.query({
+      query: flowDefinitionsQuery,
+      variables: {
+        resourceType: 'MODEL'
+      },
+      fetchPolicy: 'network-only'
+    })
+    flowDefinitions.value = (res.data?.approvalFlowDefinitions ||
+      []) as FlowDefinitionsQuery['approvalFlowDefinitions']
   } catch (e) {
     notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
   }
@@ -324,7 +339,7 @@ const openReviewDialog = (item: UpdateItem) => {
 }
 
 const startApproval = async (payload: {
-  definitionId: string
+  templateId: string
   resourceId: string | null
   formData: Record<string, unknown>
 }) => {
@@ -334,11 +349,11 @@ const startApproval = async (payload: {
       mutation: startFlowMutation,
       variables: {
         input: {
-          definitionId: payload.definitionId,
+          templateId: payload.templateId,
           resourceId: payload.resourceId,
           formData: payload.formData
         }
-      } as FlowStartMutationVariables
+      }
     })
     notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
     await loadAllItems()
