@@ -94,192 +94,108 @@
           </button>
         </div>
 
-        <div class="p-4 space-y-4">
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="tab in detailTabs"
-              :key="tab.value"
-              class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
-              :class="
-                detailTab === tab.value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-outline-3 text-foreground-2'
-              "
-              @click="detailTab = tab.value"
+        <div class="p-4">
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div
+              class="xl:col-span-2 border border-outline-3 rounded-lg p-4 min-h-[520px]"
             >
-              {{ tab.label }}
-            </button>
-          </div>
+              <div class="text-body-xs text-foreground-2">流程内容</div>
+            </div>
 
-          <div v-if="detailTab === 'content'" class="space-y-3">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div class="border border-outline-3 rounded-lg p-3">
-                <div class="text-body-xs text-foreground-2">状态</div>
-                <div class="text-body-sm">
-                  {{ formatStatusLabel(selectedInstance.status) }}
-                </div>
-              </div>
-              <div class="border border-outline-3 rounded-lg p-3">
-                <div class="text-body-xs text-foreground-2">当前步骤</div>
-                <div class="text-body-sm">
-                  {{ getCurrentStep(selectedInstance)?.name || '-' }}
-                </div>
-              </div>
-              <div class="border border-outline-3 rounded-lg p-3">
-                <div class="text-body-xs text-foreground-2">资源</div>
-                <div
-                  v-if="selectedInstance.resourceType === 'MODEL'"
-                  class="space-y-1 text-body-sm"
-                >
-                  <div>
-                    模型：{{
-                      selectedModelResourceMeta?.modelName ||
-                      selectedInstance.resourceId
-                    }}
-                  </div>
-                  <div class="text-body-xs text-foreground-2">
-                    项目：{{
-                      selectedModelResourceMeta?.projectName ||
-                      selectedModelResourceMeta?.projectId ||
-                      '-'
-                    }}
-                  </div>
+            <div class="xl:col-span-1 border border-outline-3 rounded-lg">
+              <div class="p-3 border-b border-outline-3">
+                <div class="flex flex-wrap gap-2">
                   <button
-                    class="px-2 py-1 rounded border border-outline-3 text-body-xs disabled:opacity-50"
-                    :disabled="
-                      !selectedModelResourceMeta?.projectId ||
-                      !selectedModelResourceMeta?.modelId
+                    v-for="tab in detailTabs"
+                    :key="tab.value"
+                    class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
+                    :class="
+                      detailTab === tab.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-outline-3 text-foreground-2'
                     "
-                    @click="openModelPreview"
+                    @click="detailTab = tab.value"
                   >
-                    预览模型
+                    {{ tab.label }}
                   </button>
                 </div>
-                <div v-else class="text-body-sm">
-                  {{ selectedInstance.resourceType }}: {{ selectedInstance.resourceId }}
-                </div>
               </div>
-              <div class="border border-outline-3 rounded-lg p-3">
-                <div class="text-body-xs text-foreground-2">发起时间</div>
-                <div class="text-body-sm">
-                  {{ formatDate(selectedInstance.createdAt) }}
-                </div>
-              </div>
-            </div>
-            <div class="border border-outline-3 rounded-lg p-3 space-y-2">
-              <div class="text-body-xs text-foreground-2">流程内容</div>
-              <div
-                v-if="getFormDisplayItems(selectedInstance).length"
-                class="space-y-2"
-              >
-                <div
-                  v-for="item in getFormDisplayItems(selectedInstance)"
-                  :key="item.key"
-                  class="grid grid-cols-1 md:grid-cols-3 gap-2 text-body-xs"
-                >
-                  <div class="text-foreground-2">{{ item.label }}</div>
-                  <div class="md:col-span-2 break-all">{{ item.value }}</div>
-                </div>
-              </div>
-              <pre v-else class="text-body-xs whitespace-pre-wrap break-all">{{
-                stringifyValue(selectedInstance.formData)
-              }}</pre>
-            </div>
-            <div
-              v-if="selectedInstance.status === 'PENDING'"
-              class="flex flex-wrap gap-2 border border-outline-3 rounded-lg p-3"
-            >
-              <button
-                class="px-2 py-1 rounded bg-success text-foundation-page text-body-xs disabled:opacity-50"
-                :disabled="mutating"
-                @click="openReviewDialog('approve', selectedInstance.id)"
-              >
-                通过
-              </button>
-              <button
-                class="px-2 py-1 rounded bg-danger text-foundation-page text-body-xs disabled:opacity-50"
-                :disabled="mutating"
-                @click="openReviewDialog('reject', selectedInstance.id)"
-              >
-                驳回
-              </button>
-              <button
-                class="px-2 py-1 rounded bg-warning text-foundation-page text-body-xs disabled:opacity-50"
-                :disabled="mutating"
-                @click="openReviewDialog('cancel', selectedInstance.id)"
-              >
-                取消
-              </button>
-            </div>
-          </div>
 
-          <div v-else-if="detailTab === 'logs'" class="space-y-2">
-            <div
-              v-if="!selectedInstance.actions.length"
-              class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
-            >
-              暂无流程日志
-            </div>
-            <div
-              v-for="action in selectedInstance.actions"
-              :key="action.id"
-              class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
-            >
-              {{ formatActionLabel(action.action) }} ·
-              {{ action.actor?.name || action.actorId }} ·
-              {{ formatDate(action.createdAt) }}
-              <span v-if="action.toStatus">
-                · {{ formatStatusLabel(action.toStatus) }}
-              </span>
-              <span v-if="action.comment">· {{ action.comment }}</span>
-            </div>
-          </div>
-
-          <div v-else class="space-y-3">
-            <div class="flex flex-wrap gap-2 text-body-xs">
-              <span class="px-2 py-1 rounded-full bg-success/10 text-success">
-                已完成
-              </span>
-              <span class="px-2 py-1 rounded-full bg-primary/10 text-primary">
-                当前步骤
-              </span>
-              <span class="px-2 py-1 rounded-full bg-foundation-2 text-foreground-2">
-                未开始
-              </span>
-              <span class="px-2 py-1 rounded-full bg-danger/10 text-danger">
-                已拒绝/已取消
-              </span>
-            </div>
-            <div
-              v-for="step in selectedInstance.steps"
-              :key="step.id"
-              class="border rounded-lg p-3"
-              :class="getStepCardClass(step.status)"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div class="text-body-sm font-medium">
-                  Step {{ step.stepIndex }} · {{ step.name }}
+              <div class="p-3 space-y-3">
+                <div v-if="detailTab === 'logs'" class="space-y-2">
+                  <div
+                    v-if="!selectedInstance.actions.length"
+                    class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
+                  >
+                    暂无流程日志
+                  </div>
+                  <div
+                    v-for="action in selectedInstance.actions"
+                    :key="action.id"
+                    class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
+                  >
+                    {{ formatActionLabel(action.action) }} ·
+                    {{ action.actor?.name || action.actorId }} ·
+                    {{ formatDate(action.createdAt) }}
+                    <span v-if="action.toStatus">
+                      · {{ formatStatusLabel(action.toStatus) }}
+                    </span>
+                    <span v-if="action.comment">· {{ action.comment }}</span>
+                  </div>
                 </div>
-                <span
-                  class="text-body-xs px-2 py-0.5 rounded-full"
-                  :class="getStepTagClass(step.status)"
-                >
-                  {{ formatStepStatusLabel(step.status) }}
-                </span>
-              </div>
-              <div class="text-body-xs text-foreground-2 mt-1">
-                审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
-              </div>
-              <div class="text-body-xs text-foreground-2 mt-1">
-                审核人：{{
-                  step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
-                }}
-              </div>
-              <div class="text-body-xs text-foreground-2 mt-1">
-                开始：{{ formatDate(step.startedAt) }} · 截止：{{
-                  formatDate(step.dueAt)
-                }}
-                · 完成：{{ formatDate(step.completedAt) }}
+
+                <div v-else class="space-y-3">
+                  <div class="flex flex-wrap gap-2 text-body-xs">
+                    <span class="px-2 py-1 rounded-full bg-success/10 text-success">
+                      已完成
+                    </span>
+                    <span class="px-2 py-1 rounded-full bg-primary/10 text-primary">
+                      当前步骤
+                    </span>
+                    <span
+                      class="px-2 py-1 rounded-full bg-foundation-2 text-foreground-2"
+                    >
+                      未开始
+                    </span>
+                    <span class="px-2 py-1 rounded-full bg-danger/10 text-danger">
+                      已拒绝/已取消
+                    </span>
+                  </div>
+                  <div
+                    v-for="step in selectedInstance.steps"
+                    :key="step.id"
+                    class="border rounded-lg p-3"
+                    :class="getStepCardClass(step.status)"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="text-body-sm font-medium">
+                        Step {{ step.stepIndex }} · {{ step.name }}
+                      </div>
+                      <span
+                        class="text-body-xs px-2 py-0.5 rounded-full"
+                        :class="getStepTagClass(step.status)"
+                      >
+                        {{ formatStepStatusLabel(step.status) }}
+                      </span>
+                    </div>
+                    <div class="text-body-xs text-foreground-2 mt-1">
+                      审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+                    </div>
+                    <div class="text-body-xs text-foreground-2 mt-1">
+                      审核人：{{
+                        step.approverIds.length
+                          ? step.approverIds.join('、')
+                          : '任意审批人'
+                      }}
+                    </div>
+                    <div class="text-body-xs text-foreground-2 mt-1">
+                      开始：{{ formatDate(step.startedAt) }} · 截止：{{
+                        formatDate(step.dueAt)
+                      }}
+                      · 完成：{{ formatDate(step.completedAt) }}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -441,52 +357,11 @@ const cancelFlowMutation = graphql(`
   }
 `)
 
-const modelMetaByResourceQuery = graphql(`
-  query FlowModelMetaByResource($modelIds: [String!]) {
-    activeUser {
-      id
-      projects(limit: 100) {
-        items {
-          id
-          name
-          models(limit: 1, filter: { ids: $modelIds }) {
-            items {
-              id
-              name
-              projectId
-            }
-          }
-        }
-      }
-    }
-  }
-`) as unknown as TypedDocumentNode<
-  {
-    activeUser: {
-      id: string
-      projects: {
-        items: Array<{
-          id: string
-          name: string
-          models: {
-            items: Array<{
-              id: string
-              name: string
-              projectId: string
-            }>
-          }
-        }>
-      }
-    } | null
-  },
-  { modelIds: string[] }
->
-
 type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
 type FlowStats = FlowInstancesQuery['approvalFlowStats']
 type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
-type FlowDetailTab = 'content' | 'logs' | 'diagram'
+type FlowDetailTab = 'logs' | 'diagram'
 type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
 
 const apollo = useApolloClient().client
@@ -503,14 +378,8 @@ const isReviewDialogOpen = ref(false)
 const selectedReviewAction = ref<FlowReviewAction>('approve')
 const selectedReviewInstanceId = ref<string | null>(null)
 const selectedInstance = ref<FlowListItem | null>(null)
-const selectedModelResourceMeta = ref<{
-  modelId: string
-  modelName: string
-  projectId: string
-  projectName: string
-} | null>(null)
 const definitions = ref<FlowDefinitionListItem[]>([])
-const detailTab = ref<FlowDetailTab>('content')
+const detailTab = ref<FlowDetailTab>('logs')
 const stats = ref<FlowStats>({
   totalCount: 0,
   pendingCount: 0,
@@ -612,7 +481,6 @@ const filteredTotalCount = computed(() => {
 })
 
 const detailTabs = [
-  { value: 'content' as FlowDetailTab, label: '流程内容' },
   { value: 'logs' as FlowDetailTab, label: '流程日志' },
   { value: 'diagram' as FlowDetailTab, label: '流程图' }
 ]
@@ -630,60 +498,6 @@ const getCurrentApprovers = (instance: FlowListItem) => {
   const step = getCurrentStep(instance)
   if (!step) return '-'
   return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
-}
-
-const stringifyValue = (value: unknown) => {
-  if (!value) return '-'
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
-  }
-}
-
-const normalizeFormData = (formData: unknown) => {
-  if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
-    return {}
-  }
-  return formData as Record<string, unknown>
-}
-
-const formatFormValue = (value: unknown) => {
-  if (value === null || value === undefined || value === '') return '-'
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-  if (Array.isArray(value)) {
-    if (!value.length) return '-'
-    return value
-      .map((item) => {
-        if (item === null || item === undefined) return '-'
-        if (
-          typeof item === 'string' ||
-          typeof item === 'number' ||
-          typeof item === 'boolean'
-        ) {
-          return String(item)
-        }
-        return stringifyValue(item)
-      })
-      .join('，')
-  }
-  return stringifyValue(value)
-}
-
-const getFormDisplayItems = (instance: FlowListItem) => {
-  const formData = normalizeFormData(instance.formData)
-  const definitionSchema =
-    definitions.value.find((definition) => definition.id === instance.definition?.id)
-      ?.formSchema || []
-  const fieldNameByKey = new Map(
-    definitionSchema.map((field) => [field.key, field.name || field.key])
-  )
-  return Object.keys(formData).map((key) => ({
-    key,
-    label: fieldNameByKey.get(key) || key,
-    value: formatFormValue(formData[key])
-  }))
 }
 
 const loadDefinitions = async () => {
@@ -731,67 +545,13 @@ const loadInstances = async (nextCursor?: string | null) => {
   }
 }
 
-const loadSelectedModelResourceMeta = async (instance: FlowListItem) => {
-  if (instance.resourceType !== 'MODEL' || !instance.resourceId) {
-    selectedModelResourceMeta.value = null
-    return
-  }
-
-  try {
-    const modelRes = await apollo.query({
-      query: modelMetaByResourceQuery,
-      variables: {
-        modelIds: [instance.resourceId]
-      },
-      fetchPolicy: 'network-only'
-    })
-    const projects = modelRes.data?.activeUser?.projects?.items || []
-    const matchedProject = projects.find(
-      (project) => (project.models?.items || []).length > 0
-    )
-    const model = matchedProject?.models?.items?.[0]
-    if (!matchedProject?.id || !model?.id) {
-      selectedModelResourceMeta.value = null
-      return
-    }
-
-    selectedModelResourceMeta.value = {
-      modelId: model.id,
-      modelName: model.name || model.id,
-      projectId: model.projectId || matchedProject.id,
-      projectName: matchedProject.name || ''
-    }
-  } catch {
-    selectedModelResourceMeta.value = null
-  }
-}
-
-const openModelPreview = () => {
-  if (
-    !selectedModelResourceMeta.value?.projectId ||
-    !selectedModelResourceMeta.value?.modelId
-  )
-    return
-  window.open(
-    `/projects/${selectedModelResourceMeta.value.projectId}/models/${selectedModelResourceMeta.value.modelId}`
-  )
-}
-
 const openInstanceDrawer = (instance: FlowListItem) => {
   selectedInstance.value = instance
-  detailTab.value = 'content'
-  void loadSelectedModelResourceMeta(instance)
+  detailTab.value = 'logs'
 }
 
 const closeDrawer = () => {
   selectedInstance.value = null
-  selectedModelResourceMeta.value = null
-}
-
-const openReviewDialog = (action: FlowReviewAction, instanceId: string) => {
-  selectedReviewAction.value = action
-  selectedReviewInstanceId.value = instanceId
-  isReviewDialogOpen.value = true
 }
 
 const submitReviewAction = async (payload: {

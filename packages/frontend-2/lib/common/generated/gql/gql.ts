@@ -40,6 +40,7 @@ type Documents = {
     "\n  fragment AutomateViewerPanel_AutomateRun on AutomateRun {\n    id\n    functionRuns {\n      id\n      ...AutomateViewerPanelFunctionRunRow_AutomateFunctionRun\n    }\n    ...AutomationsStatusOrderedRuns_AutomationRun\n  }\n": typeof types.AutomateViewerPanel_AutomateRunFragmentDoc,
     "\n  fragment AutomateViewerPanelFunctionRunRow_AutomateFunctionRun on AutomateFunctionRun {\n    id\n    results\n    status\n    statusMessage\n    contextView\n    function {\n      id\n      logo\n      name\n    }\n    createdAt\n    updatedAt\n  }\n": typeof types.AutomateViewerPanelFunctionRunRow_AutomateFunctionRunFragmentDoc,
     "\n  fragment BillingAlert_Workspace on Workspace {\n    id\n    role\n    slug\n    plan {\n      name\n      status\n      createdAt\n    }\n    subscription {\n      billingInterval\n      currentBillingCycleEnd\n    }\n  }\n": typeof types.BillingAlert_WorkspaceFragmentDoc,
+    "\n  query CommonModelObjectMultiSelectDrawerProjects {\n    activeUser {\n      id\n      projects(limit: 200) {\n        items {\n          id\n          name\n          models(limit: 200) {\n            items {\n              id\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n": typeof types.CommonModelObjectMultiSelectDrawerProjectsDocument,
     "\n  fragment CommonModelSelectorModel on Model {\n    id\n    name\n  }\n": typeof types.CommonModelSelectorModelFragmentDoc,
     "\n  query DashboardSidebar {\n    activeUser {\n      id\n      activeWorkspace {\n        id\n        role\n      }\n    }\n  }\n": typeof types.DashboardSidebarDocument,
     "\n  query SidebarPermissions($slug: String!) {\n    workspaceBySlug(slug: $slug) {\n      permissions {\n        canListDashboards {\n          ...FullPermissionCheckResult\n        }\n      }\n    }\n  }\n": typeof types.SidebarPermissionsDocument,
@@ -56,7 +57,6 @@ type Documents = {
     "\n  mutation FlowApprove($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.FlowApproveDocument,
     "\n  mutation FlowReject($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.FlowRejectDocument,
     "\n  mutation FlowCancel($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.FlowCancelDocument,
-    "\n  query FlowModelMetaByResource($modelIds: [String!]) {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          models(limit: 1, filter: { ids: $modelIds }) {\n            items {\n              id\n              name\n              projectId\n            }\n          }\n        }\n      }\n    }\n  }\n": typeof types.FlowModelMetaByResourceDocument,
     "\n  mutation FlowCreateDefinition($input: CreateApprovalFlowDefinitionInput!) {\n    approvalMutations {\n      createDefinition(input: $input) {\n        id\n        name\n      }\n    }\n  }\n": typeof types.FlowCreateDefinitionDocument,
     "\n  mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {\n    approvalMutations {\n      setDefinitionActive(definitionId: $definitionId, isActive: $isActive) {\n        id\n        isActive\n      }\n    }\n  }\n": typeof types.FlowSetDefinitionActiveDocument,
     "\n  mutation FlowProcessTimeouts {\n    approvalMutations {\n      processTimeouts\n    }\n  }\n": typeof types.FlowProcessTimeoutsDocument,
@@ -623,6 +623,7 @@ const documents: Documents = {
     "\n  fragment AutomateViewerPanel_AutomateRun on AutomateRun {\n    id\n    functionRuns {\n      id\n      ...AutomateViewerPanelFunctionRunRow_AutomateFunctionRun\n    }\n    ...AutomationsStatusOrderedRuns_AutomationRun\n  }\n": types.AutomateViewerPanel_AutomateRunFragmentDoc,
     "\n  fragment AutomateViewerPanelFunctionRunRow_AutomateFunctionRun on AutomateFunctionRun {\n    id\n    results\n    status\n    statusMessage\n    contextView\n    function {\n      id\n      logo\n      name\n    }\n    createdAt\n    updatedAt\n  }\n": types.AutomateViewerPanelFunctionRunRow_AutomateFunctionRunFragmentDoc,
     "\n  fragment BillingAlert_Workspace on Workspace {\n    id\n    role\n    slug\n    plan {\n      name\n      status\n      createdAt\n    }\n    subscription {\n      billingInterval\n      currentBillingCycleEnd\n    }\n  }\n": types.BillingAlert_WorkspaceFragmentDoc,
+    "\n  query CommonModelObjectMultiSelectDrawerProjects {\n    activeUser {\n      id\n      projects(limit: 200) {\n        items {\n          id\n          name\n          models(limit: 200) {\n            items {\n              id\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n": types.CommonModelObjectMultiSelectDrawerProjectsDocument,
     "\n  fragment CommonModelSelectorModel on Model {\n    id\n    name\n  }\n": types.CommonModelSelectorModelFragmentDoc,
     "\n  query DashboardSidebar {\n    activeUser {\n      id\n      activeWorkspace {\n        id\n        role\n      }\n    }\n  }\n": types.DashboardSidebarDocument,
     "\n  query SidebarPermissions($slug: String!) {\n    workspaceBySlug(slug: $slug) {\n      permissions {\n        canListDashboards {\n          ...FullPermissionCheckResult\n        }\n      }\n    }\n  }\n": types.SidebarPermissionsDocument,
@@ -639,7 +640,6 @@ const documents: Documents = {
     "\n  mutation FlowApprove($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.FlowApproveDocument,
     "\n  mutation FlowReject($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.FlowRejectDocument,
     "\n  mutation FlowCancel($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.FlowCancelDocument,
-    "\n  query FlowModelMetaByResource($modelIds: [String!]) {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          models(limit: 1, filter: { ids: $modelIds }) {\n            items {\n              id\n              name\n              projectId\n            }\n          }\n        }\n      }\n    }\n  }\n": types.FlowModelMetaByResourceDocument,
     "\n  mutation FlowCreateDefinition($input: CreateApprovalFlowDefinitionInput!) {\n    approvalMutations {\n      createDefinition(input: $input) {\n        id\n        name\n      }\n    }\n  }\n": types.FlowCreateDefinitionDocument,
     "\n  mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {\n    approvalMutations {\n      setDefinitionActive(definitionId: $definitionId, isActive: $isActive) {\n        id\n        isActive\n      }\n    }\n  }\n": types.FlowSetDefinitionActiveDocument,
     "\n  mutation FlowProcessTimeouts {\n    approvalMutations {\n      processTimeouts\n    }\n  }\n": types.FlowProcessTimeoutsDocument,
@@ -1301,6 +1301,10 @@ export function graphql(source: "\n  fragment BillingAlert_Workspace on Workspac
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query CommonModelObjectMultiSelectDrawerProjects {\n    activeUser {\n      id\n      projects(limit: 200) {\n        items {\n          id\n          name\n          models(limit: 200) {\n            items {\n              id\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query CommonModelObjectMultiSelectDrawerProjects {\n    activeUser {\n      id\n      projects(limit: 200) {\n        items {\n          id\n          name\n          models(limit: 200) {\n            items {\n              id\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  fragment CommonModelSelectorModel on Model {\n    id\n    name\n  }\n"): (typeof documents)["\n  fragment CommonModelSelectorModel on Model {\n    id\n    name\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1362,10 +1366,6 @@ export function graphql(source: "\n  mutation FlowReject($input: RejectApprovalF
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation FlowCancel($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation FlowCancel($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query FlowModelMetaByResource($modelIds: [String!]) {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          models(limit: 1, filter: { ids: $modelIds }) {\n            items {\n              id\n              name\n              projectId\n            }\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query FlowModelMetaByResource($modelIds: [String!]) {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          models(limit: 1, filter: { ids: $modelIds }) {\n            items {\n              id\n              name\n              projectId\n            }\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

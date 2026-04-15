@@ -1517,6 +1517,15 @@ export type CreateModelInput = {
   projectId: Scalars['ID']['input'];
 };
 
+export type CreateMonthlyMeasurementInput = {
+  baseDate: Scalars['BigInt']['input'];
+  code: Scalars['String']['input'];
+  flowTemplateId?: InputMaybe<Scalars['ID']['input']>;
+  measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
+  projectId: Scalars['ID']['input'];
+  unit?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateQualityAcceptanceFormInput = {
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
@@ -1744,6 +1753,11 @@ export type DeleteFolderInput = {
 };
 
 export type DeleteModelInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
+export type DeleteMonthlyMeasurementInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
 };
@@ -2390,6 +2404,116 @@ export type ModelsTreeItemCollection = {
   cursor?: Maybe<Scalars['String']['output']>;
   items: Array<ModelsTreeItem>;
   totalCount: Scalars['Int']['output'];
+};
+
+export type MonthlyMeasurement = {
+  __typename?: 'MonthlyMeasurement';
+  approveStatus?: Maybe<Scalars['String']['output']>;
+  baseDate: Scalars['BigInt']['output'];
+  code: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  creator?: Maybe<LimitedUser>;
+  creatorId?: Maybe<Scalars['ID']['output']>;
+  flowInstanceId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  items: Array<MonthlyMeasurementItem>;
+  projectId: Scalars['ID']['output'];
+  unit?: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type MonthlyMeasurementCollection = {
+  __typename?: 'MonthlyMeasurementCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<MonthlyMeasurement>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type MonthlyMeasurementItem = {
+  __typename?: 'MonthlyMeasurementItem';
+  approvedCumulativeQty?: Maybe<Scalars['Float']['output']>;
+  boqCode?: Maybe<Scalars['String']['output']>;
+  boqDepth: Scalars['Int']['output'];
+  boqItemId: Scalars['ID']['output'];
+  boqName?: Maybe<Scalars['String']['output']>;
+  boqParentId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  isSummaryRow: Scalars['Boolean']['output'];
+  measuredQty?: Maybe<Scalars['Float']['output']>;
+  pendingTotalQty?: Maybe<Scalars['Float']['output']>;
+  price?: Maybe<Scalars['Float']['output']>;
+  remark?: Maybe<Scalars['String']['output']>;
+  sortIndex: Scalars['Int']['output'];
+  sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  uom?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonthlyMeasurementItemPreviewItem = {
+  __typename?: 'MonthlyMeasurementItemPreviewItem';
+  approvedCumulativeQty: Scalars['Float']['output'];
+  boqCode: Scalars['String']['output'];
+  boqDepth: Scalars['Int']['output'];
+  boqItemId: Scalars['ID']['output'];
+  boqName: Scalars['String']['output'];
+  boqParentId?: Maybe<Scalars['ID']['output']>;
+  isSummaryRow: Scalars['Boolean']['output'];
+  measuredQtyDefault: Scalars['Float']['output'];
+  pendingTotalQty: Scalars['Float']['output'];
+  price?: Maybe<Scalars['Float']['output']>;
+  sortIndex: Scalars['Int']['output'];
+  sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  uom?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonthlyMeasurementMeasuredItemInput = {
+  boqItemId: Scalars['ID']['input'];
+  measuredQty?: InputMaybe<Scalars['Float']['input']>;
+  remark?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type MonthlyMeasurementMutations = {
+  __typename?: 'MonthlyMeasurementMutations';
+  create: MonthlyMeasurement;
+  delete: Scalars['Boolean']['output'];
+  preview: MonthlyMeasurementPreview;
+  submit: MonthlyMeasurement;
+  update: MonthlyMeasurement;
+};
+
+
+export type MonthlyMeasurementMutationsCreateArgs = {
+  input: CreateMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsDeleteArgs = {
+  input: DeleteMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsPreviewArgs = {
+  input: MonthlyMeasurementPreviewInput;
+};
+
+
+export type MonthlyMeasurementMutationsSubmitArgs = {
+  input: SubmitMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsUpdateArgs = {
+  input: UpdateMonthlyMeasurementInput;
+};
+
+export type MonthlyMeasurementPreview = {
+  __typename?: 'MonthlyMeasurementPreview';
+  baseDate: Scalars['BigInt']['output'];
+  items: Array<MonthlyMeasurementItemPreviewItem>;
+};
+
+export type MonthlyMeasurementPreviewInput = {
+  baseDate: Scalars['BigInt']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 export type MoveBoqItemInput = {
@@ -3095,6 +3219,7 @@ export type Project = {
    * real or fake (e.g., with a foo/bar model, it will be nested under foo even if such a model doesn't actually exist)
    */
   modelsTree: ModelsTreeItemCollection;
+  monthlyMeasurements: MonthlyMeasurementCollection;
   /** Returns information about the potential effects of moving a project to a given workspace. */
   moveToWorkspaceDryRun: ProjectMoveToWorkspaceDryRun;
   name: Scalars['String']['output'];
@@ -3263,6 +3388,11 @@ export type ProjectModelsTreeArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ProjectModelsTreeFilter>;
   limit?: Scalars['Int']['input'];
+};
+
+
+export type ProjectMonthlyMeasurementsArgs = {
+  input?: InputMaybe<ProjectMonthlyMeasurementsInput>;
 };
 
 
@@ -3686,6 +3816,12 @@ export const ProjectModelsUpdatedMessageType = {
 } as const;
 
 export type ProjectModelsUpdatedMessageType = typeof ProjectModelsUpdatedMessageType[keyof typeof ProjectModelsUpdatedMessageType];
+export type ProjectMonthlyMeasurementsInput = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: Scalars['Int']['input'];
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ProjectMoveToWorkspaceDryRun = {
   __typename?: 'ProjectMoveToWorkspaceDryRun';
   addedToWorkspace: Array<LimitedUser>;
@@ -3719,6 +3855,7 @@ export type ProjectMutations = {
   invites: ProjectInviteMutations;
   /** Leave a project. Only possible if you're not the last remaining owner. */
   leave: Scalars['Boolean']['output'];
+  monthlyMeasurementMutations: MonthlyMeasurementMutations;
   qualityAcceptanceMutations: QualityAcceptanceMutations;
   revokeEmbedToken: Scalars['Boolean']['output'];
   revokeEmbedTokens: Scalars['Boolean']['output'];
@@ -5138,6 +5275,11 @@ export type StreamUpdatePermissionInput = {
   userId: Scalars['String']['input'];
 };
 
+export type SubmitMonthlyMeasurementInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 export type Subscription = {
   __typename?: 'Subscription';
   /** It's lonely in the void. */
@@ -5511,6 +5653,15 @@ export type UpdateModelInput = {
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
+};
+
+export type UpdateMonthlyMeasurementInput = {
+  baseDate: Scalars['BigInt']['input'];
+  code: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+  measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
+  projectId: Scalars['ID']['input'];
+  unit?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateQualityAcceptanceFormInput = {
@@ -7060,6 +7211,11 @@ export type AutomateViewerPanelFunctionRunRow_AutomateFunctionRunFragment = { __
 
 export type BillingAlert_WorkspaceFragment = { __typename?: 'Workspace', id: string, role?: string | null, slug: string, plan?: { __typename?: 'WorkspacePlan', name: WorkspacePlans, status: WorkspacePlanStatuses, createdAt: string } | null, subscription?: { __typename?: 'WorkspaceSubscription', billingInterval: BillingInterval, currentBillingCycleEnd: string } | null };
 
+export type CommonModelObjectMultiSelectDrawerProjectsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CommonModelObjectMultiSelectDrawerProjectsQuery = { __typename?: 'Query', activeUser?: { __typename?: 'User', id: string, projects: { __typename?: 'UserProjectCollection', items: Array<{ __typename?: 'Project', id: string, name: string, models: { __typename?: 'ModelCollection', items: Array<{ __typename?: 'Model', id: string, name: string }> } }> } } | null };
+
 export type CommonModelSelectorModelFragment = { __typename?: 'Model', id: string, name: string };
 
 export type DashboardSidebarQueryVariables = Exact<{ [key: string]: never; }>;
@@ -7157,13 +7313,6 @@ export type FlowCancelMutationVariables = Exact<{
 
 
 export type FlowCancelMutation = { __typename?: 'Mutation', approvalMutations: { __typename?: 'ApprovalMutations', cancel: { __typename?: 'ApprovalFlowInstance', id: string, status: ApprovalFlowStatus } } };
-
-export type FlowModelMetaByResourceQueryVariables = Exact<{
-  modelIds?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-}>;
-
-
-export type FlowModelMetaByResourceQuery = { __typename?: 'Query', activeUser?: { __typename?: 'User', id: string, projects: { __typename?: 'UserProjectCollection', items: Array<{ __typename?: 'Project', id: string, name: string, models: { __typename?: 'ModelCollection', items: Array<{ __typename?: 'Model', id: string, name: string, projectId: string }> } }> } } | null };
 
 export type FlowCreateDefinitionMutationVariables = Exact<{
   input: CreateApprovalFlowDefinitionInput;
@@ -10046,6 +10195,7 @@ export const WorkspaceSidebar_WorkspaceFragmentDoc = {"kind":"Document","definit
 export const WorkspacePage_WorkspaceFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspacePage_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceDashboard_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebar_Workspace"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceSidebarMembers_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"domainBasedMembershipProtectionEnabled"}},{"kind":"Field","name":{"kind":"Name","value":"defaultSeatType"}},{"kind":"Field","alias":{"kind":"Name","value":"sidebarTeam"},"name":{"kind":"Name","value":"team"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"6"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"invitedTeam"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"invitesFilter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}}]}},{"kind":"Field","name":{"kind":"Name","value":"adminWorkspacesJoinRequests"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FullPermissionCheckResult"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PermissionCheckResult"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"authorized"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"payload"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UseCanCreateWorkspaceProject_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canCreateProject"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProjectsAdd_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canCreateProject"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"UseCanCreateWorkspaceProject_Workspace"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"UseCanMoveProjectIntoWorkspace_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canMoveProjectToWorkspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceMoveProject_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canCreateProject"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}},{"kind":"Field","name":{"kind":"Name","value":"canMoveProjectToWorkspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"UseCanMoveProjectIntoWorkspace_Workspace"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceAddProjectMenu_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canCreateProject"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}},{"kind":"Field","name":{"kind":"Name","value":"canMoveProjectToWorkspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProjectsAdd_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceMoveProject_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"UseCanCreateWorkspaceProject_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"UseCanMoveProjectIntoWorkspace_Workspace"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BillingAlert_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subscription"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"billingInterval"}},{"kind":"Field","name":{"kind":"Name","value":"currentBillingCycleEnd"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceDashboardHeader_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebarMembers_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceAddProjectMenu_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"BillingAlert_Workspace"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceDashboardProjectList_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceAddProjectMenu_Workspace"}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BillingActions_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"invitedTeam"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"invitesFilter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subscription"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"billingInterval"}}]}},{"kind":"Field","name":{"kind":"Name","value":"team"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"totalCount"}}]}},{"kind":"Field","name":{"kind":"Name","value":"defaultRegion"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceSidebarAbout_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceSidebarSecurity_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"domains"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"domain"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceDashboard_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebarMembers_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceDashboardHeader_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceDashboardProjectList_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"BillingActions_Workspace"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"creationState"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"completed"}},{"kind":"Field","name":{"kind":"Name","value":"state"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkspaceSidebar_Workspace"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Workspace"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebarMembers_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebarAbout_Workspace"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkspaceSidebarSecurity_Workspace"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}},{"kind":"Field","name":{"kind":"Name","value":"domains"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"plan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<WorkspacePage_WorkspaceFragment, unknown>;
 export const AuthRegisterPanelWorkspaceInviteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AuthRegisterPanelWorkspaceInvite"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"token"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspaceInvite"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"token"},"value":{"kind":"Variable","name":{"kind":"Name","value":"token"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"AuthWorkspaceInviteHeader_PendingWorkspaceCollaborator"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LimitedUserAvatar"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"LimitedUser"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatar"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AuthWorkspaceInviteHeader_PendingWorkspaceCollaborator"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PendingWorkspaceCollaborator"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"LimitedUserAvatar"}}]}}]}}]} as unknown as DocumentNode<AuthRegisterPanelWorkspaceInviteQuery, AuthRegisterPanelWorkspaceInviteQueryVariables>;
 export const AutomationCreateDialogFunctionsSearchDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AutomationCreateDialogFunctionsSearch"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workspaceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"AutomateFunctionsFilter"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"cursor"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}},"defaultValue":{"kind":"NullValue"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspace"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workspaceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"automateFunctions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"cursor"},"value":{"kind":"Variable","name":{"kind":"Name","value":"cursor"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"cursor"}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"AutomateAutomationCreateDialog_AutomateFunction"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AutomationsFunctionsCard_AutomateFunction"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"AutomateFunction"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"isFeatured"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"logo"}},{"kind":"Field","name":{"kind":"Name","value":"repo"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"url"}},{"kind":"Field","name":{"kind":"Name","value":"owner"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AutomateAutomationCreateDialogFunctionParametersStep_AutomateFunction"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"AutomateFunction"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"releases"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"inputSchema"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AutomateAutomationCreateDialog_AutomateFunction"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"AutomateFunction"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"AutomationsFunctionsCard_AutomateFunction"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"AutomateAutomationCreateDialogFunctionParametersStep_AutomateFunction"}}]}}]} as unknown as DocumentNode<AutomationCreateDialogFunctionsSearchQuery, AutomationCreateDialogFunctionsSearchQueryVariables>;
+export const CommonModelObjectMultiSelectDrawerProjectsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"CommonModelObjectMultiSelectDrawerProjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activeUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"projects"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"200"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"models"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"200"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<CommonModelObjectMultiSelectDrawerProjectsQuery, CommonModelObjectMultiSelectDrawerProjectsQueryVariables>;
 export const DashboardSidebarDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DashboardSidebar"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activeUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"activeWorkspace"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}}]}}]}}]}}]} as unknown as DocumentNode<DashboardSidebarQuery, DashboardSidebarQueryVariables>;
 export const SidebarPermissionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SidebarPermissions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"slug"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspaceBySlug"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"slug"},"value":{"kind":"Variable","name":{"kind":"Name","value":"slug"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canListDashboards"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FullPermissionCheckResult"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PermissionCheckResult"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"authorized"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"payload"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}}]} as unknown as DocumentNode<SidebarPermissionsQuery, SidebarPermissionsQueryVariables>;
 export const DashboardsListCanCreateDashboardsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DashboardsListCanCreateDashboards"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"slug"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspaceBySlug"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"slug"},"value":{"kind":"Variable","name":{"kind":"Name","value":"slug"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"permissions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canCreateDashboards"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FullPermissionCheckResult"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FullPermissionCheckResult"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"PermissionCheckResult"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"authorized"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"payload"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}}]}}]} as unknown as DocumentNode<DashboardsListCanCreateDashboardsQuery, DashboardsListCanCreateDashboardsQueryVariables>;
@@ -10059,7 +10209,6 @@ export const FlowInstancesDocument = {"kind":"Document","definitions":[{"kind":"
 export const FlowApproveDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowApprove"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ApproveApprovalFlowInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approve"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]}}]} as unknown as DocumentNode<FlowApproveMutation, FlowApproveMutationVariables>;
 export const FlowRejectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowReject"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RejectApprovalFlowInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reject"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]}}]} as unknown as DocumentNode<FlowRejectMutation, FlowRejectMutationVariables>;
 export const FlowCancelDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowCancel"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CancelApprovalFlowInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"cancel"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]}}]} as unknown as DocumentNode<FlowCancelMutation, FlowCancelMutationVariables>;
-export const FlowModelMetaByResourceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FlowModelMetaByResource"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"modelIds"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activeUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"projects"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"100"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"models"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"ids"},"value":{"kind":"Variable","name":{"kind":"Name","value":"modelIds"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"projectId"}}]}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<FlowModelMetaByResourceQuery, FlowModelMetaByResourceQueryVariables>;
 export const FlowCreateDefinitionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowCreateDefinition"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateApprovalFlowDefinitionInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createDefinition"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]} as unknown as DocumentNode<FlowCreateDefinitionMutation, FlowCreateDefinitionMutationVariables>;
 export const FlowSetDefinitionActiveDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowSetDefinitionActive"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setDefinitionActive"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"definitionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"isActive"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}}]}}]}}]}}]} as unknown as DocumentNode<FlowSetDefinitionActiveMutation, FlowSetDefinitionActiveMutationVariables>;
 export const FlowProcessTimeoutsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowProcessTimeouts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"processTimeouts"}}]}}]}}]} as unknown as DocumentNode<FlowProcessTimeoutsMutation, FlowProcessTimeoutsMutationVariables>;
@@ -10459,6 +10608,12 @@ export type AllObjectTypes = {
   ModelPermissionChecks: ModelPermissionChecks,
   ModelsTreeItem: ModelsTreeItem,
   ModelsTreeItemCollection: ModelsTreeItemCollection,
+  MonthlyMeasurement: MonthlyMeasurement,
+  MonthlyMeasurementCollection: MonthlyMeasurementCollection,
+  MonthlyMeasurementItem: MonthlyMeasurementItem,
+  MonthlyMeasurementItemPreviewItem: MonthlyMeasurementItemPreviewItem,
+  MonthlyMeasurementMutations: MonthlyMeasurementMutations,
+  MonthlyMeasurementPreview: MonthlyMeasurementPreview,
   Mutation: Mutation,
   Object: Object,
   ObjectCollection: ObjectCollection,
@@ -11419,6 +11574,68 @@ export type ModelsTreeItemCollectionFieldArgs = {
   items: {},
   totalCount: {},
 }
+export type MonthlyMeasurementFieldArgs = {
+  approveStatus: {},
+  baseDate: {},
+  code: {},
+  createdAt: {},
+  creator: {},
+  creatorId: {},
+  flowInstanceId: {},
+  id: {},
+  items: {},
+  projectId: {},
+  unit: {},
+  updatedAt: {},
+}
+export type MonthlyMeasurementCollectionFieldArgs = {
+  cursor: {},
+  items: {},
+  totalCount: {},
+}
+export type MonthlyMeasurementItemFieldArgs = {
+  approvedCumulativeQty: {},
+  boqCode: {},
+  boqDepth: {},
+  boqItemId: {},
+  boqName: {},
+  boqParentId: {},
+  id: {},
+  isSummaryRow: {},
+  measuredQty: {},
+  pendingTotalQty: {},
+  price: {},
+  remark: {},
+  sortIndex: {},
+  sourceAcceptanceIds: {},
+  uom: {},
+}
+export type MonthlyMeasurementItemPreviewItemFieldArgs = {
+  approvedCumulativeQty: {},
+  boqCode: {},
+  boqDepth: {},
+  boqItemId: {},
+  boqName: {},
+  boqParentId: {},
+  isSummaryRow: {},
+  measuredQtyDefault: {},
+  pendingTotalQty: {},
+  price: {},
+  sortIndex: {},
+  sourceAcceptanceIds: {},
+  uom: {},
+}
+export type MonthlyMeasurementMutationsFieldArgs = {
+  create: MonthlyMeasurementMutationsCreateArgs,
+  delete: MonthlyMeasurementMutationsDeleteArgs,
+  preview: MonthlyMeasurementMutationsPreviewArgs,
+  submit: MonthlyMeasurementMutationsSubmitArgs,
+  update: MonthlyMeasurementMutationsUpdateArgs,
+}
+export type MonthlyMeasurementPreviewFieldArgs = {
+  baseDate: {},
+  items: {},
+}
 export type MutationFieldArgs = {
   _: {},
   accSyncItemMutations: {},
@@ -11584,6 +11801,7 @@ export type ProjectFieldArgs = {
   modelChildrenTree: ProjectModelChildrenTreeArgs,
   models: ProjectModelsArgs,
   modelsTree: ProjectModelsTreeArgs,
+  monthlyMeasurements: ProjectMonthlyMeasurementsArgs,
   moveToWorkspaceDryRun: ProjectMoveToWorkspaceDryRunArgs,
   name: {},
   object: ProjectObjectArgs,
@@ -11705,6 +11923,7 @@ export type ProjectMutationsFieldArgs = {
   delete: ProjectMutationsDeleteArgs,
   invites: {},
   leave: ProjectMutationsLeaveArgs,
+  monthlyMeasurementMutations: {},
   qualityAcceptanceMutations: {},
   revokeEmbedToken: ProjectMutationsRevokeEmbedTokenArgs,
   revokeEmbedTokens: ProjectMutationsRevokeEmbedTokensArgs,
@@ -12690,6 +12909,12 @@ export type AllObjectFieldArgTypes = {
   ModelPermissionChecks: ModelPermissionChecksFieldArgs,
   ModelsTreeItem: ModelsTreeItemFieldArgs,
   ModelsTreeItemCollection: ModelsTreeItemCollectionFieldArgs,
+  MonthlyMeasurement: MonthlyMeasurementFieldArgs,
+  MonthlyMeasurementCollection: MonthlyMeasurementCollectionFieldArgs,
+  MonthlyMeasurementItem: MonthlyMeasurementItemFieldArgs,
+  MonthlyMeasurementItemPreviewItem: MonthlyMeasurementItemPreviewItemFieldArgs,
+  MonthlyMeasurementMutations: MonthlyMeasurementMutationsFieldArgs,
+  MonthlyMeasurementPreview: MonthlyMeasurementPreviewFieldArgs,
   Mutation: MutationFieldArgs,
   Object: ObjectFieldArgs,
   ObjectCollection: ObjectCollectionFieldArgs,
