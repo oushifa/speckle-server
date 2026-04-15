@@ -1,0 +1,391 @@
+import type {
+  MonthlyMeasurementItemRecord,
+  MonthlyMeasurementRecord,
+  QualityAcceptanceFormRecord
+} from '@/modules/core/helpers/types'
+import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
+import { BadRequestError } from '@/modules/shared/errors'
+import cryptoRandomString from 'crypto-random-string'
+
+type MonthlyMeasurementPreviewItem = {
+  boqItemId: string
+  boqCode: string
+  boqName: string
+  boqParentId: string | null
+  boqDepth: number
+  uom: string | null
+  price: number | null
+  pendingTotalQty: number
+  approvedCumulativeQty: number
+  measuredQtyDefault: number
+  sourceAcceptanceIds: string[]
+  isSummaryRow: boolean
+  sortIndex: number
+}
+
+const prepareMonthlyMeasurementSnapshotRows = (
+  rows: MonthlyMeasurementPreviewItem[],
+  measuredItems: Array<{ boqItemId: string }> | undefined
+) => {
+  if (!rows.length) return rows
+  if (!measuredItems?.length) return rows
+
+  const selectedLeafIds = new Set(
+    measuredItems.map((item) => item.boqItemId).filter(Boolean)
+  )
+  const rowById = new Map(rows.map((row) => [row.boqItemId, row]))
+  const selectedIds = new Set<string>()
+
+  for (const row of rows) {
+    if (row.isSummaryRow || !selectedLeafIds.has(row.boqItemId)) continue
+    let cursor: string | null = row.boqItemId
+    while (cursor) {
+      if (selectedIds.has(cursor)) break
+      selectedIds.add(cursor)
+      cursor = rowById.get(cursor)?.boqParentId || null
+    }
+  }
+
+  const selectedRows = rows
+    .filter((row) => selectedIds.has(row.boqItemId))
+    .map((row) => ({ ...row }))
+  if (!selectedRows.length) return []
+
+  const selectedRowById = new Map(selectedRows.map((row) => [row.boqItemId, row]))
+  const childrenMap = new Map<string | null, MonthlyMeasurementPreviewItem[]>()
+  for (const row of selectedRows) {
+    const parentId = row.boqParentId || null
+    const list = childrenMap.get(parentId) || []
+    list.push(row)
+    childrenMap.set(parentId, list)
+  }
+
+  const ordered = selectedRows.sort((a, b) => a.sortIndex - b.sortIndex)
+  for (const row of ordered) {
+    if (!row.isSummaryRow) continue
+    row.pendingTotalQty = 0
+    row.approvedCumulativeQty = 0
+    row.measuredQtyDefault = 0
+    row.sourceAcceptanceIds = []
+  }
+  for (const row of [...ordered].sort((a, b) => b.sortIndex - a.sortIndex)) {
+    if (!row.isSummaryRow) continue
+    const children = childrenMap.get(row.boqItemId) || []
+    for (const child of children) {
+      const current = selectedRowById.get(row.boqItemId)
+      if (!current) continue
+      current.pendingTotalQty += Math.max(child.pendingTotalQty, 0)
+      current.approvedCumulativeQty += child.approvedCumulativeQty
+    }
+  }
+
+  return ordered
+}
+
+const toNumber = (value: unknown) => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+const toNullableNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value === 'number') return Number.isNaN(value) ? null : value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
+}
+
+const isApprovedStatus = (status: unknown) => {
+  if (status === 1) return true
+  if (typeof status === 'string') {
+    const normalized = status.trim().toLowerCase()
+    return normalized === 'approved' || normalized === '1'
+  }
+  return false
+}
+
+const isPendingStatus = (status: unknown) => {
+  if (status === null || status === undefined || status === '' || status === 0)
+    return true
+  if (typeof status === 'string') {
+    const normalized = status.trim().toLowerCase()
+    return normalized === '' || normalized === 'pending' || normalized === '0'
+  }
+  return false
+}
+
+const mapQualityApproveStatusFromFlowStatus = (status: string) => {
+  if (status === 'pending') return 'PENDING'
+  if (status === 'approved') return 'APPROVED'
+  if (status === 'rejected') return 'REJECTED'
+  if (status === 'canceled') return 'CANCELLED'
+  return ''
+}
+
+type BuildPreviewDeps = {
+  getQualityAcceptanceFormsBeforeBaseDate: (params: {
+    projectId: string
+    baseDate: number
+  }) => Promise<QualityAcceptanceFormRecord[]>
+  getProjectBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
+}
+
+export const buildMonthlyMeasurementPreviewFactory =
+  (deps: BuildPreviewDeps) =>
+  async (params: { projectId: string; baseDate: number }) => {
+    const [acceptanceForms, boqItems] = await Promise.all([
+      deps.getQualityAcceptanceFormsBeforeBaseDate({
+        projectId: params.projectId,
+        baseDate: params.baseDate
+      }),
+      deps.getProjectBoqItems({ projectId: params.projectId })
+    ])
+
+    const boqById = new Map(boqItems.map((item) => [item.id, item]))
+    const boqIdByCode = new Map(
+      boqItems
+        .map((item) => [item.code?.trim(), item.id] as const)
+        .filter((pair): pair is [string, string] => Boolean(pair[0]))
+    )
+
+    const grouped = new Map<
+      string,
+      {
+        pendingMeasuredQty: number
+        approvedCumulativeQty: number
+        sourceAcceptanceIds: string[]
+      }
+    >()
+
+    for (const form of acceptanceForms) {
+      const resolvedBoqItemId =
+        form.boqItemId && boqById.has(form.boqItemId)
+          ? form.boqItemId
+          : boqIdByCode.get(form.code?.trim() || '')
+      if (!resolvedBoqItemId) continue
+
+      const current = grouped.get(resolvedBoqItemId) || {
+        pendingMeasuredQty: 0,
+        approvedCumulativeQty: 0,
+        sourceAcceptanceIds: []
+      }
+      const workVolume = toNumber(form.workVolume)
+      if (isPendingStatus(form.approveStatus)) current.pendingMeasuredQty += workVolume
+      if (isApprovedStatus(form.approveStatus))
+        current.approvedCumulativeQty += workVolume
+      current.sourceAcceptanceIds.push(form.id)
+      grouped.set(resolvedBoqItemId, current)
+    }
+
+    if (!grouped.size) {
+      return {
+        baseDate: params.baseDate,
+        items: [] as MonthlyMeasurementPreviewItem[]
+      }
+    }
+
+    const includedIds = new Set<string>()
+    for (const boqItemId of grouped.keys()) {
+      let cursor: string | null = boqItemId
+      while (cursor) {
+        if (includedIds.has(cursor)) break
+        includedIds.add(cursor)
+        cursor = boqById.get(cursor)?.parentId || null
+      }
+    }
+
+    const includedItems = boqItems.filter((item) => includedIds.has(item.id))
+    const childrenMap = new Map<string | null, BoqItemRecord[]>()
+    for (const item of includedItems) {
+      const list = childrenMap.get(item.parentId || null) || []
+      list.push(item)
+      childrenMap.set(item.parentId || null, list)
+    }
+    for (const entries of childrenMap.values()) {
+      entries.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+        return a.id.localeCompare(b.id)
+      })
+    }
+
+    const previewById = new Map<string, MonthlyMeasurementPreviewItem>()
+    for (const item of includedItems) {
+      const groupedItem = grouped.get(item.id)
+      previewById.set(item.id, {
+        boqItemId: item.id,
+        boqCode: item.code,
+        boqName: item.name,
+        boqParentId: item.parentId,
+        boqDepth: item.depth,
+        uom: item.unit,
+        price: item.price === null ? null : Number(item.price),
+        pendingTotalQty: toNullableNumber(item.quantity) ?? -1,
+        approvedCumulativeQty: groupedItem?.approvedCumulativeQty || 0,
+        measuredQtyDefault: groupedItem?.pendingMeasuredQty || 0,
+        sourceAcceptanceIds: groupedItem?.sourceAcceptanceIds || [],
+        isSummaryRow: !groupedItem,
+        sortIndex: 0
+      })
+    }
+
+    const dfsAggregate = (boqItemId: string) => {
+      const children = childrenMap.get(boqItemId) || []
+      for (const child of children) {
+        dfsAggregate(child.id)
+      }
+      const current = previewById.get(boqItemId)
+      if (!current) return
+      if (!children.length) return
+      for (const child of children) {
+        const childPreview = previewById.get(child.id)
+        if (!childPreview) continue
+        current.pendingTotalQty += Math.max(childPreview.pendingTotalQty, 0)
+        current.approvedCumulativeQty += childPreview.approvedCumulativeQty
+      }
+      if (current.isSummaryRow) {
+        current.measuredQtyDefault = 0
+      }
+    }
+
+    const roots = childrenMap.get(null) || []
+    for (const root of roots) {
+      dfsAggregate(root.id)
+    }
+
+    const ordered: MonthlyMeasurementPreviewItem[] = []
+    const dfsOrdered = (boqItemId: string) => {
+      const node = previewById.get(boqItemId)
+      if (!node) return
+      ordered.push(node)
+      for (const child of childrenMap.get(boqItemId) || []) {
+        dfsOrdered(child.id)
+      }
+    }
+    for (const root of roots) {
+      dfsOrdered(root.id)
+    }
+    for (const [index, item] of ordered.entries()) {
+      item.sortIndex = index
+    }
+
+    return {
+      baseDate: params.baseDate,
+      items: ordered
+    }
+  }
+
+export const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) => {
+  if (status === 'pending') return 'PENDING'
+  if (status === 'approved') return 'APPROVED'
+  if (status === 'rejected') return 'REJECTED'
+  if (status === 'canceled') return 'CANCELLED'
+  return ''
+}
+
+type CreateMeasurementDeps = {
+  buildPreview: (params: {
+    projectId: string
+    baseDate: number
+  }) => Promise<{ baseDate: number; items: MonthlyMeasurementPreviewItem[] }>
+  createMeasurement: (
+    payload: MonthlyMeasurementRecord
+  ) => Promise<MonthlyMeasurementRecord>
+  insertMeasurementItems: (items: MonthlyMeasurementItemRecord[]) => Promise<void>
+}
+
+export const createMonthlyMeasurementFromPreviewFactory =
+  (deps: CreateMeasurementDeps) =>
+  async (params: {
+    projectId: string
+    unit?: string | null
+    code: string
+    baseDate: number
+    creator: string
+    measuredItems?: Array<{
+      boqItemId: string
+      measuredQty?: number | null
+      remark?: string
+    }>
+  }) => {
+    const preview = await deps.buildPreview({
+      projectId: params.projectId,
+      baseDate: params.baseDate
+    })
+    const rows = preview.items.filter(
+      (item) => item.isSummaryRow || item.sourceAcceptanceIds.length
+    )
+    const selectedRows = prepareMonthlyMeasurementSnapshotRows(
+      rows,
+      params.measuredItems?.map((item) => ({ boqItemId: item.boqItemId }))
+    )
+    const leafRows = selectedRows.filter((item) => !item.isSummaryRow)
+    if (!selectedRows.length || !leafRows.length) {
+      throw new BadRequestError('未找到可生成验工明细的质量验收数据')
+    }
+
+    const customValues = new Map(
+      (params.measuredItems || []).map((item) => [item.boqItemId, item])
+    )
+
+    const now = new Date()
+    const measurement = await deps.createMeasurement({
+      id: cryptoRandomString({ length: 10 }),
+      project_id: params.projectId,
+      unit: params.unit?.trim() || null,
+      code: params.code.trim(),
+      baseDate: String(params.baseDate),
+      approveStatus: null,
+      flowInstanceId: null,
+      creator: params.creator,
+      createdAt: now,
+      updatedAt: now
+    })
+
+    const items: MonthlyMeasurementItemRecord[] = selectedRows.map((row) => {
+      const custom = customValues.get(row.boqItemId)
+      const measuredQty =
+        row.isSummaryRow ||
+        custom?.measuredQty === null ||
+        custom?.measuredQty === undefined
+          ? row.measuredQtyDefault
+          : Number(custom.measuredQty)
+      return {
+        id: cryptoRandomString({ length: 10 }),
+        measurementId: measurement.id,
+        boqItemId: row.boqItemId,
+        boqCode: row.boqCode,
+        boqName: row.boqName,
+        boqParentId: row.boqParentId,
+        boqDepth: row.boqDepth,
+        isSummaryRow: row.isSummaryRow,
+        sortIndex: row.sortIndex,
+        uom: row.uom,
+        price: row.price,
+        pendingTotalQty: row.pendingTotalQty,
+        approvedCumulativeQty: row.approvedCumulativeQty,
+        measuredQty: Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty,
+        remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
+        sourceAcceptanceIds: row.sourceAcceptanceIds,
+        createdAt: now,
+        updatedAt: now
+      }
+    })
+
+    await deps.insertMeasurementItems(items)
+
+    return {
+      measurement,
+      items
+    }
+  }
+
+export const mapFlowStatusToQualityAcceptanceApproveStatus =
+  mapQualityApproveStatusFromFlowStatus
+
+export { prepareMonthlyMeasurementSnapshotRows }

@@ -1,0 +1,122 @@
+type MonthlyMeasurementItem {
+  id: ID!
+  boqItemId: ID!
+  boqCode: String
+  boqName: String
+  boqParentId: ID
+  boqDepth: Int!
+  isSummaryRow: Boolean!
+  sortIndex: Int!
+  uom: String
+  pendingTotalQty: Float
+  approvedCumulativeQty: Float
+  measuredQty: Float
+  price: Float
+  remark: String
+  sourceAcceptanceIds: [ID!]!
+}
+
+type MonthlyMeasurement {
+  id: ID!
+  projectId: ID!
+  unit: String
+  code: String!
+  baseDate: BigInt!
+  approveStatus: String
+  flowInstanceId: ID
+  creator: LimitedUser
+  creatorId: ID
+  items: [MonthlyMeasurementItem!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type MonthlyMeasurementCollection {
+  totalCount: Int!
+  cursor: String
+  items: [MonthlyMeasurement!]!
+}
+
+type MonthlyMeasurementPreview {
+  baseDate: BigInt!
+  items: [MonthlyMeasurementItemPreviewItem!]!
+}
+
+type MonthlyMeasurementItemPreviewItem {
+  boqItemId: ID!
+  boqCode: String!
+  boqName: String!
+  boqParentId: ID
+  boqDepth: Int!
+  sortIndex: Int!
+  uom: String
+  price: Float
+  pendingTotalQty: Float!
+  approvedCumulativeQty: Float!
+  measuredQtyDefault: Float!
+  sourceAcceptanceIds: [ID!]!
+  isSummaryRow: Boolean!
+}
+
+input ProjectMonthlyMeasurementsInput {
+  search: String
+  cursor: String
+  limit: Int! = 25
+}
+
+input MonthlyMeasurementPreviewInput {
+  projectId: ID!
+  baseDate: BigInt!
+}
+
+input MonthlyMeasurementMeasuredItemInput {
+  boqItemId: ID!
+  measuredQty: Float
+  remark: String
+}
+
+input CreateMonthlyMeasurementInput {
+  projectId: ID!
+  unit: String
+  code: String!
+  baseDate: BigInt!
+  flowTemplateId: ID
+  measuredItems: [MonthlyMeasurementMeasuredItemInput!]
+}
+
+input UpdateMonthlyMeasurementInput {
+  projectId: ID!
+  id: ID!
+  unit: String
+  code: String!
+  baseDate: BigInt!
+  measuredItems: [MonthlyMeasurementMeasuredItemInput!]
+}
+
+input DeleteMonthlyMeasurementInput {
+  projectId: ID!
+  id: ID!
+}
+
+input SubmitMonthlyMeasurementInput {
+  projectId: ID!
+  id: ID!
+}
+
+type MonthlyMeasurementMutations {
+  preview(input: MonthlyMeasurementPreviewInput!): MonthlyMeasurementPreview!
+  create(input: CreateMonthlyMeasurementInput!): MonthlyMeasurement!
+  update(input: UpdateMonthlyMeasurementInput!): MonthlyMeasurement!
+  delete(input: DeleteMonthlyMeasurementInput!): Boolean!
+  submit(input: SubmitMonthlyMeasurementInput!): MonthlyMeasurement!
+}
+
+extend type Project {
+  monthlyMeasurements(
+    input: ProjectMonthlyMeasurementsInput
+  ): MonthlyMeasurementCollection!
+}
+
+extend type ProjectMutations {
+  monthlyMeasurementMutations: MonthlyMeasurementMutations!
+}

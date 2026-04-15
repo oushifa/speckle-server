@@ -14,6 +14,11 @@ import {
   getOnboardingStreamUrl
 } from '@/modules/shared/helpers/envHelper'
 
+const isRemoteProjectNotFoundError = (err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err)
+  return message.includes('STREAM_NOT_FOUND') || message.includes('Project not found')
+}
+
 const getMetadata = () => {
   const url = getOnboardingStreamUrl()
   const cacheBustNumber = getOnboardingStreamCacheBustNumber()
@@ -68,14 +73,24 @@ export const ensureOnboardingProjectFactory =
 
     logger.info('Onboarding stream not found, pulling from target server...')
 
-    const res = await deps.downloadProject(
-      {
-        projectUrl: metadata.url,
-        authorId: admin.id,
-        syncComments: true
-      },
-      { logger }
-    )
+    const res = await deps
+      .downloadProject(
+        {
+          projectUrl: metadata.url,
+          authorId: admin.id,
+          syncComments: true
+        },
+        { logger }
+      )
+      .catch((err) => {
+        if (!isRemoteProjectNotFoundError(err)) throw err
+        logger.warn(
+          { onboardingUrl: metadata.url },
+          'Configured onboarding project was not found on source server, skipping bootstrap.'
+        )
+        return null
+      })
+    if (!res) return undefined
 
     logger.info('Marking stream as onboarding base...')
     // outside of multiregion context

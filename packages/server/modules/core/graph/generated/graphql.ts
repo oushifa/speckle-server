@@ -1544,6 +1544,15 @@ export type CreateModelInput = {
   projectId: Scalars['ID']['input'];
 };
 
+export type CreateMonthlyMeasurementInput = {
+  baseDate: Scalars['BigInt']['input'];
+  code: Scalars['String']['input'];
+  flowTemplateId?: InputMaybe<Scalars['ID']['input']>;
+  measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
+  projectId: Scalars['ID']['input'];
+  unit?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateQualityAcceptanceFormInput = {
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
@@ -1771,6 +1780,11 @@ export type DeleteFolderInput = {
 };
 
 export type DeleteModelInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
+export type DeleteMonthlyMeasurementInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
 };
@@ -2417,6 +2431,116 @@ export type ModelsTreeItemCollection = {
   cursor?: Maybe<Scalars['String']['output']>;
   items: Array<ModelsTreeItem>;
   totalCount: Scalars['Int']['output'];
+};
+
+export type MonthlyMeasurement = {
+  __typename?: 'MonthlyMeasurement';
+  approveStatus?: Maybe<Scalars['String']['output']>;
+  baseDate: Scalars['BigInt']['output'];
+  code: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  creator?: Maybe<LimitedUser>;
+  creatorId?: Maybe<Scalars['ID']['output']>;
+  flowInstanceId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  items: Array<MonthlyMeasurementItem>;
+  projectId: Scalars['ID']['output'];
+  unit?: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type MonthlyMeasurementCollection = {
+  __typename?: 'MonthlyMeasurementCollection';
+  cursor?: Maybe<Scalars['String']['output']>;
+  items: Array<MonthlyMeasurement>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type MonthlyMeasurementItem = {
+  __typename?: 'MonthlyMeasurementItem';
+  approvedCumulativeQty?: Maybe<Scalars['Float']['output']>;
+  boqCode?: Maybe<Scalars['String']['output']>;
+  boqDepth: Scalars['Int']['output'];
+  boqItemId: Scalars['ID']['output'];
+  boqName?: Maybe<Scalars['String']['output']>;
+  boqParentId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  isSummaryRow: Scalars['Boolean']['output'];
+  measuredQty?: Maybe<Scalars['Float']['output']>;
+  pendingTotalQty?: Maybe<Scalars['Float']['output']>;
+  price?: Maybe<Scalars['Float']['output']>;
+  remark?: Maybe<Scalars['String']['output']>;
+  sortIndex: Scalars['Int']['output'];
+  sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  uom?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonthlyMeasurementItemPreviewItem = {
+  __typename?: 'MonthlyMeasurementItemPreviewItem';
+  approvedCumulativeQty: Scalars['Float']['output'];
+  boqCode: Scalars['String']['output'];
+  boqDepth: Scalars['Int']['output'];
+  boqItemId: Scalars['ID']['output'];
+  boqName: Scalars['String']['output'];
+  boqParentId?: Maybe<Scalars['ID']['output']>;
+  isSummaryRow: Scalars['Boolean']['output'];
+  measuredQtyDefault: Scalars['Float']['output'];
+  pendingTotalQty: Scalars['Float']['output'];
+  price?: Maybe<Scalars['Float']['output']>;
+  sortIndex: Scalars['Int']['output'];
+  sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  uom?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonthlyMeasurementMeasuredItemInput = {
+  boqItemId: Scalars['ID']['input'];
+  measuredQty?: InputMaybe<Scalars['Float']['input']>;
+  remark?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type MonthlyMeasurementMutations = {
+  __typename?: 'MonthlyMeasurementMutations';
+  create: MonthlyMeasurement;
+  delete: Scalars['Boolean']['output'];
+  preview: MonthlyMeasurementPreview;
+  submit: MonthlyMeasurement;
+  update: MonthlyMeasurement;
+};
+
+
+export type MonthlyMeasurementMutationsCreateArgs = {
+  input: CreateMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsDeleteArgs = {
+  input: DeleteMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsPreviewArgs = {
+  input: MonthlyMeasurementPreviewInput;
+};
+
+
+export type MonthlyMeasurementMutationsSubmitArgs = {
+  input: SubmitMonthlyMeasurementInput;
+};
+
+
+export type MonthlyMeasurementMutationsUpdateArgs = {
+  input: UpdateMonthlyMeasurementInput;
+};
+
+export type MonthlyMeasurementPreview = {
+  __typename?: 'MonthlyMeasurementPreview';
+  baseDate: Scalars['BigInt']['output'];
+  items: Array<MonthlyMeasurementItemPreviewItem>;
+};
+
+export type MonthlyMeasurementPreviewInput = {
+  baseDate: Scalars['BigInt']['input'];
+  projectId: Scalars['ID']['input'];
 };
 
 export type MoveBoqItemInput = {
@@ -3122,6 +3246,7 @@ export type Project = {
    * real or fake (e.g., with a foo/bar model, it will be nested under foo even if such a model doesn't actually exist)
    */
   modelsTree: ModelsTreeItemCollection;
+  monthlyMeasurements: MonthlyMeasurementCollection;
   /** Returns information about the potential effects of moving a project to a given workspace. */
   moveToWorkspaceDryRun: ProjectMoveToWorkspaceDryRun;
   name: Scalars['String']['output'];
@@ -3290,6 +3415,11 @@ export type ProjectModelsTreeArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ProjectModelsTreeFilter>;
   limit?: Scalars['Int']['input'];
+};
+
+
+export type ProjectMonthlyMeasurementsArgs = {
+  input?: InputMaybe<ProjectMonthlyMeasurementsInput>;
 };
 
 
@@ -3713,6 +3843,12 @@ export const ProjectModelsUpdatedMessageType = {
 } as const;
 
 export type ProjectModelsUpdatedMessageType = typeof ProjectModelsUpdatedMessageType[keyof typeof ProjectModelsUpdatedMessageType];
+export type ProjectMonthlyMeasurementsInput = {
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  limit?: Scalars['Int']['input'];
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ProjectMoveToWorkspaceDryRun = {
   __typename?: 'ProjectMoveToWorkspaceDryRun';
   addedToWorkspace: Array<LimitedUser>;
@@ -3746,6 +3882,7 @@ export type ProjectMutations = {
   invites: ProjectInviteMutations;
   /** Leave a project. Only possible if you're not the last remaining owner. */
   leave: Scalars['Boolean']['output'];
+  monthlyMeasurementMutations: MonthlyMeasurementMutations;
   qualityAcceptanceMutations: QualityAcceptanceMutations;
   revokeEmbedToken: Scalars['Boolean']['output'];
   revokeEmbedTokens: Scalars['Boolean']['output'];
@@ -5165,6 +5302,11 @@ export type StreamUpdatePermissionInput = {
   userId: Scalars['String']['input'];
 };
 
+export type SubmitMonthlyMeasurementInput = {
+  id: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 export type Subscription = {
   __typename?: 'Subscription';
   /** It's lonely in the void. */
@@ -5538,6 +5680,15 @@ export type UpdateModelInput = {
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
+};
+
+export type UpdateMonthlyMeasurementInput = {
+  baseDate: Scalars['BigInt']['input'];
+  code: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+  measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
+  projectId: Scalars['ID']['input'];
+  unit?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateQualityAcceptanceFormInput = {
@@ -7232,6 +7383,7 @@ export type ResolversTypes = {
   CreateEmbedTokenReturn: ResolverTypeWrapper<Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['EmbedToken'] }>;
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
+  CreateMonthlyMeasurementInput: CreateMonthlyMeasurementInput;
   CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -7256,6 +7408,7 @@ export type ResolversTypes = {
   DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
+  DeleteMonthlyMeasurementInput: DeleteMonthlyMeasurementInput;
   DeleteQualityAcceptanceFormInput: DeleteQualityAcceptanceFormInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
@@ -7309,6 +7462,14 @@ export type ResolversTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ResolverTypeWrapper<ModelsTreeItemGraphQLReturn>;
   ModelsTreeItemCollection: ResolverTypeWrapper<Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversTypes['ModelsTreeItem']> }>;
+  MonthlyMeasurement: ResolverTypeWrapper<Omit<MonthlyMeasurement, 'creator'> & { creator?: Maybe<ResolversTypes['LimitedUser']> }>;
+  MonthlyMeasurementCollection: ResolverTypeWrapper<Omit<MonthlyMeasurementCollection, 'items'> & { items: Array<ResolversTypes['MonthlyMeasurement']> }>;
+  MonthlyMeasurementItem: ResolverTypeWrapper<MonthlyMeasurementItem>;
+  MonthlyMeasurementItemPreviewItem: ResolverTypeWrapper<MonthlyMeasurementItemPreviewItem>;
+  MonthlyMeasurementMeasuredItemInput: MonthlyMeasurementMeasuredItemInput;
+  MonthlyMeasurementMutations: ResolverTypeWrapper<Omit<MonthlyMeasurementMutations, 'create' | 'submit' | 'update'> & { create: ResolversTypes['MonthlyMeasurement'], submit: ResolversTypes['MonthlyMeasurement'], update: ResolversTypes['MonthlyMeasurement'] }>;
+  MonthlyMeasurementPreview: ResolverTypeWrapper<MonthlyMeasurementPreview>;
+  MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
   Mutation: ResolverTypeWrapper<{}>;
@@ -7355,6 +7516,7 @@ export type ResolversTypes = {
   ProjectModelsTreeFilter: ProjectModelsTreeFilter;
   ProjectModelsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectModelsUpdatedMessage, 'model'> & { model?: Maybe<ResolversTypes['Model']> }>;
   ProjectModelsUpdatedMessageType: ProjectModelsUpdatedMessageType;
+  ProjectMonthlyMeasurementsInput: ProjectMonthlyMeasurementsInput;
   ProjectMoveToWorkspaceDryRun: ResolverTypeWrapper<ProjectMoveToWorkspaceDryRunGraphQLReturn>;
   ProjectMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   ProjectPendingModelsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectPendingModelsUpdatedMessage, 'model'> & { model: ResolversTypes['FileUpload'] }>;
@@ -7441,6 +7603,7 @@ export type ResolversTypes = {
   StreamUpdateInput: StreamUpdateInput;
   StreamUpdatePermissionInput: StreamUpdatePermissionInput;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
+  SubmitMonthlyMeasurementInput: SubmitMonthlyMeasurementInput;
   Subscription: ResolverTypeWrapper<{}>;
   TestAutomationRun: ResolverTypeWrapper<TestAutomationRun>;
   TestAutomationRunTrigger: ResolverTypeWrapper<TestAutomationRunTrigger>;
@@ -7454,6 +7617,7 @@ export type ResolversTypes = {
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
+  UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
   UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -7695,6 +7859,7 @@ export type ResolversParentTypes = {
   CreateEmbedTokenReturn: Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['EmbedToken'] };
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
+  CreateMonthlyMeasurementInput: CreateMonthlyMeasurementInput;
   CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -7718,6 +7883,7 @@ export type ResolversParentTypes = {
   DeleteBoqItemInput: DeleteBoqItemInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
+  DeleteMonthlyMeasurementInput: DeleteMonthlyMeasurementInput;
   DeleteQualityAcceptanceFormInput: DeleteQualityAcceptanceFormInput;
   DeleteSavedViewGroupInput: DeleteSavedViewGroupInput;
   DeleteSavedViewInput: DeleteSavedViewInput;
@@ -7769,6 +7935,14 @@ export type ResolversParentTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ModelsTreeItemGraphQLReturn;
   ModelsTreeItemCollection: Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversParentTypes['ModelsTreeItem']> };
+  MonthlyMeasurement: Omit<MonthlyMeasurement, 'creator'> & { creator?: Maybe<ResolversParentTypes['LimitedUser']> };
+  MonthlyMeasurementCollection: Omit<MonthlyMeasurementCollection, 'items'> & { items: Array<ResolversParentTypes['MonthlyMeasurement']> };
+  MonthlyMeasurementItem: MonthlyMeasurementItem;
+  MonthlyMeasurementItemPreviewItem: MonthlyMeasurementItemPreviewItem;
+  MonthlyMeasurementMeasuredItemInput: MonthlyMeasurementMeasuredItemInput;
+  MonthlyMeasurementMutations: Omit<MonthlyMeasurementMutations, 'create' | 'submit' | 'update'> & { create: ResolversParentTypes['MonthlyMeasurement'], submit: ResolversParentTypes['MonthlyMeasurement'], update: ResolversParentTypes['MonthlyMeasurement'] };
+  MonthlyMeasurementPreview: MonthlyMeasurementPreview;
+  MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
   Mutation: {};
@@ -7809,6 +7983,7 @@ export type ResolversParentTypes = {
   ProjectModelsFilter: ProjectModelsFilter;
   ProjectModelsTreeFilter: ProjectModelsTreeFilter;
   ProjectModelsUpdatedMessage: Omit<ProjectModelsUpdatedMessage, 'model'> & { model?: Maybe<ResolversParentTypes['Model']> };
+  ProjectMonthlyMeasurementsInput: ProjectMonthlyMeasurementsInput;
   ProjectMoveToWorkspaceDryRun: ProjectMoveToWorkspaceDryRunGraphQLReturn;
   ProjectMutations: MutationsObjectGraphQLReturn;
   ProjectPendingModelsUpdatedMessage: Omit<ProjectPendingModelsUpdatedMessage, 'model'> & { model: ResolversParentTypes['FileUpload'] };
@@ -7882,6 +8057,7 @@ export type ResolversParentTypes = {
   StreamUpdateInput: StreamUpdateInput;
   StreamUpdatePermissionInput: StreamUpdatePermissionInput;
   String: Scalars['String']['output'];
+  SubmitMonthlyMeasurementInput: SubmitMonthlyMeasurementInput;
   Subscription: {};
   TestAutomationRun: TestAutomationRun;
   TestAutomationRunTrigger: TestAutomationRunTrigger;
@@ -7894,6 +8070,7 @@ export type ResolversParentTypes = {
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
+  UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
   UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -9092,6 +9269,80 @@ export type ModelsTreeItemCollectionResolvers<ContextType = GraphQLContext, Pare
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type MonthlyMeasurementResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurement'] = ResolversParentTypes['MonthlyMeasurement']> = {
+  approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  baseDate?: Resolver<ResolversTypes['BigInt'], ParentType, ContextType>;
+  code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  creator?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
+  creatorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  flowInstanceId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['MonthlyMeasurementItem']>, ParentType, ContextType>;
+  projectId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MonthlyMeasurementCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementCollection'] = ResolversParentTypes['MonthlyMeasurementCollection']> = {
+  cursor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['MonthlyMeasurement']>, ParentType, ContextType>;
+  totalCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MonthlyMeasurementItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementItem'] = ResolversParentTypes['MonthlyMeasurementItem']> = {
+  approvedCumulativeQty?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  boqCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  boqDepth?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  boqItemId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  boqName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  boqParentId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isSummaryRow?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  measuredQty?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  pendingTotalQty?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  price?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  remark?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  sortIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  sourceAcceptanceIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  uom?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MonthlyMeasurementItemPreviewItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementItemPreviewItem'] = ResolversParentTypes['MonthlyMeasurementItemPreviewItem']> = {
+  approvedCumulativeQty?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  boqCode?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  boqDepth?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  boqItemId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  boqName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  boqParentId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  isSummaryRow?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  measuredQtyDefault?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  pendingTotalQty?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  price?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  sortIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  sourceAcceptanceIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  uom?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MonthlyMeasurementMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementMutations'] = ResolversParentTypes['MonthlyMeasurementMutations']> = {
+  create?: Resolver<ResolversTypes['MonthlyMeasurement'], ParentType, ContextType, RequireFields<MonthlyMeasurementMutationsCreateArgs, 'input'>>;
+  delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MonthlyMeasurementMutationsDeleteArgs, 'input'>>;
+  preview?: Resolver<ResolversTypes['MonthlyMeasurementPreview'], ParentType, ContextType, RequireFields<MonthlyMeasurementMutationsPreviewArgs, 'input'>>;
+  submit?: Resolver<ResolversTypes['MonthlyMeasurement'], ParentType, ContextType, RequireFields<MonthlyMeasurementMutationsSubmitArgs, 'input'>>;
+  update?: Resolver<ResolversTypes['MonthlyMeasurement'], ParentType, ContextType, RequireFields<MonthlyMeasurementMutationsUpdateArgs, 'input'>>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MonthlyMeasurementPreviewResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementPreview'] = ResolversParentTypes['MonthlyMeasurementPreview']> = {
+  baseDate?: Resolver<ResolversTypes['BigInt'], ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['MonthlyMeasurementItemPreviewItem']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type MutationResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
   _?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   accSyncItemMutations?: Resolver<ResolversTypes['AccSyncItemMutations'], ParentType, ContextType>;
@@ -9274,6 +9525,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   modelChildrenTree?: Resolver<Array<ResolversTypes['ModelsTreeItem']>, ParentType, ContextType, RequireFields<ProjectModelChildrenTreeArgs, 'fullName'>>;
   models?: Resolver<ResolversTypes['ModelCollection'], ParentType, ContextType, RequireFields<ProjectModelsArgs, 'limit'>>;
   modelsTree?: Resolver<ResolversTypes['ModelsTreeItemCollection'], ParentType, ContextType, RequireFields<ProjectModelsTreeArgs, 'limit'>>;
+  monthlyMeasurements?: Resolver<ResolversTypes['MonthlyMeasurementCollection'], ParentType, ContextType, Partial<ProjectMonthlyMeasurementsArgs>>;
   moveToWorkspaceDryRun?: Resolver<ResolversTypes['ProjectMoveToWorkspaceDryRun'], ParentType, ContextType, RequireFields<ProjectMoveToWorkspaceDryRunArgs, 'workspaceId'>>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   object?: Resolver<Maybe<ResolversTypes['Object']>, ParentType, ContextType, RequireFields<ProjectObjectArgs, 'id'>>;
@@ -9425,6 +9677,7 @@ export type ProjectMutationsResolvers<ContextType = GraphQLContext, ParentType e
   delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsDeleteArgs, 'id'>>;
   invites?: Resolver<ResolversTypes['ProjectInviteMutations'], ParentType, ContextType>;
   leave?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsLeaveArgs, 'id'>>;
+  monthlyMeasurementMutations?: Resolver<ResolversTypes['MonthlyMeasurementMutations'], ParentType, ContextType>;
   qualityAcceptanceMutations?: Resolver<ResolversTypes['QualityAcceptanceMutations'], ParentType, ContextType>;
   revokeEmbedToken?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsRevokeEmbedTokenArgs, 'projectId' | 'token'>>;
   revokeEmbedTokens?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectMutationsRevokeEmbedTokensArgs, 'projectId'>>;
@@ -10631,6 +10884,12 @@ export type Resolvers<ContextType = GraphQLContext> = {
   ModelPermissionChecks?: ModelPermissionChecksResolvers<ContextType>;
   ModelsTreeItem?: ModelsTreeItemResolvers<ContextType>;
   ModelsTreeItemCollection?: ModelsTreeItemCollectionResolvers<ContextType>;
+  MonthlyMeasurement?: MonthlyMeasurementResolvers<ContextType>;
+  MonthlyMeasurementCollection?: MonthlyMeasurementCollectionResolvers<ContextType>;
+  MonthlyMeasurementItem?: MonthlyMeasurementItemResolvers<ContextType>;
+  MonthlyMeasurementItemPreviewItem?: MonthlyMeasurementItemPreviewItemResolvers<ContextType>;
+  MonthlyMeasurementMutations?: MonthlyMeasurementMutationsResolvers<ContextType>;
+  MonthlyMeasurementPreview?: MonthlyMeasurementPreviewResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Object?: ObjectResolvers<ContextType>;
   ObjectCollection?: ObjectCollectionResolvers<ContextType>;

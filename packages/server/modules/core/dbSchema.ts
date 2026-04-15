@@ -674,6 +674,40 @@ export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms
   'updatedAt'
 ])
 
+export const MonthlyMeasurements = buildTableHelper('monthly_measurements', [
+  'id',
+  'project_id',
+  'unit',
+  'code',
+  'baseDate',
+  'approveStatus',
+  'flowInstanceId',
+  'creator',
+  'createdAt',
+  'updatedAt'
+])
+
+export const MonthlyMeasurementItems = buildTableHelper('monthly_measurement_items', [
+  'id',
+  'measurementId',
+  'boqItemId',
+  'boqCode',
+  'boqName',
+  'boqParentId',
+  'boqDepth',
+  'isSummaryRow',
+  'sortIndex',
+  'uom',
+  'pendingTotalQty',
+  'approvedCumulativeQty',
+  'measuredQty',
+  'price',
+  'remark',
+  'sourceAcceptanceIds',
+  'createdAt',
+  'updatedAt'
+])
+
 export const ScheduledTasks = buildTableHelper('scheduled_tasks', [
   'taskName',
   'lockExpiresAt'
