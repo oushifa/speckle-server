@@ -566,6 +566,9 @@ export type ApprovalFlowInstance = {
   flowSnapshot?: Maybe<Scalars['JSONObject']['output']>;
   formData?: Maybe<Scalars['JSONObject']['output']>;
   id: Scalars['ID']['output'];
+  model?: Maybe<Model>;
+  project?: Maybe<Project>;
+  projectId?: Maybe<Scalars['ID']['output']>;
   resourceId?: Maybe<Scalars['ID']['output']>;
   resourceType: ApprovalFlowResourceType;
   status: ApprovalFlowStatus;
@@ -981,6 +984,17 @@ export const BillingInterval = {
 } as const;
 
 export type BillingInterval = typeof BillingInterval[keyof typeof BillingInterval];
+export type BimElements = {
+  __typename?: 'BimElements';
+  bimIds: Array<Scalars['String']['output']>;
+  modelId: Scalars['ID']['output'];
+};
+
+export type BimElementsInput = {
+  bimIds: Array<Scalars['String']['input']>;
+  modelId: Scalars['ID']['input'];
+};
+
 export type BlobMetadata = {
   __typename?: 'BlobMetadata';
   createdAt: Scalars['DateTime']['output'];
@@ -1554,6 +1568,7 @@ export type CreateMonthlyMeasurementInput = {
 };
 
 export type CreateQualityAcceptanceFormInput = {
+  /** @deprecated Use bimElements instead */
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
@@ -1561,6 +1576,7 @@ export type CreateQualityAcceptanceFormInput = {
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
   approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  bimElements?: InputMaybe<BimElementsInput>;
   boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   flowId?: InputMaybe<Scalars['ID']['input']>;
@@ -4165,6 +4181,7 @@ export const ProjectVisibility = {
 export type ProjectVisibility = typeof ProjectVisibility[keyof typeof ProjectVisibility];
 export type QualityAcceptanceForm = {
   __typename?: 'QualityAcceptanceForm';
+  /** @deprecated Use bimElements instead */
   BIMelement?: Maybe<Array<Scalars['String']['output']>>;
   acceptanceContent?: Maybe<Scalars['String']['output']>;
   acceptancePart?: Maybe<Scalars['String']['output']>;
@@ -4172,6 +4189,7 @@ export type QualityAcceptanceForm = {
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
   approveStatus?: Maybe<Scalars['String']['output']>;
   attachments: Array<BlobMetadata>;
+  bimElements?: Maybe<BimElements>;
   boqItemId?: Maybe<Scalars['ID']['output']>;
   code?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
@@ -5060,6 +5078,7 @@ export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
 export type StartApprovalFlowInput = {
   definitionId?: InputMaybe<Scalars['ID']['input']>;
   formData?: InputMaybe<Scalars['JSONObject']['input']>;
+  projectId?: InputMaybe<Scalars['ID']['input']>;
   resourceId?: InputMaybe<Scalars['ID']['input']>;
   templateId?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -5694,6 +5713,7 @@ export type UpdateMonthlyMeasurementInput = {
 };
 
 export type UpdateQualityAcceptanceFormInput = {
+  /** @deprecated Use bimElements instead */
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
@@ -5701,6 +5721,7 @@ export type UpdateQualityAcceptanceFormInput = {
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
   approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  bimElements?: InputMaybe<BimElementsInput>;
   boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
@@ -7336,6 +7357,8 @@ export type ResolversTypes = {
   BeforeChangeSavedView: ResolverTypeWrapper<BeforeChangeSavedViewGraphQLReturn>;
   BigInt: ResolverTypeWrapper<Scalars['BigInt']['output']>;
   BillingInterval: BillingInterval;
+  BimElements: ResolverTypeWrapper<BimElements>;
+  BimElementsInput: BimElementsInput;
   BlobMetadata: ResolverTypeWrapper<BlobStorageItem>;
   BlobMetadataCollection: ResolverTypeWrapper<Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversTypes['BlobMetadata']>> }>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
@@ -7813,6 +7836,8 @@ export type ResolversParentTypes = {
   BasicGitRepositoryMetadata: BasicGitRepositoryMetadata;
   BeforeChangeSavedView: BeforeChangeSavedViewGraphQLReturn;
   BigInt: Scalars['BigInt']['output'];
+  BimElements: BimElements;
+  BimElementsInput: BimElementsInput;
   BlobMetadata: BlobStorageItem;
   BlobMetadataCollection: Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversParentTypes['BlobMetadata']>> };
   Boolean: Scalars['Boolean']['output'];
@@ -8487,6 +8512,9 @@ export type ApprovalFlowInstanceResolvers<ContextType = GraphQLContext, ParentTy
   flowSnapshot?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   formData?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  model?: Resolver<Maybe<ResolversTypes['Model']>, ParentType, ContextType>;
+  project?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
+  projectId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   resourceId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   resourceType?: Resolver<ResolversTypes['ApprovalFlowResourceType'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['ApprovalFlowStatus'], ParentType, ContextType>;
@@ -8729,6 +8757,12 @@ export type BeforeChangeSavedViewResolvers<ContextType = GraphQLContext, ParentT
 export interface BigIntScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['BigInt'], any> {
   name: 'BigInt';
 }
+
+export type BimElementsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BimElements'] = ResolversParentTypes['BimElements']> = {
+  bimIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  modelId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
 
 export type BlobMetadataResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BlobMetadata'] = ResolversParentTypes['BlobMetadata']> = {
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9791,6 +9825,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   attachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
+  bimElements?: Resolver<Maybe<ResolversTypes['BimElements']>, ParentType, ContextType>;
   boqItemId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   code?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -10831,6 +10866,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   BasicGitRepositoryMetadata?: BasicGitRepositoryMetadataResolvers<ContextType>;
   BeforeChangeSavedView?: BeforeChangeSavedViewResolvers<ContextType>;
   BigInt?: GraphQLScalarType;
+  BimElements?: BimElementsResolvers<ContextType>;
   BlobMetadata?: BlobMetadataResolvers<ContextType>;
   BlobMetadataCollection?: BlobMetadataCollectionResolvers<ContextType>;
   BoqItem?: BoqItemResolvers<ContextType>;

@@ -4,27 +4,39 @@
     <div class="absolute inset-0">
       <ViewerCoreSetup viewer-host-classes="h-full" :hide-loading-bar="true" />
     </div>
+    <div class="h-full">
+      <div class="absolute z-50 left-0 w-72 bg-zinc-200 h-full overflow-hidden">
+        <ViewerModelsPanel v-model:sub-view="modelsSubView" />
+      </div>
+    </div>
+    <div class="right-0 top-0 absolute">
+      <ViewerSelectionSidebar ref="selectionSidebar" class="z-20" />
+    </div>
   </ViewerStateSetup>
 </template>
 <script setup lang="ts">
 import { resourceBuilder } from '@speckle/shared/viewer/route'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
+import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import type {
   InjectableViewerState,
   UseSetupViewerParams
 } from '~/lib/viewer/composables/setup'
 import { ViewerRenderPageType } from '~/lib/viewer/helpers/state'
+import { ModelsSubView } from '~/lib/viewer/helpers/sceneExplorer'
 
 const props = withDefaults(
   defineProps<{
     projectId?: string | null
     modelIds?: string[]
     viewerState?: InjectableViewerState | null
+    filterBims?: string[]
   }>(),
   {
     projectId: '',
     modelIds: () => [],
-    viewerState: null
+    viewerState: null,
+    filterBims: () => []
   }
 )
 
@@ -32,7 +44,23 @@ const emit = defineEmits<{
   (e: 'update:viewerState', v: InjectableViewerState): void
 }>()
 
+const localModelsSubView = ref<ModelsSubView>(ModelsSubView.Main)
+const setupViewerState = shallowRef<InjectableViewerState | null>(null)
+
+const modelsSubView = computed<ModelsSubView>({
+  get: () =>
+    setupViewerState.value?.ui.panels.modelsSubView.value || localModelsSubView.value,
+  set: (value) => {
+    localModelsSubView.value = value
+    if (setupViewerState.value) {
+      setupViewerState.value.ui.panels.modelsSubView.value = value
+    }
+  }
+})
+
 const onViewerSetup = (State: InjectableViewerState) => {
+  setupViewerState.value = State
+  localModelsSubView.value = State.ui.panels.modelsSubView.value
   emit('update:viewerState', State)
 }
 
@@ -58,6 +86,9 @@ const normalizedModelIds = computed(() => {
       : attrModel.value
   return toStringArray(source)
 })
+
+const normalizedFilterBims = computed(() => toStringArray(props.filterBims))
+const isApplyingFilterBims = ref(false)
 
 const viewerResourceIdString = writableAsyncComputed({
   get: () => {
@@ -85,6 +116,100 @@ const viewerInitParams = computed(
     pageType: ViewerRenderPageType.Viewer
   })
 )
+
+function getMaybeRefValue<T>(
+  input: T | { value: T } | null | undefined
+): T | undefined {
+  if (input && typeof input === 'object' && 'value' in input) {
+    return (input as { value: T }).value
+  }
+  return input as T | undefined
+}
+
+const applyFilterBims = () => {
+  const state = setupViewerState.value
+  if (!state) return
+
+  const filterIds = normalizedFilterBims.value
+  isApplyingFilterBims.value = true
+  try {
+    const isolatedRef = state.ui.filters.isolatedObjectIds as unknown as {
+      value?: string[]
+    }
+    if (isolatedRef && 'value' in isolatedRef) {
+      isolatedRef.value = filterIds
+    } else {
+      ;(state.ui.filters.isolatedObjectIds as unknown as string[]) = filterIds
+    }
+
+    if (!filterIds.length) return
+    const objects: SpeckleObject[] = []
+    const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
+    if (tree) {
+      filterIds.forEach((id) => {
+        const nodes = (tree as { findId: (id: string) => unknown }).findId(
+          id
+        ) as Array<{
+          model?: { raw?: SpeckleObject }
+        }>
+        nodes?.forEach((node) => {
+          if (!node.model?.raw?.id) return
+          objects.push(node.model.raw)
+        })
+      })
+    }
+
+    const selectedObjects = state.ui.filters.selectedObjects as unknown
+    const selectedObjectsRef = selectedObjects as { value?: SpeckleObject[] }
+    if (selectedObjectsRef && 'value' in selectedObjectsRef) {
+      selectedObjectsRef.value = objects
+    } else {
+      ;(state.ui.filters.selectedObjects as unknown as SpeckleObject[]) = objects
+    }
+  } finally {
+    isApplyingFilterBims.value = false
+  }
+}
+
+const normalizeIds = (ids: string[]) =>
+  Array.from(new Set(ids.map((id) => id.trim()).filter((id) => !!id))).sort()
+
+const areSameIds = (a: string[], b: string[]) => {
+  const aa = normalizeIds(a)
+  const bb = normalizeIds(b)
+  if (aa.length !== bb.length) return false
+  return aa.every((id, i) => id === bb[i])
+}
+
+watch(
+  () => setupViewerState.value?.ui.filters.isolatedObjectIds.value || [],
+  (currentIds) => {
+    if (isApplyingFilterBims.value) return
+    const filterIds = normalizedFilterBims.value
+    if (!filterIds.length) return
+    if (areSameIds(currentIds, filterIds)) return
+    nextTick(() => applyFilterBims())
+  },
+  { deep: true }
+)
+
+watch(
+  [() => setupViewerState.value, () => normalizedFilterBims.value],
+  () => {
+    applyFilterBims()
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
+  (loaded) => {
+    if (!loaded) return
+    nextTick(() => applyFilterBims())
+  },
+  { immediate: true }
+)
+
 // watch(
 //   () => props.modelIds,
 //   (newModelId, oldModelId) => {

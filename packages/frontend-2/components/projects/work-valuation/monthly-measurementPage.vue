@@ -186,13 +186,27 @@
           />
         </div>
 
-        <div v-if="!isViewMode" class="flex items-center gap-2">
-          <FormButton color="outline" :loading="previewLoading" @click="buildPreview">
-            生成验工列表
+        <div class="flex items-center gap-2">
+          <FormButton
+            :color="previewViewTag === 'list' ? 'primary' : 'outline'"
+            :loading="previewLoading"
+            @click="switchPreviewView('list')"
+          >
+            {{ isViewMode ? '验工列表' : '生成验工列表' }}
           </FormButton>
-          <span v-if="previewBaseDate" class="text-body-sm text-foreground-2">
-            基准时间 {{ formatDate(previewBaseDate) }} 前的清单项聚合结果
-          </span>
+          <FormButton
+            :color="previewViewTag === 'model' ? 'primary' : 'outline'"
+            :loading="previewLoading"
+            @click="switchPreviewView('model')"
+          >
+            验工模型
+          </FormButton>
+        </div>
+        <div
+          v-if="previewBaseDate && previewViewTag === 'list'"
+          class="text-body-sm text-foreground-2"
+        >
+          基准时间 {{ formatDate(previewBaseDate) }} 前的清单项聚合结果
         </div>
 
         <div v-if="createError" class="text-body-sm text-danger">
@@ -200,7 +214,7 @@
         </div>
 
         <div
-          v-if="previewItems.length"
+          v-if="previewViewTag === 'list' && previewItems.length"
           class="rounded border border-outline-3 overflow-auto max-h-[420px]"
         >
           <table class="w-full text-sm">
@@ -307,8 +321,34 @@
           </table>
         </div>
 
-        <div v-else class="text-body-sm text-foreground-2">
+        <div
+          v-else-if="previewViewTag === 'list'"
+          class="text-body-sm text-foreground-2"
+        >
           请先选择基准时间并生成验工列表
+        </div>
+        <div
+          v-else-if="previewViewTag === 'model'"
+          class="rounded border border-outline-3 h-[420px] relative overflow-hidden"
+        >
+          <div
+            v-if="acceptanceFormsLoading"
+            class="h-full flex items-center justify-center text-body-sm text-foreground-2"
+          >
+            关联模型加载中...
+          </div>
+          <div
+            v-else-if="!selectedPreviewModelIds.length"
+            class="h-full flex items-center justify-center text-body-sm text-foreground-2"
+          >
+            暂无可展示的验工模型
+          </div>
+          <CommonModelPropsViewer
+            v-else
+            :project-id="projectId"
+            :model-ids="selectedPreviewModelIds"
+            :filter-bims="selectedPreviewBimIds"
+          />
         </div>
       </div>
     </LayoutDialog>
@@ -450,6 +490,7 @@ import {
 } from '@speckle/ui-components'
 import {
   approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
+  projectQualityAcceptanceFormsQuery,
   projectMonthlyMeasurementsQuery
 } from '~/lib/projects/graphql/queries'
 import {
@@ -488,6 +529,7 @@ type MonthlyMeasurementNode = NonNullable<
 type FlowInstanceNode = NonNullable<
   ApprovalFlowInstanceDetailsForMonthlyMeasurementQuery['approvalFlowInstance']
 >
+type PreviewViewTag = 'list' | 'model'
 
 const apollo = useApolloClient().client
 
@@ -577,6 +619,7 @@ const editingMeasurementId = ref<string | null>(null)
 const previewLoading = ref(false)
 const previewBaseDate = ref(0)
 const previewItems = ref<PreviewItem[]>([])
+const previewViewTag = ref<PreviewViewTag>('list')
 const measuredQtyByBoq = ref<Record<string, string>>({})
 const remarkByBoq = ref<Record<string, string>>({})
 const actionLoadingId = ref<string | null>(null)
@@ -605,6 +648,60 @@ const { mutate: deleteMutate, loading: deleteLoading } = useMutation(
 const { mutate: submitMutate, loading: submitLoading } = useMutation(
   submitMonthlyMeasurementMutation
 )
+const previewSourceAcceptanceIds = computed(() =>
+  Array.from(
+    new Set(
+      previewItems.value
+        .flatMap((item) => item.sourceAcceptanceIds || [])
+        .filter((id) => !!id)
+    )
+  )
+)
+const { result: acceptanceFormsResult, loading: acceptanceFormsLoading } = useQuery(
+  projectQualityAcceptanceFormsQuery,
+  () => ({
+    projectId: projectId.value,
+    search: null,
+    cursor: null,
+    limit: 500
+  }),
+  {
+    enabled: computed(
+      () =>
+        !!projectId.value &&
+        createDialogOpen.value &&
+        previewViewTag.value === 'model' &&
+        previewSourceAcceptanceIds.value.length > 0
+    )
+  }
+)
+
+const selectedPreviewModelIds = computed(() => {
+  const selectedIds = new Set(previewSourceAcceptanceIds.value)
+  const ids = new Set<string>()
+  ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
+    (form) => {
+      if (!form || !selectedIds.has(form.id)) return
+      const modelId = form.bimElements?.modelId || ''
+      if (modelId) ids.add(modelId)
+    }
+  )
+  return Array.from(ids)
+})
+
+const selectedPreviewBimIds = computed(() => {
+  const selectedIds = new Set(previewSourceAcceptanceIds.value)
+  const ids = new Set<string>()
+  ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
+    (form) => {
+      if (!form || !selectedIds.has(form.id)) return
+      ;(form.bimElements?.bimIds || []).forEach((id) => {
+        if (id) ids.add(id)
+      })
+    }
+  )
+  return Array.from(ids)
+})
 
 const isViewMode = computed(() => dialogMode.value === 'view')
 const dialogTitle = computed(() => {
@@ -616,6 +713,7 @@ const dialogTitle = computed(() => {
 const resetDialogState = () => {
   createError.value = ''
   previewItems.value = []
+  previewViewTag.value = 'list'
   previewBaseDate.value = 0
   measuredQtyByBoq.value = {}
   remarkByBoq.value = {}
@@ -631,6 +729,24 @@ const openCreateDialog = () => {
   dialogMode.value = 'create'
   resetDialogState()
   createDialogOpen.value = true
+}
+
+const switchPreviewView = async (tag: PreviewViewTag) => {
+  if (isViewMode.value) {
+    previewViewTag.value = tag
+    return
+  }
+
+  if (tag === 'list') {
+    previewViewTag.value = 'list'
+    if (!previewItems.value.length) await buildPreview()
+    return
+  }
+
+  if (!previewItems.value.length) {
+    await buildPreview()
+  }
+  previewViewTag.value = 'model'
 }
 
 const buildPreview = async () => {

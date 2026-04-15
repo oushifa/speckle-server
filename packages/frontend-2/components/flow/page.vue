@@ -41,6 +41,12 @@
               <div class="text-body-sm font-medium truncate">
                 {{ instance.definition?.name || '未命名流程' }}
               </div>
+              <div
+                v-if="instance.resourceType === 'MODEL'"
+                class="text-sm text-foreground-2"
+              >
+                {{ instance.project?.name }} - {{ instance.model?.name }}
+              </div>
             </div>
             <div>
               <div class="text-body-xs text-foreground-2">当前步骤</div>
@@ -74,23 +80,37 @@
 
     <LayoutDrawer
       v-model:open="drawerOpen"
-      :title="selectedInstance?.definition?.name || '未命名流程'"
       placement="right"
-      :width="1100"
+      :width="selectedInstance?.resourceType === 'MODEL' ? '95%' : '1100px'"
       body-classes="p-4"
     >
+      <template #title>
+        {{ selectedInstance?.definition?.name || '未命名流程' }}
+        <span
+          v-if="selectedInstance?.resourceType === 'MODEL'"
+          class="text-sm text-primary"
+        >
+          | {{ selectedInstance.project?.name }} - {{ selectedInstance.model?.name }}
+        </span>
+      </template>
       <template #extra>
         <span class="text-body-xs text-foreground-2">#{{ selectedInstance?.id }}</span>
       </template>
 
-      <div v-if="selectedInstance" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div class="xl:col-span-2 border border-outline-3 rounded-lg p-4 min-h-[520px]">
+      <div v-if="selectedInstance" class="flex gap-4 h-full">
+        <div class="flex-grow border border-outline-3 rounded-lg p-4 min-h-[520px]">
           <div class="text-body-xs text-foreground-2 size-full relative">
-            <CommonModelPropsViewer
+            <div
               v-if="selectedInstance.resourceType === 'MODEL'"
-              :project-id="selectedInstance.projectId"
-              :model="[selectedInstance.resourceId]"
-            ></CommonModelPropsViewer>
+              class="size-full flex flex-col"
+            >
+              <div class="flex-grow relative">
+                <CommonModelPropsViewer
+                  :project-id="selectedInstance.projectId"
+                  :model="[selectedInstance.resourceId]"
+                ></CommonModelPropsViewer>
+              </div>
+            </div>
             <FlowMonthMeasure
               v-else-if="selectedInstance.definition?.id === 'm_measure'"
             />
@@ -200,15 +220,6 @@
         />
       </template>
     </LayoutDrawer>
-
-    <CommonFlowReviewDialog
-      v-model:open="isReviewDialogOpen"
-      :action="selectedReviewAction"
-      :instance-id="selectedReviewInstanceId"
-      :default-rollback-to-step="selectedReviewRollbackToStep"
-      :loading="mutating"
-      @submit="submitReviewAction"
-    />
   </div>
 </template>
 
@@ -279,8 +290,16 @@ const flowInstancesQuery = graphql(`
       items {
         id
         projectId
+        project {
+          id
+          name
+        }
         resourceType
         resourceId
+        model {
+          id
+          name
+        }
         formData
         status
         currentStep
@@ -323,7 +342,7 @@ const flowInstancesQuery = graphql(`
       }
     }
   }
-`)
+`) as unknown as TypedDocumentNode<FlowInstancesQuery, FlowInstancesQueryVariables>
 
 const approveFlowMutation = graphql(`
   mutation FlowApprove($input: ApproveApprovalFlowInput!) {
@@ -376,10 +395,6 @@ const currentTag = ref<FlowHeaderTag>('pending')
 const instances = ref<FlowListItem[]>([])
 const cursor = ref<string | null>(null)
 const totalCount = ref(0)
-const isReviewDialogOpen = ref(false)
-const selectedReviewAction = ref<FlowReviewAction>('approve')
-const selectedReviewInstanceId = ref<string | null>(null)
-const selectedReviewRollbackToStep = ref<number | null>(null)
 const selectedInstance = ref<FlowListItem | null>(null)
 const definitions = ref<FlowDefinitionListItem[]>([])
 const detailTab = ref<FlowDetailTab>('logs')
@@ -511,15 +526,22 @@ const drawerOpen = computed({
 })
 
 const loadDefinitions = async () => {
-  const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>({
-    query: flowDefinitionsQuery,
-    variables: {
-      resourceType: null
-    },
-    fetchPolicy: 'network-only'
-  })
-  definitions.value = (res.data.approvalFlowDefinitions ||
-    []) as FlowDefinitionListItem[]
+  try {
+    const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>(
+      {
+        query: flowDefinitionsQuery,
+        variables: {
+          resourceType: null
+        },
+        fetchPolicy: 'network-only'
+      }
+    )
+    definitions.value = (res.data?.approvalFlowDefinitions ||
+      []) as FlowDefinitionListItem[]
+  } catch (e) {
+    definitions.value = []
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
+  }
 }
 
 const loadInstances = async (nextCursor?: string | null) => {
@@ -533,8 +555,8 @@ const loadInstances = async (nextCursor?: string | null) => {
       },
       fetchPolicy: 'network-only'
     })
-    const page = res.data.approvalFlowInstances
-    stats.value = res.data.approvalFlowStats || {
+    const page = res.data?.approvalFlowInstances
+    stats.value = res.data?.approvalFlowStats || {
       totalCount: 0,
       pendingCount: 0,
       approvedCount: 0,
@@ -550,6 +572,13 @@ const loadInstances = async (nextCursor?: string | null) => {
     } else {
       instances.value = items
     }
+  } catch (e) {
+    if (!nextCursor) {
+      instances.value = []
+      totalCount.value = 0
+      cursor.value = null
+    }
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
     loadingInstances.value = false
   }
@@ -574,13 +603,15 @@ const openReviewDialogFromOp = (payload: {
   rollbackToStep: number | null
 }) => {
   if (!selectedInstance.value) return
-  selectedReviewAction.value = payload.action
-  selectedReviewInstanceId.value = selectedInstance.value.id
-  selectedReviewRollbackToStep.value =
-    payload.action === 'reject' && payload.operation === 'rollback'
-      ? payload.rollbackToStep
-      : null
-  isReviewDialogOpen.value = true
+  void submitReviewAction({
+    action: payload.action,
+    instanceId: selectedInstance.value.id,
+    comment: null,
+    rollbackToStep:
+      payload.action === 'reject' && payload.operation === 'rollback'
+        ? payload.rollbackToStep
+        : null
+  })
 }
 
 const submitReviewAction = async (payload: {
@@ -626,12 +657,16 @@ const submitReviewAction = async (payload: {
       })
       notify('操作成功', '审批已取消', ToastNotificationType.Success)
     }
+    closeDrawer()
+    try {
+      await loadInstances()
+    } catch {
+      notify('刷新失败', '操作已成功，请手动刷新列表', ToastNotificationType.Warning)
+    }
   } catch (e) {
     notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
     mutating.value = false
-    selectedReviewRollbackToStep.value = null
-    await loadInstances()
   }
 }
 

@@ -30,7 +30,7 @@
               <div
                 v-if="showQuickCard"
                 ref="quickCardPanelRef"
-                class="z-40 bg-foundation border border-outline-2 rounded-lg shadow-xl overflow-hidden"
+                class="z-[1000] bg-foundation border border-outline-2 rounded-lg shadow-xl overflow-hidden"
                 :style="quickCardPanelStyle"
               >
                 <div

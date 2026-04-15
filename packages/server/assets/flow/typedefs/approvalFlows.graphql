@@ -91,9 +91,11 @@ type ApprovalFlowInstance {
   templateId: ID!
   definitionVersion: Int
   projectId: ID
+  project: Project
   definition: ApprovalFlowDefinition
   resourceType: ApprovalFlowResourceType!
   resourceId: ID
+  model: Model
   formData: JSONObject
   flowSnapshot: JSONObject
   status: ApprovalFlowStatus!

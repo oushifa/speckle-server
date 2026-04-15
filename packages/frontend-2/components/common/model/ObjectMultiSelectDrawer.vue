@@ -56,6 +56,7 @@
       @click="openDrawer"
     >
       <span
+        v-tippy="triggerSelectedNamesTooltip"
         class="truncate text-body-sm"
         :class="selectedCount > 0 ? 'text-foreground' : 'text-foreground-2'"
       >
@@ -205,7 +206,9 @@ const open = defineModel<boolean>('open', { default: false })
 
 const draftSelectedIds = ref<Set<string>>(new Set())
 const viewerState = ref<InjectableViewerState | null>(null)
-const selectedObjectSubtitleMap = ref<Record<string, string>>({})
+const selectedObjectLabelMap = ref<Record<string, { title: string; subTitle: string }>>(
+  {}
+)
 
 const { result: projectModelsResult, loading: loadingProjects } =
   useQuery<ProjectModelsQueryResult>(projectModelsQuery)
@@ -293,17 +296,41 @@ const modelDisplayName = computed(() => {
   return model?.name || modelIdModel.value || '-'
 })
 
+const getSelectedObjectDisplayName = (id: string) => {
+  const item = selectedObjectLabelMap.value[id]
+  if (!item) return null
+  if (item.title && item.subTitle) return `${item.title}-${item.subTitle}`
+  return item.subTitle || item.title || null
+}
+
 const triggerSelectedNamesLabel = computed(() => {
   if (!activeProjectId.value) return '请先选择项目'
   if (!modelIdModel.value) return '请先选择模型'
   if (!selectedCount.value) return props.placeholder
 
   const names = filteredBimIds.value
-    .map((id) => selectedObjectSubtitleMap.value[id])
+    .map((id) => getSelectedObjectDisplayName(id))
     .filter((name): name is string => !!name)
   if (!names.length) return `已选择 ${selectedCount.value} 个构件`
   if (names.length <= 2) return names.join('、')
   return `${names.slice(0, 2).join('、')} 等 ${names.length} 个构件`
+})
+
+const triggerSelectedNamesTooltip = computed(() => {
+  if (!activeProjectId.value || !modelIdModel.value || !selectedCount.value) {
+    return triggerSelectedNamesLabel.value
+  }
+
+  const names = filteredBimIds.value
+    .map((id) => getSelectedObjectDisplayName(id))
+    .filter((name): name is string => !!name)
+  if (!names.length) return triggerSelectedNamesLabel.value
+
+  return {
+    content: names.join('<br>'),
+    allowHTML: true,
+    maxWidth: 520
+  }
 })
 
 function getMaybeRefValue<T>(
@@ -346,8 +373,12 @@ const applyDraftSelectionToViewer = () => {
       const { header, subheader } = getHeaderAndSubheaderForSpeckleObject(
         node.model.raw
       )
-      const label = subheader || header
-      if (label) selectedObjectSubtitleMap.value[node.model.raw.id] = label
+      if (header || subheader) {
+        selectedObjectLabelMap.value[node.model.raw.id] = {
+          title: header || '',
+          subTitle: subheader || ''
+        }
+      }
     })
   })
 
@@ -388,8 +419,12 @@ watch(selectedObjectsFromViewer, (objects) => {
   objects.forEach((obj) => {
     if (!obj?.id) return
     const { header, subheader } = getHeaderAndSubheaderForSpeckleObject(obj)
-    const label = subheader || header
-    if (label) selectedObjectSubtitleMap.value[obj.id] = label
+    if (header || subheader) {
+      selectedObjectLabelMap.value[obj.id] = {
+        title: header || '',
+        subTitle: subheader || ''
+      }
+    }
   })
 })
 

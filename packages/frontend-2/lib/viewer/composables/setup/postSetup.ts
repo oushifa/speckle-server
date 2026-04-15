@@ -988,5 +988,5 @@ export function useViewerPostSetup() {
   useHighlightingPostSetup()
   useCommentContextIntegration()
   setupDebugMode()
-  useViewerIsolateObjects()
+  // useViewerIsolateObjects()
 }

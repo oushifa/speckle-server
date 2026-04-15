@@ -264,9 +264,9 @@ export function useProjectVersionUpdateTracking(
         if (!silenceToast) {
           triggerNotification({
             type: ToastNotificationType.Info,
-            title: 'A new version was created!',
+            title: '一个新版本已创建',
             cta: {
-              title: 'View Version',
+              title: '查看版本',
               url: modelRoute(
                 unref(projectId),
                 SpeckleViewer.ViewerRoute.resourceBuilder()

@@ -36,22 +36,25 @@ def configure_logger() -> structlog.stdlib.BoundLogger:
 
 class HealthcheckHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
-        match self.path:
-            case "/healthz":
-                self.send_response(200)
-                self.send_header("Content-type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"status": "OK"}')
-            case _:
-                self.send_response(404)
-                self.end_headers()
+        if self.path == "/healthz":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status": "OK"}')
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
+def run_healthcheck_server() -> None:
+    httpd = HTTPServer(("0.0.0.0", 9080), HealthcheckHTTPRequestHandler)
+    httpd.serve_forever()
 
 
 async def main():
     logger = configure_logger()
     task = asyncio.create_task(job_manager(logger))
-    httpd = HTTPServer(("0.0.0.0", 9080), HealthcheckHTTPRequestHandler)
-    healthcheck_server_process = Process(target=httpd.serve_forever, daemon=True)
+    healthcheck_server_process = Process(target=run_healthcheck_server, daemon=True)
     healthcheck_server_process.start()
     start_http_server(9093)
 

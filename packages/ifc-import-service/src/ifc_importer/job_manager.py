@@ -20,6 +20,7 @@ from ifc_importer.repository import (
     deduct_from_compute_budget,
     get_next_job,
     return_job_to_queued,
+    set_job_status,
     setup_connection,
 )
 
@@ -48,18 +49,19 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
         metrics.METRICS_TRACKER = None
         metrics.HOST_APP = "ifc"
 
-        speckle_client = setup_client(job.payload)
-
         job_id = job.id
         job_status = JobStatus.QUEUED
         ex: Exception | None = None
         attempt = job.attempt
         version_id: str | None = None
+        speckle_client = None
 
         # this will create a new temp directory and also delete it,
         #  when the with block closes
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
+                speckle_client = setup_client(job.payload)
+
                 # i do not get this why are we handling this here?
                 if attempt > job.max_attempt:
                     # something went wrong, it should have been marked as failed
@@ -174,6 +176,11 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 if job_status == JobStatus.FAILED:
                     # we should be reporting the failure to the server
                     logger.error("job processing failed", exc_info=ex)
+                    if speckle_client is None:
+                        # If auth/client setup fails, we cannot report via GraphQL.
+                        # Mark the queue job as failed to avoid crashing/retrying forever.
+                        await set_job_status(connection, logger, job_id, JobStatus.FAILED)
+                        continue
                     try:
                         _ = speckle_client.file_import.finish_file_import_job(
                             FileImportErrorInput(
@@ -204,4 +211,3 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         # them to a failed status.
                         await return_job_to_queued(connection, logger, job_id)
                 # SUCCEEDED: do nothing, loop will continue after finally
-

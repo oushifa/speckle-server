@@ -20,7 +20,7 @@ import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
-const normalizeApproveStatus = (status?: number | null) =>
+const normalizeApproveStatus = (status?: string | number | null) =>
   status === null || status === undefined ? null : String(status)
 
 const normalizeBimElements = (

@@ -351,7 +351,7 @@ export function useViewerIsolateObjects() {
   useOnViewerLoadComplete(({ isInitial }) => {
     if (!isInitial) return
     const isolateObjectIds = state.urlHashState.isolateObjectIds
-    setTimeout(() => {
+    nextTick(() => {
       if (isolateObjectIds.value?.length > 0) {
         isolateObjects(isolateObjectIds.value, { replace: true })
       }

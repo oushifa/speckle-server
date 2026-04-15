@@ -28,6 +28,13 @@ import {
   filteredSubscribe,
   publish
 } from '@/modules/shared/utils/subscriptions'
+import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
+
+const normalizeApprovalFlowResourceType = (resourceType?: string | null) => {
+  if (resourceType === 'MODEL') return 'MODEL'
+  // Legacy values (e.g. QUALITY_ACCEPTANCE_FORM) are treated as FORMS
+  return 'FORMS'
+}
 
 const ensureUserId = (ctx: GraphQLContext) => {
   if (!ctx.userId) throw new BadRequestError('Authentication required')
@@ -48,9 +55,13 @@ export default {
       _parent: unknown,
       args: { resourceType?: string | null }
     ) {
-      return await getApprovalFlowDefinitionsFactory({ db })({
+      const definitions = await getApprovalFlowDefinitionsFactory({ db })({
         resourceType: args.resourceType || undefined
       })
+      return definitions.map((definition) => ({
+        ...definition,
+        resourceType: normalizeApprovalFlowResourceType(definition.resourceType)
+      }))
     },
     async approvalFlowInstance(_parent: unknown, args: { id: string }) {
       return await getApprovalFlowInstanceByIdFactory({ db })({ id: args.id })
@@ -121,6 +132,31 @@ export default {
     }
   },
   ApprovalFlowInstance: {
+    async project(
+      parent: { projectId?: string | null },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) {
+      if (!parent.projectId) return null
+      return await ctx.loaders.streams.getStream.load(parent.projectId)
+    },
+    async model(
+      parent: {
+        projectId?: string | null
+        resourceType?: string | null
+        resourceId?: string | null
+      },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) {
+      if (!parent.projectId) return null
+      if (parent.resourceType !== 'MODEL' || !parent.resourceId) return null
+
+      const projectDB = await getProjectDbClient({ projectId: parent.projectId })
+      return await ctx.loaders
+        .forRegion({ db: projectDB })
+        .branches.getById.load(parent.resourceId)
+    },
     async definition(parent: {
       definitionId?: string | null
       flowSnapshot?: Record<string, unknown> | null
@@ -134,7 +170,9 @@ export default {
         id: String(snapshot.definitionId || ''),
         templateId: String(snapshot.templateId || ''),
         name: String(snapshot.name || ''),
-        resourceType: String(snapshot.resourceType || 'MODEL'),
+        resourceType: normalizeApprovalFlowResourceType(
+          String(snapshot.resourceType || 'MODEL')
+        ),
         isActive: false,
         version: Number(snapshot.version || 1),
         previousVersionId: null,
@@ -157,6 +195,8 @@ export default {
     }
   },
   ApprovalFlowDefinition: {
+    resourceType: (parent: { resourceType?: string | null }) =>
+      normalizeApprovalFlowResourceType(parent.resourceType),
     async steps(parent: { id: string; steps?: unknown[] }) {
       if (Array.isArray(parent.steps)) return parent.steps
       return await getApprovalFlowDefinitionStepsFactory({ db })(parent.id)

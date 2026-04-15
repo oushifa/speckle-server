@@ -84,7 +84,21 @@
             <span class="text-foreground">{{ item.unit }}</span>
           </template>
           <template #associationStatus="{ item }">
+            <button
+              v-if="item.associationStatus === '已关联' && !!item.bimElements?.modelId"
+              type="button"
+              class="cursor-pointer"
+              @click="onAssociationStatusClick(item)"
+            >
+              <CommonBadge
+                :color-classes="getAssociationStatusColor(item.associationStatus)"
+                rounded
+              >
+                {{ item.associationStatus }}
+              </CommonBadge>
+            </button>
             <CommonBadge
+              v-else
               :color-classes="getAssociationStatusColor(item.associationStatus)"
               rounded
             >
@@ -253,6 +267,31 @@
         <div class="py-6 text-center text-body-sm text-foreground-2">暂无附件</div>
       </template>
     </LayoutDialog>
+
+    <LayoutDrawer
+      v-model:open="associatedModelDrawerOpen"
+      placement="right"
+      width="95%"
+      body-classes="p-4"
+    >
+      <template #title>
+        关联模型查看
+        <span v-if="selectedAssociationItem" class="text-sm text-foreground-2">
+          | {{ selectedAssociationItem.name || selectedAssociationItem.code || '-' }}
+        </span>
+      </template>
+      <div class="h-[85vh] relative">
+        <CommonModelPropsViewer
+          v-if="selectedAssociationModelIds.length"
+          :project-id="projectId"
+          :model-ids="selectedAssociationModelIds"
+          :filter-bims="selectedAssociationBimIds"
+        />
+        <div v-else class="h-full flex items-center justify-center text-foreground-2">
+          未找到关联模型
+        </div>
+      </div>
+    </LayoutDrawer>
   </div>
 </template>
 
@@ -342,6 +381,8 @@ const previewAttachmentList = ref<QualityAcceptanceAttachment[]>([])
 const selectedPreviewAttachment = ref<Nullable<QualityAcceptanceAttachment>>(null)
 const selectedPreviewAttachmentObjectUrl = ref<Nullable<string>>(null)
 const previewAttachmentError = ref<Nullable<Error>>(null)
+const associatedModelDrawerOpen = ref(false)
+const selectedAssociationItem = ref<AcceptanceRow | null>(null)
 const pageCursors = ref<Record<number, string | null>>({ 1: null })
 const currentCursor = computed(() => pageCursors.value[currentPage.value] || null)
 const { result: formsResult, refetch: formsRefetch } = useQuery(
@@ -626,6 +667,21 @@ const canDeleteItem = (item: AcceptanceRow) => {
   return status === 'REJECTED' || status === 'CANCELED' || !status
 }
 
+const selectedAssociationModelIds = computed(() => {
+  const modelId = selectedAssociationItem.value?.bimElements?.modelId || ''
+  return modelId ? [modelId] : []
+})
+
+const selectedAssociationBimIds = computed(
+  () => selectedAssociationItem.value?.bimElements?.bimIds || []
+)
+
+const onAssociationStatusClick = (item: AcceptanceRow) => {
+  if (item.associationStatus !== '已关联' || !item.bimElements?.modelId) return
+  selectedAssociationItem.value = item
+  associatedModelDrawerOpen.value = true
+}
+
 const onEditItem = (item: AcceptanceRow) => {
   if (!canEditItem(item)) return
   dialogMode.value = 'edit'
@@ -766,5 +822,10 @@ watch(attachmentsDialogOpen, (isOpen) => {
   previewAttachmentList.value = []
   selectedPreviewAttachment.value = null
   clearSelectedPreviewAttachmentObjectUrl()
+})
+
+watch(associatedModelDrawerOpen, (isOpen) => {
+  if (isOpen) return
+  selectedAssociationItem.value = null
 })
 </script>

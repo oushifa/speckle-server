@@ -3,7 +3,8 @@
     <template #header>{{ dialogTitle }}</template>
     <div class="space-y-3">
       <p class="text-body-sm text-foreground-2">
-        审批实例：<span class="font-medium">#{{ instanceId }}</span>
+        审批实例：
+        <span class="font-medium">#{{ instanceId }}</span>
       </p>
       <div class="space-y-2">
         <label for="flow-review-comment" class="text-body-xs text-foreground-2">
@@ -47,7 +48,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (
-    e: 'submit',
+    e: 'confirm',
     payload: {
       action: ReviewAction
       instanceId: string
@@ -108,7 +109,7 @@ watch(
 
 const submit = () => {
   if (!canSubmit.value || !props.instanceId) return
-  emit('submit', {
+  emit('confirm', {
     action: props.action,
     instanceId: props.instanceId,
     comment: comment.value.trim() || null,
