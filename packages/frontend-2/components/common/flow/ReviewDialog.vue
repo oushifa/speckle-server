@@ -41,6 +41,7 @@ type ReviewAction = 'approve' | 'reject' | 'cancel'
 const props = defineProps<{
   action: ReviewAction
   instanceId: string | null
+  defaultRollbackToStep?: number | null
   loading?: boolean
 }>()
 
@@ -92,7 +93,8 @@ const canSubmit = computed(() => {
 
 const resetForm = () => {
   comment.value = ''
-  rollbackToStep.value = null
+  rollbackToStep.value =
+    props.action === 'reject' ? props.defaultRollbackToStep || null : null
 }
 
 watch(

@@ -171,6 +171,11 @@ class ViewerResourceBuilder implements Iterable<ViewerResource> {
     this.#order()
     return this
   }
+  addModels(modelIds: string[]) {
+    this.#resources.push(...modelIds.map((m) => new ViewerModelResource(m)))
+    this.#order()
+    return this
+  }
   addModelFolder(folderName: string) {
     this.#resources.push(new ViewerModelFolderResource(folderName))
     this.#order()

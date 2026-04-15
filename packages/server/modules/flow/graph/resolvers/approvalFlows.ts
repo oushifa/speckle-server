@@ -283,6 +283,7 @@ export default {
         input: {
           templateId?: string | null
           definitionId?: string | null
+          projectId?: string | null
           resourceId?: string | null
           formData?: Record<string, unknown> | null
         }
@@ -293,6 +294,7 @@ export default {
       const instance = await startApprovalFlowFactory({ db })({
         templateId: args.input.templateId || null,
         definitionId: args.input.definitionId || null,
+        projectId: args.input.projectId || null,
         resourceId: args.input.resourceId || null,
         formData: args.input.formData || null,
         userId

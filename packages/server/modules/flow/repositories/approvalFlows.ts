@@ -228,6 +228,7 @@ export const createApprovalFlowInstanceFactory =
     definitionId?: string | null
     templateId: string
     definitionVersion?: number | null
+    projectId?: string | null
     resourceType: string
     resourceId?: string | null
     formData?: Record<string, unknown> | null
@@ -244,7 +245,7 @@ export const createApprovalFlowInstanceFactory =
         definitionId: params.definitionId || null,
         templateId: params.templateId,
         definitionVersion: params.definitionVersion || null,
-        projectId: null,
+        projectId: params.projectId || null,
         resourceType: params.resourceType,
         resourceId: params.resourceId || null,
         formData: jsonValue(deps.db, params.formData || null),

@@ -20,7 +20,7 @@
           />
         </TransitionChild>
 
-        <div class="absolute inset-0 pointer-events-none" :class="wrapperClasses">
+        <div class="absolute inset-0 pointer-events-none flex" :class="wrapperClasses">
           <TransitionChild
             as="template"
             enter="transform transition ease-in-out duration-300"

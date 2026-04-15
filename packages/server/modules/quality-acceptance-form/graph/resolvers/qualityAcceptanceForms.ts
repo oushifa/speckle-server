@@ -19,6 +19,8 @@ import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
+const normalizeApproveStatus = (status?: number | null) =>
+  status === null || status === undefined ? null : String(status)
 
 const resolvers = {
   QualityAcceptanceForm: {
@@ -148,7 +150,7 @@ const resolvers = {
         unit: args.input.unit ?? null,
         BIMelement: args.input.BIMelement ?? null,
         timeZone: args.input.timeZone ?? null,
-        approveStatus: args.input.approveStatus ?? 0,
+        approveStatus: normalizeApproveStatus(args.input.approveStatus),
         createdAt: now,
         updatedAt: now
       })
@@ -166,6 +168,7 @@ const resolvers = {
         try {
           await startApprovalFlowFactory({ db })({
             definitionId: flowId,
+            projectId: args.input.projectId,
             resourceId: `${QUALITY_ACCEPTANCE_FORM_TABLE}:${created.id}`,
             formData: {
               formTable: QUALITY_ACCEPTANCE_FORM_TABLE,
@@ -229,7 +232,7 @@ const resolvers = {
           unit: args.input.unit ?? null,
           BIMelement: args.input.BIMelement ?? null,
           timeZone: args.input.timeZone ?? null,
-          approveStatus: args.input.approveStatus ?? null
+          approveStatus: normalizeApproveStatus(args.input.approveStatus)
         }
       )
       if (!updated) throw new BadRequestError('Quality acceptance form not found')

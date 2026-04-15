@@ -209,6 +209,7 @@ const resolvers = {
       if (flowTemplateId && ctx.userId) {
         const instance = await startApprovalFlowFactory({ db })({
           templateId: flowTemplateId,
+          projectId: args.input.projectId,
           resourceId: `${MONTHLY_MEASUREMENT_TABLE}:${measurement.id}`,
           formData: {
             formTable: MONTHLY_MEASUREMENT_TABLE,
@@ -406,6 +407,7 @@ const resolvers = {
 
       const instance = await startApprovalFlowFactory({ db })({
         templateId: MONTHLY_MEASUREMENT_SUBMIT_TEMPLATE,
+        projectId: args.input.projectId,
         resourceId: `${MONTHLY_MEASUREMENT_TABLE}:${args.input.id}`,
         formData: {
           formTable: MONTHLY_MEASUREMENT_TABLE,

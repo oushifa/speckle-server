@@ -674,6 +674,7 @@ const submitReviewApproval = async () => {
       mutation: startFlowMutation,
       variables: {
         input: {
+          projectId: selectedUpdate.value?.projectId,
           templateId,
           resourceId: selectedResourceId.value,
           formData: {

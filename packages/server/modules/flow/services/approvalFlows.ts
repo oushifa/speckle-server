@@ -450,6 +450,7 @@ export const startApprovalFlowFactory =
   async (params: {
     templateId?: string | null
     definitionId?: string | null
+    projectId?: string | null
     resourceId?: string | null
     formData?: Record<string, unknown> | null
     userId: string
@@ -507,6 +508,7 @@ export const startApprovalFlowFactory =
         definitionId: null,
         templateId: definition.templateId,
         definitionVersion: definition.version,
+        projectId: params.projectId || null,
         resourceType: definition.resourceType,
         resourceId: params.resourceId || null,
         formData: params.formData || null,

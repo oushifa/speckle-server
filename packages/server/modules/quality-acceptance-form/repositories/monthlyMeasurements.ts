@@ -59,17 +59,15 @@ export const createMonthlyMeasurementFactory =
 export const updateMonthlyMeasurementFactory =
   (deps: { db: Knex }) =>
   async (measurementId: string, payload: Partial<MonthlyMeasurementRecord>) => {
-    const [updated] = (await tables
+    const updatedRows = await tables
       .measurements(deps.db)
       .where(MonthlyMeasurements.col.id, measurementId)
-      .update(
-        {
-          ...payload,
-          updatedAt: new Date()
-        },
-        '*'
-      )) as MonthlyMeasurementRecord[]
-    return updated
+      .update({
+        ...payload,
+        updatedAt: new Date()
+      })
+      .returning('*')
+    return (updatedRows as MonthlyMeasurementRecord[])[0]
   }
 
 export const insertMonthlyMeasurementItemsFactory =

@@ -90,6 +90,7 @@ type ApprovalFlowInstance {
   definitionId: ID
   templateId: ID!
   definitionVersion: Int
+  projectId: ID
   definition: ApprovalFlowDefinition
   resourceType: ApprovalFlowResourceType!
   resourceId: ID
@@ -176,6 +177,7 @@ input ApprovalFlowFormFieldOptionInput {
 input StartApprovalFlowInput {
   templateId: ID
   definitionId: ID
+  projectId: ID
   resourceId: ID
   formData: JSONObject
 }
