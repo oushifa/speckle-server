@@ -423,10 +423,10 @@ const formatStepStatusLabel = (status?: string | null) => {
 const formatActionLabel = (action?: string | null) => {
   const actionMap: Record<string, string> = {
     STARTED: '发起流程',
-    STEP_APPROVED: '步骤通过',
-    APPROVED: '流程通过',
-    REJECTED: '流程驳回',
-    CANCELED: '流程取消',
+    STEP_APPROVED: '通过',
+    APPROVED: '流程结束',
+    REJECTED: '驳回',
+    CANCELED: '取消',
     TIMEOUT_REJECTED: '超时驳回'
   }
   if (!action) return '-'

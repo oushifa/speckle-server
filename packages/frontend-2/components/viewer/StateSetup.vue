@@ -1,5 +1,5 @@
 <template>
-  <div class="viewer-state-setup">
+  <div class="viewer-state-setup size-full">
     <ViewerStatePostSetup><slot /></ViewerStatePostSetup>
   </div>
 </template>

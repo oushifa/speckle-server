@@ -102,22 +102,12 @@ const toNullableNumber = (value: unknown) => {
 }
 
 const isApprovedStatus = (status: unknown) => {
-  if (status === 1) return true
-  if (typeof status === 'string') {
-    const normalized = status.trim().toLowerCase()
-    return normalized === 'approved' || normalized === '1'
-  }
-  return false
+  if (typeof status !== 'string') return false
+  return status.trim().toUpperCase() === 'APPROVED'
 }
 
 const isPendingStatus = (status: unknown) => {
-  if (status === null || status === undefined || status === '' || status === 0)
-    return true
-  if (typeof status === 'string') {
-    const normalized = status.trim().toLowerCase()
-    return normalized === '' || normalized === 'pending' || normalized === '0'
-  }
-  return false
+  return status === null || status === undefined
 }
 
 const mapQualityApproveStatusFromFlowStatus = (status: string) => {
@@ -162,6 +152,7 @@ export const buildMonthlyMeasurementPreviewFactory =
         sourceAcceptanceIds: string[]
       }
     >()
+    const pendingBoqIds = new Set<string>()
 
     for (const form of acceptanceForms) {
       const resolvedBoqItemId =
@@ -176,14 +167,18 @@ export const buildMonthlyMeasurementPreviewFactory =
         sourceAcceptanceIds: []
       }
       const workVolume = toNumber(form.workVolume)
-      if (isPendingStatus(form.approveStatus)) current.pendingMeasuredQty += workVolume
-      if (isApprovedStatus(form.approveStatus))
+      if (isPendingStatus(form.approveStatus)) {
+        current.pendingMeasuredQty += workVolume
+        current.sourceAcceptanceIds.push(form.id)
+        pendingBoqIds.add(resolvedBoqItemId)
+      }
+      if (isApprovedStatus(form.approveStatus)) {
         current.approvedCumulativeQty += workVolume
-      current.sourceAcceptanceIds.push(form.id)
+      }
       grouped.set(resolvedBoqItemId, current)
     }
 
-    if (!grouped.size) {
+    if (!grouped.size || !pendingBoqIds.size) {
       return {
         baseDate: params.baseDate,
         items: [] as MonthlyMeasurementPreviewItem[]
@@ -191,7 +186,7 @@ export const buildMonthlyMeasurementPreviewFactory =
     }
 
     const includedIds = new Set<string>()
-    for (const boqItemId of grouped.keys()) {
+    for (const boqItemId of pendingBoqIds) {
       let cursor: string | null = boqItemId
       while (cursor) {
         if (includedIds.has(cursor)) break

@@ -1,7 +1,13 @@
 <template>
   <LayoutDialog v-model:open="open" max-width="lg" :buttons="dialogButtons">
     <template #header>
-      {{ initialData ? '编辑工程量申报与验收' : '工程量申报与验收' }}
+      {{
+        props.readonly
+          ? '工程量申报与验收详情'
+          : initialData
+          ? '编辑工程量申报与验收'
+          : '工程量申报与验收'
+      }}
     </template>
     <div class="space-y-4">
       <div class="text-body-sm text-foreground-2">填写验批信息</div>
@@ -16,7 +22,7 @@
             :project-id="projectId || ''"
             :multiple="false"
             leaf="item"
-            :disabled="loading"
+            :disabled="loading || props.readonly"
             @selected="onChecklistSelected"
           />
         </div>
@@ -36,6 +42,7 @@
           show-label
           show-required
           placeholder="请输入检验批号"
+          :disabled="props.readonly"
         />
         <FormTextInput
           v-model="form.acceptancePart"
@@ -45,6 +52,7 @@
           show-required
           placeholder="请输入验收部位，如：1层主体结构"
           bordered
+          :disabled="props.readonly"
         />
         <FormTextArea
           v-model="form.acceptanceContent"
@@ -54,6 +62,7 @@
           show-required
           placeholder="请输入验收内容"
           bordered
+          :disabled="props.readonly"
         />
         <FormTextInput
           v-model="actualFinishDateInput"
@@ -62,6 +71,7 @@
           type="date"
           show-label
           show-required
+          :disabled="props.readonly"
         />
         <FormTextInput
           v-model="workVolumeInput"
@@ -72,32 +82,26 @@
           show-label
           show-required
           placeholder="请输入工程量"
+          :disabled="props.readonly"
         />
-        <FormSelectBase
+        <FormTextInput
           v-model="form.unit"
           name="quality-acceptance-unit"
           label="计量单位"
           show-label
           show-required
-          :items="units"
-          :allow-unset="false"
+          :disabled="true"
+          placeholder="选择清单项后自动填充"
+        />
+        <div
+          class="md:col-span-2"
+          :class="props.readonly ? 'pointer-events-none opacity-80' : ''"
         >
-          <template #nothing-selected>请选择计量单位</template>
-          <template #something-selected="{ value }">
-            {{ Array.isArray(value) ? value[0] : value }}
-          </template>
-          <template #option="{ item }">
-            {{ item }}
-          </template>
-        </FormSelectBase>
-        <div class="md:col-span-2">
-          <FormTextInput
-            v-model="bimElementInput"
-            name="quality-acceptance-bim-elements"
-            label="关联BIM构件"
-            show-label
-            placeholder="开发中"
-            disabled
+          <CommonModelObjectMultiSelectDrawer
+            v-model:model_id="bimModelId"
+            v-model:bim_ids="bimIds"
+            :project-id="props.projectId"
+            placeholder="点击选择构件"
           />
         </div>
         <div class="md:col-span-2 space-y-2">
@@ -110,7 +114,7 @@
             v-slot="{ isDraggingFiles }"
             :size-limit="maxSizeInBytes"
             :accept="acceptValue"
-            :disabled="loading || !projectId"
+            :disabled="loading || !projectId || props.readonly"
             multiple
             @files-selected="onFilesSelected"
           >
@@ -124,7 +128,7 @@
               <FormButton
                 color="outline"
                 size="sm"
-                :disabled="loading || !projectId"
+                :disabled="loading || !projectId || props.readonly"
                 @click.stop="openFilePicker"
               >
                 选择文件
@@ -134,7 +138,7 @@
           <FormFileUploadProgress
             v-if="uploads.length"
             :items="uploads"
-            :disabled="loading"
+            :disabled="loading || props.readonly"
             @delete="onUploadDelete"
           />
         </div>
@@ -153,17 +157,20 @@ import { isSuccessfullyUploaded } from '~/lib/core/api/blobStorage'
 import { useServerFileUploadLimit } from '~/lib/common/composables/serverInfo'
 import { UniqueFileTypeSpecifier } from '~/lib/core/helpers/file'
 import { acceptedFileExtensions } from '@speckle/shared/blobs'
+import { CommonModelObjectMultiSelectDrawer } from '#components'
 
 const props = withDefaults(
   defineProps<{
     projectId?: string | null
     loading?: boolean
     initialData?: QualityAcceptanceCreateInput | null
+    readonly?: boolean
   }>(),
   {
     projectId: null,
     loading: false,
-    initialData: null
+    initialData: null,
+    readonly: false
   }
 )
 
@@ -173,11 +180,10 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { required: true })
 
-const units = ['m', '㎡', 'm³', 't', 'kg', '项', '座', '套', '个', '组', '根', '块']
-
 const createDefaultForm = (): QualityAcceptanceCreateInput => ({
   flowId: '',
   name: '',
+  boqItemId: '',
   code: '',
   inspectionLotNumber: '',
   acceptancePart: '',
@@ -188,10 +194,10 @@ const createDefaultForm = (): QualityAcceptanceCreateInput => ({
   attachments: [],
   creator: '',
   workVolume: 0,
-  unit: units[0],
-  BIMelement: [],
+  unit: '',
+  bimElements: null,
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
-  approveStatus: 0
+  approveStatus: null
 })
 
 const form = ref<QualityAcceptanceCreateInput>(createDefaultForm())
@@ -200,7 +206,8 @@ const selectedChecklistId = ref<string | null>(null)
 const actualStartDateInput = ref('')
 const actualFinishDateInput = ref('')
 const workVolumeInput = ref('')
-const bimElementInput = ref('')
+const bimProjectId = ref<string | null>(null)
+const bimModelId = ref<string | null>(null)
 const errorMessage = ref('')
 const { maxSizeInBytes } = useServerFileUploadLimit()
 const { onFilesSelected, uploads, onUploadDelete, blobIds } = useAttachments({
@@ -211,13 +218,25 @@ const acceptValue = [
   ...acceptedFileExtensions.map((fileExtension) => `.${fileExtension}`)
 ].join(',')
 
+const bimIds = computed<string[]>({
+  get: () => form.value.bimElements?.bimIds || [],
+  set: (value) => {
+    form.value.bimElements = {
+      modelId: bimModelId.value || '',
+      bimIds: value || []
+    }
+  }
+})
+
 const onChecklistSelected = (
-  items: Array<{ id: string; code: string; name: string }>
+  items: Array<{ id: string; code: string; name: string; unit: string }>
 ) => {
   const first = items[0]
   if (!first) return
+  form.value.boqItemId = first.id
   form.value.name = first.name
   form.value.code = first.code
+  form.value.unit = first.unit || ''
 }
 
 const openFilePicker = () => {
@@ -231,14 +250,9 @@ const formatDateInput = (value: number) => {
   return date.toISOString().slice(0, 10)
 }
 
-const parseBimElements = (raw: string) =>
-  raw
-    .split(/[，,]/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-
 const validate = () => {
   if (!form.value.name.trim()) return '请先选择清单项名称'
+  if (!form.value.boqItemId.trim()) return '清单项不能为空'
   if (!form.value.code.trim()) return '清单项编码不能为空'
   if (!form.value.inspectionLotNumber.trim()) return '检验批号不能为空'
   if (!form.value.acceptancePart.trim()) return '验收部位不能为空'
@@ -255,7 +269,8 @@ const resetForm = () => {
   actualStartDateInput.value = ''
   actualFinishDateInput.value = ''
   workVolumeInput.value = ''
-  bimElementInput.value = ''
+  bimProjectId.value = null
+  bimModelId.value = null
   uploads.value = []
   errorMessage.value = ''
 }
@@ -270,7 +285,8 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
   actualStartDateInput.value = formatDateInput(data.actualStartDate)
   actualFinishDateInput.value = formatDateInput(data.actualFinishDate)
   workVolumeInput.value = `${data.workVolume || ''}`
-  bimElementInput.value = (data.BIMelement || []).join(', ')
+  bimProjectId.value = null
+  bimModelId.value = data.bimElements?.modelId || null
   uploads.value = []
   errorMessage.value = ''
 }
@@ -301,6 +317,7 @@ const submit = () => {
   emit('submit', {
     ...form.value,
     name: form.value.name.trim(),
+    boqItemId: form.value.boqItemId.trim(),
     code: form.value.code.trim(),
     flowId: form.value.flowId?.trim() || undefined,
     inspectionLotNumber: form.value.inspectionLotNumber.trim(),
@@ -312,30 +329,58 @@ const submit = () => {
     attachments: Array.from(
       new Set([...(form.value.attachments || []), ...blobIds.value])
     ),
-    BIMelement: parseBimElements(bimElementInput.value),
+    bimElements:
+      form.value.bimElements && form.value.bimElements.bimIds.length
+        ? {
+            modelId: form.value.bimElements.modelId || '',
+            bimIds: form.value.bimElements.bimIds
+          }
+        : null,
     timeZone: form.value.timeZone.trim()
   })
   open.value = false
 }
 
-const dialogButtons = computed((): LayoutDialogButton[] => [
-  {
-    text: '取消',
-    props: { color: 'outline' },
-    onClick: () => {
-      open.value = false
-    }
-  },
-  {
-    text: '确定',
-    props: {
-      color: 'primary',
-      loading: props.loading
-    },
-    disabled: !!props.loading,
-    onClick: submit
+watch(bimModelId, (modelId) => {
+  if (!form.value.bimElements && !modelId) return
+  form.value.bimElements = {
+    modelId: modelId || '',
+    bimIds: form.value.bimElements?.bimIds || []
   }
-])
+})
+
+const dialogButtons = computed((): LayoutDialogButton[] => {
+  if (props.readonly) {
+    return [
+      {
+        text: '关闭',
+        props: { color: 'outline' },
+        onClick: () => {
+          open.value = false
+        }
+      }
+    ]
+  }
+
+  return [
+    {
+      text: '取消',
+      props: { color: 'outline' },
+      onClick: () => {
+        open.value = false
+      }
+    },
+    {
+      text: '确定',
+      props: {
+        color: 'primary',
+        loading: props.loading
+      },
+      disabled: !!props.loading,
+      onClick: submit
+    }
+  ]
+})
 
 watch(
   () => open.value,

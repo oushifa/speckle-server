@@ -27,7 +27,12 @@ export const getQualityAcceptanceFormsBeforeBaseDateFactory =
     return await tables
       .qualityForms(deps.db)
       .where(QualityAcceptanceForms.col.project_id, params.projectId)
-      .whereNull(QualityAcceptanceForms.col.approveStatus)
+      .andWhere((qb) => {
+        qb.whereNull(QualityAcceptanceForms.col.approveStatus).orWhere(
+          QualityAcceptanceForms.col.approveStatus,
+          'APPROVED'
+        )
+      })
       .andWhere(
         QualityAcceptanceForms.col.actualFinishDate,
         '<=',

@@ -16,7 +16,7 @@
     </button>
     <LayoutDialog v-model:open="isOpen" max-width="lg" :buttons="dialogButtons">
       <template #header>选择清单项</template>
-      <div class="space-y-3">
+      <div class="space-y-3 max-h-[70vh]">
         <div class="text-body-sm text-foreground-2">
           提示：当前仅可选择{{ leafLabel }}层级
         </div>
@@ -35,7 +35,7 @@
             :class="
               canSelect(row)
                 ? 'hover:bg-highlight-1 cursor-pointer'
-                : 'text-foreground-2'
+                : 'text-foreground-2 cursor-not-allowed'
             "
             role="button"
             tabindex="0"
@@ -58,9 +58,15 @@
               class="inline-block"
               :style="{ marginLeft: `${row.depth * 24 + 16}px` }"
             />
-            <span class="text-primary font-medium">{{ row.code }}</span>
-            <span class="text-foreground">{{ row.name }}</span>
-            <span v-if="!canSelect(row)" class="text-foreground-2">（不可选）</span>
+            <span
+              class="font-medium"
+              :class="!canSelect(row) ? 'text-[rgba(19,108,255,0.5)]' : 'text-primary'"
+            >
+              {{ row.code }}
+            </span>
+            <span :class="canSelect(row) ? 'text-foreground' : 'text-foreground-3'">
+              {{ row.name }}
+            </span>
             <CheckIcon
               v-if="draftSelectedIds.has(row.id)"
               class="h-5 w-5 text-success ml-auto"
@@ -90,7 +96,10 @@ import {
   ChevronRightIcon,
   MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline'
-import type { BoqItemType, ProjectBoqItemsQuery } from '~/lib/common/generated/gql/graphql'
+import type {
+  BoqItemType,
+  ProjectBoqItemsQuery
+} from '~/lib/common/generated/gql/graphql'
 import { projectBoqItemsQuery } from '~/lib/projects/graphql/queries'
 
 type BoqNode = NonNullable<
@@ -104,6 +113,7 @@ type ChecklistNode = {
   type: BoqItemType
   code: string
   name: string
+  unit: string
   depth: number
   hasChildren: boolean
   children: ChecklistNode[]
@@ -133,6 +143,7 @@ const emit = defineEmits<{
       id: string
       code: string
       name: string
+      unit: string
     }>
   ): void
 }>()
@@ -174,12 +185,14 @@ const { result, loading, refetch } = useQuery(
 
 const toChecklistNode = (node: BoqNode): ChecklistNode => {
   const childNodes = (node.children || []).filter((child): child is BoqNode => !!child)
+  expandedIds.value.add(node.id)
   return {
     id: node.id,
     parentId: node.parentId || null,
     type: node.type,
     code: node.code,
     name: node.name,
+    unit: node.unit || '',
     depth: node.depth,
     hasChildren: node.hasChildren,
     children: childNodes.map(toChecklistNode)
@@ -317,7 +330,8 @@ const submitSelection = () => {
     selectedNodes.value.map((node) => ({
       id: node.id,
       code: node.code,
-      name: node.name
+      name: node.name,
+      unit: node.unit
     }))
   )
   isOpen.value = false

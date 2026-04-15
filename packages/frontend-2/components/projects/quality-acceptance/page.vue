@@ -27,7 +27,6 @@
         <LayoutTable
           :columns="columns"
           :items="paginatedItems"
-          :buttons="tableButtons"
           empty-message="暂无验收单"
           class="flex-grow"
         >
@@ -53,6 +52,14 @@
           </template>
           <template #workVolume="{ item }">
             <span class="text-foreground">{{ formatWorkVolume(item.workVolume) }}</span>
+          </template>
+          <template #approveStatus="{ item }">
+            <span
+              class="text-foreground px-2 py-1 rounded"
+              :class="getStatusColor(item.approveStatus)"
+            >
+              {{ getStatusText(item.approveStatus) }}
+            </span>
           </template>
           <template #attachments="{ item }">
             <div
@@ -83,6 +90,43 @@
             >
               {{ item.associationStatus }}
             </CommonBadge>
+          </template>
+          <template #actions="{ item }">
+            <div class="flex items-center justify-end gap-2">
+              <button
+                class="text-foreground-2 hover:text-primary transition-colors"
+                title="查看详情"
+                @click="onViewItem(item)"
+              >
+                <EyeIcon class="h-5 w-5" />
+              </button>
+              <button
+                class="transition-colors"
+                :class="
+                  canEditItem(item)
+                    ? 'text-primary hover:text-primary-focus'
+                    : 'text-foreground-3 cursor-not-allowed'
+                "
+                title="编辑"
+                :disabled="!canEditItem(item)"
+                @click="onEditItem(item)"
+              >
+                <PencilSquareIcon class="h-5 w-5" />
+              </button>
+              <button
+                class="transition-colors"
+                :class="
+                  canDeleteItem(item)
+                    ? 'text-danger hover:text-danger-darker'
+                    : 'text-foreground-3 cursor-not-allowed'
+                "
+                title="删除"
+                :disabled="!canDeleteItem(item)"
+                @click="onDeleteItem(item)"
+              >
+                <TrashIcon class="h-5 w-5" />
+              </button>
+            </div>
           </template>
         </LayoutTable>
         <div
@@ -133,6 +177,7 @@
       :project-id="projectId"
       :loading="createFormLoading || updateFormLoading"
       :initial-data="editingInitialData"
+      :readonly="isDialogReadonly"
       @submit="createAcceptanceItem"
     />
     <LayoutDialog
@@ -213,6 +258,7 @@
 
 <script setup lang="ts">
 import {
+  EyeIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -224,6 +270,7 @@ import { ensureError } from '@speckle/shared'
 import type { Nullable } from '@speckle/shared'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { Download, Paperclip, TriangleAlert } from 'lucide-vue-next'
+import type { DocumentNode } from 'graphql'
 import type {
   QualityAcceptanceAttachment,
   QualityAcceptanceCreateInput,
@@ -235,7 +282,11 @@ import {
   deleteQualityAcceptanceFormMutation,
   updateQualityAcceptanceFormMutation
 } from '~/lib/projects/graphql/mutations'
-import type { ProjectQualityAcceptanceFormsQuery } from '~/lib/common/generated/gql/graphql'
+import type {
+  CreateQualityAcceptanceFormInput,
+  ProjectQualityAcceptanceFormsQuery,
+  UpdateQualityAcceptanceFormInput
+} from '~/lib/common/generated/gql/graphql'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
 import dayjs from 'dayjs'
@@ -270,17 +321,20 @@ const columns = [
   { id: 'acceptancePart', header: '区域部位', classes: 'col-span-1' },
   { id: 'inspectionLotNumber', header: '检验批编号', classes: 'col-span-2' },
   { id: 'acceptanceContent', header: '检验批内容', classes: 'col-span-2' },
-  { id: 'actualFinishDate', header: '验收日期', classes: 'col-span-2 font-medium' },
+  { id: 'actualFinishDate', header: '验收日期', classes: 'col-span-1 font-medium' },
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
   { id: 'unit', header: '单位', classes: 'col-span-1' },
   { id: 'attachments', header: '附件', classes: 'col-span-1' },
-  { id: 'associationStatus', header: '关联状态', classes: 'col-span-1' }
+  { id: 'associationStatus', header: '关联状态', classes: 'col-span-1' },
+  { id: 'approveStatus', header: '月度验工', classes: 'col-span-1' },
+  { id: 'actions', header: '操作', classes: 'col-span-1 text-right' }
 ]
 
 const currentPage = ref(1)
 const pageSize = ref(20)
 const createDialogOpen = ref(false)
 const editingItem = ref<AcceptanceRow | null>(null)
+const dialogMode = ref<'create' | 'edit' | 'view'>('create')
 const attachmentsDialogOpen = ref(false)
 const attachmentsDialogLoading = ref(false)
 const attachmentsDialogError = ref<Nullable<Error>>(null)
@@ -291,7 +345,7 @@ const previewAttachmentError = ref<Nullable<Error>>(null)
 const pageCursors = ref<Record<number, string | null>>({ 1: null })
 const currentCursor = computed(() => pageCursors.value[currentPage.value] || null)
 const { result: formsResult, refetch: formsRefetch } = useQuery(
-  projectQualityAcceptanceFormsQuery,
+  projectQualityAcceptanceFormsQuery as DocumentNode,
   () => ({
     projectId: projectId.value,
     search: debouncedSearchQuery.value || null,
@@ -320,38 +374,61 @@ type QualityAcceptanceFormNode = NonNullable<
 
 const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
   (formsResult.value?.project?.qualityAcceptanceForms.items || [])
-    .filter((item): item is QualityAcceptanceFormNode => !!item)
-    .map((item) => ({
-      id: item.id,
-      name: item.name || '',
-      code: item.code || '',
-      inspectionLotNumber: item.inspectionLotNumber || '',
-      acceptancePart: item.acceptancePart || '',
-      acceptanceContent: item.acceptanceContent || '',
-      actualStartDate: Number(item.actualStartDate || 0),
-      actualFinishDate: Number(item.actualFinishDate || 0),
-      inspector: item.inspector?.id || item.inspectorId || '',
-      attachments: (item.attachments || []).flatMap((attachment) =>
-        attachment
-          ? [
-              {
-                id: attachment.id,
-                fileName: attachment.fileName,
-                fileType: attachment.fileType,
-                fileSize: attachment.fileSize || null
-              }
-            ]
-          : []
-      ),
-      creator: item.creator?.name || item.creator?.id || item.creatorId || '',
-      workVolume: Number(item.workVolume || 0),
-      unit: item.unit || '',
-      BIMelement: item.BIMelement || [],
-      timeZone: item.timeZone || '',
-      approveStatus: Number(item.approveStatus || 0),
-      createdAt: new Date(item.createdAt).getTime(),
-      updatedAt: new Date(item.updatedAt).getTime()
-    }))
+    .filter(
+      (
+        item: QualityAcceptanceFormNode | null | undefined
+      ): item is QualityAcceptanceFormNode => !!item
+    )
+    .map((item: QualityAcceptanceFormNode) => {
+      const bimElementsRaw = (
+        item as unknown as {
+          bimElements?: { modelId?: string | null; bimIds?: string[] | null } | null
+        }
+      ).bimElements
+      return {
+        id: item.id,
+        name: item.name || '',
+        boqItemId: item.boqItemId || '',
+        code: item.code || '',
+        inspectionLotNumber: item.inspectionLotNumber || '',
+        acceptancePart: item.acceptancePart || '',
+        acceptanceContent: item.acceptanceContent || '',
+        actualStartDate: Number(item.actualStartDate || 0),
+        actualFinishDate: Number(item.actualFinishDate || 0),
+        inspector: item.inspector?.id || item.inspectorId || '',
+        attachments: (item.attachments || []).flatMap(
+          (attachment: NonNullable<QualityAcceptanceFormNode['attachments']>[number]) =>
+            attachment
+              ? [
+                  {
+                    id: attachment.id,
+                    fileName: attachment.fileName,
+                    fileType: attachment.fileType,
+                    fileSize: attachment.fileSize || null
+                  }
+                ]
+              : []
+        ),
+        creator: item.creator?.name || item.creator?.id || item.creatorId || '',
+        workVolume: Number(item.workVolume || 0),
+        unit: item.unit || '',
+        bimElements: bimElementsRaw
+          ? {
+              modelId: bimElementsRaw.modelId || '',
+              bimIds: bimElementsRaw.bimIds || []
+            }
+          : item.BIMelement
+          ? {
+              modelId: '',
+              bimIds: item.BIMelement
+            }
+          : null,
+        timeZone: item.timeZone || '',
+        approveStatus: item.approveStatus || null,
+        createdAt: new Date(item.createdAt).getTime(),
+        updatedAt: new Date(item.updatedAt).getTime()
+      }
+    })
 )
 const totalCount = computed(
   () => formsResult.value?.project?.qualityAcceptanceForms.totalCount || 0
@@ -371,7 +448,7 @@ const inspectorNameMap = computed(() => {
 const tableItems = computed<AcceptanceRow[]>(() =>
   acceptanceForms.value.map((item) => ({
     ...item,
-    associationStatus: item.BIMelement.length ? '已关联' : '未关联',
+    associationStatus: item.bimElements?.bimIds.length ? '已关联' : '未关联',
     inspectorName: inspectorNameMap.value.get(item.id) || '-'
   }))
 )
@@ -381,6 +458,7 @@ const editingInitialData = computed<QualityAcceptanceCreateInput | null>(() => {
   return {
     flowId: '',
     name: item.name,
+    boqItemId: item.boqItemId,
     code: item.code,
     inspectionLotNumber: item.inspectionLotNumber,
     acceptancePart: item.acceptancePart,
@@ -392,7 +470,7 @@ const editingInitialData = computed<QualityAcceptanceCreateInput | null>(() => {
     creator: item.creator,
     workVolume: item.workVolume,
     unit: item.unit,
-    BIMelement: item.BIMelement,
+    bimElements: item.bimElements,
     timeZone: item.timeZone,
     approveStatus: item.approveStatus
   }
@@ -541,26 +619,63 @@ const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined =>
   ]
 })
 
-const tableButtons = [
-  {
-    icon: PencilSquareIcon,
-    label: '编辑',
-    action: async (item: AcceptanceRow) => {
-      editingItem.value = item
-      createDialogOpen.value = true
-    }
-  },
-  {
-    icon: TrashIcon,
-    label: '删除',
-    action: async (item: AcceptanceRow) => await removeAcceptanceItem(item.id),
-    class: 'text-danger'
-  }
-]
+const canEditItem = (item: AcceptanceRow) => !item.approveStatus
+
+const canDeleteItem = (item: AcceptanceRow) => {
+  const status = (item.approveStatus || '').toUpperCase()
+  return status === 'REJECTED' || status === 'CANCELED' || !status
+}
+
+const onEditItem = (item: AcceptanceRow) => {
+  if (!canEditItem(item)) return
+  dialogMode.value = 'edit'
+  editingItem.value = item
+  createDialogOpen.value = true
+}
+
+const onViewItem = (item: AcceptanceRow) => {
+  dialogMode.value = 'view'
+  editingItem.value = item
+  createDialogOpen.value = true
+}
+
+const onDeleteItem = async (item: AcceptanceRow) => {
+  if (!canDeleteItem(item)) return
+  await removeAcceptanceItem(item.id)
+}
+
+const isDialogReadonly = computed(() => dialogMode.value === 'view')
 
 const onAdd = () => {
+  dialogMode.value = 'create'
   editingItem.value = null
   createDialogOpen.value = true
+}
+
+const getStatusColor = (status: string | null | undefined) => {
+  switch (status) {
+    case 'PENDING':
+      return 'bg-yellow-500 text-white'
+    case 'APPROVED':
+      return 'bg-green-500 text-white'
+    case 'REJECTED':
+      return 'bg-red-500 text-white'
+    default:
+      return 'bg-gray-500 text-white'
+  }
+}
+
+const getStatusText = (status: string | null | undefined) => {
+  switch (status) {
+    case 'PENDING':
+      return '正在查验'
+    case 'APPROVED':
+      return '已查验'
+    case 'REJECTED':
+      return '已拒绝'
+    default:
+      return '-'
+  }
 }
 
 const removeAcceptanceItem = async (id: string) => {
@@ -582,6 +697,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         projectId: projectId.value,
         id: editingItem.value.id,
         name: payload.name,
+        boqItemId: payload.boqItemId,
         code: payload.code,
         inspectionLotNumber: payload.inspectionLotNumber,
         acceptancePart: payload.acceptancePart,
@@ -592,10 +708,10 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         attachments: payload.attachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
-        BIMelement: payload.BIMelement,
+        bimElements: payload.bimElements,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
-      }
+      } as UpdateQualityAcceptanceFormInput
     })
     editingItem.value = null
   } else {
@@ -604,6 +720,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         projectId: projectId.value,
         flowId: payload.flowId || null,
         name: payload.name,
+        boqItemId: payload.boqItemId,
         code: payload.code,
         inspectionLotNumber: payload.inspectionLotNumber,
         acceptancePart: payload.acceptancePart,
@@ -614,10 +731,10 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         attachments: payload.attachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
-        BIMelement: payload.BIMelement,
+        bimElements: payload.bimElements,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
-      }
+      } as CreateQualityAcceptanceFormInput
     })
   }
   await formsRefetch()

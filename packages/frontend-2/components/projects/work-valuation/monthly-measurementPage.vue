@@ -1,138 +1,427 @@
 <template>
-  <div class="flex flex-col h-full space-y-4">
-    <!-- Header & Actions -->
-    <div class="flex justify-between items-center">
-      <h1 class="text-heading-lg text-foreground mt-3">月度验工</h1>
-      <div class="flex items-center space-x-2">
-        <FormTextInput
-          v-model="searchQuery"
-          name="search"
-          placeholder="搜索验工"
-          show-clear
-          class="w-64"
-        >
-          <template #input-right>
-            <div
-              class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
-            >
-              <MagnifyingGlassIcon class="h-5 w-5 text-foreground-2" />
-            </div>
-          </template>
-        </FormTextInput>
-        <FormButton :icon-left="PlusIcon" color="primary">新增</FormButton>
-      </div>
-    </div>
-
-    <!-- Table -->
-    <div
-      class="flex-grow overflow-hidden bg-foundation rounded-lg border border-outline-3 flex flex-col"
-    >
-      <LayoutTable :columns="columns" :items="paginatedItems" class="h-full">
-        <template #code="{ item }">
-          <button
-            class="text-primary hover:underline font-medium"
-            @click="viewItem(item)"
+  <div>
+    <div class="flex flex-col h-full space-y-4">
+      <div class="flex justify-between items-center">
+        <h1 class="text-heading-lg text-foreground mt-3">月度验工</h1>
+        <div class="flex items-center space-x-2">
+          <FormTextInput
+            v-model="searchQuery"
+            name="monthly-measurement-search"
+            placeholder="搜索验工编码/建立单位"
+            show-clear
+            class="w-72"
           >
-            {{ item.code }}
-          </button>
-        </template>
+            <template #input-right>
+              <div
+                class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
+              >
+                <MagnifyingGlassIcon class="h-5 w-5 text-foreground-2" />
+              </div>
+            </template>
+          </FormTextInput>
+          <FormButton :icon-left="PlusIcon" color="primary" @click="openCreateDialog">
+            新增
+          </FormButton>
+        </div>
+      </div>
 
-        <template #unit="{ item }">
-          <span class="text-foreground">{{ item.unit }}</span>
-        </template>
-
-        <template #time="{ item }">
-          <span class="text-foreground">{{ item.time }}</span>
-        </template>
-
-        <template #contract="{ item }">
-          <span class="text-foreground">{{ item.contract }}</span>
-        </template>
-
-        <template #status="{ item }">
-          <CommonBadge :color-classes="getStatusColor(item.status)" rounded>
-            {{ getStatusText(item.status) }}
-          </CommonBadge>
-        </template>
-
-        <template #person="{ item }">
-          <span class="text-foreground">{{ item.person || '-' }}</span>
-        </template>
-
-        <template #actions="{ item }">
-          <div class="flex items-center space-x-2">
+      <div
+        class="flex-grow overflow-hidden bg-foundation rounded-lg border border-outline-3 flex flex-col"
+      >
+        <LayoutTable
+          :columns="columns"
+          :items="tableItems"
+          class="h-full"
+          empty-message="暂无月度验工"
+        >
+          <template #code="{ item }">
             <button
-              class="text-primary hover:text-primary-focus transition-colors"
-              title="查看"
+              class="text-primary hover:underline font-medium"
               @click="viewItem(item)"
             >
-              <EyeIcon class="h-5 w-5" />
+              {{ item.code }}
             </button>
-
-            <template v-if="item.status === 'pending'">
+          </template>
+          <template #unit="{ item }">
+            <span class="text-foreground">{{ item.unit || '-' }}</span>
+          </template>
+          <template #baseDate="{ item }">
+            <span class="text-foreground">{{ formatDate(Number(item.baseDate)) }}</span>
+          </template>
+          <template #status="{ item }">
+            <button
+              v-if="item.flowInstanceId"
+              class="cursor-pointer"
+              title="查看流程详情"
+              @click="openFlowDetail(item)"
+            >
+              <CommonBadge :color-classes="getStatusColor(item.approveStatus)" rounded>
+                {{ getStatusText(item.approveStatus) }}
+              </CommonBadge>
+            </button>
+            <CommonBadge
+              v-else
+              :color-classes="getStatusColor(item.approveStatus)"
+              rounded
+            >
+              {{ getStatusText(item.approveStatus) }}
+            </CommonBadge>
+          </template>
+          <template #creator="{ item }">
+            <span class="text-foreground">{{ item.creator?.name || '-' }}</span>
+          </template>
+          <template #actions="{ item }">
+            <div class="flex items-center justify-end gap-2">
               <button
-                class="text-success hover:text-success-darker transition-colors"
+                class="text-primary hover:text-primary-focus transition-colors"
+                title="查看详情"
+                @click="viewItem(item)"
+              >
+                <EyeIcon class="h-5 w-5" />
+              </button>
+              <button
+                class="text-success hover:text-success-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="送审"
+                :disabled="isSubmitted(item)"
                 @click="submitItem(item)"
               >
                 <PaperAirplaneIcon class="h-5 w-5" />
               </button>
               <button
-                class="text-warning hover:text-warning-darker transition-colors"
+                class="text-warning hover:text-warning-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="编辑"
+                :disabled="isSubmitted(item)"
                 @click="editItem(item)"
               >
                 <PencilSquareIcon class="h-5 w-5" />
               </button>
               <button
-                class="text-danger hover:text-danger-darker transition-colors"
+                class="text-danger hover:text-danger-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="删除"
+                :disabled="isSubmitted(item)"
                 @click="deleteItem(item)"
               >
                 <TrashIcon class="h-5 w-5" />
               </button>
-            </template>
-          </div>
-        </template>
-      </LayoutTable>
+            </div>
+          </template>
+        </LayoutTable>
 
-      <!-- Pagination -->
-      <div
-        class="p-4 border-t border-outline-3 flex items-center justify-between bg-foundation"
-      >
-        <div class="text-sm text-foreground-2">
-          每页显示
-          <select
-            v-model="pageSize"
-            class="mx-1 border border-outline-3 rounded px-2 py-1 bg-foundation text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-          </select>
-          条 &nbsp; 共 {{ totalItems }} 条，第 {{ startItem }}-{{ endItem }} 条
+        <div
+          class="p-4 border-t border-outline-3 flex items-center justify-between bg-foundation"
+        >
+          <div class="text-sm text-foreground-2">
+            每页显示
+            <label for="monthly-measurement-page-size" class="sr-only">
+              每页显示条数
+            </label>
+            <select
+              id="monthly-measurement-page-size"
+              v-model="pageSize"
+              class="mx-1 border border-outline-3 rounded px-2 py-1 bg-foundation text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+            条 &nbsp; 共 {{ totalItems }} 条，第 {{ startItem }}-{{ endItem }} 条
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="currentPage === 1"
+              @click="goPrevPage"
+            >
+              &lt; 上一页
+            </button>
+            <span class="px-2 text-sm text-foreground-2">
+              第 {{ currentPage }} / {{ totalPages || 1 }} 页
+            </span>
+            <button
+              class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!nextCursor"
+              @click="goNextPage"
+            >
+              下一页 &gt;
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <LayoutDialog
+      v-model:open="createDialogOpen"
+      max-width="xl"
+      :buttons="createDialogButtons"
+    >
+      <template #header>{{ dialogTitle }}</template>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <FormTextInput
+            v-model="createForm.unit"
+            name="monthly-measurement-unit"
+            label="建立单位"
+            show-label
+            show-required
+            placeholder="请输入建立单位"
+            :disabled="isViewMode"
+          />
+          <FormTextInput
+            v-model="createForm.code"
+            name="monthly-measurement-code"
+            label="验工编号"
+            show-label
+            show-required
+            placeholder="请输入验工编号"
+            :disabled="isViewMode"
+          />
+          <FormTextInput
+            v-model="createForm.baseDate"
+            name="monthly-measurement-base-date"
+            label="基准时间"
+            type="date"
+            show-label
+            show-required
+            :disabled="isViewMode"
+          />
         </div>
 
-        <div class="flex items-center space-x-2">
+        <div v-if="!isViewMode" class="flex items-center gap-2">
+          <FormButton color="outline" :loading="previewLoading" @click="buildPreview">
+            生成验工列表
+          </FormButton>
+          <span v-if="previewBaseDate" class="text-body-sm text-foreground-2">
+            基准时间 {{ formatDate(previewBaseDate) }} 前的清单项聚合结果
+          </span>
+        </div>
+
+        <div v-if="createError" class="text-body-sm text-danger">
+          {{ createError }}
+        </div>
+
+        <div
+          v-if="previewItems.length"
+          class="rounded border border-outline-3 overflow-auto max-h-[420px]"
+        >
+          <table class="w-full text-sm">
+            <thead class="bg-foundation-2 sticky top-0">
+              <tr>
+                <th class="text-left px-3 py-2">清单编码</th>
+                <th class="text-left px-3 py-2">清单名称</th>
+                <th class="text-right px-3 py-2">工程总量</th>
+                <th class="text-right px-3 py-2">累计验工</th>
+                <th class="text-right px-3 py-2">综合单价</th>
+                <th class="text-right px-3 py-2">本次验工量</th>
+                <th class="text-left px-3 py-2">备注</th>
+                <th class="text-right px-3 py-2">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in previewItems"
+                :key="row.boqItemId"
+                class="border-t border-outline-3"
+              >
+                <td class="px-3 py-2">{{ row.boqCode }}</td>
+                <td class="px-3 py-2">
+                  <div
+                    :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }"
+                  >
+                    <span
+                      :class="row.isSummaryRow ? 'font-medium text-foreground' : ''"
+                    >
+                      {{ row.boqName }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <span
+                    v-if="isBoqQuantityMissing(row)"
+                    class="text-danger font-semibold"
+                  >
+                    未维护清单工程量
+                  </span>
+                  <template v-else-if="!row.isSummaryRow">
+                    {{ formatQty(row.pendingTotalQty) }}
+                  </template>
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <div
+                    v-if="!row.isSummaryRow"
+                    :class="
+                      isCumulativeExceeded(row)
+                        ? 'text-danger font-semibold'
+                        : 'text-foreground'
+                    "
+                  >
+                    {{ formatQty(row.approvedCumulativeQty) }}
+                    <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
+                  </div>
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <template v-if="!row.isSummaryRow">
+                    {{ formatPrice(row.price, row.isSummaryRow) }}
+                  </template>
+                </td>
+                <td class="px-3 py-2">
+                  <FormTextInput
+                    v-if="!row.isSummaryRow && !isViewMode"
+                    v-model="measuredQtyByBoq[row.boqItemId]"
+                    :name="`measured-${row.boqItemId}`"
+                    type="number"
+                    step="any"
+                    :disabled="row.isSummaryRow"
+                    class="max-w-[140px] ml-auto"
+                  />
+                  <template v-else-if="!row.isSummaryRow">
+                    {{
+                      measuredQtyByBoq[row.boqItemId] ||
+                      formatQty(row.measuredQtyDefault)
+                    }}
+                  </template>
+                </td>
+                <td class="px-3 py-2">
+                  <FormTextInput
+                    v-if="!row.isSummaryRow && !isViewMode"
+                    v-model="remarkByBoq[row.boqItemId]"
+                    :name="`remark-${row.boqItemId}`"
+                    :disabled="row.isSummaryRow"
+                    placeholder="可选"
+                  />
+                  <template v-else-if="!row.isSummaryRow">
+                    {{ remarkByBoq[row.boqItemId] || '-' }}
+                  </template>
+                </td>
+                <td class="px-3 py-2 text-right">
+                  <button
+                    v-if="!row.isSummaryRow && !isViewMode"
+                    class="text-danger hover:text-danger-darker transition-colors"
+                    title="删除该验工行"
+                    @click="removePreviewRow(row.boqItemId)"
+                  >
+                    <TrashIcon class="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="text-body-sm text-foreground-2">
+          请先选择基准时间并生成验工列表
+        </div>
+      </div>
+    </LayoutDialog>
+
+    <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
+      <button class="absolute inset-0 bg-black/40" @click="closeFlowDrawer" />
+      <div
+        class="relative h-full w-full max-w-3xl bg-foundation-page border-l border-outline-3 shadow-xl overflow-y-auto"
+      >
+        <div
+          class="p-4 border-b border-outline-3 flex items-center justify-between gap-3"
+        >
+          <div class="min-w-0">
+            <div class="text-body-sm font-medium truncate">
+              {{ selectedFlowInstance?.definition?.name || '流程详情' }}
+            </div>
+            <div class="text-body-xs text-foreground-2">
+              #{{ selectedFlowInstance?.id }}
+            </div>
+          </div>
           <button
-            class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="currentPage === 1"
-            @click="currentPage--"
+            class="px-2 py-1 rounded border border-outline-3 text-body-xs"
+            @click="closeFlowDrawer"
           >
-            &lt; 上一页
+            关闭
           </button>
-          <button
-            class="w-8 h-8 bg-primary text-white rounded flex items-center justify-center font-medium"
-          >
-            1
-          </button>
-          <button
-            class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="currentPage * pageSize >= totalItems"
-            @click="currentPage++"
-          >
-            下一页 &gt;
-          </button>
+        </div>
+        <div class="p-4 space-y-4">
+          <div v-if="flowDetailLoading" class="text-body-sm text-foreground-2">
+            加载中...
+          </div>
+          <div v-else-if="!selectedFlowInstance" class="text-body-sm text-foreground-2">
+            未找到流程详情
+          </div>
+          <template v-else>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">状态</div>
+                <div class="text-body-sm">
+                  {{ formatFlowStatusLabel(selectedFlowInstance.status) }}
+                </div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">当前步骤</div>
+                <div class="text-body-sm">
+                  {{ getCurrentFlowStepName(selectedFlowInstance) }}
+                </div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">发起时间</div>
+                <div class="text-body-sm">
+                  {{ formatDateTime(selectedFlowInstance.createdAt) }}
+                </div>
+              </div>
+              <div class="border border-outline-3 rounded-lg p-3">
+                <div class="text-body-xs text-foreground-2">更新时间</div>
+                <div class="text-body-sm">
+                  {{ formatDateTime(selectedFlowInstance.updatedAt) }}
+                </div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="text-body-sm font-medium">流程日志</div>
+              <div
+                v-if="!selectedFlowInstance.actions.length"
+                class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
+              >
+                暂无流程日志
+              </div>
+              <div
+                v-for="action in selectedFlowInstance.actions"
+                :key="action.id"
+                class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
+              >
+                {{ formatFlowActionLabel(action.action) }} ·
+                {{ action.actor?.name || action.actorId || '-' }} ·
+                {{ formatDateTime(action.createdAt) }}
+                <span v-if="action.toStatus">
+                  · {{ formatFlowStatusLabel(action.toStatus) }}
+                </span>
+                <span v-if="action.comment">· {{ action.comment }}</span>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="text-body-sm font-medium">流程步骤</div>
+              <div
+                v-for="step in selectedFlowInstance.steps"
+                :key="step.id"
+                class="border rounded-lg p-3"
+                :class="getFlowStepCardClass(step.status)"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-body-sm font-medium">
+                    Step {{ step.stepIndex }} · {{ step.name }}
+                  </div>
+                  <span
+                    class="text-body-xs px-2 py-0.5 rounded-full"
+                    :class="getFlowStepTagClass(step.status)"
+                  >
+                    {{ formatFlowStepStatusLabel(step.status) }}
+                  </span>
+                </div>
+                <div class="text-body-xs text-foreground-2 mt-1">
+                  审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+                </div>
+                <div class="text-body-xs text-foreground-2 mt-1">
+                  审核人：{{
+                    step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
+                  }}
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -140,7 +429,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+import { useApolloClient, useMutation, useQuery } from '@vue/apollo-composable'
+import dayjs from 'dayjs'
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -149,212 +441,646 @@ import {
   PencilSquareIcon,
   TrashIcon
 } from '@heroicons/vue/24/outline'
+import type { LayoutDialogButton } from '@speckle/ui-components'
 import {
   LayoutTable,
   FormTextInput,
   FormButton,
   CommonBadge
 } from '@speckle/ui-components'
+import {
+  approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
+  projectMonthlyMeasurementsQuery
+} from '~/lib/projects/graphql/queries'
+import {
+  createMonthlyMeasurementMutation,
+  monthlyMeasurementPreviewMutation,
+  updateMonthlyMeasurementMutation,
+  deleteMonthlyMeasurementMutation,
+  submitMonthlyMeasurementMutation
+} from '~/lib/projects/graphql/mutations'
+import type {
+  ApprovalFlowInstanceDetailsForMonthlyMeasurementQuery,
+  ProjectMonthlyMeasurementsQuery
+} from '~/lib/common/generated/gql/graphql'
 
-// Types
-type Status = 'passed' | 'auditing' | 'pending'
-
-interface WorkValuation {
-  id: string
-  code: string
-  unit: string
-  time: string
-  contract: string
-  status: Status
-  person: string | null
+type PreviewItem = {
+  boqItemId: string
+  boqCode: string
+  boqName: string
+  boqParentId: string | null
+  boqDepth: number
+  uom: string | null
+  price: number | null
+  pendingTotalQty: number
+  approvedCumulativeQty: number
+  measuredQtyDefault: number
+  sourceAcceptanceIds: string[]
+  isSummaryRow: boolean
+  sortIndex: number
 }
 
-// State
+type MonthlyMeasurementNode = NonNullable<
+  NonNullable<
+    NonNullable<ProjectMonthlyMeasurementsQuery['project']>['monthlyMeasurements']
+  >['items'][number]
+>
+type FlowInstanceNode = NonNullable<
+  ApprovalFlowInstanceDetailsForMonthlyMeasurementQuery['approvalFlowInstance']
+>
+
+const apollo = useApolloClient().client
+
+const route = useRoute()
+const projectId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? id : ''
+})
+
 const searchQuery = ref('')
+const debouncedSearchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
+const pageCursors = ref<Record<number, string | null>>({ 1: null })
+const currentCursor = computed(() => pageCursors.value[currentPage.value] || null)
 
-// Columns configuration
+const updateDebouncedSearch = useDebounceFn((value: string) => {
+  debouncedSearchQuery.value = value.trim()
+}, 300)
+watch(searchQuery, (value) => updateDebouncedSearch(value), { immediate: true })
+
 const columns = [
-  { id: 'code', header: '验工编码', classes: 'col-span-2' },
-  { id: 'unit', header: '发起单位', classes: 'col-span-2' },
-  { id: 'time', header: '发起时间', classes: 'col-span-2' },
-  { id: 'contract', header: '合约名称', classes: 'col-span-2' },
-  { id: 'status', header: '审核状态', classes: 'col-span-1' },
-  { id: 'person', header: '当前负责人', classes: 'col-span-1' },
-  { id: 'actions', header: '操作', classes: 'col-span-2' }
+  { id: 'code', header: '验工编码', classes: 'col-span-3' },
+  { id: 'unit', header: '建立单位', classes: 'col-span-2' },
+  { id: 'baseDate', header: '基准时间', classes: 'col-span-2' },
+  { id: 'status', header: '状态', classes: 'col-span-2' },
+  { id: 'creator', header: '创建人', classes: 'col-span-1' },
+  { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
 ]
 
-// Mock Data
-const mockData: WorkValuation[] = [
+const { result: monthlyResult, refetch: refetchMonthly } = useQuery(
+  projectMonthlyMeasurementsQuery,
+  () => ({
+    projectId: projectId.value,
+    search: debouncedSearchQuery.value || null,
+    cursor: currentCursor.value,
+    limit: pageSize.value
+  }),
   {
-    id: '1',
-    code: 'YG-2025-001',
-    unit: '施工单位A',
-    time: '2025-01-15',
-    contract: '主楼建筑工程',
-    status: 'passed',
-    person: '张三'
-  },
-  {
-    id: '2',
-    code: 'YG-2025-002',
-    unit: '施工单位B',
-    time: '2025-01-20',
-    contract: '机电安装工程',
-    status: 'auditing',
-    person: '李四'
-  },
-  {
-    id: '3',
-    code: 'YG-2025-003',
-    unit: '施工单位C',
-    time: '2025-01-22',
-    contract: '装饰装修工程',
-    status: 'pending',
-    person: null
-  },
-  {
-    id: '4',
-    code: 'YG-2025-004',
-    unit: '施工单位A',
-    time: '2025-02-05',
-    contract: '主楼建筑工程',
-    status: 'passed',
-    person: '张三'
-  },
-  {
-    id: '5',
-    code: 'YG-2025-005',
-    unit: '施工单位D',
-    time: '2025-02-10',
-    contract: '景观绿化工程',
-    status: 'auditing',
-    person: '王五'
-  },
-  {
-    id: '6',
-    code: 'YG-2025-006',
-    unit: '施工单位B',
-    time: '2025-02-12',
-    contract: '机电安装工程',
-    status: 'pending',
-    person: null
-  },
-  {
-    id: '7',
-    code: 'YG-2025-007',
-    unit: '施工单位E',
-    time: '2025-02-15',
-    contract: '智能化系统工程',
-    status: 'passed',
-    person: '赵六'
-  },
-  {
-    id: '8',
-    code: 'YG-2025-008',
-    unit: '施工单位C',
-    time: '2025-02-18',
-    contract: '装饰装修工程',
-    status: 'auditing',
-    person: '李四'
-  },
-  {
-    id: '9',
-    code: 'YG-2025-009',
-    unit: '施工单位A',
-    time: '2025-02-20',
-    contract: '主楼建筑工程',
-    status: 'pending',
-    person: null
-  },
-  {
-    id: '10',
-    code: 'YG-2025-010',
-    unit: '施工单位F',
-    time: '2025-02-22',
-    contract: '消防系统工程',
-    status: 'passed',
-    person: '张三'
-  },
-  {
-    id: '11',
-    code: 'YG-2025-011',
-    unit: '施工单位B',
-    time: '2025-02-25',
-    contract: '机电安装工程',
-    status: 'auditing',
-    person: '李四'
-  },
-  {
-    id: '12',
-    code: 'YG-2025-012',
-    unit: '施工单位C',
-    time: '2025-02-28',
-    contract: '装饰装修工程',
-    status: 'pending',
-    person: null
+    enabled: computed(() => !!projectId.value)
   }
-]
-
-// Computed
-const filteredItems = computed(() => {
-  if (!searchQuery.value) return mockData
-  const query = searchQuery.value.toLowerCase()
-  return mockData.filter(
-    (item) =>
-      item.code.toLowerCase().includes(query) ||
-      item.contract.toLowerCase().includes(query) ||
-      item.unit.toLowerCase().includes(query)
-  )
-})
-
-const totalItems = computed(() => filteredItems.value.length)
-
-const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredItems.value.slice(start, end)
-})
-
-const startItem = computed(() => (currentPage.value - 1) * pageSize.value + 1)
-const endItem = computed(() =>
-  Math.min(currentPage.value * pageSize.value, totalItems.value)
 )
 
-// Helpers
-const getStatusText = (status: Status) => {
-  const map: Record<Status, string> = {
-    passed: '已通过',
-    auditing: '审核中',
-    pending: '待送审'
+const tableItems = computed<MonthlyMeasurementNode[]>(() =>
+  (monthlyResult.value?.project?.monthlyMeasurements.items || []).filter(
+    (item): item is MonthlyMeasurementNode => !!item
+  )
+)
+const totalItems = computed(
+  () => monthlyResult.value?.project?.monthlyMeasurements.totalCount || 0
+)
+const nextCursor = computed(
+  () => monthlyResult.value?.project?.monthlyMeasurements.cursor || null
+)
+const totalPages = computed(() =>
+  Math.ceil(totalItems.value / Number(pageSize.value || 1))
+)
+const startItem = computed(() =>
+  totalItems.value === 0 ? 0 : (currentPage.value - 1) * Number(pageSize.value) + 1
+)
+const endItem = computed(() =>
+  Math.min(currentPage.value * Number(pageSize.value), totalItems.value)
+)
+
+watch([projectId, debouncedSearchQuery, pageSize], () => {
+  currentPage.value = 1
+  pageCursors.value = { 1: null }
+})
+
+const goPrevPage = () => {
+  if (currentPage.value <= 1) return
+  currentPage.value -= 1
+}
+
+const goNextPage = () => {
+  const cursor = nextCursor.value
+  if (!cursor) return
+  const nextPage = currentPage.value + 1
+  pageCursors.value[nextPage] = cursor
+  currentPage.value = nextPage
+}
+
+const createDialogOpen = ref(false)
+const createError = ref('')
+const dialogMode = ref<'create' | 'edit' | 'view'>('create')
+const editingMeasurementId = ref<string | null>(null)
+const previewLoading = ref(false)
+const previewBaseDate = ref(0)
+const previewItems = ref<PreviewItem[]>([])
+const measuredQtyByBoq = ref<Record<string, string>>({})
+const remarkByBoq = ref<Record<string, string>>({})
+const actionLoadingId = ref<string | null>(null)
+const flowDetailDrawerOpen = ref(false)
+const flowDetailLoading = ref(false)
+const selectedFlowInstance = ref<FlowInstanceNode | null>(null)
+
+const createForm = ref({
+  unit: '',
+  code: '',
+  baseDate: dayjs().format('YYYY-MM-DD')
+})
+
+const { mutate: previewMutate, loading: previewMutationLoading } = useMutation(
+  monthlyMeasurementPreviewMutation
+)
+const { mutate: createMutate, loading: createLoading } = useMutation(
+  createMonthlyMeasurementMutation
+)
+const { mutate: updateMutate, loading: updateLoading } = useMutation(
+  updateMonthlyMeasurementMutation
+)
+const { mutate: deleteMutate, loading: deleteLoading } = useMutation(
+  deleteMonthlyMeasurementMutation
+)
+const { mutate: submitMutate, loading: submitLoading } = useMutation(
+  submitMonthlyMeasurementMutation
+)
+
+const isViewMode = computed(() => dialogMode.value === 'view')
+const dialogTitle = computed(() => {
+  if (dialogMode.value === 'view') return '月度验工详情'
+  if (dialogMode.value === 'edit') return '编辑月度验工'
+  return '新增月度验工'
+})
+
+const resetDialogState = () => {
+  createError.value = ''
+  previewItems.value = []
+  previewBaseDate.value = 0
+  measuredQtyByBoq.value = {}
+  remarkByBoq.value = {}
+  createForm.value = {
+    unit: '',
+    code: '',
+    baseDate: dayjs().format('YYYY-MM-DD')
   }
-  return map[status]
+  editingMeasurementId.value = null
 }
 
-const getStatusColor = (status: Status) => {
-  const map: Record<Status, string> = {
-    passed: 'bg-success-lighter text-success-darker',
-    auditing: 'bg-primary-muted text-primary',
-    pending: 'bg-highlight-3 text-foreground-2'
+const openCreateDialog = () => {
+  dialogMode.value = 'create'
+  resetDialogState()
+  createDialogOpen.value = true
+}
+
+const buildPreview = async () => {
+  if (!projectId.value) return
+  if (!createForm.value.baseDate) {
+    createError.value = '请选择基准时间'
+    return
   }
-  return map[status]
+  createError.value = ''
+  previewLoading.value = true
+  const baseDate = dayjs(createForm.value.baseDate).endOf('day').valueOf()
+  try {
+    const res = await previewMutate({
+      input: {
+        projectId: projectId.value,
+        baseDate
+      }
+    })
+    const items =
+      res?.data?.projectMutations?.monthlyMeasurementMutations?.preview.items || []
+    previewItems.value = items.map((item) => ({
+      boqItemId: item.boqItemId,
+      boqCode: item.boqCode,
+      boqName: item.boqName,
+      boqParentId: item.boqParentId || null,
+      boqDepth: item.boqDepth,
+      uom: item.uom || null,
+      price: item.price || null,
+      pendingTotalQty: Number(item.pendingTotalQty || 0),
+      approvedCumulativeQty: Number(item.approvedCumulativeQty || 0),
+      measuredQtyDefault: Number(item.measuredQtyDefault || 0),
+      sourceAcceptanceIds: item.sourceAcceptanceIds || [],
+      isSummaryRow: !!item.isSummaryRow,
+      sortIndex: Number(item.sortIndex || 0)
+    }))
+    previewItems.value.sort((a, b) => a.sortIndex - b.sortIndex)
+    previewBaseDate.value = Number(
+      res?.data?.projectMutations?.monthlyMeasurementMutations?.preview.baseDate || 0
+    )
+    measuredQtyByBoq.value = Object.fromEntries(
+      previewItems.value.map((item) => [
+        item.boqItemId,
+        item.isSummaryRow ? '' : `${item.measuredQtyDefault}`
+      ])
+    )
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '生成验工列表失败'
+  } finally {
+    previewLoading.value = false
+  }
 }
 
-// Actions
-const viewItem = (item: WorkValuation) => {
-  console.log('View item', item)
+const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
+  const rows = (item.items || [])
+    .map((row) => ({
+      boqItemId: row.boqItemId,
+      boqCode: row.boqCode || '',
+      boqName: row.boqName || '',
+      boqParentId: row.boqParentId || null,
+      boqDepth: row.boqDepth,
+      uom: row.uom || null,
+      price: row.price || null,
+      pendingTotalQty: Number(row.pendingTotalQty || 0),
+      approvedCumulativeQty: Number(row.approvedCumulativeQty || 0),
+      measuredQtyDefault: Number(row.measuredQty || 0),
+      sourceAcceptanceIds: row.sourceAcceptanceIds || [],
+      isSummaryRow: !!row.isSummaryRow,
+      sortIndex: Number(row.sortIndex || 0)
+    }))
+    .sort((a, b) => a.sortIndex - b.sortIndex)
+  previewItems.value = rows
+  measuredQtyByBoq.value = Object.fromEntries(
+    rows.map((row) => [
+      row.boqItemId,
+      row.isSummaryRow ? '' : `${row.measuredQtyDefault}`
+    ])
+  )
+  remarkByBoq.value = Object.fromEntries(
+    rows
+      .filter((row) => !row.isSummaryRow)
+      .map((row) => {
+        const matched = item.items?.find(
+          (itemRow) => itemRow.boqItemId === row.boqItemId
+        )
+        return [row.boqItemId, matched?.remark || '']
+      })
+  )
 }
 
-const submitItem = (item: WorkValuation) => {
-  console.log('Submit item', item)
+const removePreviewRow = (boqItemId: string) => {
+  // eslint-disable-next-line no-alert
+  const confirmed = window.confirm('确认删除该验工行吗？删除后该清单项不参与本次验工。')
+  if (!confirmed) return
+
+  const nextRows = previewItems.value.filter((row) => row.boqItemId !== boqItemId)
+  const rowById = new Map(nextRows.map((row) => [row.boqItemId, row]))
+  const keepIds = new Set<string>()
+
+  for (const row of nextRows) {
+    if (row.isSummaryRow) continue
+    let cursor: string | null = row.boqItemId
+    while (cursor) {
+      if (keepIds.has(cursor)) break
+      keepIds.add(cursor)
+      cursor = rowById.get(cursor)?.boqParentId || null
+    }
+  }
+
+  const filteredRows = nextRows.filter((row) => keepIds.has(row.boqItemId))
+  const childrenMap = new Map<string | null, PreviewItem[]>()
+  for (const row of filteredRows) {
+    const parentId = row.boqParentId || null
+    const list = childrenMap.get(parentId) || []
+    list.push(row)
+    childrenMap.set(parentId, list)
+  }
+
+  const rebuiltRows = filteredRows
+    .map((row) => ({ ...row }))
+    .sort((a, b) => a.sortIndex - b.sortIndex)
+  // const rebuiltRowById = new Map(rebuiltRows.map((row) => [row.boqItemId, row]))
+  // for (const row of rebuiltRows) {
+  //   if (!row.isSummaryRow) continue
+  //   row.pendingTotalQty = 0
+  //   row.approvedCumulativeQty = 0
+  //   row.measuredQtyDefault = 0
+  // }
+  // for (const row of [...rebuiltRows].sort((a, b) => b.sortIndex - a.sortIndex)) {
+  //   if (!row.isSummaryRow) continue
+  //   const children = childrenMap.get(row.boqItemId) || []
+  //   const current = rebuiltRowById.get(row.boqItemId)
+  //   if (!current) continue
+  //   for (const child of children) {
+  //     current.pendingTotalQty += Math.max(child.pendingTotalQty, 0)
+  //     current.approvedCumulativeQty += child.approvedCumulativeQty
+  //   }
+  // }
+
+  previewItems.value = rebuiltRows
+  measuredQtyByBoq.value = Object.fromEntries(
+    rebuiltRows.map((row) => [
+      row.boqItemId,
+      row.isSummaryRow
+        ? ''
+        : measuredQtyByBoq.value[row.boqItemId] || `${row.measuredQtyDefault}`
+    ])
+  )
+  remarkByBoq.value = Object.fromEntries(
+    rebuiltRows
+      .filter((row) => !row.isSummaryRow)
+      .map((row) => [row.boqItemId, remarkByBoq.value[row.boqItemId] || ''])
+  )
 }
 
-const editItem = (item: WorkValuation) => {
-  console.log('Edit item', item)
+const isSubmitted = (item: { approveStatus?: string | null }) =>
+  Boolean(item.approveStatus)
+
+const viewItem = (item: MonthlyMeasurementNode) => {
+  dialogMode.value = 'view'
+  editingMeasurementId.value = item.id
+  createForm.value = {
+    unit: item.unit || '',
+    code: item.code,
+    baseDate: formatDate(Number(item.baseDate))
+  }
+  previewBaseDate.value = Number(item.baseDate || 0)
+  buildPreviewFromMeasurement(item)
+  createDialogOpen.value = true
 }
 
-const deleteItem = (item: WorkValuation) => {
-  console.log('Delete item', item)
+const editItem = (item: MonthlyMeasurementNode) => {
+  if (isSubmitted(item)) return
+  dialogMode.value = 'edit'
+  editingMeasurementId.value = item.id
+  createForm.value = {
+    unit: item.unit || '',
+    code: item.code,
+    baseDate: dayjs(Number(item.baseDate)).format('YYYY-MM-DD')
+  }
+  previewBaseDate.value = Number(item.baseDate || 0)
+  buildPreviewFromMeasurement(item)
+  createDialogOpen.value = true
+}
+
+const submitDialog = async () => {
+  if (!projectId.value || createLoading.value || updateLoading.value) return
+  if (!createForm.value.unit.trim()) {
+    createError.value = '建立单位不能为空'
+    return
+  }
+  if (!createForm.value.code.trim()) {
+    createError.value = '验工编号不能为空'
+    return
+  }
+  if (!createForm.value.baseDate) {
+    createError.value = '基准时间不能为空'
+    return
+  }
+  if (!previewItems.value.length) {
+    createError.value = '请先生成验工列表'
+    return
+  }
+
+  createError.value = ''
+  const measuredItems = previewItems.value
+    .filter((item) => !item.isSummaryRow)
+    .map((item) => {
+      const rawQty = measuredQtyByBoq.value[item.boqItemId]
+      const parsedQty = Number(rawQty)
+      return {
+        boqItemId: item.boqItemId,
+        measuredQty: Number.isNaN(parsedQty) ? item.measuredQtyDefault : parsedQty,
+        remark: (remarkByBoq.value[item.boqItemId] || '').trim() || null
+      }
+    })
+
+  try {
+    if (dialogMode.value === 'edit' && editingMeasurementId.value) {
+      await updateMutate({
+        input: {
+          projectId: projectId.value,
+          id: editingMeasurementId.value,
+          unit: createForm.value.unit.trim(),
+          code: createForm.value.code.trim(),
+          baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
+          measuredItems
+        }
+      })
+    } else {
+      await createMutate({
+        input: {
+          projectId: projectId.value,
+          unit: createForm.value.unit.trim(),
+          code: createForm.value.code.trim(),
+          baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
+          measuredItems
+        }
+      })
+    }
+    createDialogOpen.value = false
+    await refetchMonthly()
+    if (currentPage.value !== 1) currentPage.value = 1
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '保存失败'
+  }
+}
+
+const createDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      createDialogOpen.value = false
+    }
+  },
+  {
+    text: dialogMode.value === 'edit' ? '保存' : '提交',
+    props: {
+      color: 'primary',
+      loading:
+        createLoading.value ||
+        updateLoading.value ||
+        previewMutationLoading.value ||
+        submitLoading.value ||
+        deleteLoading.value
+    },
+    disabled:
+      isViewMode.value ||
+      createLoading.value ||
+      updateLoading.value ||
+      previewMutationLoading.value ||
+      submitLoading.value ||
+      deleteLoading.value,
+    onClick: () => {
+      submitDialog().catch(() => undefined)
+    }
+  }
+])
+
+const submitItem = async (item: MonthlyMeasurementNode) => {
+  if (!projectId.value || isSubmitted(item)) return
+  actionLoadingId.value = item.id
+  try {
+    await submitMutate({
+      input: {
+        projectId: projectId.value,
+        id: item.id
+      }
+    })
+    await refetchMonthly()
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '送审失败'
+  } finally {
+    actionLoadingId.value = null
+  }
+}
+
+const openFlowDetail = async (item: MonthlyMeasurementNode) => {
+  if (!item.flowInstanceId) return
+  flowDetailDrawerOpen.value = true
+  flowDetailLoading.value = true
+  selectedFlowInstance.value = null
+  try {
+    const res = await apollo.query({
+      query: approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
+      variables: {
+        id: item.flowInstanceId
+      },
+      fetchPolicy: 'network-only'
+    })
+    selectedFlowInstance.value = (res.data?.approvalFlowInstance ||
+      null) as FlowInstanceNode
+  } finally {
+    flowDetailLoading.value = false
+  }
+}
+
+const closeFlowDrawer = () => {
+  flowDetailDrawerOpen.value = false
+  selectedFlowInstance.value = null
+}
+
+const deleteItem = async (item: MonthlyMeasurementNode) => {
+  if (!projectId.value || isSubmitted(item)) return
+  actionLoadingId.value = item.id
+  try {
+    await deleteMutate({
+      input: {
+        projectId: projectId.value,
+        id: item.id
+      }
+    })
+    await refetchMonthly()
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '删除失败'
+  } finally {
+    actionLoadingId.value = null
+  }
+}
+
+const getStatusText = (status: string | null | undefined) => {
+  const map: Record<string, string> = {
+    PENDING: '审批中',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    CANCELLED: '已取消'
+  }
+  return map[(status || '').toUpperCase()] || '未送审'
+}
+
+const getStatusColor = (status: string | null | undefined) => {
+  const map: Record<string, string> = {
+    PENDING: 'bg-primary-muted text-primary',
+    APPROVED: 'bg-success-lighter text-success-darker',
+    REJECTED: 'bg-danger-lighter text-danger-darker',
+    CANCELLED: 'bg-highlight-3 text-foreground-2'
+  }
+  return map[(status || '').toUpperCase()] || 'bg-foundation-3 text-foreground-2'
+}
+
+const formatFlowStatusLabel = (status?: string | null) => {
+  const map: Record<string, string> = {
+    PENDING: '审批中',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    CANCELED: '已取消',
+    CANCELLED: '已取消'
+  }
+  if (!status) return '-'
+  return map[status] || status
+}
+
+const formatFlowStepStatusLabel = (status?: string | null) => {
+  const map: Record<string, string> = {
+    WAITING: '未开始',
+    PENDING: '当前步骤',
+    APPROVED: '已完成',
+    REJECTED: '已驳回',
+    CANCELED: '已取消',
+    CANCELLED: '已取消'
+  }
+  if (!status) return '-'
+  return map[status] || status
+}
+
+const formatFlowActionLabel = (action?: string | null) => {
+  const map: Record<string, string> = {
+    STARTED: '发起流程',
+    STEP_APPROVED: '步骤通过',
+    APPROVED: '流程通过',
+    REJECTED: '流程驳回',
+    CANCELED: '流程取消',
+    TIMEOUT_REJECTED: '超时驳回'
+  }
+  if (!action) return '-'
+  return map[action] || action
+}
+
+const getFlowStepCardClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'border-success bg-success/5'
+  if (status === 'PENDING') return 'border-primary bg-primary/5'
+  if (status === 'REJECTED' || status === 'CANCELED' || status === 'CANCELLED') {
+    return 'border-danger bg-danger/5'
+  }
+  return 'border-outline-3 bg-foundation'
+}
+
+const getFlowStepTagClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'bg-success/10 text-success'
+  if (status === 'PENDING') return 'bg-primary/10 text-primary'
+  if (status === 'REJECTED' || status === 'CANCELED' || status === 'CANCELLED') {
+    return 'bg-danger/10 text-danger'
+  }
+  return 'bg-foundation-2 text-foreground-2'
+}
+
+const getCurrentFlowStepName = (instance: FlowInstanceNode) => {
+  const byStatus = instance.steps.find((step) => step.status === 'PENDING')
+  if (byStatus) return byStatus.name
+  const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
+  return byIndex?.name || '-'
+}
+
+const formatQty = (value: number) => {
+  if (Number.isInteger(value)) return `${value}`
+  return value.toFixed(2)
+}
+
+const formatPrice = (value: number | null, isSummaryRow: boolean) => {
+  if (isSummaryRow) return '-'
+  if (value === null || value === undefined) return '-'
+  if (Number.isInteger(value)) return `${value}`
+  return value.toFixed(2)
+}
+
+const isBoqQuantityMissing = (row: PreviewItem) =>
+  !row.isSummaryRow && row.pendingTotalQty < 0
+
+const isCumulativeExceeded = (row: PreviewItem) =>
+  !row.isSummaryRow &&
+  !isBoqQuantityMissing(row) &&
+  row.approvedCumulativeQty > row.pendingTotalQty
+
+const formatDate = (value: number) => {
+  if (!value) return '-'
+  return dayjs(value).format('YYYY-MM-DD')
+}
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '-'
+  return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
 }
 </script>

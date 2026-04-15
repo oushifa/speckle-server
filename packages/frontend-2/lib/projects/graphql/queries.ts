@@ -369,6 +369,7 @@ export const projectQualityAcceptanceFormsQuery = graphql(`
         items {
           id
           name
+          boqItemId
           code
           inspectionLotNumber
           acceptancePart
@@ -394,12 +395,113 @@ export const projectQualityAcceptanceFormsQuery = graphql(`
           projectId
           workVolume
           unit
+          bimElements {
+            modelId
+            bimIds
+          }
           BIMelement
           timeZone
           approveStatus
           createdAt
           updatedAt
         }
+      }
+    }
+  }
+`)
+
+export const projectMonthlyMeasurementsQuery = graphql(`
+  query ProjectMonthlyMeasurements(
+    $projectId: String!
+    $search: String
+    $cursor: String
+    $limit: Int!
+  ) {
+    project(id: $projectId) {
+      id
+      monthlyMeasurements(input: { search: $search, cursor: $cursor, limit: $limit }) {
+        totalCount
+        cursor
+        items {
+          id
+          unit
+          code
+          baseDate
+          approveStatus
+          flowInstanceId
+          items {
+            id
+            boqItemId
+            boqCode
+            boqName
+            boqParentId
+            boqDepth
+            isSummaryRow
+            sortIndex
+            uom
+            pendingTotalQty
+            approvedCumulativeQty
+            measuredQty
+            price
+            remark
+            sourceAcceptanceIds
+          }
+          creator {
+            id
+            name
+          }
+          creatorId
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+`)
+
+export const approvalFlowInstanceDetailsForMonthlyMeasurementQuery = graphql(`
+  query ApprovalFlowInstanceDetailsForMonthlyMeasurement($id: ID!) {
+    approvalFlowInstance(id: $id) {
+      id
+      resourceType
+      resourceId
+      status
+      currentStep
+      createdBy
+      createdAt
+      updatedAt
+      definition {
+        id
+        name
+        resourceType
+        isActive
+      }
+      actions {
+        id
+        stepId
+        action
+        fromStatus
+        toStatus
+        comment
+        metadata
+        actorId
+        createdAt
+        actor {
+          id
+          name
+        }
+      }
+      steps {
+        id
+        name
+        stepIndex
+        status
+        requiredApprovals
+        approverIds
+        approvedByIds
+        startedAt
+        dueAt
+        completedAt
       }
     }
   }

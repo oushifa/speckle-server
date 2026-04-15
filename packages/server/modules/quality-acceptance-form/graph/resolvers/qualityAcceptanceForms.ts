@@ -14,6 +14,7 @@ import { BadRequestError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
+import type { BimElements } from '@/modules/quality-acceptance-form/helpers/types'
 import { isNonNullable } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
@@ -21,6 +22,23 @@ import { keyBy } from 'lodash-es'
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 const normalizeApproveStatus = (status?: number | null) =>
   status === null || status === undefined ? null : String(status)
+
+const normalizeBimElements = (
+  bimElements?: BimElements | null,
+  legacyBimElement?: string[] | null
+): BimElements | null => {
+  if (bimElements) {
+    const modelId = typeof bimElements.modelId === 'string' ? bimElements.modelId : ''
+    const bimIds = Array.isArray(bimElements.bimIds)
+      ? bimElements.bimIds.filter((id): id is string => typeof id === 'string')
+      : []
+    return { modelId, bimIds }
+  }
+  if (Array.isArray(legacyBimElement)) {
+    return { modelId: '', bimIds: legacyBimElement }
+  }
+  return null
+}
 
 const resolvers = {
   QualityAcceptanceForm: {
@@ -43,6 +61,14 @@ const resolvers = {
     },
     creatorId: (parent: { creator?: string | null }) => parent.creator || null,
     projectId: (parent: { project_id?: string | null }) => parent.project_id || null,
+    bimElements: (parent: {
+      bimElements?: BimElements | null
+      BIMelement?: string[] | null
+    }) => normalizeBimElements(parent.bimElements, parent.BIMelement),
+    BIMelement: (parent: {
+      bimElements?: BimElements | null
+      BIMelement?: string[] | null
+    }) => normalizeBimElements(parent.bimElements, parent.BIMelement)?.bimIds || null,
     attachments: async (parent: {
       attachments?: string[] | null
       project_id?: string | null
@@ -106,6 +132,7 @@ const resolvers = {
           projectId: string
           flowId?: string | null
           name?: string | null
+          boqItemId?: string | null
           code?: string | null
           inspectionLotNumber?: string | null
           acceptancePart?: string | null
@@ -116,9 +143,10 @@ const resolvers = {
           attachments?: string[] | null
           workVolume?: number | null
           unit?: string | null
+          bimElements?: BimElements | null
           BIMelement?: string[] | null
           timeZone?: string | null
-          approveStatus?: number | null
+          approveStatus?: string | null
         }
       },
       ctx: GraphQLContext
@@ -136,6 +164,7 @@ const resolvers = {
       const created = await createQualityAcceptanceFormFactory({ db: projectDb })({
         id: cryptoRandomString({ length: 10 }),
         name: args.input.name ?? null,
+        boqItemId: args.input.boqItemId ?? null,
         code: args.input.code ?? null,
         inspectionLotNumber: args.input.inspectionLotNumber ?? null,
         acceptancePart: args.input.acceptancePart ?? null,
@@ -148,7 +177,10 @@ const resolvers = {
         ['project_id']: args.input.projectId,
         workVolume: args.input.workVolume ?? null,
         unit: args.input.unit ?? null,
-        BIMelement: args.input.BIMelement ?? null,
+        bimElements: normalizeBimElements(
+          args.input.bimElements ?? null,
+          args.input.BIMelement ?? null
+        ),
         timeZone: args.input.timeZone ?? null,
         approveStatus: normalizeApproveStatus(args.input.approveStatus),
         createdAt: now,
@@ -191,6 +223,7 @@ const resolvers = {
           projectId: string
           id: string
           name?: string | null
+          boqItemId?: string | null
           code?: string | null
           inspectionLotNumber?: string | null
           acceptancePart?: string | null
@@ -201,9 +234,10 @@ const resolvers = {
           attachments?: string[] | null
           workVolume?: number | null
           unit?: string | null
+          bimElements?: BimElements | null
           BIMelement?: string[] | null
           timeZone?: string | null
-          approveStatus?: number | null
+          approveStatus?: string | null
         }
       },
       ctx: GraphQLContext
@@ -219,6 +253,7 @@ const resolvers = {
         args.input.id,
         {
           name: args.input.name ?? null,
+          boqItemId: args.input.boqItemId ?? null,
           code: args.input.code ?? null,
           inspectionLotNumber: args.input.inspectionLotNumber ?? null,
           acceptancePart: args.input.acceptancePart ?? null,
@@ -230,7 +265,10 @@ const resolvers = {
           ['project_id']: args.input.projectId,
           workVolume: args.input.workVolume ?? null,
           unit: args.input.unit ?? null,
-          BIMelement: args.input.BIMelement ?? null,
+          bimElements: normalizeBimElements(
+            args.input.bimElements ?? null,
+            args.input.BIMelement ?? null
+          ),
           timeZone: args.input.timeZone ?? null,
           approveStatus: normalizeApproveStatus(args.input.approveStatus)
         }

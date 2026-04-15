@@ -655,6 +655,7 @@ export const Branches = buildTableHelper('branches', [
 export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms', [
   'id',
   'name',
+  'boqItemId',
   'code',
   'inspectionLotNumber',
   'acceptancePart',
@@ -667,7 +668,7 @@ export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms
   'project_id',
   'workVolume',
   'unit',
-  'BIMelement',
+  'bimElements',
   'timeZone',
   'approveStatus',
   'createdAt',

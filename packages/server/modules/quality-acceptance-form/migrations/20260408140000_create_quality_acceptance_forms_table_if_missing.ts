@@ -17,9 +17,9 @@ export async function up(knex: Knex): Promise<void> {
       table.string('inspector').nullable()
       table.float('workVolume').nullable()
       table.string('unit').nullable()
-      table.specificType('BIMelement', 'text[]').nullable()
+      table.jsonb('bimElements').nullable()
       table.string('timeZone').nullable()
-      table.integer('approveStatus').nullable()
+      table.string('approveStatus').nullable()
       table
         .timestamp('createdAt', { precision: 3, useTz: true })
         .notNullable()

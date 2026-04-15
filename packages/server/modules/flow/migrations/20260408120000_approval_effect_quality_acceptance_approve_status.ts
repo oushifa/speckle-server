@@ -10,7 +10,7 @@ const actualFinishDateColumn = 'actualFinishDate'
 const inspectorColumn = 'inspector'
 const workVolumeColumn = 'workVolume'
 const unitColumn = 'unit'
-const bimElementColumn = 'BIMelement'
+const bimElementColumn = 'bimElements'
 const timeZoneColumn = 'timeZone'
 const approveStatusColumn = 'approveStatus'
 const createdAtColumn = 'createdAt'
@@ -61,7 +61,7 @@ export async function up(knex: Knex): Promise<void> {
     if (!hasInspector) table.string(inspectorColumn).nullable()
     if (!hasWorkVolume) table.float(workVolumeColumn).nullable()
     if (!hasUnit) table.string(unitColumn).nullable()
-    if (!hasBimElement) table.specificType(bimElementColumn, 'text[]').nullable()
+    if (!hasBimElement) table.jsonb(bimElementColumn).nullable()
     if (!hasTimeZone) table.string(timeZoneColumn).nullable()
     if (!hasApproveStatus) {
       table.integer(approveStatusColumn).nullable()

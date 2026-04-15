@@ -147,8 +147,8 @@ export type BranchRecord = {
 export type QualityAcceptanceFormRecord = {
   id: string
   name?: Nullable<string>
-  code?: Nullable<string>
   boqItemId?: Nullable<string>
+  code?: Nullable<string>
   inspectionLotNumber?: Nullable<string>
   acceptancePart?: Nullable<string>
   acceptanceContent?: Nullable<string>
@@ -174,12 +174,12 @@ export type QualityAcceptanceFormRecord = {
 export type MonthlyMeasurementRecord = {
   id: string
   project_id: string
-  unit: Nullable<string>
+  unit?: Nullable<string>
   code: string
   baseDate: string
-  approveStatus: Nullable<string>
-  flowInstanceId: Nullable<string>
-  creator: Nullable<string>
+  approveStatus?: Nullable<string>
+  flowInstanceId?: Nullable<string>
+  creator?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }
@@ -188,19 +188,19 @@ export type MonthlyMeasurementItemRecord = {
   id: string
   measurementId: string
   boqItemId: string
-  boqCode: Nullable<string>
-  boqName: Nullable<string>
-  boqParentId: Nullable<string>
+  boqCode?: Nullable<string>
+  boqName?: Nullable<string>
+  boqParentId?: Nullable<string>
   boqDepth: number
   isSummaryRow: boolean
   sortIndex: number
-  uom: Nullable<string>
-  pendingTotalQty: Nullable<number>
-  approvedCumulativeQty: Nullable<number>
-  measuredQty: Nullable<number>
-  price: Nullable<number>
-  remark: Nullable<string>
-  sourceAcceptanceIds: Nullable<string[]>
+  uom?: Nullable<string>
+  pendingTotalQty?: Nullable<number>
+  approvedCumulativeQty?: Nullable<number>
+  measuredQty?: Nullable<number>
+  price?: Nullable<number>
+  remark?: Nullable<string>
+  sourceAcceptanceIds?: Nullable<string[]>
   createdAt: Date
   updatedAt: Date
 }

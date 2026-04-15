@@ -1,6 +1,17 @@
+type BimElements {
+  modelId: ID!
+  bimIds: [String!]!
+}
+
+input BimElementsInput {
+  modelId: ID!
+  bimIds: [String!]!
+}
+
 type QualityAcceptanceForm {
   id: ID!
   name: String
+  boqItemId: ID
   code: String
   inspectionLotNumber: String
   acceptancePart: String
@@ -15,9 +26,10 @@ type QualityAcceptanceForm {
   projectId: ID
   workVolume: Float
   unit: String
-  BIMelement: [String!]
+  bimElements: BimElements
+  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
   timeZone: String
-  approveStatus: Int
+  approveStatus: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -38,6 +50,7 @@ input CreateQualityAcceptanceFormInput {
   projectId: ID!
   flowId: ID
   name: String
+  boqItemId: ID
   code: String
   inspectionLotNumber: String
   acceptancePart: String
@@ -48,9 +61,10 @@ input CreateQualityAcceptanceFormInput {
   attachments: [String!]
   workVolume: Float
   unit: String
-  BIMelement: [String!]
+  bimElements: BimElementsInput
+  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
   timeZone: String
-  approveStatus: Int
+  approveStatus: String
 }
 
 input DeleteQualityAcceptanceFormInput {
@@ -62,6 +76,7 @@ input UpdateQualityAcceptanceFormInput {
   projectId: ID!
   id: ID!
   name: String
+  boqItemId: ID
   code: String
   inspectionLotNumber: String
   acceptancePart: String
@@ -72,9 +87,10 @@ input UpdateQualityAcceptanceFormInput {
   attachments: [String!]
   workVolume: Float
   unit: String
-  BIMelement: [String!]
+  bimElements: BimElementsInput
+  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
   timeZone: String
-  approveStatus: Int
+  approveStatus: String
 }
 
 type QualityAcceptanceMutations {

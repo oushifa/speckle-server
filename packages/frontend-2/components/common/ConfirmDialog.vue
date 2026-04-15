@@ -1,5 +1,9 @@
 <template>
-  <LayoutDialog v-model:open="open" max-width="xs" :buttons="dialogButtons">
+  <LayoutDialog
+    v-model:open="open"
+    :max-width="maxWidth || 'xs'"
+    :buttons="dialogButtons"
+  >
     <template #header>{{ title ?? 'Discard changes?' }}</template>
     <slot />
     <p v-if="text" class="mb-2">{{ text }}</p>
@@ -16,6 +20,7 @@ const props = defineProps<{
   loading?: boolean
   confirmDisabled?: boolean
   closeOnConfirm?: boolean
+  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }>()
 
 const emit = defineEmits<{

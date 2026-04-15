@@ -1559,8 +1559,9 @@ export type CreateQualityAcceptanceFormInput = {
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
   actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
-  approveStatus?: InputMaybe<Scalars['Int']['input']>;
+  approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   flowId?: InputMaybe<Scalars['ID']['input']>;
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
@@ -4169,8 +4170,9 @@ export type QualityAcceptanceForm = {
   acceptancePart?: Maybe<Scalars['String']['output']>;
   actualFinishDate?: Maybe<Scalars['BigInt']['output']>;
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
-  approveStatus?: Maybe<Scalars['Int']['output']>;
+  approveStatus?: Maybe<Scalars['String']['output']>;
   attachments: Array<BlobMetadata>;
+  boqItemId?: Maybe<Scalars['ID']['output']>;
   code?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   creator?: Maybe<LimitedUser>;
@@ -5697,8 +5699,9 @@ export type UpdateQualityAcceptanceFormInput = {
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
   actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
-  approveStatus?: InputMaybe<Scalars['Int']['input']>;
+  approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
@@ -9786,8 +9789,9 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   acceptancePart?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   actualFinishDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
-  approveStatus?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   attachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
+  boqItemId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   code?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   creator?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;

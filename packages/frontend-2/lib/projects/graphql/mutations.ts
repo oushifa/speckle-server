@@ -284,6 +284,81 @@ export const updateQualityAcceptanceFormMutation = graphql(`
   }
 `)
 
+export const monthlyMeasurementPreviewMutation = graphql(`
+  mutation MonthlyMeasurementPreview($input: MonthlyMeasurementPreviewInput!) {
+    projectMutations {
+      monthlyMeasurementMutations {
+        preview(input: $input) {
+          baseDate
+          items {
+            boqItemId
+            boqCode
+            boqName
+            boqParentId
+            boqDepth
+            sortIndex
+            uom
+            price
+            pendingTotalQty
+            approvedCumulativeQty
+            measuredQtyDefault
+            sourceAcceptanceIds
+            isSummaryRow
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const createMonthlyMeasurementMutation = graphql(`
+  mutation CreateMonthlyMeasurement($input: CreateMonthlyMeasurementInput!) {
+    projectMutations {
+      monthlyMeasurementMutations {
+        create(input: $input) {
+          id
+        }
+      }
+    }
+  }
+`)
+
+export const updateMonthlyMeasurementMutation = graphql(`
+  mutation UpdateMonthlyMeasurement($input: UpdateMonthlyMeasurementInput!) {
+    projectMutations {
+      monthlyMeasurementMutations {
+        update(input: $input) {
+          id
+        }
+      }
+    }
+  }
+`)
+
+export const deleteMonthlyMeasurementMutation = graphql(`
+  mutation DeleteMonthlyMeasurement($input: DeleteMonthlyMeasurementInput!) {
+    projectMutations {
+      monthlyMeasurementMutations {
+        delete(input: $input)
+      }
+    }
+  }
+`)
+
+export const submitMonthlyMeasurementMutation = graphql(`
+  mutation SubmitMonthlyMeasurement($input: SubmitMonthlyMeasurementInput!) {
+    projectMutations {
+      monthlyMeasurementMutations {
+        submit(input: $input) {
+          id
+          approveStatus
+          flowInstanceId
+        }
+      }
+    }
+  }
+`)
+
 export const deleteWebhookMutation = graphql(`
   mutation deleteWebhook($webhook: WebhookDeleteInput!) {
     webhookDelete(webhook: $webhook)

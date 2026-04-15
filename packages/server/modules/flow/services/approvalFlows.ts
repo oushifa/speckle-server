@@ -25,10 +25,16 @@ import {
 } from '@/modules/flow/repositories/approvalFlows'
 import { updateBranchFactory } from '@/modules/core/repositories/branches'
 import { updateQualityAcceptanceFormFactory } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
+import {
+  getMonthlyMeasurementItemsFactory,
+  updateMonthlyMeasurementFactory,
+  updateQualityAcceptanceApproveStatusByIdsFactory
+} from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { Knex } from 'knex'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
+const MONTHLY_MEASUREMENT_TABLE = 'monthly_measurements'
 const FORM_SNAPSHOT_ENTER = 'ENTER_STEP'
 const FORM_SNAPSHOT_LEAVE = 'LEAVE_STEP'
 const FLOW_ID_MAX_LENGTH = 10
@@ -78,11 +84,19 @@ const shouldAllowParallelInstancesForSameResource = (
 ) => Boolean(effectConfig?.allowParallelInstancesForSameResource)
 
 const mapFlowStatusToQualityAcceptanceApproveStatus = (status: string) => {
-  if (status === ApprovalFlowInstanceStatus.Pending) return 0
-  if (status === ApprovalFlowInstanceStatus.Approved) return 1
-  if (status === ApprovalFlowInstanceStatus.Rejected) return 2
-  if (status === ApprovalFlowInstanceStatus.Canceled) return 3
-  return 0
+  if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
+  if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
+  if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
+  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELLED'
+  return 'PENDING'
+}
+
+const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) => {
+  if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
+  if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
+  if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
+  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELLED'
+  return 'PENDING'
 }
 
 const parseFormResourceId = (resourceId: string) => {
@@ -144,7 +158,7 @@ const updateResourceByHookAction = async (params: {
   }
   if (targetResourceType === 'FORMS') {
     const parsed = parseFormResourceId(params.instance.resourceId)
-    if (!parsed || parsed.formTable !== QUALITY_ACCEPTANCE_FORM_TABLE) return
+    if (!parsed) return
     const payload: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(sourceFields)) {
       const resolved = resolveHookValue(value, {
@@ -157,7 +171,44 @@ const updateResourceByHookAction = async (params: {
           : resolved
     }
     if (!Object.keys(payload).length) return
-    await updateQualityAcceptanceFormFactory({ db: params.trx })(parsed.formId, payload)
+    if (parsed.formTable === QUALITY_ACCEPTANCE_FORM_TABLE) {
+      await updateQualityAcceptanceFormFactory({ db: params.trx })(
+        parsed.formId,
+        payload
+      )
+      return
+    }
+    if (parsed.formTable === MONTHLY_MEASUREMENT_TABLE) {
+      const monthlyPayload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(payload)) {
+        monthlyPayload[key] =
+          key === 'approveStatus' && typeof value === 'string'
+            ? mapFlowStatusToMonthlyMeasurementApproveStatus(value)
+            : value
+      }
+      await updateMonthlyMeasurementFactory({ db: params.trx })(
+        parsed.formId,
+        monthlyPayload
+      )
+
+      const nextApproveStatus = monthlyPayload.approveStatus
+      if (typeof nextApproveStatus !== 'string') return
+      const measurementItems = await getMonthlyMeasurementItemsFactory({
+        db: params.trx
+      })(parsed.formId)
+      const qualityAcceptanceIds = Array.from(
+        new Set(
+          measurementItems.flatMap((item) =>
+            Array.isArray(item.sourceAcceptanceIds) ? item.sourceAcceptanceIds : []
+          )
+        )
+      )
+      if (!qualityAcceptanceIds.length) return
+      await updateQualityAcceptanceApproveStatusByIdsFactory({ db: params.trx })({
+        ids: qualityAcceptanceIds,
+        approveStatus: nextApproveStatus
+      })
+    }
   }
 }
 
