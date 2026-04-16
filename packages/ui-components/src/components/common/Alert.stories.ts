@@ -6,7 +6,7 @@ export default {
   component: CommonAlert,
   argTypes: {
     color: {
-      options: ['success', 'danger', 'warning', 'info'],
+      options: ['success', 'danger', 'warning', 'info', 'primary'],
       control: { type: 'select' }
     }
   }

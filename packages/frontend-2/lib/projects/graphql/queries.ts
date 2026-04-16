@@ -459,6 +459,46 @@ export const projectMonthlyMeasurementsQuery = graphql(`
   }
 `)
 
+export const projectMonthlyMeasurementByIdQuery = graphql(`
+  query ProjectMonthlyMeasurementById($projectId: String!, $id: ID!) {
+    project(id: $projectId) {
+      id
+      monthlyMeasurement(id: $id) {
+        id
+        unit
+        code
+        baseDate
+        approveStatus
+        flowInstanceId
+        items {
+          id
+          boqItemId
+          boqCode
+          boqName
+          boqParentId
+          boqDepth
+          isSummaryRow
+          sortIndex
+          uom
+          pendingTotalQty
+          approvedCumulativeQty
+          measuredQty
+          price
+          remark
+          sourceAcceptanceIds
+        }
+        creator {
+          id
+          name
+        }
+        creatorId
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`)
+
 export const approvalFlowInstanceDetailsForMonthlyMeasurementQuery = graphql(`
   query ApprovalFlowInstanceDetailsForMonthlyMeasurement($id: ID!) {
     approvalFlowInstance(id: $id) {

@@ -81,7 +81,7 @@
     <LayoutDrawer
       v-model:open="drawerOpen"
       placement="right"
-      :width="selectedInstance?.resourceType === 'MODEL' ? '95%' : '1100px'"
+      :width="'95%'"
       body-classes="p-4"
     >
       <template #title>
@@ -113,6 +113,7 @@
             </div>
             <FlowMonthMeasure
               v-else-if="selectedInstance.definition?.id === 'm_measure'"
+              :instance="selectedInstance"
             />
           </div>
         </div>

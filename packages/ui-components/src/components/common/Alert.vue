@@ -127,6 +127,9 @@ const containerClasses = computed(() => {
     case 'neutral':
       classParts.push('bg-foundation border-outline-2')
       break
+    case 'primary':
+      classParts.push('bg-sky-100 border-sky-400')
+      break
   }
 
   return classParts.join(' ')

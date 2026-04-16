@@ -71,6 +71,30 @@ const resolvers = {
     }
   },
   Project: {
+    monthlyMeasurement: async (
+      parent: { id: string },
+      args: { id: string },
+      ctx: GraphQLContext
+    ) => {
+      const canRead = await ctx.authPolicies.project.canRead({
+        projectId: parent.id,
+        userId: ctx.userId
+      })
+      throwIfAuthNotOk(canRead)
+
+      const projectDb = await getProjectDbClient({ projectId: parent.id })
+      const found = await getMonthlyMeasurementByIdForProjectFactory({
+        db: projectDb
+      })({
+        measurementId: args.id,
+        projectId: parent.id
+      })
+      if (!found) return null
+      return {
+        ...found,
+        _projectDb: projectDb
+      }
+    },
     monthlyMeasurements: async (
       parent: { id: string },
       args: {
@@ -303,7 +327,8 @@ const resolvers = {
         const custom = customValues.get(row.boqItemId)
         const measuredQty =
           row.isSummaryRow ||
-          custom?.measuredQty === null || custom?.measuredQty === undefined
+          custom?.measuredQty === null ||
+          custom?.measuredQty === undefined
             ? row.measuredQtyDefault
             : Number(custom.measuredQty)
 

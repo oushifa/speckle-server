@@ -83,7 +83,7 @@
                 class="text-success hover:text-success-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="送审"
                 :disabled="isSubmitted(item)"
-                @click="submitItem(item)"
+                @click="openSubmitDialog(item)"
               >
                 <PaperAirplaneIcon class="h-5 w-5" />
               </button>
@@ -351,6 +351,35 @@
           />
         </div>
       </div>
+    </LayoutDialog>
+
+    <LayoutDialog
+      v-model:open="viewDialogOpen"
+      max-width="xl"
+      :buttons="viewDialogButtons"
+    >
+      <template #header>月度验工详情</template>
+      <ProjectsWorkValuationMmDetail
+        v-if="viewTargetItem"
+        :item="viewTargetItem"
+        :project-id="projectId"
+      >
+        <template #default />
+      </ProjectsWorkValuationMmDetail>
+    </LayoutDialog>
+
+    <LayoutDialog
+      v-model:open="submitDialogOpen"
+      max-width="xl"
+      :buttons="submitDialogButtons"
+    >
+      <template #header>送审验工单</template>
+      <ProjectsWorkValuationMmDetail
+        v-if="submitTargetItem"
+        v-model:remark="submitRemark"
+        :item="submitTargetItem"
+        :project-id="projectId"
+      />
     </LayoutDialog>
 
     <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
@@ -623,6 +652,11 @@ const previewViewTag = ref<PreviewViewTag>('list')
 const measuredQtyByBoq = ref<Record<string, string>>({})
 const remarkByBoq = ref<Record<string, string>>({})
 const actionLoadingId = ref<string | null>(null)
+const viewDialogOpen = ref(false)
+const viewTargetItem = ref<MonthlyMeasurementNode | null>(null)
+const submitDialogOpen = ref(false)
+const submitTargetItem = ref<MonthlyMeasurementNode | null>(null)
+const submitRemark = ref('')
 const flowDetailDrawerOpen = ref(false)
 const flowDetailLoading = ref(false)
 const selectedFlowInstance = ref<FlowInstanceNode | null>(null)
@@ -905,16 +939,15 @@ const isSubmitted = (item: { approveStatus?: string | null }) =>
   Boolean(item.approveStatus)
 
 const viewItem = (item: MonthlyMeasurementNode) => {
-  dialogMode.value = 'view'
-  editingMeasurementId.value = item.id
-  createForm.value = {
-    unit: item.unit || '',
-    code: item.code,
-    baseDate: formatDate(Number(item.baseDate))
-  }
-  previewBaseDate.value = Number(item.baseDate || 0)
-  buildPreviewFromMeasurement(item)
-  createDialogOpen.value = true
+  viewTargetItem.value = item
+  viewDialogOpen.value = true
+}
+
+const openSubmitDialog = (item: MonthlyMeasurementNode) => {
+  if (isSubmitted(item)) return
+  submitTargetItem.value = item
+  submitRemark.value = ''
+  submitDialogOpen.value = true
 }
 
 const editItem = (item: MonthlyMeasurementNode) => {
@@ -1026,6 +1059,39 @@ const createDialogButtons = computed((): LayoutDialogButton[] => [
   }
 ])
 
+const viewDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '关闭',
+    props: { color: 'outline' },
+    onClick: () => {
+      viewDialogOpen.value = false
+      viewTargetItem.value = null
+    }
+  }
+])
+
+const submitDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      submitDialogOpen.value = false
+    }
+  },
+  {
+    text: '确认送审',
+    props: {
+      color: 'primary',
+      loading: submitLoading.value
+    },
+    disabled: submitLoading.value || !submitTargetItem.value,
+    onClick: () => {
+      if (!submitTargetItem.value) return
+      submitItem(submitTargetItem.value).catch(() => undefined)
+    }
+  }
+])
+
 const submitItem = async (item: MonthlyMeasurementNode) => {
   if (!projectId.value || isSubmitted(item)) return
   actionLoadingId.value = item.id
@@ -1037,6 +1103,9 @@ const submitItem = async (item: MonthlyMeasurementNode) => {
       }
     })
     await refetchMonthly()
+    submitDialogOpen.value = false
+    submitTargetItem.value = null
+    submitRemark.value = ''
   } catch (e) {
     createError.value = e instanceof Error ? e.message : '送审失败'
   } finally {

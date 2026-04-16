@@ -112,6 +112,7 @@ type MonthlyMeasurementMutations {
 }
 
 extend type Project {
+  monthlyMeasurement(id: ID!): MonthlyMeasurement
   monthlyMeasurements(
     input: ProjectMonthlyMeasurementsInput
   ): MonthlyMeasurementCollection!

@@ -21,7 +21,13 @@ export interface NumberStepType extends BulletStepType {
   description?: string
 }
 
-export type AlertColor = 'success' | 'danger' | 'warning' | 'info' | 'neutral'
+export type AlertColor =
+  | 'success'
+  | 'danger'
+  | 'warning'
+  | 'info'
+  | 'neutral'
+  | 'primary'
 
 export type AlertAction = {
   title: string
