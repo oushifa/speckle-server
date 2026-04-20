@@ -68,9 +68,7 @@ const contactButton = computed(() => ({
   text: 'Contact us',
   id: 'contact-us',
   disabled: !isAdmin.value,
-  onClick: () => {
-    window.location.href = 'mailto:billing@47.100.77.97'
-  }
+  onClick: () => {}
 }))
 
 const addOnButtonTooltip = computed(() => {

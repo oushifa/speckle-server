@@ -3,7 +3,7 @@
     class="flex items-center shrink-0 select-none px-[3px] h-10"
   >
     <NuxtLink
-      to="http://47.100.77.97:64482/"
+      to="/"
       external
       target="_blank"
       class="flex items-center gap-1 hover:bg-highlight-1 rounded-md h-8 px-2.5"

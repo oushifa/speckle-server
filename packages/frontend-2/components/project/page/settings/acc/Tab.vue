@@ -1,14 +1,7 @@
 <template>
   <ProjectPageSettingsBlock :auth-check="canUpdate" title="ACC">
     <template #top-buttons>
-      <FormButton
-        color="outline"
-        to="http://47.100.77.97:64482/"
-        external
-        target="_blank"
-      >
-        Docs
-      </FormButton>
+      <FormButton color="outline" to="/" external target="_blank">Docs</FormButton>
       <FormButton :disabled="!canUpdate?.authorized">New</FormButton>
     </template>
     <IntegrationsAccSyncs

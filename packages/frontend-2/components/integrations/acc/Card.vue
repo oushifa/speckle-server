@@ -81,7 +81,7 @@ const statusText = () => {
 }
 
 const openLearnMore = () => {
-  window.open('http://47.100.77.97:64482/beta/acc/overview', '_blank')
+  window.open('/beta/acc/overview', '_blank')
 }
 
 const handleCTA = async () => {

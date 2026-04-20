@@ -235,7 +235,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  to="http://47.100.77.97:64482/updates"
+                  to="/updates"
                   target="_blank"
                   @click="isOpenMobile = false"
                 >

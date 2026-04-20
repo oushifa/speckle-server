@@ -28,9 +28,7 @@
             :show-label="false"
           />
         </div>
-        <FormButton v-else to="mailto:billing@47.100.77.97" size="sm" color="outline">
-          联系我们
-        </FormButton>
+        <FormButton v-else to="/" size="sm" color="outline">联系我们</FormButton>
       </div>
     </div>
   </section>

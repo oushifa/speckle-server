@@ -7,7 +7,7 @@
       <template v-if="!hideSpeckleBranding">
         <HeaderLogoBlock
           large-icon
-          to="http://47.100.77.97:64482/"
+          to="/"
           target="_blank"
           show-text-on-mobile
           :active="false"

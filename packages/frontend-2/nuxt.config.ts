@@ -86,8 +86,7 @@ export default defineNuxtConfig({
       intercomAppId: '',
       dashboardsOrigin: '',
       parallelMiddlewares: true,
-      disableViewerActivityBroadcasting: false,
-      oaUrl: 'http://47.100.77.97:64487/'
+      disableViewerActivityBroadcasting: false
     }
   },
 
@@ -234,7 +233,7 @@ export default defineNuxtConfig({
     // Redirect old settings - End
     '/downloads': {
       redirect: {
-        to: 'http://47.100.77.97:64482/',
+        to: '/',
         statusCode: 301
       }
     },

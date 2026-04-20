@@ -26,11 +26,11 @@ export const accLoginRoute = '/authn/acc'
 export const accRoute = '/acc'
 export const connectorsRoute = '/connectors'
 export const tutorialsRoute = '/tutorials'
-export const docsPageUrl = 'http://47.100.77.97:64482/'
-export const forumPageUrl = 'http://47.100.77.97:64482/'
-export const guideBillingUrl = 'http://47.100.77.97:64482/workspaces/billing'
+export const docsPageUrl = '/'
+export const forumPageUrl = '/'
+export const guideBillingUrl = '/workspaces/billing'
 export const onboardingRoute = '/onboarding'
-export const viewerDocsRoute = 'http://47.100.77.97:64482/3d-viewer/interface-nav'
+export const viewerDocsRoute = '/3d-viewer/interface-nav'
 
 export const settingsUserRoutes = {
   profile: '/settings/user/profile',
@@ -264,4 +264,4 @@ export const doesRouteFitTarget = (fullPathA: string, fullPathB: string) => {
   return true
 }
 
-export const LearnMoreMoveProjectsUrl = 'http://47.100.77.97:64482/pricing'
+export const LearnMoreMoveProjectsUrl = '/'
