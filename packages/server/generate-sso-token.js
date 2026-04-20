@@ -18,8 +18,8 @@ const AES_KEY = Buffer.from(
 const AES_IV = Buffer.from('22409c2b7417a8272694ccb7454db738', 'hex')
 
 // ========== Mock 测试数据 ==========
-const mockUsername = 'srj@test.com'
-const mockPassword = 'Srj@6666'
+const mockUsername = 'test'
+const mockPassword = 'Srj@66666'
 
 /**
  * AES-256-CBC 加密函数
