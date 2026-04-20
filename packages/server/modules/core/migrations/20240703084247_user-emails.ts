@@ -5,7 +5,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('id').notNullable().primary()
     table.string('email').notNullable()
     table.boolean('primary').defaultTo(false)
-    table.boolean('verified').defaultTo(false)
+    table.boolean('verified').defaultTo(true)
     table
       .string('userId')
       .notNullable()

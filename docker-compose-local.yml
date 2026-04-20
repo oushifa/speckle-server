@@ -13,35 +13,35 @@ services:
     # Not exposing port 5432 on host to avoid conflicts with existing postgres
     command: postgres -c max_prepared_transactions=150
 
-  # postgres-region1:
-  #   image: 'postgres:16.4-alpine3.20@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf'
-  #   restart: always
-  #   environment:
-  #     POSTGRES_DB: speckle
-  #     POSTGRES_USER: speckle
-  #     POSTGRES_PASSWORD: speckle
-  #   volumes:
-  #     - postgres-region1-data:/var/lib/postgresql/data/
-  #     - ./setup/db/10-docker_postgres_init.sql:/docker-entrypoint-initdb.d/10-docker_postgres_init.sql
-  #     - ./setup/db/11-docker_postgres_keycloak_init.sql:/docker-entrypoint-initdb.d/11-docker_postgres_keycloak_init.sql
-  #   ports:
-  #     - '127.0.0.1:5401:5432'
-  #   command: postgres -c max_prepared_transactions=150
+  postgres-region1:
+    image: 'postgres:16.4-alpine3.20@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf'
+    restart: always
+    environment:
+      POSTGRES_DB: speckle
+      POSTGRES_USER: speckle
+      POSTGRES_PASSWORD: speckle
+    volumes:
+      - postgres-region1-data:/var/lib/postgresql/data/
+      - ./setup/db/10-docker_postgres_init.sql:/docker-entrypoint-initdb.d/10-docker_postgres_init.sql
+      - ./setup/db/11-docker_postgres_keycloak_init.sql:/docker-entrypoint-initdb.d/11-docker_postgres_keycloak_init.sql
+    ports:
+      - '127.0.0.1:5401:5432'
+    command: postgres -c max_prepared_transactions=150
 
-  # postgres-region2:
-  #   image: 'postgres:16.4-alpine3.20@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf'
-  #   restart: always
-  #   environment:
-  #     POSTGRES_DB: speckle
-  #     POSTGRES_USER: speckle
-  #     POSTGRES_PASSWORD: speckle
-  #   volumes:
-  #     - postgres-region2-data:/var/lib/postgresql/data/
-  #     - ./setup/db/10-docker_postgres_init.sql:/docker-entrypoint-initdb.d/10-docker_postgres_init.sql
-  #     - ./setup/db/11-docker_postgres_keycloak_init.sql:/docker-entrypoint-initdb.d/11-docker_postgres_keycloak_init.sql
-  #   ports:
-  #     - '127.0.0.1:5402:5432'
-  #   command: postgres -c max_prepared_transactions=150
+  postgres-region2:
+    image: 'postgres:16.4-alpine3.20@sha256:d898b0b78a2627cb4ee63464a14efc9d296884f1b28c841b0ab7d7c42f1fffdf'
+    restart: always
+    environment:
+      POSTGRES_DB: speckle
+      POSTGRES_USER: speckle
+      POSTGRES_PASSWORD: speckle
+    volumes:
+      - postgres-region2-data:/var/lib/postgresql/data/
+      - ./setup/db/10-docker_postgres_init.sql:/docker-entrypoint-initdb.d/10-docker_postgres_init.sql
+      - ./setup/db/11-docker_postgres_keycloak_init.sql:/docker-entrypoint-initdb.d/11-docker_postgres_keycloak_init.sql
+    ports:
+      - '127.0.0.1:5402:5432'
+    command: postgres -c max_prepared_transactions=150
 
   redis:
     image: 'valkey/valkey:8.1-alpine'
@@ -61,25 +61,25 @@ services:
       - '0.0.0.0:9000:9000'
       - '0.0.0.0:9001:9001'
 
-  # minio-region1:
-  #   image: 'minio/minio'
-  #   command: server /data --console-address ":9001"
-  #   restart: always
-  #   volumes:
-  #     - minio-region1-data:/data
-  #   ports:
-  #     - '127.0.0.1:9020:9000'
-  #     - '127.0.0.1:9021:9001'
+  minio-region1:
+    image: 'minio/minio'
+    command: server /data --console-address ":9001"
+    restart: always
+    volumes:
+      - minio-region1-data:/data
+    ports:
+      - '127.0.0.1:9020:9000'
+      - '127.0.0.1:9021:9001'
 
-  # minio-region2:
-  #   image: 'minio/minio'
-  #   command: server /data --console-address ":9001"
-  #   restart: always
-  #   volumes:
-  #     - minio-region2-data:/data
-  #   ports:
-  #     - '127.0.0.1:9040:9000'
-  #     - '127.0.0.1:9041:9001'
+  minio-region2:
+    image: 'minio/minio'
+    command: server /data --console-address ":9001"
+    restart: always
+    volumes:
+      - minio-region2-data:/data
+    ports:
+      - '127.0.0.1:9040:9000'
+      - '127.0.0.1:9041:9001'
 
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
@@ -114,35 +114,35 @@ services:
       - '127.0.0.1:1080:1080'
       - '127.0.0.1:1025:1025'
 
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   restart: always
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: admin@localhost.com
-  #     PGADMIN_DEFAULT_PASSWORD: admin
-  #   volumes:
-  #     - pgadmin-data:/var/lib/pgadmin
-  #   ports:
-  #     - '127.0.0.1:16543:80'
-  #   depends_on:
-  #     - postgres
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - '127.0.0.1:16543:80'
+    depends_on:
+      - postgres
 
-  # redis_insight:
-  #   image: redislabs/redisinsight:latest
-  #   restart: always
-  #   volumes:
-  #     - redis_insight-data:/db
-  #   ports:
-  #     - '127.0.0.1:8001:8001'
-  #   depends_on:
-  #     - redis
+  redis_insight:
+    image: redislabs/redisinsight:latest
+    restart: always
+    volumes:
+      - redis_insight-data:/db
+    ports:
+      - '127.0.0.1:8001:8001'
+    depends_on:
+      - redis
 
   speckle-ingress:
-    # build:
-    #   context: .
-    #   dockerfile: utils/docker-compose-ingress/Dockerfile
+    build:
+      context: .
+      dockerfile: utils/docker-compose-ingress/Dockerfile
     platform: linux/amd64
-    image: registry.siruijie.com.cn/speckle/speckle-docker-compose-ingress:local
+    image: speckle/speckle-docker-compose-ingress:local
     restart: always
     ports:
       - '0.0.0.0:80:8080'
@@ -230,11 +230,11 @@ services:
       - minio
 
   preview-service:
-    # build:
-    #   context: .
-    #   dockerfile: packages/preview-service/Dockerfile
+    build:
+      context: .
+      dockerfile: packages/preview-service/Dockerfile
     platform: linux/amd64
-    image: registry.siruijie.com.cn/speckle/speckle-preview-service:local
+    image: speckle/speckle-preview-service:local
     restart: always
     mem_limit: '3000m'
     memswap_limit: '3000m'
@@ -248,11 +248,11 @@ services:
       - redis
 
   webhook-service:
-    # build:
-    #   context: .
-    #   dockerfile: packages/webhook-service/Dockerfile
+    build:
+      context: .
+      dockerfile: packages/webhook-service/Dockerfile
     platform: linux/amd64
-    image: registry.siruijie.com.cn/speckle/speckle-webhook-service:local
+    image: speckle/speckle-webhook-service:local
     restart: always
     environment:
       LOG_LEVEL: 'info'
@@ -263,11 +263,11 @@ services:
       - postgres
 
   ifc-import-server:
-    # build:
-    #   context: .
-    #   dockerfile: packages/ifc-import-service/Dockerfile
-    # platform: linux/amd64
-    image: registry.siruijie.com.cn/speckle/ifc-import-service:2.26
+    build:
+      context: .
+      dockerfile: packages/ifc-import-service/Dockerfile
+    platform: linux/amd64
+    image: speckle/ifc-import-service:local
     restart: always
     environment:
       LOG_LEVEL: 'info'
@@ -279,11 +279,11 @@ services:
 
 volumes:
   postgres-data:
-  # postgres-region1-data:
-  # postgres-region2-data:
+  postgres-region1-data:
+  postgres-region2-data:
   redis-data:
   pgadmin-data:
-  # redis_insight-data:
+  redis_insight-data:
   minio-data:
-  # minio-region1-data:
-  # minio-region2-data:
+  minio-region1-data:
+  minio-region2-data:

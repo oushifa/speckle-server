@@ -5,8 +5,8 @@ import {
   getFeatureFlags
 } from '@/modules/shared/helpers/envHelper'
 import type { ServerScope } from '@speckle/shared'
-import config from '@/env-config'
 import type { Merge } from 'type-fest'
+import getConfig from '@/env-config'
 
 const { FF_WORKSPACES_MODULE_ENABLED, FF_AUTOMATE_MODULE_ENABLED } = getFeatureFlags()
 
@@ -75,7 +75,7 @@ const SpeckleConnectorsDUI = {
   description: 'Speckle desktop user interface for connectors.',
   trustByDefault: false, // NOTE: we do not wanna automatically authenticate in DUI because it uses cached account before which we wanna switch account. trustByDefault: true skips this step
   public: true,
-  redirectUrl: `${config('DUI_REDIRECT_URL')}/authn/callback`,
+  redirectUrl: `${getConfig('DUI_REDIRECT_URL')}/authn/callback`,
   scopes: [
     Scopes.Streams.Read,
     Scopes.Streams.Write,
