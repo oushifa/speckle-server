@@ -14,6 +14,22 @@
           <FormButton color="subtle" :icon-left="MagnifyingGlassIcon" hide-text />
         </div>
         <FormButton
+          color="outline"
+          :icon-left="ArrowDownTrayIcon"
+          :disabled="boqItemsLoading || exportingExcel || !allItems.length"
+          @click="handleExportExcel"
+        >
+          导出Excel
+        </FormButton>
+        <FormButton
+          color="outline"
+          :icon-left="ArrowUpTrayIcon"
+          :disabled="rowMutationLoading || importingExcel"
+          @click="triggerImportExcel"
+        >
+          导入Excel
+        </FormButton>
+        <FormButton
           v-if="!canInitializeBoq"
           color="outline"
           :icon-left="DocumentTextIcon"
@@ -29,6 +45,15 @@
         >
           初始化清单
         </FormButton>
+        <input
+          id="boq-import-excel-file"
+          ref="boqImportInputRef"
+          type="file"
+          class="hidden"
+          aria-label="导入清单Excel文件"
+          accept=".xlsx,.xls"
+          @change="handleImportFileChange"
+        />
       </div>
     </div>
     <!-- Table -->
@@ -209,12 +234,15 @@
 import {
   MagnifyingGlassIcon,
   DocumentTextIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   PlusIcon,
   PencilSquareIcon,
   TrashIcon
 } from '@heroicons/vue/24/outline'
 import { useMutation, useQuery } from '@vue/apollo-composable'
 import { useDebounceFn } from '@vueuse/core'
+import * as XLSX from 'xlsx'
 import type {
   BoqItemType,
   ProjectBoqItemsQuery
@@ -227,11 +255,16 @@ import {
 } from '~/lib/projects/graphql/mutations'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { isRequired } from '~/lib/common/helpers/validation'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
+const { triggerNotification } = useGlobalToast()
+const boqImportInputRef = ref<HTMLInputElement | null>(null)
+const exportingExcel = ref(false)
+const importingExcel = ref(false)
 
 const updateDebouncedSearch = useDebounceFn((query: string) => {
   debouncedSearchQuery.value = query.trim()
@@ -360,6 +393,32 @@ const childTypeLabelMap: Record<UiBoqItemType, string> = {
   ITEM: '清单项'
 }
 
+type ImportBoqRow = {
+  rowNumber: number
+  code: string
+  name: string
+  type: BoqItemType
+  parentCode: string | null
+  unit: string | null
+  quantity: number | null
+  price: number | null
+}
+
+const boqTypeByLabel: Record<string, BoqItemType> = {
+  PROJECT: 'PROJECT',
+  SUBPROJECT: 'SUBPROJECT',
+  CATEGORY: 'CATEGORY',
+  SECTION: 'SECTION',
+  SUBSECTION: 'SUBSECTION',
+  ITEM: 'ITEM',
+  单位工程: 'PROJECT',
+  子单位工程: 'SUBPROJECT',
+  分类工程: 'CATEGORY',
+  分部工程: 'SECTION',
+  分项工程: 'SUBSECTION',
+  清单项: 'ITEM'
+}
+
 type BoqDialogMode = 'edit' | 'delete' | 'addChild'
 
 const boqDialogOpen = ref(false)
@@ -377,6 +436,337 @@ const boqDialogNumericError = ref('')
 const itemById = computed(() => {
   return new Map(allItems.value.map((item) => [item.id, item]))
 })
+const notify = (title: string, type: ToastNotificationType, description?: string) => {
+  triggerNotification({
+    title,
+    description,
+    type
+  })
+}
+
+const parseType = (value: string): BoqItemType | null => {
+  const normalized = value.trim()
+  if (!normalized.length) return null
+  const upperValue = normalized.toUpperCase()
+  return boqTypeByLabel[upperValue] || boqTypeByLabel[normalized] || null
+}
+
+const parseOptionalNumber = (value: string): number | null => {
+  const trimmed = value.trim()
+  if (!trimmed.length) return null
+  const parsed = Number.parseFloat(trimmed)
+  return Number.isNaN(parsed) ? Number.NaN : parsed
+}
+
+const isAllowedChildType = (parentType: BoqItemType, childType: BoqItemType) => {
+  const allowedTypes = childTypeMap[parentType as UiBoqItemType] || []
+  return allowedTypes.includes(childType as UiBoqItemType)
+}
+
+const triggerImportExcel = () => {
+  if (importingExcel.value) return
+  boqImportInputRef.value?.click()
+}
+
+const handleExportExcel = async () => {
+  if (!allItems.value.length || exportingExcel.value) return
+  exportingExcel.value = true
+  try {
+    const header = [
+      '清单编码',
+      '清单名称',
+      '类型',
+      '上级编码',
+      '计量单位',
+      '工程量',
+      '综合单价（元）'
+    ]
+    const rows = allItems.value.map((item) => {
+      const parentCode = item.parentId
+        ? itemById.value.get(item.parentId)?.code || ''
+        : ''
+      return [
+        item.code,
+        item.name,
+        childTypeLabelMap[item.type as UiBoqItemType],
+        parentCode,
+        item.unit || '',
+        item.quantity ?? '',
+        item.price ?? ''
+      ]
+    })
+    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows])
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'BOQ')
+    const fileContent = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    const blob = new Blob([fileContent], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const projectName = boqItemsResult.value?.project?.name?.trim() || '项目'
+    const safeProjectName = projectName.replace(/[\\/:*?"<>|]/g, '_')
+    link.href = url
+    link.download = `${safeProjectName}-清单.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    notify('清单导出成功', ToastNotificationType.Success)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    notify('清单导出失败', ToastNotificationType.Danger, message)
+  } finally {
+    exportingExcel.value = false
+  }
+}
+
+const parseImportRows = (sheet: XLSX.WorkSheet) => {
+  const matrix = XLSX.utils.sheet_to_json<Array<string | number | null>>(sheet, {
+    header: 1,
+    defval: ''
+  })
+  if (matrix.length < 2) {
+    throw new Error('Excel 中没有可导入的数据')
+  }
+
+  const headerRow = matrix[0].map((cell: string | number | null) =>
+    String(cell ?? '').trim()
+  )
+  const findHeaderIndex = (keys: string[]) => {
+    const idx = headerRow.findIndex((cell: string) => keys.includes(cell))
+    return idx
+  }
+
+  const codeIndex = findHeaderIndex(['清单编码', '编码'])
+  const nameIndex = findHeaderIndex(['清单名称', '名称'])
+  const typeIndex = findHeaderIndex(['类型'])
+  const parentCodeIndex = findHeaderIndex(['上级编码', '父级编码'])
+  const unitIndex = findHeaderIndex(['计量单位', '单位'])
+  const quantityIndex = findHeaderIndex(['工程量'])
+  const priceIndex = findHeaderIndex(['综合单价（元）', '综合单价', '单价'])
+
+  if (codeIndex < 0 || nameIndex < 0 || typeIndex < 0) {
+    throw new Error('模板缺少必要列：清单编码、清单名称、类型')
+  }
+
+  const importRows: ImportBoqRow[] = []
+  const codesInFile = new Set<string>()
+
+  matrix.slice(1).forEach((row: Array<string | number | null>, index: number) => {
+    const rowNumber = index + 2
+    const readValue = (cellIndex: number) => {
+      if (cellIndex < 0) return ''
+      return String(row[cellIndex] ?? '').trim()
+    }
+
+    const code = readValue(codeIndex)
+    const name = readValue(nameIndex)
+    const rawType = readValue(typeIndex)
+    const parentCode = readValue(parentCodeIndex)
+    const unit = readValue(unitIndex)
+    const quantityValue = readValue(quantityIndex)
+    const priceValue = readValue(priceIndex)
+
+    if (
+      !code &&
+      !name &&
+      !rawType &&
+      !parentCode &&
+      !unit &&
+      !quantityValue &&
+      !priceValue
+    )
+      return
+    if (!code || !name || !rawType) {
+      throw new Error(`第 ${rowNumber} 行缺少必要字段（清单编码/清单名称/类型）`)
+    }
+    if (codesInFile.has(code)) {
+      throw new Error(`第 ${rowNumber} 行清单编码重复：${code}`)
+    }
+    codesInFile.add(code)
+
+    const type = parseType(rawType)
+    if (!type) {
+      throw new Error(`第 ${rowNumber} 行类型无法识别：${rawType}`)
+    }
+
+    const quantity = parseOptionalNumber(quantityValue)
+    const price = parseOptionalNumber(priceValue)
+
+    if (
+      (quantityValue && Number.isNaN(quantity)) ||
+      (priceValue && Number.isNaN(price))
+    ) {
+      throw new Error(`第 ${rowNumber} 行工程量或综合单价不是有效数字`)
+    }
+
+    if (type === 'ITEM') {
+      if (!unit.length || quantity === null || price === null) {
+        throw new Error(`第 ${rowNumber} 行清单项需填写计量单位、工程量、综合单价`)
+      }
+    }
+
+    if (type !== 'PROJECT' && !parentCode.length) {
+      throw new Error(`第 ${rowNumber} 行非单位工程必须填写上级编码`)
+    }
+
+    if (type === 'PROJECT' && parentCode.length) {
+      throw new Error(`第 ${rowNumber} 行单位工程不能填写上级编码`)
+    }
+
+    importRows.push({
+      rowNumber,
+      code,
+      name,
+      type,
+      parentCode: parentCode || null,
+      unit: type === 'ITEM' ? unit : null,
+      quantity: type === 'ITEM' ? quantity : null,
+      price: type === 'ITEM' ? price : null
+    })
+  })
+
+  if (!importRows.length) {
+    throw new Error('Excel 中没有可导入的数据')
+  }
+
+  return importRows
+}
+
+const importRowsToBoq = async (rows: ImportBoqRow[]) => {
+  const runtimeItems = new Map(
+    allItems.value.map((item) => [
+      item.code,
+      { id: item.id, type: item.type as BoqItemType }
+    ])
+  )
+  const importRowsByCode = new Map(rows.map((row) => [row.code, row]))
+  const pendingRows = [...rows]
+
+  let createdCount = 0
+  let updatedCount = 0
+  let safeGuard = 0
+
+  while (pendingRows.length) {
+    safeGuard += 1
+    if (safeGuard > rows.length + 5) {
+      throw new Error('存在无法解析的层级关系，请检查上级编码是否正确')
+    }
+
+    let progressed = false
+    const nextRound: ImportBoqRow[] = []
+
+    for (const row of pendingRows) {
+      let parentRuntime: { id: string; type: BoqItemType } | undefined
+      if (row.parentCode) {
+        parentRuntime = runtimeItems.get(row.parentCode)
+        if (!parentRuntime) {
+          if (importRowsByCode.has(row.parentCode)) {
+            nextRound.push(row)
+            continue
+          }
+          throw new Error(`第 ${row.rowNumber} 行上级编码不存在：${row.parentCode}`)
+        }
+        if (!isAllowedChildType(parentRuntime.type, row.type)) {
+          throw new Error(
+            `第 ${row.rowNumber} 行层级类型不合法：${
+              childTypeLabelMap[parentRuntime.type as UiBoqItemType]
+            } 不能包含 ${childTypeLabelMap[row.type as UiBoqItemType]}`
+          )
+        }
+      }
+
+      const existing = runtimeItems.get(row.code)
+      if (existing) {
+        if (existing.type !== row.type) {
+          throw new Error(
+            `第 ${row.rowNumber} 行编码 ${row.code} 已存在，且类型不一致（现有：${
+              childTypeLabelMap[existing.type as UiBoqItemType]
+            }，导入：${childTypeLabelMap[row.type as UiBoqItemType]}）`
+          )
+        }
+        await updateBoqItem({
+          input: {
+            projectId: projectId.value,
+            itemId: existing.id,
+            code: row.code,
+            name: row.name,
+            unit: row.unit,
+            quantity: row.quantity,
+            price: row.price
+          }
+        })
+        updatedCount += 1
+        progressed = true
+        continue
+      }
+
+      const result = await createBoqItem({
+        input: {
+          projectId: projectId.value,
+          parentId: parentRuntime?.id,
+          type: row.type,
+          code: row.code,
+          name: row.name,
+          unit: row.unit,
+          quantity: row.quantity,
+          price: row.price
+        }
+      })
+      const createdItem = result?.data?.projectMutations?.boqMutations?.createItem
+      if (!createdItem) {
+        throw new Error(`第 ${row.rowNumber} 行创建失败：${row.code}`)
+      }
+      runtimeItems.set(row.code, {
+        id: createdItem.id,
+        type: createdItem.type as BoqItemType
+      })
+      createdCount += 1
+      progressed = true
+    }
+
+    if (!progressed) {
+      throw new Error('存在无法解析的层级关系，请检查导入数据顺序和上级编码')
+    }
+
+    pendingRows.splice(0, pendingRows.length, ...nextRound)
+  }
+
+  return { createdCount, updatedCount }
+}
+
+const handleImportFileChange = async (event: Event) => {
+  if (importingExcel.value) return
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) return
+
+  importingExcel.value = true
+  try {
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: 'array' })
+    const firstSheetName = workbook.SheetNames[0]
+    if (!firstSheetName) {
+      throw new Error('Excel 中未找到工作表')
+    }
+    const sheet = workbook.Sheets[firstSheetName]
+    const rows = parseImportRows(sheet)
+    const { createdCount, updatedCount } = await importRowsToBoq(rows)
+    await refreshBoq()
+    notify(
+      '清单导入成功',
+      ToastNotificationType.Success,
+      `新增 ${createdCount} 条，更新 ${updatedCount} 条`
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    notify('清单导入失败', ToastNotificationType.Danger, message)
+  } finally {
+    importingExcel.value = false
+    if (input) input.value = ''
+  }
+}
 
 const boqDialogQuantityInput = computed({
   get: () => `${boqDialogQuantity.value ?? ''}`,
