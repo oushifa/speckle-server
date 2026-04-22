@@ -65,6 +65,8 @@ export const ApprovalFlowStepStatus = {
   Canceled: 'CANCELED'
 } as const
 
+type ApprovalFlowInstanceListScope = 'ALL' | 'TODO' | 'INITIATED' | 'HANDLED'
+
 export const generateApprovalFlowId = () => crs({ length: 10 })
 
 export const createApprovalFlowDefinitionFactory =
@@ -495,6 +497,8 @@ export const countApprovalFlowInstancesFactory =
     status?: string | null
     resourceType?: string | null
     resourceId?: string | null
+    scope?: ApprovalFlowInstanceListScope | null
+    userId?: string | null
   }) => {
     const q = tables
       .instances(deps.db)
@@ -509,6 +513,53 @@ export const countApprovalFlowInstancesFactory =
     if (params.resourceId) {
       q.andWhere(ApprovalFlowInstances.col.resourceId, params.resourceId)
     }
+    if (params.scope && params.scope !== 'ALL') {
+      if (!params.userId) {
+        q.andWhereRaw('1 = 0')
+      } else if (params.scope === 'INITIATED') {
+        q.andWhere(ApprovalFlowInstances.col.createdBy, params.userId)
+      } else if (params.scope === 'HANDLED') {
+        q.whereExists(
+          tables
+            .actions(deps.db)
+            .select(deps.db.raw('1'))
+            .whereRaw('?? = ??', [
+              ApprovalFlowActions.col.instanceId,
+              ApprovalFlowInstances.col.id
+            ])
+            .andWhere(ApprovalFlowActions.col.actorId, params.userId)
+            .andWhere(
+              ApprovalFlowActions.col.action,
+              '!=',
+              ApprovalFlowActionType.Started
+            )
+        )
+      } else if (params.scope === 'TODO') {
+        q.andWhere(ApprovalFlowInstances.col.status, ApprovalFlowInstanceStatus.Pending)
+        q.whereExists(
+          tables
+            .instanceSteps(deps.db)
+            .select(deps.db.raw('1'))
+            .whereRaw('?? = ??', [
+              ApprovalFlowInstanceSteps.col.instanceId,
+              ApprovalFlowInstances.col.id
+            ])
+            .andWhere(
+              ApprovalFlowInstanceSteps.col.status,
+              ApprovalFlowStepStatus.Pending
+            )
+            .andWhereRaw('(COALESCE(cardinality(??), 0) = 0 OR ? = ANY(??))', [
+              ApprovalFlowInstanceSteps.short.col.approverIds,
+              params.userId,
+              ApprovalFlowInstanceSteps.short.col.approverIds
+            ])
+            .andWhereRaw('NOT (? = ANY(??))', [
+              params.userId,
+              ApprovalFlowInstanceSteps.short.col.approvedByIds
+            ])
+        )
+      }
+    }
     const res = await q
     return parseInt(res?.count || '0')
   }
@@ -521,6 +572,8 @@ export const getApprovalFlowInstancesFactory =
     resourceId?: string | null
     cursor?: string | null
     limit?: number | null
+    scope?: ApprovalFlowInstanceListScope | null
+    userId?: string | null
   }) => {
     const limit = clamp(params.limit || 25, 1, 100)
     const q = tables
@@ -537,6 +590,53 @@ export const getApprovalFlowInstancesFactory =
     }
     if (params.resourceId) {
       q.andWhere(ApprovalFlowInstances.col.resourceId, params.resourceId)
+    }
+    if (params.scope && params.scope !== 'ALL') {
+      if (!params.userId) {
+        q.andWhereRaw('1 = 0')
+      } else if (params.scope === 'INITIATED') {
+        q.andWhere(ApprovalFlowInstances.col.createdBy, params.userId)
+      } else if (params.scope === 'HANDLED') {
+        q.whereExists(
+          tables
+            .actions(deps.db)
+            .select(deps.db.raw('1'))
+            .whereRaw('?? = ??', [
+              ApprovalFlowActions.col.instanceId,
+              ApprovalFlowInstances.col.id
+            ])
+            .andWhere(ApprovalFlowActions.col.actorId, params.userId)
+            .andWhere(
+              ApprovalFlowActions.col.action,
+              '!=',
+              ApprovalFlowActionType.Started
+            )
+        )
+      } else if (params.scope === 'TODO') {
+        q.andWhere(ApprovalFlowInstances.col.status, ApprovalFlowInstanceStatus.Pending)
+        q.whereExists(
+          tables
+            .instanceSteps(deps.db)
+            .select(deps.db.raw('1'))
+            .whereRaw('?? = ??', [
+              ApprovalFlowInstanceSteps.col.instanceId,
+              ApprovalFlowInstances.col.id
+            ])
+            .andWhere(
+              ApprovalFlowInstanceSteps.col.status,
+              ApprovalFlowStepStatus.Pending
+            )
+            .andWhereRaw('(COALESCE(cardinality(??), 0) = 0 OR ? = ANY(??))', [
+              ApprovalFlowInstanceSteps.short.col.approverIds,
+              params.userId,
+              ApprovalFlowInstanceSteps.short.col.approverIds
+            ])
+            .andWhereRaw('NOT (? = ANY(??))', [
+              params.userId,
+              ApprovalFlowInstanceSteps.short.col.approvedByIds
+            ])
+        )
+      }
     }
 
     if (params.cursor) {

@@ -4,7 +4,6 @@
     <div class="flex flex-col space-y-2">
       <FormTextInput
         v-model="email"
-        type="email"
         name="email"
         label="账号"
         placeholder="账号"

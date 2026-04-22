@@ -27,6 +27,13 @@ enum ApprovalFlowStepStatus {
   CANCELED
 }
 
+enum ApprovalFlowInstanceListScope {
+  ALL
+  TODO
+  INITIATED
+  HANDLED
+}
+
 type ApprovalFlowDefinition {
   id: ID!
   templateId: ID!
@@ -76,8 +83,10 @@ type ApprovalFlowInstanceStep {
   stepIndex: Int!
   status: ApprovalFlowStepStatus!
   approverIds: [ID!]!
+  approvers: [LimitedUser]!
   requiredApprovals: Int!
   approvedByIds: [ID!]!
+  approvedBy: [LimitedUser]!
   stepSnapshot: JSONObject
   startedAt: DateTime
   dueAt: DateTime
@@ -101,6 +110,7 @@ type ApprovalFlowInstance {
   status: ApprovalFlowStatus!
   currentStep: Int!
   createdBy: ID!
+  createdByUser: LimitedUser
   createdAt: DateTime!
   updatedAt: DateTime!
   actions: [ApprovalFlowAction!]!
@@ -224,6 +234,7 @@ extend type Query {
     limit: Int = 25
     cursor: String
     status: ApprovalFlowStatus
+    scope: ApprovalFlowInstanceListScope = ALL
   ): ApprovalFlowInstanceCollection!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")

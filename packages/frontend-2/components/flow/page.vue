@@ -1,81 +1,25 @@
 <template>
   <div class="space-y-6">
     <div class="flex flex-wrap gap-2">
-      <button
-        v-for="tag in headerTags"
-        :key="tag.value"
-        class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
-        :class="
-          currentTag === tag.value
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-outline-3 text-foreground-2'
-        "
-        @click="currentTag = tag.value"
-      >
-        {{ tag.label }}
-      </button>
+      <LazyLayoutTabsHorizontal
+        :items="headerTags"
+        :active-item="activeTagItem"
+        @update:active-item="onTagChange"
+      />
     </div>
 
-    <div class="border border-outline-3 rounded-xl p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="text-heading-sm">{{ activeTagLabel }}流程实例</div>
-        <div class="text-body-xs text-foreground-2">总数：{{ filteredTotalCount }}</div>
-      </div>
-
-      <div v-if="loadingInstances" class="text-body-sm text-foreground-2">
-        加载中...
-      </div>
-      <div v-else-if="!filteredInstances.length" class="text-body-sm text-foreground-2">
-        暂无数据
-      </div>
-      <div v-else class="space-y-3">
-        <button
-          v-for="instance in filteredInstances"
-          :key="instance.id"
-          class="w-full border border-outline-3 rounded-lg p-3 text-left hover:border-outline-5 transition-colors"
-          @click="openInstanceDrawer(instance)"
-        >
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <div>
-              <div class="text-body-xs text-foreground-2">名称</div>
-              <div class="text-body-sm font-medium truncate">
-                {{ instance.definition?.name || '未命名流程' }}
-              </div>
-              <div
-                v-if="instance.resourceType === 'MODEL'"
-                class="text-sm text-foreground-2"
-              >
-                {{ instance.project?.name }} - {{ instance.model?.name }}
-              </div>
-            </div>
-            <div>
-              <div class="text-body-xs text-foreground-2">当前步骤</div>
-              <div class="text-body-sm">
-                {{ getCurrentStep(instance)?.name || '-' }}
-              </div>
-            </div>
-            <div>
-              <div class="text-body-xs text-foreground-2">当前审核人</div>
-              <div class="text-body-sm truncate">
-                {{ getCurrentApprovers(instance) }}
-              </div>
-            </div>
-            <div>
-              <div class="text-body-xs text-foreground-2">流程发起时间</div>
-              <div class="text-body-sm">{{ formatDate(instance.createdAt) }}</div>
-            </div>
-          </div>
-        </button>
-      </div>
-
-      <button
-        v-if="cursor"
-        class="px-3 py-2 rounded-md border border-outline-3 text-body-sm disabled:opacity-50"
-        :disabled="loadingInstances"
-        @click="loadInstances(cursor)"
-      >
-        加载更多
-      </button>
+    <div class="border border-outline-3 rounded-xl p-4">
+      <TodoPage
+        v-if="currentTag === 'pending'"
+        ref="todoPageRef"
+        @open-instance="openInstanceDrawer"
+      />
+      <InitiatedPage
+        v-else-if="currentTag === 'initiated'"
+        ref="initiatedPageRef"
+        @open-instance="openInstanceDrawer"
+      />
+      <HandledPage v-else ref="handledPageRef" @open-instance="openInstanceDrawer" />
     </div>
 
     <LayoutDrawer
@@ -153,9 +97,6 @@
                 {{ formatActionLabel(action.action) }} ·
                 {{ action.actor?.name || action.actorId }} ·
                 {{ formatDate(action.createdAt) }}
-                <span v-if="action.toStatus">
-                  · {{ formatStatusLabel(action.toStatus) }}
-                </span>
                 <span v-if="action.comment">· {{ action.comment }}</span>
               </div>
             </div>
@@ -197,7 +138,9 @@
                 </div>
                 <div class="text-body-xs text-foreground-2 mt-1">
                   审核人：{{
-                    step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
+                    step.approvers?.length
+                      ? step.approvers.map((e) => e?.name).join('、')
+                      : '任意审批人'
                   }}
                 </div>
                 <div class="text-body-xs text-foreground-2 mt-1">
@@ -227,123 +170,13 @@
 <script setup lang="ts">
 import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
-import type { TypedDocumentNode } from '@apollo/client/core'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import FlowOpButtons from './FlowOpButtons.vue'
-import type {
-  FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables,
-  FlowInstancesQuery,
-  FlowInstancesQueryVariables
-} from '~~/lib/common/generated/gql/graphql'
-
-const flowDefinitionsQuery = graphql(`
-  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
-    approvalFlowDefinitions(resourceType: $resourceType) {
-      id
-      templateId
-      name
-      resourceType
-      isActive
-      version
-      previousVersionId
-      effectConfig
-      formSchema {
-        key
-        name
-        type
-        required
-        placeholder
-        options {
-          label
-          value
-        }
-      }
-      steps {
-        id
-        name
-        stepIndex
-        requiredApprovals
-        approverIds
-        timeoutHours
-      }
-    }
-  }
-`) as unknown as TypedDocumentNode<
-  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
-  { resourceType: string | null }
->
-
-const flowInstancesQuery = graphql(`
-  query FlowInstances($cursor: String, $status: ApprovalFlowStatus) {
-    approvalFlowStats(rangeDays: 30) {
-      totalCount
-      pendingCount
-      approvedCount
-      rejectedCount
-      canceledCount
-      averageResolutionHours
-    }
-    approvalFlowInstances(limit: 20, cursor: $cursor, status: $status) {
-      totalCount
-      cursor
-      items {
-        id
-        projectId
-        project {
-          id
-          name
-        }
-        resourceType
-        resourceId
-        model {
-          id
-          name
-        }
-        formData
-        status
-        currentStep
-        createdBy
-        createdAt
-        updatedAt
-        definition {
-          id
-          name
-          resourceType
-          isActive
-        }
-        actions {
-          id
-          stepId
-          action
-          fromStatus
-          toStatus
-          comment
-          metadata
-          actorId
-          createdAt
-          actor {
-            id
-            name
-          }
-        }
-        steps {
-          id
-          name
-          stepIndex
-          status
-          requiredApprovals
-          approverIds
-          approvedByIds
-          startedAt
-          dueAt
-          completedAt
-        }
-      }
-    }
-  }
-`) as unknown as TypedDocumentNode<FlowInstancesQuery, FlowInstancesQueryVariables>
+import TodoPage from './TodoPage.vue'
+import InitiatedPage from './InitiatedPage.vue'
+import HandledPage from './HandledPage.vue'
+import type { FlowListItem } from './flowInstances'
 
 const approveFlowMutation = graphql(`
   mutation FlowApprove($input: ApproveApprovalFlowInput!) {
@@ -378,35 +211,24 @@ const cancelFlowMutation = graphql(`
   }
 `)
 
-type FlowListItem = FlowInstancesQuery['approvalFlowInstances']['items'][number]
-type FlowStats = FlowInstancesQuery['approvalFlowStats']
-type FlowDefinitionListItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'logs' | 'diagram'
 type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
 type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
+type FlowHeaderTabItem = { id: FlowHeaderTag; title: string }
+type RefreshablePage = { refresh: () => Promise<void> }
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { userId } = useActiveUser()
 
-const loadingInstances = ref(false)
 const mutating = ref(false)
 const currentTag = ref<FlowHeaderTag>('pending')
-const instances = ref<FlowListItem[]>([])
-const cursor = ref<string | null>(null)
-const totalCount = ref(0)
 const selectedInstance = ref<FlowListItem | null>(null)
-const definitions = ref<FlowDefinitionListItem[]>([])
 const detailTab = ref<FlowDetailTab>('logs')
-const stats = ref<FlowStats>({
-  totalCount: 0,
-  pendingCount: 0,
-  approvedCount: 0,
-  rejectedCount: 0,
-  canceledCount: 0,
-  averageResolutionHours: 0
-})
+const todoPageRef = ref<RefreshablePage | null>(null)
+const initiatedPageRef = ref<RefreshablePage | null>(null)
+const handledPageRef = ref<RefreshablePage | null>(null)
 
 const formatDate = (date?: string | null) => {
   if (!date) return '-'
@@ -472,51 +294,34 @@ const notify = (title: string, description: string, type: ToastNotificationType)
 }
 
 const headerTags = [
-  { value: 'pending' as FlowHeaderTag, label: '待处理' },
-  { value: 'initiated' as FlowHeaderTag, label: '我发起的' },
-  { value: 'handled' as FlowHeaderTag, label: '我处理的' }
-]
+  { id: 'pending' as FlowHeaderTag, title: '待办' },
+  { id: 'initiated' as FlowHeaderTag, title: '我发起的' },
+  { id: 'handled' as FlowHeaderTag, title: '我处理的' }
+] as FlowHeaderTabItem[]
 
-const activeTagLabel = computed(
-  () => headerTags.find((tag) => tag.value === currentTag.value)?.label || ''
+const activeTagItem = computed(
+  () => headerTags.find((tag) => tag.id === currentTag.value) || headerTags[0]
 )
-
-const filteredInstances = computed(() => {
-  if (!userId.value) return instances.value
-  if (currentTag.value === 'initiated') {
-    return instances.value.filter((instance) => instance.createdBy === userId.value)
-  }
-  if (currentTag.value === 'handled') {
-    return instances.value.filter((instance) =>
-      instance.actions.some((action) => action.actorId === userId.value)
-    )
-  }
-  return instances.value
-})
-
-const filteredTotalCount = computed(() => {
-  if (currentTag.value === 'pending') return totalCount.value
-  return filteredInstances.value.length
-})
 
 const detailTabs = [
   { value: 'logs' as FlowDetailTab, label: '流程日志' },
   { value: 'diagram' as FlowDetailTab, label: '流程图' }
 ]
 
-const getCurrentStep = (
-  instance: FlowListItem
-): FlowListItem['steps'][number] | null => {
-  const byStatus = instance.steps.find((step) => step.status === 'WAITING') || null
-  if (byStatus) return byStatus
-  const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
-  return byIndex || null
+const onTagChange = (item: { id: string }) => {
+  currentTag.value = item.id as FlowHeaderTag
 }
 
-const getCurrentApprovers = (instance: FlowListItem) => {
-  const step = getCurrentStep(instance)
-  if (!step) return '-'
-  return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
+const refreshCurrentTagPage = async () => {
+  if (currentTag.value === 'pending') {
+    await todoPageRef.value?.refresh()
+    return
+  }
+  if (currentTag.value === 'initiated') {
+    await initiatedPageRef.value?.refresh()
+    return
+  }
+  await handledPageRef.value?.refresh()
 }
 
 const drawerOpen = computed({
@@ -525,65 +330,6 @@ const drawerOpen = computed({
     if (!value) closeDrawer()
   }
 })
-
-const loadDefinitions = async () => {
-  try {
-    const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>(
-      {
-        query: flowDefinitionsQuery,
-        variables: {
-          resourceType: null
-        },
-        fetchPolicy: 'network-only'
-      }
-    )
-    definitions.value = (res.data?.approvalFlowDefinitions ||
-      []) as FlowDefinitionListItem[]
-  } catch (e) {
-    definitions.value = []
-    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
-  }
-}
-
-const loadInstances = async (nextCursor?: string | null) => {
-  loadingInstances.value = true
-  try {
-    const res = await apollo.query<FlowInstancesQuery, FlowInstancesQueryVariables>({
-      query: flowInstancesQuery,
-      variables: {
-        cursor: nextCursor || null,
-        status: currentTag.value === 'pending' ? 'PENDING' : null
-      },
-      fetchPolicy: 'network-only'
-    })
-    const page = res.data?.approvalFlowInstances
-    stats.value = res.data?.approvalFlowStats || {
-      totalCount: 0,
-      pendingCount: 0,
-      approvedCount: 0,
-      rejectedCount: 0,
-      canceledCount: 0,
-      averageResolutionHours: 0
-    }
-    totalCount.value = page?.totalCount || 0
-    cursor.value = page?.cursor || null
-    const items = (page?.items || []) as FlowListItem[]
-    if (nextCursor) {
-      instances.value = [...instances.value, ...items]
-    } else {
-      instances.value = items
-    }
-  } catch (e) {
-    if (!nextCursor) {
-      instances.value = []
-      totalCount.value = 0
-      cursor.value = null
-    }
-    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
-  } finally {
-    loadingInstances.value = false
-  }
-}
 
 const openInstanceDrawer = (instance: FlowListItem) => {
   if (!instance.projectId && instance.resourceType === 'MODEL') {
@@ -660,7 +406,7 @@ const submitReviewAction = async (payload: {
     }
     closeDrawer()
     try {
-      await loadInstances()
+      await refreshCurrentTagPage()
     } catch {
       notify('刷新失败', '操作已成功，请手动刷新列表', ToastNotificationType.Warning)
     }
@@ -670,19 +416,4 @@ const submitReviewAction = async (payload: {
     mutating.value = false
   }
 }
-
-const refreshAll = async () => {
-  await Promise.all([loadDefinitions(), loadInstances()])
-}
-
-watch(
-  () => currentTag.value,
-  async () => {
-    await loadInstances()
-  }
-)
-
-onMounted(async () => {
-  await refreshAll()
-})
 </script>

@@ -68,20 +68,30 @@ export default {
     },
     async approvalFlowInstances(
       _parent: unknown,
-      args: { status?: string | null; cursor?: string | null; limit?: number | null }
+      args: {
+        status?: string | null
+        cursor?: string | null
+        limit?: number | null
+        scope?: 'ALL' | 'TODO' | 'INITIATED' | 'HANDLED' | null
+      },
+      ctx: GraphQLContext
     ) {
       const [totalCount, page] = await Promise.all([
         countApprovalFlowInstancesFactory({ db })({
           status: args.status || null,
           resourceType: null,
-          resourceId: null
+          resourceId: null,
+          scope: args.scope || 'ALL',
+          userId: ctx.userId || null
         }),
         getApprovalFlowInstancesFactory({ db })({
           status: args.status || null,
           resourceType: null,
           resourceId: null,
           cursor: args.cursor || null,
-          limit: args.limit || null
+          limit: args.limit || null,
+          scope: args.scope || 'ALL',
+          userId: ctx.userId || null
         })
       ])
       return {
@@ -187,6 +197,14 @@ export default {
         steps: Array.isArray(snapshot.steps) ? snapshot.steps : []
       }
     },
+    async createdByUser(
+      parent: { createdBy?: string | null },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) {
+      if (!parent.createdBy || parent.createdBy === 'system') return null
+      return await ctx.loaders.users.getUser.load(parent.createdBy)
+    },
     async actions(parent: { id: string }) {
       return await getApprovalFlowActionsFactory({ db })(parent.id)
     },
@@ -220,7 +238,29 @@ export default {
   },
   ApprovalFlowInstanceStep: {
     approvedByIds: (parent: { approvedByIds?: string[] }) => parent.approvedByIds || [],
-    approverIds: (parent: { approverIds?: string[] }) => parent.approverIds || []
+    approverIds: (parent: { approverIds?: string[] }) => parent.approverIds || [],
+    async approvers(
+      parent: { approverIds?: string[] },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) {
+      const approverIds = parent.approverIds || []
+      if (!approverIds.length) return []
+      return await Promise.all(
+        approverIds.map((id) => ctx.loaders.users.getUser.load(id))
+      )
+    },
+    async approvedBy(
+      parent: { approvedByIds?: string[] },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) {
+      const approvedByIds = parent.approvedByIds || []
+      if (!approvedByIds.length) return []
+      return await Promise.all(
+        approvedByIds.map((id) => ctx.loaders.users.getUser.load(id))
+      )
+    }
   },
   ApprovalFlowDefinitionStep: {
     approverIds: (parent: { approverIds?: string[] }) => parent.approverIds || []

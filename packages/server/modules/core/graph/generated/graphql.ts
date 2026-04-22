@@ -559,6 +559,7 @@ export type ApprovalFlowInstance = {
   actions: Array<ApprovalFlowAction>;
   createdAt: Scalars['DateTime']['output'];
   createdBy: Scalars['ID']['output'];
+  createdByUser?: Maybe<LimitedUser>;
   currentStep: Scalars['Int']['output'];
   definition?: Maybe<ApprovalFlowDefinition>;
   definitionId?: Maybe<Scalars['ID']['output']>;
@@ -584,10 +585,20 @@ export type ApprovalFlowInstanceCollection = {
   totalCount: Scalars['Int']['output'];
 };
 
+export const ApprovalFlowInstanceListScope = {
+  All: 'ALL',
+  Handled: 'HANDLED',
+  Initiated: 'INITIATED',
+  Todo: 'TODO'
+} as const;
+
+export type ApprovalFlowInstanceListScope = typeof ApprovalFlowInstanceListScope[keyof typeof ApprovalFlowInstanceListScope];
 export type ApprovalFlowInstanceStep = {
   __typename?: 'ApprovalFlowInstanceStep';
+  approvedBy: Array<Maybe<LimitedUser>>;
   approvedByIds: Array<Scalars['ID']['output']>;
   approverIds: Array<Scalars['ID']['output']>;
+  approvers: Array<Maybe<LimitedUser>>;
   completedAt?: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
   definitionStepId?: Maybe<Scalars['ID']['output']>;
@@ -3263,6 +3274,7 @@ export type Project = {
    * real or fake (e.g., with a foo/bar model, it will be nested under foo even if such a model doesn't actually exist)
    */
   modelsTree: ModelsTreeItemCollection;
+  monthlyMeasurement?: Maybe<MonthlyMeasurement>;
   monthlyMeasurements: MonthlyMeasurementCollection;
   /** Returns information about the potential effects of moving a project to a given workspace. */
   moveToWorkspaceDryRun: ProjectMoveToWorkspaceDryRun;
@@ -3432,6 +3444,11 @@ export type ProjectModelsTreeArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ProjectModelsTreeFilter>;
   limit?: Scalars['Int']['input'];
+};
+
+
+export type ProjectMonthlyMeasurementArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4403,6 +4420,7 @@ export type QueryApprovalFlowInstanceArgs = {
 export type QueryApprovalFlowInstancesArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
+  scope?: InputMaybe<ApprovalFlowInstanceListScope>;
   status?: InputMaybe<ApprovalFlowStatus>;
 };
 
@@ -7315,6 +7333,7 @@ export type ResolversTypes = {
   ApprovalFlowFormFieldOptionInput: ApprovalFlowFormFieldOptionInput;
   ApprovalFlowInstance: ResolverTypeWrapper<ApprovalFlowInstanceGraphQLReturn>;
   ApprovalFlowInstanceCollection: ResolverTypeWrapper<Omit<ApprovalFlowInstanceCollection, 'items'> & { items: Array<ResolversTypes['ApprovalFlowInstance']> }>;
+  ApprovalFlowInstanceListScope: ApprovalFlowInstanceListScope;
   ApprovalFlowInstanceStep: ResolverTypeWrapper<ApprovalFlowInstanceStepGraphQLReturn>;
   ApprovalFlowResourceType: ApprovalFlowResourceType;
   ApprovalFlowStats: ResolverTypeWrapper<ApprovalFlowStatsGraphQLReturn>;
@@ -8505,6 +8524,7 @@ export type ApprovalFlowInstanceResolvers<ContextType = GraphQLContext, ParentTy
   actions?: Resolver<Array<ResolversTypes['ApprovalFlowAction']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   createdBy?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  createdByUser?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   currentStep?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   definition?: Resolver<Maybe<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType>;
   definitionId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
@@ -8532,8 +8552,10 @@ export type ApprovalFlowInstanceCollectionResolvers<ContextType = GraphQLContext
 };
 
 export type ApprovalFlowInstanceStepResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ApprovalFlowInstanceStep'] = ResolversParentTypes['ApprovalFlowInstanceStep']> = {
+  approvedBy?: Resolver<Array<Maybe<ResolversTypes['LimitedUser']>>, ParentType, ContextType>;
   approvedByIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
   approverIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  approvers?: Resolver<Array<Maybe<ResolversTypes['LimitedUser']>>, ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['DateTime']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   definitionStepId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
@@ -9562,6 +9584,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   modelChildrenTree?: Resolver<Array<ResolversTypes['ModelsTreeItem']>, ParentType, ContextType, RequireFields<ProjectModelChildrenTreeArgs, 'fullName'>>;
   models?: Resolver<ResolversTypes['ModelCollection'], ParentType, ContextType, RequireFields<ProjectModelsArgs, 'limit'>>;
   modelsTree?: Resolver<ResolversTypes['ModelsTreeItemCollection'], ParentType, ContextType, RequireFields<ProjectModelsTreeArgs, 'limit'>>;
+  monthlyMeasurement?: Resolver<Maybe<ResolversTypes['MonthlyMeasurement']>, ParentType, ContextType, RequireFields<ProjectMonthlyMeasurementArgs, 'id'>>;
   monthlyMeasurements?: Resolver<ResolversTypes['MonthlyMeasurementCollection'], ParentType, ContextType, Partial<ProjectMonthlyMeasurementsArgs>>;
   moveToWorkspaceDryRun?: Resolver<ResolversTypes['ProjectMoveToWorkspaceDryRun'], ParentType, ContextType, RequireFields<ProjectMoveToWorkspaceDryRunArgs, 'workspaceId'>>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -9867,7 +9890,7 @@ export type QueryResolvers<ContextType = GraphQLContext, ParentType extends Reso
   app?: Resolver<Maybe<ResolversTypes['ServerApp']>, ParentType, ContextType, RequireFields<QueryAppArgs, 'id'>>;
   approvalFlowDefinitions?: Resolver<Array<ResolversTypes['ApprovalFlowDefinition']>, ParentType, ContextType, Partial<QueryApprovalFlowDefinitionsArgs>>;
   approvalFlowInstance?: Resolver<Maybe<ResolversTypes['ApprovalFlowInstance']>, ParentType, ContextType, RequireFields<QueryApprovalFlowInstanceArgs, 'id'>>;
-  approvalFlowInstances?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesArgs, 'limit'>>;
+  approvalFlowInstances?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesArgs, 'limit' | 'scope'>>;
   approvalFlowInstancesByResource?: Resolver<ResolversTypes['ApprovalFlowInstanceCollection'], ParentType, ContextType, RequireFields<QueryApprovalFlowInstancesByResourceArgs, 'limit' | 'resourceId' | 'resourceType'>>;
   approvalFlowStats?: Resolver<ResolversTypes['ApprovalFlowStats'], ParentType, ContextType, RequireFields<QueryApprovalFlowStatsArgs, 'rangeDays'>>;
   apps?: Resolver<Maybe<Array<Maybe<ResolversTypes['ServerAppListItem']>>>, ParentType, ContextType>;
