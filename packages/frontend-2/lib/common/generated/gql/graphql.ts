@@ -5065,6 +5065,7 @@ export const SortDirection = {
 
 export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
 export type StartApprovalFlowInput = {
+  comment?: InputMaybe<Scalars['String']['input']>;
   definitionId?: InputMaybe<Scalars['ID']['input']>;
   formData?: InputMaybe<Scalars['JSONObject']['input']>;
   projectId?: InputMaybe<Scalars['ID']['input']>;
@@ -5315,6 +5316,7 @@ export type StreamUpdatePermissionInput = {
 export type SubmitMonthlyMeasurementInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
+  remark?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type Subscription = {

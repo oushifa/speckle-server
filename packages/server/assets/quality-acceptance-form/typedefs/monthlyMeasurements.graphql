@@ -101,6 +101,7 @@ input DeleteMonthlyMeasurementInput {
 input SubmitMonthlyMeasurementInput {
   projectId: ID!
   id: ID!
+  remark: String
 }
 
 type MonthlyMeasurementMutations {

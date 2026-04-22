@@ -256,7 +256,6 @@ const validate = () => {
   if (!form.value.code.trim()) return '清单项编码不能为空'
   if (!form.value.inspectionLotNumber.trim()) return '检验批号不能为空'
   if (!form.value.acceptancePart.trim()) return '验收部位不能为空'
-  if (!form.value.acceptanceContent.trim()) return '验收内容不能为空'
   if (!actualFinishDateInput.value) return '实际结束时间不能为空'
   if (workVolumeInput.value === '') return '工程量不能为空'
   if (!form.value.unit.trim()) return '计量单位不能为空'

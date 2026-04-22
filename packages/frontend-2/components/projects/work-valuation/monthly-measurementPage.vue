@@ -376,10 +376,17 @@
       <template #header>送审验工单</template>
       <ProjectsWorkValuationMmDetail
         v-if="submitTargetItem"
-        v-model:remark="submitRemark"
         :item="submitTargetItem"
         :project-id="projectId"
-      />
+      >
+        <FormTextArea
+          v-model="submitRemark"
+          label="送审说明"
+          placeholder="请输入送审说明"
+          name="remark"
+          show-label
+        />
+      </ProjectsWorkValuationMmDetail>
     </LayoutDialog>
 
     <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
@@ -833,6 +840,23 @@ const buildPreview = async () => {
   }
 }
 
+watch(
+  () => createForm.value.baseDate,
+  async (nextBaseDate, prevBaseDate) => {
+    if (!createDialogOpen.value || isViewMode.value) return
+    if (nextBaseDate === prevBaseDate) return
+
+    // 基准时间变化后，原预览结果失效，需要重新生成列表并联动更新模型
+    previewItems.value = []
+    previewBaseDate.value = 0
+    measuredQtyByBoq.value = {}
+    remarkByBoq.value = {}
+
+    if (!nextBaseDate) return
+    await buildPreview()
+  }
+)
+
 const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
   const rows = (item.items || [])
     .map((row) => ({
@@ -1099,7 +1123,8 @@ const submitItem = async (item: MonthlyMeasurementNode) => {
     await submitMutate({
       input: {
         projectId: projectId.value,
-        id: item.id
+        id: item.id,
+        remark: submitRemark.value.trim() || null
       }
     })
     await refetchMonthly()

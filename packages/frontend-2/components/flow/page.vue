@@ -62,95 +62,101 @@
           </div>
         </div>
 
-        <div class="xl:col-span-1 border border-outline-3 rounded-lg">
-          <div class="p-3 border-b border-outline-3">
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="tab in detailTabs"
-                :key="tab.value"
-                class="px-3 py-1.5 rounded-full text-body-xs border transition-colors"
-                :class="
-                  detailTab === tab.value
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-outline-3 text-foreground-2'
-                "
-                @click="detailTab = tab.value"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="p-3 space-y-3">
-            <div v-if="detailTab === 'logs'" class="space-y-2">
-              <div
-                v-if="!selectedInstance.actions.length"
-                class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
-              >
-                暂无流程日志
-              </div>
-              <div
-                v-for="action in selectedInstance.actions"
-                :key="action.id"
-                class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
-              >
-                {{ formatActionLabel(action.action) }} ·
-                {{ action.actor?.name || action.actorId }} ·
-                {{ formatDate(action.createdAt) }}
-                <span v-if="action.comment">· {{ action.comment }}</span>
-              </div>
+        <div class="xl:col-span-1 flex flex-col">
+          <div class="flex-grow border border-outline-3 rounded-lg">
+            <div class="p-3">
+              <LazyLayoutTabsHorizontal
+                :items="layoutTabs"
+                :active-item="activeDetailTabItem"
+                @update:active-item="onDetailTabChange"
+              />
             </div>
 
-            <div v-else class="space-y-3">
-              <div class="flex flex-wrap gap-2 text-body-xs">
-                <span class="px-2 py-1 rounded-full bg-success/10 text-success">
-                  已完成
-                </span>
-                <span class="px-2 py-1 rounded-full bg-primary/10 text-primary">
-                  当前步骤
-                </span>
-                <span class="px-2 py-1 rounded-full bg-foundation-2 text-foreground-2">
-                  未开始
-                </span>
-                <span class="px-2 py-1 rounded-full bg-danger/10 text-danger">
-                  已拒绝/已取消
-                </span>
-              </div>
-              <div
-                v-for="step in selectedInstance.steps"
-                :key="step.id"
-                class="border rounded-lg p-3"
-                :class="getStepCardClass(step.status)"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <div class="text-body-sm font-medium">
-                    Step {{ step.stepIndex }} · {{ step.name }}
-                  </div>
-                  <span
-                    class="text-body-xs px-2 py-0.5 rounded-full"
-                    :class="getStepTagClass(step.status)"
-                  >
-                    {{ formatStepStatusLabel(step.status) }}
+            <div class="p-3 space-y-3">
+              <div v-if="detailTab === 'logs'" class="space-y-2">
+                <div
+                  v-if="!selectedInstance.actions.length"
+                  class="text-body-sm text-foreground-2 border border-outline-3 rounded-lg p-3"
+                >
+                  暂无流程日志
+                </div>
+                <div
+                  v-for="action in selectedInstance.actions"
+                  :key="action.id"
+                  class="border border-outline-3 rounded-lg p-3 text-body-xs text-foreground-2"
+                >
+                  {{ formatActionLabel(action.action) }} ·
+                  {{ action.actor?.name || action.actorId }} ·
+                  {{ formatDate(action.createdAt) }}
+                  <span v-if="action.comment && action.action !== 'APPROVED'">
+                    · {{ action.comment }}
                   </span>
                 </div>
-                <div class="text-body-xs text-foreground-2 mt-1">
-                  审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+              </div>
+
+              <div v-else class="space-y-3">
+                <div class="flex flex-wrap gap-2 text-body-xs">
+                  <span class="px-2 py-1 rounded-full bg-success/10 text-success">
+                    已完成
+                  </span>
+                  <span class="px-2 py-1 rounded-full bg-primary/10 text-primary">
+                    当前步骤
+                  </span>
+                  <span
+                    class="px-2 py-1 rounded-full bg-foundation-2 text-foreground-2"
+                  >
+                    未开始
+                  </span>
+                  <span class="px-2 py-1 rounded-full bg-danger/10 text-danger">
+                    已拒绝/已取消
+                  </span>
                 </div>
-                <div class="text-body-xs text-foreground-2 mt-1">
-                  审核人：{{
-                    step.approvers?.length
-                      ? step.approvers.map((e) => e?.name).join('、')
-                      : '任意审批人'
-                  }}
-                </div>
-                <div class="text-body-xs text-foreground-2 mt-1">
-                  开始：{{ formatDate(step.startedAt) }} · 截止：{{
-                    formatDate(step.dueAt)
-                  }}
-                  · 完成：{{ formatDate(step.completedAt) }}
+                <div
+                  v-for="step in selectedInstance.steps"
+                  :key="step.id"
+                  class="border rounded-lg p-3"
+                  :class="getStepCardClass(step.status)"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-body-sm font-medium">
+                      Step {{ step.stepIndex }} · {{ step.name }}
+                    </div>
+                    <span
+                      class="text-body-xs px-2 py-0.5 rounded-full"
+                      :class="getStepTagClass(step.status)"
+                    >
+                      {{ formatStepStatusLabel(step.status) }}
+                    </span>
+                  </div>
+                  <div class="text-body-xs text-foreground-2 mt-1">
+                    审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+                  </div>
+                  <div class="text-body-xs text-foreground-2 mt-1">
+                    审核人：{{
+                      step.approvers?.length
+                        ? step.approvers.map((e) => e?.name).join('、')
+                        : '任意审批人'
+                    }}
+                  </div>
+                  <div class="text-body-xs text-foreground-2 mt-1">
+                    开始：{{ formatDate(step.startedAt) }} · 截止：{{
+                      formatDate(step.dueAt)
+                    }}
+                    · 完成：{{ formatDate(step.completedAt) }}
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+          <div v-if="isTodoUser" class="pt-1">
+            <FormTextArea
+              v-model="reviewComment"
+              name="review-comment"
+              label="审核意见"
+              placeholder="请输入审核意见（选填）"
+              :rows="4"
+              bordered
+            />
           </div>
         </div>
       </div>
@@ -216,6 +222,7 @@ type FlowDetailTab = 'logs' | 'diagram'
 type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
 type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
 type FlowHeaderTabItem = { id: FlowHeaderTag; title: string }
+type FlowDetailTabItem = { id: FlowDetailTab; title: string }
 type RefreshablePage = { refresh: () => Promise<void> }
 
 const apollo = useApolloClient().client
@@ -226,6 +233,7 @@ const mutating = ref(false)
 const currentTag = ref<FlowHeaderTag>('pending')
 const selectedInstance = ref<FlowListItem | null>(null)
 const detailTab = ref<FlowDetailTab>('logs')
+const reviewComment = ref('')
 const todoPageRef = ref<RefreshablePage | null>(null)
 const initiatedPageRef = ref<RefreshablePage | null>(null)
 const handledPageRef = ref<RefreshablePage | null>(null)
@@ -233,17 +241,6 @@ const handledPageRef = ref<RefreshablePage | null>(null)
 const formatDate = (date?: string | null) => {
   if (!date) return '-'
   return new Date(date).toLocaleString()
-}
-
-const formatStatusLabel = (status?: string | null) => {
-  const statusMap: Record<string, string> = {
-    PENDING: '进行中',
-    APPROVED: '已通过',
-    REJECTED: '已驳回',
-    CANCELED: '已取消'
-  }
-  if (!status) return '-'
-  return statusMap[status] || status
 }
 
 const formatStepStatusLabel = (status?: string | null) => {
@@ -303,13 +300,30 @@ const activeTagItem = computed(
   () => headerTags.find((tag) => tag.id === currentTag.value) || headerTags[0]
 )
 
-const detailTabs = [
-  { value: 'logs' as FlowDetailTab, label: '流程日志' },
-  { value: 'diagram' as FlowDetailTab, label: '流程图' }
-]
+const layoutTabs = [
+  { id: 'logs' as FlowDetailTab, title: '流程日志' },
+  { id: 'diagram' as FlowDetailTab, title: '流程图' }
+] as FlowDetailTabItem[]
+
+const activeDetailTabItem = computed(
+  () => layoutTabs.find((tab) => tab.id === detailTab.value) || layoutTabs[0]
+)
+
+const isTodoUser = computed(() => {
+  const step =
+    selectedInstance.value?.steps.find((step) => step.status === 'PENDING') || null
+  const uid = userId.value || ''
+  if (!step || !uid) return false
+  if (!step.approverIds.length) return true
+  return step.approverIds.includes(uid)
+})
 
 const onTagChange = (item: { id: string }) => {
   currentTag.value = item.id as FlowHeaderTag
+}
+
+const onDetailTabChange = (item: { id: string }) => {
+  detailTab.value = item.id as FlowDetailTab
 }
 
 const refreshCurrentTagPage = async () => {
@@ -338,10 +352,12 @@ const openInstanceDrawer = (instance: FlowListItem) => {
   }
   selectedInstance.value = instance
   detailTab.value = 'logs'
+  reviewComment.value = ''
 }
 
 const closeDrawer = () => {
   selectedInstance.value = null
+  reviewComment.value = ''
 }
 
 const openReviewDialogFromOp = (payload: {
@@ -353,7 +369,7 @@ const openReviewDialogFromOp = (payload: {
   void submitReviewAction({
     action: payload.action,
     instanceId: selectedInstance.value.id,
-    comment: null,
+    comment: reviewComment.value.trim() || null,
     rollbackToStep:
       payload.action === 'reject' && payload.operation === 'rollback'
         ? payload.rollbackToStep

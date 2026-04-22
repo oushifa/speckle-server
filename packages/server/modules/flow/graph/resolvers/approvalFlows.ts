@@ -366,6 +366,7 @@ export default {
           projectId?: string | null
           resourceId?: string | null
           formData?: Record<string, unknown> | null
+          comment?: string | null
         }
       },
       ctx: GraphQLContext
@@ -377,6 +378,7 @@ export default {
         projectId: args.input.projectId || null,
         resourceId: args.input.resourceId || null,
         formData: args.input.formData || null,
+        comment: args.input.comment?.trim() || null,
         userId
       })
       await publishApprovalFlowTodoCountUpdated()

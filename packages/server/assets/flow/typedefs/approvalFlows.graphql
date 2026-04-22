@@ -192,6 +192,7 @@ input StartApprovalFlowInput {
   projectId: ID
   resourceId: ID
   formData: JSONObject
+  comment: String
 }
 
 input ApproveApprovalFlowInput {

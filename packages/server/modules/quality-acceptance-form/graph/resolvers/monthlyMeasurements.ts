@@ -408,7 +408,7 @@ const resolvers = {
     },
     submit: async (
       _parent: unknown,
-      args: { input: { projectId: string; id: string } },
+      args: { input: { projectId: string; id: string; remark?: string | null } },
       ctx: GraphQLContext
     ) => {
       const canUpdate = await ctx.authPolicies.project.canUpdate({
@@ -439,6 +439,7 @@ const resolvers = {
           formId: args.input.id,
           projectId: args.input.projectId
         },
+        comment: args.input.remark?.trim() || null,
         userId: ctx.userId
       })
 

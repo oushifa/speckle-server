@@ -504,6 +504,7 @@ export const startApprovalFlowFactory =
     projectId?: string | null
     resourceId?: string | null
     formData?: Record<string, unknown> | null
+    comment?: string | null
     userId: string
   }) => {
     return await deps.db.transaction(async (trx) => {
@@ -597,6 +598,7 @@ export const startApprovalFlowFactory =
         action: ApprovalFlowActionType.Started,
         actorId: params.userId,
         toStatus: ApprovalFlowInstanceStatus.Pending,
+        comment: params.comment || null,
         metadata: {
           definitionVersion: definition.version
         }
