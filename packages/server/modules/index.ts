@@ -95,6 +95,7 @@ const getEnabledModuleNames = () => {
     'acc',
     'accessrequests',
     'activitystream',
+    'organizations',
     'apiexplorer',
     'auth',
     'backgroundjobs',

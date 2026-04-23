@@ -212,9 +212,14 @@ const config: CodegenConfig = {
           AccSyncItem: '@/modules/acc/helpers/graphTypes#AccSyncItemGraphQLReturn',
           AccSyncItemMutations:
             '@/modules/acc/helpers/graphTypes#AccSyncItemMutationsGraphQLReturn',
+          DepartmentMutations:
+            '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
+          Department:
+            '@/modules/organizations/helpers/graphTypes#DepartmentGraphQLReturn',
           SavedViewMutations:
             '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
-          BoqMutations: '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
+          BoqMutations:
+            '@/modules/core/helpers/graphTypes#MutationsObjectGraphQLReturn',
           SavedView: '@/modules/viewer/helpers/graphTypes#SavedViewGraphQLReturn',
           SavedViewGroup:
             '@/modules/viewer/helpers/graphTypes#SavedViewGroupGraphQLReturn',

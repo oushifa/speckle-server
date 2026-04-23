@@ -1,0 +1,56 @@
+type Department {
+  id: ID!
+  name: String!
+  parentId: String
+  path: String!
+  children: [Department!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CreateDepartmentInput {
+  name: String!
+  parentId: String
+}
+
+input UpdateDepartmentInput {
+  id: String!
+  name: String
+  parentId: String
+}
+
+input DeleteDepartmentInput {
+  id: String!
+}
+
+input AddDepartmentMembersInput {
+  departmentId: String!
+  userIds: [String!]!
+  title: String
+}
+
+input RemoveDepartmentMemberInput {
+  departmentId: String!
+  userId: String!
+}
+
+type DepartmentMutations {
+  create(input: CreateDepartmentInput!): Department!
+  update(input: UpdateDepartmentInput!): Department!
+  delete(input: DeleteDepartmentInput!): Boolean!
+  addMember(input: AddDepartmentMembersInput!): Boolean!
+  updateMember(input: AddDepartmentMembersInput!): Boolean!
+  removeMember(input: RemoveDepartmentMemberInput!): Boolean!
+}
+
+extend type Query {
+  departmentTree: [Department!]! @hasServerRole(role: SERVER_GUEST)
+  departmentUsers(departmentId: String!): [LimitedUser!]!
+    @hasServerRole(role: SERVER_GUEST)
+}
+
+extend type Mutation {
+  departmentMutations: DepartmentMutations!
+    @hasServerRole(role: SERVER_GUEST)
+    @hasScope(scope: "profile:write")
+}

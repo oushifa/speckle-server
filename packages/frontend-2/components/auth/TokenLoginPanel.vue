@@ -68,6 +68,19 @@ const state = ref<LoginState>(LoginState.TokenChecking)
 const currentToken = ref('')
 const errorDetails = ref('')
 
+const parseTokenInput = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (!trimmed.includes('://')) return trimmed
+
+  try {
+    const parsedUrl = new URL(trimmed)
+    return parsedUrl.searchParams.get('token')?.trim() || trimmed
+  } catch {
+    return trimmed
+  }
+}
+
 const tokenFromQuery = computed(() => {
   const token = route.query.token
   if (Array.isArray(token)) return token[0] || ''
@@ -108,7 +121,7 @@ const helpText = computed(() => {
   if (state.value === LoginState.SigningIn) return 'token 校验通过，正在登录'
   if (state.value === LoginState.Success)
     return `已识别 token：${maskedToken.value}，并写入全局状态`
-  return '从 URL query 自动读取 token，也支持手动修改后重试'
+  return '支持粘贴完整跳转 URL 或纯 token，系统会自动识别'
 })
 
 const errorMessage = computed(() => {
@@ -129,11 +142,11 @@ const statusMessage = computed(() => {
   if (state.value === LoginState.SigningIn) return 'token 校验通过，正在写入登录态'
   if (state.value === LoginState.Success) return '登录已完成，你可以继续进入系统'
   if (state.value === LoginState.Invalid) return errorDetails.value || 'token 校验失败'
-  return '请通过 /authn/token-login?token=xxx 方式访问此页面'
+  return '请通过 /authn/token-login?token=xxx 访问，或手动粘贴完整 SSO URL'
 })
 
 const runTokenLogin = async () => {
-  const token = currentToken.value.trim()
+  const token = parseTokenInput(currentToken.value)
   currentToken.value = token
   errorDetails.value = ''
 
@@ -187,7 +200,7 @@ const onSubmit = async () => {
 watch(
   tokenFromQuery,
   async (token) => {
-    currentToken.value = token.trim()
+    currentToken.value = parseTokenInput(token)
     await runTokenLogin()
   },
   { immediate: true }

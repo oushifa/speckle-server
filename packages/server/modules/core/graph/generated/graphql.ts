@@ -16,6 +16,7 @@ import type { ServerAppGraphQLReturn, ServerAppListItemGraphQLReturn } from '@/m
 import type { GendoAIRenderGraphQLReturn } from '@/modules/gendo/helpers/types/graphTypes';
 import type { ServerRegionItemGraphQLReturn } from '@/modules/multiregion/helpers/graphTypes';
 import type { WorkspaceIntegrationsGraphQLReturn, AccIntegrationGraphQLReturn, AccFolderGraphQLReturn, AccItemGraphQLReturn, AccSyncItemGraphQLReturn, AccSyncItemMutationsGraphQLReturn } from '@/modules/acc/helpers/graphTypes';
+import type { DepartmentGraphQLReturn } from '@/modules/organizations/helpers/graphTypes';
 import type { SavedViewGraphQLReturn, SavedViewGroupGraphQLReturn, SavedViewPermissionChecksGraphQLReturn, SavedViewGroupPermissionChecksGraphQLReturn, ProjectSavedViewsUpdatedMessageGraphQLReturn, ProjectSavedViewGroupsUpdatedMessageGraphQLReturn, BeforeChangeSavedViewGraphQLReturn, ExtendedViewerResourcesGraphQLReturn } from '@/modules/viewer/helpers/graphTypes';
 import type { DashboardGraphQLReturn, DashboardMutationsGraphQLReturn, DashboardPermissionChecksGraphQLReturn, DashboardTokenGraphQLReturn } from '@/modules/dashboards/helpers/graphTypes';
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper';
@@ -257,6 +258,12 @@ export type ActivityCollection = {
   cursor?: Maybe<Scalars['String']['output']>;
   items: Array<Activity>;
   totalCount: Scalars['Int']['output'];
+};
+
+export type AddDepartmentMembersInput = {
+  departmentId: Scalars['String']['input'];
+  title?: InputMaybe<Scalars['String']['input']>;
+  userIds: Array<Scalars['String']['input']>;
 };
 
 export type AddDomainToWorkspaceInput = {
@@ -1551,6 +1558,11 @@ export type CreateDashboardTokenReturn = {
   tokenMetadata: DashboardToken;
 };
 
+export type CreateDepartmentInput = {
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateEmbedTokenReturn = {
   __typename?: 'CreateEmbedTokenReturn';
   token: Scalars['String']['output'];
@@ -1802,6 +1814,10 @@ export type DeleteBoqItemInput = {
   projectId: Scalars['ID']['input'];
 };
 
+export type DeleteDepartmentInput = {
+  id: Scalars['String']['input'];
+};
+
 export type DeleteFolderInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
@@ -1844,6 +1860,57 @@ export type DeleteVersionsInput = {
 export type DenyWorkspaceJoinRequestInput = {
   userId: Scalars['String']['input'];
   workspaceId: Scalars['String']['input'];
+};
+
+export type Department = {
+  __typename?: 'Department';
+  children: Array<Department>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  parentId?: Maybe<Scalars['String']['output']>;
+  path: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type DepartmentMutations = {
+  __typename?: 'DepartmentMutations';
+  addMember: Scalars['Boolean']['output'];
+  create: Department;
+  delete: Scalars['Boolean']['output'];
+  removeMember: Scalars['Boolean']['output'];
+  update: Department;
+  updateMember: Scalars['Boolean']['output'];
+};
+
+
+export type DepartmentMutationsAddMemberArgs = {
+  input: AddDepartmentMembersInput;
+};
+
+
+export type DepartmentMutationsCreateArgs = {
+  input: CreateDepartmentInput;
+};
+
+
+export type DepartmentMutationsDeleteArgs = {
+  input: DeleteDepartmentInput;
+};
+
+
+export type DepartmentMutationsRemoveMemberArgs = {
+  input: RemoveDepartmentMemberInput;
+};
+
+
+export type DepartmentMutationsUpdateArgs = {
+  input: UpdateDepartmentInput;
+};
+
+
+export type DepartmentMutationsUpdateMemberArgs = {
+  input: AddDepartmentMembersInput;
 };
 
 export const DiscoverableStreamsSortType = {
@@ -2664,6 +2731,7 @@ export type Mutation = {
    */
   commitsMove: Scalars['Boolean']['output'];
   dashboardMutations: DashboardMutations;
+  departmentMutations: DepartmentMutations;
   fileUploadMutations: FileUploadMutations;
   folderMutations: FolderMutations;
   /**
@@ -4299,6 +4367,8 @@ export type Query = {
    */
   comments?: Maybe<CommentCollection>;
   dashboard: Dashboard;
+  departmentTree: Array<Department>;
+  departmentUsers: Array<LimitedUser>;
   /**
    * All of the discoverable streams of the server
    * @deprecated Part of the old API surface and will be removed in the future.
@@ -4470,6 +4540,11 @@ export type QueryDashboardArgs = {
 };
 
 
+export type QueryDepartmentUsersArgs = {
+  departmentId: Scalars['String']['input'];
+};
+
+
 export type QueryDiscoverableStreamsArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: Scalars['Int']['input'];
@@ -4580,6 +4655,11 @@ export type RejectApprovalFlowInput = {
   comment: Scalars['String']['input'];
   instanceId: Scalars['ID']['input'];
   rollbackToStep?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type RemoveDepartmentMemberInput = {
+  departmentId: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 export type RemoveModelFromFolderInput = {
@@ -5094,6 +5174,7 @@ export const SortDirection = {
 
 export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
 export type StartApprovalFlowInput = {
+  comment?: InputMaybe<Scalars['String']['input']>;
   definitionId?: InputMaybe<Scalars['ID']['input']>;
   formData?: InputMaybe<Scalars['JSONObject']['input']>;
   projectId?: InputMaybe<Scalars['ID']['input']>;
@@ -5344,6 +5425,7 @@ export type StreamUpdatePermissionInput = {
 export type SubmitMonthlyMeasurementInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
+  remark?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type Subscription = {
@@ -5705,6 +5787,12 @@ export type UpdateBoqItemInput = {
   quantity?: InputMaybe<Scalars['Float']['input']>;
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateDepartmentInput = {
+  id: Scalars['String']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  parentId?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateFolderInput = {
@@ -7303,6 +7391,7 @@ export type ResolversTypes = {
   ActiveUserMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   Activity: ResolverTypeWrapper<Activity>;
   ActivityCollection: ResolverTypeWrapper<ActivityCollectionGraphQLReturn>;
+  AddDepartmentMembersInput: AddDepartmentMembersInput;
   AddDomainToWorkspaceInput: AddDomainToWorkspaceInput;
   AddModelToFolderInput: AddModelToFolderInput;
   AdminAccessToWorkspaceFeatureInput: AdminAccessToWorkspaceFeatureInput;
@@ -7425,6 +7514,7 @@ export type ResolversTypes = {
   CreateCommentInput: CreateCommentInput;
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: ResolverTypeWrapper<Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['DashboardToken'] }>;
+  CreateDepartmentInput: CreateDepartmentInput;
   CreateEmbedTokenReturn: ResolverTypeWrapper<Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversTypes['EmbedToken'] }>;
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
@@ -7451,6 +7541,7 @@ export type ResolversTypes = {
   DateTime: ResolverTypeWrapper<Scalars['DateTime']['output']>;
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
   DeleteBoqItemInput: DeleteBoqItemInput;
+  DeleteDepartmentInput: DeleteDepartmentInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteMonthlyMeasurementInput: DeleteMonthlyMeasurementInput;
@@ -7460,6 +7551,8 @@ export type ResolversTypes = {
   DeleteUserEmailInput: DeleteUserEmailInput;
   DeleteVersionsInput: DeleteVersionsInput;
   DenyWorkspaceJoinRequestInput: DenyWorkspaceJoinRequestInput;
+  Department: ResolverTypeWrapper<DepartmentGraphQLReturn>;
+  DepartmentMutations: ResolverTypeWrapper<MutationsObjectGraphQLReturn>;
   DiscoverableStreamsSortType: DiscoverableStreamsSortType;
   DiscoverableStreamsSortingInput: DiscoverableStreamsSortingInput;
   EditCommentInput: EditCommentInput;
@@ -7591,6 +7684,7 @@ export type ResolversTypes = {
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
+  RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResolverTypeWrapper<ResourceIdentifier>;
@@ -7660,6 +7754,7 @@ export type ResolversTypes = {
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
+  UpdateDepartmentInput: UpdateDepartmentInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
@@ -7791,6 +7886,7 @@ export type ResolversParentTypes = {
   ActiveUserMutations: MutationsObjectGraphQLReturn;
   Activity: Activity;
   ActivityCollection: ActivityCollectionGraphQLReturn;
+  AddDepartmentMembersInput: AddDepartmentMembersInput;
   AddDomainToWorkspaceInput: AddDomainToWorkspaceInput;
   AddModelToFolderInput: AddModelToFolderInput;
   AdminAccessToWorkspaceFeatureInput: AdminAccessToWorkspaceFeatureInput;
@@ -7903,6 +7999,7 @@ export type ResolversParentTypes = {
   CreateCommentInput: CreateCommentInput;
   CreateCommentReplyInput: CreateCommentReplyInput;
   CreateDashboardTokenReturn: Omit<CreateDashboardTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['DashboardToken'] };
+  CreateDepartmentInput: CreateDepartmentInput;
   CreateEmbedTokenReturn: Omit<CreateEmbedTokenReturn, 'tokenMetadata'> & { tokenMetadata: ResolversParentTypes['EmbedToken'] };
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
@@ -7928,6 +8025,7 @@ export type ResolversParentTypes = {
   DateTime: Scalars['DateTime']['output'];
   DeleteAccSyncItemInput: DeleteAccSyncItemInput;
   DeleteBoqItemInput: DeleteBoqItemInput;
+  DeleteDepartmentInput: DeleteDepartmentInput;
   DeleteFolderInput: DeleteFolderInput;
   DeleteModelInput: DeleteModelInput;
   DeleteMonthlyMeasurementInput: DeleteMonthlyMeasurementInput;
@@ -7937,6 +8035,8 @@ export type ResolversParentTypes = {
   DeleteUserEmailInput: DeleteUserEmailInput;
   DeleteVersionsInput: DeleteVersionsInput;
   DenyWorkspaceJoinRequestInput: DenyWorkspaceJoinRequestInput;
+  Department: DepartmentGraphQLReturn;
+  DepartmentMutations: MutationsObjectGraphQLReturn;
   DiscoverableStreamsSortingInput: DiscoverableStreamsSortingInput;
   EditCommentInput: EditCommentInput;
   EmailVerificationRequestInput: EmailVerificationRequestInput;
@@ -8053,6 +8153,7 @@ export type ResolversParentTypes = {
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
   RejectApprovalFlowInput: RejectApprovalFlowInput;
+  RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
   ResourceIdentifier: ResourceIdentifier;
@@ -8115,6 +8216,7 @@ export type ResolversParentTypes = {
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
+  UpdateDepartmentInput: UpdateDepartmentInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
@@ -9067,6 +9169,27 @@ export interface DateTimeScalarConfig extends GraphQLScalarTypeConfig<ResolversT
   name: 'DateTime';
 }
 
+export type DepartmentResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Department'] = ResolversParentTypes['Department']> = {
+  children?: Resolver<Array<ResolversTypes['Department']>, ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  parentId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  path?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type DepartmentMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['DepartmentMutations'] = ResolversParentTypes['DepartmentMutations']> = {
+  addMember?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<DepartmentMutationsAddMemberArgs, 'input'>>;
+  create?: Resolver<ResolversTypes['Department'], ParentType, ContextType, RequireFields<DepartmentMutationsCreateArgs, 'input'>>;
+  delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<DepartmentMutationsDeleteArgs, 'input'>>;
+  removeMember?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<DepartmentMutationsRemoveMemberArgs, 'input'>>;
+  update?: Resolver<ResolversTypes['Department'], ParentType, ContextType, RequireFields<DepartmentMutationsUpdateArgs, 'input'>>;
+  updateMember?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<DepartmentMutationsUpdateMemberArgs, 'input'>>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type EmbedTokenResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['EmbedToken'] = ResolversParentTypes['EmbedToken']> = {
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   lastUsed?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9435,6 +9558,7 @@ export type MutationResolvers<ContextType = GraphQLContext, ParentType extends R
   commitsDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationCommitsDeleteArgs, 'input'>>;
   commitsMove?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationCommitsMoveArgs, 'input'>>;
   dashboardMutations?: Resolver<ResolversTypes['DashboardMutations'], ParentType, ContextType>;
+  departmentMutations?: Resolver<ResolversTypes['DepartmentMutations'], ParentType, ContextType>;
   fileUploadMutations?: Resolver<ResolversTypes['FileUploadMutations'], ParentType, ContextType>;
   folderMutations?: Resolver<ResolversTypes['FolderMutations'], ParentType, ContextType>;
   inviteDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationInviteDeleteArgs, 'inviteId'>>;
@@ -9900,6 +10024,8 @@ export type QueryResolvers<ContextType = GraphQLContext, ParentType extends Reso
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<QueryCommentArgs, 'id' | 'streamId'>>;
   comments?: Resolver<Maybe<ResolversTypes['CommentCollection']>, ParentType, ContextType, RequireFields<QueryCommentsArgs, 'archived' | 'limit' | 'streamId'>>;
   dashboard?: Resolver<ResolversTypes['Dashboard'], ParentType, ContextType, RequireFields<QueryDashboardArgs, 'id'>>;
+  departmentTree?: Resolver<Array<ResolversTypes['Department']>, ParentType, ContextType>;
+  departmentUsers?: Resolver<Array<ResolversTypes['LimitedUser']>, ParentType, ContextType, RequireFields<QueryDepartmentUsersArgs, 'departmentId'>>;
   discoverableStreams?: Resolver<Maybe<ResolversTypes['StreamCollection']>, ParentType, ContextType, RequireFields<QueryDiscoverableStreamsArgs, 'limit'>>;
   otherUser?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType, RequireFields<QueryOtherUserArgs, 'id'>>;
   project?: Resolver<ResolversTypes['Project'], ParentType, ContextType, RequireFields<QueryProjectArgs, 'id'>>;
@@ -10920,6 +11046,8 @@ export type Resolvers<ContextType = GraphQLContext> = {
   DashboardToken?: DashboardTokenResolvers<ContextType>;
   DashboardTokenCollection?: DashboardTokenCollectionResolvers<ContextType>;
   DateTime?: GraphQLScalarType;
+  Department?: DepartmentResolvers<ContextType>;
+  DepartmentMutations?: DepartmentMutationsResolvers<ContextType>;
   EmbedToken?: EmbedTokenResolvers<ContextType>;
   EmbedTokenCollection?: EmbedTokenCollectionResolvers<ContextType>;
   ExtendedViewerResources?: ExtendedViewerResourcesResolvers<ContextType>;
