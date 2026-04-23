@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>兼容版本</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>兼容版本v0.0.1</title>
     <style>
       :root {
         color-scheme: light;
@@ -140,6 +143,7 @@
       ;(function () {
         var COOKIE_AUTH = 'authn'
         var COOKIE_POST_AUTH_REDIRECT = 'postAuthRedirect'
+        var NO_CACHE_QUERY_KEY = '_t'
         var apiOrigin = window.location.origin
         // var apiOrigin = 'http://127.0.0.1:3000'
         var state = {
@@ -154,6 +158,14 @@
           termsOfService: '',
           context: null,
           autoAllowTriggered: false
+        }
+
+        function ensureNoCacheQuery() {
+          var url = new URL(window.location.href)
+          if (url.searchParams.get(NO_CACHE_QUERY_KEY)) return true
+          url.searchParams.set(NO_CACHE_QUERY_KEY, String(Date.now()))
+          window.location.replace(url.toString())
+          return false
         }
 
         function getCookie(name) {
@@ -261,6 +273,7 @@
           }
           var res = await fetch(apiOrigin + '/graphql', {
             method: 'POST',
+            cache: 'no-store',
             headers: headers,
             body: JSON.stringify(body)
           })
@@ -652,6 +665,7 @@
           loginUrl.searchParams.set('challenge', state.context.challenge)
           return fetch(loginUrl.toString(), {
             method: 'POST',
+            cache: 'no-store',
             headers: { 'Content-Type': 'application/json' },
             redirect: 'follow',
             body: JSON.stringify({ email: email, password: password })
@@ -662,6 +676,7 @@
           var url = new URL('/auth/token', apiOrigin)
           return fetch(url.toString(), {
             method: 'POST',
+            cache: 'no-store',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               accessCode: accessCode,
@@ -760,6 +775,7 @@
           }
         }
 
+        if (!ensureNoCacheQuery()) return
         render()
         void init()
       })()
