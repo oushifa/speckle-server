@@ -26,6 +26,8 @@ import {
   createTestStream
 } from '@/test/speckle-helpers/streamHelper'
 import { findInviteFactory } from '@/modules/serverinvites/repositories/serverInvites'
+import crypto from 'node:crypto'
+import { Buffer } from 'node:buffer'
 
 const createInviteDirectly = createStreamInviteDirectly
 const findInvite = findInviteFactory({ db })
@@ -38,6 +40,37 @@ const expect = chai.expect
 
 let app: Application
 let sendRequest: Awaited<ReturnType<typeof initializeTestServer>>['sendRequest']
+
+const SSO_JWT_SECRET = 'Rz4eFYTp8CCGBGh6tpDoSPI/L8GUefjW3OfFcF4QOwI='
+
+const toBase64Url = (value: string) =>
+  Buffer.from(value)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+
+const createSsoToken = (payload: { username: string; company: string }) => {
+  const now = Math.floor(Date.now() / 1000)
+  const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const payloadPart = toBase64Url(
+    JSON.stringify({
+      ...payload,
+      iat: now,
+      exp: now + 60
+    })
+  )
+  const signingInput = `${header}.${payloadPart}`
+  const signature = crypto
+    .createHmac('sha256', SSO_JWT_SECRET)
+    .update(signingInput)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+
+  return `${signingInput}.${signature}`
+}
 
 describe('Auth @auth', () => {
   describe('Local authN & authZ (token endpoints)', () => {
@@ -188,6 +221,40 @@ describe('Auth @auth', () => {
         .post('/auth/local/login?challenge=test')
         .send({ email: 'spam@speckle.systems', password: 'roll saving throws' })
         .expect(302)
+    })
+
+    it('Should log in with a valid SSO token', async () => {
+      const ssoUser = await createTestUser({
+        name: 'sunwei',
+        email: 'sunwei',
+        password: 'roll saving throws'
+      })
+      const token = createSsoToken({
+        username: ssoUser.email,
+        company: 'test-company'
+      })
+
+      const res = await request(app)
+        .post('/auth/sso/token-login')
+        .send({ token })
+        .expect(200)
+
+      expect(res.body.token).to.be.a('string')
+      expect(res.body.isNewUser).to.equal(false)
+    })
+
+    it('Should log in with SSO token when company is empty', async () => {
+      const token = createSsoToken({
+        username: 'sunwei',
+        company: ''
+      })
+
+      const res = await request(app)
+        .post('/auth/sso/token-login')
+        .send({ token })
+        .expect(200)
+
+      expect(res.body.token).to.be.a('string')
     })
 
     it('Should fail nicely to log in (speckle frontend)', async () => {

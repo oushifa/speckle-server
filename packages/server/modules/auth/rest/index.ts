@@ -306,8 +306,8 @@ export default function (app: Express) {
 
       const payload = parseSsoToken(rawToken)
       const username = payload.username?.trim()
-      const company = payload.company?.trim()
-      if (!username || !company) {
+      const company = payload.company?.trim() || ''
+      if (!username) {
         throw new BadRequestError('Token 内容无效')
       }
       const email = username.toLowerCase()
@@ -349,12 +349,14 @@ export default function (app: Express) {
       const upsertDepartmentMember = upsertDepartmentMemberFactory({ db })
       const removeDepartmentMembersByUser = removeDepartmentMembersByUserFactory({ db })
       await removeDepartmentMembersByUser({ userId: currentUser.id })
-      const department = await findDepartmentByName({ name: company })
-      if (department) {
-        await upsertDepartmentMember({
-          departmentId: department.id,
-          userId: currentUser.id
-        })
+      if (company) {
+        const department = await findDepartmentByName({ name: company })
+        if (department) {
+          await upsertDepartmentMember({
+            departmentId: department.id,
+            userId: currentUser.id
+          })
+        }
       }
 
       const getApp = getAppFactory({ db })
