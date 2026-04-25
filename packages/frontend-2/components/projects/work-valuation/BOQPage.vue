@@ -251,6 +251,7 @@ import { projectBoqItemsQuery } from '~/lib/projects/graphql/queries'
 import {
   createBoqItemMutation,
   deleteBoqItemMutation,
+  importBoqItemsMutation,
   updateBoqItemMutation
 } from '~/lib/projects/graphql/mutations'
 import type { LayoutDialogButton } from '@speckle/ui-components'
@@ -298,6 +299,7 @@ const { mutate: updateBoqItem, loading: updateBoqItemLoading } =
   useMutation(updateBoqItemMutation)
 const { mutate: deleteBoqItem, loading: deleteBoqItemLoading } =
   useMutation(deleteBoqItemMutation)
+const { mutate: importBoqItems } = useMutation(importBoqItemsMutation)
 
 const columns = [
   { id: 'code', header: '清单编码', classes: 'col-span-3' },
@@ -456,11 +458,6 @@ const parseOptionalNumber = (value: string): number | null => {
   if (!trimmed.length) return null
   const parsed = Number.parseFloat(trimmed)
   return Number.isNaN(parsed) ? Number.NaN : parsed
-}
-
-const isAllowedChildType = (parentType: BoqItemType, childType: BoqItemType) => {
-  const allowedTypes = childTypeMap[parentType as UiBoqItemType] || []
-  return allowedTypes.includes(childType as UiBoqItemType)
 }
 
 const triggerImportExcel = () => {
@@ -634,108 +631,6 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
   return importRows
 }
 
-const importRowsToBoq = async (rows: ImportBoqRow[]) => {
-  const runtimeItems = new Map(
-    allItems.value.map((item) => [
-      item.code,
-      { id: item.id, type: item.type as BoqItemType }
-    ])
-  )
-  const importRowsByCode = new Map(rows.map((row) => [row.code, row]))
-  const pendingRows = [...rows]
-
-  let createdCount = 0
-  let updatedCount = 0
-  let safeGuard = 0
-
-  while (pendingRows.length) {
-    safeGuard += 1
-    if (safeGuard > rows.length + 5) {
-      throw new Error('存在无法解析的层级关系，请检查上级编码是否正确')
-    }
-
-    let progressed = false
-    const nextRound: ImportBoqRow[] = []
-
-    for (const row of pendingRows) {
-      let parentRuntime: { id: string; type: BoqItemType } | undefined
-      if (row.parentCode) {
-        parentRuntime = runtimeItems.get(row.parentCode)
-        if (!parentRuntime) {
-          if (importRowsByCode.has(row.parentCode)) {
-            nextRound.push(row)
-            continue
-          }
-          throw new Error(`第 ${row.rowNumber} 行上级编码不存在：${row.parentCode}`)
-        }
-        if (!isAllowedChildType(parentRuntime.type, row.type)) {
-          throw new Error(
-            `第 ${row.rowNumber} 行层级类型不合法：${
-              childTypeLabelMap[parentRuntime.type as UiBoqItemType]
-            } 不能包含 ${childTypeLabelMap[row.type as UiBoqItemType]}`
-          )
-        }
-      }
-
-      const existing = runtimeItems.get(row.code)
-      if (existing) {
-        if (existing.type !== row.type) {
-          throw new Error(
-            `第 ${row.rowNumber} 行编码 ${row.code} 已存在，且类型不一致（现有：${
-              childTypeLabelMap[existing.type as UiBoqItemType]
-            }，导入：${childTypeLabelMap[row.type as UiBoqItemType]}）`
-          )
-        }
-        await updateBoqItem({
-          input: {
-            projectId: projectId.value,
-            itemId: existing.id,
-            code: row.code,
-            name: row.name,
-            unit: row.unit,
-            quantity: row.quantity,
-            price: row.price
-          }
-        })
-        updatedCount += 1
-        progressed = true
-        continue
-      }
-
-      const result = await createBoqItem({
-        input: {
-          projectId: projectId.value,
-          parentId: parentRuntime?.id,
-          type: row.type,
-          code: row.code,
-          name: row.name,
-          unit: row.unit,
-          quantity: row.quantity,
-          price: row.price
-        }
-      })
-      const createdItem = result?.data?.projectMutations?.boqMutations?.createItem
-      if (!createdItem) {
-        throw new Error(`第 ${row.rowNumber} 行创建失败：${row.code}`)
-      }
-      runtimeItems.set(row.code, {
-        id: createdItem.id,
-        type: createdItem.type as BoqItemType
-      })
-      createdCount += 1
-      progressed = true
-    }
-
-    if (!progressed) {
-      throw new Error('存在无法解析的层级关系，请检查导入数据顺序和上级编码')
-    }
-
-    pendingRows.splice(0, pendingRows.length, ...nextRound)
-  }
-
-  return { createdCount, updatedCount }
-}
-
 const handleImportFileChange = async (event: Event) => {
   if (importingExcel.value) return
   const input = event.target as HTMLInputElement | null
@@ -752,12 +647,30 @@ const handleImportFileChange = async (event: Event) => {
     }
     const sheet = workbook.Sheets[firstSheetName]
     const rows = parseImportRows(sheet)
-    const { createdCount, updatedCount } = await importRowsToBoq(rows)
+    const result = await importBoqItems({
+      input: {
+        projectId: projectId.value,
+        items: rows.map((row) => ({
+          rowNumber: row.rowNumber,
+          code: row.code,
+          name: row.name,
+          type: row.type,
+          parentCode: row.parentCode,
+          unit: row.unit,
+          quantity: row.quantity,
+          price: row.price
+        }))
+      }
+    })
+    const importResult = result?.data?.projectMutations?.boqMutations?.importItems
+    if (!importResult) {
+      throw new Error('导入失败，请稍后重试')
+    }
     await refreshBoq()
     notify(
       '清单导入成功',
       ToastNotificationType.Success,
-      `新增 ${createdCount} 条，更新 ${updatedCount} 条`
+      `新增 ${importResult.createdCount} 条，更新 ${importResult.updatedCount} 条`
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

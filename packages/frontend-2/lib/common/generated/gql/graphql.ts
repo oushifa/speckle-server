@@ -237,6 +237,12 @@ export type ActivityCollection = {
   totalCount: Scalars['Int']['output'];
 };
 
+export type AddDepartmentMembersInput = {
+  departmentId: Scalars['String']['input'];
+  title?: InputMaybe<Scalars['String']['input']>;
+  userIds: Array<Scalars['String']['input']>;
+};
+
 export type AddDomainToWorkspaceInput = {
   domain: Scalars['String']['input'];
   workspaceId: Scalars['ID']['input'];
@@ -1006,6 +1012,12 @@ export type BlobMetadataCollection = {
   totalSize: Scalars['Int']['output'];
 };
 
+export type BoqImportResult = {
+  __typename?: 'BoqImportResult';
+  createdCount: Scalars['Int']['output'];
+  updatedCount: Scalars['Int']['output'];
+};
+
 export type BoqItem = {
   __typename?: 'BoqItem';
   children: Array<BoqItem>;
@@ -1046,6 +1058,7 @@ export type BoqMutations = {
   __typename?: 'BoqMutations';
   createItem: BoqItem;
   deleteItem: Scalars['Boolean']['output'];
+  importItems: BoqImportResult;
   moveItem: BoqItem;
   updateItem: BoqItem;
 };
@@ -1058,6 +1071,11 @@ export type BoqMutationsCreateItemArgs = {
 
 export type BoqMutationsDeleteItemArgs = {
   input: DeleteBoqItemInput;
+};
+
+
+export type BoqMutationsImportItemsArgs = {
+  input: ImportBoqItemsInput;
 };
 
 
@@ -1524,6 +1542,11 @@ export type CreateDashboardTokenReturn = {
   tokenMetadata: DashboardToken;
 };
 
+export type CreateDepartmentInput = {
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateEmbedTokenReturn = {
   __typename?: 'CreateEmbedTokenReturn';
   token: Scalars['String']['output'];
@@ -1773,6 +1796,10 @@ export type DeleteBoqItemInput = {
   projectId: Scalars['ID']['input'];
 };
 
+export type DeleteDepartmentInput = {
+  id: Scalars['String']['input'];
+};
+
 export type DeleteFolderInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['ID']['input'];
@@ -1815,6 +1842,57 @@ export type DeleteVersionsInput = {
 export type DenyWorkspaceJoinRequestInput = {
   userId: Scalars['String']['input'];
   workspaceId: Scalars['String']['input'];
+};
+
+export type Department = {
+  __typename?: 'Department';
+  children: Array<Department>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  parentId?: Maybe<Scalars['String']['output']>;
+  path: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type DepartmentMutations = {
+  __typename?: 'DepartmentMutations';
+  addMember: Scalars['Boolean']['output'];
+  create: Department;
+  delete: Scalars['Boolean']['output'];
+  removeMember: Scalars['Boolean']['output'];
+  update: Department;
+  updateMember: Scalars['Boolean']['output'];
+};
+
+
+export type DepartmentMutationsAddMemberArgs = {
+  input: AddDepartmentMembersInput;
+};
+
+
+export type DepartmentMutationsCreateArgs = {
+  input: CreateDepartmentInput;
+};
+
+
+export type DepartmentMutationsDeleteArgs = {
+  input: DeleteDepartmentInput;
+};
+
+
+export type DepartmentMutationsRemoveMemberArgs = {
+  input: RemoveDepartmentMemberInput;
+};
+
+
+export type DepartmentMutationsUpdateArgs = {
+  input: UpdateDepartmentInput;
+};
+
+
+export type DepartmentMutationsUpdateMemberArgs = {
+  input: AddDepartmentMembersInput;
 };
 
 export const DiscoverableStreamsSortType = {
@@ -2095,6 +2173,46 @@ export type GetModelUploadsInput = {
 export type GetUngroupedViewGroupInput = {
   /** Viewer resource ID string that identifies which resources should be loaded */
   resourceIdString: Scalars['String']['input'];
+};
+
+export type ImportBoqItemInput = {
+  code: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  parentCode?: InputMaybe<Scalars['String']['input']>;
+  price?: InputMaybe<Scalars['Float']['input']>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  rowNumber: Scalars['Int']['input'];
+  type: BoqItemType;
+  unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ImportBoqItemsInput = {
+  items: Array<ImportBoqItemInput>;
+  projectId: Scalars['ID']['input'];
+};
+
+export type ImportQualityAcceptanceFormItemInput = {
+  acceptanceContent?: InputMaybe<Scalars['String']['input']>;
+  acceptancePart?: InputMaybe<Scalars['String']['input']>;
+  actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
+  actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
+  approveStatus?: InputMaybe<Scalars['String']['input']>;
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  bimElements?: InputMaybe<BimElementsInput>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  flowId?: InputMaybe<Scalars['ID']['input']>;
+  inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
+  inspector?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  rowNumber: Scalars['Int']['input'];
+  timeZone?: InputMaybe<Scalars['String']['input']>;
+  unit?: InputMaybe<Scalars['String']['input']>;
+  workVolume?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type ImportQualityAcceptanceFormsInput = {
+  items: Array<ImportQualityAcceptanceFormItemInput>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type InvitableCollaboratorsFilter = {
@@ -2635,6 +2753,7 @@ export type Mutation = {
    */
   commitsMove: Scalars['Boolean']['output'];
   dashboardMutations: DashboardMutations;
+  departmentMutations: DepartmentMutations;
   fileUploadMutations: FileUploadMutations;
   folderMutations: FolderMutations;
   /**
@@ -4202,10 +4321,18 @@ export type QualityAcceptanceFormCollection = {
   totalCount: Scalars['Int']['output'];
 };
 
+export type QualityAcceptanceImportResult = {
+  __typename?: 'QualityAcceptanceImportResult';
+  createdCount: Scalars['Int']['output'];
+  failedCount: Scalars['Int']['output'];
+  failedRows: Array<Scalars['String']['output']>;
+};
+
 export type QualityAcceptanceMutations = {
   __typename?: 'QualityAcceptanceMutations';
   createForm: QualityAcceptanceForm;
   deleteForm: Scalars['Boolean']['output'];
+  importForms: QualityAcceptanceImportResult;
   updateForm: QualityAcceptanceForm;
 };
 
@@ -4217,6 +4344,11 @@ export type QualityAcceptanceMutationsCreateFormArgs = {
 
 export type QualityAcceptanceMutationsDeleteFormArgs = {
   input: DeleteQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsImportFormsArgs = {
+  input: ImportQualityAcceptanceFormsInput;
 };
 
 
@@ -4270,6 +4402,8 @@ export type Query = {
    */
   comments?: Maybe<CommentCollection>;
   dashboard: Dashboard;
+  departmentTree: Array<Department>;
+  departmentUsers: Array<LimitedUser>;
   /**
    * All of the discoverable streams of the server
    * @deprecated Part of the old API surface and will be removed in the future.
@@ -4441,6 +4575,11 @@ export type QueryDashboardArgs = {
 };
 
 
+export type QueryDepartmentUsersArgs = {
+  departmentId: Scalars['String']['input'];
+};
+
+
 export type QueryDiscoverableStreamsArgs = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   limit?: Scalars['Int']['input'];
@@ -4551,6 +4690,11 @@ export type RejectApprovalFlowInput = {
   comment: Scalars['String']['input'];
   instanceId: Scalars['ID']['input'];
   rollbackToStep?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type RemoveDepartmentMemberInput = {
+  departmentId: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 export type RemoveModelFromFolderInput = {
@@ -5678,6 +5822,12 @@ export type UpdateBoqItemInput = {
   quantity?: InputMaybe<Scalars['Float']['input']>;
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateDepartmentInput = {
+  id: Scalars['String']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  parentId?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateFolderInput = {
@@ -8535,6 +8685,13 @@ export type DeleteBoqItemMutationVariables = Exact<{
 
 export type DeleteBoqItemMutation = { __typename?: 'Mutation', projectMutations: { __typename?: 'ProjectMutations', boqMutations: { __typename?: 'BoqMutations', deleteItem: boolean } } };
 
+export type ImportBoqItemsMutationVariables = Exact<{
+  input: ImportBoqItemsInput;
+}>;
+
+
+export type ImportBoqItemsMutation = { __typename?: 'Mutation', projectMutations: { __typename?: 'ProjectMutations', boqMutations: { __typename?: 'BoqMutations', importItems: { __typename?: 'BoqImportResult', createdCount: number, updatedCount: number } } } };
+
 export type CreateQualityAcceptanceFormMutationVariables = Exact<{
   input: CreateQualityAcceptanceFormInput;
 }>;
@@ -8555,6 +8712,13 @@ export type UpdateQualityAcceptanceFormMutationVariables = Exact<{
 
 
 export type UpdateQualityAcceptanceFormMutation = { __typename?: 'Mutation', projectMutations: { __typename?: 'ProjectMutations', qualityAcceptanceMutations: { __typename?: 'QualityAcceptanceMutations', updateForm: { __typename?: 'QualityAcceptanceForm', id: string } } } };
+
+export type ImportQualityAcceptanceFormsMutationVariables = Exact<{
+  input: ImportQualityAcceptanceFormsInput;
+}>;
+
+
+export type ImportQualityAcceptanceFormsMutation = { __typename?: 'Mutation', projectMutations: { __typename?: 'ProjectMutations', qualityAcceptanceMutations: { __typename?: 'QualityAcceptanceMutations', importForms: { __typename?: 'QualityAcceptanceImportResult', createdCount: number, failedCount: number, failedRows: Array<string> } } } };
 
 export type MonthlyMeasurementPreviewMutationVariables = Exact<{
   input: MonthlyMeasurementPreviewInput;
@@ -10421,9 +10585,11 @@ export const UpdateVersionDocument = {"kind":"Document","definitions":[{"kind":"
 export const CreateBoqItemDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateBoqItem"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateBoqItemInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"boqMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createItem"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"projectId"}},{"kind":"Field","name":{"kind":"Name","value":"parentId"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"quantity"}},{"kind":"Field","name":{"kind":"Name","value":"price"}},{"kind":"Field","name":{"kind":"Name","value":"sortOrder"}},{"kind":"Field","name":{"kind":"Name","value":"depth"}},{"kind":"Field","name":{"kind":"Name","value":"hasChildren"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<CreateBoqItemMutation, CreateBoqItemMutationVariables>;
 export const UpdateBoqItemDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateBoqItem"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateBoqItemInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"boqMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateItem"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"projectId"}},{"kind":"Field","name":{"kind":"Name","value":"parentId"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"quantity"}},{"kind":"Field","name":{"kind":"Name","value":"price"}},{"kind":"Field","name":{"kind":"Name","value":"sortOrder"}},{"kind":"Field","name":{"kind":"Name","value":"depth"}},{"kind":"Field","name":{"kind":"Name","value":"hasChildren"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<UpdateBoqItemMutation, UpdateBoqItemMutationVariables>;
 export const DeleteBoqItemDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteBoqItem"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteBoqItemInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"boqMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteItem"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]}}]} as unknown as DocumentNode<DeleteBoqItemMutation, DeleteBoqItemMutationVariables>;
+export const ImportBoqItemsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ImportBoqItems"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ImportBoqItemsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"boqMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"importItems"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createdCount"}},{"kind":"Field","name":{"kind":"Name","value":"updatedCount"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ImportBoqItemsMutation, ImportBoqItemsMutationVariables>;
 export const CreateQualityAcceptanceFormDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateQualityAcceptanceForm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateQualityAcceptanceFormInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"qualityAcceptanceMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createForm"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<CreateQualityAcceptanceFormMutation, CreateQualityAcceptanceFormMutationVariables>;
 export const DeleteQualityAcceptanceFormDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteQualityAcceptanceForm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeleteQualityAcceptanceFormInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"qualityAcceptanceMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteForm"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]}}]}}]} as unknown as DocumentNode<DeleteQualityAcceptanceFormMutation, DeleteQualityAcceptanceFormMutationVariables>;
 export const UpdateQualityAcceptanceFormDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateQualityAcceptanceForm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateQualityAcceptanceFormInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"qualityAcceptanceMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateForm"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<UpdateQualityAcceptanceFormMutation, UpdateQualityAcceptanceFormMutationVariables>;
+export const ImportQualityAcceptanceFormsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ImportQualityAcceptanceForms"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ImportQualityAcceptanceFormsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"qualityAcceptanceMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"importForms"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createdCount"}},{"kind":"Field","name":{"kind":"Name","value":"failedCount"}},{"kind":"Field","name":{"kind":"Name","value":"failedRows"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ImportQualityAcceptanceFormsMutation, ImportQualityAcceptanceFormsMutationVariables>;
 export const MonthlyMeasurementPreviewDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MonthlyMeasurementPreview"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"MonthlyMeasurementPreviewInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"monthlyMeasurementMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"baseDate"}},{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"boqItemId"}},{"kind":"Field","name":{"kind":"Name","value":"boqCode"}},{"kind":"Field","name":{"kind":"Name","value":"boqName"}},{"kind":"Field","name":{"kind":"Name","value":"boqParentId"}},{"kind":"Field","name":{"kind":"Name","value":"boqDepth"}},{"kind":"Field","name":{"kind":"Name","value":"sortIndex"}},{"kind":"Field","name":{"kind":"Name","value":"uom"}},{"kind":"Field","name":{"kind":"Name","value":"price"}},{"kind":"Field","name":{"kind":"Name","value":"pendingTotalQty"}},{"kind":"Field","name":{"kind":"Name","value":"approvedCumulativeQty"}},{"kind":"Field","name":{"kind":"Name","value":"measuredQtyDefault"}},{"kind":"Field","name":{"kind":"Name","value":"sourceAcceptanceIds"}},{"kind":"Field","name":{"kind":"Name","value":"isSummaryRow"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<MonthlyMeasurementPreviewMutation, MonthlyMeasurementPreviewMutationVariables>;
 export const CreateMonthlyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateMonthlyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateMonthlyMeasurementInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"monthlyMeasurementMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<CreateMonthlyMeasurementMutation, CreateMonthlyMeasurementMutationVariables>;
 export const UpdateMonthlyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateMonthlyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateMonthlyMeasurementInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"projectMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"monthlyMeasurementMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]}}]} as unknown as DocumentNode<UpdateMonthlyMeasurementMutation, UpdateMonthlyMeasurementMutationVariables>;
@@ -10666,6 +10832,7 @@ export type AllObjectTypes = {
   BimElements: BimElements,
   BlobMetadata: BlobMetadata,
   BlobMetadataCollection: BlobMetadataCollection,
+  BoqImportResult: BoqImportResult,
   BoqItem: BoqItem,
   BoqItemCollection: BoqItemCollection,
   BoqMutations: BoqMutations,
@@ -10693,6 +10860,8 @@ export type AllObjectTypes = {
   DashboardShareLink: DashboardShareLink,
   DashboardToken: DashboardToken,
   DashboardTokenCollection: DashboardTokenCollection,
+  Department: Department,
+  DepartmentMutations: DepartmentMutations,
   EmbedToken: EmbedToken,
   EmbedTokenCollection: EmbedTokenCollection,
   ExtendedViewerResources: ExtendedViewerResources,
@@ -10762,6 +10931,7 @@ export type AllObjectTypes = {
   ProjectVersionsUpdatedMessage: ProjectVersionsUpdatedMessage,
   QualityAcceptanceForm: QualityAcceptanceForm,
   QualityAcceptanceFormCollection: QualityAcceptanceFormCollection,
+  QualityAcceptanceImportResult: QualityAcceptanceImportResult,
   QualityAcceptanceMutations: QualityAcceptanceMutations,
   Query: Query,
   ResourceIdentifier: ResourceIdentifier,
@@ -11289,6 +11459,10 @@ export type BlobMetadataCollectionFieldArgs = {
   totalCount: {},
   totalSize: {},
 }
+export type BoqImportResultFieldArgs = {
+  createdCount: {},
+  updatedCount: {},
+}
 export type BoqItemFieldArgs = {
   children: {},
   code: {},
@@ -11314,6 +11488,7 @@ export type BoqItemCollectionFieldArgs = {
 export type BoqMutationsFieldArgs = {
   createItem: BoqMutationsCreateItemArgs,
   deleteItem: BoqMutationsDeleteItemArgs,
+  importItems: BoqMutationsImportItemsArgs,
   moveItem: BoqMutationsMoveItemArgs,
   updateItem: BoqMutationsUpdateItemArgs,
 }
@@ -11489,6 +11664,23 @@ export type DashboardTokenCollectionFieldArgs = {
   cursor: {},
   items: {},
   totalCount: {},
+}
+export type DepartmentFieldArgs = {
+  children: {},
+  createdAt: {},
+  id: {},
+  name: {},
+  parentId: {},
+  path: {},
+  updatedAt: {},
+}
+export type DepartmentMutationsFieldArgs = {
+  addMember: DepartmentMutationsAddMemberArgs,
+  create: DepartmentMutationsCreateArgs,
+  delete: DepartmentMutationsDeleteArgs,
+  removeMember: DepartmentMutationsRemoveMemberArgs,
+  update: DepartmentMutationsUpdateArgs,
+  updateMember: DepartmentMutationsUpdateMemberArgs,
 }
 export type EmbedTokenFieldArgs = {
   createdAt: {},
@@ -11790,6 +11982,7 @@ export type MutationFieldArgs = {
   commitsDelete: MutationCommitsDeleteArgs,
   commitsMove: MutationCommitsMoveArgs,
   dashboardMutations: {},
+  departmentMutations: {},
   fileUploadMutations: {},
   folderMutations: {},
   inviteDelete: MutationInviteDeleteArgs,
@@ -12156,9 +12349,15 @@ export type QualityAcceptanceFormCollectionFieldArgs = {
   items: {},
   totalCount: {},
 }
+export type QualityAcceptanceImportResultFieldArgs = {
+  createdCount: {},
+  failedCount: {},
+  failedRows: {},
+}
 export type QualityAcceptanceMutationsFieldArgs = {
   createForm: QualityAcceptanceMutationsCreateFormArgs,
   deleteForm: QualityAcceptanceMutationsDeleteFormArgs,
+  importForms: QualityAcceptanceMutationsImportFormsArgs,
   updateForm: QualityAcceptanceMutationsUpdateFormArgs,
 }
 export type QueryFieldArgs = {
@@ -12180,6 +12379,8 @@ export type QueryFieldArgs = {
   comment: QueryCommentArgs,
   comments: QueryCommentsArgs,
   dashboard: QueryDashboardArgs,
+  departmentTree: {},
+  departmentUsers: QueryDepartmentUsersArgs,
   discoverableStreams: QueryDiscoverableStreamsArgs,
   otherUser: QueryOtherUserArgs,
   project: QueryProjectArgs,
@@ -12981,6 +13182,7 @@ export type AllObjectFieldArgTypes = {
   BimElements: BimElementsFieldArgs,
   BlobMetadata: BlobMetadataFieldArgs,
   BlobMetadataCollection: BlobMetadataCollectionFieldArgs,
+  BoqImportResult: BoqImportResultFieldArgs,
   BoqItem: BoqItemFieldArgs,
   BoqItemCollection: BoqItemCollectionFieldArgs,
   BoqMutations: BoqMutationsFieldArgs,
@@ -13008,6 +13210,8 @@ export type AllObjectFieldArgTypes = {
   DashboardShareLink: DashboardShareLinkFieldArgs,
   DashboardToken: DashboardTokenFieldArgs,
   DashboardTokenCollection: DashboardTokenCollectionFieldArgs,
+  Department: DepartmentFieldArgs,
+  DepartmentMutations: DepartmentMutationsFieldArgs,
   EmbedToken: EmbedTokenFieldArgs,
   EmbedTokenCollection: EmbedTokenCollectionFieldArgs,
   ExtendedViewerResources: ExtendedViewerResourcesFieldArgs,
@@ -13077,6 +13281,7 @@ export type AllObjectFieldArgTypes = {
   ProjectVersionsUpdatedMessage: ProjectVersionsUpdatedMessageFieldArgs,
   QualityAcceptanceForm: QualityAcceptanceFormFieldArgs,
   QualityAcceptanceFormCollection: QualityAcceptanceFormCollectionFieldArgs,
+  QualityAcceptanceImportResult: QualityAcceptanceImportResultFieldArgs,
   QualityAcceptanceMutations: QualityAcceptanceMutationsFieldArgs,
   Query: QueryFieldArgs,
   ResourceIdentifier: ResourceIdentifierFieldArgs,

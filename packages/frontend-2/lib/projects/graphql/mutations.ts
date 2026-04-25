@@ -1,4 +1,5 @@
 import { graphql } from '~~/lib/common/generated/gql'
+import { gql } from '@apollo/client/core'
 
 export const createModelMutation = graphql(`
   mutation CreateModel($input: CreateModelInput!) {
@@ -250,6 +251,19 @@ export const deleteBoqItemMutation = graphql(`
   }
 `)
 
+export const importBoqItemsMutation = gql`
+  mutation ImportBoqItems($input: ImportBoqItemsInput!) {
+    projectMutations {
+      boqMutations {
+        importItems(input: $input) {
+          createdCount
+          updatedCount
+        }
+      }
+    }
+  }
+`
+
 export const createQualityAcceptanceFormMutation = graphql(`
   mutation CreateQualityAcceptanceForm($input: CreateQualityAcceptanceFormInput!) {
     projectMutations {
@@ -283,6 +297,20 @@ export const updateQualityAcceptanceFormMutation = graphql(`
     }
   }
 `)
+
+export const importQualityAcceptanceFormsMutation = gql`
+  mutation ImportQualityAcceptanceForms($input: ImportQualityAcceptanceFormsInput!) {
+    projectMutations {
+      qualityAcceptanceMutations {
+        importForms(input: $input) {
+          createdCount
+          failedCount
+          failedRows
+        }
+      }
+    }
+  }
+`
 
 export const monthlyMeasurementPreviewMutation = graphql(`
   mutation MonthlyMeasurementPreview($input: MonthlyMeasurementPreviewInput!) {
