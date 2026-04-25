@@ -82,14 +82,45 @@
       </div>
     </div>
 
-    <CommonFlowStartDialog
+    <CommonConfirmDialog
       v-model:open="isStartDialogOpen"
-      :definitions="targetFlowDefinitions"
-      :flow-id="targetFlowId"
-      :default-resource-id="selectedResourceId"
+      title="发起审核"
+      confirm-text="发起审核"
       :loading="mutating"
-      @submit="startApproval"
-    />
+      :confirm-disabled="mutating || !selectedResourceId"
+      :close-on-confirm="false"
+      @confirm="submitReviewApproval"
+    >
+      <div class="space-y-4">
+        <!-- eslint-disable-next-line -->
+        <div
+          v-if="selectedUpdate"
+          class="rounded-lg border border-outline-3 bg-blue-50 p-3 hover:border-sky-400 cursor-pointer"
+          @click="openModelPage(selectedUpdate)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-semibold text-slate-900">待审核模型</div>
+            <span
+              class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-blue-700"
+            >
+              {{ selectedUpdate.version }}
+            </span>
+          </div>
+          <div class="mt-1 text-sm font-semibold text-slate-900">
+            {{ selectedUpdate.title }}
+          </div>
+          <div class="mt-1 text-xs text-slate-500">
+            {{ selectedUpdate.projectName }} ・ {{ selectedUpdate.initiator }} ・
+            {{ selectedUpdate.time }}
+          </div>
+        </div>
+        <DynamicApprovalBasicField
+          :field="titleField"
+          :value="titleFieldValue"
+          @update:value="titleFieldValue = $event"
+        />
+      </div>
+    </CommonConfirmDialog>
   </div>
 </template>
 
@@ -100,6 +131,8 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchRoute } from '~~/lib/common/helpers/route'
+import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
+import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
   WorkbenchReviewUpdatesDocument,
   type FlowDefinitionsQuery,
@@ -198,6 +231,8 @@ const allItems = ref<UpdateItem[]>([])
 const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
+const selectedUpdate = ref<UpdateItem | null>(null)
+const titleFieldValue = ref<unknown>('')
 const currentPage = ref(1)
 
 const targetFlowDefinitions = computed(() =>
@@ -207,6 +242,15 @@ const targetFlowDefinitions = computed(() =>
       definition.id === targetFlowId
   )
 )
+const targetFlowDefinition = computed(() => targetFlowDefinitions.value[0] || null)
+const titleField = computed<DynamicFormSchemaField>(() => ({
+  key: 'title',
+  name: '备注说明',
+  type: 'string',
+  required: true,
+  placeholder: '请输入备注说明',
+  options: []
+}))
 
 const totalCount = computed(() => allItems.value.length)
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
@@ -335,33 +379,52 @@ const openReviewDialog = (item: UpdateItem) => {
     return
   }
   selectedResourceId.value = item.resourceId
+  selectedUpdate.value = item
+  titleFieldValue.value = ''
   isStartDialogOpen.value = true
 }
 
-const startApproval = async (payload: {
-  templateId: string
-  resourceId: string | null
-  formData: Record<string, unknown>
-}) => {
+const submitReviewApproval = async () => {
+  const titleValue = `${titleFieldValue.value || ''}`.trim()
+  if (titleField.value.required && !titleValue) {
+    notify('校验失败', '请输入备注说明', ToastNotificationType.Warning)
+    return
+  }
+  const templateId =
+    targetFlowDefinition.value?.templateId ||
+    targetFlowDefinition.value?.id ||
+    targetFlowId
+  if (!templateId || !selectedResourceId.value) return
+
   mutating.value = true
   try {
     await apollo.mutate({
       mutation: startFlowMutation,
       variables: {
         input: {
-          templateId: payload.templateId,
-          resourceId: payload.resourceId,
-          formData: payload.formData
+          templateId,
+          resourceId: selectedResourceId.value,
+          formData: {
+            [titleField.value.key]: titleValue
+          }
         }
       }
     })
     notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
+    isStartDialogOpen.value = false
+    selectedUpdate.value = null
+    selectedResourceId.value = null
+    titleFieldValue.value = ''
     await loadAllItems()
   } catch (e) {
     notify('发起失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
     mutating.value = false
   }
+}
+
+const openModelPage = (item: UpdateItem) => {
+  window.open(`/projects/${item.projectId}/models/${item.resourceId}`)
 }
 
 onMounted(async () => {

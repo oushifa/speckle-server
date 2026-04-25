@@ -576,8 +576,7 @@ const resolvers: Resolvers = {
           orderBy: sortBy,
           visibility: null,
           limit: args.limit || 25,
-          cursor: args.cursor || null,
-          streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules)
+          cursor: args.cursor || null
         })
 
         return {

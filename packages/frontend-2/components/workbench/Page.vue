@@ -47,11 +47,15 @@
             <span
               class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
             >
-              {{ todoCount }} 项待处理
+              {{ todoTotalCount }} 项待处理
             </span>
           </div>
 
-          <div class="space-y-4">
+          <div v-if="loadingTodos" class="text-sm text-slate-500">加载中...</div>
+          <div v-else-if="!todoList.length" class="text-sm text-slate-500">
+            暂无待办
+          </div>
+          <div v-else class="space-y-4">
             <div
               v-for="todo in todoList"
               :key="todo.id"
@@ -212,11 +216,6 @@
               {{ selectedUpdate.time }}
             </div>
           </div>
-          <FlowFieldsDynamicApprovalUserField
-            :field="reviewerField"
-            :value="reviewerFieldValue"
-            @update:value="reviewerFieldValue = $event"
-          />
           <DynamicApprovalBasicField
             :field="titleField"
             :value="titleFieldValue"
@@ -250,6 +249,12 @@ import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
+import {
+  flowInstancesQuery,
+  type FlowInstancesQueryResult,
+  type FlowInstancesQueryVariables,
+  type FlowListItem
+} from '~/components/flow/flowInstances'
 import type {
   FlowDefinitionsQuery,
   FlowDefinitionsQueryVariables
@@ -286,7 +291,6 @@ const metrics = [
   }
 ]
 
-const todoCount = 4
 const templateId = 'model_aprv'
 
 const flowDefinitionsQuery = graphql(`
@@ -421,11 +425,22 @@ type UpdateItem = {
   approveStatus: string | null | undefined
 }
 type DefinitionItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
+type TodoItem = {
+  id: string
+  title: string
+  initiator: string
+  supervisor: string
+  time: string
+  status: '进行中' | '待处理'
+}
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
+const loadingTodos = ref(false)
 const loadingUpdates = ref(false)
 const mutating = ref(false)
+const todoTotalCount = ref(0)
+const todoList = ref<TodoItem[]>([])
 const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
 const recentUpdates = ref<UpdateItem[]>([])
 const totalReviewableModelCount = ref(0)
@@ -484,49 +499,6 @@ const titleField = computed<DynamicFormSchemaField>(() => ({
   options: []
 }))
 
-const todoList = [
-  {
-    id: 1,
-    title: '审批主楼3层质量验收单',
-    initiator: '张三',
-    supervisor: '张三',
-    time: '2025-02-22 10:30',
-    status: '待处理'
-  },
-  {
-    id: 2,
-    title: '完成1月份验工计价',
-    initiator: '李四',
-    supervisor: '李四',
-    time: '2025-02-21 14:20',
-    status: '进行中'
-  },
-  {
-    id: 3,
-    title: '上传建筑模型v2.0版本',
-    initiator: '王五',
-    supervisor: '王五',
-    time: '2025-02-23 09:15',
-    status: '待处理'
-  },
-  {
-    id: 4,
-    title: '检查模型档案完整性',
-    initiator: '赵六',
-    supervisor: '赵六',
-    time: '2025-02-20 16:45',
-    status: '待处理'
-  },
-  {
-    id: 5,
-    title: '更新进度计划',
-    initiator: '张三',
-    supervisor: '张三',
-    time: '2025-02-23 11:00',
-    status: '待处理'
-  }
-]
-
 const notify = (title: string, description: string, type: ToastNotificationType) => {
   triggerNotification({
     title,
@@ -560,6 +532,69 @@ const formatUpdateTime = (dateString?: string | null) => {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${month}-${day} ${hours}:${minutes}`
+}
+
+const getCurrentTodoStep = (instance: FlowListItem) => {
+  const byStatus = instance.steps.find((step) => step.status === 'WAITING') || null
+  if (byStatus) return byStatus
+  const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
+  return byIndex || null
+}
+
+const getCurrentApprovers = (instance: FlowListItem) => {
+  const step = getCurrentTodoStep(instance)
+  if (!step) return '-'
+  const approverNames = (step.approvers || [])
+    .map((user) => user?.name)
+    .filter((name): name is string => Boolean(name))
+  if (approverNames.length) return approverNames.join('、')
+  return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
+}
+
+const mapTodoItems = (items: FlowListItem[]): TodoItem[] =>
+  items.map((instance) => {
+    const currentStep = getCurrentTodoStep(instance)
+    const isInProgress = Boolean((currentStep?.approvedByIds || []).length)
+    return {
+      id: instance.id,
+      title:
+        instance.definition?.name ||
+        instance.model?.name ||
+        (typeof instance.formData?.title === 'string' ? instance.formData.title : '') ||
+        '未命名流程',
+      initiator: instance.createdByUser?.name || '-',
+      supervisor: getCurrentApprovers(instance),
+      time: formatUpdateTime(instance.createdAt),
+      status: isInProgress ? '进行中' : '待处理'
+    }
+  })
+
+const loadTodoList = async () => {
+  loadingTodos.value = true
+  try {
+    const res = await apollo.query<
+      FlowInstancesQueryResult,
+      FlowInstancesQueryVariables
+    >({
+      query: flowInstancesQuery,
+      variables: {
+        cursor: null,
+        status: 'PENDING',
+        scope: 'TODO',
+        limit: 5
+      },
+      fetchPolicy: 'network-only'
+    })
+    const page = res.data?.approvalFlowInstances
+    todoTotalCount.value = page?.totalCount || 0
+    todoList.value = mapTodoItems((page?.items || []) as FlowListItem[])
+  } catch (e) {
+    todoTotalCount.value = 0
+    todoList.value = []
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    loadingTodos.value = false
+  }
 }
 
 const buildRecentUpdates = (projects: ReviewableProject[]): UpdateItem[] => {
@@ -703,7 +738,6 @@ const openModelPage = (item: UpdateItem) => {
 }
 
 onMounted(async () => {
-  await loadFlowDefinitions()
-  await loadRecentUpdates()
+  await Promise.all([loadFlowDefinitions(), loadRecentUpdates(), loadTodoList()])
 })
 </script>
