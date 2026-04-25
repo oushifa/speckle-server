@@ -2221,6 +2221,32 @@ export type ImportBoqItemsInput = {
   projectId: Scalars['ID']['input'];
 };
 
+export type ImportQualityAcceptanceFormItemInput = {
+  /** @deprecated Use bimElements instead */
+  BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
+  acceptanceContent?: InputMaybe<Scalars['String']['input']>;
+  acceptancePart?: InputMaybe<Scalars['String']['input']>;
+  actualFinishDate?: InputMaybe<Scalars['BigInt']['input']>;
+  actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
+  approveStatus?: InputMaybe<Scalars['String']['input']>;
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  bimElements?: InputMaybe<BimElementsInput>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  flowId?: InputMaybe<Scalars['ID']['input']>;
+  inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
+  inspector?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  rowNumber: Scalars['Int']['input'];
+  timeZone?: InputMaybe<Scalars['String']['input']>;
+  unit?: InputMaybe<Scalars['String']['input']>;
+  workVolume?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type ImportQualityAcceptanceFormsInput = {
+  items: Array<ImportQualityAcceptanceFormItemInput>;
+  projectId: Scalars['ID']['input'];
+};
+
 export type InvitableCollaboratorsFilter = {
   search?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4327,10 +4353,18 @@ export type QualityAcceptanceFormCollection = {
   totalCount: Scalars['Int']['output'];
 };
 
+export type QualityAcceptanceImportResult = {
+  __typename?: 'QualityAcceptanceImportResult';
+  createdCount: Scalars['Int']['output'];
+  failedCount: Scalars['Int']['output'];
+  failedRows: Array<Scalars['String']['output']>;
+};
+
 export type QualityAcceptanceMutations = {
   __typename?: 'QualityAcceptanceMutations';
   createForm: QualityAcceptanceForm;
   deleteForm: Scalars['Boolean']['output'];
+  importForms: QualityAcceptanceImportResult;
   updateForm: QualityAcceptanceForm;
 };
 
@@ -4342,6 +4376,11 @@ export type QualityAcceptanceMutationsCreateFormArgs = {
 
 export type QualityAcceptanceMutationsDeleteFormArgs = {
   input: DeleteQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsImportFormsArgs = {
+  input: ImportQualityAcceptanceFormsInput;
 };
 
 
@@ -7610,6 +7649,8 @@ export type ResolversTypes = {
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
   ImportBoqItemInput: ImportBoqItemInput;
   ImportBoqItemsInput: ImportBoqItemsInput;
+  ImportQualityAcceptanceFormItemInput: ImportQualityAcceptanceFormItemInput;
+  ImportQualityAcceptanceFormsInput: ImportQualityAcceptanceFormsInput;
   Int: ResolverTypeWrapper<Scalars['Int']['output']>;
   InvitableCollaboratorsFilter: InvitableCollaboratorsFilter;
   JSONObject: ResolverTypeWrapper<Scalars['JSONObject']['output']>;
@@ -7712,6 +7753,7 @@ export type ResolversTypes = {
   ProjectVisibility: ProjectVisibility;
   QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']> }>;
   QualityAcceptanceFormCollection: ResolverTypeWrapper<Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversTypes['QualityAcceptanceForm']> }>;
+  QualityAcceptanceImportResult: ResolverTypeWrapper<QualityAcceptanceImportResult>;
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
@@ -8096,6 +8138,8 @@ export type ResolversParentTypes = {
   ID: Scalars['ID']['output'];
   ImportBoqItemInput: ImportBoqItemInput;
   ImportBoqItemsInput: ImportBoqItemsInput;
+  ImportQualityAcceptanceFormItemInput: ImportQualityAcceptanceFormItemInput;
+  ImportQualityAcceptanceFormsInput: ImportQualityAcceptanceFormsInput;
   Int: Scalars['Int']['output'];
   InvitableCollaboratorsFilter: InvitableCollaboratorsFilter;
   JSONObject: Scalars['JSONObject']['output'];
@@ -8184,6 +8228,7 @@ export type ResolversParentTypes = {
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
   QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']> };
   QualityAcceptanceFormCollection: Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversParentTypes['QualityAcceptanceForm']> };
+  QualityAcceptanceImportResult: QualityAcceptanceImportResult;
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
   RejectApprovalFlowInput: RejectApprovalFlowInput;
@@ -10039,9 +10084,17 @@ export type QualityAcceptanceFormCollectionResolvers<ContextType = GraphQLContex
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type QualityAcceptanceImportResultResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceImportResult'] = ResolversParentTypes['QualityAcceptanceImportResult']> = {
+  createdCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  failedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  failedRows?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type QualityAcceptanceMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceMutations'] = ResolversParentTypes['QualityAcceptanceMutations']> = {
   createForm?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsCreateFormArgs, 'input'>>;
   deleteForm?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsDeleteFormArgs, 'input'>>;
+  importForms?: Resolver<ResolversTypes['QualityAcceptanceImportResult'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsImportFormsArgs, 'input'>>;
   updateForm?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsUpdateFormArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11160,6 +11213,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   ProjectVersionsUpdatedMessage?: ProjectVersionsUpdatedMessageResolvers<ContextType>;
   QualityAcceptanceForm?: QualityAcceptanceFormResolvers<ContextType>;
   QualityAcceptanceFormCollection?: QualityAcceptanceFormCollectionResolvers<ContextType>;
+  QualityAcceptanceImportResult?: QualityAcceptanceImportResultResolvers<ContextType>;
   QualityAcceptanceMutations?: QualityAcceptanceMutationsResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   ResourceIdentifier?: ResourceIdentifierResolvers<ContextType>;
