@@ -2,6 +2,7 @@ import { TokenResourceIdentifierType } from '@/modules/core/graph/generated/grap
 import type { BasicTestUser } from '@/test/authHelper'
 import { createTestUsers } from '@/test/authHelper'
 import {
+  ActiveUserProjectsDocument,
   AdminProjectListDocument,
   AppTokenCreateDocument,
   CreateTokenDocument,
@@ -31,6 +32,7 @@ import {
   storeTokenScopesFactory,
   storeUserServerAppTokenFactory
 } from '@/modules/core/repositories/tokens'
+import { mockAdminOverride } from '@/test/mocks/global'
 
 const createApp = createAppFactory({ db })
 const createAppToken = createAppTokenFactory({
@@ -46,6 +48,7 @@ const createAppToken = createAppTokenFactory({
  * Older API token test cases can be found in `graph.spec.js`
  */
 describe('API Tokens', () => {
+  const adminOverrideMock = mockAdminOverride()
   const user1: BasicTestUser = {
     name: 'Dimitrie Stefanescu',
     email: 'didimitrie@example.org',
@@ -55,6 +58,14 @@ describe('API Tokens', () => {
 
   let apollo: TestApolloServer
   let app: Express
+
+  afterEach(() => {
+    adminOverrideMock.disable()
+  })
+
+  after(() => {
+    adminOverrideMock.disable()
+  })
 
   before(async () => {
     const ctx = await beforeEachContext()
@@ -201,6 +212,47 @@ describe('API Tokens', () => {
           )
         )
       ).to.be.ok
+    })
+  })
+
+  describe('admin override on activeUser.projects', () => {
+    const user2: BasicTestUser = {
+      name: 'Projects Viewer',
+      email: 'projects.viewer@example.org',
+      password: 'sn3aky-1337-b1m',
+      id: ''
+    }
+    const adminOwnedStream: BasicTestStream = {
+      name: 'admin-owned-project',
+      isPublic: false,
+      ownerId: user1.id,
+      id: ''
+    }
+    const otherOwnedStream: BasicTestStream = {
+      name: 'other-owned-project',
+      isPublic: false,
+      ownerId: user2.id,
+      id: ''
+    }
+
+    before(async () => {
+      await createTestUsers([user2])
+      await createTestStreams([
+        [adminOwnedStream, user1],
+        [otherOwnedStream, user2]
+      ])
+    })
+
+    it('returns all server projects for server:admin when admin override is enabled', async () => {
+      adminOverrideMock.enable(true)
+      const { data, errors } = await apollo.execute(ActiveUserProjectsDocument, {
+        filter: {}
+      })
+
+      expect(errors).to.not.be.ok
+      const returnedIds = data?.activeUser?.projects?.items?.map((p) => p.id) || []
+      expect(returnedIds).to.include(adminOwnedStream.id)
+      expect(returnedIds).to.include(otherOwnedStream.id)
     })
   })
 

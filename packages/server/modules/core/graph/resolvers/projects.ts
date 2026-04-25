@@ -42,13 +42,15 @@ import {
   getOnboardingBaseStreamFactory,
   getUserStreamsPageFactory,
   getUserStreamsCountFactory,
-  getStreamRolesFactory
+  getStreamRolesFactory,
+  legacyGetStreamsFactory
 } from '@/modules/core/repositories/streams'
 import { getUserFactory, getUsersFactory } from '@/modules/core/repositories/users'
 import {
   createNewProjectFactory,
   deleteProjectAndCommitsFactory
 } from '@/modules/core/services/projects'
+import { adminProjectListFactory } from '@/modules/core/services/admin'
 import { throwIfRateLimitedFactory } from '@/modules/core/utils/ratelimiter'
 import {
   addOrUpdateStreamCollaboratorFactory,
@@ -85,7 +87,10 @@ import { collectAndValidateCoreTargetsFactory } from '@/modules/serverinvites/se
 import { createAndSendInviteFactory } from '@/modules/serverinvites/services/creation'
 import { inviteUsersToProjectFactory } from '@/modules/serverinvites/services/projectInviteManagement'
 import { authorizeResolver, validateScopes } from '@/modules/shared'
-import { isRateLimiterEnabled } from '@/modules/shared/helpers/envHelper'
+import {
+  adminOverrideEnabled,
+  isRateLimiterEnabled
+} from '@/modules/shared/helpers/envHelper'
 import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import {
@@ -195,6 +200,9 @@ const updateStreamRoleAndNotify = updateStreamRoleAndNotifyFactory({
 
 const getUserStreams = getUserStreamsPageFactory({ db })
 const getUserStreamsCount = getUserStreamsCountFactory({ db })
+const adminProjectList = adminProjectListFactory({
+  getStreams: legacyGetStreamsFactory({ db })
+})
 const throwIfRateLimited = throwIfRateLimitedFactory({
   rateLimiterEnabled: isRateLimiterEnabled()
 })
@@ -559,6 +567,27 @@ const resolvers: Resolvers = {
   },
   User: {
     async projects(_parent, args, ctx) {
+      // Admin override exposes all projects through the regular projects endpoint.
+      if (adminOverrideEnabled() && ctx.role === Roles.Server.Admin) {
+        const sortBy =
+          typeof args.sortBy === 'string' ? args.sortBy : (args.sortBy || [])[0] || null
+        const { cursor, items, totalCount } = await adminProjectList({
+          query: args.filter?.search || null,
+          orderBy: sortBy,
+          visibility: null,
+          limit: args.limit || 25,
+          cursor: args.cursor || null,
+          streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules)
+        })
+
+        return {
+          totalCount,
+          numberOfHidden: 0,
+          cursor,
+          items
+        }
+      }
+
       // If limit=0 & no filter, short-cut full execution and use data loader
       if (!args.filter && args.limit === 0) {
         return {

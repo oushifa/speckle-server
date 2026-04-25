@@ -8,11 +8,9 @@ const up = async (knex) => {
   // Base table holding up some configuration variables for the server. Not really used much.
   await knex.schema.createTable('server_config', (table) => {
     table.integer('id').notNullable().defaultTo(0).index()
-    table.string('name').defaultTo('My new Speckle Server')
-    table.string('company').defaultTo('Unknown Company')
-    table
-      .string('description')
-      .defaultTo('This a community deployment of a Speckle Server.')
+    table.string('name').defaultTo('我的服务器')
+    table.string('company').defaultTo('')
+    table.string('description').defaultTo('这是一个服务器')
     table.string('adminContact').defaultTo('n/a')
     table.string('termsOfService').defaultTo('n/a')
     table.string('canonicalUrl') // TODO: to be removed, it's not used anymore

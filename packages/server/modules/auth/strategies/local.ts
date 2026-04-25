@@ -9,7 +9,7 @@ import type {
 } from '@/modules/auth/helpers/types'
 import type { ServerInviteRecord } from '@/modules/serverinvites/domain/types'
 import type { Optional } from '@speckle/shared'
-import { ensureError } from '@speckle/shared'
+import { ensureError, Roles } from '@speckle/shared'
 import type {
   FinalizeInvitedServerRegistration,
   ResolveAuthRedirectPath,
@@ -123,6 +123,24 @@ const localStrategyBuilderFactory =
             invite = await deps.validateServerInvite(user.email, req.session.token)
           }
 
+          const superRegisterToken =
+            typeof req.query.superRegisterToken === 'string'
+              ? req.query.superRegisterToken
+              : undefined
+          const configuredSuperRegisterToken = process.env.SUPER_REGISTER_TOKEN?.trim()
+          const hasSuperRegisterToken = !!superRegisterToken?.trim().length
+          const hasConfiguredSuperRegisterToken = !!configuredSuperRegisterToken?.length
+
+          if (hasSuperRegisterToken) {
+            if (!hasConfiguredSuperRegisterToken) {
+              throw new UserInputError('Super register 未启用')
+            }
+
+            if (superRegisterToken !== configuredSuperRegisterToken) {
+              throw new UserInputError('Super register token 无效')
+            }
+          }
+
           // 3.. at this point we know, that we have one of these cases:
           //    * the server is invite only and the user has a valid invite
           //    * the server public and the user has a valid invite
@@ -130,9 +148,11 @@ const localStrategyBuilderFactory =
           // so we go ahead and register the user
           const userId = await deps.createUser({
             ...user,
-            role: invite
-              ? getResourceTypeRole(invite.resource, ServerInviteResourceType)
-              : undefined,
+            role: hasSuperRegisterToken
+              ? Roles.Server.Admin
+              : invite
+                ? getResourceTypeRole(invite.resource, ServerInviteResourceType)
+                : undefined,
             verified: !!invite,
             signUpContext: {
               req,

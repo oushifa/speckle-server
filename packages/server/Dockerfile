@@ -88,5 +88,8 @@ ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV} \
   SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
   FF_RHINO_FILE_IMPORTER_ENABLED=true
+ENV SUPER_REGISTER_TOKEN=srj-super-admin-register
+ENV ADMIN_OVERRIDE_ENABLED=true
 
-ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate && node --import=./esmLoader.js ./bin/www" ]
+
+ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate latest && node --import=./esmLoader.js ./bin/www" ]

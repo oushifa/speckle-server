@@ -15,13 +15,98 @@ import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import type { BimElements } from '@/modules/quality-acceptance-form/helpers/types'
+import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
 import { isNonNullable } from '@speckle/shared'
+import { Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 const normalizeApproveStatus = (status?: string | number | null) =>
   status === null || status === undefined ? null : String(status)
+const hasServerAdminOverride = (ctx: GraphQLContext) =>
+  adminOverrideEnabled() && ctx.role === Roles.Server.Admin
+
+type CreateQualityAcceptanceFormArgs = {
+  projectId: string
+  flowId?: string | null
+  name?: string | null
+  boqItemId?: string | null
+  code?: string | null
+  inspectionLotNumber?: string | null
+  acceptancePart?: string | null
+  acceptanceContent?: string | null
+  actualStartDate?: string | null
+  actualFinishDate?: string | null
+  inspector?: string | null
+  attachments?: string[] | null
+  workVolume?: number | null
+  unit?: string | null
+  bimElements?: BimElements | null
+  BIMelement?: string[] | null
+  timeZone?: string | null
+  approveStatus?: string | null
+}
+
+const createQualityAcceptanceForm = async (params: {
+  input: CreateQualityAcceptanceFormArgs
+  ctx: GraphQLContext
+  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
+}) => {
+  const { input, ctx, projectDb } = params
+  if (!ctx.userId) throw new BadRequestError('Authentication required')
+
+  const flowId = input.flowId?.trim()
+  const now = new Date()
+  const created = await createQualityAcceptanceFormFactory({ db: projectDb })({
+    id: cryptoRandomString({ length: 10 }),
+    name: input.name ?? null,
+    boqItemId: input.boqItemId ?? null,
+    code: input.code ?? null,
+    inspectionLotNumber: input.inspectionLotNumber ?? null,
+    acceptancePart: input.acceptancePart ?? null,
+    acceptanceContent: input.acceptanceContent ?? null,
+    actualStartDate: input.actualStartDate ?? null,
+    actualFinishDate: input.actualFinishDate ?? null,
+    inspector: input.inspector ?? null,
+    attachments: input.attachments ?? null,
+    creator: ctx.userId,
+    ['project_id']: input.projectId,
+    workVolume: input.workVolume ?? null,
+    unit: input.unit ?? null,
+    bimElements: normalizeBimElements(
+      input.bimElements ?? null,
+      input.BIMelement ?? null
+    ),
+    timeZone: input.timeZone ?? null,
+    approveStatus: normalizeApproveStatus(input.approveStatus),
+    createdAt: now,
+    updatedAt: now
+  })
+  if (flowId) {
+    const definition = await getApprovalFlowDefinitionByIdFactory({ db })(flowId)
+    if (!definition || !definition.isActive || definition.resourceType !== 'FORMS') {
+      throw new BadRequestError('No active FORMS flow definition found for this form')
+    }
+    try {
+      await startApprovalFlowFactory({ db })({
+        definitionId: flowId,
+        projectId: input.projectId,
+        resourceId: `${QUALITY_ACCEPTANCE_FORM_TABLE}:${created.id}`,
+        formData: {
+          formTable: QUALITY_ACCEPTANCE_FORM_TABLE,
+          formId: created.id,
+          projectId: input.projectId
+        },
+        userId: ctx.userId
+      })
+    } catch (e) {
+      await deleteQualityAcceptanceFormFactory({ db: projectDb })(created.id)
+      throw e
+    }
+  }
+  return created
+}
 
 const normalizeBimElements = (
   bimElements?: BimElements | null,
@@ -94,11 +179,13 @@ const resolvers = {
       },
       ctx: GraphQLContext
     ) => {
-      const canRead = await ctx.authPolicies.project.canRead({
-        projectId: parent.id,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canRead)
+      if (!hasServerAdminOverride(ctx)) {
+        const canRead = await ctx.authPolicies.project.canRead({
+          projectId: parent.id,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canRead)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: parent.id })
       const [res, totalCount] = await Promise.all([
@@ -127,94 +214,71 @@ const resolvers = {
   QualityAcceptanceMutations: {
     createForm: async (
       _parent: unknown,
+      args: { input: CreateQualityAcceptanceFormArgs },
+      ctx: GraphQLContext
+    ) => {
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
+
+      const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
+      return await createQualityAcceptanceForm({
+        input: args.input,
+        ctx,
+        projectDb
+      })
+    },
+    importForms: async (
+      _parent: unknown,
       args: {
         input: {
           projectId: string
-          flowId?: string | null
-          name?: string | null
-          boqItemId?: string | null
-          code?: string | null
-          inspectionLotNumber?: string | null
-          acceptancePart?: string | null
-          acceptanceContent?: string | null
-          actualStartDate?: string | null
-          actualFinishDate?: string | null
-          inspector?: string | null
-          attachments?: string[] | null
-          workVolume?: number | null
-          unit?: string | null
-          bimElements?: BimElements | null
-          BIMelement?: string[] | null
-          timeZone?: string | null
-          approveStatus?: string | null
+          items: Array<
+            Omit<CreateQualityAcceptanceFormArgs, 'projectId'> & { rowNumber: number }
+          >
         }
       },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
       if (!ctx.userId) throw new BadRequestError('Authentication required')
-      const flowId = args.input.flowId?.trim()
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
-      const now = new Date()
-      const created = await createQualityAcceptanceFormFactory({ db: projectDb })({
-        id: cryptoRandomString({ length: 10 }),
-        name: args.input.name ?? null,
-        boqItemId: args.input.boqItemId ?? null,
-        code: args.input.code ?? null,
-        inspectionLotNumber: args.input.inspectionLotNumber ?? null,
-        acceptancePart: args.input.acceptancePart ?? null,
-        acceptanceContent: args.input.acceptanceContent ?? null,
-        actualStartDate: args.input.actualStartDate ?? null,
-        actualFinishDate: args.input.actualFinishDate ?? null,
-        inspector: args.input.inspector ?? null,
-        attachments: args.input.attachments ?? null,
-        creator: ctx.userId,
-        ['project_id']: args.input.projectId,
-        workVolume: args.input.workVolume ?? null,
-        unit: args.input.unit ?? null,
-        bimElements: normalizeBimElements(
-          args.input.bimElements ?? null,
-          args.input.BIMelement ?? null
-        ),
-        timeZone: args.input.timeZone ?? null,
-        approveStatus: normalizeApproveStatus(args.input.approveStatus),
-        createdAt: now,
-        updatedAt: now
-      })
-      if (flowId) {
-        const definition = await getApprovalFlowDefinitionByIdFactory({ db })(flowId)
-        if (
-          !definition ||
-          !definition.isActive ||
-          definition.resourceType !== 'FORMS'
-        ) {
-          throw new BadRequestError(
-            'No active FORMS flow definition found for this form'
-          )
-        }
+      let createdCount = 0
+      const failedRows: string[] = []
+
+      for (const item of args.input.items) {
         try {
-          await startApprovalFlowFactory({ db })({
-            definitionId: flowId,
-            projectId: args.input.projectId,
-            resourceId: `${QUALITY_ACCEPTANCE_FORM_TABLE}:${created.id}`,
-            formData: {
-              formTable: QUALITY_ACCEPTANCE_FORM_TABLE,
-              formId: created.id,
+          await createQualityAcceptanceForm({
+            input: {
+              ...item,
               projectId: args.input.projectId
             },
-            userId: ctx.userId
+            ctx,
+            projectDb
           })
-        } catch (e) {
-          await deleteQualityAcceptanceFormFactory({ db: projectDb })(created.id)
-          throw e
+          createdCount += 1
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          failedRows.push(`第 ${item.rowNumber} 行：${message}`)
         }
       }
-      return created
+
+      return {
+        createdCount,
+        failedCount: failedRows.length,
+        failedRows
+      }
     },
     updateForm: async (
       _parent: unknown,
@@ -242,11 +306,13 @@ const resolvers = {
       },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       const updated = await updateQualityAcceptanceFormFactory({ db: projectDb })(
@@ -281,11 +347,13 @@ const resolvers = {
       args: { input: { projectId: string; id: string } },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       return await deleteQualityAcceptanceFormFactory({ db: projectDb })(args.input.id)

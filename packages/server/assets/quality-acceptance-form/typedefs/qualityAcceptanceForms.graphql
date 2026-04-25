@@ -93,10 +93,42 @@ input UpdateQualityAcceptanceFormInput {
   approveStatus: String
 }
 
+input ImportQualityAcceptanceFormItemInput {
+  rowNumber: Int!
+  flowId: ID
+  name: String
+  code: String
+  inspectionLotNumber: String
+  acceptancePart: String
+  acceptanceContent: String
+  actualStartDate: BigInt
+  actualFinishDate: BigInt
+  inspector: ID
+  attachments: [String!]
+  workVolume: Float
+  unit: String
+  bimElements: BimElementsInput
+  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
+  timeZone: String
+  approveStatus: String
+}
+
+input ImportQualityAcceptanceFormsInput {
+  projectId: ID!
+  items: [ImportQualityAcceptanceFormItemInput!]!
+}
+
+type QualityAcceptanceImportResult {
+  createdCount: Int!
+  failedCount: Int!
+  failedRows: [String!]!
+}
+
 type QualityAcceptanceMutations {
   createForm(input: CreateQualityAcceptanceFormInput!): QualityAcceptanceForm!
   updateForm(input: UpdateQualityAcceptanceFormInput!): QualityAcceptanceForm!
   deleteForm(input: DeleteQualityAcceptanceFormInput!): Boolean!
+  importForms(input: ImportQualityAcceptanceFormsInput!): QualityAcceptanceImportResult!
 }
 
 extend type Project {

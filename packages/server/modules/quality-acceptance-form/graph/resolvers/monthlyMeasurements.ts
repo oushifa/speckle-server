@@ -24,12 +24,16 @@ import { BadRequestError } from '@/modules/shared/errors'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
+import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
+import { Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 import type { MonthlyMeasurementItemRecord } from '@/modules/core/helpers/types'
 
 const MONTHLY_MEASUREMENT_TABLE = 'monthly_measurements'
 const MONTHLY_MEASUREMENT_CODE_UNIQUE = 'monthly_measurements_project_code_unique'
 const MONTHLY_MEASUREMENT_SUBMIT_TEMPLATE = 'm_measure'
+const hasServerAdminOverride = (ctx: GraphQLContext) =>
+  adminOverrideEnabled() && ctx.role === Roles.Server.Admin
 
 const isMonthlyMeasurementCodeUniqueViolation = (err: unknown) => {
   if (!err || typeof err !== 'object') return false
@@ -76,11 +80,13 @@ const resolvers = {
       args: { id: string },
       ctx: GraphQLContext
     ) => {
-      const canRead = await ctx.authPolicies.project.canRead({
-        projectId: parent.id,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canRead)
+      if (!hasServerAdminOverride(ctx)) {
+        const canRead = await ctx.authPolicies.project.canRead({
+          projectId: parent.id,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canRead)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: parent.id })
       const found = await getMonthlyMeasurementByIdForProjectFactory({
@@ -102,11 +108,13 @@ const resolvers = {
       },
       ctx: GraphQLContext
     ) => {
-      const canRead = await ctx.authPolicies.project.canRead({
-        projectId: parent.id,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canRead)
+      if (!hasServerAdminOverride(ctx)) {
+        const canRead = await ctx.authPolicies.project.canRead({
+          projectId: parent.id,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canRead)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: parent.id })
       const [res, totalCount] = await Promise.all([
@@ -141,11 +149,13 @@ const resolvers = {
       args: { input: { projectId: string; baseDate: string } },
       ctx: GraphQLContext
     ) => {
-      const canRead = await ctx.authPolicies.project.canRead({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canRead)
+      if (!hasServerAdminOverride(ctx)) {
+        const canRead = await ctx.authPolicies.project.canRead({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canRead)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       const buildPreview = buildMonthlyMeasurementPreviewFactory({
@@ -177,11 +187,13 @@ const resolvers = {
       },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       const buildPreview = buildMonthlyMeasurementPreviewFactory({
@@ -271,11 +283,13 @@ const resolvers = {
       },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       const existing = await getMonthlyMeasurementByIdForProjectFactory({
@@ -381,11 +395,13 @@ const resolvers = {
       args: { input: { projectId: string; id: string } },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
       const existing = await getMonthlyMeasurementByIdForProjectFactory({
@@ -411,11 +427,13 @@ const resolvers = {
       args: { input: { projectId: string; id: string; remark?: string | null } },
       ctx: GraphQLContext
     ) => {
-      const canUpdate = await ctx.authPolicies.project.canUpdate({
-        projectId: args.input.projectId,
-        userId: ctx.userId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canUpdate({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
       if (!ctx.userId) throw new BadRequestError('Authentication required')
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })

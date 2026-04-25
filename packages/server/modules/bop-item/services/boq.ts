@@ -349,6 +349,155 @@ export const updateBoqItemFactory =
     return toBoqItem(updated)
   }
 
+export type ImportBoqItemRow = {
+  rowNumber: number
+  code: string
+  name: string
+  type: BoqItemType
+  parentCode?: string | null
+  unit?: string | null
+  quantity?: number | null
+  price?: number | null
+}
+
+export type BoqImportResult = {
+  createdCount: number
+  updatedCount: number
+}
+
+export type ImportBoqItems = (params: {
+  projectId: string
+  items: ImportBoqItemRow[]
+}) => Promise<BoqImportResult>
+
+export const importBoqItemsFactory =
+  (deps: {
+    getBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
+    createBoqItem: CreateBoqItem
+    updateBoqItem: UpdateBoqItem
+  }): ImportBoqItems =>
+  async ({ projectId, items }) => {
+    if (!items.length) {
+      return { createdCount: 0, updatedCount: 0 }
+    }
+
+    const seenCodes = new Set<string>()
+    items.forEach((item) => {
+      if (seenCodes.has(item.code)) {
+        throw new BoqItemValidationError(`Duplicate import code: ${item.code}`)
+      }
+      seenCodes.add(item.code)
+    })
+
+    const existingItems = await deps.getBoqItems({ projectId })
+    const runtimeItems = new Map(
+      existingItems.map((item) => [item.code, { id: item.id, type: item.type }])
+    )
+    const importRowsByCode = new Map(items.map((item) => [item.code, item]))
+    const pendingRows = [...items]
+
+    let createdCount = 0
+    let updatedCount = 0
+    let safeGuard = 0
+
+    while (pendingRows.length) {
+      safeGuard += 1
+      if (safeGuard > items.length + 5) {
+        throw new BoqItemValidationError(
+          'Unable to resolve item hierarchy, please check parentCode values'
+        )
+      }
+
+      let progressed = false
+      const nextRound: ImportBoqItemRow[] = []
+
+      for (const row of pendingRows) {
+        const parentCode = row.parentCode ?? null
+
+        if (row.type === 'PROJECT' && parentCode) {
+          throw new BoqItemValidationError(
+            `Row ${row.rowNumber}: PROJECT type cannot have parentCode`
+          )
+        }
+
+        if (row.type !== 'PROJECT' && !parentCode) {
+          throw new BoqItemValidationError(
+            `Row ${row.rowNumber}: ${row.type} type must have parentCode`
+          )
+        }
+
+        let parentRuntime: { id: string; type: BoqItemType } | undefined
+        if (parentCode) {
+          parentRuntime = runtimeItems.get(parentCode)
+          if (!parentRuntime) {
+            if (importRowsByCode.has(parentCode)) {
+              nextRound.push(row)
+              continue
+            }
+            throw new BoqItemValidationError(
+              `Row ${row.rowNumber}: parentCode does not exist: ${parentCode}`
+            )
+          }
+          const allowedTypes = parentChildTypeMap[parentRuntime.type] || []
+          if (!allowedTypes.includes(row.type)) {
+            throw new BoqItemValidationError(
+              `Row ${row.rowNumber}: invalid hierarchy, ${parentRuntime.type} cannot include ${row.type}`
+            )
+          }
+        }
+
+        const existing = runtimeItems.get(row.code)
+        if (existing) {
+          if (existing.type !== row.type) {
+            throw new BoqItemValidationError(
+              `Row ${row.rowNumber}: code ${row.code} exists with a different type`
+            )
+          }
+          await deps.updateBoqItem({
+            projectId,
+            itemId: existing.id,
+            code: row.code,
+            name: row.name,
+            unit: row.unit ?? null,
+            quantity: row.quantity ?? null,
+            price: row.price ?? null
+          })
+          updatedCount += 1
+          progressed = true
+          continue
+        }
+
+        const createdItem = await deps.createBoqItem({
+          projectId,
+          parentId: parentRuntime?.id,
+          type: row.type,
+          code: row.code,
+          name: row.name,
+          unit: row.unit ?? null,
+          quantity: row.quantity ?? null,
+          price: row.price ?? null
+        })
+
+        runtimeItems.set(row.code, {
+          id: createdItem.id,
+          type: createdItem.type
+        })
+        createdCount += 1
+        progressed = true
+      }
+
+      if (!progressed) {
+        throw new BoqItemValidationError(
+          'Unable to resolve item hierarchy, please check import order and parentCode values'
+        )
+      }
+
+      pendingRows.splice(0, pendingRows.length, ...nextRound)
+    }
+
+    return { createdCount, updatedCount }
+  }
+
 export type MoveBoqItem = (params: {
   projectId: string
   itemId: string

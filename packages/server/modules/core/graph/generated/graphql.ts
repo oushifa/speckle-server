@@ -1035,6 +1035,12 @@ export type BlobMetadataCollection = {
   totalSize: Scalars['Int']['output'];
 };
 
+export type BoqImportResult = {
+  __typename?: 'BoqImportResult';
+  createdCount: Scalars['Int']['output'];
+  updatedCount: Scalars['Int']['output'];
+};
+
 export type BoqItem = {
   __typename?: 'BoqItem';
   children: Array<BoqItem>;
@@ -1075,6 +1081,7 @@ export type BoqMutations = {
   __typename?: 'BoqMutations';
   createItem: BoqItem;
   deleteItem: Scalars['Boolean']['output'];
+  importItems: BoqImportResult;
   moveItem: BoqItem;
   updateItem: BoqItem;
 };
@@ -1087,6 +1094,11 @@ export type BoqMutationsCreateItemArgs = {
 
 export type BoqMutationsDeleteItemArgs = {
   input: DeleteBoqItemInput;
+};
+
+
+export type BoqMutationsImportItemsArgs = {
+  input: ImportBoqItemsInput;
 };
 
 
@@ -2191,6 +2203,22 @@ export type GetModelUploadsInput = {
 export type GetUngroupedViewGroupInput = {
   /** Viewer resource ID string that identifies which resources should be loaded */
   resourceIdString: Scalars['String']['input'];
+};
+
+export type ImportBoqItemInput = {
+  code: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+  parentCode?: InputMaybe<Scalars['String']['input']>;
+  price?: InputMaybe<Scalars['Float']['input']>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  rowNumber: Scalars['Int']['input'];
+  type: BoqItemType;
+  unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ImportBoqItemsInput = {
+  items: Array<ImportBoqItemInput>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type InvitableCollaboratorsFilter = {
@@ -7470,6 +7498,7 @@ export type ResolversTypes = {
   BlobMetadata: ResolverTypeWrapper<BlobStorageItem>;
   BlobMetadataCollection: ResolverTypeWrapper<Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversTypes['BlobMetadata']>> }>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
+  BoqImportResult: ResolverTypeWrapper<BoqImportResult>;
   BoqItem: ResolverTypeWrapper<BoqItem>;
   BoqItemCollection: ResolverTypeWrapper<BoqItemCollection>;
   BoqItemType: BoqItemType;
@@ -7579,6 +7608,8 @@ export type ResolversTypes = {
   GetModelUploadsInput: GetModelUploadsInput;
   GetUngroupedViewGroupInput: GetUngroupedViewGroupInput;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
+  ImportBoqItemInput: ImportBoqItemInput;
+  ImportBoqItemsInput: ImportBoqItemsInput;
   Int: ResolverTypeWrapper<Scalars['Int']['output']>;
   InvitableCollaboratorsFilter: InvitableCollaboratorsFilter;
   JSONObject: ResolverTypeWrapper<Scalars['JSONObject']['output']>;
@@ -7956,6 +7987,7 @@ export type ResolversParentTypes = {
   BlobMetadata: BlobStorageItem;
   BlobMetadataCollection: Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversParentTypes['BlobMetadata']>> };
   Boolean: Scalars['Boolean']['output'];
+  BoqImportResult: BoqImportResult;
   BoqItem: BoqItem;
   BoqItemCollection: BoqItemCollection;
   BoqMutations: MutationsObjectGraphQLReturn;
@@ -8062,6 +8094,8 @@ export type ResolversParentTypes = {
   GetModelUploadsInput: GetModelUploadsInput;
   GetUngroupedViewGroupInput: GetUngroupedViewGroupInput;
   ID: Scalars['ID']['output'];
+  ImportBoqItemInput: ImportBoqItemInput;
+  ImportBoqItemsInput: ImportBoqItemsInput;
   Int: Scalars['Int']['output'];
   InvitableCollaboratorsFilter: InvitableCollaboratorsFilter;
   JSONObject: Scalars['JSONObject']['output'];
@@ -8910,6 +8944,12 @@ export type BlobMetadataCollectionResolvers<ContextType = GraphQLContext, Parent
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type BoqImportResultResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqImportResult'] = ResolversParentTypes['BoqImportResult']> = {
+  createdCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  updatedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItem'] = ResolversParentTypes['BoqItem']> = {
   children?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -8939,6 +8979,7 @@ export type BoqItemCollectionResolvers<ContextType = GraphQLContext, ParentType 
 export type BoqMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqMutations'] = ResolversParentTypes['BoqMutations']> = {
   createItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsCreateItemArgs, 'input'>>;
   deleteItem?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<BoqMutationsDeleteItemArgs, 'input'>>;
+  importItems?: Resolver<ResolversTypes['BoqImportResult'], ParentType, ContextType, RequireFields<BoqMutationsImportItemsArgs, 'input'>>;
   moveItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsMoveItemArgs, 'input'>>;
   updateItem?: Resolver<ResolversTypes['BoqItem'], ParentType, ContextType, RequireFields<BoqMutationsUpdateItemArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11018,6 +11059,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   BimElements?: BimElementsResolvers<ContextType>;
   BlobMetadata?: BlobMetadataResolvers<ContextType>;
   BlobMetadataCollection?: BlobMetadataCollectionResolvers<ContextType>;
+  BoqImportResult?: BoqImportResultResolvers<ContextType>;
   BoqItem?: BoqItemResolvers<ContextType>;
   BoqItemCollection?: BoqItemCollectionResolvers<ContextType>;
   BoqMutations?: BoqMutationsResolvers<ContextType>;

@@ -77,11 +77,33 @@ input DeleteBoqItemInput {
   cascade: Boolean = false
 }
 
+input ImportBoqItemInput {
+  rowNumber: Int!
+  code: String!
+  name: String!
+  type: BoqItemType!
+  parentCode: String
+  unit: String
+  quantity: Float
+  price: Float
+}
+
+input ImportBoqItemsInput {
+  projectId: ID!
+  items: [ImportBoqItemInput!]!
+}
+
+type BoqImportResult {
+  createdCount: Int!
+  updatedCount: Int!
+}
+
 type BoqMutations {
   createItem(input: CreateBoqItemInput!): BoqItem!
   updateItem(input: UpdateBoqItemInput!): BoqItem!
   moveItem(input: MoveBoqItemInput!): BoqItem!
   deleteItem(input: DeleteBoqItemInput!): Boolean!
+  importItems(input: ImportBoqItemsInput!): BoqImportResult!
 }
 
 extend type Project {

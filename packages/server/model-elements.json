@@ -1,0 +1,5964 @@
+{
+  "model": {
+    "id": "68d88865fd",
+    "name": "建筑结构_1区.ifc",
+    "timestamp": "2026-04-22T23:42:14.066Z"
+  },
+  "elements": [
+    {
+      "id": "888c22a45ed23c6181a390e8267067a3",
+      "parameters": {
+        "Type": "IfcSite",
+        "Category": "OST_Site"
+      }
+    },
+    {
+      "id": "b05b045e17867582984bfe01e1e65210",
+      "parameters": {
+        "Type": "IfcSite",
+        "Category": "OST_Site",
+        "Reference": "项目信息"
+      }
+    },
+    {
+      "id": "47214dc301b0cbadfe71a5ff5e947d89",
+      "parameters": {
+        "Type": "IfcBuilding",
+        "Category": "OST_Buildings"
+      }
+    },
+    {
+      "id": "3abe78a66fdbf0b67b93523ac6c2c8d5",
+      "parameters": {
+        "Type": "IfcBuilding",
+        "Category": "OST_Buildings",
+        "Reference": "项目信息"
+      }
+    },
+    {
+      "id": "1a43a9efd37300d1b6f8ddba3ab96889",
+      "parameters": {
+        "Type": "IfcBuildingStorey",
+        "Category": "OST_Levels"
+      }
+    },
+    {
+      "id": "f820d7321f47060d4576cf9639d8aaa1",
+      "parameters": {
+        "Type": "IfcBuildingStorey",
+        "TypeName": "标高:正负零标高",
+        "Category": "OST_Levels",
+        "Reference": "正负零标高"
+      }
+    },
+    {
+      "id": "4e25313d5c77439dbfded0aa239fd9f4",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下三层_板_800",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下三层_板_800",
+        "Volume": "434.2 m³",
+        "Area": "543.67 m²"
+      }
+    },
+    {
+      "id": "7e528d92c2fbb3fb2dfdcd31907e1181",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下五层_板_2300",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下五层_板_2300",
+        "Volume": "1248.32 m³",
+        "Area": "543.67 m²"
+      }
+    },
+    {
+      "id": "ce480a6554091552a252dda522b2cf1f",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下一层_板_800",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下一层_板_800",
+        "Volume": "434.2 m³",
+        "Area": "542.75 m²",
+        "Width": "800 mm"
+      }
+    },
+    {
+      "id": "2d08539a0153494791707d8a15d2d2b3",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "c80ce654db9d8cad60f6a42c7de8b4ed",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "32.01 m³",
+        "Area": "80.01 m²",
+        "Length": "19515.54 mm",
+        "Width": "400 mm",
+        "Height": "4100 mm"
+      }
+    },
+    {
+      "id": "a478aaeb75fe126434360ef93481a378",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "32.73 m³",
+        "Area": "81.83 m²",
+        "Length": "19958.31 mm",
+        "Width": "400 mm",
+        "Height": "4100 mm"
+      }
+    },
+    {
+      "id": "92c48668294d5fc45337d43bf5b2e9db",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "混凝土 - 矩形梁:结构_ 夹层底框梁 _4300 x 1800",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 夹层底框梁 _4300 x 1800",
+        "Volume": "221.24 m³",
+        "Area": "364.21 m²",
+        "Length": "1800 mm"
+      }
+    },
+    {
+      "id": "67651d5fe2ec90354f2a3d1f88cca905",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.9 m³",
+        "Area": "62.22 m²"
+      }
+    },
+    {
+      "id": "239585dd1a17e7133e5561683297ab49",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.36 m³",
+        "Area": "6.07 m²"
+      }
+    },
+    {
+      "id": "b569ceaede013b8836a21492570a89c5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.06 m³",
+        "Area": "48.83 m²"
+      }
+    },
+    {
+      "id": "c117c9f6f1727c460aecd70a431d896d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.9 m³",
+        "Area": "62.22 m²"
+      }
+    },
+    {
+      "id": "4fecaf6bf18ca62b548486f401790bfe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.89 m³",
+        "Area": "62.11 m²"
+      }
+    },
+    {
+      "id": "8009f994e7baa2b93906301df35b224f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.89 m³",
+        "Area": "62.11 m²"
+      }
+    },
+    {
+      "id": "9752d9a5392495048ad72d1aeb3ef2c8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.66 m³",
+        "Area": "42.51 m²",
+        "Length": "19515.27 mm"
+      }
+    },
+    {
+      "id": "2238c727d6c4210612788f5bee2737a7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.72 m³",
+        "Area": "43.47 m²",
+        "Length": "19958 mm"
+      }
+    },
+    {
+      "id": "a39d6994cfc1453c1db488f9ce37d845",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.66 m³",
+        "Area": "42.51 m²",
+        "Length": "19515.27 mm"
+      }
+    },
+    {
+      "id": "27512efa739680990f3c87ae11a96a46",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.44 m³",
+        "Area": "32.13 m²"
+      }
+    },
+    {
+      "id": "976437622eb274152d9ee010891c358d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.3 m³",
+        "Area": "5.12 m²"
+      }
+    },
+    {
+      "id": "23133892e4270fa39ef48df191f0bf02",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.05 m³",
+        "Area": "2.34 m²"
+      }
+    },
+    {
+      "id": "a811117f50df0991487f5c02eda7a6eb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.01 m³",
+        "Area": "48.57 m²"
+      }
+    },
+    {
+      "id": "d7be452afffb17669080a5e174ef583f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.34 m³",
+        "Area": "5.85 m²"
+      }
+    },
+    {
+      "id": "6dcaecaa0920517a1ccdd5d0427fcc18",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.3 m³",
+        "Area": "5.15 m²"
+      }
+    },
+    {
+      "id": "c2237bac86aa7e2d3b5c826d432db1b8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "混凝土 - 矩形梁:结构_夹层底框梁_4400 x 1800",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_夹层底框梁_4400 x 1800",
+        "Volume": "10.92 m³",
+        "Area": "53.9 m²"
+      }
+    },
+    {
+      "id": "78636e8960fc3ccc132e8f2dba32b425",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "混凝土 - 矩形梁:结构_夹层底框梁_4400 x 1800",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_夹层底框梁_4400 x 1800",
+        "Volume": "178.86 m³",
+        "Area": "295.81 m²"
+      }
+    },
+    {
+      "id": "ef4d1a695268d529e4ac9934648e362e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "混凝土 - 矩形梁:结构_夹层底框梁_4400 x 1800",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_夹层底框梁_4400 x 1800",
+        "Volume": "13.03 m³",
+        "Area": "42.19 m²"
+      }
+    },
+    {
+      "id": "3ac0577096adfc50d57b43972570feb4",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:顶板_板_1600",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "顶板_板_1600",
+        "Volume": "2457.54 m³",
+        "Area": "1535.97 m²",
+        "Width": "1600 mm"
+      }
+    },
+    {
+      "id": "72d03aebc2a65b43d3de70d0afc4e1c3",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下一层_板_1000",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下一层_板_1000",
+        "Volume": "1535.97 m³",
+        "Area": "1535.97 m²",
+        "Width": "1000 mm"
+      }
+    },
+    {
+      "id": "feaba04d316a988ac48b2de8c62d9f43",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下三层_板_1000",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下三层_板_1000",
+        "Volume": "1535.96 m³",
+        "Area": "1539.81 m²"
+      }
+    },
+    {
+      "id": "4c34d8584916493091d8fa6a73f80a90",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下五层_板_2300",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下五层_板_2300",
+        "Volume": "175.85 m³",
+        "Area": "73.23 m²"
+      }
+    },
+    {
+      "id": "a623716d9c952185ee2fc464fcc03116",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下五层_板_2400",
+        "Category": "OST_Floors",
+        "Storey": "标高 1",
+        "Reference": "地下五层_板_2400",
+        "Volume": "3502.88 m³",
+        "Area": "1462.84 m²"
+      }
+    },
+    {
+      "id": "3a8bea84a109eff51b310f3031fa96e3",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "5f79f8a953308a3f55dde2b24accc1c9",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "7f72e14fe7c5eed46227786b2806136f",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "1edb7510908560e5576f37c4029c8268",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "8e866a37992781daa0217e5e79bb069b",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "07183dfec8cc474eab33d1f6e10b4e32",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "318fd46cbb66d2307fc1b8d594d5ae08",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200",
+        "Volume": "548.57 m³",
+        "Area": "459.7 m²",
+        "Length": "23130.76 mm",
+        "Width": "1200 mm",
+        "Height": "19822.12 mm"
+      }
+    },
+    {
+      "id": "17eec57a4882ff7dc1cbe53572bb7c89",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "混凝土 - 矩形梁:1000 x 2800mm",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "1000 x 2800mm",
+        "Volume": "57.02 m³",
+        "Area": "160.55 m²"
+      }
+    },
+    {
+      "id": "3864b6d3b41e905f97b7350294f776f7",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "74.21 m³",
+        "Area": "185.79 m²",
+        "Length": "61844.67 mm",
+        "Width": "400 mm",
+        "Height": "3000 mm"
+      }
+    },
+    {
+      "id": "5ef79549bca9f540ae069f6a55130ee6",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "77.35 m³",
+        "Area": "193.62 m²",
+        "Length": "64454.86 mm",
+        "Width": "400 mm",
+        "Height": "3000 mm"
+      }
+    },
+    {
+      "id": "ec605b171b5759bb260b2e960ce52df4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.3 m³",
+        "Area": "36.81 m²"
+      }
+    },
+    {
+      "id": "50634b5d8df3cf33971b55debc946dee",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.26 m³",
+        "Area": "36.12 m²"
+      }
+    },
+    {
+      "id": "0d4492b1e2863074bd9426381512c9e3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.12 m³",
+        "Area": "49.8 m²"
+      }
+    },
+    {
+      "id": "1d92506fb81542efe2618ab6906ba8cb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.1 m³",
+        "Area": "49.42 m²"
+      }
+    },
+    {
+      "id": "c83ae982f7df734d0b5fd4cde5beb6eb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.83 m³",
+        "Area": "13.39 m²"
+      }
+    },
+    {
+      "id": "538b2ad8b3fb232a07db041250f7d87e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "0.51 m³",
+        "Area": "7.13 m²"
+      }
+    },
+    {
+      "id": "a1c91698bacb668d854cb50f27a0d3ad",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "1.09 m³",
+        "Area": "15.05 m²"
+      }
+    },
+    {
+      "id": "df4c4e14599aae048d1c678936302b29",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "2.17 m³",
+        "Area": "29.67 m²"
+      }
+    },
+    {
+      "id": "ebc48e94106e528be523050652e5541c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "2.05 m³",
+        "Area": "28.29 m²"
+      }
+    },
+    {
+      "id": "3b395ece94cc43786105e8139ea7403d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "0.72 m³",
+        "Area": "10.07 m²",
+        "Length": "5702 mm"
+      }
+    },
+    {
+      "id": "0a729d4a458faf50fa910ba78a68b0b7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.07 m³",
+        "Area": "49.5 m²"
+      }
+    },
+    {
+      "id": "c8ec2436e12fa40c924d29a7ed8c771c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.81 m³",
+        "Area": "13.12 m²"
+      }
+    },
+    {
+      "id": "c98746f3b41eabfc86d787ae98cc0936",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.64 m³",
+        "Area": "26.3 m²"
+      }
+    },
+    {
+      "id": "8e8ee4060e24cc20063f7d80407899f5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.66 m³",
+        "Area": "26.62 m²"
+      }
+    },
+    {
+      "id": "c950719bc157174048c46455dbf9e3f9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.16 m³",
+        "Area": "34.89 m²"
+      }
+    },
+    {
+      "id": "6292d85874d63e67ca77f2df816e0b85",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.26 m³",
+        "Area": "36.12 m²"
+      }
+    },
+    {
+      "id": "f18ec5709caba796f422a13d98551b1a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0 m³",
+        "Area": "11.79 m²"
+      }
+    },
+    {
+      "id": "b26d336047bf628979af01e6ed9f2f99",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "2.3 m³",
+        "Area": "31.47 m²"
+      }
+    },
+    {
+      "id": "b2c30750f48b26565a450cc995de5553",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "2.38 m³",
+        "Area": "32.56 m²",
+        "Length": "18774.3 mm"
+      }
+    },
+    {
+      "id": "464ec88e2d70c29cb72940f45c4b11ca",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "0.63 m³",
+        "Area": "8.8 m²"
+      }
+    },
+    {
+      "id": "a48e7833a9789b285345e647e9b516c9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.1 m³",
+        "Area": "33.66 m²",
+        "Length": "15427 mm"
+      }
+    },
+    {
+      "id": "aa73cb583fa5b0bb52eebae2f2392a02",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.63 m³",
+        "Area": "26.18 m²"
+      }
+    },
+    {
+      "id": "a2c1aaf1bd4d4f3135990d7112cf4c91",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.53 m³",
+        "Area": "8.73 m²"
+      }
+    },
+    {
+      "id": "2dff8e08ba8b6897f3df1190a0e726a5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.82 m³",
+        "Area": "13.29 m²"
+      }
+    },
+    {
+      "id": "f00f433eaba465946f0c907a0d7a12e4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.13 m³",
+        "Area": "50.12 m²"
+      }
+    },
+    {
+      "id": "ecbf68eda8d208c4aa17c194f3feae52",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.08 m³",
+        "Area": "49.78 m²"
+      }
+    },
+    {
+      "id": "35d517b0f75c40e6d6bbc6212893ecfe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.67 m³",
+        "Area": "26.86 m²"
+      }
+    },
+    {
+      "id": "b39a44080302c415c13bab2faab9a2bd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.13 m³",
+        "Area": "50.1 m²"
+      }
+    },
+    {
+      "id": "0a89aa5b4bc59c5ff4a6fe40b5a0db0b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.05 m³",
+        "Area": "49.54 m²"
+      }
+    },
+    {
+      "id": "21c519114686a0d149181da2495d62fd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.75 m³",
+        "Area": "13.57 m²"
+      }
+    },
+    {
+      "id": "24c7897dbe92298cfa65d80f5b4bf297",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.97 m³",
+        "Area": "36.55 m²"
+      }
+    },
+    {
+      "id": "3b663e3dadd39c95de818340ec130883",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.65 m³",
+        "Area": "26.49 m²"
+      }
+    },
+    {
+      "id": "ce9a39900c40fc28b372ecfa02a98641",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.3 m³",
+        "Area": "36.9 m²"
+      }
+    },
+    {
+      "id": "4081a28f3a27dddc0f2323f267166268",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.27 m³",
+        "Area": "36.29 m²"
+      }
+    },
+    {
+      "id": "fcdff91d81c9cda49b8abb4ff9d8269e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.26 m³",
+        "Area": "36.24 m²"
+      }
+    },
+    {
+      "id": "6b89c0c24439f821a0edb692d535020c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.29 m³",
+        "Area": "36.72 m²"
+      }
+    },
+    {
+      "id": "ffb2a2f95f6b2a1e6ebcd0d54d4af52e",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "13.76 m³",
+        "Area": "34.4 m²",
+        "Length": "8391.42 mm",
+        "Width": "400 mm",
+        "Height": "4100 mm"
+      }
+    },
+    {
+      "id": "d77dacc8ec776eff2bec35e5dd294716",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一层_墙_400",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一层_墙_400",
+        "Volume": "13.21 m³",
+        "Area": "33.04 m²",
+        "Length": "8057.85 mm",
+        "Width": "400 mm",
+        "Height": "4100 mm"
+      }
+    },
+    {
+      "id": "ca1903afe8c040887a78d396427bbe38",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.14 m³",
+        "Area": "18.44 m²",
+        "Length": "8391.42 mm"
+      }
+    },
+    {
+      "id": "289c893ae550abed63f98866351fd206",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.14 m³",
+        "Area": "18.44 m²",
+        "Length": "8391.21 mm"
+      }
+    },
+    {
+      "id": "2d6160cdd169370cff9ed3d674725824",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300"
+      }
+    },
+    {
+      "id": "16dadf5829abb313cfe0f985220eb846",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.87 m³",
+        "Area": "29.93 m²",
+        "Length": "13703 mm"
+      }
+    },
+    {
+      "id": "ab1eb6dfcaedaa370009f5eff898ed05",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.88 m³",
+        "Area": "30.06 m²"
+      }
+    },
+    {
+      "id": "27c70b1180a5b88b4af839fb585a7aeb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.72 m³",
+        "Area": "43.47 m²",
+        "Length": "19958.16 mm"
+      }
+    },
+    {
+      "id": "107e99f0a237274d23e54e51663d507d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.35 m³",
+        "Area": "5.89 m²"
+      }
+    },
+    {
+      "id": "4bee5463a8e83817d4191addbfb8ba78",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3 m³",
+        "Area": "48.34 m²"
+      }
+    },
+    {
+      "id": "6e3529ac46f97594c454dd4171bac746",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.32 m³",
+        "Area": "5.31 m²"
+      }
+    },
+    {
+      "id": "f6de868c584aab221a2923581a72e6d7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.1 m³",
+        "Area": "17.7 m²"
+      }
+    },
+    {
+      "id": "284271f43d8ef74af47a6892708b6b37",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.63 m³",
+        "Area": "26.23 m²",
+        "Length": "11993 mm"
+      }
+    },
+    {
+      "id": "f570348a69016aef400db93dd86f18cf",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "7.36 m³",
+        "Area": "117.25 m²"
+      }
+    },
+    {
+      "id": "ca036ed9b46cc1a34885ee97d86ad748",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "8.39 m³",
+        "Area": "133.58 m²"
+      }
+    },
+    {
+      "id": "52bf2c93a004dcc168b40197a8d65b6b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "8.75 m³",
+        "Area": "139.24 m²"
+      }
+    },
+    {
+      "id": "4db854e5772256db52d88d7f9009f61a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "8.81 m³",
+        "Area": "140.33 m²"
+      }
+    },
+    {
+      "id": "832fa35b78f231825caeb8adcb649707",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1000",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1000"
+      }
+    },
+    {
+      "id": "c55c5addf21647ee1d49edc4e13ab2c4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "3.88 m³",
+        "Area": "62.05 m²"
+      }
+    },
+    {
+      "id": "0f6bf6ae31ba463b8fcaf86d6143b9ae",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "0.35 m³",
+        "Area": "5.96 m²"
+      }
+    },
+    {
+      "id": "d4a348a9a7f412d9b36adf6bb88de1df",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.93 m³",
+        "Area": "47.85 m²"
+      }
+    },
+    {
+      "id": "403bf8cb1e7b5e82be5ffcac53646f74",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "2.96 m³",
+        "Area": "47.81 m²"
+      }
+    },
+    {
+      "id": "77f0167ba9f46c096679c5a231e1c509",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "0.46 m³",
+        "Area": "6.48 m²",
+        "Length": "3616.3 mm"
+      }
+    },
+    {
+      "id": "42000fd86eebfd05d489b9527ba1637f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.86 m³",
+        "Area": "29.86 m²"
+      }
+    },
+    {
+      "id": "3c28e4cb39f5cdcfb837153e28bab02a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_900*300",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_900*300",
+        "Volume": "1.85 m³",
+        "Area": "29.73 m²",
+        "Length": "13607.3 mm"
+      }
+    },
+    {
+      "id": "9981ee38f22ef66c2cfa85d0a09e5252",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "1.74 m³",
+        "Area": "23.77 m²",
+        "Length": "13663 mm"
+      }
+    },
+    {
+      "id": "5ab4cae108a6a78501389b46fef3acdc",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "e6ba46a43af02b6855d07c8b4f3667cd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_ 腋角_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_ 腋角_500*500",
+        "Volume": "1.75 m³",
+        "Area": "23.96 m²"
+      }
+    },
+    {
+      "id": "d563be79377dc6b8654639d8945cceeb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "腋角1:结构_腋角_2676*1545",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_腋角_2676*1545",
+        "Volume": "39.83 m³",
+        "Area": "144.87 m²"
+      }
+    },
+    {
+      "id": "74f0e9a19455276d0dc2d89f49820c9d",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200",
+        "Volume": "78.63 m³",
+        "Area": "65.53 m²",
+        "Length": "2580.74 mm",
+        "Width": "1200 mm",
+        "Height": "25391.32 mm"
+      }
+    },
+    {
+      "id": "3cdbd2e2db359e41205f53d393b28325",
+      "parameters": {
+        "Type": "IfcWall",
+        "TypeName": "基本墙:地下一-五层_内衬墙_1200",
+        "Category": "OST_Walls",
+        "Storey": "标高 1",
+        "Reference": "地下一-五层_内衬墙_1200"
+      }
+    },
+    {
+      "id": "a059815f71f91adb854967034c2df802",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.35 m³",
+        "Area": "3.93 m²"
+      }
+    },
+    {
+      "id": "c7b5eae4e164dc8480e3b40defad18f9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²"
+      }
+    },
+    {
+      "id": "5472c6f14a4c21b11488fb9514aa4588",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "936 mm"
+      }
+    },
+    {
+      "id": "cc4d76d0e786d09e0a4f31b3226a9ff3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "936 mm"
+      }
+    },
+    {
+      "id": "91f16421aabeb690b14cbc188a96ade8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "936 mm"
+      }
+    },
+    {
+      "id": "f99801b2b07097402675acda0d1109fe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "937 mm"
+      }
+    },
+    {
+      "id": "9c22bda44f6cfa4d96dc5930d8f13ef2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "938 mm"
+      }
+    },
+    {
+      "id": "8a80a556853b24e05c10ac35a5a37c5b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "939 mm"
+      }
+    },
+    {
+      "id": "12aac14f134e2942b3fe3d8f571f770f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "940 mm"
+      }
+    },
+    {
+      "id": "d249dddc9e6b36e85437ed36e29dfe22",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²",
+        "Length": "941 mm"
+      }
+    },
+    {
+      "id": "80d96521a67f3c7e0de4eab9de0579b9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²",
+        "Length": "942 mm"
+      }
+    },
+    {
+      "id": "e1a3ba85a3e827dc62416114332c5724",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.34 m³",
+        "Area": "3.81 m²",
+        "Length": "885 mm"
+      }
+    },
+    {
+      "id": "bd01f14c244c47b0c30f314fea16e5fb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.02 m²",
+        "Length": "945 mm"
+      }
+    },
+    {
+      "id": "af2728913981f5a4fef79d3c20dedaf1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.02 m²",
+        "Length": "946 mm"
+      }
+    },
+    {
+      "id": "30ec13da6706137948fb0f419373e5a1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.03 m²",
+        "Length": "948.03 mm"
+      }
+    },
+    {
+      "id": "afb8a4cebeaa15c06c856a0b743f6f0b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.04 m²",
+        "Length": "949.36 mm"
+      }
+    },
+    {
+      "id": "bc00cdc507c2dad83a9b53fc611cf572",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.04 m²",
+        "Length": "950.69 mm"
+      }
+    },
+    {
+      "id": "e3595a39d8f1f90c07653469c5366407",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²",
+        "Length": "952.05 mm"
+      }
+    },
+    {
+      "id": "16fa46414c13d12cfa7492b32f8a0bf2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²",
+        "Length": "953.42 mm"
+      }
+    },
+    {
+      "id": "ef542da5129ba1ba9b9a1103ae80f5bb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²",
+        "Length": "954.81 mm"
+      }
+    },
+    {
+      "id": "0096906c958cdbe381fba6703e991c8e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.06 m²",
+        "Length": "956.21 mm"
+      }
+    },
+    {
+      "id": "f967073a54d569d252ec0e2f6dc0e863",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.06 m²",
+        "Length": "957.61 mm"
+      }
+    },
+    {
+      "id": "d0776a6ec256f69e67e3b583fcfbccbd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²",
+        "Length": "959.01 mm"
+      }
+    },
+    {
+      "id": "25bd9396dcea6658057220277551632b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²",
+        "Length": "960.4 mm"
+      }
+    },
+    {
+      "id": "cad814b66e52883f1e17446de0b11471",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²",
+        "Length": "961.78 mm"
+      }
+    },
+    {
+      "id": "bc70842dcbdbcb8ef84e5849ebdb288b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²",
+        "Length": "963.15 mm"
+      }
+    },
+    {
+      "id": "193f4610ff24fe9eb5c2c459102bdd80",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²",
+        "Length": "964.5 mm"
+      }
+    },
+    {
+      "id": "ed3057fb896d651e7d0cd4645b9ad15a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²",
+        "Length": "965.41 mm"
+      }
+    },
+    {
+      "id": "81215e01d9a8550db71b3edb47e23b1b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.1 m²",
+        "Length": "967 mm"
+      }
+    },
+    {
+      "id": "5fab70cbe41a34815c26d979d92afd08",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.1 m²",
+        "Length": "968 mm"
+      }
+    },
+    {
+      "id": "95d133af9d69aa67bc42a520dd1da469",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.1 m²",
+        "Length": "969 mm"
+      }
+    },
+    {
+      "id": "25ba8e738e2f5c90420383690fa47bec",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.11 m²",
+        "Length": "970 mm"
+      }
+    },
+    {
+      "id": "eda7aa299a951103cfc359541048dda6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.11 m²",
+        "Length": "972 mm"
+      }
+    },
+    {
+      "id": "f05efa682c42fabec0dd6d599c29e3e2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²"
+      }
+    },
+    {
+      "id": "2cf2f1fb57b3593344962785c79996b6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.39 m³",
+        "Area": "4.24 m²"
+      }
+    },
+    {
+      "id": "4eb763cc126b13ef1778676e305ffeea",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.12 m²",
+        "Length": "975 mm"
+      }
+    },
+    {
+      "id": "cddaf28e0a274c370e77eac40f8f6344",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.39 m³",
+        "Area": "4.25 m²"
+      }
+    },
+    {
+      "id": "613836401e1413b74db6bdf80fa55b91",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²"
+      }
+    },
+    {
+      "id": "df7b1d1794c2f4f5b52af1eec0b72f44",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²",
+        "Length": "978 mm"
+      }
+    },
+    {
+      "id": "1261d5d8d5feca31555cbd05a44388cc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "979 mm"
+      }
+    },
+    {
+      "id": "180c1751914a4b5b10b74fbee7d6d2db",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.02 m²"
+      }
+    },
+    {
+      "id": "4609906dfe92869c32d67aa0da8c0cab",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.39 m³",
+        "Area": "4.26 m²"
+      }
+    },
+    {
+      "id": "5b579728a655c555a4ea4076e2bdaeaf",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "981 mm"
+      }
+    },
+    {
+      "id": "448a74f3610560516d86cf541c26e31b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "981 mm"
+      }
+    },
+    {
+      "id": "dd74a9169417a4a726e120ed4e3be240",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "982 mm"
+      }
+    },
+    {
+      "id": "437750f058dfb4e50313d9bc1bf5a7a2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "983 mm"
+      }
+    },
+    {
+      "id": "75c8b156fb2646f310a07c037ae0889e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "983 mm"
+      }
+    },
+    {
+      "id": "a8634aedf192405eb83396f617bcb925",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "0f98674007933d477e05887bd1a15b7c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "c80f1a3c2e514fffecea7b25bc145389",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "e48e00e03288536421da167834d830b8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "a981f738f26a4edf1c4e9a0df8854fe5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "9c1619d64774f53b7ad82ab3f139d966",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "c25fcd4496119937d480dedd73f8ce25",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "32a46957e70951c64b2552ec660c3529",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "64bfade9371c8ef97e05ca7b2a14de98",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "5986fff11b62726a795bb99af0db66b6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "e61e92d2b43d98d01cb2aafa8c46ec2c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "f9af3ab807641f673e0077067b7668bc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "f65bf4a8c66a26f739c636dbfc84701b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "0a7a03a64696ff3f21bdfdc4a8ab4878",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.35 m³",
+        "Area": "3.92 m²",
+        "Length": "915 mm"
+      }
+    },
+    {
+      "id": "98052193ae55ee80309bbdfea07bc3b4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "2f2fca83e0d2d3b20dd0171ff4f0f4b0",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "a418d62743a8f97ba3edc8850081f964",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "253739c9201db250b1c0dfd6f694303a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "b90bad8ea78b027b15c9da2e6575054a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "d4f9deb611d6bae6fe45f15724962fdc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "1c4ea99c3a6f50f9a0f9d0cab1195d1f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "d5498721f3874f882803d4c0f3d4d2d0",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "3ac2b70c705f91ba981cff84c2903942",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "1ae24b0b38387ed55466b97968511d2e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "5963af02fbae9bdedfb8d10c9860b3ea",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "b8948e4bf89fd86f5bc37c99589b00a7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "b4fcacaac9a6f7f7ea34b8b3b4845c6c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "7079eb9234e10967af54b4440f634502",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "26d410fbc5aa12ee3acbc15e5cf44976",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "781b57d73b2c7b8a74908d61bccbf20c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "010a2fbcfa195dafcb8b501d87338dd5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²"
+      }
+    },
+    {
+      "id": "33cf5511e4fadb61bd170df0542ccaa7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.28 m³",
+        "Area": "3.3 m²"
+      }
+    },
+    {
+      "id": "088a5fbefaa5a5da2161387abe6036a6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "34bd5d38f37aeb8fc342a1c6a3447005",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "c129105fe1913efc53e362a190baa3b3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "4de4fda2608a0d3ca8c64ab2a8260ae2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "2e84d6e081296c9262f065aaa52bf349",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "78909d55ca9c7ee9e5b38d68b89c088f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "9cfe46e4831b1573d330d2524db3d7d4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "f87ef982425351b9a50ed456639902f6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²",
+        "Length": "942 mm"
+      }
+    },
+    {
+      "id": "eae0751c903e3bbe98c315756341e83d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "adcd9ef9d731f46a0ebbaf396053574d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "143f037bd628b5d3052d87c3360231df",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "59cbf2faf8b3037bfb7deeb75453cd08",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "e9d1311af9d77773b690a20348053efe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f71693d382ae986434fca3a543dedbc3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "35887ff58a35bc4f58261c5a7a290825",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f88ab96e5c12f3411c9b9c1a0015c694",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "ff47f29b09350c4e12755f1b120c9efe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "a0b79ca02c725d7246a83b39a4e6cfb4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "cfc92a9e415e3b1985c29423f34187da",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "94481d74da22faac4015d63d740d7283",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "ad0fb223f3b379c93c2606a603559331",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "d78e78581b462b3a7a7f15ee7dd2d44d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "4f3da049f9979d5f07aa72a85f4bb13b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "927c7e6404a963493ffd1458e94ab6b2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "7e5f8501d0b8662c2ae55b69ec08a332",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "e3d3d105e244952fb31280bc8db2b8fd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "fda177e10034c33e50f65cd405d7d237",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.12 m³",
+        "Area": "1.85 m²",
+        "Length": "315.07 mm"
+      }
+    },
+    {
+      "id": "be7db0e464a6403b6f85bc8448aa1b59",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.49 mm"
+      }
+    },
+    {
+      "id": "4766d5a3a2110390d5e371575f7a6f09",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.81 mm"
+      }
+    },
+    {
+      "id": "903ebe2100bd199b842a32aebf290266",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.79 mm"
+      }
+    },
+    {
+      "id": "677a357e035e95af56807a5d05c759f5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.77 mm"
+      }
+    },
+    {
+      "id": "d4a8a3ca3c18cb02b748622d9d1a4ec5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.75 mm"
+      }
+    },
+    {
+      "id": "b349916575bba7e992e7be2be53e4641",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.73 mm"
+      }
+    },
+    {
+      "id": "172d09e55590c51c01a79e3ea1c7cf0d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.71 mm"
+      }
+    },
+    {
+      "id": "3925226edb925dcf919ac9897c557687",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.69 mm"
+      }
+    },
+    {
+      "id": "f537b353348cf102a8762687af216b48",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.67 mm"
+      }
+    },
+    {
+      "id": "90d2dbb5d2e3c2147f798c78a69b4c25",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.65 mm"
+      }
+    },
+    {
+      "id": "7d1153218e014a3505fc6dcab96a77b7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.63 mm"
+      }
+    },
+    {
+      "id": "3284fa18eee4a5d94f052d33f349b6ce",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.61 mm"
+      }
+    },
+    {
+      "id": "a7fe75ec6a63ef07c2de7551ed43667d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.59 mm"
+      }
+    },
+    {
+      "id": "3b254dcb6e3989e0e48762cc69878b49",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.57 mm"
+      }
+    },
+    {
+      "id": "bbc2c9f0997e6b28cb3580a2e96dfe2d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.55 mm"
+      }
+    },
+    {
+      "id": "cf8558abfa1c12c3f2fa19c709f8d6a7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.52 mm"
+      }
+    },
+    {
+      "id": "5501a4a2720c310804045308a99f3583",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.5 mm"
+      }
+    },
+    {
+      "id": "f8ebf9488168c9436b35585d0089bfa5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.48 mm"
+      }
+    },
+    {
+      "id": "30ed45a56a07caa437757bf4e68449a8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.46 mm"
+      }
+    },
+    {
+      "id": "3d720d52a5c55f7bdd8e7904a0c94f17",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.44 mm"
+      }
+    },
+    {
+      "id": "4d38843765628d9d78cc55983c98c804",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.42 mm"
+      }
+    },
+    {
+      "id": "c5a92d01460f87caf67ac5308f1b14bf",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.4 mm"
+      }
+    },
+    {
+      "id": "b5caa14a904559df70b31dd85136c517",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.38 mm"
+      }
+    },
+    {
+      "id": "3fb978a43f3abf2642a0d2fcfd81a322",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.36 mm"
+      }
+    },
+    {
+      "id": "32ecfbe8e5f95704175f9937c1fbb3f3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.34 mm"
+      }
+    },
+    {
+      "id": "4cb2f4a066fd42dbb49041c5b3ab0c9b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.32 mm"
+      }
+    },
+    {
+      "id": "911f59f80e4043b80502830f932f3e69",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.3 mm"
+      }
+    },
+    {
+      "id": "4e10c7de4dabdba31c95b069984f428c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.28 mm"
+      }
+    },
+    {
+      "id": "404b71c721a8c19545e9ec3e94a54fe7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.26 mm"
+      }
+    },
+    {
+      "id": "bb03c67f073edce416288dada7a147e0",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.24 mm"
+      }
+    },
+    {
+      "id": "09127be51c488a960284541c7e0c9d18",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.22 mm"
+      }
+    },
+    {
+      "id": "6bb02f10d34a542b34d9b01286fb722e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.2 mm"
+      }
+    },
+    {
+      "id": "06d98f094186d4b3dc99e8dee90923a6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.18 mm"
+      }
+    },
+    {
+      "id": "f36818eba3cf9f1f76d8b25d3eed4708",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.16 mm"
+      }
+    },
+    {
+      "id": "b54657eb022d0c0aa9abbda13b17ce75",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.14 mm"
+      }
+    },
+    {
+      "id": "7b0b4fae1d9ffab38c34979ffcd493a2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.12 mm"
+      }
+    },
+    {
+      "id": "ab07168413d791aec38e04fd54e56572",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.1 mm"
+      }
+    },
+    {
+      "id": "77c93a4331f53925f7b5dc9d899cfb9f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.08 mm"
+      }
+    },
+    {
+      "id": "abd0505cde97de267b675bdcbb2d7420",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.06 mm"
+      }
+    },
+    {
+      "id": "c51c6e6b5978aa0e256414d556246d42",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.03 mm"
+      }
+    },
+    {
+      "id": "5b74877603f2d6b393a0b76385af3bc8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.01 mm"
+      }
+    },
+    {
+      "id": "e7e2c5f8ac37b02fea2911f5ad143c6a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "283.99 mm"
+      }
+    },
+    {
+      "id": "e6959b6cab567161ba6f9848ca6d550a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "283.97 mm"
+      }
+    },
+    {
+      "id": "6a2d7f124b3651f3ab0d3c67ec34623e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "283.95 mm"
+      }
+    },
+    {
+      "id": "674804c7e9a70da7b2771c5c99b4f42f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "7f125574df70761ded2737680542df93",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "519047fd4c99493814cca1a61aee4b94",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "3c79f74a57999020ea9f95d5172bbc1b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "15775be5ab0bcd8dcbbe012733f185dc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "b9ba862d3471a3df4836a11ddb50b625",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "b7fbba7be769b6ebe915258d13a7a18d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "d143674eefbdac228be4374d543dda27",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "fd0178d76a8de99383152c4a2022d84a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "8c75b4a9fad0419cecf872956fcefa3c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "27efbcb84186d6c378493fdd1484bc56",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "d28f4301bbfdb6c343eec0e37dd44a93",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "47c4204b1db87fae2cfcdb103b68ab6b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f7797462d7134670ba45b6c2b24fbe4d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "c771224a86061e8c210500dc03126d60",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "fdfea736accb61334c9566020c818cf6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "be2ec4d73dad85f6d2bb34014ea93955",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "b233f4cad3b6f403e1dd5de8edbd5782",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "5.34 m³",
+        "Area": "48.44 m²"
+      }
+    },
+    {
+      "id": "397904ac5750bcb43847005785768d1f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "1.98 m³",
+        "Area": "18.44 m²"
+      }
+    },
+    {
+      "id": "85f650c4dab2c94004a8bb04977c7ef8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "19.88 m³",
+        "Area": "178.42 m²"
+      }
+    },
+    {
+      "id": "c49767a7fcb4adfaecda247895f81ac7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "1 m³",
+        "Area": "9.72 m²",
+        "Length": "2601 mm"
+      }
+    },
+    {
+      "id": "dd0bb1f1e4afbafd3dacda4967c8e711",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.99 m³",
+        "Area": "9.66 m²",
+        "Length": "2583 mm"
+      }
+    },
+    {
+      "id": "ce18d3291b8b9211b5f37419811ae019",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.99 m³",
+        "Area": "10.22 m²"
+      }
+    },
+    {
+      "id": "8c149964172254b2fbf9c701d37bdf05",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²"
+      }
+    },
+    {
+      "id": "1459655c5a2fecced06b557baa364025",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²"
+      }
+    },
+    {
+      "id": "62e4d0b3acc95ced7f7ac28f97917eac",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²"
+      }
+    },
+    {
+      "id": "569703e14b9d85899ceb025ca365949f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²"
+      }
+    },
+    {
+      "id": "dcdabd038f147fa90dab44e77e86dc1a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²"
+      }
+    },
+    {
+      "id": "fbff3788dad571d0685f87c025d34fd0",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.18 m²"
+      }
+    },
+    {
+      "id": "bec799f6f01a182a9718f6ad68a86958",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.12 m²"
+      }
+    },
+    {
+      "id": "dc6f62244de00a765821a85d5b574bf4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²"
+      }
+    },
+    {
+      "id": "e3f2b0e0063b72682952d1756384452d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "7364eec73dde8c901d066420d9089067",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "8c777b1c65d3a4564ef635d6f650bd4f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "66d34c454f5f85e3faed61ba09c3e360",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "09972264b114478bbe7cf233a9c31f57",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "983 mm"
+      }
+    },
+    {
+      "id": "e662679dadf5dd49f836febcaed6a715",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "5af582ff161b588c94c263f617320b8c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "253421ea5c9b1c4ec8f4ab3220fb054c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²"
+      }
+    },
+    {
+      "id": "446f9c207e71877d9547ab87f9f7abfe",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.39 m³",
+        "Area": "4.24 m²"
+      }
+    },
+    {
+      "id": "95399d873465d0b666cab929eb765aaf",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "f1d3aa5cb4a5a7fceb45c9b3ea63ac26",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "983 mm"
+      }
+    },
+    {
+      "id": "28088d170272242b339f82d833e275a8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "09c03d283b167357a697ac1cb4111c41",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²"
+      }
+    },
+    {
+      "id": "24b0ebc6fb0cce6aed2df4cba4839817",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²"
+      }
+    },
+    {
+      "id": "6f3e57a8400a105e0cfd1d848aecfd36",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²"
+      }
+    },
+    {
+      "id": "23f4e7e441d5bc2288abff124dcadd9c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.12 m²"
+      }
+    },
+    {
+      "id": "16e33ddaa366d2c0d3e54ce023d6ac52",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.27 m³",
+        "Area": "3.18 m²"
+      }
+    },
+    {
+      "id": "3345112d8e5b2fc0222b986f2385b0d1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²"
+      }
+    },
+    {
+      "id": "d54a4e703d1c55e2806b0f46fca053ee",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²"
+      }
+    },
+    {
+      "id": "42cb06791b18da431fb9b671699a2f18",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²"
+      }
+    },
+    {
+      "id": "cfcf0c8a54cfd3c8d6e1a4acb22b6156",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "06b8eefdfa5d4f1d603945aa7ca48148",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.28 m³",
+        "Area": "3.26 m²"
+      }
+    },
+    {
+      "id": "3875b9c792fcd9e3854df180224c7369",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.1 m³",
+        "Area": "1.68 m²"
+      }
+    },
+    {
+      "id": "c29a835da3cdaceed7223d75137f1c44",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "650012ffd58f795b280c6988066182bd",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.97 m³",
+        "Area": "9.43 m²"
+      }
+    },
+    {
+      "id": "fa3bb878f235bc7dcaa618df5cfc7907",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "22d62b414965b735eee4ffa3eddc001f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "62ffc3a5edbb5ce1fbbb6a4c56941fa2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "9096c1a779f95efa41042d8c4b98d41e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "9922cd4dc821d3f81fbb4d17d654b33c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "677791b3ad53848e409861f7c1e8cf6b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "986 mm"
+      }
+    },
+    {
+      "id": "ebca319c49dce4de95220ef0c12d67b8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "2afec70fb31347da85b5480e08f26e89",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "2466fff9b26aecd555d90ae14c6390f8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "985 mm"
+      }
+    },
+    {
+      "id": "a1e3369562b8c23354c5d848dd905ca0",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "f3ff474a79a388e742ca57db64b8f9c1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.16 m²",
+        "Length": "984 mm"
+      }
+    },
+    {
+      "id": "f739c917e37a77e4718cbd5d7a618dc4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.02 m³",
+        "Area": "0.96 m²",
+        "Length": "54.37 mm"
+      }
+    },
+    {
+      "id": "25ca2b5486e16374bc193b329015e41e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.96 m²",
+        "Length": "928.15 mm"
+      }
+    },
+    {
+      "id": "acc664c3bfdc89d5e8f7ee2a8283fe6a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.15 m²",
+        "Length": "982 mm"
+      }
+    },
+    {
+      "id": "5aa128ba57a163228c121b08863c4619",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "981 mm"
+      }
+    },
+    {
+      "id": "3876c54b6bb99ab78321a7daef9cce0e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "979 mm"
+      }
+    },
+    {
+      "id": "d9b35ebe1a31babdb81fcdfccbe15a07",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²",
+        "Length": "977 mm"
+      }
+    },
+    {
+      "id": "7e884ad7628b956bedcf45089c86d654",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²",
+        "Length": "976 mm"
+      }
+    },
+    {
+      "id": "5c3e2df739f75c5b48d4803fc584279e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.12 m²",
+        "Length": "974 mm"
+      }
+    },
+    {
+      "id": "915e4a67240b723640a9701f453ea515",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.11 m²",
+        "Length": "971 mm"
+      }
+    },
+    {
+      "id": "b9308db57eedafeab908baeaa58d3890",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.27 m³",
+        "Area": "3.15 m²",
+        "Length": "693.17 mm"
+      }
+    },
+    {
+      "id": "32e2abbc5bb22bbc52768188f2e39a4f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.1 m²"
+      }
+    },
+    {
+      "id": "68bace15ac4bd29e116fdfe1b90506e1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²",
+        "Length": "964.47 mm"
+      }
+    },
+    {
+      "id": "911e1dcf7d863fae2495ce8e1777e01c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²",
+        "Length": "962.27 mm"
+      }
+    },
+    {
+      "id": "de6e16c302647f75e92ed1eb17e2ebc7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²",
+        "Length": "959.52 mm"
+      }
+    },
+    {
+      "id": "8251d5865b51bf3b6c0e8bffe71c04ee",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.06 m²",
+        "Length": "956.73 mm"
+      }
+    },
+    {
+      "id": "2d26525cf74143b0a16c8c0a873faa60",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²",
+        "Length": "953.94 mm"
+      }
+    },
+    {
+      "id": "3671e1eef9dceee8f18b8331911e475a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.04 m²",
+        "Length": "951.18 mm"
+      }
+    },
+    {
+      "id": "e9f03513a0191632ef23b1cc71e870a6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.03 m²",
+        "Length": "948.5 mm"
+      }
+    },
+    {
+      "id": "48ecb8e2583a41372a35b8de3484c371",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.42 m³",
+        "Area": "4.51 m²"
+      }
+    },
+    {
+      "id": "e4845aac0a7d86fa4ba9e2af57875bd2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²",
+        "Length": "942 mm"
+      }
+    },
+    {
+      "id": "8db44dfa634f3bbcb144a2fd5ed7e635",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "940 mm"
+      }
+    },
+    {
+      "id": "a3e15020003162c0fc3091255c48bac2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "938 mm"
+      }
+    },
+    {
+      "id": "afa3bb273fdd3b21ffa79a7de05d2551",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "937 mm"
+      }
+    },
+    {
+      "id": "5e8052742f91854c112cfa7b99e19f07",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "936 mm"
+      }
+    },
+    {
+      "id": "1c7f92a228173fe951946205b3f03600",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "935 mm"
+      }
+    },
+    {
+      "id": "758605f5a706c9f96e8f66332edd76b9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "935 mm"
+      }
+    },
+    {
+      "id": "116f9430e90a127e1b5ad9359c7706fb",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "935 mm"
+      }
+    },
+    {
+      "id": "cf42d8b3d79e048ae7e75a2c5853f1da",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "936 mm"
+      }
+    },
+    {
+      "id": "8152b2ccb90870393f133eccc689ab0b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "3.99 m²",
+        "Length": "937 mm"
+      }
+    },
+    {
+      "id": "57e3934f6e1499c4f7de6601d2aad5f6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4 m²",
+        "Length": "939 mm"
+      }
+    },
+    {
+      "id": "f1edafa41251f48ae1628fbdf52e7b6c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.01 m²",
+        "Length": "941 mm"
+      }
+    },
+    {
+      "id": "3cf53ad08c4689eee3a5abb175e0c3e4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.32 m³",
+        "Area": "3.62 m²"
+      }
+    },
+    {
+      "id": "53cf18454c3a502af1cc8e24b9bebe63",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.03 m²",
+        "Length": "947.1 mm"
+      }
+    },
+    {
+      "id": "9845cbfac06561d0bb313c05936aecf9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.04 m²",
+        "Length": "949.83 mm"
+      }
+    },
+    {
+      "id": "ce8a80c34ce0bad380a540f7edc4e522",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.05 m²",
+        "Length": "952.55 mm"
+      }
+    },
+    {
+      "id": "24898d106f778a966e6cd4622c95c698",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.06 m²",
+        "Length": "955.34 mm"
+      }
+    },
+    {
+      "id": "dde1e7a43801184d2dd36a60e1326d38",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.07 m²",
+        "Length": "958.13 mm"
+      }
+    },
+    {
+      "id": "16a43cad53ea5678dd8203292db116e2",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.08 m²",
+        "Length": "960.9 mm"
+      }
+    },
+    {
+      "id": "7290ae6f73df3f6e378e10352b6bf406",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.09 m²",
+        "Length": "963.62 mm"
+      }
+    },
+    {
+      "id": "ca532775101935113ee26da5b94d903c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.36 m³",
+        "Area": "4.02 m²"
+      }
+    },
+    {
+      "id": "58be9af836b11ebe0b827630d3b45faf",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.77 m²"
+      }
+    },
+    {
+      "id": "cdbf6aef2d9d608efdf61197b6e875c9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.11 m²"
+      }
+    },
+    {
+      "id": "6f9e04f56456b7c758b878f24e71f045",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.37 m³",
+        "Area": "4.11 m²",
+        "Length": "972 mm"
+      }
+    },
+    {
+      "id": "85babda7ca4005e42b2d3992a01aa16b",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.12 m²",
+        "Length": "975 mm"
+      }
+    },
+    {
+      "id": "e43a6c3f7f00fa9d1cd95ebee3351aea",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²",
+        "Length": "977 mm"
+      }
+    },
+    {
+      "id": "a6954fe7796cf9051183a7db88375de1",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.13 m²",
+        "Length": "978 mm"
+      }
+    },
+    {
+      "id": "a93089421639e17203f496e475f48394",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "980 mm"
+      }
+    },
+    {
+      "id": "534f04fefab808f94f482de544675f5f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.38 m³",
+        "Area": "4.14 m²",
+        "Length": "981 mm"
+      }
+    },
+    {
+      "id": "b4fd6b8347cf616eb1480d94049911af",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.12 m³",
+        "Area": "1.85 m²",
+        "Length": "314.41 mm"
+      }
+    },
+    {
+      "id": "c843275d3619fe387f8454a6678ddf56",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "bf438cd0571b3484f3eb2b5d02df8ac9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "4dcdae2b870bcf2dde344fb5510eb896",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "be2da23328635fe6bb8dce7b143b7df9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "2a186077ac35b8761999473a4df7d7f4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "85f401439f810c0a0c9c8a444b32b8cc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "e3905f4ba905d1bb093b608902f85b6d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "739f85290a35ded09c255aeec6a7eaf6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "532e45c290f83ff234514e12a89af0ad",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "4ea7174d5179758bc67a444a35469d08",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "f9dd0f52b6ea621c1169ea973485db52",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "b7fc2d1088a7643f450cb8b625500f5c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "4e1c30a70e3734edcb2099548593dc8a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "b49bc2ba2f82d8b0c64d3e8a4b93239c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "8ae434c007b75b063a0ef294bdf42056",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "e8e845807a968cd1bfae3e01301c00d9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "e231ea55b92a2ca30f285c46bd716123",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "0815444f517aa73f420a9f7fce2b35d8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "0973e5d1b72086964e55ecc8b1c4a377",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "6a0bf68711faba4ad0a9acbd9294f384",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.73 m²"
+      }
+    },
+    {
+      "id": "a3a38905f790102d61b4a5639ada2153",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "64495ed29a3f1f43877fe93802d28d89",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "07d6821028454d6970fb9a40c448a551",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "641f3d46923c220699f630e595a7666c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "594c743b73ac56dc1ff9b501cca4441d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "768dd3a2ff58533e97244727ab5df828",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "34ce7efd11473decef99ba6930b12a45",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "c68bd886514d781290e563ef3f892e3f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "8a3dc3337251df005f85f2502ba9bda9",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "ada3329b07b86d350f3ad5dcbe080e66",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "3dfb6b0c4c0d1803c8480026585c3363",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "51b0e5c32269f068f4df2ceb3205db29",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "129978aefab039c4a4882ed038e05e5e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "c933c70272c32394db09482a863ce8aa",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "5559729bbd22a318973aac7cd16fad8f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "9e3c24ab4a89339e9a1fb7175a2f5c5e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "df9d77386b31516c209d0cbfb35e3b51",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "180c320826ef826e528795d80d40dc79",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "180d4cb29f5a8e40f7202e2d15bded40",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "16cc70229a5dae5bc9df843499a96f31",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f26c5758f0d55d074bb6d08a06b20339",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f8e70fa27a0ae58f092e9557ab485a7a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "59dcf1aa647e0ae3723ebfca7dcfb3ee",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "f344f7c4fd6ed8b3ddb976f75d1c63c6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "c6be3f71866fd9778d51910917cb0433",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "16ee293d6ca190e8089c7d579fb580aa",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "16a298d267b71a1c48ba2427b35154c7",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "0811efd8d9f9ec5876a14e99f132f1db",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "109f4f148c48f86513f9a11d4518a28a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "d632e5d1fbba463dd1f49981a3c9c194",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "bfebfc18908c8aac4525ed979702aed4",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "14293697698e152d68e8b40fe1994db6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "d829394d3eb32fb9d70d44299d8a3704",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "fa81c16845140671ae8271520ac9aefa",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "b57055c9c2e336246e7fb2f5211c6e76",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "685c911631a88ca30161ba7280932510",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "2472d7a8d85eba314c82eeb66d99eb3d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "62774a6958b85aa5664cd09416e11436",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "181fe18c4f8aa6aaa0134d062584d6ee",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "b416f680461b3f383a6b5d5f6f3d698e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "7207a50b606b95f4cfdbb3b6313e6a75",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "2af1fd76c7e9569098bb7995141a55b5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.74 m²"
+      }
+    },
+    {
+      "id": "8a828218378183ef3e772304040d02d5",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "75bcd87125f7a444fd5272fea6f9564c",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "f3a05f24ed9e8ccd215183f28d08e528",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "bfdcbada05e975c345d88969606d799a",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "7df15ce2eeda7722355c108c956af3b8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "d857442bca3a62f409dc38dee2f13543",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "26672a27bd5e2138a81e3026ded8535e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "232720b5c8285a6c8e491067e883ad64",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "ec249465277f2993d7fbc864a7adf28d",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "9799265b1e14bb9086e06a1ddc5cab9e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "e59fb5e0fe5918b0816971f8ff1a31bc",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.46 mm"
+      }
+    },
+    {
+      "id": "8d43f1af715e5f255f4a409c9f47367f",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²"
+      }
+    },
+    {
+      "id": "52719f9f65e9a42a7ff01db038863cd3",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.5 mm"
+      }
+    },
+    {
+      "id": "b679346dc78efe918d83189295f7d2ad",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.52 mm"
+      }
+    },
+    {
+      "id": "8b180c87e5657a6be072301c716a3e61",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.54 mm"
+      }
+    },
+    {
+      "id": "d9db3e46875c98f9e774d31b90f8c827",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.11 m³",
+        "Area": "1.75 m²",
+        "Length": "284.36 mm"
+      }
+    },
+    {
+      "id": "af2ea69a2875d87bfafff21b9dddeaaa",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "2.28 m³",
+        "Area": "21.16 m²"
+      }
+    },
+    {
+      "id": "c9d315500fd126390bbea64b5e4da391",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "1.51 m³",
+        "Area": "14.34 m²"
+      }
+    },
+    {
+      "id": "dd93cb525ca2d04af267e13f92e4b90e",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "6.32 m³",
+        "Area": "57.29 m²"
+      }
+    },
+    {
+      "id": "13ba2f222f580af2335fae00d1b6f0f8",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "2.99 m³",
+        "Area": "27.52 m²"
+      }
+    },
+    {
+      "id": "15485d3d17f308dae0a19310dbf44831",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "6.81 m³",
+        "Area": "61.61 m²"
+      }
+    },
+    {
+      "id": "a93a0cb63a5d63608709e7b5fe8f9f43",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "1.93 m³",
+        "Area": "18.04 m²"
+      }
+    },
+    {
+      "id": "99118172abcfe992752a255037d73431",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "5.34 m³",
+        "Area": "48.5 m²"
+      }
+    },
+    {
+      "id": "65d1ae32bf3baeed96f7ef792fac9bf6",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "0.98 m³",
+        "Area": "10.11 m²"
+      }
+    },
+    {
+      "id": "56af8de5b44a9b1e602a232d3d409e05",
+      "parameters": {
+        "Type": "IfcBeam",
+        "TypeName": "防撞侧石-样式一:结构_侧石_500*500",
+        "Category": "OST_StructuralFraming",
+        "Storey": "标高 1",
+        "Reference": "结构_侧石_500*500",
+        "Volume": "2.44 m³",
+        "Area": "22.59 m²"
+      }
+    },
+    {
+      "id": "3be230e933823c6ef83f6389201625c4",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:弱电桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "弱电桥架"
+      }
+    },
+    {
+      "id": "7fe5f83f4623d4f202519896f0debf14",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:弱电桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "弱电桥架"
+      }
+    },
+    {
+      "id": "5e59d43e71229896d6dbc541fd00a2d4",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "槽式电缆桥架垂直等径上弯通:标准",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "标准"
+      }
+    },
+    {
+      "id": "f516165854819ed251021a6675322209",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "槽式电缆桥架垂直等径下弯通:标准",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "标准"
+      }
+    },
+    {
+      "id": "93d49486b542576c8912ecf83bc22314",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:消防桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "消防桥架"
+      }
+    },
+    {
+      "id": "2b68945475032dc0b5c80dc637a88d8c",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径上弯通:消防桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "消防桥架"
+      }
+    },
+    {
+      "id": "a6266971e11629720950c1414f77fa9d",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:消防桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "消防桥架"
+      }
+    },
+    {
+      "id": "f76aeb86a6c9db5ed5da6163d3181d1a",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径上弯通:消防桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "消防桥架"
+      }
+    },
+    {
+      "id": "e0e3874f1c1d03b13cdd56b721990bd4",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:高压桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "高压桥架"
+      }
+    },
+    {
+      "id": "8f0cd20286d89ee19a0213cf111db3df",
+      "parameters": {
+        "Type": "IfcCableCarrierFitting",
+        "TypeName": "DQ-槽式电缆桥架垂直等径下弯通:高压桥架",
+        "Category": "IfcCableCarrierFitting",
+        "Storey": "标高 1",
+        "Reference": "高压桥架"
+      }
+    },
+    {
+      "id": "85e39b0a2fa621235dcfc57710758676",
+      "parameters": {
+        "Type": "IfcBuildingStorey",
+        "Category": "OST_Levels"
+      }
+    },
+    {
+      "id": "fe8db9deb0ceab3bf71751af82d1e846",
+      "parameters": {
+        "Type": "IfcBuildingStorey",
+        "TypeName": "标高:上标头",
+        "Category": "OST_Levels",
+        "Reference": "上标头"
+      }
+    },
+    {
+      "id": "8805e6546594c0ae69923b30fbbe8dc9",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下二层_板_600",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "地下二层_板_600",
+        "Volume": "325.65 m³",
+        "Area": "543.67 m²"
+      }
+    },
+    {
+      "id": "5155fa5a0181061808493b3288e5680b",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:夹层板_600",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "夹层板_600",
+        "Volume": "325.65 m³",
+        "Area": "543.67 m²"
+      }
+    },
+    {
+      "id": "fb7e534ee5e8eba6cc55f435a9371977",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:顶板_板_1400",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "顶板_板_1400",
+        "Volume": "759.85 m³",
+        "Area": "542.75 m²",
+        "Width": "1400 mm"
+      }
+    },
+    {
+      "id": "fc80932e4d1ec75040881055967a9b03",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下二层_板_600",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "地下二层_板_600",
+        "Volume": "921.58 m³",
+        "Area": "1539.81 m²"
+      }
+    },
+    {
+      "id": "8dd0c8f829fd6ef82c2aed2b94441465",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:夹层板_600",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "夹层板_600",
+        "Volume": "195.23 m³",
+        "Area": "325.97 m²"
+      }
+    },
+    {
+      "id": "cb68a4632fb4ac36e73770af804923b6",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下五层_板_3325",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "地下五层_板_3325",
+        "Volume": "254.22 m³",
+        "Area": "73.23 m²"
+      }
+    },
+    {
+      "id": "9c3e6834772767d3af72aeceb198e5e0",
+      "parameters": {
+        "Type": "IfcSlab",
+        "TypeName": "楼板:地下五层_板_3325",
+        "Category": "OST_Floors",
+        "Storey": "标高 2",
+        "Reference": "地下五层_板_3325",
+        "Volume": "1804.64 m³",
+        "Area": "543.19 m²"
+      }
+    }
+  ]
+}
