@@ -127,9 +127,23 @@ const localStrategyBuilderFactory =
             typeof req.query.superRegisterToken === 'string'
               ? req.query.superRegisterToken
               : undefined
+          const superRegisterOnly = req.query.superRegisterOnly === 'true'
           const configuredSuperRegisterToken = process.env.SUPER_REGISTER_TOKEN?.trim()
           const hasSuperRegisterToken = !!superRegisterToken?.trim().length
           const hasConfiguredSuperRegisterToken = !!configuredSuperRegisterToken?.length
+
+          if (superRegisterOnly) {
+            if (!hasConfiguredSuperRegisterToken) {
+              throw new UserInputError('注册失败')
+            }
+
+            if (
+              !hasSuperRegisterToken ||
+              superRegisterToken !== configuredSuperRegisterToken
+            ) {
+              throw new UserInputError('注册失败')
+            }
+          }
 
           if (hasSuperRegisterToken) {
             if (!hasConfiguredSuperRegisterToken) {
@@ -148,9 +162,10 @@ const localStrategyBuilderFactory =
           // so we go ahead and register the user
           const userId = await deps.createUser({
             ...user,
-            role: hasSuperRegisterToken
-              ? Roles.Server.Admin
-              : invite
+            role:
+              hasSuperRegisterToken || superRegisterOnly
+                ? Roles.Server.Admin
+                : invite
                 ? getResourceTypeRole(invite.resource, ServerInviteResourceType)
                 : undefined,
             verified: !!invite,

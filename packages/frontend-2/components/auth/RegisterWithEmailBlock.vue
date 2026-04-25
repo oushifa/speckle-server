@@ -39,9 +39,6 @@
       />
     </div>
     <AuthPasswordChecks :password="password" class="mt-2 h-12 sm:h-8" />
-    <div class="mt-8 flex px-2">
-      <AuthRegisterNewsletter v-model:newsletter-consent="newsletterConsent" />
-    </div>
     <FormButton
       submit
       full-width

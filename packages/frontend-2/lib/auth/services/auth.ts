@@ -27,6 +27,8 @@ type RegisterParams = {
   challenge: string
   inviteToken?: string
   newsletter?: boolean
+  superRegisterToken?: string
+  superRegisterOnly?: boolean
   user: {
     email: string
     password: string
@@ -99,7 +101,15 @@ export async function getAccessCode(params: LoginParams) {
 }
 
 export async function registerAndGetAccessCode(params: RegisterParams) {
-  const { apiOrigin, challenge, user, inviteToken, newsletter } = params
+  const {
+    apiOrigin,
+    challenge,
+    user,
+    inviteToken,
+    newsletter,
+    superRegisterToken,
+    superRegisterOnly
+  } = params
   if (!user.email || !user.password || !user.name) {
     throw new InvalidRegisterParametersError(
       "Can't register without a valid email, password and name!"
@@ -114,6 +124,14 @@ export async function registerAndGetAccessCode(params: RegisterParams) {
 
   if (newsletter) {
     registerUrl.searchParams.append('newsletter', 'true')
+  }
+
+  if (superRegisterOnly) {
+    registerUrl.searchParams.append('superRegisterOnly', 'true')
+  }
+
+  if (superRegisterToken) {
+    registerUrl.searchParams.append('superRegisterToken', superRegisterToken)
   }
 
   const res = await fetch(registerUrl, {

@@ -1,20 +1,7 @@
 <template>
   <div class="--mx-auto w-full">
     <div class="space-y-6">
-      <div v-if="!workspaceInvite" class="flex flex-col items-center gap-y-2">
-        <h1 class="text-heading-xl text-center inline-block">
-          Create your Speckle account
-        </h1>
-      </div>
-      <AuthWorkspaceInviteHeader v-else :invite="workspaceInvite" />
       <template v-if="isInviteOnly && !inviteToken">
-        <CommonAlert color="warning">
-          <template #title>This server is invite only</template>
-          <template #description>
-            If you have received an invitation email, please follow the instructions in
-            it.
-          </template>
-        </CommonAlert>
         <div
           v-if="!inviteEmail"
           class="flex gap-1 text-foregound-3 text-body-xs items-center justify-center"

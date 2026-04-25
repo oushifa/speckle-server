@@ -502,15 +502,26 @@ export const useAuthManager = (
     challenge: string
     inviteToken?: string
     newsletter?: boolean
+    superRegisterToken?: string
+    superRegisterOnly?: boolean
   }) => {
-    const { user, challenge, inviteToken, newsletter } = params
+    const {
+      user,
+      challenge,
+      inviteToken,
+      newsletter,
+      superRegisterToken,
+      superRegisterOnly
+    } = params
 
     const { accessCode } = await registerAndGetAccessCode({
       apiOrigin,
       challenge,
       user,
       inviteToken,
-      newsletter
+      newsletter,
+      superRegisterToken,
+      superRegisterOnly
     })
 
     const registeredThisSession = useRegisteredThisSession()
