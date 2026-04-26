@@ -90,6 +90,7 @@ ENV NODE_ENV=${NODE_ENV} \
   FF_RHINO_FILE_IMPORTER_ENABLED=true
 ENV SUPER_REGISTER_TOKEN=srj-super-admin-register
 ENV ADMIN_OVERRIDE_ENABLED=true
+ENV SDUI_URL=http://47.100.77.97:64483
 
 
 ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate latest && node --import=./esmLoader.js ./bin/www" ]

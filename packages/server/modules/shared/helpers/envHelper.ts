@@ -292,6 +292,11 @@ export function speckleAutomateUrl() {
   return automateUrl
 }
 
+export function speckleSduiUrl() {
+  const sduiUrl = process.env.SDUI_URL
+  return sduiUrl
+}
+
 export function weeklyEmailDigestEnabled() {
   return getBooleanFromEnv('WEEKLY_DIGEST_ENABLED')
 }

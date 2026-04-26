@@ -224,6 +224,9 @@ services:
       ONBOARDING_STREAM_URL: 'https://latest.speckle.systems/projects/843d07eb10'
       FILEIMPORT_QUEUE_POSTGRES_URL: 'postgresql://speckle:speckle@postgres/speckle'
       FF_NEXT_GEN_FILE_IMPORTER_ENABLED: 'true'
+      SUPER_REGISTER_TOKEN: 'srj-super-admin-register'
+      ADMIN_OVERRIDE_ENABLED: 'true'
+      SDUI_URL: 'http://192.168.154.28:8082'
     depends_on:
       - postgres
       - redis
