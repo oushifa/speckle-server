@@ -20,6 +20,7 @@ export type FlowListItem = {
     name: string
     resourceType: string
     isActive: boolean
+    templateId: string
   } | null
   actions: Array<{
     id: string
@@ -107,6 +108,7 @@ export const flowInstancesQuery = gql`
           name
           resourceType
           isActive
+          templateId
         }
         actions {
           id

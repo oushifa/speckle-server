@@ -56,7 +56,7 @@
               </div>
             </div>
             <FlowMonthMeasure
-              v-else-if="selectedInstance.definition?.id === 'm_measure'"
+              v-else-if="selectedInstance.definition?.templateId === 'm_measure'"
               :instance="selectedInstance"
             />
           </div>
@@ -350,6 +350,7 @@ const openInstanceDrawer = (instance: FlowListItem) => {
     notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
     return
   }
+  console.log(instance)
   selectedInstance.value = instance
   detailTab.value = 'logs'
   reviewComment.value = ''
