@@ -1,11 +1,13 @@
 type BimElements {
   modelId: ID!
   bimIds: [String!]!
+  applicationIds: [String!]!
 }
 
 input BimElementsInput {
   modelId: ID!
   bimIds: [String!]!
+  applicationIds: [String!]!
 }
 
 type QualityAcceptanceForm {

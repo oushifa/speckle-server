@@ -117,10 +117,13 @@ const normalizeBimElements = (
     const bimIds = Array.isArray(bimElements.bimIds)
       ? bimElements.bimIds.filter((id): id is string => typeof id === 'string')
       : []
-    return { modelId, bimIds }
+    const applicationIds = Array.isArray(bimElements.applicationIds)
+      ? bimElements.applicationIds.filter((id): id is string => typeof id === 'string')
+      : []
+    return { modelId, bimIds, applicationIds }
   }
   if (Array.isArray(legacyBimElement)) {
-    return { modelId: '', bimIds: legacyBimElement }
+    return { modelId: '', bimIds: legacyBimElement, applicationIds: [] }
   }
   return null
 }
@@ -218,7 +221,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -245,7 +248,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -307,7 +310,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -348,7 +351,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })

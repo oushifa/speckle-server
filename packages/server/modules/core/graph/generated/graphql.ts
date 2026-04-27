@@ -1004,11 +1004,13 @@ export const BillingInterval = {
 export type BillingInterval = typeof BillingInterval[keyof typeof BillingInterval];
 export type BimElements = {
   __typename?: 'BimElements';
+  applicationIds: Array<Scalars['String']['output']>;
   bimIds: Array<Scalars['String']['output']>;
   modelId: Scalars['ID']['output'];
 };
 
 export type BimElementsInput = {
+  applicationIds: Array<Scalars['String']['input']>;
   bimIds: Array<Scalars['String']['input']>;
   modelId: Scalars['ID']['input'];
 };
@@ -8962,6 +8964,7 @@ export interface BigIntScalarConfig extends GraphQLScalarTypeConfig<ResolversTyp
 }
 
 export type BimElementsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BimElements'] = ResolversParentTypes['BimElements']> = {
+  applicationIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
   bimIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
   modelId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

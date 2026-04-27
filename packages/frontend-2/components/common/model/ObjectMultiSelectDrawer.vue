@@ -72,9 +72,10 @@
       title="选择构件"
       confirm-text="确定"
       max-width="xl"
+      fullscreen="all"
       @confirm="submitSelection"
     >
-      <div class="space-y-3">
+      <div class="p-3 h-full flex flex-col">
         <div class="text-body-xs text-foreground-2 truncate">
           项目：{{ projectDisplayName }} ｜ 模型：{{ modelDisplayName }}
         </div>
@@ -89,7 +90,7 @@
             清空选择
           </button>
         </div>
-        <div class="h-[65vh] overflow-hidden">
+        <div class="flex-grow overflow-hidden">
           <div
             v-if="!activeProjectId"
             class="h-full border border-outline-3 rounded flex items-center justify-center text-body-sm text-foreground-2"
@@ -104,14 +105,24 @@
           </div>
           <div v-else class="h-full relative">
             <ViewerStateSetup :init-params="viewerInitParams" @setup="onViewerSetup">
-              <div class="absolute left-0 top-0 h-full w-60 z-50">
-                <ViewerModelsPanel />
-              </div>
               <div class="size-full">
                 <ViewerCoreSetup
                   viewer-host-classes="h-full"
                   :hide-loading-bar="true"
                 />
+                <ClientOnly>
+                  <ViewerControlsLeft
+                    ref="leftControls"
+                    @force-close-panels="() => closeAllPanels('left')"
+                  />
+                  <ViewerControlsBottom
+                    ref="bottomControls"
+                    @force-close-panels="() => closeAllPanels('bottom')"
+                  />
+                  <div class="right-0 top-0 absolute">
+                    <ViewerSelectionSidebar ref="selectionSidebar" class="z-20" />
+                  </div>
+                </ClientOnly>
               </div>
             </ViewerStateSetup>
           </div>
@@ -125,10 +136,12 @@
 import { gql } from '@apollo/client/core'
 import { useQuery } from '@vue/apollo-composable'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
+import { useBreakpoints } from '@vueuse/core'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import { getHeaderAndSubheaderForSpeckleObject } from '~/lib/object-sidebar/helpers'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import { ViewerRenderPageType } from '~/lib/viewer/helpers/state'
+import { TailwindBreakpoints } from '~~/lib/common/helpers/tailwind'
 import type {
   InjectableViewerState,
   UseSetupViewerParams
@@ -202,13 +215,33 @@ const props = withDefaults(
 const projectIdModel = defineModel<string | null>('project_id', { default: null })
 const modelIdModel = defineModel<string | null>('model_id', { default: null })
 const bimIdsModel = defineModel<string[]>('bim_ids', { default: () => [] })
+const applicationIdsModel = defineModel<string[]>('application_ids', {
+  default: () => []
+})
 const open = defineModel<boolean>('open', { default: false })
+
+const breakpoints = useBreakpoints(TailwindBreakpoints)
+const isMobile = breakpoints.smaller('sm')
+const leftControls = ref()
+const bottomControls = ref()
+const selectionSidebar = ref()
 
 const draftSelectedIds = ref<Set<string>>(new Set())
 const viewerState = ref<InjectableViewerState | null>(null)
+const applicationIdByBimId = ref<Record<string, string>>({})
 const selectedObjectLabelMap = ref<Record<string, { title: string; subTitle: string }>>(
   {}
 )
+
+const closeAllPanels = (except?: 'left' | 'bottom') => {
+  if (except !== 'left' && leftControls.value?.forceClosePanels) {
+    leftControls.value.forceClosePanels()
+  }
+  if (except !== 'bottom' && bottomControls.value?.forceClosePanels) {
+    bottomControls.value.forceClosePanels()
+  }
+  selectionSidebar.value?.forceClose?.()
+}
 
 const { result: projectModelsResult, loading: loadingProjects } =
   useQuery<ProjectModelsQueryResult>(projectModelsQuery)
@@ -342,6 +375,11 @@ function getMaybeRefValue<T>(
   return input as T | undefined
 }
 
+const getApplicationIdString = (obj: SpeckleObject): string | null => {
+  const value = (obj as unknown as { applicationId?: unknown })?.applicationId
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 const selectedIdsFromViewer = computed(() => {
   const selectedSet = getMaybeRefValue(
     viewerState.value?.ui.filters.selectedObjectIds as unknown as Set<string>
@@ -379,6 +417,10 @@ const applyDraftSelectionToViewer = () => {
           subTitle: subheader || ''
         }
       }
+      const applicationId = getApplicationIdString(node.model.raw)
+      if (applicationId) {
+        applicationIdByBimId.value[node.model.raw.id] = applicationId
+      }
     })
   })
 
@@ -407,6 +449,13 @@ const openDrawer = () => {
 
 const submitSelection = () => {
   bimIdsModel.value = Array.from(draftSelectedIds.value)
+  applicationIdsModel.value = Array.from(
+    new Set(
+      bimIdsModel.value
+        .map((id) => applicationIdByBimId.value[id])
+        .filter((id): id is string => !!id)
+    )
+  )
   open.value = false
   viewerState.value = null
 }
@@ -424,6 +473,10 @@ watch(selectedObjectsFromViewer, (objects) => {
         title: header || '',
         subTitle: subheader || ''
       }
+    }
+    const applicationId = getApplicationIdString(obj)
+    if (applicationId) {
+      applicationIdByBimId.value[obj.id] = applicationId
     }
   })
 })
@@ -443,6 +496,8 @@ watch(
     if (newProjectId === oldProjectId) return
     modelIdModel.value = null
     bimIdsModel.value = []
+    applicationIdsModel.value = []
+    applicationIdByBimId.value = {}
     draftSelectedIds.value = new Set()
     open.value = false
     viewerState.value = null
@@ -454,6 +509,8 @@ watch(
   (newModelId, oldModelId) => {
     if (newModelId === oldModelId) return
     bimIdsModel.value = []
+    applicationIdsModel.value = []
+    applicationIdByBimId.value = {}
     draftSelectedIds.value = new Set()
     if (newModelId) openDrawer()
     else {

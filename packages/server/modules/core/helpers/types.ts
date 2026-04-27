@@ -164,6 +164,7 @@ export type QualityAcceptanceFormRecord = {
   bimElements?: Nullable<{
     modelId?: Nullable<string>
     bimIds?: Nullable<string[]>
+    applicationIds?: Nullable<string[]>
   }>
   timeZone?: Nullable<string>
   approveStatus?: Nullable<string>

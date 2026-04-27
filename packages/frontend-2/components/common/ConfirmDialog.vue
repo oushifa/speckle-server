@@ -3,6 +3,7 @@
     v-model:open="open"
     :max-width="maxWidth || 'xs'"
     :buttons="dialogButtons"
+    :fullscreen="fullscreen"
   >
     <template #header>{{ title ?? 'Discard changes?' }}</template>
     <slot />
@@ -21,6 +22,7 @@ const props = defineProps<{
   confirmDisabled?: boolean
   closeOnConfirm?: boolean
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  fullscreen?: 'mobile' | 'desktop' | 'all' | 'none'
 }>()
 
 const emit = defineEmits<{

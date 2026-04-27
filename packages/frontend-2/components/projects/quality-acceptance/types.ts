@@ -8,6 +8,7 @@ export type QualityAcceptanceAttachment = {
 export type BimElements = {
   modelId: string
   bimIds: string[]
+  applicationIds: string[]
 }
 
 export type QualityAcceptanceForm = {

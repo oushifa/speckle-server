@@ -1,4 +1,5 @@
 import { graphql } from '~~/lib/common/generated/gql'
+import { gql } from '@apollo/client/core'
 
 export const projectAccessCheckQuery = graphql(`
   query ProjectAccessCheck($id: String!) {
@@ -352,7 +353,7 @@ export const projectBoqSelectorOptionsQuery = graphql(`
   }
 `)
 
-export const projectQualityAcceptanceFormsQuery = graphql(`
+export const projectQualityAcceptanceFormsQuery = gql`
   query ProjectQualityAcceptanceForms(
     $projectId: String!
     $search: String
@@ -398,6 +399,7 @@ export const projectQualityAcceptanceFormsQuery = graphql(`
           bimElements {
             modelId
             bimIds
+            applicationIds
           }
           BIMelement
           timeZone
@@ -408,7 +410,7 @@ export const projectQualityAcceptanceFormsQuery = graphql(`
       }
     }
   }
-`)
+`
 
 export const projectMonthlyMeasurementsQuery = graphql(`
   query ProjectMonthlyMeasurements(

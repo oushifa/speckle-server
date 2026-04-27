@@ -188,7 +188,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -284,7 +284,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -396,7 +396,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -428,7 +428,7 @@ const resolvers = {
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })

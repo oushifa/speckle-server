@@ -124,7 +124,7 @@
           </template>
           <template #associationStatus="{ item }">
             <button
-              v-if="item.associationStatus === '已关联' && !!item.bimElements?.modelId"
+              v-if="canViewAssociation(item)"
               type="button"
               class="cursor-pointer"
               @click="onAssociationStatusClick(item)"
@@ -325,6 +325,7 @@
           :project-id="projectId"
           :model-ids="selectedAssociationModelIds"
           :filter-bims="selectedAssociationBimIds"
+          :filter-application-ids="selectedAssociationApplicationIds"
         />
         <div v-else class="h-full flex items-center justify-center text-foreground-2">
           未找到关联模型
@@ -484,7 +485,11 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
     .map((item: QualityAcceptanceFormNode) => {
       const bimElementsRaw = (
         item as unknown as {
-          bimElements?: { modelId?: string | null; bimIds?: string[] | null } | null
+          bimElements?: {
+            modelId?: string | null
+            bimIds?: string[] | null
+            applicationIds?: string[] | null
+          } | null
         }
       ).bimElements
       return {
@@ -517,12 +522,14 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
         bimElements: bimElementsRaw
           ? {
               modelId: bimElementsRaw.modelId || '',
-              bimIds: bimElementsRaw.bimIds || []
+              bimIds: bimElementsRaw.bimIds || [],
+              applicationIds: bimElementsRaw.applicationIds || []
             }
           : item.BIMelement
           ? {
               modelId: '',
-              bimIds: item.BIMelement
+              bimIds: item.BIMelement,
+              applicationIds: []
             }
           : null,
         timeZone: item.timeZone || '',
@@ -547,10 +554,22 @@ const inspectorNameMap = computed(() => {
   return map
 })
 
+const hasValidBimAssociation = (
+  bimElements: QualityAcceptanceForm['bimElements']
+): boolean => {
+  const modelId = (bimElements?.modelId || '').trim()
+  const bimIds = bimElements?.bimIds || []
+  const applicationIds = bimElements?.applicationIds || []
+  return !!modelId && (bimIds.length > 0 || applicationIds.length > 0)
+}
+
+const canViewAssociation = (item: AcceptanceRow): boolean =>
+  hasValidBimAssociation(item.bimElements)
+
 const tableItems = computed<AcceptanceRow[]>(() =>
   acceptanceForms.value.map((item) => ({
     ...item,
-    associationStatus: item.bimElements?.bimIds.length ? '已关联' : '未关联',
+    associationStatus: hasValidBimAssociation(item.bimElements) ? '已关联' : '未关联',
     inspectorName: inspectorNameMap.value.get(item.id) || '-'
   }))
 )
@@ -736,17 +755,29 @@ const canDeleteItem = (item: AcceptanceRow) => {
 }
 
 const selectedAssociationModelIds = computed(() => {
-  const modelId = selectedAssociationItem.value?.bimElements?.modelId || ''
+  const modelId = (selectedAssociationItem.value?.bimElements?.modelId || '').trim()
   return modelId ? [modelId] : []
 })
 
-const selectedAssociationBimIds = computed(
-  () => selectedAssociationItem.value?.bimElements?.bimIds || []
-)
+const selectedAssociationBimIds = computed(() => [
+  ...(selectedAssociationItem.value?.bimElements?.bimIds || [])
+])
+const selectedAssociationApplicationIds = computed(() => [
+  ...(selectedAssociationItem.value?.bimElements?.applicationIds || [])
+])
 
 const onAssociationStatusClick = (item: AcceptanceRow) => {
-  if (item.associationStatus !== '已关联' || !item.bimElements?.modelId) return
-  selectedAssociationItem.value = item
+  if (!canViewAssociation(item)) return
+  selectedAssociationItem.value = {
+    ...item,
+    bimElements: item.bimElements
+      ? {
+          modelId: item.bimElements.modelId,
+          bimIds: [...item.bimElements.bimIds],
+          applicationIds: [...item.bimElements.applicationIds]
+        }
+      : null
+  }
   associatedModelDrawerOpen.value = true
 }
 
@@ -895,6 +926,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
     const code = readValue(codeIndex)
     const inspectionLotNumber = readValue(inspectionLotNumberIndex)
     const acceptancePart = readValue(acceptancePartIndex)
+    const acceptanceContent = readValue(acceptanceContentIndex)
     const actualFinishDateRaw = readRawValue(actualFinishDateIndex)
     const workVolumeRaw = readValue(workVolumeIndex)
     const unit = readValue(unitIndex)

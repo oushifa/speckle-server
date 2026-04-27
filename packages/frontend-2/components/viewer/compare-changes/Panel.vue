@@ -10,16 +10,16 @@
           size="sm"
           @click="handleBack"
         >
-          Go back
+          返回
         </FormButton>
-        Version changes
+        版本变更
       </div>
     </template>
     <div class="flex flex-col text-sm p-2">
       <div
         class="text-body-2xs bg-foundation-2 text-foreground p-1 rounded mb-2 text-center"
       >
-        This is an experimental feature.
+        该功能为测试阶段.
       </div>
       <div class="flex space-x-2">
         <div class="grow w-1/2">
@@ -53,7 +53,7 @@
       <div
         class="flex items-center justify-between w-full px-1 border-b border-outline-3 py-3 mb-4"
       >
-        <span class="text-body-2xs text-left">Color objects by status</span>
+        <span class="text-body-2xs text-left">用颜色显示变更对象</span>
         <FormSwitch
           :model-value="isColoredModeEnabled"
           :show-label="false"

@@ -24,6 +24,9 @@ export interface NodeData {
 export class WorldTree {
   private renderTreeInstances: { [id: string]: RenderTree } = {}
   private nodeMaps: { [id: string]: NodeMap } = {}
+  private applicationNodeMaps: {
+    [subtreeId: number]: { [applicationId: string]: { [id: string]: TreeNode } }
+  } = {}
   private readonly supressWarnings = true
   public static readonly ROOT_ID = 'ROOT'
   private subtreeId: number = 0
@@ -97,6 +100,8 @@ export class WorldTree {
     const subtreeId = this.nextSubtreeId
     node.model.subtreeId = subtreeId
     this.nodeMaps[subtreeId] = new NodeMap(node)
+    this.applicationNodeMaps[subtreeId] = {}
+    this.registerApplicationNode(node)
     this._root.addChild(node)
   }
 
@@ -106,11 +111,15 @@ export class WorldTree {
       return
     }
     node.model.subtreeId = parent.model.subtreeId
-    if (this.nodeMaps[parent.model.subtreeId]?.addNode(node)) parent.addChild(node)
+    if (this.nodeMaps[parent.model.subtreeId]?.addNode(node)) {
+      this.registerApplicationNode(node)
+      parent.addChild(node)
+    }
   }
 
   public removeNode(node: TreeNode, removeChildren: boolean): void {
     const children = node.children
+    this.unregisterApplicationNode(node)
     this.nodeMaps[node.model.subtreeId]?.removeNode(node)
     node.drop()
     if (!removeChildren || !children) return
@@ -151,6 +160,27 @@ export class WorldTree {
       }
     }
     return idNode
+  }
+
+  public findApplicationId(
+    applicationId: string,
+    subtreeId?: number
+  ): TreeNode[] | null {
+    if (!applicationId) return null
+    const key = String(applicationId)
+
+    if (subtreeId) {
+      const map = this.applicationNodeMaps[subtreeId]?.[key]
+      return map ? Object.values(map) : null
+    }
+
+    const nodes: TreeNode[] = []
+    for (const k in this.applicationNodeMaps) {
+      const map = this.applicationNodeMaps[k]?.[key]
+      if (map) nodes.push(...Object.values(map))
+    }
+
+    return nodes.length ? nodes : null
   }
 
   /** TODO: Would rather not have this */
@@ -218,8 +248,10 @@ export class WorldTree {
       delete this.renderTreeInstances[subtreeId]
       const subtreeNode = this.findId(subtreeId)
       if (subtreeNode) {
-        this.nodeMaps[subtreeNode[0].model.subtreeId].purge()
-        delete this.nodeMaps[subtreeNode[0].model.subtreeId]
+        const currentSubtreeId = subtreeNode[0].model.subtreeId
+        this.nodeMaps[currentSubtreeId].purge()
+        delete this.nodeMaps[currentSubtreeId]
+        delete this.applicationNodeMaps[currentSubtreeId]
         // Potentially true?
         this.removeNode(subtreeNode[0], false)
       }
@@ -233,6 +265,9 @@ export class WorldTree {
       this.nodeMaps[key].purge
       delete this.nodeMaps[key]
     })
+    Object.keys(this.applicationNodeMaps).forEach((key) => {
+      delete this.applicationNodeMaps[parseInt(key, 10)]
+    })
 
     this._root.drop()
     this._root.children.length = 0
@@ -243,5 +278,33 @@ export class WorldTree {
       atomic: true,
       children: []
     })
+  }
+
+  private registerApplicationNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    const applicationId = node.model.raw?.applicationId
+    if (!subtreeId || !applicationId) return
+
+    const key = String(applicationId)
+    if (!this.applicationNodeMaps[subtreeId]) this.applicationNodeMaps[subtreeId] = {}
+    if (!this.applicationNodeMaps[subtreeId][key])
+      this.applicationNodeMaps[subtreeId][key] = {}
+
+    this.applicationNodeMaps[subtreeId][key][node.model.id] = node
+  }
+
+  private unregisterApplicationNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    const applicationId = node.model.raw?.applicationId
+    if (!subtreeId || !applicationId) return
+
+    const key = String(applicationId)
+    const map = this.applicationNodeMaps[subtreeId]?.[key]
+    if (!map) return
+
+    delete map[node.model.id]
+    if (Object.keys(map).length === 0) {
+      delete this.applicationNodeMaps[subtreeId][key]
+    }
   }
 }

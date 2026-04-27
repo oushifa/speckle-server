@@ -79,7 +79,7 @@ const resolvers: Resolvers = {
   BoqMutations: {
     createItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -97,7 +97,7 @@ const resolvers: Resolvers = {
     },
     updateItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -114,7 +114,7 @@ const resolvers: Resolvers = {
     },
     moveItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -133,7 +133,7 @@ const resolvers: Resolvers = {
     },
     deleteItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })
@@ -152,7 +152,7 @@ const resolvers: Resolvers = {
     },
     importItems: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
-        const canUpdate = await ctx.authPolicies.project.canUpdate({
+        const canUpdate = await ctx.authPolicies.project.canRead({
           projectId: args.input.projectId,
           userId: ctx.userId
         })

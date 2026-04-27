@@ -31,12 +31,14 @@ const props = withDefaults(
     modelIds?: string[]
     viewerState?: InjectableViewerState | null
     filterBims?: string[]
+    filterApplicationIds?: string[]
   }>(),
   {
     projectId: '',
     modelIds: () => [],
     viewerState: null,
-    filterBims: () => []
+    filterBims: () => [],
+    filterApplicationIds: () => []
   }
 )
 
@@ -88,7 +90,10 @@ const normalizedModelIds = computed(() => {
 })
 
 const normalizedFilterBims = computed(() => toStringArray(props.filterBims))
-const isApplyingFilterBims = ref(false)
+const normalizedFilterApplicationIds = computed(() =>
+  toStringArray(props.filterApplicationIds)
+)
+const isApplyingFilters = ref(false)
 
 const viewerResourceIdString = writableAsyncComputed({
   get: () => {
@@ -126,37 +131,59 @@ function getMaybeRefValue<T>(
   return input as T | undefined
 }
 
-const applyFilterBims = () => {
+type ViewerTreeNodeLike = {
+  model?: { raw?: SpeckleObject }
+}
+
+type ViewerTreeLike = {
+  findId: (id: string) => ViewerTreeNodeLike[] | null
+  findApplicationId?: (applicationId: string) => ViewerTreeNodeLike[] | null
+}
+
+const applyFilters = () => {
   const state = setupViewerState.value
   if (!state) return
 
-  const filterIds = normalizedFilterBims.value
-  isApplyingFilterBims.value = true
+  const bimIds = normalizedFilterBims.value
+  const applicationIds = normalizedFilterApplicationIds.value
+  isApplyingFilters.value = true
   try {
+    const objects: SpeckleObject[] = []
+    const objectIds = new Set<string>()
+    const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
+    if (tree) {
+      const typedTree = tree as ViewerTreeLike
+      bimIds.forEach((id) => {
+        const nodes = typedTree.findId(id) || []
+        nodes?.forEach((node) => {
+          if (!node.model?.raw?.id) return
+          if (objectIds.has(node.model.raw.id)) return
+          objectIds.add(node.model.raw.id)
+          objects.push(node.model.raw)
+        })
+      })
+
+      if (objects.length === 0) {
+        applicationIds.forEach((applicationId) => {
+          const nodes = typedTree.findApplicationId?.(applicationId) || []
+          nodes?.forEach((node) => {
+            if (!node.model?.raw?.id) return
+            if (objectIds.has(node.model.raw.id)) return
+            objectIds.add(node.model.raw.id)
+            objects.push(node.model.raw)
+          })
+        })
+      }
+    }
+
+    const isolatedIds = objects.map((obj) => obj.id).filter((id): id is string => !!id)
     const isolatedRef = state.ui.filters.isolatedObjectIds as unknown as {
       value?: string[]
     }
     if (isolatedRef && 'value' in isolatedRef) {
-      isolatedRef.value = filterIds
+      isolatedRef.value = isolatedIds
     } else {
-      ;(state.ui.filters.isolatedObjectIds as unknown as string[]) = filterIds
-    }
-
-    if (!filterIds.length) return
-    const objects: SpeckleObject[] = []
-    const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
-    if (tree) {
-      filterIds.forEach((id) => {
-        const nodes = (tree as { findId: (id: string) => unknown }).findId(
-          id
-        ) as Array<{
-          model?: { raw?: SpeckleObject }
-        }>
-        nodes?.forEach((node) => {
-          if (!node.model?.raw?.id) return
-          objects.push(node.model.raw)
-        })
-      })
+      ;(state.ui.filters.isolatedObjectIds as unknown as string[]) = isolatedIds
     }
 
     const selectedObjects = state.ui.filters.selectedObjects as unknown
@@ -167,36 +194,18 @@ const applyFilterBims = () => {
       ;(state.ui.filters.selectedObjects as unknown as SpeckleObject[]) = objects
     }
   } finally {
-    isApplyingFilterBims.value = false
+    isApplyingFilters.value = false
   }
 }
 
-const normalizeIds = (ids: string[]) =>
-  Array.from(new Set(ids.map((id) => id.trim()).filter((id) => !!id))).sort()
-
-const areSameIds = (a: string[], b: string[]) => {
-  const aa = normalizeIds(a)
-  const bb = normalizeIds(b)
-  if (aa.length !== bb.length) return false
-  return aa.every((id, i) => id === bb[i])
-}
-
 watch(
-  () => setupViewerState.value?.ui.filters.isolatedObjectIds.value || [],
-  (currentIds) => {
-    if (isApplyingFilterBims.value) return
-    const filterIds = normalizedFilterBims.value
-    if (!filterIds.length) return
-    if (areSameIds(currentIds, filterIds)) return
-    nextTick(() => applyFilterBims())
-  },
-  { deep: true }
-)
-
-watch(
-  [() => setupViewerState.value, () => normalizedFilterBims.value],
+  [
+    () => setupViewerState.value,
+    () => normalizedFilterBims.value,
+    () => normalizedFilterApplicationIds.value
+  ],
   () => {
-    applyFilterBims()
+    applyFilters()
   },
   { immediate: true, deep: true }
 )
@@ -205,7 +214,7 @@ watch(
   () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
   (loaded) => {
     if (!loaded) return
-    nextTick(() => applyFilterBims())
+    nextTick(() => applyFilters())
   },
   { immediate: true }
 )

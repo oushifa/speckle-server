@@ -11,7 +11,7 @@
   >
     <div class="shrink-0 h-10 w-1 rounded-full" :class="color" />
     <div class="flex flex-col">
-      <div class="text-body-xs font-medium capitalize">{{ name }}</div>
+      <div class="text-body-xs font-medium capitalize">{{ chnLabel[props.name] }}</div>
       <div class="text-body-xs font-medium text-foreground-2 -mt-0.5">
         {{ description }}
       </div>
@@ -31,6 +31,13 @@ const {
   setSelectionFromObjectIds,
   objects: selectedObjects
 } = useSelectionUtilities()
+
+const chnLabel = {
+  unchanged: '未变更',
+  added: '新增',
+  removed: '删除',
+  modified: '变更'
+}
 
 const props = defineProps<{
   name: 'unchanged' | 'added' | 'removed' | 'modified'
@@ -65,13 +72,13 @@ const objectCount = computed(() => {
 const description = computed(() => {
   switch (props.name) {
     case 'added':
-      return 'in new version'
+      return '来自新版本'
     case 'removed':
-      return 'from old version'
+      return '来自旧版本'
     case 'modified':
-      return 'across both versions'
+      return '跨版本'
     default:
-      return 'across both versions'
+      return '跨版本'
   }
 })
 const mp = useMixpanel()
