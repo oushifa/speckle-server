@@ -216,18 +216,17 @@ const onViewerLoadComplete = () => {
   }, 300)
 }
 
-// watch(
-//   [
-//     () => setupViewerState.value,
-//     () => normalizedFilterBims.value,
-//     () => normalizedFilterApplicationIds.value
-//   ],
-//   () => {
-//     console.log('applyFilters')
-//     applyFilters()
-//   },
-//   { immediate: true, deep: true }
-// )
+watch(
+  [
+    () => setupViewerState.value,
+    () => normalizedFilterBims.value,
+    () => normalizedFilterApplicationIds.value
+  ],
+  () => {
+    applyFilters()
+  },
+  { immediate: true, deep: true }
+)
 
 // watch(
 //   () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
