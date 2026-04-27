@@ -767,6 +767,7 @@ const selectedAssociationApplicationIds = computed(() => [
 ])
 
 const onAssociationStatusClick = (item: AcceptanceRow) => {
+  console.log(item)
   if (!canViewAssociation(item)) return
   selectedAssociationItem.value = {
     ...item,

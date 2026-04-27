@@ -1,5 +1,9 @@
 <template>
-  <ViewerStateSetup :init-params="viewerInitParams" @setup="onViewerSetup">
+  <ViewerStateSetup
+    :init-params="viewerInitParams"
+    :cancel-hash-state="true"
+    @setup="onViewerSetup"
+  >
     <slot />
     <div class="absolute inset-0">
       <ViewerCoreSetup viewer-host-classes="h-full" :hide-loading-bar="true" />
@@ -16,6 +20,7 @@
 </template>
 <script setup lang="ts">
 import { resourceBuilder } from '@speckle/shared/viewer/route'
+import { ViewerEvent } from '@speckle/viewer'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import type {
@@ -149,34 +154,40 @@ const applyFilters = () => {
   isApplyingFilters.value = true
   try {
     const objects: SpeckleObject[] = []
-    const objectIds = new Set<string>()
+    const objectIds: string[] = bimIds
     const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
     if (tree) {
       const typedTree = tree as ViewerTreeLike
-      bimIds.forEach((id) => {
-        const nodes = typedTree.findId(id) || []
+      bimIds.forEach((id, index) => {
+        let nodes = typedTree.findId(id) || []
         nodes?.forEach((node) => {
           if (!node.model?.raw?.id) return
-          if (objectIds.has(node.model.raw.id)) return
-          objectIds.add(node.model.raw.id)
           objects.push(node.model.raw)
         })
-      })
-
-      if (objects.length === 0) {
-        applicationIds.forEach((applicationId) => {
-          const nodes = typedTree.findApplicationId?.(applicationId) || []
+        if (nodes.length === 0) {
+          nodes = typedTree.findApplicationId?.(applicationIds[index]) || []
           nodes?.forEach((node) => {
             if (!node.model?.raw?.id) return
-            if (objectIds.has(node.model.raw.id)) return
-            objectIds.add(node.model.raw.id)
+            // objectIds.splice(index, 1, node.model?.raw?.id)
             objects.push(node.model.raw)
           })
-        })
-      }
+        }
+      })
+
+      // if (objects.length === 0) {
+      //   applicationIds.forEach((applicationId) => {
+      //     const nodes = typedTree.findApplicationId?.(applicationId) || []
+      //     nodes?.forEach((node) => {
+      //       if (!node.model?.raw?.id) return
+      //       if (objectIds.has(node.model.raw.id)) return
+      //       objectIds.add(node.model.raw.id)
+      //       objects.push(node.model.raw)
+      //     })
+      //   })
+      // }
     }
 
-    const isolatedIds = objects.map((obj) => obj.id).filter((id): id is string => !!id)
+    const isolatedIds = objectIds.filter((id): id is string => !!id)
     const isolatedRef = state.ui.filters.isolatedObjectIds as unknown as {
       value?: string[]
     }
@@ -198,26 +209,57 @@ const applyFilters = () => {
   }
 }
 
-watch(
-  [
-    () => setupViewerState.value,
-    () => normalizedFilterBims.value,
-    () => normalizedFilterApplicationIds.value
-  ],
-  () => {
+const onViewerLoadComplete = () => {
+  // nextTick(() => applyFilters())
+  setTimeout(() => {
     applyFilters()
-  },
-  { immediate: true, deep: true }
-)
+  }, 300)
+}
+
+// watch(
+//   [
+//     () => setupViewerState.value,
+//     () => normalizedFilterBims.value,
+//     () => normalizedFilterApplicationIds.value
+//   ],
+//   () => {
+//     console.log('applyFilters')
+//     applyFilters()
+//   },
+//   { immediate: true, deep: true }
+// )
+
+// watch(
+//   () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
+//   (loaded) => {
+//     if (!loaded) return
+//     console.log('viewer inited')
+//     nextTick(() => applyFilters())
+//   },
+//   { immediate: true }
+// )
 
 watch(
-  () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
-  (loaded) => {
-    if (!loaded) return
-    nextTick(() => applyFilters())
+  () => setupViewerState.value,
+  (newState, oldState) => {
+    if (oldState) {
+      oldState.viewer.instance.removeListener(
+        ViewerEvent.LoadComplete,
+        onViewerLoadComplete
+      )
+    }
+    if (newState) {
+      newState.viewer.instance.on(ViewerEvent.LoadComplete, onViewerLoadComplete)
+    }
   },
   { immediate: true }
 )
+
+onBeforeUnmount(() => {
+  const state = setupViewerState.value
+  if (!state) return
+  state.viewer.instance.removeListener(ViewerEvent.LoadComplete, onViewerLoadComplete)
+})
 
 // watch(
 //   () => props.modelIds,

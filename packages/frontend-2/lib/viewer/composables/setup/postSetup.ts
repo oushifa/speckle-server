@@ -76,6 +76,7 @@ import {
   HighlightExtension
 } from '~/lib/viewer/composables/setup/highlighting'
 import { useProjectSavedViewsUpdateTracking } from '~/lib/viewer/composables/savedViews/subscriptions'
+import { boolean } from 'zod'
 
 function useViewerLoadCompleteEventHandler() {
   const state = useInjectedViewerState()
@@ -577,7 +578,7 @@ function useViewerCameraIntegration() {
   )
 }
 
-function useViewerFiltersIntegration() {
+function useViewerFiltersIntegration(cancelHashState: boolean) {
   const state = useInjectedViewerState()
   const {
     viewer: { instance, hasDoneInitialLoad },
@@ -598,6 +599,7 @@ function useViewerFiltersIntegration() {
   watch(
     isolateObjectIds,
     (newVal) => {
+      if (cancelHashState) return
       if (syncingFromState) return
 
       const normalizedUrlIds = normalizeObjectIds(newVal || [])
@@ -625,6 +627,7 @@ function useViewerFiltersIntegration() {
   watch(
     filters.isolatedObjectIds,
     async (newVal) => {
+      if (cancelHashState) return
       if (syncingFromUrl || !hasInitializedFromUrl) return
 
       const normalizedStateIds = normalizeObjectIds(newVal || [])
@@ -961,7 +964,7 @@ const useCommentContextIntegration = () => {
   })
 }
 
-export function useViewerPostSetup() {
+export function useViewerPostSetup(cancelHashState: boolean = false) {
   if (import.meta.server) return
   useViewerObjectAutoLoading()
   useViewerSavedViewIntegration()
@@ -973,7 +976,7 @@ export function useViewerPostSetup() {
   useViewerOpenedThreadUpdateEmitter()
   useViewerSectionBoxIntegration()
   useViewerCameraIntegration()
-  useViewerFiltersIntegration()
+  useViewerFiltersIntegration(cancelHashState)
   useLightConfigIntegration()
   useExplodeFactorIntegration()
   useDiffingIntegration()

@@ -104,7 +104,11 @@
             请先选择模型
           </div>
           <div v-else class="h-full relative">
-            <ViewerStateSetup :init-params="viewerInitParams" @setup="onViewerSetup">
+            <ViewerStateSetup
+              :init-params="viewerInitParams"
+              :cancel-hash-state="true"
+              @setup="onViewerSetup"
+            >
               <div class="size-full">
                 <ViewerCoreSetup
                   viewer-host-classes="h-full"
@@ -136,12 +140,10 @@
 import { gql } from '@apollo/client/core'
 import { useQuery } from '@vue/apollo-composable'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
-import { useBreakpoints } from '@vueuse/core'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import { getHeaderAndSubheaderForSpeckleObject } from '~/lib/object-sidebar/helpers'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import { ViewerRenderPageType } from '~/lib/viewer/helpers/state'
-import { TailwindBreakpoints } from '~~/lib/common/helpers/tailwind'
 import type {
   InjectableViewerState,
   UseSetupViewerParams
@@ -220,8 +222,6 @@ const applicationIdsModel = defineModel<string[]>('application_ids', {
 })
 const open = defineModel<boolean>('open', { default: false })
 
-const breakpoints = useBreakpoints(TailwindBreakpoints)
-const isMobile = breakpoints.smaller('sm')
 const leftControls = ref()
 const bottomControls = ref()
 const selectionSidebar = ref()
@@ -232,6 +232,44 @@ const applicationIdByBimId = ref<Record<string, string>>({})
 const selectedObjectLabelMap = ref<Record<string, { title: string; subTitle: string }>>(
   {}
 )
+
+const upsertObjectMetadata = (bimId: string, obj: SpeckleObject) => {
+  if (!obj?.id) return
+
+  const { header, subheader } = getHeaderAndSubheaderForSpeckleObject(obj)
+  if (header || subheader) {
+    const label = {
+      title: header || '',
+      subTitle: subheader || ''
+    }
+    selectedObjectLabelMap.value[obj.id] = label
+    selectedObjectLabelMap.value[bimId] = label
+  }
+
+  const applicationId = getApplicationIdString(obj)
+  if (applicationId) {
+    applicationIdByBimId.value[obj.id] = applicationId
+    applicationIdByBimId.value[bimId] = applicationId
+  }
+}
+
+const collectMetadataFromViewerTree = (ids: Iterable<string>) => {
+  const state = viewerState.value
+  if (!state) return
+  const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
+  if (!tree) return
+
+  Array.from(ids).forEach((id) => {
+    const nodes = (tree as { findId: (id: string) => unknown }).findId(id) as Array<{
+      model?: { raw?: SpeckleObject }
+    }>
+    nodes.forEach((node) => {
+      const raw = node.model?.raw
+      if (!raw?.id) return
+      upsertObjectMetadata(id, raw)
+    })
+  })
+}
 
 const closeAllPanels = (except?: 'left' | 'bottom') => {
   if (except !== 'left' && leftControls.value?.forceClosePanels) {
@@ -408,19 +446,7 @@ const applyDraftSelectionToViewer = () => {
     nodes.forEach((node) => {
       if (!node.model?.raw?.id) return
       objects.push(node.model.raw)
-      const { header, subheader } = getHeaderAndSubheaderForSpeckleObject(
-        node.model.raw
-      )
-      if (header || subheader) {
-        selectedObjectLabelMap.value[node.model.raw.id] = {
-          title: header || '',
-          subTitle: subheader || ''
-        }
-      }
-      const applicationId = getApplicationIdString(node.model.raw)
-      if (applicationId) {
-        applicationIdByBimId.value[node.model.raw.id] = applicationId
-      }
+      upsertObjectMetadata(id, node.model.raw)
     })
   })
 
@@ -448,16 +474,19 @@ const openDrawer = () => {
 }
 
 const submitSelection = () => {
-  bimIdsModel.value = Array.from(draftSelectedIds.value)
+  const selectedBimIds = Array.from(draftSelectedIds.value)
+  collectMetadataFromViewerTree(selectedBimIds)
+  bimIdsModel.value = selectedBimIds
   applicationIdsModel.value = Array.from(
     new Set(
-      bimIdsModel.value
+      selectedBimIds
         .map((id) => applicationIdByBimId.value[id])
         .filter((id): id is string => !!id)
     )
   )
   open.value = false
   viewerState.value = null
+  console.log(applicationIdsModel.value)
 }
 
 const onViewerSetup = (state: InjectableViewerState) => {
@@ -467,17 +496,7 @@ const onViewerSetup = (state: InjectableViewerState) => {
 watch(selectedObjectsFromViewer, (objects) => {
   objects.forEach((obj) => {
     if (!obj?.id) return
-    const { header, subheader } = getHeaderAndSubheaderForSpeckleObject(obj)
-    if (header || subheader) {
-      selectedObjectLabelMap.value[obj.id] = {
-        title: header || '',
-        subTitle: subheader || ''
-      }
-    }
-    const applicationId = getApplicationIdString(obj)
-    if (applicationId) {
-      applicationIdByBimId.value[obj.id] = applicationId
-    }
+    upsertObjectMetadata(obj.id, obj)
   })
 })
 
@@ -531,6 +550,7 @@ watch(
 watch(selectedIdsFromViewer, (ids) => {
   if (!open.value) return
   draftSelectedIds.value = new Set(ids)
+  collectMetadataFromViewerTree(ids)
 })
 
 watch(

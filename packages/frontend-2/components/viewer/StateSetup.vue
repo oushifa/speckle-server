@@ -1,6 +1,8 @@
 <template>
   <div class="viewer-state-setup size-full">
-    <ViewerStatePostSetup><slot /></ViewerStatePostSetup>
+    <ViewerStatePostSetup :cancel-hash-state="props.cancelHashState">
+      <slot />
+    </ViewerStatePostSetup>
   </div>
 </template>
 <script setup lang="ts">
@@ -18,6 +20,7 @@ const props = defineProps<{
   // Passing in a wrapper object so that the refs don't get unwrapped. We want the full
   // AsyncWritableComputed objects here
   initParams: UseSetupViewerParams
+  cancelHashState: boolean
 }>()
 
 // initParams isnt reactive, but the refs inside of it definitely are
