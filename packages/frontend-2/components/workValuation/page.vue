@@ -16,7 +16,7 @@
           </div>
           <div>
             <div class="text-body-xs text-foreground-2">合同总额</div>
-            <div class="text-heading-xl font-bold">16.3亿</div>
+            <div class="text-heading-xl font-bold">{{ contractTotalText }}</div>
           </div>
         </div>
 
@@ -29,7 +29,7 @@
           </div>
           <div>
             <div class="text-body-xs text-foreground-2">已完成金额</div>
-            <div class="text-heading-xl font-bold">8.9亿</div>
+            <div class="text-heading-xl font-bold">{{ completedTotalText }}</div>
           </div>
         </div>
 
@@ -42,7 +42,7 @@
           </div>
           <div>
             <div class="text-body-xs text-foreground-2">本月验工</div>
-            <div class="text-heading-xl font-bold">4000万</div>
+            <div class="text-heading-xl font-bold">{{ currentMonthTotalText }}</div>
           </div>
         </div>
 
@@ -55,7 +55,7 @@
           </div>
           <div>
             <div class="text-body-xs text-foreground-2">待审核</div>
-            <div class="text-heading-xl font-bold">1200万</div>
+            <div class="text-heading-xl font-bold">{{ pendingTotalText }}</div>
           </div>
         </div>
       </div>
@@ -137,45 +137,95 @@ interface Project {
   status: ProjectStatus
 }
 
-// Mock Data
-const projects = ref<Project[]>([
-  {
-    id: '1',
-    name: '南北高速公路工程',
-    contractAmount: '4.50亿',
-    completedAmount: '3.06亿',
-    rate: 68,
-    monthValuation: '1500万',
-    status: '已审核'
-  },
-  {
-    id: '2',
-    name: '城市地铁3号线工程',
-    contractAmount: '6.80亿',
-    completedAmount: '2.86亿',
-    rate: 42,
-    monthValuation: '1200万',
-    status: '审核中'
-  },
-  {
-    id: '3',
-    name: '跨江大桥建设工程',
-    contractAmount: '3.20亿',
-    completedAmount: '2.72亿',
-    rate: 85,
-    monthValuation: '800万',
-    status: '已审核'
-  },
-  {
-    id: '4',
-    name: '产业园区基础设施工程',
-    contractAmount: '1.80亿',
-    completedAmount: '2700万',
-    rate: 15,
-    monthValuation: '500万',
-    status: '待提交'
+type CostSummaryItem = {
+  projectId: string
+  projectName: string | null
+  totalContractAmount: number
+  completedAmount: number
+  currentMonthCompletedAmount: number
+  completionRate: number
+}
+
+type CostSummaryPage = {
+  items: CostSummaryItem[]
+  cursor: string | null
+  limit: number
+}
+
+const summaryItems = ref<CostSummaryItem[]>([])
+const apiOrigin = useApiOrigin()
+
+const formatAmount = (amount: number) => {
+  if (amount >= 100000000) return `${(amount / 100000000).toFixed(2)}亿`
+  if (amount >= 10000) return `${(amount / 10000).toFixed(0)}万`
+  return `${amount.toFixed(2)}元`
+}
+
+const toProjectStatus = (item: CostSummaryItem): ProjectStatus => {
+  if (item.completedAmount <= 0) return '待提交'
+  if (item.completionRate >= 1) return '已审核'
+  return '审核中'
+}
+
+const projects = computed<Project[]>(() =>
+  summaryItems.value.map((item) => ({
+    id: item.projectId,
+    name: item.projectName || item.projectId,
+    contractAmount: formatAmount(item.totalContractAmount),
+    completedAmount: formatAmount(item.completedAmount),
+    rate: Math.min(100, Math.max(0, Math.round(item.completionRate * 100))),
+    monthValuation: formatAmount(item.currentMonthCompletedAmount),
+    status: toProjectStatus(item)
+  }))
+)
+
+const contractTotal = computed(() =>
+  summaryItems.value.reduce((sum, item) => sum + item.totalContractAmount, 0)
+)
+const completedTotal = computed(() =>
+  summaryItems.value.reduce((sum, item) => sum + item.completedAmount, 0)
+)
+const currentMonthTotal = computed(() =>
+  summaryItems.value.reduce((sum, item) => sum + item.currentMonthCompletedAmount, 0)
+)
+const pendingTotal = computed(() =>
+  summaryItems.value.reduce(
+    (sum, item) => sum + Math.max(item.totalContractAmount - item.completedAmount, 0),
+    0
+  )
+)
+
+const contractTotalText = computed(() => formatAmount(contractTotal.value))
+const completedTotalText = computed(() => formatAmount(completedTotal.value))
+const currentMonthTotalText = computed(() => formatAmount(currentMonthTotal.value))
+const pendingTotalText = computed(() => formatAmount(pendingTotal.value))
+
+const loadProjectCostSummaries = async () => {
+  const allItems: CostSummaryItem[] = []
+  let cursor: string | null = null
+
+  do {
+    const params = new URLSearchParams({ limit: '100' })
+    if (cursor) params.set('cursor', cursor)
+
+    const page = await $fetch<CostSummaryPage>(`${apiOrigin}/api/stream/cost-summary`, {
+      query: Object.fromEntries(params.entries()),
+      credentials: 'include'
+    })
+    allItems.push(...(page.items || []))
+    cursor = page.cursor || null
+  } while (cursor)
+
+  summaryItems.value = allItems
+}
+
+onMounted(async () => {
+  try {
+    await loadProjectCostSummaries()
+  } catch {
+    summaryItems.value = []
   }
-])
+})
 
 const columns = [
   { id: 'name', header: '项目名称', classes: 'col-span-3' },

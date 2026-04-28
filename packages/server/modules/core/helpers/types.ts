@@ -206,6 +206,16 @@ export type MonthlyMeasurementItemRecord = {
   updatedAt: Date
 }
 
+export type ProjectCostSummaryRecord = {
+  projectId: string
+  totalContractAmount: number
+  completedAmount: number
+  currentMonthCompletedAmount: number
+  lastRecalculatedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type ModelFolderRecord = {
   id: string
   streamId: string

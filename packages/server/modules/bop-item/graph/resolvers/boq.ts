@@ -24,6 +24,7 @@ import {
   moveBoqItemFactory,
   updateBoqItemFactory as updateBoqItemEntryFactory
 } from '@/modules/bop-item/services/boq'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
 
 const hasServerAdminOverride = (role?: string | null) =>
   adminOverrideEnabled() && role === Roles.Server.Admin
@@ -93,7 +94,11 @@ const resolvers: Resolvers = {
         insertBoqItem: insertBoqItemFactory({ db: projectDb })
       })
 
-      return await createBoqItem(args.input)
+      const created = await createBoqItem(args.input)
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return created
     },
     updateItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
@@ -110,7 +115,11 @@ const resolvers: Resolvers = {
         updateBoqItem: updateBoqItemFactory({ db: projectDb })
       })
 
-      return await updateBoqItem(args.input)
+      const updated = await updateBoqItem(args.input)
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return updated
     },
     moveItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
@@ -129,7 +138,11 @@ const resolvers: Resolvers = {
         updateBoqItem: updateBoqItemFactory({ db: projectDb })
       })
 
-      return await moveBoqItem(args.input)
+      const moved = await moveBoqItem(args.input)
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return moved
     },
     deleteItem: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
@@ -148,7 +161,11 @@ const resolvers: Resolvers = {
         deleteBoqItemSubtree: deleteBoqItemSubtreeFactory({ db: projectDb })
       })
 
-      return await deleteBoqItem(args.input)
+      const deleted = await deleteBoqItem(args.input)
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return deleted
     },
     importItems: async (_parent, args, ctx) => {
       if (!hasServerAdminOverride(ctx.role)) {
@@ -173,7 +190,7 @@ const resolvers: Resolvers = {
         })
       })
 
-      return await importBoqItems({
+      const imported = await importBoqItems({
         projectId: args.input.projectId,
         items: args.input.items.map((item) => ({
           rowNumber: item.rowNumber,
@@ -186,6 +203,10 @@ const resolvers: Resolvers = {
           price: item.price ?? null
         }))
       })
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return imported
     }
   }
 }

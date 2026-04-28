@@ -103,6 +103,7 @@ const isApplyingFilters = ref(false)
 const viewerResourceIdString = writableAsyncComputed({
   get: () => {
     const modelIds = normalizedModelIds.value.slice()
+    console.log(modelIds)
     return modelIds.length ? resourceBuilder().addModels(modelIds).toString() : ''
   },
   set: async () => {

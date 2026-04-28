@@ -214,6 +214,10 @@ const { result: acceptanceFormsResult, loading: modelLoading } = useQuery(
   }
 )
 
+watch(acceptanceFormsResult, (newVal) => {
+  console.log(newVal)
+})
+
 const modelIds = computed(() => {
   const selectedIds = new Set(submitSourceAcceptanceIds.value)
   const ids = new Set<string>()
@@ -228,10 +232,12 @@ const modelIds = computed(() => {
       > | null
     ) => {
       if (!form || !selectedIds.has(form.id)) return
+      console.log(form.bimElements, 'form.bimElements', selectedIds)
       const modelId = form.bimElements?.modelId || ''
       if (modelId) ids.add(modelId)
     }
   )
+  console.log(ids)
   return Array.from(ids)
 })
 

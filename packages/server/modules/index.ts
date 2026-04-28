@@ -110,6 +110,7 @@ const getEnabledModuleNames = () => {
     'flow',
     'notifications',
     'previews',
+    'project-cost-summary',
     'quality-acceptance-form',
     'pwdreset',
     'serverinvites',

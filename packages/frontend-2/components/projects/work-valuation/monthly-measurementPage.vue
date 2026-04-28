@@ -7,7 +7,7 @@
           <FormTextInput
             v-model="searchQuery"
             name="monthly-measurement-search"
-            placeholder="搜索验工编码/建立单位"
+            placeholder="搜索验工编码/施工单位"
             show-clear
             class="w-72"
           >
@@ -160,10 +160,10 @@
           <FormTextInput
             v-model="createForm.unit"
             name="monthly-measurement-unit"
-            label="建立单位"
+            label="施工单位"
             show-label
             show-required
-            placeholder="请输入建立单位"
+            placeholder="请输入施工单位"
             :disabled="isViewMode"
           />
           <FormTextInput
@@ -589,7 +589,7 @@ watch(searchQuery, (value) => updateDebouncedSearch(value), { immediate: true })
 
 const columns = [
   { id: 'code', header: '验工编码', classes: 'col-span-3' },
-  { id: 'unit', header: '建立单位', classes: 'col-span-2' },
+  { id: 'unit', header: '施工单位', classes: 'col-span-2' },
   { id: 'baseDate', header: '基准时间', classes: 'col-span-2' },
   { id: 'status', header: '状态', classes: 'col-span-2' },
   { id: 'creator', header: '创建人', classes: 'col-span-1' },
@@ -963,6 +963,7 @@ const isSubmitted = (item: { approveStatus?: string | null }) =>
   Boolean(item.approveStatus)
 
 const viewItem = (item: MonthlyMeasurementNode) => {
+  console.log(item)
   viewTargetItem.value = item
   viewDialogOpen.value = true
 }
@@ -991,7 +992,7 @@ const editItem = (item: MonthlyMeasurementNode) => {
 const submitDialog = async () => {
   if (!projectId.value || createLoading.value || updateLoading.value) return
   if (!createForm.value.unit.trim()) {
-    createError.value = '建立单位不能为空'
+    createError.value = '施工单位不能为空'
     return
   }
   if (!createForm.value.code.trim()) {
@@ -1139,6 +1140,7 @@ const submitItem = async (item: MonthlyMeasurementNode) => {
 }
 
 const openFlowDetail = async (item: MonthlyMeasurementNode) => {
+  console.log(item)
   if (!item.flowInstanceId) return
   flowDetailDrawerOpen.value = true
   flowDetailLoading.value = true

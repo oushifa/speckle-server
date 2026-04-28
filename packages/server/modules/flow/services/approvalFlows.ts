@@ -30,6 +30,7 @@ import {
   updateMonthlyMeasurementFactory,
   updateQualityAcceptanceApproveStatusByIdsFactory
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { Knex } from 'knex'
 
@@ -130,11 +131,22 @@ const toHookActions = (value: unknown): FlowHookAction[] => {
   )
 }
 
+const recalculateProjectCostSummaryIfNeeded = async (params: {
+  trx: Knex
+  projectId?: string | null
+}) => {
+  if (!params.projectId) return
+  await recalculateProjectCostSummaryFactory({ db: params.trx })({
+    projectId: params.projectId
+  })
+}
+
 const updateResourceByHookAction = async (params: {
   trx: Knex
   instance: {
     resourceType: string
     resourceId?: string | null
+    projectId?: string | null
   }
   action: FlowHookAction
   status: string
@@ -176,6 +188,10 @@ const updateResourceByHookAction = async (params: {
         parsed.formId,
         payload
       )
+      await recalculateProjectCostSummaryIfNeeded({
+        trx: params.trx,
+        projectId: params.instance.projectId
+      })
       return
     }
     if (parsed.formTable === MONTHLY_MEASUREMENT_TABLE) {
@@ -208,6 +224,10 @@ const updateResourceByHookAction = async (params: {
         ids: qualityAcceptanceIds,
         approveStatus: nextApproveStatus
       })
+      await recalculateProjectCostSummaryIfNeeded({
+        trx: params.trx,
+        projectId: params.instance.projectId
+      })
     }
   }
 }
@@ -219,6 +239,7 @@ const executeDefinitionHooks = async (params: {
   instance: {
     resourceType: string
     resourceId?: string | null
+    projectId?: string | null
   }
   status: string
   actorId: string
@@ -247,6 +268,7 @@ const executeStepHooks = async (params: {
   instance: {
     resourceType: string
     resourceId?: string | null
+    projectId?: string | null
   }
   status: string
   actorId: string

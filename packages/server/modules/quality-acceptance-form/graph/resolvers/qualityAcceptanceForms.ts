@@ -20,6 +20,7 @@ import { isNonNullable } from '@speckle/shared'
 import { Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 const normalizeApproveStatus = (status?: string | number | null) =>
@@ -229,11 +230,15 @@ const resolvers = {
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
-      return await createQualityAcceptanceForm({
+      const created = await createQualityAcceptanceForm({
         input: args.input,
         ctx,
         projectDb
       })
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return created
     },
     importForms: async (
       _parent: unknown,
@@ -276,6 +281,10 @@ const resolvers = {
           failedRows.push(`第 ${item.rowNumber} 行：${message}`)
         }
       }
+
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
 
       return {
         createdCount,
@@ -343,6 +352,9 @@ const resolvers = {
         }
       )
       if (!updated) throw new BadRequestError('Quality acceptance form not found')
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
       return updated
     },
     deleteForm: async (
@@ -359,7 +371,13 @@ const resolvers = {
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
-      return await deleteQualityAcceptanceFormFactory({ db: projectDb })(args.input.id)
+      const deleted = await deleteQualityAcceptanceFormFactory({ db: projectDb })(
+        args.input.id
+      )
+      await recalculateProjectCostSummaryFactory({ db: projectDb })({
+        projectId: args.input.projectId
+      })
+      return deleted
     }
   }
 } as unknown as Resolvers

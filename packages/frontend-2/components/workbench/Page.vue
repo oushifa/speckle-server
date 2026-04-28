@@ -689,19 +689,7 @@ const openReviewDialog = (item: UpdateItem) => {
 }
 
 const submitReviewApproval = async () => {
-  const selectedValue = reviewerFieldValue.value
-  const hasReviewer = Array.isArray(selectedValue)
-    ? selectedValue.length > 0
-    : Boolean(selectedValue)
-  if (reviewerField.value.required && !hasReviewer) {
-    notify('校验失败', '请选择审核人', ToastNotificationType.Warning)
-    return
-  }
   const titleValue = `${titleFieldValue.value || ''}`.trim()
-  if (titleField.value.required && !titleValue) {
-    notify('校验失败', '请输入备注说明', ToastNotificationType.Warning)
-    return
-  }
   if (!templateId || !selectedResourceId.value) return
   mutating.value = true
   try {
@@ -719,7 +707,7 @@ const submitReviewApproval = async () => {
         }
       }
     })
-    notify('发起成功', '审批实例已创建', ToastNotificationType.Success)
+    notify('发起成功', '审批流程已创建', ToastNotificationType.Success)
     isStartDialogOpen.value = false
     selectedUpdate.value = null
     selectedResourceId.value = null
