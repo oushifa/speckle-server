@@ -40,14 +40,6 @@ graphql(`
     commentThreadCount: commentThreads(limit: 0) {
       totalCount
     }
-    workspace {
-      id
-      permissions {
-        canListDashboards {
-          ...FullPermissionCheckResult
-        }
-      }
-    }
     permissions {
       canReadSettings {
         ...FullPermissionCheckResult

@@ -26,7 +26,13 @@
           <template #description>
             <div class="flex flex-col items-center justify-center">
               <div class="text-body-xs text-foreground-2">累计完成金额</div>
-              <div class="text-body-lg font-semibold text-success mt-1">
+              <div
+                v-if="costSummaryLoading"
+                class="text-body-lg font-semibold text-success mt-1 min-h-[28px] flex items-center"
+              >
+                <CommonLoadingIcon class="h-5 w-5" />
+              </div>
+              <div v-else class="text-body-lg font-semibold text-success mt-1">
                 {{ formatMoney(submitCumulativeAmount) }}
               </div>
               <div>元</div>
@@ -37,7 +43,13 @@
           <template #description>
             <div class="flex flex-col items-center justify-center">
               <div class="text-body-xs text-foreground-2">合同总金额</div>
-              <div class="text-body-lg font-semibold mt-1">
+              <div
+                v-if="costSummaryLoading"
+                class="text-body-lg font-semibold mt-1 min-h-[28px] flex items-center"
+              >
+                <CommonLoadingIcon class="h-5 w-5" />
+              </div>
+              <div v-else class="text-body-lg font-semibold mt-1">
                 {{ formatMoney(submitContractAmount) }}
               </div>
               <div>元</div>
@@ -160,7 +172,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useQuery } from '@vue/apollo-composable'
 import dayjs from 'dayjs'
 import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
@@ -175,10 +187,16 @@ type MonthlyMeasurementNode = NonNullable<
   >['items'][number]
 >
 
+type ProjectCostSummaryResponse = {
+  totalContractAmount: number
+  completedAmount: number
+}
+
 const props = defineProps<{
   item: MonthlyMeasurementNode | null
   projectId: string
 }>()
+const apiOrigin = useApiOrigin()
 
 const tabItems = [
   { title: '验工列表', id: 'list' },
@@ -214,10 +232,6 @@ const { result: acceptanceFormsResult, loading: modelLoading } = useQuery(
   }
 )
 
-watch(acceptanceFormsResult, (newVal) => {
-  console.log(newVal)
-})
-
 const modelIds = computed(() => {
   const selectedIds = new Set(submitSourceAcceptanceIds.value)
   const ids = new Set<string>()
@@ -232,12 +246,10 @@ const modelIds = computed(() => {
       > | null
     ) => {
       if (!form || !selectedIds.has(form.id)) return
-      console.log(form.bimElements, 'form.bimElements', selectedIds)
       const modelId = form.bimElements?.modelId || ''
       if (modelId) ids.add(modelId)
     }
   )
-  console.log(ids)
   return Array.from(ids)
 })
 
@@ -280,26 +292,55 @@ const submitCurrentAmount = computed(() => {
     }, 0)
 })
 
+const projectCostSummary = ref<ProjectCostSummaryResponse>({
+  totalContractAmount: 0,
+  completedAmount: 0
+})
+const costSummaryLoading = ref(false)
+
+const loadProjectCostSummary = async () => {
+  costSummaryLoading.value = true
+  if (!props.projectId) {
+    projectCostSummary.value = {
+      totalContractAmount: 0,
+      completedAmount: 0
+    }
+    costSummaryLoading.value = false
+    return
+  }
+
+  try {
+    const result = await $fetch<ProjectCostSummaryResponse>(
+      `${apiOrigin}/api/stream/${props.projectId}/cost-summary`
+    )
+    projectCostSummary.value = {
+      totalContractAmount: Number(result.totalContractAmount || 0),
+      completedAmount: Number(result.completedAmount || 0)
+    }
+  } catch {
+    projectCostSummary.value = {
+      totalContractAmount: 0,
+      completedAmount: 0
+    }
+  } finally {
+    costSummaryLoading.value = false
+  }
+}
+
+watch(
+  () => props.projectId,
+  () => {
+    void loadProjectCostSummary()
+  },
+  { immediate: true }
+)
+
 const submitCumulativeAmount = computed(() => {
-  if (!props.item) return 0
-  return (props.item.items || [])
-    .filter((row) => !row.isSummaryRow)
-    .reduce((sum, row) => {
-      const qty = Number(row.approvedCumulativeQty || 0)
-      const price = Number(row.price || 0)
-      return sum + qty * price
-    }, 0)
+  return projectCostSummary.value.completedAmount
 })
 
 const submitContractAmount = computed(() => {
-  if (!props.item) return 0
-  return (props.item.items || [])
-    .filter((row) => !row.isSummaryRow)
-    .reduce((sum, row) => {
-      const qty = Number(row.pendingTotalQty || 0)
-      const price = Number(row.price || 0)
-      return sum + Math.max(qty, 0) * price
-    }, 0)
+  return projectCostSummary.value.totalContractAmount
 })
 
 const submitProgress = computed(() => {

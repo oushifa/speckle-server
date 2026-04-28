@@ -123,6 +123,7 @@ import {
   ChartBarIcon,
   ClockIcon
 } from '@heroicons/vue/24/outline'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 // Types
 type ProjectStatus = '已审核' | '审核中' | '待提交'
@@ -152,8 +153,24 @@ type CostSummaryPage = {
   limit: number
 }
 
+type CostSummaryStats = {
+  projectCount: number
+  totalContractAmount: number
+  completedAmount: number
+  currentMonthCompletedAmount: number
+  pendingAmount: number
+}
+
 const summaryItems = ref<CostSummaryItem[]>([])
+const summaryStats = ref<CostSummaryStats>({
+  projectCount: 0,
+  totalContractAmount: 0,
+  completedAmount: 0,
+  currentMonthCompletedAmount: 0,
+  pendingAmount: 0
+})
 const apiOrigin = useApiOrigin()
+const { triggerNotification } = useGlobalToast()
 
 const formatAmount = (amount: number) => {
   if (amount >= 100000000) return `${(amount / 100000000).toFixed(2)}亿`
@@ -179,26 +196,12 @@ const projects = computed<Project[]>(() =>
   }))
 )
 
-const contractTotal = computed(() =>
-  summaryItems.value.reduce((sum, item) => sum + item.totalContractAmount, 0)
+const contractTotalText = computed(() => formatAmount(summaryStats.value.totalContractAmount))
+const completedTotalText = computed(() => formatAmount(summaryStats.value.completedAmount))
+const currentMonthTotalText = computed(() =>
+  formatAmount(summaryStats.value.currentMonthCompletedAmount)
 )
-const completedTotal = computed(() =>
-  summaryItems.value.reduce((sum, item) => sum + item.completedAmount, 0)
-)
-const currentMonthTotal = computed(() =>
-  summaryItems.value.reduce((sum, item) => sum + item.currentMonthCompletedAmount, 0)
-)
-const pendingTotal = computed(() =>
-  summaryItems.value.reduce(
-    (sum, item) => sum + Math.max(item.totalContractAmount - item.completedAmount, 0),
-    0
-  )
-)
-
-const contractTotalText = computed(() => formatAmount(contractTotal.value))
-const completedTotalText = computed(() => formatAmount(completedTotal.value))
-const currentMonthTotalText = computed(() => formatAmount(currentMonthTotal.value))
-const pendingTotalText = computed(() => formatAmount(pendingTotal.value))
+const pendingTotalText = computed(() => formatAmount(summaryStats.value.pendingAmount))
 
 const loadProjectCostSummaries = async () => {
   const allItems: CostSummaryItem[] = []
@@ -209,8 +212,7 @@ const loadProjectCostSummaries = async () => {
     if (cursor) params.set('cursor', cursor)
 
     const page = await $fetch<CostSummaryPage>(`${apiOrigin}/api/stream/cost-summary`, {
-      query: Object.fromEntries(params.entries()),
-      credentials: 'include'
+      query: Object.fromEntries(params.entries())
     })
     allItems.push(...(page.items || []))
     cursor = page.cursor || null
@@ -219,11 +221,34 @@ const loadProjectCostSummaries = async () => {
   summaryItems.value = allItems
 }
 
+const loadProjectCostSummaryStats = async () => {
+  const stats = await $fetch<CostSummaryStats>(`${apiOrigin}/api/stream/cost-summary/stats`)
+  summaryStats.value = {
+    projectCount: stats.projectCount || 0,
+    totalContractAmount: stats.totalContractAmount || 0,
+    completedAmount: stats.completedAmount || 0,
+    currentMonthCompletedAmount: stats.currentMonthCompletedAmount || 0,
+    pendingAmount: stats.pendingAmount || 0
+  }
+}
+
 onMounted(async () => {
   try {
-    await loadProjectCostSummaries()
+    await Promise.all([loadProjectCostSummaries(), loadProjectCostSummaryStats()])
   } catch {
     summaryItems.value = []
+    summaryStats.value = {
+      projectCount: 0,
+      totalContractAmount: 0,
+      completedAmount: 0,
+      currentMonthCompletedAmount: 0,
+      pendingAmount: 0
+    }
+    triggerNotification({
+      title: '加载失败',
+      type: ToastNotificationType.Danger,
+      description: '验工计价数据获取失败，请稍后重试。'
+    })
   }
 })
 
@@ -233,7 +258,6 @@ const columns = [
   { id: 'completedAmount', header: '已完成金额', classes: 'col-span-2' },
   { id: 'rate', header: '完成率', classes: 'col-span-3' },
   { id: 'monthValuation', header: '本月验工', classes: 'col-span-1' },
-  { id: 'status', header: '状态', classes: 'col-span-1' },
   { id: 'action', header: '操作', classes: 'col-span-1' }
 ]
 

@@ -4,7 +4,7 @@ import {
   calculateProjectCostSummaryFactory,
   getProjectCostSummaryFactory,
   upsertProjectCostSummaryFactory
-} from '@/modules/project-cost-summary/repositories/projectCostSummaries'
+} from '@/modules/project-statistics/repositories/projectCostSummaries'
 
 export const recalculateProjectCostSummaryFactory =
   (deps: { db: Knex }) =>

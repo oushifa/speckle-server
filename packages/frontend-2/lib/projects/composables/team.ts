@@ -24,8 +24,6 @@ graphql(`
     }
     team {
       role
-      seatType
-      workspaceRole
       user {
         id
         role
@@ -83,8 +81,8 @@ export function useTeamInternals(
         role: collaborator.role,
         inviteId: null,
         serverRole: collaborator.user.role as ServerRoles,
-        workspaceRole: collaborator.workspaceRole as WorkspaceRoles,
-        seatType: collaborator.seatType
+        workspaceRole: null as Nullable<WorkspaceRoles>,
+        seatType: null
       })
     }
 

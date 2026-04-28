@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
+import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import {
   streamReadPermissionsPipelineFactory,
   streamWritePermissionsPipelineFactory
@@ -10,11 +11,16 @@ import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
   getOrRecalculateProjectCostSummaryFactory,
   recalculateProjectCostSummaryFactory
-} from '@/modules/project-cost-summary/services/projectCostSummaries'
+} from '@/modules/project-statistics/services/projectCostSummaries'
 import { moduleAuthLoaders } from '@/modules/index'
 import { Authz } from '@speckle/shared'
 
 const toNumber = (value: unknown) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+const toCount = (value: unknown) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
 }
@@ -80,10 +86,19 @@ const toResponse = (
   }
 }
 
+type CostSummaryStatsResponse = {
+  projectCount: number
+  totalContractAmount: number
+  completedAmount: number
+  currentMonthCompletedAmount: number
+  pendingAmount: number
+}
+
 export const projectCostSummaryRouterFactory = (): Router => {
   const app = Router()
 
-  app.get('/api/stream/cost-summary', async (req, res) => {
+  app.options('/api/stream/cost-summary', corsMiddlewareFactory())
+  app.get('/api/stream/cost-summary', corsMiddlewareFactory(), async (req, res) => {
     if (!req.context.auth || !req.context.userId) {
       return res.status(401).send({
         error: 'You must be authenticated to list project cost summaries.'
@@ -174,8 +189,84 @@ export const projectCostSummaryRouterFactory = (): Router => {
     })
   })
 
+  app.options('/api/stream/cost-summary/stats', corsMiddlewareFactory())
+  app.get(
+    '/api/stream/cost-summary/stats',
+    corsMiddlewareFactory(),
+    async (req, res) => {
+      if (!req.context.auth || !req.context.userId) {
+        return res.status(401).send({
+          error: 'You must be authenticated to list project cost summaries.'
+        })
+      }
+
+      const projectIdQuery = req.query.projectId
+      const projectId =
+        typeof projectIdQuery === 'string' && projectIdQuery.trim()
+          ? projectIdQuery.trim()
+          : null
+
+      const authLoaders = await moduleAuthLoaders({ dataLoaders: undefined })
+      const policies = Authz.authPoliciesFactory(authLoaders.loaders)
+
+      const projectIds: string[] = []
+      if (projectId) {
+        const canRead = await policies.project.canRead({
+          userId: req.context.userId,
+          projectId
+        })
+        if (canRead.isErr) {
+          return res.status(403).send({
+            error: 'You are not allowed to read this project.'
+          })
+        }
+        projectIds.push(projectId)
+      } else {
+        const streamRows = await db('streams').select<{ id: string }[]>('id')
+        for (const row of streamRows) {
+          const canRead = await policies.project.canRead({
+            userId: req.context.userId,
+            projectId: row.id
+          })
+          if (canRead.isErr) continue
+          projectIds.push(row.id)
+        }
+      }
+
+      const totals: CostSummaryStatsResponse = {
+        projectCount: projectIds.length,
+        totalContractAmount: 0,
+        completedAmount: 0,
+        currentMonthCompletedAmount: 0,
+        pendingAmount: 0
+      }
+
+      for (const id of projectIds) {
+        const projectDb = await getProjectDbClient({ projectId: id })
+        const summary = await getOrRecalculateProjectCostSummaryFactory({
+          db: projectDb
+        })({
+          projectId: id
+        })
+        const totalContractAmount = toNumber(summary.totalContractAmount)
+        const completedAmount = toNumber(summary.completedAmount)
+        const currentMonthCompletedAmount = toNumber(
+          summary.currentMonthCompletedAmount
+        )
+        totals.totalContractAmount += totalContractAmount
+        totals.completedAmount += completedAmount
+        totals.currentMonthCompletedAmount += currentMonthCompletedAmount
+        totals.pendingAmount += Math.max(totalContractAmount - completedAmount, 0)
+      }
+
+      return res.status(200).send(totals)
+    }
+  )
+
+  app.options('/api/stream/:streamId/cost-summary', corsMiddlewareFactory())
   app.get(
     '/api/stream/:streamId/cost-summary',
+    corsMiddlewareFactory(),
     authMiddlewareCreator(
       streamReadPermissionsPipelineFactory({
         getStream: getStreamFactory({ db })
@@ -193,8 +284,10 @@ export const projectCostSummaryRouterFactory = (): Router => {
     }
   )
 
+  app.options('/api/stream/:streamId/cost-summary/recalculate', corsMiddlewareFactory())
   app.post(
     '/api/stream/:streamId/cost-summary/recalculate',
+    corsMiddlewareFactory(),
     authMiddlewareCreator(
       streamWritePermissionsPipelineFactory({
         getStream: getStreamFactory({ db })
@@ -210,5 +303,76 @@ export const projectCostSummaryRouterFactory = (): Router => {
     }
   )
 
+  app.options('/api/dashboard', corsMiddlewareFactory())
+  app.get('/api/dashboard', corsMiddlewareFactory(), async (req, res) => {
+    if (!req.context.auth || !req.context.userId) {
+      return res.status(401).send({
+        error: 'You must be authenticated to view dashboard statistics.'
+      })
+    }
+
+    const projectIdQuery = req.query.projectId
+    const projectId =
+      typeof projectIdQuery === 'string' && projectIdQuery.trim()
+        ? projectIdQuery.trim()
+        : null
+
+    const authLoaders = await moduleAuthLoaders({ dataLoaders: undefined })
+    const policies = Authz.authPoliciesFactory(authLoaders.loaders)
+
+    let projectIds: string[] = []
+    if (projectId) {
+      const canRead = await policies.project.canRead({
+        userId: req.context.userId,
+        projectId
+      })
+      if (canRead.isErr) {
+        return res.status(403).send({
+          error: 'You are not allowed to read this project.'
+        })
+      }
+      projectIds = [projectId]
+    } else {
+      const streamRows = await db('streams').select<{ id: string }[]>('id')
+      for (const row of streamRows) {
+        const canRead = await policies.project.canRead({
+          userId: req.context.userId,
+          projectId: row.id
+        })
+        if (canRead.isErr) continue
+        projectIds.push(row.id)
+      }
+    }
+
+    let modelCount = 0
+    let boqCount = 0
+    let qualityAcceptanceCount = 0
+    let workValuationCount = 0
+
+    for (const id of projectIds) {
+      const projectDb = await getProjectDbClient({ projectId: id })
+      const [modelRow, boqRow, qualityRow, valuationRow] = await Promise.all([
+        projectDb('branches').count<{ count: string }>('* as count').first(),
+        projectDb('boq_items').count<{ count: string }>('* as count').first(),
+        projectDb('quality_acceptance_forms')
+          .count<{ count: string }>('* as count')
+          .first(),
+        projectDb('monthly_measurements').count<{ count: string }>('* as count').first()
+      ])
+
+      modelCount += toCount(modelRow?.count)
+      boqCount += toCount(boqRow?.count)
+      qualityAcceptanceCount += toCount(qualityRow?.count)
+      workValuationCount += toCount(valuationRow?.count)
+    }
+
+    return res.status(200).send({
+      projectCount: projectIds.length,
+      modelCount,
+      boqCount,
+      qualityAcceptanceCount,
+      workValuationCount
+    })
+  })
   return app
 }

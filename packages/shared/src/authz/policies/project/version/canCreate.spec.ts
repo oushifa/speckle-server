@@ -23,6 +23,7 @@ describe('canCreateProjectVersionPolicy', () => {
         id: 'project-id',
         workspaceId: null
       }),
+      getAdminOverrideEnabled: async () => false,
       getProjectRole: async () => Roles.Stream.Contributor,
       getEnv: async () => parseFeatureFlags({ FF_WORKSPACES_MODULE_ENABLED: 'true' }),
       getServerRole: async () => Roles.Server.Guest,
@@ -72,6 +73,7 @@ describe('canCreateProjectVersionPolicy', () => {
   it('shouldnt allow for server admin w/o project role', async () => {
     const sut = buildSUT({
       getServerRole: async () => Roles.Server.Admin,
+      getAdminOverrideEnabled: async () => false,
       getProjectRole: async () => null
     })
 
@@ -83,6 +85,21 @@ describe('canCreateProjectVersionPolicy', () => {
     expect(result).toBeAuthErrorResult({
       code: ProjectNoAccessError.code
     })
+  })
+
+  it('should allow for server admin w/ admin override even w/o project role', async () => {
+    const sut = buildSUT({
+      getServerRole: async () => Roles.Server.Admin,
+      getAdminOverrideEnabled: async () => true,
+      getProjectRole: async () => null
+    })
+
+    const result = await sut({
+      userId: 'user-id',
+      projectId: 'project-id'
+    })
+
+    expect(result).toBeOKResult()
   })
 
   it('fail for reviewer', async () => {

@@ -2,7 +2,8 @@ import { Scopes } from '@/modules/core/helpers/mainConstants'
 import {
   speckleAutomateUrl,
   getServerOrigin,
-  getFeatureFlags
+  getFeatureFlags,
+  getSduiOrigin
 } from '@/modules/shared/helpers/envHelper'
 import type { ServerScope } from '@speckle/shared'
 import type { Merge } from 'type-fest'
@@ -74,7 +75,7 @@ const SpeckleConnectorsDUI = {
   description: 'Speckle desktop user interface for connectors.',
   trustByDefault: false, // NOTE: we do not wanna automatically authenticate in DUI because it uses cached account before which we wanna switch account. trustByDefault: true skips this step
   public: true,
-  redirectUrl: `${getServerOrigin()}/authn/callback`,
+  redirectUrl: `${getSduiOrigin()}/authn/callback`,
   scopes: [
     Scopes.Streams.Read,
     Scopes.Streams.Write,

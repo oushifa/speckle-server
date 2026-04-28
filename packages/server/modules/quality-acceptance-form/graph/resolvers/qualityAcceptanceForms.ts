@@ -20,7 +20,7 @@ import { isNonNullable } from '@speckle/shared'
 import { Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
-import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 const normalizeApproveStatus = (status?: string | number | null) =>

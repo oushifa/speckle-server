@@ -30,7 +30,7 @@ import {
   updateMonthlyMeasurementFactory,
   updateQualityAcceptanceApproveStatusByIdsFactory
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
-import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { Knex } from 'knex'
 

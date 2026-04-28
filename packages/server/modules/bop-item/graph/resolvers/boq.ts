@@ -24,7 +24,7 @@ import {
   moveBoqItemFactory,
   updateBoqItemFactory as updateBoqItemEntryFactory
 } from '@/modules/bop-item/services/boq'
-import { recalculateProjectCostSummaryFactory } from '@/modules/project-cost-summary/services/projectCostSummaries'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 
 const hasServerAdminOverride = (role?: string | null) =>
   adminOverrideEnabled() && role === Roles.Server.Admin

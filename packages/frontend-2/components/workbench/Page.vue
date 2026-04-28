@@ -260,36 +260,44 @@ import type {
   FlowDefinitionsQueryVariables
 } from '~~/lib/common/generated/gql/graphql'
 
-const metrics = [
+type DashboardStatsResponse = {
+  projectCount: number
+  modelCount: number
+  boqCount: number
+  qualityAcceptanceCount: number
+  workValuationCount: number
+}
+
+const metricCards = [
   {
+    key: 'modelCount',
     label: '模型总数',
-    value: '156',
     icon: ArchiveBoxIcon,
     iconBg: 'bg-blue-50',
     iconColor: 'text-blue-600'
   },
   {
+    key: 'boqCount',
     label: '清单数量',
-    value: '1,247',
     icon: ListBulletIcon,
     iconBg: 'bg-green-50',
     iconColor: 'text-green-600'
   },
   {
+    key: 'qualityAcceptanceCount',
     label: '质量验收数量',
-    value: '342',
     icon: ClipboardDocumentCheckIcon,
     iconBg: 'bg-orange-50',
     iconColor: 'text-orange-600'
   },
   {
+    key: 'workValuationCount',
     label: '验工数量',
-    value: '89',
     icon: CalculatorIcon,
     iconBg: 'bg-purple-50',
     iconColor: 'text-purple-600'
   }
-]
+] as const
 
 const templateId = 'model_aprv'
 
@@ -436,9 +444,18 @@ type TodoItem = {
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
+const apiOrigin = useApiOrigin()
+const route = useRoute()
 const loadingTodos = ref(false)
 const loadingUpdates = ref(false)
 const mutating = ref(false)
+const dashboardStats = ref<DashboardStatsResponse>({
+  projectCount: 0,
+  modelCount: 0,
+  boqCount: 0,
+  qualityAcceptanceCount: 0,
+  workValuationCount: 0
+})
 const todoTotalCount = ref(0)
 const todoList = ref<TodoItem[]>([])
 const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
@@ -506,6 +523,15 @@ const notify = (title: string, description: string, type: ToastNotificationType)
     type
   })
 }
+
+const formatMetricValue = (value: number) => value.toLocaleString('zh-CN')
+
+const metrics = computed(() =>
+  metricCards.map((item) => ({
+    ...item,
+    value: formatMetricValue(dashboardStats.value[item.key])
+  }))
+)
 
 const normalizeApproveStatus = (status?: string | null) => {
   if (typeof status !== 'string') return null
@@ -664,6 +690,33 @@ const loadFlowDefinitions = async () => {
   }
 }
 
+const loadDashboardStats = async () => {
+  try {
+    const queryProjectId =
+      typeof route.query.projectId === 'string' ? route.query.projectId.trim() : ''
+    const query = queryProjectId ? { projectId: queryProjectId } : undefined
+    const stats = await $fetch<DashboardStatsResponse>(`${apiOrigin}/api/dashboard`, {
+      query
+    })
+    dashboardStats.value = {
+      projectCount: stats.projectCount || 0,
+      modelCount: stats.modelCount || 0,
+      boqCount: stats.boqCount || 0,
+      qualityAcceptanceCount: stats.qualityAcceptanceCount || 0,
+      workValuationCount: stats.workValuationCount || 0
+    }
+  } catch (e) {
+    dashboardStats.value = {
+      projectCount: 0,
+      modelCount: 0,
+      boqCount: 0,
+      qualityAcceptanceCount: 0,
+      workValuationCount: 0
+    }
+    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
+  }
+}
+
 const openReviewDialog = (item: UpdateItem) => {
   if (!canStartFlowForModel(item.approveStatus)) {
     notify(
@@ -726,6 +779,11 @@ const openModelPage = (item: UpdateItem) => {
 }
 
 onMounted(async () => {
-  await Promise.all([loadFlowDefinitions(), loadRecentUpdates(), loadTodoList()])
+  await Promise.all([
+    loadFlowDefinitions(),
+    loadRecentUpdates(),
+    loadTodoList(),
+    loadDashboardStats()
+  ])
 })
 </script>

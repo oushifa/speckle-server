@@ -241,6 +241,9 @@ export function getFrontendOrigin() {
 export function getServerOrigin() {
   return mustGetUrlFromEnv('CANONICAL_URL', true).origin
 }
+export function getSduiOrigin() {
+  return mustGetUrlFromEnv('SDUI_URL', true).origin
+}
 
 /**
  *

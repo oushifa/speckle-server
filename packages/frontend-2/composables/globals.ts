@@ -27,6 +27,14 @@ export const useIsWorkspacesEnabled = () => {
   return ref(FF_WORKSPACES_MODULE_ENABLED)
 }
 
+export const useIsGatekeeperModuleEnabled = () => {
+  const {
+    public: { FF_GATEKEEPER_MODULE_ENABLED }
+  } = useRuntimeConfig()
+
+  return ref(FF_GATEKEEPER_MODULE_ENABLED)
+}
+
 export const useIsWorkspacesSsoEnabled = () => {
   const {
     public: { FF_WORKSPACES_SSO_ENABLED }
