@@ -7,7 +7,7 @@ import type {
   GetPendingVerificationByEmail
 } from '@/modules/emails/domain/operations'
 import { EmailVerificationFinalizationError } from '@/modules/emails/errors'
-import { compare as compareHash } from 'bcrypt'
+import { compare as compareHash } from 'bcryptjs'
 
 export const markUserEmailAsVerifiedFactory =
   ({

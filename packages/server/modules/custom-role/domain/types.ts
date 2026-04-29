@@ -33,3 +33,13 @@ export type EffectivePermission = {
   modelPerms: PermissionId[]
   isCustomized: boolean
 }
+
+export type MyEffectivePermission = {
+  userId: string
+  roleId: string | null
+  roleName: string | null
+  menuPerms: PermissionId[]
+  modelPerms: PermissionId[]
+  isCustomized: boolean
+  isAdmin: boolean
+}

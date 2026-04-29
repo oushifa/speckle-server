@@ -9,7 +9,7 @@ import { InvalidArgumentError } from '@/modules/shared/errors'
 import cryptoRandomString from 'crypto-random-string'
 import dayjs from 'dayjs'
 import type { Knex } from 'knex'
-import { hash } from 'bcrypt'
+import { hash } from 'bcryptjs'
 import type { EmailVerification } from '@/modules/emails/domain/types'
 
 const tables = {

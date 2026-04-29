@@ -32,7 +32,7 @@ import { sanitizeImageUrl } from '@/modules/shared/helpers/sanitization'
 import type { NullableKeysToOptional, ServerRoles } from '@speckle/shared'
 import { blockedDomains, isNullOrUndefined, Roles } from '@speckle/shared'
 import { pick } from 'lodash-es'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import crs from 'crypto-random-string'
 import type {
   FindEmail,

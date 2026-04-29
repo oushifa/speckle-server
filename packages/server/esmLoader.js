@@ -69,7 +69,11 @@ export async function resolve(specifier, _context, nextResolve) {
   }
 
   // If it was a dir import also, try that with extensions
-  specifier = isDirImport ? path.join(specifier, 'index') : specifier
+  if (isDirImport) {
+    // Use URL-safe joining to avoid Windows backslash issues
+    const sep = specifier.endsWith('/') ? '' : '/'
+    specifier = specifier + sep + 'index'
+  }
   for (const ext of extensions) {
     try {
       return await nextResolve(specifier + ext)

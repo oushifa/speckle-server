@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import crs from 'crypto-random-string'
 import type {
   TokenResourceAccessRecord,

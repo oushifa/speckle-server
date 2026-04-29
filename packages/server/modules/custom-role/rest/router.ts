@@ -8,6 +8,7 @@ import {
   deleteCustomRoleFactory,
   getCustomRoleFactory,
   getEffectivePermissionByUserIdFactory,
+  getMyEffectivePermissionFactory,
   listCustomRolesFactory,
   listCustomRoleUsersFactory,
   listExistingUserIdsFactory,
@@ -68,6 +69,14 @@ const addUsersToRole = addUsersToRoleFactory({ db })
 const updateCustomRoleUserPerms = updateCustomRoleUserPermsFactory({ db })
 const removeCustomRoleUser = removeCustomRoleUserFactory({ db })
 const getEffectivePermissionByUserId = getEffectivePermissionByUserIdFactory({ db })
+
+const ALL_MENU_PERMS = ['/projects', '/organization', '/permissions', '/logs', '/models']
+const ALL_MODEL_PERMS = ['canUpload', 'canEdit', 'canDownload', 'canFile']
+const getMyEffectivePermission = getMyEffectivePermissionFactory({
+  db,
+  allMenuPerms: ALL_MENU_PERMS,
+  allModelPerms: ALL_MODEL_PERMS
+})
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.context.auth || !req.context.userId) {
@@ -242,6 +251,12 @@ export const customRoleRouterFactory = (): Router => {
       return res.status(204).send()
     }
   )
+
+  app.get('/api/v1/custom-roles/me/permissions', async (req, res) => {
+    const userId = req.context.userId as string
+    const item = await getMyEffectivePermission({ userId })
+    return res.status(200).send(item)
+  })
 
   app.get(
     '/api/v1/custom-roles/users/:userId/effective-permissions',

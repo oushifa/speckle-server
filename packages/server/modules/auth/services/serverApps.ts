@@ -16,7 +16,7 @@ import type { ScopeRecord } from '@/modules/auth/helpers/types'
 import type { CreateAndStoreAppToken } from '@/modules/core/domain/tokens/operations'
 import type { createBareToken } from '@/modules/core/services/tokens'
 import type { ServerScope } from '@speckle/shared'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import {
   AccessCodeNotFoundError,
   AppTokenCreateError,

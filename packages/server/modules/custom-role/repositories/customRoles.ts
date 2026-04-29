@@ -2,10 +2,12 @@ import type {
   CustomRole,
   CustomRoleUserItem,
   EffectivePermission,
+  MyEffectivePermission,
   PermissionId
 } from '@/modules/custom-role/domain/types'
 import { CustomRoles, CustomRoleUsers } from '@/modules/custom-role/helpers/db'
-import { Users } from '@/modules/core/dbSchema'
+import { ServerAcl, Users } from '@/modules/core/dbSchema'
+import { Roles } from '@/modules/core/helpers/mainConstants'
 import type { Knex } from 'knex'
 import cryptoRandomString from 'crypto-random-string'
 
@@ -322,5 +324,83 @@ export const getEffectivePermissionByUserIdFactory =
       menuPerms: parsePerms(row.menuPerms),
       modelPerms: parsePerms(row.modelPerms),
       isCustomized: row.isCustomized
+    }
+  }
+
+export const getMyEffectivePermissionFactory =
+  ({
+    db,
+    allMenuPerms,
+    allModelPerms
+  }: {
+    db: Knex
+    allMenuPerms: PermissionId[]
+    allModelPerms: PermissionId[]
+  }) =>
+  async (params: { userId: string }): Promise<MyEffectivePermission> => {
+    // Check server-level role (admin bypass)
+    const aclRow = await db(ServerAcl.name)
+      .where({ [ServerAcl.col.userId]: params.userId })
+      .select<Array<{ role: string }>>([ServerAcl.col.role])
+      .first()
+    const isAdmin = aclRow?.role === Roles.Server.Admin
+    if (isAdmin) {
+      return {
+        userId: params.userId,
+        roleId: null,
+        roleName: null,
+        menuPerms: [...allMenuPerms],
+        modelPerms: [...allModelPerms],
+        isCustomized: false,
+        isAdmin: true
+      }
+    }
+
+    const row = await tables
+      .customRoleUsers(db)
+      .join(CustomRoles.name, CustomRoleUsers.col.roleId, CustomRoles.col.id)
+      .where(CustomRoleUsers.col.userId, params.userId)
+      .select<
+        Array<{
+          userId: string
+          roleId: string
+          roleName: string
+          menuPerms: unknown
+          modelPerms: unknown
+          isCustomized: boolean
+          updatedAt: Date
+        }>
+      >([
+        CustomRoleUsers.col.userId,
+        CustomRoleUsers.col.roleId,
+        CustomRoles.colAs('name', 'roleName'),
+        CustomRoleUsers.col.menuPerms,
+        CustomRoleUsers.col.modelPerms,
+        CustomRoleUsers.col.isCustomized,
+        CustomRoleUsers.col.updatedAt
+      ])
+      .orderBy(CustomRoleUsers.col.updatedAt, 'desc')
+      .first()
+
+    if (!row) {
+      return {
+        userId: params.userId,
+        roleId: null,
+        roleName: null,
+        menuPerms: [],
+        modelPerms: [],
+        isCustomized: false,
+        isAdmin: false
+      }
+    }
+
+    return {
+      userId: row.userId,
+      roleId: row.roleId,
+      roleName: row.roleName,
+      menuPerms: parsePerms(row.menuPerms),
+      modelPerms: parsePerms(row.modelPerms),
+      isCustomized: row.isCustomized,
+      isAdmin: false
     }
   }

@@ -3,6 +3,7 @@
 
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import { appRoot, packageRoot } from '@/bootstrap'
 import {
   values,
@@ -76,7 +77,9 @@ async function autoloadFromDirectory(dirPath: string) {
       const ext = path.extname(file)
       if (['.js', '.ts'].includes(ext)) {
         const name = camelCase(path.basename(file, ext))
-        results[name] = await import(pathToFile)
+        // Convert to file:// URL for Windows ESM compatibility
+        const fileUrl = pathToFileURL(pathToFile).href
+        results[name] = await import(fileUrl)
       }
     }
   }
