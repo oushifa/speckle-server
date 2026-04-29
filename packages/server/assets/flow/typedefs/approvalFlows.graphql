@@ -212,6 +212,12 @@ input CancelApprovalFlowInput {
   comment: String
 }
 
+input TransferApprovalFlowAssigneeInput {
+  instanceIds: [ID!]!
+  assigneeId: ID!
+  comment: String
+}
+
 type ApprovalMutations {
   createDefinition(input: CreateApprovalFlowDefinitionInput!): ApprovalFlowDefinition!
   setDefinitionActive(definitionId: ID!, isActive: Boolean!): ApprovalFlowDefinition!
@@ -219,6 +225,8 @@ type ApprovalMutations {
   approve(input: ApproveApprovalFlowInput!): ApprovalFlowInstance!
   reject(input: RejectApprovalFlowInput!): ApprovalFlowInstance!
   cancel(input: CancelApprovalFlowInput!): ApprovalFlowInstance!
+  transferAssignee(input: TransferApprovalFlowAssigneeInput!): Int!
+    @hasServerRole(role: SERVER_ADMIN)
   processTimeouts: Int!
 }
 

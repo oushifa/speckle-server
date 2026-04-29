@@ -19,7 +19,12 @@
         ref="initiatedPageRef"
         @open-instance="openInstanceDrawer"
       />
-      <HandledPage v-else ref="handledPageRef" @open-instance="openInstanceDrawer" />
+      <HandledPage
+        v-else-if="currentTag === 'handled'"
+        ref="handledPageRef"
+        @open-instance="openInstanceDrawer"
+      />
+      <AllFlowsPage v-else ref="allPageRef" @open-instance="openInstanceDrawer" />
     </div>
 
     <LayoutDrawer
@@ -182,6 +187,7 @@ import FlowOpButtons from './FlowOpButtons.vue'
 import TodoPage from './TodoPage.vue'
 import InitiatedPage from './InitiatedPage.vue'
 import HandledPage from './HandledPage.vue'
+import AllFlowsPage from './AllFlowsPage.vue'
 import type { FlowListItem } from './flowInstances'
 
 const approveFlowMutation = graphql(`
@@ -219,7 +225,7 @@ const cancelFlowMutation = graphql(`
 
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'logs' | 'diagram'
-type FlowHeaderTag = 'pending' | 'initiated' | 'handled'
+type FlowHeaderTag = 'pending' | 'initiated' | 'handled' | 'all'
 type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
 type FlowHeaderTabItem = { id: FlowHeaderTag; title: string }
 type FlowDetailTabItem = { id: FlowDetailTab; title: string }
@@ -227,7 +233,7 @@ type RefreshablePage = { refresh: () => Promise<void> }
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
-const { userId } = useActiveUser()
+const { userId, isAdmin } = useActiveUser()
 
 const mutating = ref(false)
 const currentTag = ref<FlowHeaderTag>('pending')
@@ -237,6 +243,7 @@ const reviewComment = ref('')
 const todoPageRef = ref<RefreshablePage | null>(null)
 const initiatedPageRef = ref<RefreshablePage | null>(null)
 const handledPageRef = ref<RefreshablePage | null>(null)
+const allPageRef = ref<RefreshablePage | null>(null)
 
 const formatDate = (date?: string | null) => {
   if (!date) return '-'
@@ -290,14 +297,19 @@ const notify = (title: string, description: string, type: ToastNotificationType)
   })
 }
 
-const headerTags = [
-  { id: 'pending' as FlowHeaderTag, title: '待办' },
-  { id: 'initiated' as FlowHeaderTag, title: '我发起的' },
-  { id: 'handled' as FlowHeaderTag, title: '我处理的' }
-] as FlowHeaderTabItem[]
+const headerTags = computed(() => {
+  const tabs: FlowHeaderTabItem[] = [
+    { id: 'pending', title: '待办' },
+    { id: 'initiated', title: '我发起的' },
+    { id: 'handled', title: '我处理的' }
+  ]
+  if (isAdmin.value) tabs.push({ id: 'all', title: '全部流程' })
+  return tabs
+})
 
 const activeTagItem = computed(
-  () => headerTags.find((tag) => tag.id === currentTag.value) || headerTags[0]
+  () =>
+    headerTags.value.find((tag) => tag.id === currentTag.value) || headerTags.value[0]
 )
 
 const layoutTabs = [
@@ -322,6 +334,12 @@ const onTagChange = (item: { id: string }) => {
   currentTag.value = item.id as FlowHeaderTag
 }
 
+watch(isAdmin, (admin) => {
+  if (!admin && currentTag.value === 'all') {
+    currentTag.value = 'pending'
+  }
+})
+
 const onDetailTabChange = (item: { id: string }) => {
   detailTab.value = item.id as FlowDetailTab
 }
@@ -333,6 +351,14 @@ const refreshCurrentTagPage = async () => {
   }
   if (currentTag.value === 'initiated') {
     await initiatedPageRef.value?.refresh()
+    return
+  }
+  if (currentTag.value === 'handled') {
+    await handledPageRef.value?.refresh()
+    return
+  }
+  if (currentTag.value === 'all') {
+    await allPageRef.value?.refresh()
     return
   }
   await handledPageRef.value?.refresh()
@@ -350,7 +376,6 @@ const openInstanceDrawer = (instance: FlowListItem) => {
     notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
     return
   }
-  console.log(instance)
   selectedInstance.value = instance
   detailTab.value = 'logs'
   reviewComment.value = ''

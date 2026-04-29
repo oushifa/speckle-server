@@ -670,6 +670,7 @@ export type ApprovalMutations = {
   reject: ApprovalFlowInstance;
   setDefinitionActive: ApprovalFlowDefinition;
   start: ApprovalFlowInstance;
+  transferAssignee: Scalars['Int']['output'];
 };
 
 
@@ -701,6 +702,11 @@ export type ApprovalMutationsSetDefinitionActiveArgs = {
 
 export type ApprovalMutationsStartArgs = {
   input: StartApprovalFlowInput;
+};
+
+
+export type ApprovalMutationsTransferAssigneeArgs = {
+  input: TransferApprovalFlowAssigneeInput;
 };
 
 export type ApproveApprovalFlowInput = {
@@ -5821,6 +5827,12 @@ export const TokenResourceIdentifierType = {
 } as const;
 
 export type TokenResourceIdentifierType = typeof TokenResourceIdentifierType[keyof typeof TokenResourceIdentifierType];
+export type TransferApprovalFlowAssigneeInput = {
+  assigneeId: Scalars['ID']['input'];
+  comment?: InputMaybe<Scalars['String']['input']>;
+  instanceIds: Array<Scalars['ID']['input']>;
+};
+
 export type TriggeredAutomationsStatus = {
   __typename?: 'TriggeredAutomationsStatus';
   automationRuns: Array<AutomateRun>;
@@ -7825,6 +7837,7 @@ export type ResolversTypes = {
   TokenResourceIdentifier: ResolverTypeWrapper<TokenResourceIdentifier>;
   TokenResourceIdentifierInput: TokenResourceIdentifierInput;
   TokenResourceIdentifierType: TokenResourceIdentifierType;
+  TransferApprovalFlowAssigneeInput: TransferApprovalFlowAssigneeInput;
   TriggeredAutomationsStatus: ResolverTypeWrapper<TriggeredAutomationsStatusGraphQLReturn>;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
@@ -8293,6 +8306,7 @@ export type ResolversParentTypes = {
   TestAutomationRunTriggerPayload: TestAutomationRunTriggerPayload;
   TokenResourceIdentifier: TokenResourceIdentifier;
   TokenResourceIdentifierInput: TokenResourceIdentifierInput;
+  TransferApprovalFlowAssigneeInput: TransferApprovalFlowAssigneeInput;
   TriggeredAutomationsStatus: TriggeredAutomationsStatusGraphQLReturn;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
@@ -8780,6 +8794,7 @@ export type ApprovalMutationsResolvers<ContextType = GraphQLContext, ParentType 
   reject?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsRejectArgs, 'input'>>;
   setDefinitionActive?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsSetDefinitionActiveArgs, 'definitionId' | 'isActive'>>;
   start?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsStartArgs, 'input'>>;
+  transferAssignee?: Resolver<ResolversTypes['Int'], ParentType, ContextType, RequireFields<ApprovalMutationsTransferAssigneeArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

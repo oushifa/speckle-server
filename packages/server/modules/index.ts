@@ -93,6 +93,7 @@ const getEnabledModuleNames = () => {
   } = getFeatureFlags()
   const moduleNames = [
     'acc',
+    'logs',
     'accessrequests',
     'activitystream',
     'organizations',
@@ -108,6 +109,7 @@ const getEnabledModuleNames = () => {
     'emails',
     'fileuploads',
     'flow',
+    'custom-role',
     'notifications',
     'previews',
     'project-statistics',

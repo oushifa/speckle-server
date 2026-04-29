@@ -13,7 +13,8 @@ import {
   getApprovalFlowInstancesFactory,
   getApprovalFlowInstanceStepsFactory,
   getApprovalFlowStatsFactory,
-  setApprovalFlowDefinitionActiveStateFactory
+  setApprovalFlowDefinitionActiveStateFactory,
+  updateApprovalFlowInstanceStepFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import {
   createApprovalFlowDefinitionWithStepsFactory,
@@ -23,6 +24,8 @@ import {
 } from '@/modules/flow/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
+import { throwForNotHavingServerRole } from '@/modules/shared/authz'
+import { Roles } from '@speckle/shared'
 import {
   ApprovalFlowSubscriptions,
   filteredSubscribe,
@@ -472,6 +475,47 @@ export default {
       const count = await processApprovalFlowTimeoutsFactory({ db })()
       if (count > 0) await publishApprovalFlowTodoCountUpdated()
       return count
+    },
+    async transferAssignee(
+      _parent: unknown,
+      args: {
+        input: {
+          instanceIds: string[]
+          assigneeId: string
+          comment?: string | null
+        }
+      },
+      ctx: GraphQLContext
+    ) {
+      ensureUserId(ctx)
+      await throwForNotHavingServerRole(ctx, Roles.Server.Admin)
+
+      const uniqueInstanceIds = Array.from(
+        new Set((args.input.instanceIds || []).filter((id) => !!id))
+      )
+      if (!uniqueInstanceIds.length) return 0
+
+      let transferredCount = 0
+      for (const instanceId of uniqueInstanceIds) {
+        const instance = await getApprovalFlowInstanceByIdFactory({ db })({
+          id: instanceId
+        })
+        if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending)
+          continue
+
+        const currentStep = await getApprovalFlowCurrentStepFactory({ db })(instanceId)
+        if (!currentStep || currentStep.status !== ApprovalFlowStepStatus.Pending)
+          continue
+
+        await updateApprovalFlowInstanceStepFactory({ db })({
+          stepId: currentStep.id,
+          approverIds: [args.input.assigneeId]
+        })
+        transferredCount++
+      }
+
+      if (transferredCount > 0) await publishApprovalFlowTodoCountUpdated()
+      return transferredCount
     }
   }
 } as unknown as Resolvers
