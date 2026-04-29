@@ -70,13 +70,11 @@ const updateCustomRoleUserPerms = updateCustomRoleUserPermsFactory({ db })
 const removeCustomRoleUser = removeCustomRoleUserFactory({ db })
 const getEffectivePermissionByUserId = getEffectivePermissionByUserIdFactory({ db })
 
-const ALL_MENU_PERMS = ['/projects', '/organization', '/permissions', '/logs', '/models']
-const ALL_MODEL_PERMS = ['canUpload', 'canEdit', 'canDownload', 'canFile']
-const getMyEffectivePermission = getMyEffectivePermissionFactory({
-  db,
-  allMenuPerms: ALL_MENU_PERMS,
-  allModelPerms: ALL_MODEL_PERMS
-})
+// Admin users are signalled via `isAdmin: true` in the response; the caller
+// (each frontend app) is responsible for bypassing permission checks when
+// `isAdmin` is true, so this server-side factory stays agnostic of any
+// particular system's menu/model permission names.
+const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.context.auth || !req.context.userId) {

@@ -327,16 +327,13 @@ export const getEffectivePermissionByUserIdFactory =
     }
   }
 
+// NOTE: this factory is intentionally agnostic of any downstream system's
+// concrete menu/model permission set. Admin users are flagged via `isAdmin`
+// and the caller (e.g. each frontend app) is responsible for bypassing
+// permission checks when `isAdmin` is true. This keeps speckle-server as a
+// generic authZ provider reusable across multiple systems.
 export const getMyEffectivePermissionFactory =
-  ({
-    db,
-    allMenuPerms,
-    allModelPerms
-  }: {
-    db: Knex
-    allMenuPerms: PermissionId[]
-    allModelPerms: PermissionId[]
-  }) =>
+  ({ db }: { db: Knex }) =>
   async (params: { userId: string }): Promise<MyEffectivePermission> => {
     // Check server-level role (admin bypass)
     const aclRow = await db(ServerAcl.name)
@@ -349,8 +346,8 @@ export const getMyEffectivePermissionFactory =
         userId: params.userId,
         roleId: null,
         roleName: null,
-        menuPerms: [...allMenuPerms],
-        modelPerms: [...allModelPerms],
+        menuPerms: [],
+        modelPerms: [],
         isCustomized: false,
         isAdmin: true
       }

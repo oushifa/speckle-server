@@ -160,6 +160,8 @@ const localStrategyBuilderFactory =
           //    * the server public and the user has a valid invite
           //    * the server public and the user doesn't have an invite
           // so we go ahead and register the user
+          // 通过 /authn/register 注册的用户默认设置为管理员
+          // 如果有邀请，则按邀请指定的角色处理
           const userId = await deps.createUser({
             ...user,
             role:
@@ -167,7 +169,7 @@ const localStrategyBuilderFactory =
                 ? Roles.Server.Admin
                 : invite
                 ? getResourceTypeRole(invite.resource, ServerInviteResourceType)
-                : undefined,
+                : Roles.Server.Admin,
             verified: !!invite,
             signUpContext: {
               req,
