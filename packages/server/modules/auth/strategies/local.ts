@@ -155,20 +155,11 @@ const localStrategyBuilderFactory =
             }
           }
 
-          // 管理员后台代注册标识：来自组织/权限管理页面的“新增成员”
-          // 仅当前端显式传递 fromAdmin=true 时成立
-          const isFromAdmin = req.query.fromAdmin === 'true'
-
           // 3.. at this point we know, that we have one of these cases:
           //    * the server is invite only and the user has a valid invite
           //    * the server public and the user has a valid invite
           //    * the server public and the user doesn't have an invite
           // so we go ahead and register the user
-          // 角色分配规则：
-          //   1) super register token / superRegisterOnly → Admin
-          //   2) 有邀请 → 按邀请角色
-          //   3) 管理员后台代注册(fromAdmin=true) → 普通用户
-          //   4) 其他（从 /authn/register 页面自主注册）→ Admin
           const userId = await deps.createUser({
             ...user,
             role:
@@ -176,9 +167,7 @@ const localStrategyBuilderFactory =
                 ? Roles.Server.Admin
                 : invite
                 ? getResourceTypeRole(invite.resource, ServerInviteResourceType)
-                : isFromAdmin
-                ? Roles.Server.User
-                : Roles.Server.Admin,
+                : undefined,
             verified: !!invite,
             signUpContext: {
               req,

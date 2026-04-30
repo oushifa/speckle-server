@@ -12,6 +12,7 @@ type DepartmentUser = {
   avatar: string | null
   verified: boolean | null
   role: string | null
+  email: string | null
 }
 
 const tables = {
@@ -49,6 +50,7 @@ export const listDepartmentUsersFactory =
         Users.col.company,
         Users.col.avatar,
         Users.col.verified,
+        Users.col.email,
         DepartmentMembers.colAs('title', 'role')
       ])
       .orderBy(Users.col.name, 'asc')

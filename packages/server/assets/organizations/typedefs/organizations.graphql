@@ -49,6 +49,14 @@ extend type Query {
     @hasServerRole(role: SERVER_GUEST)
 }
 
+extend type LimitedUser {
+  """
+  The user's email (used as phone number in this system).
+  Only populated in specific queries like departmentUsers.
+  """
+  email: String
+}
+
 extend type Mutation {
   departmentMutations: DepartmentMutations!
     @hasServerRole(role: SERVER_GUEST)
