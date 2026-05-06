@@ -1,26 +1,20 @@
 import { Roles } from '../../../../core/constants.js'
-import { WorkspacePlanFeatures } from '../../../../workspaces/index.js'
 import {
   ProjectNoAccessError,
   ProjectNotEnoughPermissionsError,
   ProjectNotFoundError,
   ServerNoAccessError,
   ServerNoSessionError,
-  ServerNotEnoughPermissionsError,
-  WorkspaceNoAccessError,
-  WorkspaceNotEnoughPermissionsError,
-  WorkspacePlanNoFeatureAccessError,
-  WorkspaceReadOnlyError,
-  WorkspacesNotEnabledError,
-  WorkspaceSsoSessionNoAccessError
+  ServerNotEnoughPermissionsError
 } from '../../../domain/authErrors.js'
 import { MaybeUserContext, ProjectContext } from '../../../domain/context.js'
 import { Loaders } from '../../../domain/loaders.js'
 import { AuthPolicy } from '../../../domain/policies.js'
+import { ensureMinimumProjectRoleFragment } from '../../../fragments/projects.js'
 import {
-  ensureCanUseProjectWorkspacePlanFeatureFragment,
-  ensureImplicitProjectMemberWithWriteAccessFragment
-} from '../../../fragments/projects.js'
+  checkIfAdminOverrideEnabledFragment,
+  ensureMinimumServerRoleFragment
+} from '../../../fragments/server.js'
 import { err, ok } from 'true-myth/result'
 
 export const canCreateSavedViewPolicy: AuthPolicy<
@@ -32,49 +26,45 @@ export const canCreateSavedViewPolicy: AuthPolicy<
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspacePlan
   | typeof Loaders.getWorkspaceSsoSession
-  | typeof Loaders.getProjectRole,
+  | typeof Loaders.getProjectRole
+  | typeof Loaders.getAdminOverrideEnabled,
   MaybeUserContext & ProjectContext,
   InstanceType<
     | typeof ProjectNotFoundError
     | typeof ServerNoAccessError
     | typeof ServerNoSessionError
-    | typeof ProjectNoAccessError
-    | typeof WorkspaceNoAccessError
-    | typeof WorkspaceSsoSessionNoAccessError
     | typeof ServerNotEnoughPermissionsError
+    | typeof ProjectNoAccessError
     | typeof ProjectNotEnoughPermissionsError
-    | typeof WorkspaceNotEnoughPermissionsError
-    | typeof WorkspacePlanNoFeatureAccessError
-    | typeof WorkspaceReadOnlyError
-    | typeof WorkspacesNotEnabledError
   >
 > =
   (loaders) =>
   async ({ userId, projectId }) => {
-    const canUseSavedViews = await ensureCanUseProjectWorkspacePlanFeatureFragment(
-      loaders
-    )({
-      projectId,
-      feature: WorkspacePlanFeatures.SavedViews
-    })
-    if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
-
-    const ensuredWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
-      loaders
-    )({
+    const ensuredServerRole = await ensureMinimumServerRoleFragment(loaders)({
       userId,
+      role: Roles.Server.Guest
+    })
+    if (ensuredServerRole.isErr) return err(ensuredServerRole.error)
+
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
+    })
+    if (isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value) return ok()
+
+    const ensuredProjectRole = await ensureMinimumProjectRoleFragment(loaders)({
+      userId: userId!,
       projectId,
       role: Roles.Stream.Contributor
     })
-    if (ensuredWriteAccess.isErr) {
-      if (ensuredWriteAccess.error.code === 'ProjectNotEnoughPermissions')
+    if (ensuredProjectRole.isErr) {
+      if (ensuredProjectRole.error.code === 'ProjectNotEnoughPermissions')
         return err(
           new ProjectNotEnoughPermissionsError({
             message:
               "Your role on this project doesn't give you permission to save views. You need the Can edit or Project owner role."
           })
         )
-      return err(ensuredWriteAccess.error)
+      return err(ensuredProjectRole.error)
     }
 
     return ok()

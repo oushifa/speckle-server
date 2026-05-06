@@ -9,9 +9,9 @@ import {
 } from '../../viewer/helpers/route.js'
 
 /**
- * Title used for the default 'Ungrouped Scenes' group in the saved views panel.
+ * Title used for the default ungrouped group in the saved views panel.
  */
-export const ungroupedScenesGroupTitle = 'Ungrouped'
+export const ungroupedScenesGroupTitle = '未分组'
 
 export type DefaultGroupMetadata = {
   resourceIds: string[]

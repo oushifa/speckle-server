@@ -27,6 +27,7 @@ import {
   ensureMinimumProjectRoleFragment
 } from '../../../fragments/projects.js'
 import { ensureCanAccessSavedViewGroupFragment } from '../../../fragments/savedViews.js'
+import { checkIfAdminOverrideEnabledFragment } from '../../../fragments/server.js'
 import { err, ok } from 'true-myth/result'
 
 export const canCreateSavedViewGroupTokenPolicy: AuthPolicy<
@@ -39,6 +40,7 @@ export const canCreateSavedViewGroupTokenPolicy: AuthPolicy<
   | typeof Loaders.getWorkspacePlan
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
+  | typeof Loaders.getAdminOverrideEnabled
   | typeof Loaders.getProjectRole,
   MaybeUserContext & ProjectContext & SavedViewGroupContext,
   InstanceType<
@@ -60,6 +62,11 @@ export const canCreateSavedViewGroupTokenPolicy: AuthPolicy<
 > =
   (loaders) =>
   async ({ userId, projectId, savedViewGroupId }) => {
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
+    })
+    const hasAdminOverride = isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value
+
     const canUseSavedViews = await ensureCanAccessSavedViewGroupFragment(loaders)({
       userId,
       projectId,
@@ -68,6 +75,7 @@ export const canCreateSavedViewGroupTokenPolicy: AuthPolicy<
     })
 
     if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
+    if (hasAdminOverride) return ok()
 
     const env = await loaders.getEnv()
     const project = await loaders.getProject({ projectId })

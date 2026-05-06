@@ -30,6 +30,7 @@ import {
   ensureCanUseProjectWorkspacePlanFeatureFragment,
   ensureImplicitProjectMemberWithWriteAccessFragment
 } from './projects.js'
+import { checkIfAdminOverrideEnabledFragment } from './server.js'
 import { Roles } from '../../core/constants.js'
 import { WorkspacePlanFeatures } from '../../workspaces/index.js'
 import { isUngroupedGroup } from '../../saved-views/index.js'
@@ -87,13 +88,20 @@ export const ensureCanAccessSavedViewFragment: AuthPolicyEnsureFragment<
 > =
   (loaders) =>
   async ({ userId, projectId, savedViewId, access, allowNonExistent }) => {
-    const canUseSavedViews = await ensureCanUseProjectWorkspacePlanFeatureFragment(
-      loaders
-    )({
-      projectId,
-      feature: WorkspacePlanFeatures.SavedViews
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
     })
-    if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
+    const hasAdminOverride = isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value
+
+    if (!hasAdminOverride) {
+      const canUseSavedViews = await ensureCanUseProjectWorkspacePlanFeatureFragment(
+        loaders
+      )({
+        projectId,
+        feature: WorkspacePlanFeatures.SavedViews
+      })
+      if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
+    }
 
     const savedView = await loaders.getSavedView({ projectId, savedViewId })
     if (!savedView) {
@@ -105,6 +113,7 @@ export const ensureCanAccessSavedViewFragment: AuthPolicyEnsureFragment<
 
     // Validate read access
     if (access === 'read') {
+      if (hasAdminOverride) return ok()
       if (isAuthor || isPublic) {
         return ok()
       } else {
@@ -117,6 +126,8 @@ export const ensureCanAccessSavedViewFragment: AuthPolicyEnsureFragment<
     }
 
     // Validate write access
+    if (hasAdminOverride) return ok()
+
     // Check for write access to project first
     const ensuredWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
       loaders
@@ -171,6 +182,7 @@ export const ensureCanAccessSavedViewGroupFragment: AuthPolicyEnsureFragment<
   | typeof Loaders.getWorkspacePlan
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
+  | typeof Loaders.getAdminOverrideEnabled
   | typeof Loaders.getProjectRole,
   MaybeUserContext &
     ProjectContext &
@@ -196,13 +208,20 @@ export const ensureCanAccessSavedViewGroupFragment: AuthPolicyEnsureFragment<
 > =
   (loaders) =>
   async ({ userId, projectId, savedViewGroupId, access }) => {
-    const canUseSavedViews = await ensureCanUseProjectWorkspacePlanFeatureFragment(
-      loaders
-    )({
-      projectId,
-      feature: WorkspacePlanFeatures.SavedViews
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
     })
-    if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
+    const hasAdminOverride = isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value
+
+    if (!hasAdminOverride) {
+      const canUseSavedViews = await ensureCanUseProjectWorkspacePlanFeatureFragment(
+        loaders
+      )({
+        projectId,
+        feature: WorkspacePlanFeatures.SavedViews
+      })
+      if (canUseSavedViews.isErr) return err(canUseSavedViews.error)
+    }
 
     const savedViewGroup = await loaders.getSavedViewGroup({
       projectId,
@@ -218,6 +237,8 @@ export const ensureCanAccessSavedViewGroupFragment: AuthPolicyEnsureFragment<
     if (isUngroupedGroup(savedViewGroup.id)) {
       return err(new UngroupedSavedViewGroupLockError())
     }
+
+    if (hasAdminOverride) return ok()
 
     // groups have no visibility (yet), so authors AND project owners can mutate
     const isAuthor = savedViewGroup.authorId === userId

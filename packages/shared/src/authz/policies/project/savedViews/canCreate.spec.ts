@@ -12,9 +12,7 @@ import { TIME_MS } from '../../../../core/index.js'
 import {
   ProjectNoAccessError,
   ProjectNotEnoughPermissionsError,
-  ServerNoAccessError,
-  WorkspaceNoAccessError,
-  WorkspaceReadOnlyError
+  ServerNoAccessError
 } from '../../../domain/authErrors.js'
 import { WorkspacePlans } from '../../../../workspaces/index.js'
 
@@ -33,21 +31,34 @@ const buildSUT = (overrides?: OverridesOf<typeof canCreateSavedViewPolicy>) =>
     getWorkspaceSsoProvider: async () => null,
     getWorkspaceSsoSession: async () => null,
     getWorkspacePlan: async () => null,
+    getAdminOverrideEnabled: async () => false,
     getProjectRole: async () => Roles.Stream.Contributor,
     ...overrides
   })
 
 describe('canCreateSavedViewPolicy', () => {
-  it('fails when not workspaced project', async () => {
+  it('succeeds for non-workspaced project contributor', async () => {
     const canCreate = buildSUT()
 
     const result = await canCreate({
       userId: 'user-id',
       projectId: 'project-id'
     })
-    expect(result).toBeAuthErrorResult({
-      code: WorkspaceNoAccessError.code
+    expect(result).toBeOKResult()
+  })
+
+  it('succeeds with admin override even without project access', async () => {
+    const canCreate = buildSUT({
+      getAdminOverrideEnabled: async () => true,
+      getServerRole: async () => Roles.Server.Admin,
+      getProjectRole: async () => null
     })
+
+    const result = await canCreate({
+      userId: 'user-id',
+      projectId: 'project-id'
+    })
+    expect(result).toBeOKResult()
   })
 
   describe('w/ workspaces', () => {
@@ -166,7 +177,7 @@ describe('canCreateSavedViewPolicy', () => {
       expect(result).toBeAuthOKResult()
     })
 
-    it('fails if workspace readonly', async () => {
+    it('succeeds even if workspace readonly', async () => {
       const canCreate = buildWorkspaceSUT({
         getWorkspacePlan: getWorkspacePlanFake({
           name: WorkspacePlans.Pro,
@@ -178,9 +189,7 @@ describe('canCreateSavedViewPolicy', () => {
         userId: 'user-id',
         projectId: 'project-id'
       })
-      expect(result).toBeAuthErrorResult({
-        code: WorkspaceReadOnlyError.code
-      })
+      expect(result).toBeAuthOKResult()
     })
   })
 })

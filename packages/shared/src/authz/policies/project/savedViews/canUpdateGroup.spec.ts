@@ -41,6 +41,7 @@ describe('canUpdateSavedViewGroupPolicy', () => {
       getWorkspaceSsoProvider: async () => null,
       getWorkspacePlan: async () => null,
       getWorkspaceSsoSession: async () => null,
+      getAdminOverrideEnabled: async () => false,
       ...overrides
     })
 
@@ -56,6 +57,22 @@ describe('canUpdateSavedViewGroupPolicy', () => {
     expect(result).toBeAuthErrorResult({
       code: WorkspaceNoAccessError.code
     })
+  })
+
+  it('succeeds with admin override in non-workspaced project', async () => {
+    const policy = buildSUT({
+      getAdminOverrideEnabled: async () => true,
+      getServerRole: async () => Roles.Server.Admin,
+      getProjectRole: async () => null
+    })
+
+    const result = await policy({
+      userId: 'user-id',
+      projectId: 'project-id',
+      savedViewGroupId: 'saved-group-id'
+    })
+
+    expect(result).toBeOKResult()
   })
 
   describe('w/ workspaced project', async () => {

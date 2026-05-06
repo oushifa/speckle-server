@@ -2305,6 +2305,11 @@ export type LimitedUser = {
    */
   commits?: Maybe<CommitCollection>;
   company?: Maybe<Scalars['String']['output']>;
+  /**
+   * The user's email (used as phone number in this system).
+   * Only populated in specific queries like departmentUsers.
+   */
+  email?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   role?: Maybe<Scalars['String']['output']>;
@@ -9437,6 +9442,7 @@ export type LimitedUserResolvers<ContextType = GraphQLContext, ParentType extend
   bio?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   commits?: Resolver<Maybe<ResolversTypes['CommitCollection']>, ParentType, ContextType, RequireFields<LimitedUserCommitsArgs, 'limit'>>;
   company?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  email?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

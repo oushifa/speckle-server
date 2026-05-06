@@ -33,6 +33,7 @@ export const canUpdateSavedViewGroupPolicy: AuthPolicy<
   | typeof Loaders.getWorkspacePlan
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
+  | typeof Loaders.getAdminOverrideEnabled
   | typeof Loaders.getProjectRole,
   MaybeUserContext & ProjectContext & SavedViewGroupContext,
   InstanceType<

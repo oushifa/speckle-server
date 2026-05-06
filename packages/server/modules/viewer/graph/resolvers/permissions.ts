@@ -94,7 +94,7 @@ const resolvers: Resolvers = {
   }
 }
 
-const disabledMessage = 'Saved views are disabled on this server'
+const disabledMessage = '服务器未开启保存视图功能'
 const disabledResolvers: Resolvers = {
   ProjectPermissionChecks: {
     canCreateSavedView: () => {
