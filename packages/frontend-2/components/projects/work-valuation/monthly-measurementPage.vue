@@ -446,6 +446,69 @@
                 </div>
               </div>
             </div>
+            <div
+              v-if="isAdmin"
+              class="space-y-2 border border-outline-3 rounded-lg p-3"
+            >
+              <div class="text-body-sm font-medium">管理员流程操作</div>
+              <FormTextArea
+                v-model="flowActionComment"
+                label="操作说明"
+                placeholder="强制操作/重置请填写说明"
+                name="flow-admin-comment"
+                show-label
+              />
+              <FormTextInput
+                v-model="reactivateTargetStep"
+                type="number"
+                label="重开到步骤"
+                placeholder="请输入步骤序号（如 1）"
+                name="flow-reactivate-step"
+                show-label
+              />
+              <div class="flex flex-wrap gap-2">
+                <FormButton
+                  color="primary"
+                  :disabled="!canForceReviewFlow || flowActionLoading"
+                  :loading="flowActionLoading"
+                  @click="forceApproveFlow"
+                >
+                  强制通过
+                </FormButton>
+                <FormButton
+                  color="danger"
+                  :disabled="!canForceReviewFlow || flowActionLoading"
+                  :loading="flowActionLoading"
+                  @click="forceRejectFlow"
+                >
+                  强制驳回
+                </FormButton>
+                <FormButton
+                  color="outline"
+                  :disabled="!canForceReviewFlow || flowActionLoading"
+                  :loading="flowActionLoading"
+                  @click="forceCancelFlow"
+                >
+                  强制取消
+                </FormButton>
+                <FormButton
+                  color="primary"
+                  :disabled="!canReactivateFlow || flowActionLoading"
+                  :loading="flowActionLoading"
+                  @click="reactivateFlow"
+                >
+                  激活流程
+                </FormButton>
+                <FormButton
+                  color="outline"
+                  :disabled="flowActionLoading"
+                  :loading="flowActionLoading"
+                  @click="resetFlowToUnsubmitted"
+                >
+                  重置未送审
+                </FormButton>
+              </div>
+            </div>
             <div class="space-y-2">
               <div class="text-body-sm font-medium">流程日志</div>
               <div
@@ -508,6 +571,7 @@
 import { computed, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useApolloClient, useMutation, useQuery } from '@vue/apollo-composable'
+import { gql } from '@apollo/client/core'
 import dayjs from 'dayjs'
 import {
   PlusIcon,
@@ -518,6 +582,7 @@ import {
   TrashIcon
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
+import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import {
   LayoutTable,
   FormTextInput,
@@ -567,7 +632,64 @@ type FlowInstanceNode = NonNullable<
 >
 type PreviewViewTag = 'list' | 'model'
 
+const approveFlowMutation = gql`
+  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {
+    approvalMutations {
+      approve(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`
+
+const rejectFlowMutation = gql`
+  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {
+    approvalMutations {
+      reject(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`
+
+const cancelFlowMutation = gql`
+  mutation ForceCancelFlow($input: CancelApprovalFlowInput!) {
+    approvalMutations {
+      cancel(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`
+
+const reactivateFlowMutation = gql`
+  mutation ReactivateFlow($input: ReactivateApprovalFlowInput!) {
+    approvalMutations {
+      reactivate(input: $input) {
+        id
+        status
+        currentStep
+      }
+    }
+  }
+`
+
+const resetFlowToUnsubmittedMutation = gql`
+  mutation ResetFlowToUnsubmitted($input: ResetApprovalFlowToUnsubmittedInput!) {
+    approvalMutations {
+      resetToUnsubmitted(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`
+
 const apollo = useApolloClient().client
+const { isAdmin } = useActiveUser()
 
 const route = useRoute()
 const projectId = computed(() => {
@@ -667,6 +789,17 @@ const submitRemark = ref('')
 const flowDetailDrawerOpen = ref(false)
 const flowDetailLoading = ref(false)
 const selectedFlowInstance = ref<FlowInstanceNode | null>(null)
+const flowActionComment = ref('')
+const reactivateTargetStep = ref('')
+const flowActionLoading = ref(false)
+
+type AcceptanceFormLite = {
+  id: string
+  bimElements?: {
+    modelId?: string | null
+    bimIds?: unknown[] | null
+  } | null
+}
 
 const createForm = ref({
   unit: '',
@@ -721,9 +854,10 @@ const selectedPreviewModelIds = computed(() => {
   const selectedIds = new Set(previewSourceAcceptanceIds.value)
   const ids = new Set<string>()
   ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
-    (form) => {
-      if (!form || !selectedIds.has(form.id)) return
-      const modelId = form.bimElements?.modelId || ''
+    (form: unknown) => {
+      const row = form as AcceptanceFormLite | null
+      if (!row || !selectedIds.has(row.id)) return
+      const modelId = row.bimElements?.modelId || ''
       if (modelId) ids.add(modelId)
     }
   )
@@ -734,10 +868,11 @@ const selectedPreviewBimIds = computed(() => {
   const selectedIds = new Set(previewSourceAcceptanceIds.value)
   const ids = new Set<string>()
   ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
-    (form) => {
-      if (!form || !selectedIds.has(form.id)) return
-      ;(form.bimElements?.bimIds || []).forEach((id) => {
-        if (id) ids.add(id)
+    (form: unknown) => {
+      const row = form as AcceptanceFormLite | null
+      if (!row || !selectedIds.has(row.id)) return
+      ;(row.bimElements?.bimIds || []).forEach((id) => {
+        if (typeof id === 'string' && id) ids.add(id)
       })
     }
   )
@@ -963,7 +1098,6 @@ const isSubmitted = (item: { approveStatus?: string | null }) =>
   Boolean(item.approveStatus)
 
 const viewItem = (item: MonthlyMeasurementNode) => {
-  console.log(item)
   viewTargetItem.value = item
   viewDialogOpen.value = true
 }
@@ -1140,7 +1274,6 @@ const submitItem = async (item: MonthlyMeasurementNode) => {
 }
 
 const openFlowDetail = async (item: MonthlyMeasurementNode) => {
-  console.log(item)
   if (!item.flowInstanceId) return
   flowDetailDrawerOpen.value = true
   flowDetailLoading.value = true
@@ -1163,6 +1296,189 @@ const openFlowDetail = async (item: MonthlyMeasurementNode) => {
 const closeFlowDrawer = () => {
   flowDetailDrawerOpen.value = false
   selectedFlowInstance.value = null
+  flowActionComment.value = ''
+  reactivateTargetStep.value = ''
+}
+
+const refreshSelectedFlowInstance = async () => {
+  if (!selectedFlowInstance.value?.id) return
+  flowDetailLoading.value = true
+  try {
+    const res = await apollo.query({
+      query: approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
+      variables: {
+        id: selectedFlowInstance.value.id
+      },
+      fetchPolicy: 'network-only'
+    })
+    selectedFlowInstance.value = (res.data?.approvalFlowInstance ||
+      null) as FlowInstanceNode
+  } finally {
+    flowDetailLoading.value = false
+  }
+}
+
+const canReactivateFlow = computed(() => {
+  const status = selectedFlowInstance.value?.status
+  return status === 'APPROVED' || status === 'REJECTED' || status === 'CANCELED'
+})
+
+const canForceReviewFlow = computed(
+  () => selectedFlowInstance.value?.status === 'PENDING'
+)
+
+const ensureAdminComment = () => {
+  const comment = flowActionComment.value.trim()
+  if (!comment) {
+    createError.value = '管理员操作请填写说明'
+    return null
+  }
+  return comment
+}
+
+const forceApproveFlow = async () => {
+  if (
+    !selectedFlowInstance.value ||
+    !canForceReviewFlow.value ||
+    flowActionLoading.value
+  )
+    return
+  const comment = ensureAdminComment()
+  if (!comment) return
+  flowActionLoading.value = true
+  try {
+    await apollo.mutate({
+      mutation: approveFlowMutation,
+      variables: {
+        input: {
+          instanceId: selectedFlowInstance.value.id,
+          comment,
+          forceByAdmin: true
+        }
+      }
+    })
+    await Promise.all([refreshSelectedFlowInstance(), refetchMonthly()])
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '强制通过失败'
+  } finally {
+    flowActionLoading.value = false
+  }
+}
+
+const forceRejectFlow = async () => {
+  if (
+    !selectedFlowInstance.value ||
+    !canForceReviewFlow.value ||
+    flowActionLoading.value
+  )
+    return
+  const comment = ensureAdminComment()
+  if (!comment) return
+  flowActionLoading.value = true
+  try {
+    await apollo.mutate({
+      mutation: rejectFlowMutation,
+      variables: {
+        input: {
+          instanceId: selectedFlowInstance.value.id,
+          comment,
+          forceByAdmin: true
+        }
+      }
+    })
+    await Promise.all([refreshSelectedFlowInstance(), refetchMonthly()])
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '强制驳回失败'
+  } finally {
+    flowActionLoading.value = false
+  }
+}
+
+const forceCancelFlow = async () => {
+  if (
+    !selectedFlowInstance.value ||
+    !canForceReviewFlow.value ||
+    flowActionLoading.value
+  )
+    return
+  const comment = ensureAdminComment()
+  if (!comment) return
+  flowActionLoading.value = true
+  try {
+    await apollo.mutate({
+      mutation: cancelFlowMutation,
+      variables: {
+        input: {
+          instanceId: selectedFlowInstance.value.id,
+          comment,
+          forceByAdmin: true
+        }
+      }
+    })
+    await Promise.all([refreshSelectedFlowInstance(), refetchMonthly()])
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '强制取消失败'
+  } finally {
+    flowActionLoading.value = false
+  }
+}
+
+const reactivateFlow = async () => {
+  if (
+    !selectedFlowInstance.value ||
+    !canReactivateFlow.value ||
+    flowActionLoading.value
+  )
+    return
+  const comment = ensureAdminComment()
+  if (!comment) return
+  const targetStep = Number(reactivateTargetStep.value || 0)
+  if (!targetStep || Number.isNaN(targetStep) || targetStep < 1) {
+    createError.value = '请输入有效的重开步骤'
+    return
+  }
+  flowActionLoading.value = true
+  try {
+    await apollo.mutate({
+      mutation: reactivateFlowMutation,
+      variables: {
+        input: {
+          instanceId: selectedFlowInstance.value.id,
+          targetStep,
+          comment
+        }
+      }
+    })
+    await Promise.all([refreshSelectedFlowInstance(), refetchMonthly()])
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '流程激活失败'
+  } finally {
+    flowActionLoading.value = false
+  }
+}
+
+const resetFlowToUnsubmitted = async () => {
+  if (!selectedFlowInstance.value || flowActionLoading.value) return
+  const comment = ensureAdminComment()
+  if (!comment) return
+  flowActionLoading.value = true
+  try {
+    await apollo.mutate({
+      mutation: resetFlowToUnsubmittedMutation,
+      variables: {
+        input: {
+          instanceId: selectedFlowInstance.value.id,
+          comment
+        }
+      }
+    })
+    await refetchMonthly()
+    closeFlowDrawer()
+  } catch (e) {
+    createError.value = e instanceof Error ? e.message : '重置未送审失败'
+  } finally {
+    flowActionLoading.value = false
+  }
 }
 
 const deleteItem = async (item: MonthlyMeasurementNode) => {
@@ -1188,7 +1504,7 @@ const getStatusText = (status: string | null | undefined) => {
     PENDING: '审批中',
     APPROVED: '已通过',
     REJECTED: '已驳回',
-    CANCELLED: '已取消'
+    CANCELED: '已取消'
   }
   return map[(status || '').toUpperCase()] || '未送审'
 }
@@ -1198,7 +1514,7 @@ const getStatusColor = (status: string | null | undefined) => {
     PENDING: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
-    CANCELLED: 'bg-highlight-3 text-foreground-2'
+    CANCELED: 'bg-highlight-3 text-foreground-2'
   }
   return map[(status || '').toUpperCase()] || 'bg-foundation-3 text-foreground-2'
 }
@@ -1235,6 +1551,8 @@ const formatFlowActionLabel = (action?: string | null) => {
     APPROVED: '流程通过',
     REJECTED: '流程驳回',
     CANCELED: '流程取消',
+    REACTIVATED: '流程激活',
+    RESET_TO_UNSUBMITTED: '重置未送审',
     TIMEOUT_REJECTED: '超时驳回'
   }
   if (!action) return '-'

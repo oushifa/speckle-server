@@ -169,6 +169,11 @@ type Documents = {
     "\n  fragment ProjectsHiddenProjectWarning_User on User {\n    id\n    expiredSsoSessions {\n      id\n      slug\n      name\n      logo\n    }\n  }\n": typeof types.ProjectsHiddenProjectWarning_UserFragmentDoc,
     "\n  fragment ProjectsWorkspaceSelect_Workspace on Workspace {\n    id\n    role\n    name\n    logo\n    readOnly\n    slug\n  }\n": typeof types.ProjectsWorkspaceSelect_WorkspaceFragmentDoc,
     "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n": typeof types.ProjectsInviteBannerFragmentDoc,
+    "\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ForceApproveFlowDocument,
+    "\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ForceRejectFlowDocument,
+    "\n  mutation ForceCancelFlow($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ForceCancelFlowDocument,
+    "\n  mutation ReactivateFlow($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n        currentStep\n      }\n    }\n  }\n": typeof types.ReactivateFlowDocument,
+    "\n  mutation ResetFlowToUnsubmitted($input: ResetApprovalFlowToUnsubmittedInput!) {\n    approvalMutations {\n      resetToUnsubmitted(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ResetFlowToUnsubmittedDocument,
     "\n  fragment SettingsSidebar_Workspace on Workspace {\n    ...SettingsMenu_Workspace\n    id\n    slug\n    role\n  }\n": typeof types.SettingsSidebar_WorkspaceFragmentDoc,
     "\n  fragment SettingsServerRegionsAddEditDialog_ServerRegionItem on ServerRegionItem {\n    id\n    name\n    description\n    key\n  }\n": typeof types.SettingsServerRegionsAddEditDialog_ServerRegionItemFragmentDoc,
     "\n  fragment SettingsServerRegionsTable_ServerRegionItem on ServerRegionItem {\n    id\n    name\n    key\n    description\n  }\n": typeof types.SettingsServerRegionsTable_ServerRegionItemFragmentDoc,
@@ -764,6 +769,11 @@ const documents: Documents = {
     "\n  fragment ProjectsHiddenProjectWarning_User on User {\n    id\n    expiredSsoSessions {\n      id\n      slug\n      name\n      logo\n    }\n  }\n": types.ProjectsHiddenProjectWarning_UserFragmentDoc,
     "\n  fragment ProjectsWorkspaceSelect_Workspace on Workspace {\n    id\n    role\n    name\n    logo\n    readOnly\n    slug\n  }\n": types.ProjectsWorkspaceSelect_WorkspaceFragmentDoc,
     "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n": types.ProjectsInviteBannerFragmentDoc,
+    "\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ForceApproveFlowDocument,
+    "\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ForceRejectFlowDocument,
+    "\n  mutation ForceCancelFlow($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ForceCancelFlowDocument,
+    "\n  mutation ReactivateFlow($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n        currentStep\n      }\n    }\n  }\n": types.ReactivateFlowDocument,
+    "\n  mutation ResetFlowToUnsubmitted($input: ResetApprovalFlowToUnsubmittedInput!) {\n    approvalMutations {\n      resetToUnsubmitted(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ResetFlowToUnsubmittedDocument,
     "\n  fragment SettingsSidebar_Workspace on Workspace {\n    ...SettingsMenu_Workspace\n    id\n    slug\n    role\n  }\n": types.SettingsSidebar_WorkspaceFragmentDoc,
     "\n  fragment SettingsServerRegionsAddEditDialog_ServerRegionItem on ServerRegionItem {\n    id\n    name\n    description\n    key\n  }\n": types.SettingsServerRegionsAddEditDialog_ServerRegionItemFragmentDoc,
     "\n  fragment SettingsServerRegionsTable_ServerRegionItem on ServerRegionItem {\n    id\n    name\n    key\n    description\n  }\n": types.SettingsServerRegionsTable_ServerRegionItemFragmentDoc,
@@ -1838,6 +1848,26 @@ export function graphql(source: "\n  fragment ProjectsWorkspaceSelect_Workspace 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n"): (typeof documents)["\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ForceCancelFlow($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ForceCancelFlow($input: CancelApprovalFlowInput!) {\n    approvalMutations {\n      cancel(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReactivateFlow($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n        currentStep\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ReactivateFlow($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n        currentStep\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ResetFlowToUnsubmitted($input: ResetApprovalFlowToUnsubmittedInput!) {\n    approvalMutations {\n      resetToUnsubmitted(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation ResetFlowToUnsubmitted($input: ResetApprovalFlowToUnsubmittedInput!) {\n    approvalMutations {\n      resetToUnsubmitted(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
