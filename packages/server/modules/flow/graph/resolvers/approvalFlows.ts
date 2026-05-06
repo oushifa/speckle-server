@@ -18,6 +18,8 @@ import {
 } from '@/modules/flow/repositories/approvalFlows'
 import {
   createApprovalFlowDefinitionWithStepsFactory,
+  reactivateApprovalFlowFactory,
+  resetApprovalFlowToUnsubmittedFactory,
   processApprovalFlowTimeoutsFactory,
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
@@ -43,6 +45,8 @@ const ensureUserId = (ctx: GraphQLContext) => {
   if (!ctx.userId) throw new BadRequestError('Authentication required')
   return ctx.userId
 }
+
+const isServerAdmin = (ctx: GraphQLContext) => ctx.role === Roles.Server.Admin
 
 const publishApprovalFlowTodoCountUpdated = async () => {
   await publish(ApprovalFlowSubscriptions.ApprovalFlowTodoCountUpdated, {
@@ -394,17 +398,26 @@ export default {
           instanceId: string
           comment?: string | null
           nextStepApproverIds?: string[] | null
+          forceByAdmin?: boolean | null
         }
       },
       ctx: GraphQLContext
     ) {
       const userId = ensureUserId(ctx)
+      const forceByAdmin = Boolean(args.input.forceByAdmin)
+      if (forceByAdmin && !isServerAdmin(ctx)) {
+        throw new BadRequestError('Only server admin can force operation')
+      }
+      if (forceByAdmin && !args.input.comment?.trim()) {
+        throw new BadRequestError('Forced operation requires a comment')
+      }
       const currentStep = await getApprovalFlowCurrentStepFactory({ db })(
         args.input.instanceId
       )
       if (
         currentStep?.approverIds?.length &&
-        !currentStep.approverIds.includes(userId)
+        !currentStep.approverIds.includes(userId) &&
+        !forceByAdmin
       ) {
         throw new BadRequestError('Current user is not assigned to this step')
       }
@@ -413,7 +426,8 @@ export default {
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Approved,
         comment: args.input.comment,
-        nextStepApproverIds: args.input.nextStepApproverIds || null
+        nextStepApproverIds: args.input.nextStepApproverIds || null,
+        forceByAdmin
       })
       await publishApprovalFlowTodoCountUpdated()
       return instance
@@ -425,17 +439,26 @@ export default {
           instanceId: string
           comment: string
           rollbackToStep?: number | null
+          forceByAdmin?: boolean | null
         }
       },
       ctx: GraphQLContext
     ) {
       const userId = ensureUserId(ctx)
+      const forceByAdmin = Boolean(args.input.forceByAdmin)
+      if (forceByAdmin && !isServerAdmin(ctx)) {
+        throw new BadRequestError('Only server admin can force operation')
+      }
+      if (forceByAdmin && !args.input.comment?.trim()) {
+        throw new BadRequestError('Forced operation requires a comment')
+      }
       const currentStep = await getApprovalFlowCurrentStepFactory({ db })(
         args.input.instanceId
       )
       if (
         currentStep?.approverIds?.length &&
-        !currentStep.approverIds.includes(userId)
+        !currentStep.approverIds.includes(userId) &&
+        !forceByAdmin
       ) {
         throw new BadRequestError('Current user is not assigned to this step')
       }
@@ -444,28 +467,80 @@ export default {
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: args.input.comment,
-        rollbackToStep: args.input.rollbackToStep || null
+        rollbackToStep: args.input.rollbackToStep || null,
+        forceByAdmin
       })
       await publishApprovalFlowTodoCountUpdated()
       return instance
     },
     async cancel(
       _parent: unknown,
-      args: { input: { instanceId: string; comment?: string | null } },
+      args: {
+        input: {
+          instanceId: string
+          comment?: string | null
+          forceByAdmin?: boolean | null
+        }
+      },
       ctx: GraphQLContext
     ) {
       const userId = ensureUserId(ctx)
+      const forceByAdmin = Boolean(args.input.forceByAdmin)
+      if (forceByAdmin && !isServerAdmin(ctx)) {
+        throw new BadRequestError('Only server admin can force operation')
+      }
+      if (forceByAdmin && !args.input.comment?.trim()) {
+        throw new BadRequestError('Forced operation requires a comment')
+      }
       const currentStep = await getApprovalFlowCurrentStepFactory({ db })(
         args.input.instanceId
       )
-      if (currentStep && currentStep.status !== ApprovalFlowStepStatus.Pending) {
+      if (
+        currentStep &&
+        currentStep.status !== ApprovalFlowStepStatus.Pending &&
+        !forceByAdmin
+      ) {
         throw new BadRequestError('No active step to cancel')
       }
       const instance = await updateApprovalFlowStatusFactory({ db })({
         instanceId: args.input.instanceId,
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Canceled,
-        comment: args.input.comment
+        comment: args.input.comment,
+        forceByAdmin
+      })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
+    },
+    async reactivate(
+      _parent: unknown,
+      args: {
+        input: { instanceId: string; targetStep: number; comment: string }
+      },
+      ctx: GraphQLContext
+    ) {
+      const userId = ensureUserId(ctx)
+      await throwForNotHavingServerRole(ctx, Roles.Server.Admin)
+      const instance = await reactivateApprovalFlowFactory({ db })({
+        instanceId: args.input.instanceId,
+        targetStep: args.input.targetStep,
+        userId,
+        comment: args.input.comment.trim()
+      })
+      await publishApprovalFlowTodoCountUpdated()
+      return instance
+    },
+    async resetToUnsubmitted(
+      _parent: unknown,
+      args: { input: { instanceId: string; comment: string } },
+      ctx: GraphQLContext
+    ) {
+      const userId = ensureUserId(ctx)
+      await throwForNotHavingServerRole(ctx, Roles.Server.Admin)
+      const instance = await resetApprovalFlowToUnsubmittedFactory({ db })({
+        instanceId: args.input.instanceId,
+        userId,
+        comment: args.input.comment.trim()
       })
       await publishApprovalFlowTodoCountUpdated()
       return instance

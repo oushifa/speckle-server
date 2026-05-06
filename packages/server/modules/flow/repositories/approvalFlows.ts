@@ -54,7 +54,9 @@ export const ApprovalFlowActionType = {
   Approved: 'APPROVED',
   Rejected: 'REJECTED',
   Canceled: 'CANCELED',
-  TimeoutRejected: 'TIMEOUT_REJECTED'
+  TimeoutRejected: 'TIMEOUT_REJECTED',
+  Reactivated: 'REACTIVATED',
+  ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED'
 } as const
 
 export const ApprovalFlowStepStatus = {

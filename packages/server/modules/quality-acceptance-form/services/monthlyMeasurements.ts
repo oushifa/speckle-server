@@ -114,7 +114,7 @@ const mapQualityApproveStatusFromFlowStatus = (status: string) => {
   if (status === 'pending') return 'PENDING'
   if (status === 'approved') return 'APPROVED'
   if (status === 'rejected') return 'REJECTED'
-  if (status === 'canceled') return 'CANCELLED'
+  if (status === 'canceled') return 'CANCELED'
   return ''
 }
 
@@ -279,7 +279,7 @@ export const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) =
   if (status === 'pending') return 'PENDING'
   if (status === 'approved') return 'APPROVED'
   if (status === 'rejected') return 'REJECTED'
-  if (status === 'canceled') return 'CANCELLED'
+  if (status === 'canceled') return 'CANCELED'
   return ''
 }
 

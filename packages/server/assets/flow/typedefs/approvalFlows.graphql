@@ -17,6 +17,8 @@ enum ApprovalFlowActionType {
   REJECTED
   CANCELED
   TIMEOUT_REJECTED
+  REACTIVATED
+  RESET_TO_UNSUBMITTED
 }
 
 enum ApprovalFlowStepStatus {
@@ -199,17 +201,31 @@ input ApproveApprovalFlowInput {
   instanceId: ID!
   comment: String
   nextStepApproverIds: [ID!]
+  forceByAdmin: Boolean
 }
 
 input RejectApprovalFlowInput {
   instanceId: ID!
   comment: String!
   rollbackToStep: Int
+  forceByAdmin: Boolean
 }
 
 input CancelApprovalFlowInput {
   instanceId: ID!
   comment: String
+  forceByAdmin: Boolean
+}
+
+input ReactivateApprovalFlowInput {
+  instanceId: ID!
+  targetStep: Int!
+  comment: String!
+}
+
+input ResetApprovalFlowToUnsubmittedInput {
+  instanceId: ID!
+  comment: String!
 }
 
 input TransferApprovalFlowAssigneeInput {
@@ -225,6 +241,8 @@ type ApprovalMutations {
   approve(input: ApproveApprovalFlowInput!): ApprovalFlowInstance!
   reject(input: RejectApprovalFlowInput!): ApprovalFlowInstance!
   cancel(input: CancelApprovalFlowInput!): ApprovalFlowInstance!
+  reactivate(input: ReactivateApprovalFlowInput!): ApprovalFlowInstance!
+  resetToUnsubmitted(input: ResetApprovalFlowToUnsubmittedInput!): ApprovalFlowInstance!
   transferAssignee(input: TransferApprovalFlowAssigneeInput!): Int!
     @hasServerRole(role: SERVER_ADMIN)
   processTimeouts: Int!

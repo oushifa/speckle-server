@@ -36,9 +36,44 @@ import type { Knex } from 'knex'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 const MONTHLY_MEASUREMENT_TABLE = 'monthly_measurements'
+const MONTHLY_MEASUREMENT_TEMPLATE_ID = 'm_measure'
 const FORM_SNAPSHOT_ENTER = 'ENTER_STEP'
 const FORM_SNAPSHOT_LEAVE = 'LEAVE_STEP'
 const FLOW_ID_MAX_LENGTH = 10
+const FORCED_MONTHLY_MEASUREMENT_HOOKS = {
+  onInstancePending: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceApproved: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceRejected: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceCanceled: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ]
+} as const
 
 type FlowStepSnapshot = {
   definitionStepId: string | null
@@ -88,7 +123,7 @@ const mapFlowStatusToQualityAcceptanceApproveStatus = (status: string) => {
   if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
   if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
   if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
-  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELLED'
+  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELED'
   return 'PENDING'
 }
 
@@ -96,7 +131,7 @@ const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) => {
   if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
   if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
   if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
-  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELLED'
+  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELED'
   return 'PENDING'
 }
 
@@ -129,6 +164,28 @@ const toHookActions = (value: unknown): FlowHookAction[] => {
       typeof item === 'object' &&
       (item as { type?: string }).type === 'updateResourceFields'
   )
+}
+
+const resolveDefinitionEffectConfig = (params: {
+  effectConfig: Record<string, unknown> | null
+  templateId?: string | null
+}) => {
+  if (params.templateId !== MONTHLY_MEASUREMENT_TEMPLATE_ID) {
+    return params.effectConfig
+  }
+  const next = { ...(params.effectConfig || {}) } as Record<string, unknown>
+  const existingHooks =
+    next.hooks && typeof next.hooks === 'object'
+      ? (next.hooks as Record<string, unknown>)
+      : {}
+  const mergedHooks = { ...existingHooks } as Record<string, unknown>
+  for (const [event, actions] of Object.entries(FORCED_MONTHLY_MEASUREMENT_HOOKS)) {
+    mergedHooks[event] = toHookActions(mergedHooks[event]).length
+      ? mergedHooks[event]
+      : actions
+  }
+  next.hooks = mergedHooks
+  return next
 }
 
 const recalculateProjectCostSummaryIfNeeded = async (params: {
@@ -235,6 +292,7 @@ const updateResourceByHookAction = async (params: {
 const executeDefinitionHooks = async (params: {
   trx: Knex
   effectConfig: Record<string, unknown> | null
+  templateId?: string | null
   event: FlowHookEvent
   instance: {
     resourceType: string
@@ -244,10 +302,11 @@ const executeDefinitionHooks = async (params: {
   status: string
   actorId: string
 }) => {
-  const hooksObject = (params.effectConfig?.hooks || null) as Record<
-    string,
-    unknown
-  > | null
+  const effectiveConfig = resolveDefinitionEffectConfig({
+    effectConfig: params.effectConfig,
+    templateId: params.templateId || null
+  })
+  const hooksObject = (effectiveConfig?.hooks || null) as Record<string, unknown> | null
   if (!hooksObject) return
   const actions = toHookActions(hooksObject[params.event])
   for (const action of actions) {
@@ -656,6 +715,7 @@ export const startApprovalFlowFactory =
         trx,
         effectConfig:
           (definition.effectConfig as Record<string, unknown> | null) || null,
+        templateId: definition.templateId,
         event: 'onInstancePending',
         instance,
         status: ApprovalFlowInstanceStatus.Pending,
@@ -675,6 +735,7 @@ export const updateApprovalFlowStatusFactory =
     comment?: string | null
     rollbackToStep?: number | null
     nextStepApproverIds?: string[] | null
+    forceByAdmin?: boolean
   }) => {
     return await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
@@ -708,7 +769,8 @@ export const updateApprovalFlowStatusFactory =
       }
       if (
         currentStep.approverIds?.length &&
-        !currentStep.approverIds.includes(params.userId)
+        !currentStep.approverIds.includes(params.userId) &&
+        !params.forceByAdmin
       ) {
         throw new BadRequestError('Current user is not assigned to this approval step')
       }
@@ -980,13 +1042,19 @@ export const updateApprovalFlowStatusFactory =
         actorId: params.userId,
         fromStatus: instance.status,
         toStatus: finalStatus,
-        comment: params.comment || null
+        comment: params.comment || null,
+        metadata: params.forceByAdmin
+          ? {
+              forced: true
+            }
+          : null
       })
 
       if (finalStatus === ApprovalFlowInstanceStatus.Pending) {
         await executeDefinitionHooks({
           trx,
           effectConfig: flowSnapshot.effectConfig || null,
+          templateId: flowSnapshot.templateId,
           event: 'onInstancePending',
           instance,
           status: ApprovalFlowInstanceStatus.Pending,
@@ -996,6 +1064,7 @@ export const updateApprovalFlowStatusFactory =
         await executeDefinitionHooks({
           trx,
           effectConfig: flowSnapshot.effectConfig || null,
+          templateId: flowSnapshot.templateId,
           event: 'onInstanceApproved',
           instance,
           status: ApprovalFlowInstanceStatus.Approved,
@@ -1005,6 +1074,7 @@ export const updateApprovalFlowStatusFactory =
         await executeDefinitionHooks({
           trx,
           effectConfig: flowSnapshot.effectConfig || null,
+          templateId: flowSnapshot.templateId,
           event: 'onInstanceRejected',
           instance,
           status: ApprovalFlowInstanceStatus.Rejected,
@@ -1014,6 +1084,7 @@ export const updateApprovalFlowStatusFactory =
         await executeDefinitionHooks({
           trx,
           effectConfig: flowSnapshot.effectConfig || null,
+          templateId: flowSnapshot.templateId,
           event: 'onInstanceCanceled',
           instance,
           status: ApprovalFlowInstanceStatus.Canceled,
@@ -1022,6 +1093,234 @@ export const updateApprovalFlowStatusFactory =
       }
 
       return updatedInstance
+    })
+  }
+
+export const reactivateApprovalFlowFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    instanceId: string
+    targetStep: number
+    userId: string
+    comment: string
+  }) => {
+    return await deps.db.transaction(async (trx) => {
+      const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
+      const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
+      const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
+      const updateStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
+      const insertAction = insertApprovalFlowActionFactory({ db: trx })
+
+      const instance = await getInstanceById({ id: params.instanceId })
+      if (!instance) throw new BadRequestError('Approval instance not found')
+      if (
+        !(
+          [
+            ApprovalFlowInstanceStatus.Approved,
+            ApprovalFlowInstanceStatus.Rejected,
+            ApprovalFlowInstanceStatus.Canceled
+          ] as string[]
+        ).includes(instance.status)
+      ) {
+        throw new BadRequestError(
+          'Only approved/rejected/canceled instances can reactivate'
+        )
+      }
+
+      const flowSnapshot = fromFlowSnapshot(
+        (instance.flowSnapshot as Record<string, unknown> | null) || null
+      )
+      if (!flowSnapshot) throw new BadRequestError('Approval flow snapshot not found')
+      const steps = await getSteps(params.instanceId)
+      if (!steps.length) throw new BadRequestError('Approval steps not found')
+
+      const targetStep = steps.find((step) => step.stepIndex === params.targetStep)
+      if (!targetStep) throw new BadRequestError('Target step not found')
+
+      const now = new Date()
+      for (const step of steps) {
+        if (step.stepIndex < params.targetStep) {
+          await updateStep({
+            stepId: step.id,
+            status: ApprovalFlowStepStatus.Approved,
+            completedAt: step.completedAt || now
+          })
+          continue
+        }
+        if (step.stepIndex === params.targetStep) {
+          const targetSnapshot = flowSnapshot.steps.find(
+            (snapshot) => snapshot.stepIndex === step.stepIndex
+          )
+          const timeoutHours =
+            targetSnapshot?.timeoutHours === null ||
+            targetSnapshot?.timeoutHours === undefined
+              ? null
+              : Number(targetSnapshot.timeoutHours)
+          await updateStep({
+            stepId: step.id,
+            status: ApprovalFlowStepStatus.Pending,
+            approvedByIds: [],
+            startedAt: now,
+            dueAt: getStepDueAt(now, timeoutHours),
+            completedAt: null
+          })
+          continue
+        }
+        await updateStep({
+          stepId: step.id,
+          status: ApprovalFlowStepStatus.Waiting,
+          approvedByIds: [],
+          startedAt: null,
+          dueAt: null,
+          completedAt: null
+        })
+      }
+
+      const updated = await updateStatus({
+        instanceId: params.instanceId,
+        status: ApprovalFlowInstanceStatus.Pending,
+        currentStep: params.targetStep
+      })
+      if (!updated) throw new BadRequestError('Approval instance not found')
+
+      const action = await insertAction({
+        instanceId: params.instanceId,
+        stepId: targetStep.id,
+        action: ApprovalFlowActionType.Reactivated,
+        actorId: params.userId,
+        fromStatus: instance.status,
+        toStatus: ApprovalFlowInstanceStatus.Pending,
+        comment: params.comment || null,
+        metadata: {
+          targetStep: params.targetStep
+        }
+      })
+
+      await captureFormSnapshotIfNeeded({
+        trx,
+        instance,
+        step: {
+          id: targetStep.id,
+          stepIndex: targetStep.stepIndex
+        },
+        snapshotType: FORM_SNAPSHOT_ENTER,
+        actorId: params.userId,
+        actionId: action.id
+      })
+      await executeStepHooks({
+        trx,
+        stepSnapshot:
+          (targetStep.stepSnapshot as Record<string, unknown> | null) || null,
+        event: 'onStepEnter',
+        instance,
+        status: ApprovalFlowInstanceStatus.Pending,
+        actorId: params.userId
+      })
+      await executeDefinitionHooks({
+        trx,
+        effectConfig: flowSnapshot.effectConfig || null,
+        templateId: flowSnapshot.templateId,
+        event: 'onInstancePending',
+        instance,
+        status: ApprovalFlowInstanceStatus.Pending,
+        actorId: params.userId
+      })
+
+      return updated
+    })
+  }
+
+export const resetApprovalFlowToUnsubmittedFactory =
+  (deps: { db: Knex }) =>
+  async (params: { instanceId: string; userId: string; comment: string }) => {
+    return await deps.db.transaction(async (trx) => {
+      const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
+      const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
+      const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
+      const updateStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
+      const insertAction = insertApprovalFlowActionFactory({ db: trx })
+
+      const instance = await getInstanceById({ id: params.instanceId })
+      if (!instance) throw new BadRequestError('Approval instance not found')
+      const steps = await getSteps(params.instanceId)
+      for (const step of steps) {
+        if (step.status === ApprovalFlowStepStatus.Approved) continue
+        await updateStep({
+          stepId: step.id,
+          status: ApprovalFlowStepStatus.Canceled,
+          approvedByIds: [],
+          startedAt: null,
+          dueAt: null,
+          completedAt: new Date()
+        })
+      }
+
+      const toStatus = ApprovalFlowInstanceStatus.Canceled
+      const updated = await updateStatus({
+        instanceId: params.instanceId,
+        status: toStatus,
+        currentStep: 1
+      })
+      if (!updated) throw new BadRequestError('Approval instance not found')
+
+      await insertAction({
+        instanceId: params.instanceId,
+        action: ApprovalFlowActionType.ResetToUnsubmitted,
+        actorId: params.userId,
+        fromStatus: instance.status,
+        toStatus,
+        comment: params.comment || null
+      })
+
+      if (!instance.resourceId) return updated
+      if (instance.resourceType === 'MODEL') {
+        await updateBranchFactory({ db: trx })(instance.resourceId, {
+          approveStatus: null
+        })
+        return updated
+      }
+      if (instance.resourceType !== 'FORMS') return updated
+
+      const parsed = parseFormResourceId(instance.resourceId)
+      if (!parsed) return updated
+      if (parsed.formTable === QUALITY_ACCEPTANCE_FORM_TABLE) {
+        await updateQualityAcceptanceFormFactory({ db: trx })(parsed.formId, {
+          approveStatus: null
+        })
+        await recalculateProjectCostSummaryIfNeeded({
+          trx,
+          projectId: instance.projectId
+        })
+        return updated
+      }
+      if (parsed.formTable !== MONTHLY_MEASUREMENT_TABLE) return updated
+
+      await updateMonthlyMeasurementFactory({ db: trx })(parsed.formId, {
+        flowInstanceId: null,
+        approveStatus: null
+      })
+      const measurementItems = await getMonthlyMeasurementItemsFactory({ db: trx })(
+        parsed.formId
+      )
+      const qualityAcceptanceIds = Array.from(
+        new Set(
+          measurementItems.flatMap((item) =>
+            Array.isArray(item.sourceAcceptanceIds) ? item.sourceAcceptanceIds : []
+          )
+        )
+      )
+      if (qualityAcceptanceIds.length) {
+        await updateQualityAcceptanceApproveStatusByIdsFactory({ db: trx })({
+          ids: qualityAcceptanceIds,
+          approveStatus: null
+        })
+      }
+      await recalculateProjectCostSummaryIfNeeded({
+        trx,
+        projectId: instance.projectId
+      })
+
+      return updated
     })
   }
 
@@ -1085,6 +1384,7 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
       await executeDefinitionHooks({
         trx,
         effectConfig: flowSnapshot.effectConfig || null,
+        templateId: flowSnapshot.templateId,
         event: 'onInstanceRejected',
         instance,
         status: ApprovalFlowInstanceStatus.Rejected,
