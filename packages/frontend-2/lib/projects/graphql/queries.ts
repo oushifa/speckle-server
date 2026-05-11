@@ -447,6 +447,15 @@ export const projectMonthlyMeasurementsQuery = graphql(`
             price
             remark
             sourceAcceptanceIds
+            sourceAcceptances {
+              id
+              acceptancePart
+              inspectionLotNumber
+              acceptanceContent
+              actualFinishDate
+              workVolume
+              unit
+            }
           }
           creator {
             id
@@ -488,6 +497,15 @@ export const projectMonthlyMeasurementByIdQuery = graphql(`
           price
           remark
           sourceAcceptanceIds
+          sourceAcceptances {
+            id
+            acceptancePart
+            inspectionLotNumber
+            acceptanceContent
+            actualFinishDate
+            workVolume
+            unit
+          }
         }
         creator {
           id

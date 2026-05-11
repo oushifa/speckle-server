@@ -252,23 +252,26 @@ const updateResourceByHookAction = async (params: {
     if (!parsed) return
     const payload: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(sourceFields)) {
-      const resolved = resolveHookValue(value, {
+      payload[key] = resolveHookValue(value, {
         status: params.status,
         actorId: params.actorId
       })
-      payload[key] =
-        key === 'approveStatus' && typeof resolved === 'string'
-          ? mapFlowStatusToQualityAcceptanceApproveStatus(
-              resolved,
-              params.instance.currentStep
-            )
-          : resolved
     }
     if (!Object.keys(payload).length) return
     if (parsed.formTable === QUALITY_ACCEPTANCE_FORM_TABLE) {
+      const formPayload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(payload)) {
+        formPayload[key] =
+          key === 'approveStatus' && typeof value === 'string'
+            ? mapFlowStatusToQualityAcceptanceApproveStatus(
+                value,
+                params.instance.currentStep
+              )
+            : value
+      }
       await updateQualityAcceptanceFormFactory({ db: params.trx })(
         parsed.formId,
-        payload
+        formPayload
       )
       await recalculateProjectCostSummaryIfNeeded({
         trx: params.trx,
@@ -1080,7 +1083,7 @@ export const updateApprovalFlowStatusFactory =
         status: finalStatus,
         currentStep:
           refreshedSteps.find((s) => s.status === ApprovalFlowStepStatus.Pending)
-            ?.stepIndex || instance.currentStep
+            ?.stepIndex ?? instance.currentStep
       })
       if (!updatedInstance) throw new BadRequestError('Approval instance not found')
 
@@ -1091,10 +1094,10 @@ export const updateApprovalFlowStatusFactory =
           params.targetStatus === ApprovalFlowInstanceStatus.Approved &&
           finalStatus === ApprovalFlowInstanceStatus.Pending
             ? ApprovalFlowActionType.StepApproved
+            : params.targetStatus === ApprovalFlowInstanceStatus.Rejected
+            ? ApprovalFlowActionType.Rejected
             : finalStatus === ApprovalFlowInstanceStatus.Approved
             ? ApprovalFlowActionType.Approved
-            : finalStatus === ApprovalFlowInstanceStatus.Rejected
-            ? ApprovalFlowActionType.Rejected
             : ApprovalFlowActionType.Canceled,
         actorId: params.userId,
         fromStatus: instance.status,

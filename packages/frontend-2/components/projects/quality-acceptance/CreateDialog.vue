@@ -99,7 +99,6 @@
         >
           <CommonModelObjectMultiSelectDrawer
             v-model:model_id="bimModelId"
-            v-model:bim_ids="bimIds"
             v-model:application_ids="applicationIds"
             :project-id="props.projectId"
             placeholder="点击选择构件"
@@ -219,23 +218,12 @@ const acceptValue = [
   ...acceptedFileExtensions.map((fileExtension) => `.${fileExtension}`)
 ].join(',')
 
-const bimIds = computed<string[]>({
-  get: () => form.value.bimElements?.bimIds || [],
-  set: (value) => {
-    form.value.bimElements = {
-      modelId: bimModelId.value || '',
-      bimIds: value || [],
-      applicationIds: form.value.bimElements?.applicationIds || []
-    }
-  }
-})
-
 const applicationIds = computed<string[]>({
   get: () => form.value.bimElements?.applicationIds || [],
   set: (value) => {
     form.value.bimElements = {
       modelId: bimModelId.value || '',
-      bimIds: form.value.bimElements?.bimIds || [],
+      bimIds: [],
       applicationIds: value || []
     }
   }
@@ -342,12 +330,10 @@ const submit = () => {
       new Set([...(form.value.attachments || []), ...blobIds.value])
     ),
     bimElements:
-      form.value.bimElements &&
-      (form.value.bimElements.bimIds.length ||
-        form.value.bimElements.applicationIds.length)
+      form.value.bimElements && form.value.bimElements.applicationIds.length
         ? {
             modelId: form.value.bimElements.modelId || '',
-            bimIds: form.value.bimElements.bimIds,
+            bimIds: [],
             applicationIds: form.value.bimElements.applicationIds
           }
         : null,
@@ -360,7 +346,7 @@ watch(bimModelId, (modelId) => {
   if (!form.value.bimElements && !modelId) return
   form.value.bimElements = {
     modelId: modelId || '',
-    bimIds: form.value.bimElements?.bimIds || [],
+    bimIds: [],
     applicationIds: form.value.bimElements?.applicationIds || []
   }
 })

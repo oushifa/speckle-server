@@ -201,6 +201,14 @@ export const getQualityAcceptanceApproveStatusByIdsFactory =
       .whereIn(QualityAcceptanceForms.col.id, params.ids)
   }
 
+export const getQualityAcceptanceFormsByIdsFactory =
+  (deps: { db: Knex }) => async (params: { ids: string[] }) => {
+    if (!params.ids.length) return []
+    return await tables
+      .qualityForms(deps.db)
+      .whereIn(QualityAcceptanceForms.col.id, params.ids)
+  }
+
 export const updateQualityAcceptanceApproveStatusByIdsFactory =
   (deps: { db: Knex }) =>
   async (params: { ids: string[]; approveStatus: string | null }) => {

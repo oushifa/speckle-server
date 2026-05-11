@@ -14,6 +14,7 @@ type MonthlyMeasurementItem {
   price: Float
   remark: String
   sourceAcceptanceIds: [ID!]!
+  sourceAcceptances: [QualityAcceptanceForm!]!
 }
 
 type MonthlyMeasurement {
@@ -55,6 +56,7 @@ type MonthlyMeasurementItemPreviewItem {
   approvedCumulativeQty: Float!
   measuredQtyDefault: Float!
   sourceAcceptanceIds: [ID!]!
+  sourceAcceptances: [QualityAcceptanceForm!]!
   isSummaryRow: Boolean!
 }
 
@@ -67,6 +69,8 @@ input ProjectMonthlyMeasurementsInput {
 input MonthlyMeasurementPreviewInput {
   projectId: ID!
   baseDate: BigInt!
+  excludedAcceptanceIds: [ID!]
+  pinnedAcceptanceIds: [ID!]
 }
 
 input MonthlyMeasurementMeasuredItemInput {
@@ -82,6 +86,7 @@ input CreateMonthlyMeasurementInput {
   baseDate: BigInt!
   flowTemplateId: ID
   measuredItems: [MonthlyMeasurementMeasuredItemInput!]
+  excludedAcceptanceIds: [ID!]
 }
 
 input UpdateMonthlyMeasurementInput {
@@ -91,6 +96,7 @@ input UpdateMonthlyMeasurementInput {
   code: String!
   baseDate: BigInt!
   measuredItems: [MonthlyMeasurementMeasuredItemInput!]
+  excludedAcceptanceIds: [ID!]
 }
 
 input DeleteMonthlyMeasurementInput {

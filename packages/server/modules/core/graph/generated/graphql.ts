@@ -1620,6 +1620,7 @@ export type CreateModelInput = {
 export type CreateMonthlyMeasurementInput = {
   baseDate: Scalars['BigInt']['input'];
   code: Scalars['String']['input'];
+  excludedAcceptanceIds?: InputMaybe<Array<Scalars['ID']['input']>>;
   flowTemplateId?: InputMaybe<Scalars['ID']['input']>;
   measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
   projectId: Scalars['ID']['input'];
@@ -2650,6 +2651,7 @@ export type MonthlyMeasurementItem = {
   remark?: Maybe<Scalars['String']['output']>;
   sortIndex: Scalars['Int']['output'];
   sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  sourceAcceptances: Array<QualityAcceptanceForm>;
   uom?: Maybe<Scalars['String']['output']>;
 };
 
@@ -2667,6 +2669,7 @@ export type MonthlyMeasurementItemPreviewItem = {
   price?: Maybe<Scalars['Float']['output']>;
   sortIndex: Scalars['Int']['output'];
   sourceAcceptanceIds: Array<Scalars['ID']['output']>;
+  sourceAcceptances: Array<QualityAcceptanceForm>;
   uom?: Maybe<Scalars['String']['output']>;
 };
 
@@ -2718,6 +2721,7 @@ export type MonthlyMeasurementPreview = {
 
 export type MonthlyMeasurementPreviewInput = {
   baseDate: Scalars['BigInt']['input'];
+  excludedAcceptanceIds?: InputMaybe<Array<Scalars['ID']['input']>>;
   projectId: Scalars['ID']['input'];
 };
 
@@ -5926,6 +5930,7 @@ export type UpdateModelInput = {
 export type UpdateMonthlyMeasurementInput = {
   baseDate: Scalars['BigInt']['input'];
   code: Scalars['String']['input'];
+  excludedAcceptanceIds?: InputMaybe<Array<Scalars['ID']['input']>>;
   id: Scalars['ID']['input'];
   measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
   projectId: Scalars['ID']['input'];
@@ -7719,13 +7724,13 @@ export type ResolversTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ResolverTypeWrapper<ModelsTreeItemGraphQLReturn>;
   ModelsTreeItemCollection: ResolverTypeWrapper<Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversTypes['ModelsTreeItem']> }>;
-  MonthlyMeasurement: ResolverTypeWrapper<Omit<MonthlyMeasurement, 'creator'> & { creator?: Maybe<ResolversTypes['LimitedUser']> }>;
+  MonthlyMeasurement: ResolverTypeWrapper<Omit<MonthlyMeasurement, 'creator' | 'items'> & { creator?: Maybe<ResolversTypes['LimitedUser']>, items: Array<ResolversTypes['MonthlyMeasurementItem']> }>;
   MonthlyMeasurementCollection: ResolverTypeWrapper<Omit<MonthlyMeasurementCollection, 'items'> & { items: Array<ResolversTypes['MonthlyMeasurement']> }>;
-  MonthlyMeasurementItem: ResolverTypeWrapper<MonthlyMeasurementItem>;
-  MonthlyMeasurementItemPreviewItem: ResolverTypeWrapper<MonthlyMeasurementItemPreviewItem>;
+  MonthlyMeasurementItem: ResolverTypeWrapper<Omit<MonthlyMeasurementItem, 'sourceAcceptances'> & { sourceAcceptances: Array<ResolversTypes['QualityAcceptanceForm']> }>;
+  MonthlyMeasurementItemPreviewItem: ResolverTypeWrapper<Omit<MonthlyMeasurementItemPreviewItem, 'sourceAcceptances'> & { sourceAcceptances: Array<ResolversTypes['QualityAcceptanceForm']> }>;
   MonthlyMeasurementMeasuredItemInput: MonthlyMeasurementMeasuredItemInput;
-  MonthlyMeasurementMutations: ResolverTypeWrapper<Omit<MonthlyMeasurementMutations, 'create' | 'submit' | 'update'> & { create: ResolversTypes['MonthlyMeasurement'], submit: ResolversTypes['MonthlyMeasurement'], update: ResolversTypes['MonthlyMeasurement'] }>;
-  MonthlyMeasurementPreview: ResolverTypeWrapper<MonthlyMeasurementPreview>;
+  MonthlyMeasurementMutations: ResolverTypeWrapper<Omit<MonthlyMeasurementMutations, 'create' | 'preview' | 'submit' | 'update'> & { create: ResolversTypes['MonthlyMeasurement'], preview: ResolversTypes['MonthlyMeasurementPreview'], submit: ResolversTypes['MonthlyMeasurement'], update: ResolversTypes['MonthlyMeasurement'] }>;
+  MonthlyMeasurementPreview: ResolverTypeWrapper<Omit<MonthlyMeasurementPreview, 'items'> & { items: Array<ResolversTypes['MonthlyMeasurementItemPreviewItem']> }>;
   MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
@@ -8210,13 +8215,13 @@ export type ResolversParentTypes = {
   ModelVersionsFilter: ModelVersionsFilter;
   ModelsTreeItem: ModelsTreeItemGraphQLReturn;
   ModelsTreeItemCollection: Omit<ModelsTreeItemCollection, 'items'> & { items: Array<ResolversParentTypes['ModelsTreeItem']> };
-  MonthlyMeasurement: Omit<MonthlyMeasurement, 'creator'> & { creator?: Maybe<ResolversParentTypes['LimitedUser']> };
+  MonthlyMeasurement: Omit<MonthlyMeasurement, 'creator' | 'items'> & { creator?: Maybe<ResolversParentTypes['LimitedUser']>, items: Array<ResolversParentTypes['MonthlyMeasurementItem']> };
   MonthlyMeasurementCollection: Omit<MonthlyMeasurementCollection, 'items'> & { items: Array<ResolversParentTypes['MonthlyMeasurement']> };
-  MonthlyMeasurementItem: MonthlyMeasurementItem;
-  MonthlyMeasurementItemPreviewItem: MonthlyMeasurementItemPreviewItem;
+  MonthlyMeasurementItem: Omit<MonthlyMeasurementItem, 'sourceAcceptances'> & { sourceAcceptances: Array<ResolversParentTypes['QualityAcceptanceForm']> };
+  MonthlyMeasurementItemPreviewItem: Omit<MonthlyMeasurementItemPreviewItem, 'sourceAcceptances'> & { sourceAcceptances: Array<ResolversParentTypes['QualityAcceptanceForm']> };
   MonthlyMeasurementMeasuredItemInput: MonthlyMeasurementMeasuredItemInput;
-  MonthlyMeasurementMutations: Omit<MonthlyMeasurementMutations, 'create' | 'submit' | 'update'> & { create: ResolversParentTypes['MonthlyMeasurement'], submit: ResolversParentTypes['MonthlyMeasurement'], update: ResolversParentTypes['MonthlyMeasurement'] };
-  MonthlyMeasurementPreview: MonthlyMeasurementPreview;
+  MonthlyMeasurementMutations: Omit<MonthlyMeasurementMutations, 'create' | 'preview' | 'submit' | 'update'> & { create: ResolversParentTypes['MonthlyMeasurement'], preview: ResolversParentTypes['MonthlyMeasurementPreview'], submit: ResolversParentTypes['MonthlyMeasurement'], update: ResolversParentTypes['MonthlyMeasurement'] };
+  MonthlyMeasurementPreview: Omit<MonthlyMeasurementPreview, 'items'> & { items: Array<ResolversParentTypes['MonthlyMeasurementItemPreviewItem']> };
   MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
@@ -9633,6 +9638,7 @@ export type MonthlyMeasurementItemResolvers<ContextType = GraphQLContext, Parent
   remark?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   sortIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   sourceAcceptanceIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  sourceAcceptances?: Resolver<Array<ResolversTypes['QualityAcceptanceForm']>, ParentType, ContextType>;
   uom?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -9650,6 +9656,7 @@ export type MonthlyMeasurementItemPreviewItemResolvers<ContextType = GraphQLCont
   price?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   sortIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   sourceAcceptanceIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  sourceAcceptances?: Resolver<Array<ResolversTypes['QualityAcceptanceForm']>, ParentType, ContextType>;
   uom?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

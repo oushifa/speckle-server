@@ -19,6 +19,7 @@ type MonthlyMeasurementPreviewItem = {
   approvedCumulativeQty: number
   measuredQtyDefault: number
   sourceAcceptanceIds: string[]
+  sourceAcceptances: QualityAcceptanceFormRecord[]
   isSummaryRow: boolean
   sortIndex: number
 }
@@ -67,6 +68,7 @@ const prepareMonthlyMeasurementSnapshotRows = (
     row.approvedCumulativeQty = 0
     row.measuredQtyDefault = 0
     row.sourceAcceptanceIds = []
+    row.sourceAcceptances = []
   }
   for (const row of [...ordered].sort((a, b) => b.sortIndex - a.sortIndex)) {
     if (!row.isSummaryRow) continue
@@ -124,18 +126,43 @@ type BuildPreviewDeps = {
     baseDate: number
   }) => Promise<QualityAcceptanceFormRecord[]>
   getProjectBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
+  getQualityAcceptanceFormsByIds: (params: { ids: string[] }) => Promise<QualityAcceptanceFormRecord[]>
 }
 
 export const buildMonthlyMeasurementPreviewFactory =
   (deps: BuildPreviewDeps) =>
-  async (params: { projectId: string; baseDate: number }) => {
-    const [acceptanceForms, boqItems] = await Promise.all([
+  async (params: {
+    projectId: string
+    baseDate: number
+    excludedAcceptanceIds?: string[]
+    pinnedAcceptanceIds?: string[]
+  }) => {
+    const [allAcceptanceForms, pinnedForms, boqItems] = await Promise.all([
       deps.getQualityAcceptanceFormsBeforeBaseDate({
         projectId: params.projectId,
         baseDate: params.baseDate
       }),
+      params.pinnedAcceptanceIds?.length
+        ? deps.getQualityAcceptanceFormsByIds({ ids: params.pinnedAcceptanceIds })
+        : Promise.resolve([] as QualityAcceptanceFormRecord[]),
       deps.getProjectBoqItems({ projectId: params.projectId })
     ])
+
+    const excludedIds = new Set(params.excludedAcceptanceIds || [])
+    const seenIds = new Set<string>()
+    const acceptanceForms: QualityAcceptanceFormRecord[] = []
+    // Merge: pinned first (so they keep their approveStatus as-is for qty calc),
+    // then new unreviewed ones from the date range
+    for (const f of [...pinnedForms, ...allAcceptanceForms]) {
+      if (excludedIds.has(f.id) || seenIds.has(f.id)) continue
+      seenIds.add(f.id)
+      // Treat pinned forms (PENDING status) as if they are still unreviewed for qty calc
+      acceptanceForms.push(
+        params.pinnedAcceptanceIds?.includes(f.id) && f.approveStatus === 'PENDING'
+          ? { ...f, approveStatus: null }
+          : f
+      )
+    }
 
     const boqById = new Map(boqItems.map((item) => [item.id, item]))
     const boqIdByCode = new Map(
@@ -150,6 +177,7 @@ export const buildMonthlyMeasurementPreviewFactory =
         pendingMeasuredQty: number
         approvedCumulativeQty: number
         sourceAcceptanceIds: string[]
+        sourceAcceptances: QualityAcceptanceFormRecord[]
       }
     >()
     const pendingBoqIds = new Set<string>()
@@ -164,12 +192,14 @@ export const buildMonthlyMeasurementPreviewFactory =
       const current = grouped.get(resolvedBoqItemId) || {
         pendingMeasuredQty: 0,
         approvedCumulativeQty: 0,
-        sourceAcceptanceIds: []
+        sourceAcceptanceIds: [],
+        sourceAcceptances: []
       }
       const workVolume = toNumber(form.workVolume)
       if (isPendingStatus(form.approveStatus)) {
         current.pendingMeasuredQty += workVolume
         current.sourceAcceptanceIds.push(form.id)
+        current.sourceAcceptances.push(form)
         pendingBoqIds.add(resolvedBoqItemId)
       }
       if (isApprovedStatus(form.approveStatus)) {
@@ -224,6 +254,7 @@ export const buildMonthlyMeasurementPreviewFactory =
         approvedCumulativeQty: groupedItem?.approvedCumulativeQty || 0,
         measuredQtyDefault: groupedItem?.pendingMeasuredQty || 0,
         sourceAcceptanceIds: groupedItem?.sourceAcceptanceIds || [],
+        sourceAcceptances: groupedItem?.sourceAcceptances || [],
         isSummaryRow: !groupedItem,
         sortIndex: 0
       })
@@ -287,6 +318,7 @@ type CreateMeasurementDeps = {
   buildPreview: (params: {
     projectId: string
     baseDate: number
+    excludedAcceptanceIds?: string[]
   }) => Promise<{ baseDate: number; items: MonthlyMeasurementPreviewItem[] }>
   createMeasurement: (
     payload: MonthlyMeasurementRecord
@@ -307,10 +339,12 @@ export const createMonthlyMeasurementFromPreviewFactory =
       measuredQty?: number | null
       remark?: string
     }>
+    excludedAcceptanceIds?: string[]
   }) => {
     const preview = await deps.buildPreview({
       projectId: params.projectId,
-      baseDate: params.baseDate
+      baseDate: params.baseDate,
+      excludedAcceptanceIds: params.excludedAcceptanceIds
     })
     const rows = preview.items.filter(
       (item) => item.isSummaryRow || item.sourceAcceptanceIds.length

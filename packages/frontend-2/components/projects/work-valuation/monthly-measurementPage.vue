@@ -152,6 +152,7 @@
     <LayoutDialog
       v-model:open="createDialogOpen"
       max-width="xl"
+      prevent-close-on-click-outside
       :buttons="createDialogButtons"
     >
       <template #header>{{ dialogTitle }}</template>
@@ -192,7 +193,7 @@
             :loading="previewLoading"
             @click="switchPreviewView('list')"
           >
-            {{ isViewMode ? '验工列表' : '生成验工列表' }}
+            {{ isViewMode || dialogMode === 'edit' ? '验工列表' : '生成验工列表' }}
           </FormButton>
           <FormButton
             :color="previewViewTag === 'model' ? 'primary' : 'outline'"
@@ -231,92 +232,143 @@
               </tr>
             </thead>
             <tbody>
-              <tr
+              <template
                 v-for="row in previewItems"
                 :key="row.boqItemId"
-                class="border-t border-outline-3"
               >
-                <td class="px-3 py-2">{{ row.boqCode }}</td>
-                <td class="px-3 py-2">
-                  <div
-                    :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }"
-                  >
-                    <span
-                      :class="row.isSummaryRow ? 'font-medium text-foreground' : ''"
+                <tr class="border-t border-outline-3">
+                  <td class="px-3 py-2">{{ row.boqCode }}</td>
+                  <td class="px-3 py-2">
+                    <div
+                      :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }"
+                      class="flex items-center"
                     >
-                      {{ row.boqName }}
+                      <button
+                        v-if="!row.isSummaryRow && row.sourceAcceptances?.length"
+                        class="p-0.5 rounded hover:bg-highlight-1 focus:outline-none focus:ring-2 focus:ring-primary mr-1"
+                        @click="toggleExpand(row.boqItemId)"
+                      >
+                        <ChevronRightIcon
+                          class="h-4 w-4 transition-transform text-foreground-2"
+                          :class="expandedBoqRowIds.has(row.boqItemId) ? 'rotate-90' : ''"
+                        />
+                      </button>
+                      <span
+                        :class="row.isSummaryRow ? 'font-medium text-foreground' : ''"
+                      >
+                        {{ row.boqName }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <span
+                      v-if="isBoqQuantityMissing(row)"
+                      class="text-danger font-semibold"
+                    >
+                      未维护清单工程量
                     </span>
-                  </div>
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <span
-                    v-if="isBoqQuantityMissing(row)"
-                    class="text-danger font-semibold"
-                  >
-                    未维护清单工程量
-                  </span>
-                  <template v-else-if="!row.isSummaryRow">
-                    {{ formatQty(row.pendingTotalQty) }}
-                  </template>
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <div
-                    v-if="!row.isSummaryRow"
-                    :class="
-                      isCumulativeExceeded(row)
-                        ? 'text-danger font-semibold'
-                        : 'text-foreground'
-                    "
-                  >
-                    {{ formatQty(row.approvedCumulativeQty) }}
-                    <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
-                  </div>
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <template v-if="!row.isSummaryRow">
-                    {{ formatPrice(row.price, row.isSummaryRow) }}
-                  </template>
-                </td>
-                <td class="px-3 py-2">
-                  <FormTextInput
-                    v-if="!row.isSummaryRow && !isViewMode"
-                    v-model="measuredQtyByBoq[row.boqItemId]"
-                    :name="`measured-${row.boqItemId}`"
-                    type="number"
-                    step="any"
-                    :disabled="row.isSummaryRow"
-                    class="max-w-[140px] ml-auto"
-                  />
-                  <template v-else-if="!row.isSummaryRow">
-                    {{
-                      measuredQtyByBoq[row.boqItemId] ||
-                      formatQty(row.measuredQtyDefault)
-                    }}
-                  </template>
-                </td>
-                <td class="px-3 py-2">
-                  <FormTextInput
-                    v-if="!row.isSummaryRow && !isViewMode"
-                    v-model="remarkByBoq[row.boqItemId]"
-                    :name="`remark-${row.boqItemId}`"
-                    :disabled="row.isSummaryRow"
-                    placeholder="可选"
-                  />
-                  <template v-else-if="!row.isSummaryRow">
-                    {{ remarkByBoq[row.boqItemId] || '-' }}
-                  </template>
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <button
-                    v-if="!row.isSummaryRow && !isViewMode"
-                    class="text-danger hover:text-danger-darker transition-colors"
-                    title="删除该验工行"
-                    @click="removePreviewRow(row.boqItemId)"
-                  >
-                    <TrashIcon class="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+                    <template v-else-if="!row.isSummaryRow">
+                      {{ formatQty(row.pendingTotalQty) }}
+                    </template>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div
+                      v-if="!row.isSummaryRow"
+                      :class="
+                        isCumulativeExceeded(row)
+                          ? 'text-danger font-semibold'
+                          : 'text-foreground'
+                      "
+                    >
+                      {{ formatQty(row.approvedCumulativeQty) }}
+                      <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <template v-if="!row.isSummaryRow">
+                      {{ formatPrice(row.price, row.isSummaryRow) }}
+                    </template>
+                  </td>
+                  <td class="px-3 py-2">
+                    <FormTextInput
+                      v-if="!row.isSummaryRow && !isViewMode"
+                      v-model="measuredQtyByBoq[row.boqItemId]"
+                      :name="`measured-${row.boqItemId}`"
+                      type="number"
+                      step="any"
+                      :disabled="row.isSummaryRow"
+                      class="max-w-[140px] ml-auto"
+                    />
+                    <template v-else-if="!row.isSummaryRow">
+                      {{
+                        measuredQtyByBoq[row.boqItemId] ||
+                        formatQty(row.measuredQtyDefault)
+                      }}
+                    </template>
+                  </td>
+                  <td class="px-3 py-2">
+                    <FormTextInput
+                      v-if="!row.isSummaryRow && !isViewMode"
+                      v-model="remarkByBoq[row.boqItemId]"
+                      :name="`remark-${row.boqItemId}`"
+                      :disabled="row.isSummaryRow"
+                      placeholder="可选"
+                    />
+                    <template v-else-if="!row.isSummaryRow">
+                      {{ remarkByBoq[row.boqItemId] || '-' }}
+                    </template>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <button
+                      v-if="!row.isSummaryRow && !isViewMode"
+                      class="text-danger hover:text-danger-darker transition-colors"
+                      title="删除该验工行"
+                      @click="removePreviewRow(row.boqItemId)"
+                    >
+                      <TrashIcon class="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="expandedBoqRowIds.has(row.boqItemId) && row.sourceAcceptances?.length" class="bg-highlight-1/30">
+                  <td colspan="8" class="p-0 border-t border-outline-3">
+                    <div class="px-8 py-3">
+                      <div class="text-xs font-medium text-foreground-2 mb-2 flex items-center justify-between">
+                        <span>关联的质量验收单</span>
+                      </div>
+                      <table class="w-full text-xs text-foreground-2 border border-outline-3 rounded overflow-hidden">
+                        <thead class="bg-foundation text-left">
+                          <tr>
+                            <th class="px-2 py-1 border-b border-outline-3">区域部位</th>
+                            <th class="px-2 py-1 border-b border-outline-3">检验批编号</th>
+                            <th class="px-2 py-1 border-b border-outline-3">检验批内容</th>
+                            <th class="px-2 py-1 border-b border-outline-3 w-24">验收日期</th>
+                            <th class="px-2 py-1 border-b border-outline-3 text-right w-24">工程量</th>
+                            <th v-if="!isViewMode" class="px-2 py-1 border-b border-outline-3 text-center w-12">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="acc in row.sourceAcceptances" :key="acc.id" class="border-b border-outline-3 last:border-b-0 hover:bg-highlight-1/50 transition-colors bg-foundation">
+                            <td class="px-2 py-1.5">{{ acc.acceptancePart || '-' }}</td>
+                            <td class="px-2 py-1.5">{{ acc.inspectionLotNumber || '-' }}</td>
+                            <td class="px-2 py-1.5">{{ acc.acceptanceContent || '-' }}</td>
+                            <td class="px-2 py-1.5">{{ acc.actualFinishDate ? formatDate(acc.actualFinishDate) : '-' }}</td>
+                            <td class="px-2 py-1.5 text-right">{{ acc.workVolume != null ? acc.workVolume : '-' }} {{ acc.unit || '' }}</td>
+                            <td v-if="!isViewMode" class="px-2 py-1.5 text-center">
+                              <button
+                                class="text-danger hover:text-danger-darker transition-colors inline-block"
+                                title="移除此验收单（将从本次验工中剔除）"
+                                @click.stop.prevent="removeSourceAcceptance(row.boqItemId, acc.id)"
+                              >
+                                <TrashIcon class="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -348,6 +400,7 @@
             :project-id="projectId"
             :model-ids="selectedPreviewModelIds"
             :filter-bims="selectedPreviewBimIds"
+            :filter-application-ids="selectedPreviewApplicationIds"
           />
         </div>
       </div>
@@ -564,11 +617,18 @@
         </div>
       </div>
     </div>
+    <CommonConfirmDialog
+      v-model:open="removeDialogOpen"
+      title="移除质量验收单"
+      text="确认从此验工项中移除该质量验收单吗？移除后将重新加载验工数据。"
+      confirm-text="确认移除"
+      @confirm="confirmRemoveSourceAcceptance"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useApolloClient, useMutation, useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
@@ -579,7 +639,8 @@ import {
   EyeIcon,
   PaperAirplaneIcon,
   PencilSquareIcon,
-  TrashIcon
+  TrashIcon,
+  ChevronRightIcon
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -618,6 +679,15 @@ type PreviewItem = {
   approvedCumulativeQty: number
   measuredQtyDefault: number
   sourceAcceptanceIds: string[]
+  sourceAcceptances?: {
+    id: string
+    acceptancePart: string
+    inspectionLotNumber: string
+    acceptanceContent: string
+    actualFinishDate: number | null
+    workVolume: number | null
+    unit: string | null
+  }[]
   isSummaryRow: boolean
   sortIndex: number
 }
@@ -774,6 +844,10 @@ const createDialogOpen = ref(false)
 const createError = ref('')
 const dialogMode = ref<'create' | 'edit' | 'view'>('create')
 const editingMeasurementId = ref<string | null>(null)
+const excludedAcceptanceIds = ref<string[]>([])
+const expandedBoqRowIds = ref<Set<string>>(new Set())
+const removeDialogOpen = ref(false)
+const pendingRemoveItem = ref<{ boqItemId: string; acceptanceId: string } | null>(null)
 const previewLoading = ref(false)
 const previewBaseDate = ref(0)
 const previewItems = ref<PreviewItem[]>([])
@@ -879,6 +953,21 @@ const selectedPreviewBimIds = computed(() => {
   return Array.from(ids)
 })
 
+const selectedPreviewApplicationIds = computed(() => {
+  const selectedIds = new Set(previewSourceAcceptanceIds.value)
+  const ids = new Set<string>()
+  ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
+    (form: unknown) => {
+      const row = form as AcceptanceFormLite | null
+      if (!row || !selectedIds.has(row.id)) return
+      ;(row.bimElements?.applicationIds || []).forEach((id) => {
+        if (typeof id === 'string' && id) ids.add(id)
+      })
+    }
+  )
+  return Array.from(ids)
+})
+
 const isViewMode = computed(() => dialogMode.value === 'view')
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'view') return '月度验工详情'
@@ -893,12 +982,14 @@ const resetDialogState = () => {
   previewBaseDate.value = 0
   measuredQtyByBoq.value = {}
   remarkByBoq.value = {}
+  excludedAcceptanceIds.value = []
+  expandedBoqRowIds.value = new Set()
+  editingMeasurementId.value = null
   createForm.value = {
     unit: '',
     code: '',
     baseDate: dayjs().format('YYYY-MM-DD')
   }
-  editingMeasurementId.value = null
 }
 
 const openCreateDialog = () => {
@@ -934,11 +1025,26 @@ const buildPreview = async () => {
   createError.value = ''
   previewLoading.value = true
   const baseDate = dayjs(createForm.value.baseDate).endOf('day').valueOf()
+  // In edit mode, collect the IDs of acceptances already in the current measurement
+  // so the backend keeps them even though their approveStatus is PENDING
+  const pinnedAcceptanceIds =
+    dialogMode.value === 'edit'
+      ? Array.from(
+          new Set(
+            previewItems.value
+              .filter((r) => !r.isSummaryRow)
+              .flatMap((r) => r.sourceAcceptanceIds || [])
+              .filter((id) => !excludedAcceptanceIds.value.includes(id))
+          )
+        )
+      : undefined
   try {
     const res = await previewMutate({
       input: {
         projectId: projectId.value,
-        baseDate
+        baseDate,
+        excludedAcceptanceIds: excludedAcceptanceIds.value,
+        pinnedAcceptanceIds
       }
     })
     const items =
@@ -955,6 +1061,7 @@ const buildPreview = async () => {
       approvedCumulativeQty: Number(item.approvedCumulativeQty || 0),
       measuredQtyDefault: Number(item.measuredQtyDefault || 0),
       sourceAcceptanceIds: item.sourceAcceptanceIds || [],
+      sourceAcceptances: item.sourceAcceptances,
       isSummaryRow: !!item.isSummaryRow,
       sortIndex: Number(item.sortIndex || 0)
     }))
@@ -965,7 +1072,19 @@ const buildPreview = async () => {
     measuredQtyByBoq.value = Object.fromEntries(
       previewItems.value.map((item) => [
         item.boqItemId,
-        item.isSummaryRow ? '' : `${item.measuredQtyDefault}`
+        item.isSummaryRow 
+          ? '' 
+          : (measuredQtyByBoq.value[item.boqItemId] !== undefined 
+              ? measuredQtyByBoq.value[item.boqItemId] 
+              : `${item.measuredQtyDefault}`)
+      ])
+    )
+    remarkByBoq.value = Object.fromEntries(
+      previewItems.value.map((item) => [
+        item.boqItemId,
+        item.isSummaryRow 
+          ? '' 
+          : (remarkByBoq.value[item.boqItemId] || '')
       ])
     )
   } catch (e) {
@@ -982,6 +1101,7 @@ watch(
     if (nextBaseDate === prevBaseDate) return
 
     // 基准时间变化后，原预览结果失效，需要重新生成列表并联动更新模型
+    // 编辑模式下保留已有验收单 IDs 作为 pinnedAcceptanceIds，传给后端合并
     previewItems.value = []
     previewBaseDate.value = 0
     measuredQtyByBoq.value = {}
@@ -1006,11 +1126,14 @@ const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
       approvedCumulativeQty: Number(row.approvedCumulativeQty || 0),
       measuredQtyDefault: Number(row.measuredQty || 0),
       sourceAcceptanceIds: row.sourceAcceptanceIds || [],
+      sourceAcceptances: row.sourceAcceptances,
       isSummaryRow: !!row.isSummaryRow,
       sortIndex: Number(row.sortIndex || 0)
     }))
     .sort((a, b) => a.sortIndex - b.sortIndex)
   previewItems.value = rows
+  previewBaseDate.value = Number(item.baseDate || 0)
+  previewViewTag.value = 'list'
   measuredQtyByBoq.value = Object.fromEntries(
     rows.map((row) => [
       row.boqItemId,
@@ -1029,10 +1152,12 @@ const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
   )
 }
 
-const removePreviewRow = (boqItemId: string) => {
-  // eslint-disable-next-line no-alert
-  const confirmed = window.confirm('确认删除该验工行吗？删除后该清单项不参与本次验工。')
-  if (!confirmed) return
+const removePreviewRow = (boqItemId: string, skipConfirm = false) => {
+  if (!skipConfirm) {
+    // eslint-disable-next-line no-alert
+    const confirmed = window.confirm('确认删除该验工行吗？删除后该清单项不参与本次验工。')
+    if (!confirmed) return
+  }
 
   const nextRows = previewItems.value.filter((row) => row.boqItemId !== boqItemId)
   const rowById = new Map(nextRows.map((row) => [row.boqItemId, row]))
@@ -1094,8 +1219,57 @@ const removePreviewRow = (boqItemId: string) => {
   )
 }
 
+const toggleExpand = (boqItemId: string) => {
+  if (expandedBoqRowIds.value.has(boqItemId)) {
+    expandedBoqRowIds.value.delete(boqItemId)
+  } else {
+    expandedBoqRowIds.value.add(boqItemId)
+  }
+}
+
+const removeSourceAcceptance = (boqItemId: string, acceptanceId: string) => {
+  pendingRemoveItem.value = { boqItemId, acceptanceId }
+  removeDialogOpen.value = true
+}
+
+const confirmRemoveSourceAcceptance = async () => {
+  if (!pendingRemoveItem.value) return
+  const { boqItemId, acceptanceId } = pendingRemoveItem.value
+  excludedAcceptanceIds.value.push(acceptanceId)
+  
+  if (dialogMode.value === 'edit') {
+    // 处于编辑模式时，仅在本地数据中剔除细分项，不重新向后端请求全新列表
+    const row = previewItems.value.find((r) => r.boqItemId === boqItemId)
+    if (row && row.sourceAcceptances) {
+      const accIndex = row.sourceAcceptances.findIndex((a) => a.id === acceptanceId)
+      if (accIndex >= 0) {
+        const acc = row.sourceAcceptances[accIndex]
+        const workVolume = Number(acc.workVolume || 0)
+        row.sourceAcceptances = row.sourceAcceptances.filter((a) => a.id !== acceptanceId)
+        row.sourceAcceptanceIds = row.sourceAcceptanceIds.filter((id) => id !== acceptanceId)
+        row.measuredQtyDefault = Math.max(0, row.measuredQtyDefault - workVolume)
+
+        const currentVal = Number(measuredQtyByBoq.value[boqItemId])
+        if (!Number.isNaN(currentVal) && measuredQtyByBoq.value[boqItemId] !== '') {
+          measuredQtyByBoq.value[boqItemId] = `${Math.max(0, currentVal - workVolume)}`
+        }
+      }
+
+      if (row.sourceAcceptanceIds.length === 0) {
+        removePreviewRow(boqItemId, true)
+      }
+    }
+  } else {
+    // 新建模式下，请求后端根据当前的 excludedAcceptanceIds 重新生成全部明细
+    await buildPreview()
+  }
+
+  pendingRemoveItem.value = null
+  removeDialogOpen.value = false
+}
+
 const isSubmitted = (item: { approveStatus?: string | null }) =>
-  Boolean(item.approveStatus)
+  Boolean(item.approveStatus && item.approveStatus.toUpperCase() !== 'START')
 
 const viewItem = (item: MonthlyMeasurementNode) => {
   viewTargetItem.value = item
@@ -1109,8 +1283,9 @@ const openSubmitDialog = (item: MonthlyMeasurementNode) => {
   submitDialogOpen.value = true
 }
 
-const editItem = (item: MonthlyMeasurementNode) => {
+const editItem = async (item: MonthlyMeasurementNode) => {
   if (isSubmitted(item)) return
+  resetDialogState()
   dialogMode.value = 'edit'
   editingMeasurementId.value = item.id
   createForm.value = {
@@ -1120,6 +1295,10 @@ const editItem = (item: MonthlyMeasurementNode) => {
   }
   previewBaseDate.value = Number(item.baseDate || 0)
   buildPreviewFromMeasurement(item)
+  // Wait for Vue to flush all watchers triggered by resetDialogState / createForm changes
+  // while createDialogOpen is still false (so the baseDate watcher returns early).
+  // Without this, the watcher fires AFTER createDialogOpen=true and clears previewItems.
+  await nextTick()
   createDialogOpen.value = true
 }
 
@@ -1164,7 +1343,8 @@ const submitDialog = async () => {
           unit: createForm.value.unit.trim(),
           code: createForm.value.code.trim(),
           baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
-          measuredItems
+          measuredItems,
+          excludedAcceptanceIds: excludedAcceptanceIds.value
         }
       })
     } else {
@@ -1174,7 +1354,8 @@ const submitDialog = async () => {
           unit: createForm.value.unit.trim(),
           code: createForm.value.code.trim(),
           baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
-          measuredItems
+          measuredItems,
+          excludedAcceptanceIds: excludedAcceptanceIds.value
         }
       })
     }
@@ -1191,6 +1372,7 @@ const createDialogButtons = computed((): LayoutDialogButton[] => [
     text: '取消',
     props: { color: 'outline' },
     onClick: () => {
+      resetDialogState()
       createDialogOpen.value = false
     }
   },
@@ -1501,6 +1683,7 @@ const deleteItem = async (item: MonthlyMeasurementNode) => {
 
 const getStatusText = (status: string | null | undefined) => {
   const map: Record<string, string> = {
+    START: '待送审',
     PENDING: '审批中',
     APPROVED: '已通过',
     REJECTED: '已驳回',
@@ -1511,6 +1694,7 @@ const getStatusText = (status: string | null | undefined) => {
 
 const getStatusColor = (status: string | null | undefined) => {
   const map: Record<string, string> = {
+    START: 'bg-warning-lighter text-warning-darker',
     PENDING: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',

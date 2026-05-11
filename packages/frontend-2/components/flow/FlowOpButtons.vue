@@ -84,16 +84,16 @@ const availableActions = computed(() => {
 
   return [
     { key: 'approve' as const, label: '通过', color: 'primary' as const },
-    { key: 'rollback' as const, label: '驳回', color: 'danger' as const },
-    { key: 'reject' as const, label: '拒绝', color: 'danger' as const },
-    { key: 'cancel' as const, label: '取消', color: 'outline' as const }
+    { key: 'rollback' as const, label: '驳回', color: 'danger' as const }
+    // { key: 'reject' as const, label: '拒绝', color: 'danger' as const },
+    // { key: 'cancel' as const, label: '取消', color: 'outline' as const }
   ]
 })
 
 const handleClick = (operation: FlowOpActionKey) => {
   const rollbackToStep =
     operation === 'rollback'
-      ? Math.max(1, (currentStep.value?.stepIndex || 1) - 1)
+      ? 0 // 直接回退到发起人（开始节点）
       : null
 
   const action: FlowReviewAction =

@@ -11,15 +11,20 @@ import {
   getMonthlyMeasurementsFactory,
   getProjectBoqItemsFactory,
   getQualityAcceptanceFormsBeforeBaseDateFactory,
+  getQualityAcceptanceFormsByIdsFactory,
   insertMonthlyMeasurementItemsFactory,
-  updateMonthlyMeasurementFactory
+  updateMonthlyMeasurementFactory,
+  updateQualityAcceptanceApproveStatusByIdsFactory
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
 import {
   buildMonthlyMeasurementPreviewFactory,
   createMonthlyMeasurementFromPreviewFactory,
   prepareMonthlyMeasurementSnapshotRows
 } from '@/modules/quality-acceptance-form/services/monthlyMeasurements'
-import { startApprovalFlowFactory } from '@/modules/flow/services/approvalFlows'
+import {
+  startApprovalFlowFactory,
+  updateApprovalFlowStatusFactory
+} from '@/modules/flow/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
@@ -51,7 +56,10 @@ const isMeasurementSubmitted = (measurement: {
   flowInstanceId?: string | null
   approveStatus?: string | null
 }) => {
-  return Boolean(measurement.flowInstanceId || measurement.approveStatus)
+  return Boolean(
+    (measurement.flowInstanceId || measurement.approveStatus) &&
+      measurement.approveStatus?.toUpperCase() !== 'START'
+  )
 }
 
 const resolvers = {
@@ -71,7 +79,21 @@ const resolvers = {
         ReturnType<typeof getProjectDbClient>
       >
       if (!projectDb) return []
-      return await getMonthlyMeasurementItemsFactory({ db: projectDb })(parent.id)
+      const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(parent.id)
+      return items.map((item) => ({ ...item, _projectDb: projectDb }))
+    }
+  },
+  MonthlyMeasurementItem: {
+    sourceAcceptances: async (
+      parent: MonthlyMeasurementItemRecord & { _projectDb?: unknown }
+    ) => {
+      const ids = parent.sourceAcceptanceIds || []
+      if (!ids.length) return []
+      const projectDb = parent._projectDb as Awaited<
+        ReturnType<typeof getProjectDbClient>
+      >
+      if (!projectDb) return []
+      return await getQualityAcceptanceFormsByIdsFactory({ db: projectDb })({ ids })
     }
   },
   Project: {
@@ -146,7 +168,7 @@ const resolvers = {
   MonthlyMeasurementMutations: {
     preview: async (
       _parent: unknown,
-      args: { input: { projectId: string; baseDate: string } },
+      args: { input: { projectId: string; baseDate: string; excludedAcceptanceIds?: string[]; pinnedAcceptanceIds?: string[] } },
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
@@ -161,12 +183,15 @@ const resolvers = {
       const buildPreview = buildMonthlyMeasurementPreviewFactory({
         getQualityAcceptanceFormsBeforeBaseDate:
           getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
-        getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb })
+        getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
+        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
       })
 
       return await buildPreview({
         projectId: args.input.projectId,
-        baseDate: Number(args.input.baseDate)
+        baseDate: Number(args.input.baseDate),
+        excludedAcceptanceIds: args.input.excludedAcceptanceIds,
+        pinnedAcceptanceIds: args.input.pinnedAcceptanceIds
       })
     },
     create: async (
@@ -183,6 +208,7 @@ const resolvers = {
             measuredQty?: number | null
             remark?: string | null
           }> | null
+          excludedAcceptanceIds?: string[] | null
         }
       },
       ctx: GraphQLContext
@@ -199,7 +225,8 @@ const resolvers = {
       const buildPreview = buildMonthlyMeasurementPreviewFactory({
         getQualityAcceptanceFormsBeforeBaseDate:
           getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
-        getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb })
+        getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
+        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
       })
       const createMonthlyMeasurement = createMonthlyMeasurementFromPreviewFactory({
         buildPreview,
@@ -231,7 +258,8 @@ const resolvers = {
             boqItemId: item.boqItemId,
             measuredQty: item.measuredQty ?? null,
             remark: item.remark ?? undefined
-          }))
+          })),
+          excludedAcceptanceIds: args.input.excludedAcceptanceIds || []
         })
         measurement = created.measurement
       } catch (err) {
@@ -279,6 +307,7 @@ const resolvers = {
             measuredQty?: number | null
             remark?: string | null
           }> | null
+          excludedAcceptanceIds?: string[] | null
         }
       },
       ctx: GraphQLContext
@@ -312,61 +341,129 @@ const resolvers = {
         throw new BadRequestError(`验工编号已存在：${trimmedCode}`)
       }
 
-      const buildPreview = buildMonthlyMeasurementPreviewFactory({
-        getQualityAcceptanceFormsBeforeBaseDate:
-          getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
-        getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb })
-      })
-      const preview = await buildPreview({
-        projectId: args.input.projectId,
-        baseDate: Number(args.input.baseDate)
-      })
-      const rows = preview.items.filter(
-        (item) => item.isSummaryRow || item.sourceAcceptanceIds.length
+      const existingItems = await getMonthlyMeasurementItemsFactory({ db: projectDb })(
+        args.input.id
       )
-      const selectedRows = prepareMonthlyMeasurementSnapshotRows(
-        rows,
-        (args.input.measuredItems || []).map((item) => ({ boqItemId: item.boqItemId }))
-      )
+
+      const newBaseDate = Number(args.input.baseDate)
+      const oldBaseDate = Number(existing.baseDate)
+      const baseDateChanged = newBaseDate !== oldBaseDate
+
+      const excludedIds = new Set(args.input.excludedAcceptanceIds || [])
+      let selectedRows: MonthlyMeasurementItemRecord[]
+
+      if (baseDateChanged) {
+        // 基准时间变了：调用 buildPreview，同时把当前已有验收单固定进去（pinnedAcceptanceIds）
+        // 这样原本 PENDING 状态的验收单也会出现在新预览里（不会因为 status 被过滤掉）
+        const currentPinnedIds = Array.from(
+          new Set(
+            existingItems
+              .flatMap((r) => r.sourceAcceptanceIds || [])
+              .filter((id) => !excludedIds.has(id))
+          )
+        )
+        const buildPreview = buildMonthlyMeasurementPreviewFactory({
+          getQualityAcceptanceFormsBeforeBaseDate:
+            getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
+          getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
+          getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
+        })
+        const preview = await buildPreview({
+          projectId: args.input.projectId,
+          baseDate: newBaseDate,
+          excludedAcceptanceIds: args.input.excludedAcceptanceIds || [],
+          pinnedAcceptanceIds: currentPinnedIds
+        })
+        // preview items are MonthlyMeasurementPreviewItem — convert to a compatible shape
+        const customValues = new Map(
+          (args.input.measuredItems || []).map((item) => [item.boqItemId, item])
+        )
+        const nowTs = new Date()
+        selectedRows = preview.items.map((row) => {
+          const custom = customValues.get(row.boqItemId)
+          const measuredQty = row.isSummaryRow
+            ? 0
+            : custom?.measuredQty !== null && custom?.measuredQty !== undefined
+            ? Number(custom.measuredQty)
+            : row.measuredQtyDefault
+          return {
+            id: cryptoRandomString({ length: 10 }),
+            measurementId: args.input.id,
+            boqItemId: row.boqItemId,
+            boqCode: row.boqCode,
+            boqName: row.boqName,
+            boqParentId: row.boqParentId,
+            boqDepth: row.boqDepth,
+            isSummaryRow: row.isSummaryRow,
+            sortIndex: row.sortIndex,
+            uom: row.uom,
+            price: row.price,
+            pendingTotalQty: row.pendingTotalQty,
+            approvedCumulativeQty: row.approvedCumulativeQty,
+            measuredQty: Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty,
+            remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
+            sourceAcceptanceIds: row.sourceAcceptanceIds,
+            createdAt: nowTs,
+            updatedAt: nowTs
+          }
+        })
+      } else {
+        // 基准时间未变：仅从现有条目中剔除被移除的细分项，在本地重新计算
+        const nextRows = existingItems.map((item) => {
+          if (item.isSummaryRow) return item
+          const nextIds = item.sourceAcceptanceIds.filter((id) => !excludedIds.has(id))
+          return { ...item, sourceAcceptanceIds: nextIds }
+        })
+
+        const rowById = new Map(nextRows.map((r) => [r.boqItemId, r]))
+        const keepIds = new Set<string>()
+        for (const row of nextRows) {
+          if (row.isSummaryRow || row.sourceAcceptanceIds.length === 0) continue
+          let cursor: string | null = row.boqItemId
+          while (cursor) {
+            if (keepIds.has(cursor)) break
+            keepIds.add(cursor)
+            cursor = rowById.get(cursor)?.boqParentId || null
+          }
+        }
+        selectedRows = nextRows.filter((r) => keepIds.has(r.boqItemId))
+      }
+
       const leafRows = selectedRows.filter((item) => !item.isSummaryRow)
       if (!selectedRows.length || !leafRows.length) {
         throw new BadRequestError('未找到可生成验工明细的质量验收数据')
       }
 
-      const customValues = new Map(
+      const customValues2 = new Map(
         (args.input.measuredItems || []).map((item) => [item.boqItemId, item])
       )
       const now = new Date()
-      const nextItems: MonthlyMeasurementItemRecord[] = selectedRows.map((row) => {
-        const custom = customValues.get(row.boqItemId)
-        const measuredQty =
-          row.isSummaryRow ||
-          custom?.measuredQty === null ||
-          custom?.measuredQty === undefined
-            ? row.measuredQtyDefault
-            : Number(custom.measuredQty)
-
-        return {
-          id: cryptoRandomString({ length: 10 }),
-          measurementId: args.input.id,
-          boqItemId: row.boqItemId,
-          boqCode: row.boqCode,
-          boqName: row.boqName,
-          boqParentId: row.boqParentId,
-          boqDepth: row.boqDepth,
-          isSummaryRow: row.isSummaryRow,
-          sortIndex: row.sortIndex,
-          uom: row.uom,
-          price: row.price,
-          pendingTotalQty: row.pendingTotalQty,
-          approvedCumulativeQty: row.approvedCumulativeQty,
-          measuredQty: Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty,
-          remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
-          sourceAcceptanceIds: row.sourceAcceptanceIds,
-          createdAt: now,
-          updatedAt: now
-        }
-      })
+      const nextItems: MonthlyMeasurementItemRecord[] = baseDateChanged
+        ? selectedRows // already built with final IDs above
+        : selectedRows.map((row) => {
+            const custom = customValues2.get(row.boqItemId)
+            const measuredQty = row.isSummaryRow ? 0 : Number(custom?.measuredQty)
+            return {
+              id: cryptoRandomString({ length: 10 }),
+              measurementId: args.input.id,
+              boqItemId: row.boqItemId,
+              boqCode: row.boqCode,
+              boqName: row.boqName,
+              boqParentId: row.boqParentId,
+              boqDepth: row.boqDepth,
+              isSummaryRow: row.isSummaryRow,
+              sortIndex: row.sortIndex,
+              uom: row.uom,
+              price: row.price,
+              pendingTotalQty: row.pendingTotalQty,
+              approvedCumulativeQty: row.approvedCumulativeQty,
+              measuredQty: Number.isNaN(measuredQty) ? (row as MonthlyMeasurementItemRecord & { measuredQtyDefault?: number }).measuredQtyDefault ?? 0 : measuredQty,
+              remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
+              sourceAcceptanceIds: row.sourceAcceptanceIds,
+              createdAt: now,
+              updatedAt: now
+            }
+          })
 
       const updated = await projectDb.transaction(async (trx) => {
         const updatedMeasurement = await updateMonthlyMeasurementFactory({ db: trx })(
@@ -382,6 +479,13 @@ const resolvers = {
           args.input.id
         )
         await insertMonthlyMeasurementItemsFactory({ db: trx })(nextItems)
+        if (args.input.excludedAcceptanceIds?.length) {
+          await updateQualityAcceptanceApproveStatusByIdsFactory({ db: trx })({
+            ids: args.input.excludedAcceptanceIds,
+            approveStatus: null
+          })
+        }
+
         return updatedMeasurement
       })
 
@@ -446,6 +550,23 @@ const resolvers = {
       if (!existing) throw new BadRequestError('月度验工不存在')
       if (isMeasurementSubmitted(existing)) {
         throw new BadRequestError('已送审，无需重复送审')
+      }
+
+      if (existing.approveStatus === 'START' && existing.flowInstanceId) {
+        await updateApprovalFlowStatusFactory({ db })({
+          instanceId: existing.flowInstanceId,
+          userId: ctx.userId,
+          targetStatus: 'APPROVED',
+          comment: args.input.remark?.trim() || null
+        })
+        const updated = await updateMonthlyMeasurementFactory({ db: projectDb })(
+          args.input.id,
+          { approveStatus: 'PENDING' }
+        )
+        return {
+          ...updated,
+          _projectDb: projectDb
+        }
       }
 
       const instance = await startApprovalFlowFactory({ db })({

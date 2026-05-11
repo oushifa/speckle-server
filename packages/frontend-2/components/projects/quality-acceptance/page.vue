@@ -790,6 +790,7 @@ const onEditItem = (item: AcceptanceRow) => {
 }
 
 const onViewItem = (item: AcceptanceRow) => {
+  console.log(item)
   dialogMode.value = 'view'
   editingItem.value = item
   createDialogOpen.value = true
@@ -1167,6 +1168,8 @@ const handleImportFileChange = async (event: Event) => {
 
 const getStatusColor = (status: string | null | undefined) => {
   switch (status) {
+    case 'START':
+      return 'bg-warning-lighter text-warning-darker'
     case 'PENDING':
       return 'bg-yellow-500 text-white'
     case 'APPROVED':
@@ -1184,6 +1187,8 @@ const getStatusColor = (status: string | null | undefined) => {
 
 const getStatusText = (status: string | null | undefined) => {
   switch (status) {
+    case 'START':
+      return '待查验'
     case 'PENDING':
       return '正在查验'
     case 'APPROVED':

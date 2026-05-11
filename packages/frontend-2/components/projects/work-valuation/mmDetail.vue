@@ -87,56 +87,102 @@
           </tr>
         </thead>
         <tbody>
-          <tr
+          <template
             v-for="row in submitRows"
             :key="row.boqItemId"
-            class="border-t border-outline-3"
           >
-            <td class="px-3 py-2">{{ row.boqCode }}</td>
-            <td class="px-3 py-2">
-              <div :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }">
-                <span :class="row.isSummaryRow ? 'font-medium text-foreground' : ''">
-                  {{ row.boqName }}
+            <tr class="border-t border-outline-3">
+              <td class="px-3 py-2">{{ row.boqCode }}</td>
+              <td class="px-3 py-2">
+                <div
+                  :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }"
+                  class="flex items-center gap-1"
+                >
+                  <button
+                    v-if="!row.isSummaryRow && row.sourceAcceptances?.length"
+                    class="p-0.5 rounded hover:bg-highlight-1 shrink-0"
+                    @click="toggleExpand(row.boqItemId)"
+                  >
+                    <ChevronRightIcon
+                      class="h-3.5 w-3.5 transition-transform duration-150"
+                      :class="expandedRowIds.has(row.boqItemId) ? 'rotate-90' : ''"
+                    />
+                  </button>
+                  <span :class="row.isSummaryRow ? 'font-medium text-foreground' : ''">
+                    {{ row.boqName }}
+                  </span>
+                </div>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <span v-if="isBoqQuantityMissing(row)" class="text-danger font-semibold">
+                  未维护清单工程量
                 </span>
-              </div>
-            </td>
-            <td class="px-3 py-2 text-right">
-              <span v-if="isBoqQuantityMissing(row)" class="text-danger font-semibold">
-                未维护清单工程量
-              </span>
-              <template v-else-if="!row.isSummaryRow">
-                {{ formatQty(Number(row.pendingTotalQty || 0)) }}
-              </template>
-            </td>
-            <td class="px-3 py-2 text-right">
-              <div
-                v-if="!row.isSummaryRow"
-                :class="
-                  isCumulativeExceeded(row)
-                    ? 'text-danger font-semibold'
-                    : 'text-foreground'
-                "
-              >
-                {{ formatQty(Number(row.approvedCumulativeQty || 0)) }}
-                <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
-              </div>
-            </td>
-            <td class="px-3 py-2 text-right">
-              <template v-if="!row.isSummaryRow">
-                {{ formatPrice(row.price, row.isSummaryRow) }}
-              </template>
-            </td>
-            <td class="px-3 py-2 text-right">
-              <template v-if="!row.isSummaryRow">
-                {{ formatQty(Number(row.measuredQty || 0)) }}
-              </template>
-            </td>
-            <td class="px-3 py-2">
-              <template v-if="!row.isSummaryRow">
-                {{ row.remark || '-' }}
-              </template>
-            </td>
-          </tr>
+                <template v-else-if="!row.isSummaryRow">
+                  {{ formatQty(Number(row.pendingTotalQty || 0)) }}
+                </template>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <div
+                  v-if="!row.isSummaryRow"
+                  :class="
+                    isCumulativeExceeded(row)
+                      ? 'text-danger font-semibold'
+                      : 'text-foreground'
+                  "
+                >
+                  {{ formatQty(Number(row.approvedCumulativeQty || 0)) }}
+                  <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
+                </div>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <template v-if="!row.isSummaryRow">
+                  {{ formatPrice(row.price, row.isSummaryRow) }}
+                </template>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <template v-if="!row.isSummaryRow">
+                  {{ formatQty(Number(row.measuredQty || 0)) }}
+                </template>
+              </td>
+              <td class="px-3 py-2">
+                <template v-if="!row.isSummaryRow">
+                  {{ row.remark || '-' }}
+                </template>
+              </td>
+            </tr>
+            <!-- 细分项（质量验收单）展开行 -->
+            <tr v-if="expandedRowIds.has(row.boqItemId) && row.sourceAcceptances?.length" class="bg-highlight-1/30">
+              <td colspan="8" class="p-0 border-t border-outline-3">
+                <div class="px-8 py-3">
+                  <div class="text-xs font-medium text-foreground-2 mb-2">关联的质量验收单</div>
+                  <table class="w-full text-xs text-foreground-2 border border-outline-3 rounded overflow-hidden">
+                    <thead class="bg-foundation text-left">
+                      <tr>
+                        <th class="px-2 py-1 border-b border-outline-3">区域部位</th>
+                        <th class="px-2 py-1 border-b border-outline-3">检验批编号</th>
+                        <th class="px-2 py-1 border-b border-outline-3">检验批内容</th>
+                        <th class="px-2 py-1 border-b border-outline-3 w-24">验收日期</th>
+                        <th class="px-2 py-1 border-b border-outline-3 text-right w-24">工程量</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="acc in row.sourceAcceptances"
+                        :key="acc.id"
+                        class="border-b border-outline-3 last:border-b-0 bg-foundation hover:bg-highlight-1/50 transition-colors"
+                      >
+                        <td class="px-2 py-1.5">{{ acc.acceptancePart || '-' }}</td>
+                        <td class="px-2 py-1.5">{{ acc.inspectionLotNumber || '-' }}</td>
+                        <td class="px-2 py-1.5">{{ acc.acceptanceContent || '-' }}</td>
+                        <td class="px-2 py-1.5">{{ acc.actualFinishDate ? formatDate(Number(acc.actualFinishDate)) : '-' }}</td>
+                        <td class="px-2 py-1.5 text-right">{{ acc.workVolume != null ? acc.workVolume : '-' }} {{ acc.unit || '' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -166,6 +212,7 @@
         :project-id="props.projectId"
         :model-ids="modelIds"
         :filter-bims="bimIds"
+        :filter-application-ids="applicationIds"
       />
     </div>
   </div>
@@ -174,6 +221,7 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@vue/apollo-composable'
+import { ChevronRightIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
 import type {
@@ -203,6 +251,16 @@ const tabItems = [
   { title: '关联模型', id: 'model' }
 ]
 const activeTab = ref(tabItems[0])
+const expandedRowIds = ref(new Set<string>())
+
+const toggleExpand = (boqItemId: string) => {
+  if (expandedRowIds.value.has(boqItemId)) {
+    expandedRowIds.value.delete(boqItemId)
+  } else {
+    expandedRowIds.value.add(boqItemId)
+  }
+  expandedRowIds.value = new Set(expandedRowIds.value)
+}
 
 const submitSourceAcceptanceIds = computed(() =>
   Array.from(
@@ -268,7 +326,29 @@ const bimIds = computed(() => {
     ) => {
       if (!form || !selectedIds.has(form.id)) return
       ;(form.bimElements?.bimIds || []).forEach((id) => {
-        if (id) ids.add(id)
+        if (typeof id === 'string' && id) ids.add(id)
+      })
+    }
+  )
+  return Array.from(ids)
+})
+
+const applicationIds = computed(() => {
+  const selectedIds = new Set(submitSourceAcceptanceIds.value)
+  const ids = new Set<string>()
+  ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
+    (
+      form: NonNullable<
+        NonNullable<
+          NonNullable<
+            ProjectQualityAcceptanceFormsQuery['project']
+          >['qualityAcceptanceForms']
+        >['items'][number]
+      > | null
+    ) => {
+      if (!form || !selectedIds.has(form.id)) return
+      ;(form.bimElements?.applicationIds || []).forEach((id) => {
+        if (typeof id === 'string' && id) ids.add(id)
       })
     }
   )

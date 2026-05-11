@@ -331,6 +331,15 @@ export const monthlyMeasurementPreviewMutation = graphql(`
             approvedCumulativeQty
             measuredQtyDefault
             sourceAcceptanceIds
+            sourceAcceptances {
+              id
+              acceptancePart
+              inspectionLotNumber
+              acceptanceContent
+              actualFinishDate
+              workVolume
+              unit
+            }
             isSummaryRow
           }
         }

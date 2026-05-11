@@ -216,7 +216,6 @@ const props = withDefaults(
 
 const projectIdModel = defineModel<string | null>('project_id', { default: null })
 const modelIdModel = defineModel<string | null>('model_id', { default: null })
-const bimIdsModel = defineModel<string[]>('bim_ids', { default: () => [] })
 const applicationIdsModel = defineModel<string[]>('application_ids', {
   default: () => []
 })
@@ -226,9 +225,12 @@ const leftControls = ref()
 const bottomControls = ref()
 const selectionSidebar = ref()
 
+// draftSelectedIds 存储 applicationId（BIM 侧标识）
 const draftSelectedIds = ref<Set<string>>(new Set())
 const viewerState = ref<InjectableViewerState | null>(null)
 const applicationIdByBimId = ref<Record<string, string>>({})
+// 反向映射：applicationId -> bimId列表（用于高亮 viewer 中的构件）
+const bimIdsByApplicationId = ref<Record<string, string[]>>({})
 const selectedObjectLabelMap = ref<Record<string, { title: string; subTitle: string }>>(
   {}
 )
@@ -250,6 +252,21 @@ const upsertObjectMetadata = (bimId: string, obj: SpeckleObject) => {
   if (applicationId) {
     applicationIdByBimId.value[obj.id] = applicationId
     applicationIdByBimId.value[bimId] = applicationId
+    // 维护反向映射
+    if (!bimIdsByApplicationId.value[applicationId]) {
+      bimIdsByApplicationId.value[applicationId] = []
+    }
+    if (!bimIdsByApplicationId.value[applicationId].includes(obj.id)) {
+      bimIdsByApplicationId.value[applicationId].push(obj.id)
+    }
+    // 标签也对 applicationId 建立映射
+    const label = {
+      title: header || '',
+      subTitle: subheader || ''
+    }
+    if (header || subheader) {
+      selectedObjectLabelMap.value[applicationId] = label
+    }
   }
 }
 
@@ -352,10 +369,10 @@ const modelOptionProxy = computed<ModelOption | undefined>({
   }
 })
 
-const filteredBimIds = computed(() =>
-  Array.isArray(bimIdsModel.value) ? bimIdsModel.value : []
+const filteredApplicationIds = computed(() =>
+  Array.isArray(applicationIdsModel.value) ? applicationIdsModel.value : []
 )
-const selectedCount = computed(() => filteredBimIds.value.length)
+const selectedCount = computed(() => filteredApplicationIds.value.length)
 
 const projectDisplayName = computed(() => {
   const project = projectOptions.value.find((item) => item.id === activeProjectId.value)
@@ -379,7 +396,7 @@ const triggerSelectedNamesLabel = computed(() => {
   if (!modelIdModel.value) return '请先选择模型'
   if (!selectedCount.value) return props.placeholder
 
-  const names = filteredBimIds.value
+  const names = filteredApplicationIds.value
     .map((id) => getSelectedObjectDisplayName(id))
     .filter((name): name is string => !!name)
   if (!names.length) return `已选择 ${selectedCount.value} 个构件`
@@ -392,7 +409,7 @@ const triggerSelectedNamesTooltip = computed(() => {
     return triggerSelectedNamesLabel.value
   }
 
-  const names = filteredBimIds.value
+  const names = filteredApplicationIds.value
     .map((id) => getSelectedObjectDisplayName(id))
     .filter((name): name is string => !!name)
   if (!names.length) return triggerSelectedNamesLabel.value
@@ -439,15 +456,36 @@ const applyDraftSelectionToViewer = () => {
   if (!tree) return
 
   const objects: SpeckleObject[] = []
-  Array.from(draftSelectedIds.value).forEach((id) => {
-    const nodes = (tree as { findId: (id: string) => unknown }).findId(id) as Array<{
-      model?: { raw?: SpeckleObject }
-    }>
-    nodes.forEach((node) => {
-      if (!node.model?.raw?.id) return
-      objects.push(node.model.raw)
-      upsertObjectMetadata(id, node.model.raw)
-    })
+  // draftSelectedIds 存的是 applicationId
+  // 需通过 bimIdsByApplicationId 反查对应的 bimId 再求树节点
+  Array.from(draftSelectedIds.value).forEach((appId) => {
+    const bimIds = bimIdsByApplicationId.value[appId] || []
+    if (bimIds.length) {
+      bimIds.forEach((bimId) => {
+        const nodes = (tree as { findId: (id: string) => unknown }).findId(
+          bimId
+        ) as Array<{
+          model?: { raw?: SpeckleObject }
+        }>
+        nodes.forEach((node) => {
+          if (!node.model?.raw?.id) return
+          objects.push(node.model.raw)
+          upsertObjectMetadata(bimId, node.model.raw)
+        })
+      })
+    } else {
+      // 如果还没进行过映射（首次打开），尝试直接用 appId 查找
+      const nodes = (tree as { findId: (id: string) => unknown }).findId(
+        appId
+      ) as Array<{
+        model?: { raw?: SpeckleObject }
+      }>
+      nodes.forEach((node) => {
+        if (!node.model?.raw?.id) return
+        objects.push(node.model.raw)
+        upsertObjectMetadata(appId, node.model.raw)
+      })
+    }
   })
 
   const selectedObjects = state.ui.filters.selectedObjects as unknown
@@ -460,7 +498,9 @@ const applyDraftSelectionToViewer = () => {
 }
 
 const syncDraftFromModel = () => {
-  draftSelectedIds.value = new Set(filteredBimIds.value)
+  // draftSelectedIds 存的是 applicationId，需反查 bimId 后高亮 viewer
+  // 直接以 applicationId 为草稿集合，openDrawer 后由 applyDraftSelectionToViewer 同步高亮
+  draftSelectedIds.value = new Set(filteredApplicationIds.value)
   applyDraftSelectionToViewer()
 }
 
@@ -474,19 +514,11 @@ const openDrawer = () => {
 }
 
 const submitSelection = () => {
-  const selectedBimIds = Array.from(draftSelectedIds.value)
-  collectMetadataFromViewerTree(selectedBimIds)
-  bimIdsModel.value = selectedBimIds
-  applicationIdsModel.value = Array.from(
-    new Set(
-      selectedBimIds
-        .map((id) => applicationIdByBimId.value[id])
-        .filter((id): id is string => !!id)
-    )
-  )
+  // draftSelectedIds 此时存的是 applicationId
+  const selectedApplicationIds = Array.from(draftSelectedIds.value)
+  applicationIdsModel.value = selectedApplicationIds
   open.value = false
   viewerState.value = null
-  console.log(applicationIdsModel.value)
 }
 
 const onViewerSetup = (state: InjectableViewerState) => {
@@ -514,9 +546,9 @@ watch(
   (newProjectId, oldProjectId) => {
     if (newProjectId === oldProjectId) return
     modelIdModel.value = null
-    bimIdsModel.value = []
     applicationIdsModel.value = []
     applicationIdByBimId.value = {}
+    bimIdsByApplicationId.value = {}
     draftSelectedIds.value = new Set()
     open.value = false
     viewerState.value = null
@@ -527,9 +559,9 @@ watch(
   () => modelIdModel.value,
   (newModelId, oldModelId) => {
     if (newModelId === oldModelId) return
-    bimIdsModel.value = []
     applicationIdsModel.value = []
     applicationIdByBimId.value = {}
+    bimIdsByApplicationId.value = {}
     draftSelectedIds.value = new Set()
     if (newModelId) openDrawer()
     else {
@@ -549,8 +581,12 @@ watch(
 
 watch(selectedIdsFromViewer, (ids) => {
   if (!open.value) return
-  draftSelectedIds.value = new Set(ids)
+  // viewer 返回的是 bimId，需转换为 applicationId 后存入 draftSelectedIds
   collectMetadataFromViewerTree(ids)
+  const appIds = ids
+    .map((id) => applicationIdByBimId.value[id])
+    .filter((id): id is string => !!id)
+  draftSelectedIds.value = new Set(appIds.length ? appIds : ids)
 })
 
 watch(
