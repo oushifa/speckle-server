@@ -836,6 +836,8 @@ export const updateApprovalFlowStatusFactory =
       const nextApprovedBy = Array.from(
         new Set([...(currentStep.approvedByIds || []), params.userId])
       )
+      // 标记是否已在分支内插入了 action，避免末尾再次插入导致重复
+      let didInsertStepAction = false
       if (params.targetStatus === ApprovalFlowInstanceStatus.Approved) {
         if (nextApprovedBy.length >= currentStep.requiredApprovals) {
           const now = new Date()
@@ -862,6 +864,9 @@ export const updateApprovalFlowStatusFactory =
               requiredApprovals: currentStep.requiredApprovals
             }
           })
+          // 只有存在下一步时（中间步骤）才标记已插入，避免末尾再次重复
+          // 最后一步通过时 didInsertStepAction 保持 false，末尾仍需插入 Approved action
+          if (nextStep) didInsertStepAction = true
           await captureFormSnapshotIfNeeded({
             trx,
             instance,
@@ -1087,28 +1092,31 @@ export const updateApprovalFlowStatusFactory =
       })
       if (!updatedInstance) throw new BadRequestError('Approval instance not found')
 
-      await insertAction({
-        instanceId: params.instanceId,
-        stepId: currentStep.id,
-        action:
-          params.targetStatus === ApprovalFlowInstanceStatus.Approved &&
-          finalStatus === ApprovalFlowInstanceStatus.Pending
-            ? ApprovalFlowActionType.StepApproved
-            : params.targetStatus === ApprovalFlowInstanceStatus.Rejected
-            ? ApprovalFlowActionType.Rejected
-            : finalStatus === ApprovalFlowInstanceStatus.Approved
-            ? ApprovalFlowActionType.Approved
-            : ApprovalFlowActionType.Canceled,
-        actorId: params.userId,
-        fromStatus: instance.status,
-        toStatus: finalStatus,
-        comment: params.comment || null,
-        metadata: params.forceByAdmin
-          ? {
-              forced: true
-            }
-          : null
-      })
+      // 仅在当前分支尚未插入 action 时才插入（避免步骤通过时重复插入）
+      if (!didInsertStepAction) {
+        await insertAction({
+          instanceId: params.instanceId,
+          stepId: currentStep.id,
+          action:
+            params.targetStatus === ApprovalFlowInstanceStatus.Approved &&
+            finalStatus === ApprovalFlowInstanceStatus.Pending
+              ? ApprovalFlowActionType.StepApproved
+              : params.targetStatus === ApprovalFlowInstanceStatus.Rejected
+              ? ApprovalFlowActionType.Rejected
+              : finalStatus === ApprovalFlowInstanceStatus.Approved
+              ? ApprovalFlowActionType.Approved
+              : ApprovalFlowActionType.Canceled,
+          actorId: params.userId,
+          fromStatus: instance.status,
+          toStatus: finalStatus,
+          comment: params.comment || null,
+          metadata: params.forceByAdmin
+            ? {
+                forced: true
+              }
+            : null
+        })
+      }
 
       if (finalStatus === ApprovalFlowInstanceStatus.Pending) {
         await executeDefinitionHooks({
