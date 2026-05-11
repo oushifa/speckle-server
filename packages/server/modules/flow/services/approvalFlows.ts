@@ -40,6 +40,9 @@ const MONTHLY_MEASUREMENT_TEMPLATE_ID = 'm_measure'
 const FORM_SNAPSHOT_ENTER = 'ENTER_STEP'
 const FORM_SNAPSHOT_LEAVE = 'LEAVE_STEP'
 const FLOW_ID_MAX_LENGTH = 10
+const START_STEP_INDEX = 0
+const START_STEP_NAME = '开始'
+const START_APPROVE_STATUS = 'START'
 const FORCED_MONTHLY_MEASUREMENT_HOOKS = {
   onInstancePending: [
     {
@@ -119,7 +122,16 @@ const shouldAllowParallelInstancesForSameResource = (
   effectConfig: Record<string, unknown> | null
 ) => Boolean(effectConfig?.allowParallelInstancesForSameResource)
 
-const mapFlowStatusToQualityAcceptanceApproveStatus = (status: string) => {
+const mapFlowStatusToQualityAcceptanceApproveStatus = (
+  status: string,
+  currentStep?: number | null
+) => {
+  if (
+    status === ApprovalFlowInstanceStatus.Pending &&
+    currentStep === START_STEP_INDEX
+  ) {
+    return START_APPROVE_STATUS
+  }
   if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
   if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
   if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
@@ -127,7 +139,16 @@ const mapFlowStatusToQualityAcceptanceApproveStatus = (status: string) => {
   return 'PENDING'
 }
 
-const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) => {
+const mapFlowStatusToMonthlyMeasurementApproveStatus = (
+  status: string,
+  currentStep?: number | null
+) => {
+  if (
+    status === ApprovalFlowInstanceStatus.Pending &&
+    currentStep === START_STEP_INDEX
+  ) {
+    return START_APPROVE_STATUS
+  }
   if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
   if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
   if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
@@ -204,6 +225,7 @@ const updateResourceByHookAction = async (params: {
     resourceType: string
     resourceId?: string | null
     projectId?: string | null
+    currentStep?: number | null
   }
   action: FlowHookAction
   status: string
@@ -236,7 +258,10 @@ const updateResourceByHookAction = async (params: {
       })
       payload[key] =
         key === 'approveStatus' && typeof resolved === 'string'
-          ? mapFlowStatusToQualityAcceptanceApproveStatus(resolved)
+          ? mapFlowStatusToQualityAcceptanceApproveStatus(
+              resolved,
+              params.instance.currentStep
+            )
           : resolved
     }
     if (!Object.keys(payload).length) return
@@ -256,7 +281,10 @@ const updateResourceByHookAction = async (params: {
       for (const [key, value] of Object.entries(payload)) {
         monthlyPayload[key] =
           key === 'approveStatus' && typeof value === 'string'
-            ? mapFlowStatusToMonthlyMeasurementApproveStatus(value)
+            ? mapFlowStatusToMonthlyMeasurementApproveStatus(
+                value,
+                params.instance.currentStep
+              )
             : value
       }
       await updateMonthlyMeasurementFactory({ db: params.trx })(
@@ -298,6 +326,7 @@ const executeDefinitionHooks = async (params: {
     resourceType: string
     resourceId?: string | null
     projectId?: string | null
+    currentStep?: number | null
   }
   status: string
   actorId: string
@@ -328,6 +357,7 @@ const executeStepHooks = async (params: {
     resourceType: string
     resourceId?: string | null
     projectId?: string | null
+    currentStep?: number | null
   }
   status: string
   actorId: string
@@ -652,6 +682,31 @@ export const startApprovalFlowFactory =
       })
 
       const now = new Date()
+      await createInstanceStep({
+        instanceId: instance.id,
+        definitionStepId: null,
+        name: START_STEP_NAME,
+        stepIndex: START_STEP_INDEX,
+        status: ApprovalFlowStepStatus.Approved,
+        approverIds: [params.userId],
+        requiredApprovals: 1,
+        approvedByIds: [params.userId],
+        stepSnapshot: {
+          definitionStepId: null,
+          name: START_STEP_NAME,
+          stepIndex: START_STEP_INDEX,
+          approverIds: [params.userId],
+          requiredApprovals: 1,
+          timeoutHours: null,
+          hooks: {
+            onEnter: [],
+            onLeave: []
+          }
+        },
+        startedAt: now,
+        dueAt: null,
+        completedAt: now
+      })
       for (let i = 0; i < definitionSteps.length; i++) {
         const step = definitionSteps[i]
         const isFirst = i === 0
@@ -900,8 +955,9 @@ export const updateApprovalFlowStatusFactory =
       } else {
         if (
           params.targetStatus === ApprovalFlowInstanceStatus.Rejected &&
-          params.rollbackToStep &&
-          params.rollbackToStep > 0
+          params.rollbackToStep !== null &&
+          params.rollbackToStep !== undefined &&
+          params.rollbackToStep >= START_STEP_INDEX
         ) {
           const allSteps = await getSteps(params.instanceId)
           const rollbackStep = allSteps.find(
@@ -1013,8 +1069,9 @@ export const updateApprovalFlowStatusFactory =
             ? ApprovalFlowInstanceStatus.Pending
             : ApprovalFlowInstanceStatus.Approved
           : params.targetStatus === ApprovalFlowInstanceStatus.Rejected &&
-            params.rollbackToStep &&
-            params.rollbackToStep > 0
+            params.rollbackToStep !== null &&
+            params.rollbackToStep !== undefined &&
+            params.rollbackToStep >= START_STEP_INDEX
           ? ApprovalFlowInstanceStatus.Pending
           : params.targetStatus
 
@@ -1056,7 +1113,7 @@ export const updateApprovalFlowStatusFactory =
           effectConfig: flowSnapshot.effectConfig || null,
           templateId: flowSnapshot.templateId,
           event: 'onInstancePending',
-          instance,
+          instance: updatedInstance,
           status: ApprovalFlowInstanceStatus.Pending,
           actorId: params.userId
         })
@@ -1066,7 +1123,7 @@ export const updateApprovalFlowStatusFactory =
           effectConfig: flowSnapshot.effectConfig || null,
           templateId: flowSnapshot.templateId,
           event: 'onInstanceApproved',
-          instance,
+          instance: updatedInstance,
           status: ApprovalFlowInstanceStatus.Approved,
           actorId: params.userId
         })
@@ -1076,7 +1133,7 @@ export const updateApprovalFlowStatusFactory =
           effectConfig: flowSnapshot.effectConfig || null,
           templateId: flowSnapshot.templateId,
           event: 'onInstanceRejected',
-          instance,
+          instance: updatedInstance,
           status: ApprovalFlowInstanceStatus.Rejected,
           actorId: params.userId
         })
@@ -1086,7 +1143,7 @@ export const updateApprovalFlowStatusFactory =
           effectConfig: flowSnapshot.effectConfig || null,
           templateId: flowSnapshot.templateId,
           event: 'onInstanceCanceled',
-          instance,
+          instance: updatedInstance,
           status: ApprovalFlowInstanceStatus.Canceled,
           actorId: params.userId
         })
@@ -1221,7 +1278,7 @@ export const reactivateApprovalFlowFactory =
         effectConfig: flowSnapshot.effectConfig || null,
         templateId: flowSnapshot.templateId,
         event: 'onInstancePending',
-        instance,
+        instance: updated,
         status: ApprovalFlowInstanceStatus.Pending,
         actorId: params.userId
       })

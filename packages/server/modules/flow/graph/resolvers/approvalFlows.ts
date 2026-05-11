@@ -467,7 +467,7 @@ export default {
         userId,
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: args.input.comment,
-        rollbackToStep: args.input.rollbackToStep || null,
+        rollbackToStep: args.input.rollbackToStep ?? null,
         forceByAdmin
       })
       await publishApprovalFlowTodoCountUpdated()

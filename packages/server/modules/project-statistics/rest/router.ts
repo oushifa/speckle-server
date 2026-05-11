@@ -9,6 +9,14 @@ import { getStreamFactory } from '@/modules/core/repositories/streams'
 import { db } from '@/db/knex'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
+  getPaginatedProjectModelsItemsFactory,
+  getPaginatedProjectModelsTotalCountFactory
+} from '@/modules/core/repositories/branches'
+import {
+  getUserStreamsCountFactory,
+  getUserStreamsPageFactory
+} from '@/modules/core/repositories/streams'
+import {
   getOrRecalculateProjectCostSummaryFactory,
   recalculateProjectCostSummaryFactory
 } from '@/modules/project-statistics/services/projectCostSummaries'
@@ -29,6 +37,33 @@ const clampLimit = (value: unknown) => {
   const num = Number(value)
   if (!Number.isFinite(num)) return 25
   return Math.min(Math.max(Math.floor(num), 1), 100)
+}
+
+const getQueryString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length ? trimmed : null
+}
+
+const parseBooleanQuery = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') return value
+  if (typeof value !== 'string') return undefined
+
+  const lowered = value.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'y'].includes(lowered)) return true
+  if (['0', 'false', 'no', 'n'].includes(lowered)) return false
+  return undefined
+}
+
+const parseStringArrayQuery = (value: unknown): string[] | undefined => {
+  if (!value) return undefined
+  const rawItems = Array.isArray(value) ? value : [value]
+  const items = rawItems
+    .flatMap((item) =>
+      typeof item === 'string' ? item.split(',').map((sub) => sub.trim()) : []
+    )
+    .filter((item) => !!item)
+  return items.length ? items : undefined
 }
 
 type ProjectListCursor = {
@@ -96,6 +131,119 @@ type CostSummaryStatsResponse = {
 
 export const projectCostSummaryRouterFactory = (): Router => {
   const app = Router()
+  const getUserStreams = getUserStreamsPageFactory({ db })
+  const getUserStreamsCount = getUserStreamsCountFactory({ db })
+
+  app.options('/api/v1/projects', corsMiddlewareFactory())
+  app.get('/api/v1/projects', corsMiddlewareFactory(), async (req, res) => {
+    if (!req.context.auth || !req.context.userId) {
+      return res.status(401).send({
+        error: 'You must be authenticated to list projects.'
+      })
+    }
+
+    const limit = clampLimit(req.query.limit)
+    const cursor = getQueryString(req.query.cursor) || undefined
+    const search = getQueryString(req.query.search) || undefined
+    const workspaceId = getQueryString(req.query.workspaceId) || undefined
+    const userId = req.context.userId
+
+    const [totalCount, page] = await Promise.all([
+      getUserStreamsCount({
+        userId,
+        forOtherUser: false,
+        searchQuery: search,
+        workspaceId,
+        onlyWithActiveSsoSession: true
+      }),
+      getUserStreams({
+        userId,
+        forOtherUser: false,
+        searchQuery: search,
+        workspaceId,
+        onlyWithActiveSsoSession: true,
+        limit,
+        cursor
+      })
+    ])
+
+    return res.status(200).send({
+      totalCount,
+      limit,
+      cursor: page.cursor,
+      items: page.streams.map((project) => ({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        visibility: project.visibility,
+        workspaceId: project.workspaceId,
+        role: project.role || null,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt
+      }))
+    })
+  })
+
+  app.options('/api/v1/projects/:projectId/models', corsMiddlewareFactory())
+  app.get(
+    '/api/v1/projects/:projectId/models',
+    corsMiddlewareFactory(),
+    authMiddlewareCreator(
+      streamReadPermissionsPipelineFactory({
+        getStream: getStreamFactory({ db })
+      })
+    ),
+    async (req, res) => {
+      const projectId = req.params.projectId
+      const projectDb = await getProjectDbClient({ projectId })
+      const getPaginatedProjectModelsItems = getPaginatedProjectModelsItemsFactory({
+        db: projectDb
+      })
+      const getPaginatedProjectModelsTotalCount = getPaginatedProjectModelsTotalCountFactory(
+        { db: projectDb }
+      )
+
+      const limit = clampLimit(req.query.limit)
+      const cursor = getQueryString(req.query.cursor) || undefined
+      const search = getQueryString(req.query.search)
+      const contributors = parseStringArrayQuery(req.query.contributors)
+      const sourceApps = parseStringArrayQuery(req.query.sourceApps)
+      const onlyWithVersions = parseBooleanQuery(req.query.onlyWithVersions)
+
+      const filter = {
+        ...(search ? { search } : {}),
+        ...(contributors?.length ? { contributors } : {}),
+        ...(sourceApps?.length ? { sourceApps } : {}),
+        ...(onlyWithVersions !== undefined ? { onlyWithVersions } : {})
+      }
+
+      const [itemsResult, totalCount] = await Promise.all([
+        getPaginatedProjectModelsItems(projectId, {
+          limit,
+          cursor,
+          filter
+        }),
+        getPaginatedProjectModelsTotalCount(projectId, {
+          filter
+        })
+      ])
+
+      return res.status(200).send({
+        totalCount,
+        limit,
+        cursor: itemsResult.cursor,
+        items: itemsResult.items.map((model) => ({
+          id: model.id,
+          projectId: model.streamId,
+          name: model.name,
+          description: model.description,
+          authorId: model.authorId,
+          createdAt: model.createdAt,
+          updatedAt: model.updatedAt
+        }))
+      })
+    }
+  )
 
   app.options('/api/stream/cost-summary', corsMiddlewareFactory())
   app.get('/api/stream/cost-summary', corsMiddlewareFactory(), async (req, res) => {

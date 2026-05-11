@@ -488,7 +488,9 @@ export type ApprovalFlowAction = {
 export const ApprovalFlowActionType = {
   Approved: 'APPROVED',
   Canceled: 'CANCELED',
+  Reactivated: 'REACTIVATED',
   Rejected: 'REJECTED',
+  ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED',
   Started: 'STARTED',
   StepApproved: 'STEP_APPROVED',
   TimeoutRejected: 'TIMEOUT_REJECTED'
@@ -667,7 +669,9 @@ export type ApprovalMutations = {
   cancel: ApprovalFlowInstance;
   createDefinition: ApprovalFlowDefinition;
   processTimeouts: Scalars['Int']['output'];
+  reactivate: ApprovalFlowInstance;
   reject: ApprovalFlowInstance;
+  resetToUnsubmitted: ApprovalFlowInstance;
   setDefinitionActive: ApprovalFlowDefinition;
   start: ApprovalFlowInstance;
   transferAssignee: Scalars['Int']['output'];
@@ -689,8 +693,18 @@ export type ApprovalMutationsCreateDefinitionArgs = {
 };
 
 
+export type ApprovalMutationsReactivateArgs = {
+  input: ReactivateApprovalFlowInput;
+};
+
+
 export type ApprovalMutationsRejectArgs = {
   input: RejectApprovalFlowInput;
+};
+
+
+export type ApprovalMutationsResetToUnsubmittedArgs = {
+  input: ResetApprovalFlowToUnsubmittedInput;
 };
 
 
@@ -711,6 +725,7 @@ export type ApprovalMutationsTransferAssigneeArgs = {
 
 export type ApproveApprovalFlowInput = {
   comment?: InputMaybe<Scalars['String']['input']>;
+  forceByAdmin?: InputMaybe<Scalars['Boolean']['input']>;
   instanceId: Scalars['ID']['input'];
   nextStepApproverIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
@@ -1188,6 +1203,7 @@ export type BulkUsersRetrievalInput = {
 
 export type CancelApprovalFlowInput = {
   comment?: InputMaybe<Scalars['String']['input']>;
+  forceByAdmin?: InputMaybe<Scalars['Boolean']['input']>;
   instanceId: Scalars['ID']['input'];
 };
 
@@ -4731,8 +4747,15 @@ export type QueryWorkspaceSsoByEmailArgs = {
   email: Scalars['String']['input'];
 };
 
+export type ReactivateApprovalFlowInput = {
+  comment: Scalars['String']['input'];
+  instanceId: Scalars['ID']['input'];
+  targetStep: Scalars['Int']['input'];
+};
+
 export type RejectApprovalFlowInput = {
   comment: Scalars['String']['input'];
+  forceByAdmin?: InputMaybe<Scalars['Boolean']['input']>;
   instanceId: Scalars['ID']['input'];
   rollbackToStep?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -4757,6 +4780,11 @@ export type ReplyCreateInput = {
   streamId: Scalars['String']['input'];
   /** ProseMirror document object */
   text?: InputMaybe<Scalars['JSONObject']['input']>;
+};
+
+export type ResetApprovalFlowToUnsubmittedInput = {
+  comment: Scalars['String']['input'];
+  instanceId: Scalars['ID']['input'];
 };
 
 export type ResourceIdentifier = {
@@ -7775,10 +7803,12 @@ export type ResolversTypes = {
   QualityAcceptanceImportResult: ResolverTypeWrapper<QualityAcceptanceImportResult>;
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
+  ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
+  ResetApprovalFlowToUnsubmittedInput: ResetApprovalFlowToUnsubmittedInput;
   ResourceIdentifier: ResolverTypeWrapper<ResourceIdentifier>;
   ResourceIdentifierInput: ResourceIdentifierInput;
   ResourceType: ResourceType;
@@ -8251,10 +8281,12 @@ export type ResolversParentTypes = {
   QualityAcceptanceImportResult: QualityAcceptanceImportResult;
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
+  ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
   ReplyCreateInput: ReplyCreateInput;
+  ResetApprovalFlowToUnsubmittedInput: ResetApprovalFlowToUnsubmittedInput;
   ResourceIdentifier: ResourceIdentifier;
   ResourceIdentifierInput: ResourceIdentifierInput;
   Role: Role;
@@ -8796,7 +8828,9 @@ export type ApprovalMutationsResolvers<ContextType = GraphQLContext, ParentType 
   cancel?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsCancelArgs, 'input'>>;
   createDefinition?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsCreateDefinitionArgs, 'input'>>;
   processTimeouts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  reactivate?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsReactivateArgs, 'input'>>;
   reject?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsRejectArgs, 'input'>>;
+  resetToUnsubmitted?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsResetToUnsubmittedArgs, 'input'>>;
   setDefinitionActive?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsSetDefinitionActiveArgs, 'definitionId' | 'isActive'>>;
   start?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsStartArgs, 'input'>>;
   transferAssignee?: Resolver<ResolversTypes['Int'], ParentType, ContextType, RequireFields<ApprovalMutationsTransferAssigneeArgs, 'input'>>;

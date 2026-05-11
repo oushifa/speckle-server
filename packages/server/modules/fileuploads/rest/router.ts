@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request, Response } from 'express'
 import {
   insertNewUploadAndNotifyFactory,
   insertNewUploadAndNotifyFactoryV2
@@ -44,6 +45,126 @@ export const fileuploadRouterFactory = (): Router => {
 
   const app = Router()
 
+  const handleUploadRequest = async (req: Request, res: Response) => {
+    const fileType =
+      req.params.fileType ||
+      (typeof req.query.fileType === 'string' ? req.query.fileType : '')
+    const branchName =
+      req.params.modelName ||
+      req.params.branchName ||
+      (typeof req.query.modelName === 'string' ? req.query.modelName : '') ||
+      'main'
+    const projectId = req.params.projectId || req.params.streamId
+    const userId = req.context.userId
+
+    if (!userId) {
+      throw new UnauthorizedError('User not authenticated.')
+    }
+    const logger = req.log.child({
+      projectId,
+      streamId: projectId, //legacy
+      userId,
+      branchName
+    })
+
+    const projectDb = await getProjectDbClient({ projectId })
+    const getStreamBranchByName = getStreamBranchByNameFactory({ db: projectDb })
+    const branch = await getStreamBranchByName(projectId, branchName)
+    if (!branch) {
+      throw new BranchNotFoundError('Branch {branchName} was not found', {
+        info: { branchName }
+      })
+    }
+
+    const insertNewUploadAndNotify = insertNewUploadAndNotifyFactory({
+      saveUploadFile: saveUploadFileFactory({ db: projectDb }),
+      emit: getEventBus().emit
+    })
+
+    const pushJobToFileImporter = pushJobToFileImporterFactory({
+      getServerOrigin: fileImportServiceShouldUsePrivateObjectsServerUrl()
+        ? getPrivateObjectsServerOrigin
+        : getServerOrigin,
+      createAppToken: createAppTokenFactory({
+        storeApiToken: storeApiTokenFactory({ db }),
+        storeTokenScopes: storeTokenScopesFactory({ db }),
+        storeTokenResourceAccessDefinitions: storeTokenResourceAccessDefinitionsFactory(
+          {
+            db
+          }
+        ),
+        storeUserServerAppToken: storeUserServerAppTokenFactory({ db })
+      })
+    })
+
+    const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
+      queues: fileImportQueues,
+      pushJobToFileImporter,
+      saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
+      emit: getEventBus().emit
+    })
+
+    const saveFileUploads = async ({
+      uploadResults
+    }: {
+      uploadResults: Array<{
+        blobId: string
+        fileName: string
+        fileSize: Nullable<number>
+      }>
+    }) => {
+      await Promise.all(
+        uploadResults.map(async (upload) => {
+          await (FF_NEXT_GEN_FILE_IMPORTER_ENABLED
+            ? insertNewUploadAndNotifyV2
+            : insertNewUploadAndNotify)({
+            fileId: upload.blobId,
+            streamId: projectId, //legacy
+            projectId,
+            branchName: branch.name || branchName, //legacy
+            userId,
+            fileName: upload.fileName,
+            fileType: fileType || upload.fileName?.split('.').pop() || '', //FIXME
+            fileSize: upload.fileSize,
+            modelName: branch.name || branchName,
+            modelId: branch.id
+          })
+        })
+      )
+    }
+
+    const busboy = createBusboy(req)
+    const newFileStreamProcessor = await processNewFileStream({
+      busboy,
+      streamId: projectId,
+      userId,
+      logger,
+      onFinishAllFileUploads: async (uploadResults) => {
+        try {
+          await saveFileUploads({
+            uploadResults
+          })
+        } catch (err) {
+          logger.error(ensureError(err), 'File importer handling error @deprecated')
+          res.status(500)
+        }
+
+        res.setHeader(
+          'Warning',
+          'Deprecated API; use POST /graphql (mutation.fileUploadMutations.generateUploadUrl), then PUT (to the provided url), then POST /graphql (mutation.fileUploadMutations.startFileImport)'
+        )
+
+        res.status(201).send({ uploadResults })
+      },
+      onError: () => {
+        res.contentType('application/json')
+        res.status(400).end(UploadRequestErrorMessage)
+      }
+    })
+
+    req.pipe(newFileStreamProcessor)
+  }
+
   /**
    * @deprecated use POST /graphql (mutation.fileUploadMutations.generateUploadUrl), then PUT (to the provided url), then POST /graphql (mutation.fileUploadMutations.startFileImport)
    */
@@ -54,115 +175,17 @@ export const fileuploadRouterFactory = (): Router => {
         getStream: getStreamFactory({ db })
       })
     ),
-    async (req, res) => {
-      const branchName = req.params.branchName || 'main'
-      const projectId = req.params.streamId
-      const userId = req.context.userId
+    async (req, res) => await handleUploadRequest(req, res)
+  )
 
-      if (!userId) {
-        throw new UnauthorizedError('User not authenticated.')
-      }
-      const logger = req.log.child({
-        projectId,
-        streamId: projectId, //legacy
-        userId,
-        branchName
+  app.post(
+    '/api/v1/projects/:projectId/models/upload/:fileType/:modelName?',
+    authMiddlewareCreator(
+      streamWritePermissionsPipelineFactory({
+        getStream: getStreamFactory({ db })
       })
-
-      const projectDb = await getProjectDbClient({ projectId })
-      const getStreamBranchByName = getStreamBranchByNameFactory({ db: projectDb })
-      const branch = await getStreamBranchByName(projectId, branchName)
-      if (!branch) {
-        throw new BranchNotFoundError('Branch {branchName} was not found', {
-          info: { branchName }
-        })
-      }
-
-      const insertNewUploadAndNotify = insertNewUploadAndNotifyFactory({
-        saveUploadFile: saveUploadFileFactory({ db: projectDb }),
-        emit: getEventBus().emit
-      })
-
-      const pushJobToFileImporter = pushJobToFileImporterFactory({
-        getServerOrigin: fileImportServiceShouldUsePrivateObjectsServerUrl()
-          ? getPrivateObjectsServerOrigin
-          : getServerOrigin,
-        createAppToken: createAppTokenFactory({
-          storeApiToken: storeApiTokenFactory({ db }),
-          storeTokenScopes: storeTokenScopesFactory({ db }),
-          storeTokenResourceAccessDefinitions:
-            storeTokenResourceAccessDefinitionsFactory({ db }),
-          storeUserServerAppToken: storeUserServerAppTokenFactory({ db })
-        })
-      })
-
-      const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
-        queues: fileImportQueues,
-        pushJobToFileImporter,
-        saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
-        emit: getEventBus().emit
-      })
-
-      const saveFileUploads = async ({
-        uploadResults
-      }: {
-        uploadResults: Array<{
-          blobId: string
-          fileName: string
-          fileSize: Nullable<number>
-        }>
-      }) => {
-        await Promise.all(
-          uploadResults.map(async (upload) => {
-            await (FF_NEXT_GEN_FILE_IMPORTER_ENABLED
-              ? insertNewUploadAndNotifyV2
-              : insertNewUploadAndNotify)({
-              fileId: upload.blobId,
-              streamId: projectId, //legacy
-              projectId,
-              branchName: branch.name || branchName, //legacy
-              userId,
-              fileName: upload.fileName,
-              fileType: upload.fileName?.split('.').pop() || '', //FIXME
-              fileSize: upload.fileSize,
-              modelName: branch.name || branchName,
-              modelId: branch.id
-            })
-          })
-        )
-      }
-
-      const busboy = createBusboy(req)
-      const newFileStreamProcessor = await processNewFileStream({
-        busboy,
-        streamId: projectId,
-        userId,
-        logger,
-        onFinishAllFileUploads: async (uploadResults) => {
-          try {
-            await saveFileUploads({
-              uploadResults
-            })
-          } catch (err) {
-            logger.error(ensureError(err), 'File importer handling error @deprecated')
-            res.status(500)
-          }
-
-          res.setHeader(
-            'Warning',
-            'Deprecated API; use POST /graphql (mutation.fileUploadMutations.generateUploadUrl), then PUT (to the provided url), then POST /graphql (mutation.fileUploadMutations.startFileImport)'
-          )
-
-          res.status(201).send({ uploadResults })
-        },
-        onError: () => {
-          res.contentType('application/json')
-          res.status(400).end(UploadRequestErrorMessage)
-        }
-      })
-
-      req.pipe(newFileStreamProcessor)
-    }
+    ),
+    async (req, res) => await handleUploadRequest(req, res)
   )
 
   return app
