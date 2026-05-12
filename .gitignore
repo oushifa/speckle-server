@@ -90,3 +90,4 @@ packages/*/.tshy/
 .nuxt
 .output
 AGENTS.md
+.trae/
