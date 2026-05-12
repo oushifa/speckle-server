@@ -89,3 +89,4 @@ packages/*/.tshy/
 
 .nuxt
 .output
+AGENTS.md
