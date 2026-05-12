@@ -9,6 +9,7 @@ import type { SpeckleModule } from '@/modules/shared/helpers/typeHelper'
 import staticRest from '@/modules/core/rest/static'
 import uploadRest from '@/modules/core/rest/upload'
 import downloadRest from '@/modules/core/rest/download'
+import modelsRest from '@/modules/core/rest/models'
 import diffUpload from '@/modules/core/rest/diffUpload'
 import diffDownload from '@/modules/core/rest/diffDownload'
 import scopes from '@/modules/core/scopes'
@@ -77,6 +78,9 @@ const coreModule: SpeckleModule<{
     // Initialises the two diff-based upload/download endpoints
     diffUpload(app)
     diffDownload(app)
+
+    // Initialises the models REST endpoint
+    modelsRest(app)
 
     const scopeRegisterFunc = registerOrUpdateScopeFactory({ db })
     // Register core-based scoeps
