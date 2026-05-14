@@ -9,6 +9,7 @@ import {
   allowForAllRegisteredUsersOnPublicStreamsWithPublicComments,
   allowForRegisteredUsersOnPublicStreamsEvenWithoutRole,
   allowForServerAdmins,
+  allowForServerUsers,
   validateResourceAccess,
   validateRequiredStreamFactory,
   isAuthFailedResult
@@ -496,6 +497,32 @@ describe('AuthZ @shared', () => {
           authResult: 'fake'
         } as unknown as AuthData
         const result = await allowForServerAdmins(input)
+        expect(result).to.deep.equal(input)
+      })
+    })
+    describe('Server user override', () => {
+      it('server:users get authSuccess', async () => {
+        const input = {
+          context: { role: Roles.Server.User },
+          authResult: 'fake'
+        } as unknown as AuthData
+        const result = await allowForServerUsers(input)
+        expect(result).to.deep.equal(authSuccess(input.context))
+      })
+      it('server:admins get authSuccess', async () => {
+        const input = {
+          context: { role: Roles.Server.Admin },
+          authResult: 'fake'
+        } as unknown as AuthData
+        const result = await allowForServerUsers(input)
+        expect(result).to.deep.equal(authSuccess(input.context))
+      })
+      it('other roles get the previous authResult', async () => {
+        const input = {
+          context: { role: Roles.Stream.Contributor },
+          authResult: 'fake'
+        } as unknown as AuthData
+        const result = await allowForServerUsers(input)
         expect(result).to.deep.equal(input)
       })
     })

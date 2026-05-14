@@ -20,7 +20,7 @@ import { createRandomEmail } from '@/modules/core/helpers/testHelpers'
 import cryptoRandomString from 'crypto-random-string'
 import { getFrontendOrigin } from '@/modules/shared/helpers/envHelper'
 import type { BasicTestUser } from '@/test/authHelper'
-import { createTestUser } from '@/test/authHelper'
+import { createAuthTokenForUser, createTestUser } from '@/test/authHelper'
 import {
   type BasicTestStream,
   createTestStream
@@ -121,6 +121,58 @@ describe('Auth @auth', () => {
         .post('/auth/local/register?challenge=test')
         .send({ email: 'spam@speckle.systems', name: 'dimitrie stefanescu' })
         .expect(400)
+    })
+
+    it('Should allow a server user to register a managed user through REST', async () => {
+      const actor = await createTestUser({
+        email: createRandomEmail(),
+        name: 'org manager',
+        role: 'server:user'
+      })
+      const token = await createAuthTokenForUser(actor.id)
+      const email = createRandomEmail()
+
+      const res = await request(app)
+        .post('/api/v1/server-users/register')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email,
+          name: 'managed user',
+          password: 'roll saving throws'
+        })
+        .expect(201)
+
+      expect(res.body.created).to.equal(true)
+      expect(res.body.id).to.be.a('string')
+
+      const createdUser = await getUserByEmail({ email })
+      expect(createdUser?.id).to.equal(res.body.id)
+    })
+
+    it('Should reuse an existing user in managed registration REST flow', async () => {
+      const actor = await createTestUser({
+        email: createRandomEmail(),
+        name: 'org manager two',
+        role: 'server:user'
+      })
+      const existingUser = await createTestUser({
+        email: createRandomEmail(),
+        name: 'existing managed user'
+      })
+      const token = await createAuthTokenForUser(actor.id)
+
+      const res = await request(app)
+        .post('/api/v1/server-users/register')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: existingUser.email,
+          name: existingUser.name,
+          password: 'roll saving throws'
+        })
+        .expect(200)
+
+      expect(res.body.created).to.equal(false)
+      expect(res.body.id).to.equal(existingUser.id)
     })
 
     const inviteTypeDataSet = [

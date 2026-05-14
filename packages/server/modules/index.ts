@@ -115,6 +115,7 @@ const getEnabledModuleNames = () => {
     'custom-role',
     'notifications',
     'previews',
+    'progress',
     'project-statistics',
     'quality-acceptance-form',
     'pwdreset',

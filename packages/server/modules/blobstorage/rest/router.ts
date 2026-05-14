@@ -2,6 +2,7 @@ import {
   allowForAllRegisteredUsersOnPublicStreamsWithPublicComments,
   allowForRegisteredUsersOnPublicStreamsEvenWithoutRole,
   allowAnonymousUsersOnPublicStreams,
+  streamCommentsWriteOrServerUserPermissionsPipelineFactory,
   streamCommentsWritePermissionsPipelineFactory,
   streamReadPermissionsPipelineFactory
 } from '@/modules/shared/authz'
@@ -19,7 +20,7 @@ import {
   getFileStreamFactory,
   fullyDeleteBlobFactory
 } from '@/modules/blobstorage/services/management'
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
 import {
   deleteObjectFactory,
@@ -33,21 +34,39 @@ import { createBusboy } from '@/modules/blobstorage/rest/busboy'
 import contentDisposition from 'content-disposition'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
 import cors from 'cors'
+import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
+import { Roles } from '@/modules/core/helpers/mainConstants'
 
 export const blobStorageRouterFactory = (): Router => {
   const processNewFileStream = processNewFileStreamFactory()
+  const crossOriginCors = corsMiddlewareFactory({
+    corsConfig: {
+      origin: true,
+      credentials: true
+    }
+  })
 
   const app = Router()
 
+  const withAdminOverride = (middleware: RequestHandler): RequestHandler => {
+    return async (req, res, next) => {
+      if (req.context.role === Roles.Server.Admin) return next()
+      return middleware(req, res, next)
+    }
+  }
+
+  app.options('/api/stream/:streamId/blob', crossOriginCors)
+
   app.post(
     '/api/stream/:streamId/blob',
-    async (req, res, next) => {
+    crossOriginCors,
+    withAdminOverride(async (req, res, next) => {
       await authMiddlewareCreator(
-        streamCommentsWritePermissionsPipelineFactory({
+        streamCommentsWriteOrServerUserPermissionsPipelineFactory({
           getStream: getStreamFactory({ db })
         })
       )(req, res, next)
-    },
+    }),
     async (req, res) => {
       const streamId = req.params.streamId
       const userId = req.context.userId

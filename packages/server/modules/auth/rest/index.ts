@@ -6,7 +6,7 @@ import {
 import { validateScopes } from '@/modules/shared'
 import { InvalidAccessCodeRequestError } from '@/modules/auth/errors'
 import type { Optional } from '@speckle/shared'
-import { ensureError, Scopes } from '@speckle/shared'
+import { ensureError, Roles, Scopes } from '@speckle/shared'
 import { BadRequestError, ForbiddenError } from '@/modules/shared/errors'
 import {
   getAppFactory,
@@ -23,7 +23,6 @@ import {
   createAppTokenFromAccessCodeFactory,
   refreshAppTokenFactory
 } from '@/modules/auth/services/serverApps'
-import type { Express } from 'express'
 import {
   getApiTokenByIdFactory,
   getTokenResourceAccessDefinitionsByIdFactory,
@@ -37,24 +36,122 @@ import {
   updateApiTokenFactory
 } from '@/modules/core/repositories/tokens'
 import {
+  countAdminUsersFactory,
   getUserByEmailFactory,
+  getUserFactory,
+  storeUserAclFactory,
+  storeUserFactory,
   getUserRoleFactory
 } from '@/modules/core/repositories/users'
+import {
+  createUserEmailFactory,
+  ensureNoPrimaryEmailForUserFactory,
+  findEmailFactory
+} from '@/modules/core/repositories/userEmails'
+import { validateAndCreateUserEmailFactory } from '@/modules/core/services/userEmails'
 import {
   findDepartmentByNameFactory,
   removeDepartmentMembersByUserFactory,
   upsertDepartmentMemberFactory
 } from '@/modules/organizations/repositories/organizations'
+import { requestNewEmailVerificationFactory } from '@/modules/emails/services/verification/request'
+import { deleteOldAndInsertNewVerificationFactory } from '@/modules/emails/repositories'
+import { renderEmail } from '@/modules/emails/services/emailRendering'
+import { sendEmail } from '@/modules/emails/services/sending'
 import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
+import { getServerInfoFactory } from '@/modules/core/repositories/server'
+import { createUserFactory } from '@/modules/core/services/users/management'
+import { logger } from '@/observability/logging'
+import { getAllRegisteredDbs } from '@/modules/multiregion/utils/dbSelector'
+import { asMultiregionalOperation } from '@/modules/shared/command'
 import crypto from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import cryptoRandomString from 'crypto-random-string'
+import type { RequestHandler, Express } from 'express'
 
 const SSO_JWT_SECRET = 'Rz4eFYTp8CCGBGh6tpDoSPI/L8GUefjW3OfFcF4QOwI='
 const SPECKLE_WEB_APP_ID = 'spklwebapp'
 const SSO_DEFAULT_PASSWORD = 'SZNB!@#456'
+
+const requireServerUser: RequestHandler = (req, res, next) => {
+  if (!req.context.auth || !req.context.userId) {
+    return res.status(401).send({ error: 'Authentication required.' })
+  }
+
+  if (
+    req.context.role !== Roles.Server.User &&
+    req.context.role !== Roles.Server.Admin
+  ) {
+    return res.status(403).send({ error: 'Server user role required.' })
+  }
+
+  return next()
+}
+
+const createManagedUser = async (params: {
+  email: string
+  password: string
+  name: string
+  company?: string
+}) =>
+  await asMultiregionalOperation(
+    async ({ mainDb, allDbs, emit }) => {
+      const createUser = createUserFactory({
+        getServerInfo: getServerInfoFactory({ db: mainDb }),
+        findEmail: findEmailFactory({ db: mainDb }),
+        storeUser: async (...input) => {
+          const [user] = await Promise.all(
+            allDbs.map((db) => storeUserFactory({ db })(...input))
+          )
+
+          return user
+        },
+        countAdminUsers: countAdminUsersFactory({ db: mainDb }),
+        storeUserAcl: storeUserAclFactory({ db: mainDb }),
+        validateAndCreateUserEmail: validateAndCreateUserEmailFactory({
+          createUserEmail: createUserEmailFactory({ db: mainDb }),
+          ensureNoPrimaryEmailForUser: ensureNoPrimaryEmailForUserFactory({
+            db: mainDb
+          }),
+          findEmail: findEmailFactory({ db: mainDb }),
+          updateEmailInvites: async () => undefined,
+          requestNewEmailVerification: requestNewEmailVerificationFactory({
+            getServerInfo: getServerInfoFactory({ db: mainDb }),
+            findEmail: findEmailFactory({ db: mainDb }),
+            getUser: getUserFactory({ db: mainDb }),
+            deleteOldAndInsertNewVerification: deleteOldAndInsertNewVerificationFactory(
+              {
+                db: mainDb
+              }
+            ),
+            renderEmail,
+            sendEmail
+          })
+        }),
+        emitEvent: emit
+      })
+
+      return await createUser(
+        {
+          email: params.email,
+          password: params.password,
+          name: params.name,
+          company: params.company,
+          verified: false
+        },
+        {
+          allowPersonalEmail: true
+        }
+      )
+    },
+    {
+      dbs: await getAllRegisteredDbs(),
+      name: 'create managed user',
+      logger
+    }
+  )
 
 type SsoTokenHeader = {
   alg?: string
@@ -128,6 +225,57 @@ const resolveAuthErrorMessage = async (authResponse: Response) => {
 
 // TODO: Secure these endpoints!
 export default function (app: Express) {
+  const getUserByEmail = getUserByEmailFactory({ db })
+
+  app.post('/api/v1/server-users/register', requireServerUser, async (req, res) => {
+    try {
+      const email =
+        typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+      const password =
+        typeof req.body?.password === 'string' ? req.body.password.trim() : ''
+      const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+      const company =
+        typeof req.body?.company === 'string' ? req.body.company.trim() : undefined
+
+      if (!email) throw new BadRequestError('Email is required.')
+      if (!password) throw new BadRequestError('Password is required.')
+      if (!name) throw new BadRequestError('Name is required.')
+
+      const existingUser = await getUserByEmail(email)
+      if (existingUser) {
+        return res.status(200).send({
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+          created: false
+        })
+      }
+
+      const userId = await createManagedUser({
+        email,
+        password,
+        name,
+        company
+      })
+      const createdUser = await getUserByEmail(email)
+      if (!createdUser)
+        throw new BadRequestError('User created but could not be loaded.')
+
+      return res.status(201).send({
+        id: userId,
+        email: createdUser.email,
+        name: createdUser.name,
+        created: true
+      })
+    } catch (err) {
+      const error = ensureError(err)
+      req.log.info({ err: error }, 'Managed user registration failed')
+      return res.status(err instanceof BadRequestError ? 400 : 500).send({
+        error: error.message
+      })
+    }
+  })
+
   /*
   Generates an access code for an app.
   TODO: ensure same origin.

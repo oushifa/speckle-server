@@ -272,6 +272,14 @@ export const allowForServerAdmins: AuthPipelineFunction = async ({
 }) =>
   context.role === Roles.Server.Admin ? authSuccess(context) : { context, authResult }
 
+export const allowForServerUsers: AuthPipelineFunction = async ({
+  context,
+  authResult
+}) =>
+  context.role === Roles.Server.User || context.role === Roles.Server.Admin
+    ? authSuccess(context)
+    : { context, authResult }
+
 export const allowForRegisteredUsersOnPublicStreamsEvenWithoutRole: AuthPipelineFunction =
   async ({ context, authResult }) =>
     context.auth && context.stream?.visibility === ProjectRecordVisibility.Public
@@ -381,6 +389,23 @@ export const streamCommentsWritePermissionsPipelineFactory = (deps: {
   getStream: StreamGetter
 }): AuthPipelineFunction[] => [
   validateScope({ requiredScope: Scopes.Streams.Write }),
+  validateResourceAccess,
+  validateRequiredStreamFactory(deps),
+  validateStreamPolicyAccessFactory({
+    ...deps,
+    policyInvoker: async ({ authData, policies }) =>
+      policies.project.comment.canCreate({
+        userId: authData.context.userId,
+        projectId: authData.params!.streamId! || authData.params!.projectId!
+      })
+  })
+]
+
+export const streamCommentsWriteOrServerUserPermissionsPipelineFactory = (deps: {
+  getStream: StreamGetter
+}): AuthPipelineFunction[] => [
+  validateScope({ requiredScope: Scopes.Streams.Write }),
+  allowForServerUsers,
   validateResourceAccess,
   validateRequiredStreamFactory(deps),
   validateStreamPolicyAccessFactory({

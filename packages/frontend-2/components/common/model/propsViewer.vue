@@ -13,7 +13,7 @@
         <ViewerModelsPanel v-model:sub-view="modelsSubView" />
       </div>
     </div>
-    <div class="right-0 top-0 absolute">
+    <div v-if="!selectionSidbarDisabled" class="right-0 top-0 absolute">
       <ViewerSelectionSidebar ref="selectionSidebar" class="z-20" />
     </div>
   </ViewerStateSetup>
@@ -37,13 +37,15 @@ const props = withDefaults(
     viewerState?: InjectableViewerState | null
     filterBims?: string[]
     filterApplicationIds?: string[]
+    selectionSidbarDisabled?: boolean
   }>(),
   {
     projectId: '',
     modelIds: () => [],
     viewerState: null,
     filterBims: () => [],
-    filterApplicationIds: () => []
+    filterApplicationIds: () => [],
+    selectionSidbarDisabled: false
   }
 )
 
@@ -103,7 +105,6 @@ const isApplyingFilters = ref(false)
 const viewerResourceIdString = writableAsyncComputed({
   get: () => {
     const modelIds = normalizedModelIds.value.slice()
-    console.log(modelIds)
     return modelIds.length ? resourceBuilder().addModels(modelIds).toString() : ''
   },
   set: async () => {

@@ -2722,6 +2722,7 @@ export type MonthlyMeasurementPreview = {
 export type MonthlyMeasurementPreviewInput = {
   baseDate: Scalars['BigInt']['input'];
   excludedAcceptanceIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+  pinnedAcceptanceIds?: InputMaybe<Array<Scalars['ID']['input']>>;
   projectId: Scalars['ID']['input'];
 };
 

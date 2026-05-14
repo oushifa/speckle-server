@@ -1,121 +1,155 @@
 <template>
-  <div class="flex flex-col h-full text-foreground">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <h1 class="text-heading-lg text-foreground mt-3 mb-4">实际进度</h1>
+  <div class="flex flex-col h-full text-foreground gap-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="text-heading-lg mt-3">实际进度</h1>
+      </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative">
-          <FormTextInput
-            v-model="searchQuery"
-            name="search"
-            placeholder="搜索任务"
-            :custom-icon="MagnifyingGlassIcon"
-            color="foundation"
-            class="w-64"
-          />
-        </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <FormTextInput
+          v-model="searchQuery"
+          name="actual-progress-search"
+          placeholder="搜索日期、构件编码、记录人"
+          :custom-icon="Search"
+          color="foundation"
+          class="w-72"
+        />
+        <FormButton
+          color="outline"
+          :icon-left="Upload"
+          :disabled="isLoadingRecords || isImportingExcel"
+          @click="triggerImportExcel"
+        >
+          {{ isImportingExcel ? '导入中...' : '导入Excel' }}
+        </FormButton>
+        <FormButton
+          color="outline"
+          :icon-left="Download"
+          :disabled="isLoadingRecords"
+          @click="handleExportExcel"
+        >
+          导出Excel
+        </FormButton>
         <FormButton
           color="primary"
-          class="flex items-center gap-2"
-          @click="handleCreate"
+          :icon-left="Plus"
+          :disabled="isLoadingRecords"
+          @click="openCreateDialog"
         >
-          <PlusIcon class="h-4 w-4" />
-          新增
+          新增填报
         </FormButton>
+        <input
+          ref="importInputRef"
+          type="file"
+          class="hidden"
+          aria-label="导入实际进度Excel文件"
+          accept=".xlsx,.xls"
+          @change="handleImportFileChange"
+        />
       </div>
     </div>
 
-    <!-- Table -->
-    <div class="flex-1 overflow-hidden flex flex-col">
-      <LayoutTable
-        :columns="columns"
-        :items="paginatedItems"
-        :buttons="[]"
-        class="flex-1"
-      >
-        <template #name="{ item }">
-          <div class="font-medium text-foreground">{{ item.name }}</div>
-        </template>
-
-        <template #planStart="{ item }">
-          <div class="text-foreground">{{ item.planStart }}</div>
-        </template>
-
-        <template #planEnd="{ item }">
-          <div class="text-foreground">{{ item.planEnd }}</div>
-        </template>
-
+    <div
+      class="flex-1 overflow-hidden flex flex-col rounded-lg border border-outline-2 bg-foundation"
+    >
+      <LayoutTable :columns="columns" :items="paginatedItems" class="flex-1">
         <template #reportDate="{ item }">
-          <div class="text-foreground">{{ item.reportDate }}</div>
+          <div class="font-medium">{{ item.reportDate }}</div>
+          <div class="text-body-xs text-foreground-2">{{ item.weekDay }}</div>
         </template>
 
-        <template #progress="{ item }">
-          <div class="font-bold text-primary">{{ item.progress }}%</div>
-        </template>
-
-        <template #actualEnd="{ item }">
-          <div class="text-foreground">{{ item.actualEnd }}</div>
-        </template>
-
-        <template #reporter="{ item }">
-          <div class="text-foreground">{{ item.reporter }}</div>
-        </template>
-
-        <template #status="{ item }">
-          <div
-            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-            :class="
-              item.status === 'linked'
-                ? 'bg-success-lighter text-success-darker'
-                : 'bg-neutral-light text-foreground-2'
-            "
+        <template #startElementCodes="{ item }">
+          <button
+            type="button"
+            class="w-full rounded-lg border border-outline-2 bg-foundation-page px-3 py-2 text-left transition hover:border-primary hover:bg-primary/5"
+            @click="openElementLinkDialog(item, 'start')"
           >
-            {{ item.status === 'linked' ? '已关联BIM模型' : '未关联' }}
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-body-sm font-medium">今日开始施工构件</div>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
+                :class="getElementStatusBadgeClass(item.startApplicationIds)"
+              >
+                {{ getElementStatusText(item.startApplicationIds) }}
+              </span>
+            </div>
+            <div class="mt-2 text-body-sm text-foreground-2 line-clamp-2">
+              {{ item.startElementCodes || '点击关联开始施工构件' }}
+            </div>
+          </button>
+        </template>
+
+        <template #finishElementCodes="{ item }">
+          <button
+            type="button"
+            class="w-full rounded-lg border border-outline-2 bg-foundation-page px-3 py-2 text-left transition hover:border-primary hover:bg-primary/5"
+            @click="openElementLinkDialog(item, 'finish')"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-body-sm font-medium">今日完成构件</div>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
+                :class="getElementStatusBadgeClass(item.finishApplicationIds)"
+              >
+                {{ getElementStatusText(item.finishApplicationIds) }}
+              </span>
+            </div>
+            <div class="mt-2 text-body-sm text-foreground-2 line-clamp-2">
+              {{ item.finishElementCodes || '点击关联完成构件' }}
+            </div>
+          </button>
+        </template>
+
+        <template #remark="{ item }">
+          <div class="text-body-sm truncate">{{ item.remark || '-' }}</div>
+        </template>
+
+        <template #constructionLog="{ item }">
+          <div class="text-body-sm">
+            {{ getConstructionLogPreview(item) }}
           </div>
         </template>
 
         <template #actions="{ item }">
           <div class="flex items-center justify-end gap-2">
-            <button
-              class="p-1 text-primary hover:text-primary-focus transition-colors"
-              title="查看"
-            >
-              <EyeIcon class="h-4 w-4" />
-            </button>
-            <button
-              class="p-1 text-warning hover:text-warning-focus transition-colors"
-              title="编辑"
-            >
-              <PencilSquareIcon class="h-4 w-4" />
-            </button>
-            <button
-              class="p-1 text-foreground hover:text-foreground-2 transition-colors"
-              title="关联"
-            >
-              <LinkIcon class="h-4 w-4" />
-            </button>
-            <button
-              class="p-1 text-danger hover:text-danger-focus transition-colors"
-              title="删除"
-            >
-              <TrashIcon class="h-4 w-4" />
-            </button>
+            <FormButton
+              size="sm"
+              color="outline"
+              hide-text
+              :icon-left="Eye"
+              @click="openViewDialog(item)"
+            />
+            <FormButton
+              size="sm"
+              color="outline"
+              hide-text
+              :icon-left="Pencil"
+              @click="openEditDialog(item)"
+            />
+            <FormButton
+              size="sm"
+              color="outline"
+              hide-text
+              :icon-left="Trash2"
+              :disabled="deletingRecordId === item.id"
+              @click="handleDelete(item.id)"
+            />
           </div>
         </template>
       </LayoutTable>
     </div>
 
-    <!-- Pagination -->
     <div
-      class="px-4 py-4 border-t border-outline-3 flex items-center justify-between bg-foundation"
+      class="px-4 py-4 border border-outline-2 rounded-lg flex items-center justify-between bg-foundation"
     >
       <div class="flex items-center gap-4 text-sm text-foreground-2">
+        <div v-if="isLoadingRecords">正在加载列表...</div>
         <div class="flex items-center gap-2">
           <span>每页显示</span>
           <select
             v-model="itemsPerPage"
-            class="bg-foundation-2 border border-outline-3 rounded px-2 py-1 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+            aria-label="每页显示条数"
+            class="bg-foundation-2 border border-outline-3 rounded px-2 py-1 outline-none"
           >
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -132,7 +166,7 @@
           class="p-1 rounded hover:bg-foundation-2 disabled:opacity-50 disabled:hover:bg-transparent"
           @click="currentPage > 1 && currentPage--"
         >
-          <ChevronLeftIcon class="h-5 w-5 text-foreground-2" />
+          <ChevronLeft class="h-5 w-5 text-foreground-2" />
         </button>
 
         <button
@@ -154,106 +188,1273 @@
           class="p-1 rounded hover:bg-foundation-2 disabled:opacity-50 disabled:hover:bg-transparent"
           @click="currentPage < totalPages && currentPage++"
         >
-          <ChevronRightIcon class="h-5 w-5 text-foreground-2" />
+          <ChevronRight class="h-5 w-5 text-foreground-2" />
         </button>
       </div>
     </div>
+
+    <LayoutDialog
+      v-model:open="viewDialogOpen"
+      max-width="xl"
+      :buttons="viewDialogButtons"
+    >
+      <template #header>{{ viewDialogTitle }}</template>
+      <div class="max-h-[75vh] overflow-y-auto pr-2 space-y-5">
+        <div class="text-body-sm text-foreground-2">查看进度情况详细信息</div>
+
+        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
+          <div class="text-body-md font-medium">基本信息</div>
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div v-for="item in viewBasicInfoItems" :key="item.label" class="space-y-1">
+              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
+              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
+                {{ item.value }}
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="text-body-xs text-foreground-2">关联状态</div>
+              <div>
+                <span
+                  class="inline-flex items-center rounded-full px-3 py-1 text-body-xs font-medium"
+                  :class="viewStatusBadgeClass"
+                >
+                  {{ viewStatusText }}
+                </span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="text-body-xs text-foreground-2">关联模型</div>
+              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
+                {{ displayModelIds(viewLinkedModelIds) }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
+          <div class="text-body-md font-medium">进度情况</div>
+          <div class="space-y-4">
+            <div v-for="item in viewProgressItems" :key="item.label" class="space-y-2">
+              <div class="text-body-sm font-medium text-foreground-2">
+                {{ item.label }}
+              </div>
+              <div
+                class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words"
+              >
+                {{ item.value }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
+          <div class="flex items-center gap-2">
+            <FileText class="h-5 w-5 text-primary" />
+            <div class="text-body-md font-medium">施工日志信息</div>
+          </div>
+          <div class="grid grid-cols-2 gap-5 md:grid-cols-4">
+            <div
+              v-for="item in viewJournalInfoItems"
+              :key="item.label"
+              class="space-y-1"
+            >
+              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
+              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
+                {{ item.value }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="space-y-4">
+          <div
+            v-for="section in viewDetailSections"
+            :key="section.label"
+            class="rounded-xl bg-foundation-page p-4 space-y-2"
+          >
+            <div class="text-body-md font-medium">{{ section.label }}</div>
+            <div
+              v-if="section.description"
+              class="text-body-xs text-foreground-2 whitespace-pre-wrap break-words"
+            >
+              {{ section.description }}
+            </div>
+            <div
+              class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words"
+            >
+              {{ section.value }}
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
+          <div class="text-body-md font-medium">人员信息</div>
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div v-for="item in viewPeopleItems" :key="item.label" class="space-y-1">
+              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
+              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
+                {{ item.value }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
+          <div class="text-body-md font-medium">记录信息</div>
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div v-for="item in viewMetaItems" :key="item.label" class="space-y-1">
+              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
+              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
+                {{ item.value }}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </LayoutDialog>
+
+    <LayoutDialog v-model:open="dialogOpen" max-width="xl" :buttons="dialogButtons">
+      <template #header>{{ dialogTitle }}</template>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <FormTextInput
+            v-model="draftForm.taskName"
+            name="actual-task-name"
+            label="计划任务"
+            show-label
+          />
+          <FormTextInput
+            v-model="draftForm.reportTimestamp"
+            name="actual-report-timestamp"
+            label="年/月/日"
+            type="datetime-local"
+            show-label
+          />
+          <FormTextInput
+            v-model="draftForm.weekDay"
+            name="actual-week-day"
+            label="星期"
+            show-label
+            :disabled="true"
+          />
+          <FormSelectUsers
+            v-model="selectedReporterUser"
+            :users="availableUsers"
+            label="记录人"
+            name="actual-reporter"
+            search
+            show-label
+            selector-placeholder="请选择记录人"
+            search-placeholder="搜索项目成员"
+            :disabled="isLoadingProjectUsers"
+            clearable
+          />
+          <FormSelectUsers
+            v-model="selectedSiteLeaderUser"
+            :users="availableUsers"
+            label="现场负责人"
+            name="actual-site-leader"
+            search
+            show-label
+            selector-placeholder="请选择现场负责人"
+            search-placeholder="搜索项目成员"
+            :disabled="isLoadingProjectUsers"
+            clearable
+          />
+          <FormTextInput
+            v-model="draftForm.highTemperature"
+            name="actual-high-temperature"
+            label="最高气温"
+            show-label
+          />
+          <FormTextInput
+            v-model="draftForm.lowTemperature"
+            name="actual-low-temperature"
+            label="最低气温"
+            show-label
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label class="text-body-sm text-foreground">
+            <span class="block mb-2">上午气候</span>
+            <select
+              v-model="draftForm.morningWeather"
+              aria-label="上午气候"
+              class="w-full rounded border border-outline-3 bg-foundation px-3 py-2 outline-none"
+            >
+              <option
+                v-for="option in weatherOptions"
+                :key="`am-${option}`"
+                :value="option"
+              >
+                {{ option }}
+              </option>
+            </select>
+          </label>
+          <label class="text-body-sm text-foreground">
+            <span class="block mb-2">下午气候</span>
+            <select
+              v-model="draftForm.afternoonWeather"
+              aria-label="下午气候"
+              class="w-full rounded border border-outline-3 bg-foundation px-3 py-2 outline-none"
+            >
+              <option
+                v-for="option in weatherOptions"
+                :key="`pm-${option}`"
+                :value="option"
+              >
+                {{ option }}
+              </option>
+            </select>
+          </label>
+          <FormTextInput
+            v-model="draftForm.nightCondition"
+            name="actual-night-condition"
+            label="夜间情况"
+            show-label
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div
+            id="actual-progress-start-elements"
+            class="rounded border border-dashed p-4 bg-foundation-page transition"
+            :class="
+              activeLinkTarget === 'start'
+                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                : 'border-outline-3'
+            "
+          >
+            <div class="text-body-sm font-medium">今日开始施工的构件</div>
+            <div class="text-body-xs text-foreground-2 mt-1">
+              选择今日开始施工的 BIM 构件，保存后自动生成构件编码摘要。
+            </div>
+            <div class="mt-3">
+              <CommonModelObjectMultiModelSelectDrawer
+                v-model:model_ids="draftForm.startModelIds"
+                v-model:selections="draftForm.startSelections"
+                :project-id="projectId"
+                placeholder="选择今日开始施工构件"
+              />
+            </div>
+            <div class="text-body-xs text-foreground-2 mt-2">
+              已选择 {{ startSelectedObjectCount }} 个构件，涉及
+              {{ startSelectedModelCount }} 个模型。
+            </div>
+          </div>
+
+          <div
+            id="actual-progress-finish-elements"
+            class="rounded border border-dashed p-4 bg-foundation-page transition"
+            :class="
+              activeLinkTarget === 'finish'
+                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                : 'border-outline-3'
+            "
+          >
+            <div class="text-body-sm font-medium">今日完成的构件</div>
+            <div class="text-body-xs text-foreground-2 mt-1">
+              选择今日完成施工的 BIM 构件，保存后自动生成构件编码摘要。
+            </div>
+            <div class="mt-3">
+              <CommonModelObjectMultiModelSelectDrawer
+                v-model:model_ids="draftForm.finishModelIds"
+                v-model:selections="draftForm.finishSelections"
+                :project-id="projectId"
+                placeholder="选择今日完成构件"
+              />
+            </div>
+            <div class="text-body-xs text-foreground-2 mt-2">
+              已选择 {{ finishSelectedObjectCount }} 个构件，涉及
+              {{ finishSelectedModelCount }} 个模型。
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <FormTextArea
+            v-model="draftForm.constructionRecord"
+            name="actual-construction-record"
+            label="施工情况记录"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.qualityRecord"
+            name="actual-quality-record"
+            label="质量情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.safetyRecord"
+            name="actual-safety-record"
+            label="安全情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.mortarConcreteSampleRecord"
+            name="actual-mortar-record"
+            label="砂浆、砼试块情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.materialEquipmentRecord"
+            name="actual-material-equipment-record"
+            label="设备、材料、构件、机具进场情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.siteAppearanceRecord"
+            name="actual-site-appearance-record"
+            label="场容场貌情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.overtimeRecord"
+            name="actual-overtime-record"
+            label="加班情况"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.otherRecord"
+            name="actual-other-record"
+            label="其他情况"
+            show-label
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <FormTextArea
+            v-model="draftForm.remark"
+            name="actual-remark"
+            label="备注"
+            show-label
+          />
+          <FormTextArea
+            v-model="draftForm.constructionLog"
+            name="actual-construction-log"
+            label="施工日志"
+            show-label
+            :disabled="true"
+          />
+        </div>
+      </div>
+    </LayoutDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { useQuery } from '@vue/apollo-composable'
+import { gql } from '@apollo/client/core'
+import type { LayoutDialogButton } from '@speckle/ui-components'
 import {
-  MagnifyingGlassIcon,
-  PlusIcon,
-  EyeIcon,
-  PencilSquareIcon,
-  LinkIcon,
-  TrashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon
-} from '@heroicons/vue/24/outline'
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileText,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload
+} from 'lucide-vue-next'
+import { CommonModelObjectMultiModelSelectDrawer } from '#components'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import type { FormUsersSelectItemFragment } from '~/lib/common/generated/gql/graphql'
+import {
+  createActualProgressRecord,
+  deleteActualProgressRecord,
+  getActualProgressRecords,
+  importActualProgressRecordsFromExcel,
+  updateActualProgressRecord,
+  type ActualProgressRecord,
+  type ActualProgressRecordBimSelection,
+  type ActualProgressRecordInput
+} from '~/lib/projects/api/progress'
 
-// Mock Data
-const generateMockData = () => {
-  const data = []
-  const statuses = ['linked', 'unlinked']
-  const reporters = ['张三', '李四', '王五', '赵六']
-  const tasks = [
-    '基础施工',
-    '主体施工',
-    '路基土方开挖',
-    '路基填筑压实',
-    '路基边坡防护',
-    '水稳碎石基层',
-    '沥青混凝土面层',
-    '桥梁桩基施工',
-    '墩柱施工',
-    '盖梁施工'
-  ]
+type DialogMode = 'create' | 'edit'
 
-  for (let i = 1; i <= 25; i++) {
-    const taskIndex = (i - 1) % tasks.length
-    data.push({
-      id: i,
-      name: tasks[taskIndex] + (i > 10 ? ` ${i}` : ''),
-      planStart: `2025-0${(i % 5) + 1}-01`,
-      planEnd: `2025-0${(i % 5) + 3}-30`,
-      reportDate: `2025-0${(i % 5) + 2}-15`,
-      progress: Math.floor(Math.random() * 100),
-      actualEnd: i % 3 === 0 ? `2025-0${(i % 5) + 3}-28` : '-',
-      reporter: reporters[i % reporters.length],
-      status: i % 3 === 1 ? 'unlinked' : 'linked'
-    })
+const actualProgressProjectUsersQuery = gql`
+  query ActualProgressProjectUsers($projectId: String!) {
+    project(id: $projectId) {
+      id
+      team {
+        id
+        user {
+          id
+          name
+          avatar
+        }
+      }
+    }
   }
-  return data
+`
+
+type ActualProgressForm = {
+  id: string
+  taskName: string
+  reportTimestamp: string
+  weekDay: string
+  reportDate: string
+  startElementCodes: string
+  finishElementCodes: string
+  startModelIds: string[]
+  startApplicationIds: string[]
+  startSelections: ActualProgressRecordBimSelection[]
+  finishModelIds: string[]
+  finishApplicationIds: string[]
+  finishSelections: ActualProgressRecordBimSelection[]
+  remark: string
+  highTemperature: string
+  lowTemperature: string
+  morningWeather: string
+  afternoonWeather: string
+  nightCondition: string
+  constructionRecord: string
+  qualityRecord: string
+  safetyRecord: string
+  mortarConcreteSampleRecord: string
+  materialEquipmentRecord: string
+  siteAppearanceRecord: string
+  overtimeRecord: string
+  otherRecord: string
+  siteLeader: string
+  reporter: string
+  constructionLog: string
 }
 
-const allItems = ref(generateMockData())
-const searchQuery = ref('')
-const itemsPerPage = ref(20)
-const currentPage = ref(1)
+const normalizeString = (value: unknown) =>
+  typeof value === 'string' ? value.trim() : ''
 
-// Columns Configuration
+const uniqueStrings = (values: unknown[]) => {
+  const seen = new Set<string>()
+  return values.reduce<string[]>((acc, value) => {
+    const normalized = normalizeString(value)
+    if (!normalized || seen.has(normalized)) return acc
+    seen.add(normalized)
+    acc.push(normalized)
+    return acc
+  }, [])
+}
+
+const normalizeSelections = (
+  selections: ActualProgressRecordBimSelection[] | null | undefined
+): ActualProgressRecordBimSelection[] =>
+  (Array.isArray(selections) ? selections : [])
+    .map((group) => ({
+      modelId: normalizeString(group?.modelId),
+      applicationIds: uniqueStrings(group?.applicationIds || [])
+    }))
+    .filter((group) => group.modelId && group.applicationIds.length > 0)
+
+const getActualRecordBimSummary = (params: {
+  modelIds?: string[] | null
+  applicationIds?: string[] | null
+  selections?: ActualProgressRecordBimSelection[] | null
+}) => {
+  const normalizedSelections = normalizeSelections(params.selections)
+  const modelIds = uniqueStrings([
+    ...(params.modelIds || []),
+    ...normalizedSelections.map((group) => group.modelId)
+  ])
+  const applicationIds = uniqueStrings(
+    normalizedSelections.flatMap((group) => group.applicationIds)
+  )
+
+  return {
+    modelIds,
+    applicationIds,
+    selections: normalizedSelections
+  }
+}
+
 const columns = [
-  { id: 'name', header: '任务名称', classes: 'col-span-2' },
-  { id: 'planStart', header: '计划开始', classes: 'col-span-1' },
-  { id: 'planEnd', header: '计划完成', classes: 'col-span-1' },
-  { id: 'reportDate', header: '填报日期', classes: 'col-span-1' },
-  { id: 'progress', header: '完成进度', classes: 'col-span-1' },
-  { id: 'actualEnd', header: '实际完成', classes: 'col-span-1' },
-  { id: 'reporter', header: '填报人', classes: 'col-span-1' },
-  { id: 'status', header: '关联状态', classes: 'col-span-2' },
+  { id: 'reportDate', header: '日期', classes: 'col-span-2' },
+  { id: 'startElementCodes', header: '今日开始施工构件编码', classes: 'col-span-2' },
+  { id: 'finishElementCodes', header: '今日完成构件编码', classes: 'col-span-2' },
+  { id: 'remark', header: '备注', classes: 'col-span-2' },
+  { id: 'constructionLog', header: '施工日志', classes: 'col-span-2' },
   { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
 ]
 
-// Computed Properties for Pagination and Filtering
+const weatherOptions = ['晴', '阴', '多云', '小雨', '大雨', '雪']
+
+const createDefaultForm = (): ActualProgressForm => ({
+  id: '',
+  taskName: '路基工程',
+  reportTimestamp: '2026-05-13T00:00',
+  weekDay: '星期三',
+  reportDate: '2026-05-13',
+  startElementCodes: '',
+  finishElementCodes: '',
+  startModelIds: [],
+  startApplicationIds: [],
+  startSelections: [],
+  finishModelIds: [],
+  finishApplicationIds: [],
+  finishSelections: [],
+  remark: '',
+  highTemperature: '28',
+  lowTemperature: '18',
+  morningWeather: '晴',
+  afternoonWeather: '多云',
+  nightCondition: '正常施工',
+  constructionRecord: '',
+  qualityRecord: '',
+  safetyRecord: '',
+  mortarConcreteSampleRecord: '',
+  materialEquipmentRecord: '',
+  siteAppearanceRecord: '',
+  overtimeRecord: '',
+  otherRecord: '',
+  siteLeader: '',
+  reporter: '',
+  constructionLog: ''
+})
+
+const route = useRoute()
+const { triggerNotification } = useGlobalToast()
+const apiOrigin = useApiOrigin()
+
+const actualItems = ref<ActualProgressRecord[]>([])
+const searchQuery = ref('')
+const itemsPerPage = ref(20)
+const currentPage = ref(1)
+const importInputRef = ref<HTMLInputElement | null>(null)
+const dialogOpen = ref(false)
+const viewDialogOpen = ref(false)
+const dialogMode = ref<DialogMode>('create')
+const editingId = ref<string | null>(null)
+const activeLinkTarget = ref<'start' | 'finish' | null>(null)
+const draftForm = ref<ActualProgressForm>(createDefaultForm())
+const lastOperation = ref('尚未执行导入导出操作')
+const isLoadingRecords = ref(false)
+const isImportingExcel = ref(false)
+const isSavingRecord = ref(false)
+const deletingRecordId = ref<string | null>(null)
+
+const projectId = computed(() => {
+  const id = route.params.id
+  return typeof id === 'string' ? id : ''
+})
+
+const { result: projectUsersResult, loading: isLoadingProjectUsers } = useQuery<
+  {
+    project?: {
+      id: string
+      team?: Array<{ id: string; user?: FormUsersSelectItemFragment | null }> | null
+    } | null
+  },
+  { projectId: string }
+>(
+  actualProgressProjectUsersQuery,
+  () => ({
+    projectId: projectId.value
+  }),
+  () => ({
+    enabled: !!projectId.value,
+    fetchPolicy: 'cache-and-network'
+  })
+)
+
+const hasLinkedElements = (item: {
+  startApplicationIds: string[]
+  finishApplicationIds: string[]
+}) => item.startApplicationIds.length > 0 || item.finishApplicationIds.length > 0
+
+const getElementStatusText = (applicationIds: string[]) =>
+  applicationIds.length ? `已关联 ${applicationIds.length} 个` : '未关联'
+
+const getElementStatusBadgeClass = (applicationIds: string[]) =>
+  applicationIds.length
+    ? 'bg-success-lighter text-success-darker'
+    : 'bg-foundation-2 text-foreground-2'
+
+const startSelectedObjectCount = computed(() =>
+  draftForm.value.startSelections.reduce(
+    (count, group) => count + group.applicationIds.length,
+    0
+  )
+)
+
+const startSelectedModelCount = computed(() => draftForm.value.startModelIds.length)
+
+const finishSelectedObjectCount = computed(() =>
+  draftForm.value.finishSelections.reduce(
+    (count, group) => count + group.applicationIds.length,
+    0
+  )
+)
+
+const finishSelectedModelCount = computed(() => draftForm.value.finishModelIds.length)
+
+const availableUsers = computed<FormUsersSelectItemFragment[]>(() =>
+  (projectUsersResult.value?.project?.team || [])
+    .map((member: { user?: FormUsersSelectItemFragment | null }) => member.user)
+    .filter(
+      (
+        user: FormUsersSelectItemFragment | null | undefined
+      ): user is FormUsersSelectItemFragment => !!user
+    )
+)
+
 const filteredItems = computed(() => {
-  if (!searchQuery.value) return allItems.value
-  return allItems.value.filter(
-    (item) =>
-      item.name.includes(searchQuery.value) || item.reporter.includes(searchQuery.value)
+  const query = searchQuery.value.trim()
+  if (!query) return actualItems.value
+
+  return actualItems.value.filter((item) =>
+    [
+      item.reportDate,
+      item.startElementCodes,
+      item.finishElementCodes,
+      item.reporter,
+      item.siteLeader,
+      item.remark,
+      item.taskName
+    ]
+      .join(' ')
+      .includes(query)
   )
 })
 
 const totalItems = computed(() => filteredItems.value.length)
-const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
-
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value))
+)
 const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredItems.value.slice(start, end)
+  return filteredItems.value.slice(start, start + itemsPerPage.value)
 })
-
 const startItemIndex = computed(() =>
   totalItems.value === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1
 )
 const endItemIndex = computed(() =>
   Math.min(currentPage.value * itemsPerPage.value, totalItems.value)
 )
+const dialogTitle = computed(() => {
+  if (dialogMode.value === 'create') return '新增实际进度'
+  return '编辑实际进度'
+})
 
-// Handlers
-const handleCreate = () => {
-  console.log('Create new item')
+const dialogButtons = computed<LayoutDialogButton[]>(() => {
+  return [
+    {
+      text: '取消',
+      props: { color: 'outline', disabled: isSavingRecord.value },
+      onClick: () => {
+        dialogOpen.value = false
+      }
+    },
+    {
+      text: dialogMode.value === 'create' ? '保存新增' : '保存修改',
+      props: { color: 'primary', disabled: isSavingRecord.value },
+      onClick: () => {
+        saveDraft()
+      }
+    }
+  ]
+})
+
+const viewDialogTitle = computed(() => '实际进度详情')
+
+const viewDialogButtons = computed<LayoutDialogButton[]>(() => [
+  {
+    text: '关闭',
+    props: { color: 'outline' },
+    onClick: () => {
+      viewDialogOpen.value = false
+    }
+  }
+])
+
+const showSuccess = (title: string, description: string) => {
+  triggerNotification({
+    type: ToastNotificationType.Success,
+    title,
+    description
+  })
 }
+
+const showMessage = (
+  title: string,
+  description: string,
+  type: ToastNotificationType = ToastNotificationType.Danger
+) => {
+  triggerNotification({
+    type,
+    title,
+    description
+  })
+}
+
+const formatDateTime = (value: string) => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString('zh-CN', { hour12: false })
+}
+
+const normalizeReportTimestamp = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T00:00`
+  return trimmed
+}
+
+const buildWeekDay = (reportDate: string) => {
+  const date = new Date(reportDate)
+  const dayMap = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+  return Number.isNaN(date.getTime()) ? '' : dayMap[date.getDay()]
+}
+
+const buildReportDate = (reportTimestamp: string) => {
+  const normalized = normalizeReportTimestamp(reportTimestamp)
+  if (!normalized) return ''
+
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  return normalized.slice(0, 10)
+}
+
+const syncConstructionLog = () => {
+  draftForm.value.reportTimestamp = normalizeReportTimestamp(
+    draftForm.value.reportTimestamp
+  )
+  draftForm.value.reportDate = buildReportDate(draftForm.value.reportTimestamp)
+  draftForm.value.weekDay = buildWeekDay(draftForm.value.reportDate)
+  draftForm.value.constructionLog = [
+    draftForm.value.constructionRecord,
+    draftForm.value.qualityRecord,
+    draftForm.value.safetyRecord
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+const buildElementCodes = (applicationIds: string[]) => applicationIds.join('、')
+
+const syncElementSelections = () => {
+  const startSummary = getActualRecordBimSummary({
+    modelIds: draftForm.value.startModelIds,
+    applicationIds: draftForm.value.startApplicationIds,
+    selections: draftForm.value.startSelections
+  })
+  draftForm.value.startModelIds = startSummary.modelIds
+  draftForm.value.startApplicationIds = startSummary.applicationIds
+  draftForm.value.startSelections = startSummary.selections
+  draftForm.value.startElementCodes = buildElementCodes(startSummary.applicationIds)
+
+  const finishSummary = getActualRecordBimSummary({
+    modelIds: draftForm.value.finishModelIds,
+    applicationIds: draftForm.value.finishApplicationIds,
+    selections: draftForm.value.finishSelections
+  })
+  draftForm.value.finishModelIds = finishSummary.modelIds
+  draftForm.value.finishApplicationIds = finishSummary.applicationIds
+  draftForm.value.finishSelections = finishSummary.selections
+  draftForm.value.finishElementCodes = buildElementCodes(finishSummary.applicationIds)
+}
+
+const getConstructionLogPreview = (
+  item: Pick<ActualProgressRecord, 'constructionLog' | 'constructionRecord'>
+) => {
+  const value = item.constructionLog || item.constructionRecord || '-'
+  return value.length > 26 ? `${value.slice(0, 26)}...` : value
+}
+
+const displayDetailValue = (value: string | null | undefined) => {
+  const normalized = typeof value === 'string' ? value.trim() : ''
+  return normalized || '-'
+}
+
+const displayModelIds = (modelIds: string[]) => {
+  if (!modelIds.length) return '-'
+  return modelIds.join('、')
+}
+
+const activeRecord = computed(
+  () => actualItems.value.find((item) => item.id === editingId.value) || null
+)
+
+const viewLinkedModelIds = computed(() =>
+  uniqueStrings([...draftForm.value.startModelIds, ...draftForm.value.finishModelIds])
+)
+
+const viewBasicInfoItems = computed(() => [
+  { label: '日期', value: displayDetailValue(draftForm.value.reportDate) },
+  { label: '填报人', value: displayDetailValue(draftForm.value.reporter) },
+  { label: '计划任务', value: displayDetailValue(draftForm.value.taskName) },
+  {
+    label: '填报时间',
+    value: displayDetailValue(
+      draftForm.value.reportTimestamp
+        ? formatDateTime(draftForm.value.reportTimestamp)
+        : draftForm.value.reportDate
+    )
+  }
+])
+
+const viewStatusText = computed(() =>
+  hasLinkedElements(draftForm.value) ? '已关联' : '未关联'
+)
+
+const viewStatusBadgeClass = computed(() =>
+  hasLinkedElements(draftForm.value)
+    ? 'bg-success-lighter text-success-darker'
+    : 'bg-foundation-2 text-foreground-2'
+)
+
+const viewProgressItems = computed(() => [
+  {
+    label: '今日开始施工构件编码',
+    value: displayDetailValue(
+      draftForm.value.startElementCodes ||
+        getElementStatusText(draftForm.value.startApplicationIds)
+    )
+  },
+  {
+    label: '今日完成构件编码',
+    value: displayDetailValue(
+      draftForm.value.finishElementCodes ||
+        getElementStatusText(draftForm.value.finishApplicationIds)
+    )
+  },
+  {
+    label: '备注',
+    value: displayDetailValue(draftForm.value.remark)
+  }
+])
+
+const viewJournalInfoItems = computed(() => [
+  { label: '星期', value: displayDetailValue(draftForm.value.weekDay) },
+  { label: '最高气温', value: displayDetailValue(draftForm.value.highTemperature) },
+  { label: '最低气温', value: displayDetailValue(draftForm.value.lowTemperature) },
+  { label: '夜间', value: displayDetailValue(draftForm.value.nightCondition) }
+])
+
+const viewDetailSections = computed(() => [
+  {
+    label: '施工情况记录',
+    description: '（人员组织、主要机械动态、施工部位及内容、完成程序及验收情况）',
+    value: displayDetailValue(draftForm.value.constructionRecord)
+  },
+  {
+    label: '质量情况',
+    description: '',
+    value: displayDetailValue(draftForm.value.qualityRecord)
+  },
+  {
+    label: '安全情况',
+    description: '',
+    value: displayDetailValue(draftForm.value.safetyRecord)
+  },
+  {
+    label: '砂浆、砼试块',
+    description: '',
+    value: displayDetailValue(draftForm.value.mortarConcreteSampleRecord)
+  },
+  {
+    label: '设备、材料、构件、机具等进场',
+    description: '',
+    value: displayDetailValue(draftForm.value.materialEquipmentRecord)
+  },
+  {
+    label: '场容场貌',
+    description: '',
+    value: displayDetailValue(draftForm.value.siteAppearanceRecord)
+  },
+  {
+    label: '加班情况',
+    description: '',
+    value: displayDetailValue(draftForm.value.overtimeRecord)
+  },
+  {
+    label: '其他',
+    description: '',
+    value: displayDetailValue(draftForm.value.otherRecord)
+  },
+  {
+    label: '施工日志',
+    description: '',
+    value: displayDetailValue(draftForm.value.constructionLog)
+  }
+])
+
+const viewPeopleItems = computed(() => [
+  { label: '现场负责人', value: displayDetailValue(draftForm.value.siteLeader) },
+  { label: '记录人', value: displayDetailValue(draftForm.value.reporter) }
+])
+
+const viewMetaItems = computed(() => [
+  {
+    label: '创建时间',
+    value: activeRecord.value?.createdAt
+      ? formatDateTime(activeRecord.value.createdAt)
+      : '-'
+  },
+  {
+    label: '更新时间',
+    value: activeRecord.value?.updatedAt
+      ? formatDateTime(activeRecord.value.updatedAt)
+      : '-'
+  }
+])
+
+const resolveStoredUser = (storedValue: string) => {
+  const normalized = storedValue.trim()
+  if (!normalized) return undefined
+
+  return availableUsers.value.find(
+    (user) => user.id === normalized || user.name === normalized
+  )
+}
+
+const selectedReporterUser = computed<FormUsersSelectItemFragment | undefined>({
+  get: () => resolveStoredUser(draftForm.value.reporter),
+  set: (user) => {
+    draftForm.value.reporter = user?.name || ''
+  }
+})
+
+const selectedSiteLeaderUser = computed<FormUsersSelectItemFragment | undefined>({
+  get: () => resolveStoredUser(draftForm.value.siteLeader),
+  set: (user) => {
+    draftForm.value.siteLeader = user?.name || ''
+  }
+})
+
+const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
+  id: item.id,
+  taskName: item.taskName,
+  reportTimestamp: `${item.reportDate}T00:00`,
+  weekDay: item.weekDay,
+  reportDate: item.reportDate,
+  startElementCodes: item.startElementCodes,
+  finishElementCodes: item.finishElementCodes,
+  startModelIds: item.startModelIds,
+  startApplicationIds: item.startApplicationIds,
+  startSelections: normalizeSelections(item.startSelections),
+  finishModelIds: item.finishModelIds,
+  finishApplicationIds: item.finishApplicationIds,
+  finishSelections: normalizeSelections(item.finishSelections),
+  remark: item.remark,
+  highTemperature: item.highTemperature,
+  lowTemperature: item.lowTemperature,
+  morningWeather: item.morningWeather,
+  afternoonWeather: item.afternoonWeather,
+  nightCondition: item.nightCondition,
+  constructionRecord: item.constructionRecord,
+  qualityRecord: item.qualityRecord,
+  safetyRecord: item.safetyRecord,
+  mortarConcreteSampleRecord: item.mortarConcreteSampleRecord,
+  materialEquipmentRecord: item.materialEquipmentRecord,
+  siteAppearanceRecord: item.siteAppearanceRecord,
+  overtimeRecord: item.overtimeRecord,
+  otherRecord: item.otherRecord,
+  siteLeader: item.siteLeader,
+  reporter: item.reporter,
+  constructionLog: item.constructionLog
+})
+
+const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput => {
+  syncConstructionLog()
+  syncElementSelections()
+  return {
+    taskName: form.taskName.trim(),
+    reportDate: form.reportDate,
+    startElementCodes: form.startElementCodes,
+    finishElementCodes: form.finishElementCodes,
+    startModelIds: form.startModelIds,
+    startApplicationIds: form.startApplicationIds,
+    startSelections: form.startSelections,
+    finishModelIds: form.finishModelIds,
+    finishApplicationIds: form.finishApplicationIds,
+    finishSelections: form.finishSelections,
+    remark: form.remark,
+    highTemperature: form.highTemperature,
+    lowTemperature: form.lowTemperature,
+    morningWeather: form.morningWeather,
+    afternoonWeather: form.afternoonWeather,
+    nightCondition: form.nightCondition,
+    constructionRecord: form.constructionRecord,
+    qualityRecord: form.qualityRecord,
+    safetyRecord: form.safetyRecord,
+    mortarConcreteSampleRecord: form.mortarConcreteSampleRecord,
+    materialEquipmentRecord: form.materialEquipmentRecord,
+    siteAppearanceRecord: form.siteAppearanceRecord,
+    overtimeRecord: form.overtimeRecord,
+    otherRecord: form.otherRecord,
+    siteLeader: form.siteLeader,
+    reporter: form.reporter,
+    constructionLog: form.constructionLog
+  }
+}
+
+const applyActualRecords = (records: ActualProgressRecord[]) => {
+  actualItems.value = records
+
+  if (!records.length) {
+    lastOperation.value = '暂无实际进度填报记录'
+    return
+  }
+
+  const [latestRecord] = [...records].sort((a, b) =>
+    b.updatedAt.localeCompare(a.updatedAt)
+  )
+  if (latestRecord) {
+    lastOperation.value = `最近更新于 ${formatDateTime(latestRecord.updatedAt)}`
+  }
+}
+
+const fetchActualRecords = async () => {
+  if (!projectId.value) {
+    actualItems.value = []
+    lastOperation.value = '未识别项目ID'
+    return
+  }
+
+  isLoadingRecords.value = true
+  try {
+    const records = await getActualProgressRecords({
+      projectId: projectId.value,
+      apiOrigin
+    })
+    applyActualRecords(records)
+  } catch (error) {
+    actualItems.value = []
+    showMessage(
+      '加载实际进度失败',
+      error instanceof Error ? error.message : '未能获取实际进度列表'
+    )
+  } finally {
+    isLoadingRecords.value = false
+  }
+}
+
+const openCreateDialog = () => {
+  dialogMode.value = 'create'
+  editingId.value = null
+  activeLinkTarget.value = null
+  draftForm.value = createDefaultForm()
+  syncElementSelections()
+  syncConstructionLog()
+  dialogOpen.value = true
+}
+
+const openEditDialog = (item: ActualProgressRecord) => {
+  dialogMode.value = 'edit'
+  editingId.value = item.id
+  activeLinkTarget.value = null
+  draftForm.value = cloneRecordToForm(item)
+  syncElementSelections()
+  syncConstructionLog()
+  dialogOpen.value = true
+}
+
+const openViewDialog = (item: ActualProgressRecord) => {
+  editingId.value = item.id
+  draftForm.value = cloneRecordToForm(item)
+  syncElementSelections()
+  syncConstructionLog()
+  viewDialogOpen.value = true
+}
+
+const openElementLinkDialog = async (
+  item: ActualProgressRecord,
+  target: 'start' | 'finish'
+) => {
+  dialogMode.value = 'edit'
+  editingId.value = item.id
+  activeLinkTarget.value = target
+  draftForm.value = cloneRecordToForm(item)
+  syncElementSelections()
+  syncConstructionLog()
+  dialogOpen.value = true
+
+  await nextTick()
+  const sectionId =
+    target === 'start'
+      ? 'actual-progress-start-elements'
+      : 'actual-progress-finish-elements'
+  document.getElementById(sectionId)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center'
+  })
+}
+
+const saveDraft = async () => {
+  syncConstructionLog()
+
+  if (!projectId.value) {
+    showMessage(
+      '保存失败',
+      '当前未识别项目ID，无法保存实际进度。',
+      ToastNotificationType.Warning
+    )
+    return
+  }
+
+  if (!draftForm.value.taskName.trim()) {
+    showMessage('保存失败', '请填写计划任务。', ToastNotificationType.Warning)
+    return
+  }
+
+  if (!draftForm.value.weekDay) {
+    showMessage('保存失败', '请填写有效的时间。', ToastNotificationType.Warning)
+    return
+  }
+
+  isSavingRecord.value = true
+  try {
+    if (dialogMode.value === 'create') {
+      const created = await createActualProgressRecord({
+        projectId: projectId.value,
+        apiOrigin,
+        input: buildRecordInput(draftForm.value)
+      })
+      await fetchActualRecords()
+      lastOperation.value = `已新增 ${created.reportDate} 的实际进度记录`
+      showSuccess('实际进度已新增', '已生成新的施工日志填报记录。')
+    } else if (editingId.value) {
+      const updated = await updateActualProgressRecord({
+        projectId: projectId.value,
+        recordId: editingId.value,
+        apiOrigin,
+        input: buildRecordInput(draftForm.value)
+      })
+      await fetchActualRecords()
+      lastOperation.value = `已更新 ${updated.reportDate} 的实际进度记录`
+      showSuccess('实际进度已更新', '当前施工日志及 BIM 关联信息已保存。')
+    }
+
+    dialogOpen.value = false
+  } catch (error) {
+    showMessage(
+      dialogMode.value === 'create' ? '新增失败' : '保存失败',
+      error instanceof Error ? error.message : '保存实际进度失败'
+    )
+  } finally {
+    isSavingRecord.value = false
+  }
+}
+
+const handleDelete = async (id: string) => {
+  if (!projectId.value) {
+    showMessage(
+      '删除失败',
+      '当前未识别项目ID，无法删除记录。',
+      ToastNotificationType.Warning
+    )
+    return
+  }
+
+  deletingRecordId.value = id
+  try {
+    await deleteActualProgressRecord({
+      projectId: projectId.value,
+      recordId: id,
+      apiOrigin
+    })
+    await fetchActualRecords()
+    lastOperation.value = '已删除一条实际进度记录'
+    showSuccess('记录已删除', '该条实际进度记录已从列表移除。')
+  } catch (error) {
+    showMessage(
+      '删除失败',
+      error instanceof Error ? error.message : '删除实际进度记录失败'
+    )
+  } finally {
+    deletingRecordId.value = null
+  }
+}
+
+const triggerImportExcel = () => {
+  importInputRef.value?.click()
+}
+
+const handleImportFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!projectId.value) {
+    showMessage(
+      '导入失败',
+      '当前未识别项目ID，无法导入实际进度 Excel。',
+      ToastNotificationType.Warning
+    )
+    input.value = ''
+    return
+  }
+
+  isImportingExcel.value = true
+
+  try {
+    const result = await importActualProgressRecordsFromExcel({
+      projectId: projectId.value,
+      apiOrigin,
+      file
+    })
+    await fetchActualRecords()
+    lastOperation.value = `已导入 ${file.name}，新增 ${result.createdCount} 条实际进度记录`
+    showSuccess(
+      '导入成功',
+      `已通过后端解析 Excel，并导入 ${result.createdCount} 条记录。`
+    )
+  } catch (error) {
+    showMessage(
+      '导入失败',
+      error instanceof Error ? error.message : '实际进度 Excel 导入失败'
+    )
+  } finally {
+    isImportingExcel.value = false
+    input.value = ''
+  }
+}
+
+const handleExportExcel = () => {
+  lastOperation.value = '已点击 Excel 导出，导出接口待接入'
+  showMessage(
+    '导出能力待接入',
+    '当前仅保留 Excel 导出入口，后续可继续补真实导出接口。',
+    ToastNotificationType.Info
+  )
+}
+
+watch(
+  () => draftForm.value.reportTimestamp,
+  () => {
+    syncConstructionLog()
+  }
+)
+
+watch(
+  () => [
+    draftForm.value.constructionRecord,
+    draftForm.value.qualityRecord,
+    draftForm.value.safetyRecord
+  ],
+  () => {
+    syncConstructionLog()
+  }
+)
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (pageCount) => {
+  if (currentPage.value > pageCount) {
+    currentPage.value = pageCount
+  }
+})
+
+watch(
+  projectId,
+  () => {
+    void fetchActualRecords()
+  },
+  { immediate: true }
+)
 </script>
