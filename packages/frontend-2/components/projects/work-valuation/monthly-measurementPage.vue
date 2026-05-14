@@ -1,15 +1,15 @@
 <template>
   <div>
     <div class="flex flex-col h-full space-y-4">
-      <div class="flex justify-between items-center">
+      <div class="flex items-center justify-between">
         <h1 class="text-heading-lg text-foreground mt-3">月度验工</h1>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-2 text-sm">
           <FormTextInput
             v-model="searchQuery"
             name="monthly-measurement-search"
             placeholder="搜索验工编码/施工单位"
             show-clear
-            class="w-72"
+            class="w-72 text-sm"
           >
             <template #input-right>
               <div
@@ -36,81 +36,86 @@
         >
           <template #code="{ item }">
             <button
-              class="text-primary hover:underline font-medium"
+              class="text-sm font-medium text-primary hover:underline"
               @click="viewItem(item)"
             >
               {{ item.code }}
             </button>
           </template>
           <template #unit="{ item }">
-            <span class="text-foreground">{{ item.unit || '-' }}</span>
+            <span class="text-sm text-foreground">{{ item.unit || '-' }}</span>
           </template>
           <template #baseDate="{ item }">
-            <span class="text-foreground">{{ formatDate(Number(item.baseDate)) }}</span>
+            <span class="text-sm text-foreground">{{ formatDate(Number(item.baseDate)) }}</span>
           </template>
           <template #status="{ item }">
             <button
               v-if="item.flowInstanceId"
-              class="cursor-pointer"
+              class="cursor-pointer text-sm"
               title="查看流程详情"
               @click="openFlowDetail(item)"
             >
-              <CommonBadge :color-classes="getStatusColor(item.approveStatus)" rounded>
+              <CommonBadge
+                :color-classes="getStatusColor(item.approveStatus)"
+                class="text-sm font-medium"
+                rounded
+              >
                 {{ getStatusText(item.approveStatus) }}
               </CommonBadge>
             </button>
             <CommonBadge
               v-else
               :color-classes="getStatusColor(item.approveStatus)"
+              class="text-sm font-medium"
               rounded
             >
               {{ getStatusText(item.approveStatus) }}
             </CommonBadge>
           </template>
           <template #creator="{ item }">
-            <span class="text-foreground">{{ item.creator?.name || '-' }}</span>
+            <span class="text-sm text-foreground">{{ item.creator?.name || '-' }}</span>
           </template>
           <template #actions="{ item }">
-            <div class="flex items-center justify-end gap-2">
+            <div class="flex items-center justify-end gap-1.5 text-sm">
               <button
-                class="text-primary hover:text-primary-focus transition-colors"
+                class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
                 title="查看详情"
                 @click="viewItem(item)"
               >
-                <EyeIcon class="h-5 w-5" />
+                <EyeIcon class="h-4 w-4" />
               </button>
               <button
-                class="text-success hover:text-success-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                class="rounded p-1 text-success transition-colors hover:text-success-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="送审"
                 :disabled="isSubmitted(item)"
                 @click="openSubmitDialog(item)"
               >
-                <PaperAirplaneIcon class="h-5 w-5" />
+                <PaperAirplaneIcon class="h-4 w-4" />
               </button>
               <button
-                class="text-warning hover:text-warning-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                class="rounded p-1 text-warning transition-colors hover:text-warning-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="编辑"
                 :disabled="isSubmitted(item)"
                 @click="editItem(item)"
               >
-                <PencilSquareIcon class="h-5 w-5" />
+                <PencilSquareIcon class="h-4 w-4" />
               </button>
               <button
-                class="text-danger hover:text-danger-darker transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                class="rounded p-1 text-danger transition-colors hover:text-danger-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="删除"
                 :disabled="isSubmitted(item)"
                 @click="deleteItem(item)"
               >
-                <TrashIcon class="h-5 w-5" />
+                <TrashIcon class="h-4 w-4" />
               </button>
             </div>
           </template>
         </LayoutTable>
 
         <div
-          class="p-4 border-t border-outline-3 flex items-center justify-between bg-foundation"
+          class="flex items-center justify-between border-t border-outline-3 bg-foundation p-4 text-[13px] leading-5"
         >
-          <div class="text-sm text-foreground-2">
+          <div class="text-[13px] leading-5 text-foreground-2">
             每页显示
             <label for="monthly-measurement-page-size" class="sr-only">
               每页显示条数
@@ -118,7 +123,7 @@
             <select
               id="monthly-measurement-page-size"
               v-model="pageSize"
-              class="mx-1 border border-outline-3 rounded px-2 py-1 bg-foundation text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              class="mx-1 rounded border border-outline-3 bg-foundation px-2 py-1 text-[13px] leading-5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option :value="10">10</option>
               <option :value="20">20</option>
@@ -128,17 +133,17 @@
           </div>
           <div class="flex items-center space-x-2">
             <button
-              class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="rounded border border-outline-3 px-2 py-1 text-[13px] leading-5 text-foreground-2 hover:bg-highlight-1 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="currentPage === 1"
               @click="goPrevPage"
             >
               &lt; 上一页
             </button>
-            <span class="px-2 text-sm text-foreground-2">
+            <span class="px-2 text-[13px] leading-5 text-foreground-2">
               第 {{ currentPage }} / {{ totalPages || 1 }} 页
             </span>
             <button
-              class="px-2 py-1 border border-outline-3 rounded text-foreground-2 hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="rounded border border-outline-3 px-2 py-1 text-[13px] leading-5 text-foreground-2 hover:bg-highlight-1 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="!nextCursor"
               @click="goNextPage"
             >
@@ -785,7 +790,7 @@ const columns = [
   { id: 'baseDate', header: '基准时间', classes: 'col-span-2' },
   { id: 'status', header: '状态', classes: 'col-span-2' },
   { id: 'creator', header: '创建人', classes: 'col-span-1' },
-  { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
+  { id: 'actions', header: '操作', classes: 'col-span-2 text-right text-sm' }
 ]
 
 const { result: monthlyResult, refetch: refetchMonthly } = useQuery(

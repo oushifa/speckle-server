@@ -1,7 +1,7 @@
 <template>
   <div class="flex w-full">
-    <main class="flex-1 h-full overflow-y-auto simple-scrollbar pt-4 md:pt-6">
-      <div class="container mx-auto px-6 md:px-8">
+    <main class="h-full flex-1 overflow-y-auto simple-scrollbar">
+      <div class="min-h-full w-full p-[25px]">
         <WorkspaceInviteWrapper
           v-if="token"
           :workspace-slug="workspaceSlug"

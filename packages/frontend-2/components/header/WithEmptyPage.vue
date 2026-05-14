@@ -14,8 +14,8 @@
       <div class="h-12 w-full shrink-0"></div>
 
       <div class="relative flex h-[calc(100dvh-3rem)]">
-        <main class="w-full h-full overflow-y-auto simple-scrollbar pt-4 lg:pt-6 pb-16">
-          <div class="container mx-auto px-6 md:px-8">
+        <main class="h-full w-full overflow-y-auto simple-scrollbar">
+          <div class="min-h-full w-full p-[25px]">
             <slot />
           </div>
         </main>

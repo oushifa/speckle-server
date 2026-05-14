@@ -29,35 +29,35 @@
         </button>
         <button
           type="button"
-          class="ml-auto p-1 text-body-3xs rounded border border-outline-3 hover:bg-foundation transition-opacity"
+          class="ml-auto flex h-7 w-7 items-center justify-center rounded border border-outline-3 text-body-3xs hover:bg-foundation transition-opacity"
           :class="
             isSelected(row.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           "
           @click.stop="startCreate(row.id)"
         >
-          <IconPlus />
+          <IconPlus class="h-3.5 w-3.5" />
         </button>
         <button
           v-if="row.id !== ROOT_ID"
           type="button"
-          class="p-1 text-body-3xs rounded border border-outline-3 hover:bg-foundation transition-opacity"
+          class="flex h-7 w-7 items-center justify-center rounded border border-outline-3 text-body-3xs hover:bg-foundation transition-opacity"
           :class="
             isSelected(row.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           "
           @click.stop="startRelation(row.id)"
         >
-          <IconFile />
+          <IconFile class="h-3.5 w-3.5" />
         </button>
         <button
           v-if="row.id !== ROOT_ID"
           type="button"
-          class="p-1 text-body-3xs rounded border border-outline-3 text-danger hover:bg-danger-lighter transition-opacity"
+          class="flex h-7 w-7 items-center justify-center rounded border border-outline-3 text-body-3xs text-danger hover:bg-danger-lighter transition-opacity"
           :class="
             isSelected(row.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           "
           @click.stop="startDelete(row.id)"
         >
-          <IconDelete />
+          <IconDelete class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

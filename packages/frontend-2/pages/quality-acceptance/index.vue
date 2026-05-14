@@ -1,10 +1,9 @@
 <template>
   <div>
     <Portal to="navigation">
-      <!-- <HeaderNavLink :to="projectsRoute" name="Projects" :separator="false" /> -->
       <div>数智南北</div>
     </Portal>
-    <QualityAcceptancePage />
+    <CommonDevelopingPlaceholder module-name="质量验收" />
   </div>
 </template>
 

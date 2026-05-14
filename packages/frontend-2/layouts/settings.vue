@@ -8,8 +8,8 @@
       <div class="relative flex h-[calc(100dvh-3rem)]">
         <SettingsSidebar />
 
-        <main class="w-full h-full overflow-y-auto simple-scrollbar py-6 lg:py-8">
-          <div class="container mx-auto px-6 md:px-8">
+        <main class="h-full w-full overflow-y-auto simple-scrollbar">
+          <div class="min-h-full w-full p-[25px]">
             <slot />
           </div>
         </main>

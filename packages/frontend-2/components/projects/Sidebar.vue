@@ -23,14 +23,14 @@
         @click="isOpenMobile = false"
       />
       <div
-        class="absolute z-40 lg:static h-full flex w-[185px] shrink-0 transition-all"
-        :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
+        class="absolute z-40 lg:static h-full flex w-64 shrink-0 transition-all"
+        :class="isOpenMobile ? '' : '-translate-x-64 lg:translate-x-0'"
       >
         <div
           class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
         ></div>
         <LayoutSidebar
-          class="border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
+          class="project-sidebar border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
         >
           <LayoutSidebarMenu>
             <LayoutSidebarMenuGroup
@@ -40,7 +40,7 @@
               <HeaderWorkspaceSwitcher />
             </LayoutSidebarMenuGroup>
 
-            <div class="flex flex-col gap-y-2 lg:gap-y-4">
+            <div class="project-sidebar-menu-stack flex flex-col gap-y-1">
               <LayoutSidebarMenuGroup>
                 <NuxtLink
                   v-if="showWorkspaceLinks"
@@ -49,11 +49,11 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
-                      'py-2 mb-1',
+                      'project-sidebar-top-item',
+                      'py-3',
                       isProjectActive('/workbench') &&
-                        'bg-slate-400 hover:!bg-slate-400',
-                      'text-white',
-                      'hover:bg-slate-300'
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                     ]"
                     label="工作台"
                   >
@@ -64,11 +64,16 @@
                 </NuxtLink>
 
                 <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive(['/model-list', '/workbench/discussions']) &&
+                      'project-sidebar-group-wrapper-active'
+                  ]"
                   title="模型管理"
                   collapsible
                   :no-hover="true"
-                  title-class="text-white/80"
-                  arrow-class="text-white/80"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
                 >
                   <template #title-icon>
                     <IconModelfiles class="size-4 text-white" />
@@ -80,11 +85,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/model-list') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="文件管理"
@@ -97,11 +101,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/workbench/discussions') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="协同管理"
@@ -110,11 +113,19 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive([
+                      '/progress/schedule',
+                      '/progress/actual',
+                      '/progress/physical'
+                    ]) && 'project-sidebar-group-wrapper-active'
+                  ]"
                   title="进度管理"
                   collapsible
                   :no-hover="true"
-                  title-class="text-white/80"
-                  arrow-class="text-white/80"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
                 >
                   <template #title-icon>
                     <IconProgress class="size-4 text-white" />
@@ -126,11 +137,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/progress/schedule') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="进度计划"
@@ -143,11 +153,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/progress/actual') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="实际进度"
@@ -160,11 +169,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/progress/physical') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="形象进度"
@@ -179,11 +187,11 @@
                 >
                   <LayoutSidebarMenuGroupItem
                     :class="[
-                      'py-2 mb-1',
+                      'project-sidebar-top-item',
+                      'py-3',
                       isProjectActive('/quality-acceptance') &&
-                        'bg-slate-400 hover:!bg-slate-400',
-                      'text-white',
-                      'hover:bg-slate-300'
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                     ]"
                     label="质量验收"
                   >
@@ -194,11 +202,18 @@
                 </NuxtLink>
 
                 <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive([
+                      '/work-valuation/BOQ',
+                      '/work-valuation/monthly-measurement'
+                    ]) && 'project-sidebar-group-wrapper-active'
+                  ]"
                   title="验工计价"
                   collapsible
                   :no-hover="true"
-                  title-class="text-white/80"
-                  arrow-class="text-white/80"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
                 >
                   <template #title-icon>
                     <IconCalculator class="size-4 text-white" />
@@ -210,11 +225,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/work-valuation/BOQ') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="清单管理"
@@ -227,11 +241,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/work-valuation/monthly-measurement') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="月度验工"
@@ -240,11 +253,16 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive(['/archive/model-to-site', '/archive/archives']) &&
+                      'project-sidebar-group-wrapper-active'
+                  ]"
                   title="档案管理"
                   collapsible
                   :no-hover="true"
-                  title-class="text-white/80"
-                  arrow-class="text-white/80"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
                 >
                   <template #title-icon>
                     <IconFile class="size-4 text-white" />
@@ -256,11 +274,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/archive/model-to-site') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="实模一致性检查"
@@ -273,11 +290,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 mb-1',
+                        'py-2',
                         isProjectActive('/archive/archives') &&
-                          'bg-slate-400 hover:!bg-slate-400',
-                        'text-white',
-                        'hover:bg-slate-300'
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="档案管理"
@@ -305,8 +321,7 @@ import {
 } from '@speckle/ui-components'
 import {
   projectsRoute,
-  workspaceRoute,
-  workbenchRoute
+  workspaceRoute
 } from '~/lib/common/helpers/route'
 import { useRoute } from 'vue-router'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -315,7 +330,6 @@ import { graphql } from '~/lib/common/generated/gql'
 import { useQuery } from '@vue/apollo-composable'
 import dayjs from 'dayjs'
 import { useActiveUserMeta } from '~/lib/user/composables/meta'
-import { ChevronLeftIcon } from '@heroicons/vue/24/outline'
 
 const dashboardSidebarQuery = graphql(`
   query DashboardSidebar {
@@ -363,10 +377,6 @@ const _projectsLink = computed(() => {
     : projectsRoute
 })
 
-const workbenchLink = computed(() => {
-  return isWorkspacesEnabled.value ? activeWorkspaceSlug.value : workbenchRoute
-})
-
 const projectBaseRoute = computed(() => {
   const projectId = route.params.id as string | undefined
   return projectId ? `/projects/${projectId}` : null
@@ -383,14 +393,99 @@ const isProjectActive = (suffix = ''): boolean => {
   return route.path === fullPath
 }
 
-const isActive = (...routes: string[]): boolean => {
-  return routes.some((routeTo) => route.path === routeTo)
+const isProjectSectionActive = (suffixes: string[]): boolean => {
+  return suffixes.some((suffix) => isProjectActive(suffix))
 }
+
 </script>
 
 <style scoped>
 .layout-sidebar-bg {
   background: url('~~/assets/images/layout/side_bg.png');
   background-size: 100% 100%;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button) {
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > svg:first-child) {
+  order: 3;
+  margin-left: auto;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > div:nth-child(2)) {
+  order: 1;
+  width: 1.5rem;
+  flex-shrink: 0;
+  justify-content: center;
+  margin-left: 0;
+  margin-right: 0.25rem;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > div:nth-child(3)) {
+  order: 2;
+  justify-content: flex-start;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div) {
+  height: auto;
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper > div) {
+  border-left: 4px solid transparent;
+  border-radius: 0.375rem;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper > div:hover) {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper-active > div) {
+  background: rgb(255 255 255 / 0.1);
+  border-left-color: rgb(96 165 250);
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper-active > div:hover) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.project-sidebar :deep(.project-sidebar-top-item) {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.project-sidebar :deep(.project-sidebar-top-item > div) {
+  gap: 0.25rem;
+}
+
+.project-sidebar :deep(.project-sidebar-top-item > div > div:first-child) {
+  width: 1.5rem;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.project-sidebar :deep(.project-sidebar-group-title),
+.project-sidebar :deep(.project-sidebar-top-item > div > span),
+.project-sidebar :deep(.flex.flex-col.group > div > button h6) {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+.project-sidebar :deep(.project-sidebar-group-arrow) {
+  height: 1rem;
+  width: 1rem;
 }
 </style>

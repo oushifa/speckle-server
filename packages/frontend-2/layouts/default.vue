@@ -13,9 +13,9 @@
             class="size-full bg-white overflow-hidden"
           >
             <main
-              class="w-full h-full overflow-y-auto simple-scrollbar pt-4 lg:pt-6 pb-16"
+              class="h-full w-full overflow-y-auto simple-scrollbar"
             >
-              <div class="container mx-auto px-6 md:px-8">
+              <div class="min-h-full w-full p-[25px]">
                 <slot />
               </div>
             </main>

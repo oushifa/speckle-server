@@ -13,8 +13,8 @@
             style="border-top-left-radius: 30px"
             class="size-full bg-white overflow-hidden"
           >
-            <main class="w-full h-full overflow-y-auto simple-scrollbar py-6 lg:py-8">
-              <div class="container mx-auto px-6 md:px-8">
+            <main class="h-full w-full overflow-y-auto simple-scrollbar">
+              <div class="min-h-full w-full p-[25px]">
                 <div class="breadcrumbs flex text-sm font-medium text-slate-600">
                   <NuxtLink to="/projects">项目管理</NuxtLink>
                   <ClientOnly>

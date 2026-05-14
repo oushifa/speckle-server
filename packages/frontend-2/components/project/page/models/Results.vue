@@ -1,14 +1,14 @@
 <template>
   <div>
-    <div class="flex gap-2">
-      <div class="w-[250px] flex-shrink-0">
+    <div class="flex h-[calc(100vh-15rem)] min-h-[38rem] gap-2">
+      <div class="w-[250px] flex-shrink-0 overflow-y-auto pr-1">
         <ProjectPageModelsTree
           :project="project"
           :project-id="projectId"
           @update:selected-model-ids="onSelectedModelIdsUpdate"
         />
       </div>
-      <div class="flex-grow">
+      <div class="min-w-0 flex-grow overflow-y-auto pr-1">
         <ProjectPageModelsListView
           v-if="gridOrList === GridListToggleValue.List"
           :search="finalSearch"

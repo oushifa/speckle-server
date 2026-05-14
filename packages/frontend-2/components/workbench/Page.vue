@@ -106,56 +106,56 @@
         <div
           class="rounded-xl bg-white p-6 shadow-sm border border-outline-3 flex flex-col h-full"
         >
-          <div class="mb-4 flex items-center justify-between">
+          <div class="mb-5 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <ArrowPathIcon class="h-5 w-5 text-blue-600" />
               <h2 class="text-lg font-bold text-slate-900">更新日志</h2>
             </div>
             <NuxtLink
               :to="workbenchPendingReviewsRoute"
-              class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+              class="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
               查看全部
             </NuxtLink>
           </div>
 
-          <div class="mb-4 rounded-xl bg-blue-50 py-5 text-center">
-            <p class="text-xl font-bold text-slate-900">最近更新</p>
-            <p class="mt-1 text-4xl font-extrabold text-blue-700">
+          <div class="mb-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 px-4 py-4 text-center">
+            <p class="mb-1 text-sm text-slate-600">最近更新</p>
+            <p class="text-2xl font-bold text-blue-900">
               {{ totalReviewableModelCount }}
             </p>
-            <p class="mt-1 text-base font-semibold text-slate-700">个模型</p>
+            <p class="mt-1 text-sm text-slate-600">个模型</p>
           </div>
 
-          <div class="mb-2 text-lg font-bold text-slate-900">最新动态</div>
-          <div class="flex-1 overflow-y-auto pr-1">
+          <div class="mb-3 text-sm font-medium text-slate-600">最新动态</div>
+          <div class="flex-1 space-y-3 overflow-y-auto">
             <div
               v-for="update in recentUpdates"
               :key="update.id"
-              class="group border-b border-outline-3 px-1 py-2.5 last:border-0"
+              class="border-b border-outline-3 pb-3 last:border-0 last:pb-0"
             >
               <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <CubeTransparentIcon class="h-5 w-5 text-blue-600" />
-                    <p class="text-base font-bold text-slate-900 leading-tight">
+                <div class="min-w-0 flex-1">
+                  <div class="mb-1.5 flex items-center gap-2">
+                    <CubeTransparentIcon class="h-4 w-4 shrink-0 text-blue-600" />
+                    <p class="truncate text-sm font-medium text-slate-900">
                       {{ update.title }}
                     </p>
                     <span
-                      class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700"
+                      class="h-5 shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
                     >
                       {{ update.version }}
                     </span>
                   </div>
-                  <p class="mt-0.5 text-sm font-medium text-slate-700">
+                  <p class="mb-1.5 text-sm text-slate-500">
                     {{ update.description }}
                   </p>
-                  <p class="mt-1 text-xs font-semibold text-slate-400">
+                  <p class="text-sm text-slate-400">
                     {{ update.initiator }} ・ {{ update.time }}
                   </p>
                 </div>
                 <button
-                  class="inline-flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors"
+                  class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors"
                   :class="
                     canStartFlowForModel(update.approveStatus) &&
                     !mutating &&
@@ -197,23 +197,24 @@
           <!-- eslint-disable-next-line -->
           <div
             v-if="selectedUpdate"
-            class="rounded-lg border border-outline-3 bg-blue-50 p-3 hover:border-sky-400 cursor-pointer"
+            class="cursor-pointer rounded-lg border border-blue-100 bg-blue-50 p-4 hover:border-sky-400"
             @click="openModelPage(selectedUpdate)"
           >
-            <div class="flex items-center justify-between gap-2">
+            <div class="mb-2 flex items-center justify-between gap-2">
               <div class="text-sm font-semibold text-slate-900">待审核模型</div>
               <span
-                class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-blue-700"
+                class="rounded bg-white px-2 py-1 text-xs text-blue-600"
               >
                 {{ selectedUpdate.version }}
               </span>
             </div>
-            <div class="mt-1 text-sm font-semibold text-slate-900">
+            <div class="mb-2 text-sm font-medium text-slate-900">
               {{ selectedUpdate.title }}
             </div>
-            <div class="mt-1 text-xs text-slate-500">
-              {{ selectedUpdate.projectName }} ・ {{ selectedUpdate.initiator }} ・
-              {{ selectedUpdate.time }}
+            <div class="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+              <span>{{ selectedUpdate.projectName }}</span>
+              <span>{{ selectedUpdate.initiator }}</span>
+              <span>{{ selectedUpdate.time }}</span>
             </div>
           </div>
           <DynamicApprovalBasicField

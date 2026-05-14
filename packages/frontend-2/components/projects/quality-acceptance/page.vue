@@ -16,23 +16,27 @@
             />
             <FormButton :icon-left="MagnifyingGlassIcon" color="outline" hide-text />
           </div>
-          <select
-            id="quality-acceptance-export-status"
-            v-model="exportApproveStatus"
-            aria-label="导出状态筛选"
-            class="bg-foundation border border-outline-3 rounded px-3 py-2 text-sm focus:outline-none focus:border-primary"
+          <FormSelectBase
+            v-model="selectedExportApproveStatus"
+            label="导出状态"
+            :show-label="false"
+            name="quality-acceptance-export-status"
+            placeholder="全部状态"
+            by="value"
+            :items="approveStatusOptions"
+            :allow-unset="false"
+            class="min-w-[112px]"
+            size="base"
           >
-            <option
-              v-for="option in approveStatusOptions"
-              :key="option.value"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </option>
-          </select>
+            <template #something-selected="{ value }">{{ value.label }}</template>
+            <template #option="{ item }">
+              {{ item.label }}
+            </template>
+          </FormSelectBase>
           <FormButton
             color="outline"
             :icon-left="ArrowDownTrayIcon"
+            class="font-normal"
             :disabled="exportingExcel"
             @click="handleExportExcel"
           >
@@ -50,12 +54,13 @@
           <FormButton
             color="outline"
             :icon-left="ArrowUpTrayIcon"
+            class="font-normal"
             :disabled="importingExcel"
             @click="triggerImportExcel"
           >
             {{ importingExcel ? '导入中...' : '导入Excel' }}
           </FormButton>
-          <FormButton color="primary" :icon-left="PlusIcon" @click="onAdd">
+          <FormButton color="primary" :icon-left="PlusIcon" class="font-normal" @click="onAdd">
             新增
           </FormButton>
         </div>
@@ -81,20 +86,20 @@
             </span>
           </template>
           <template #inspectionLotNumber="{ item }">
-            <span class="text-foreground">{{ item.inspectionLotNumber }}</span>
+            <span class="text-sm text-foreground">{{ item.inspectionLotNumber }}</span>
           </template>
           <template #acceptancePart="{ item }">
-            <span class="text-foreground">{{ item.acceptancePart }}</span>
+            <span class="text-sm text-foreground">{{ item.acceptancePart }}</span>
           </template>
           <template #acceptanceContent="{ item }">
-            <span class="text-foreground">{{ item.acceptanceContent }}</span>
+            <span class="text-sm text-foreground">{{ item.acceptanceContent }}</span>
           </template>
           <template #workVolume="{ item }">
-            <span class="text-foreground">{{ formatWorkVolume(item.workVolume) }}</span>
+            <span class="text-sm text-foreground">{{ formatWorkVolume(item.workVolume) }}</span>
           </template>
           <template #approveStatus="{ item }">
             <span
-              class="text-foreground px-2 py-1 rounded"
+              class="rounded px-2 py-1 text-sm text-foreground"
               :class="getStatusColor(item.approveStatus)"
             >
               {{ getStatusText(item.approveStatus) }}
@@ -117,20 +122,21 @@
             <span v-else class="text-foreground">-</span>
           </template>
           <template #inspector="{ item }">
-            <span class="text-foreground">{{ item.inspectorName }}</span>
+            <span class="text-sm text-foreground">{{ item.inspectorName }}</span>
           </template>
           <template #unit="{ item }">
-            <span class="text-foreground">{{ item.unit }}</span>
+            <span class="text-sm text-foreground">{{ item.unit }}</span>
           </template>
           <template #associationStatus="{ item }">
             <button
               v-if="canViewAssociation(item)"
               type="button"
-              class="cursor-pointer"
+              class="cursor-pointer text-sm"
               @click="onAssociationStatusClick(item)"
             >
               <CommonBadge
                 :color-classes="getAssociationStatusColor(item.associationStatus)"
+                class="text-sm font-medium"
                 rounded
               >
                 {{ item.associationStatus }}
@@ -139,22 +145,23 @@
             <CommonBadge
               v-else
               :color-classes="getAssociationStatusColor(item.associationStatus)"
+              class="text-sm font-medium"
               rounded
             >
               {{ item.associationStatus }}
             </CommonBadge>
           </template>
           <template #actions="{ item }">
-            <div class="flex items-center justify-end gap-2">
+            <div class="flex items-center justify-end gap-1.5 text-sm">
               <button
-                class="text-foreground-2 hover:text-primary transition-colors"
+                class="rounded p-1 text-foreground-2 transition-colors hover:text-primary"
                 title="查看详情"
                 @click="onViewItem(item)"
               >
-                <EyeIcon class="h-5 w-5" />
+                <EyeIcon class="h-4 w-4" />
               </button>
               <button
-                class="transition-colors"
+                class="rounded p-1 transition-colors"
                 :class="
                   canEditItem(item)
                     ? 'text-primary hover:text-primary-focus'
@@ -164,10 +171,10 @@
                 :disabled="!canEditItem(item)"
                 @click="onEditItem(item)"
               >
-                <PencilSquareIcon class="h-5 w-5" />
+                <PencilSquareIcon class="h-4 w-4" />
               </button>
               <button
-                class="transition-colors"
+                class="rounded p-1 transition-colors"
                 :class="
                   canDeleteItem(item)
                     ? 'text-danger hover:text-danger-darker'
@@ -177,13 +184,13 @@
                 :disabled="!canDeleteItem(item)"
                 @click="onDeleteItem(item)"
               >
-                <TrashIcon class="h-5 w-5" />
+                <TrashIcon class="h-4 w-4" />
               </button>
             </div>
           </template>
         </LayoutTable>
         <div
-          class="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-outline-3 gap-4 text-sm text-foreground-2"
+          class="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-outline-3 p-4 text-[13px] leading-5 text-foreground-2"
         >
           <div class="flex items-center gap-2">
             <span>每页显示</span>
@@ -193,7 +200,7 @@
             <select
               id="quality-acceptance-page-size"
               v-model="pageSize"
-              class="bg-foundation border border-outline-3 rounded px-2 py-1 focus:outline-none focus:border-primary"
+              class="rounded border border-outline-3 bg-foundation px-2 py-1 text-[13px] leading-5 focus:border-primary focus:outline-none"
             >
               <option :value="10">10</option>
               <option :value="20">20</option>
@@ -207,7 +214,7 @@
           </div>
           <div class="flex items-center gap-1">
             <button
-              class="px-2 py-1 rounded hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="rounded px-2 py-1 text-[13px] leading-5 hover:bg-highlight-1 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="currentPage === 1"
               @click="goPrevPage"
             >
@@ -215,7 +222,7 @@
             </button>
             <span class="px-2">第 {{ currentPage }} / {{ totalPages || 1 }} 页</span>
             <button
-              class="px-2 py-1 rounded hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="rounded px-2 py-1 text-[13px] leading-5 hover:bg-highlight-1 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="!nextCursor"
               @click="goNextPage"
             >
@@ -416,9 +423,9 @@ const columns = [
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
   { id: 'unit', header: '单位', classes: 'col-span-1' },
   { id: 'attachments', header: '附件', classes: 'col-span-1' },
-  { id: 'associationStatus', header: '关联状态', classes: 'col-span-1' },
-  { id: 'approveStatus', header: '月度验工', classes: 'col-span-1' },
-  { id: 'actions', header: '操作', classes: 'col-span-1 text-right' }
+  { id: 'associationStatus', header: '关联状态', classes: 'col-span-1 text-sm' },
+  { id: 'approveStatus', header: '月度验工', classes: 'col-span-1 text-sm' },
+  { id: 'actions', header: '操作', classes: 'col-span-1 text-right text-sm' }
 ]
 
 const approveStatusOptions = [
@@ -429,6 +436,15 @@ const approveStatusOptions = [
   { value: 'REJECTED', label: '已拒绝' },
   { value: 'CANCELED', label: '已取消' }
 ]
+
+const selectedExportApproveStatus = computed({
+  get: () =>
+    approveStatusOptions.find((option) => option.value === exportApproveStatus.value) ||
+    approveStatusOptions[0],
+  set: (option: { value: string; label: string } | undefined) => {
+    exportApproveStatus.value = option?.value || ''
+  }
+})
 
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -767,7 +783,6 @@ const selectedAssociationApplicationIds = computed(() => [
 ])
 
 const onAssociationStatusClick = (item: AcceptanceRow) => {
-  console.log(item)
   if (!canViewAssociation(item)) return
   selectedAssociationItem.value = {
     ...item,
@@ -790,7 +805,6 @@ const onEditItem = (item: AcceptanceRow) => {
 }
 
 const onViewItem = (item: AcceptanceRow) => {
-  console.log(item)
   dialogMode.value = 'view'
   editingItem.value = item
   createDialogOpen.value = true
