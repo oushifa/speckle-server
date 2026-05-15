@@ -1,7 +1,13 @@
 import type { Router, Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
-import { knex, Branches, Streams, BranchCommits, Commits } from '@/modules/core/dbSchema'
+import {
+  knex,
+  Branches,
+  Streams,
+  BranchCommits,
+  Commits
+} from '@/modules/core/dbSchema'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
 import { ensureError } from '@speckle/shared'
@@ -14,6 +20,7 @@ type ModelRow = {
   updatedAt: string
   versions: string | number
   latestCommitId: string | null
+  latestSourceApp: string | null
 }
 
 const modelsErrHandler = (
@@ -49,9 +56,18 @@ export default (app: Router) => {
           return res.status(401).json({ error: 'User not authenticated' })
         }
 
-        const { search } = req.query
+        const { search, member, source } = req.query
+        const userId = req.context.userId
+
         const latestCommitIdQuery = knex(BranchCommits.name)
           .select(BranchCommits.col.commitId)
+          .innerJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
+          .where(BranchCommits.col.branchId, knex.ref(`${Branches.name}.id`))
+          .orderBy(Commits.col.createdAt, 'desc')
+          .limit(1)
+
+        const latestSourceAppQuery = knex(BranchCommits.name)
+          .select(Commits.col.sourceApplication)
           .innerJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
           .where(BranchCommits.col.branchId, knex.ref(`${Branches.name}.id`))
           .orderBy(Commits.col.createdAt, 'desc')
@@ -64,39 +80,68 @@ export default (app: Router) => {
             `${Branches.name}.streamId`,
             `${Streams.name}.name as streamName`,
             `${Branches.name}.updatedAt`,
-            knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`)
+            knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`),
+            knex.raw(`(${latestSourceAppQuery.toQuery()}) as "latestSourceApp"`)
           ])
-          .select([
-            `${Branches.name}.createdAt`
-          ])
+          .select([`${Branches.name}.createdAt`])
           .select(knex.raw('count(??) as versions', [Commits.col.id]))
           .leftJoin(Streams.name, Streams.col.id, Branches.col.streamId)
           .leftJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
           .leftJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
           .whereNot(`${Branches.name}.name`, 'globals')
-          .groupBy(`${Branches.name}.id`, `${Streams.name}.name`, `${Branches.name}.streamId`)
+          .groupBy(
+            `${Branches.name}.id`,
+            `${Streams.name}.name`,
+            `${Branches.name}.streamId`
+          )
           .orderBy(`${Branches.name}.updatedAt`, 'desc')
 
         if (search && typeof search === 'string') {
           q.whereILike(`${Branches.name}.name`, `%${search}%`)
         }
 
+        // member 筛选：mine = 当前用户创建的模型
+        if (member === 'mine' && userId) {
+          q.where(`${Branches.name}.authorId`, userId)
+        }
+
         const models = await q
 
+        // source 筛选：基于最新 commit 的 sourceApplication 进行内存过滤
+        // local: 本地上传（web/rest/null/empty）
+        // plugin: 插件同步（revit/rhino/autocad/dynamo 等）
+        const localSourceApps = new Set(['web', 'rest', 'manual', ''])
+        let filteredRows = models
+        if (source === 'local') {
+          filteredRows = models.filter((m) => {
+            const app = (m.latestSourceApp || '').toLowerCase()
+            return !app || localSourceApps.has(app)
+          })
+        } else if (source === 'plugin') {
+          filteredRows = models.filter((m) => {
+            const app = (m.latestSourceApp || '').toLowerCase()
+            return app && !localSourceApps.has(app)
+          })
+        }
+
         // Map to match the frontend expectations
-        const formattedModels = models.map((m) => ({
+        const formattedModels = filteredRows.map((m) => ({
           id: m.id,
           title: m.title,
           projectId: m.streamId,
           streamName: m.streamName,
           updateTime: m.updatedAt,
-          versions: parseInt(m.versions),
+          versions: parseInt(m.versions as string),
           comments: 0,
           hasModel: Boolean(m.latestCommitId),
           previewUrl: m.latestCommitId
-            ? new URL(`/preview/${m.streamId}/commits/${m.latestCommitId}`, getServerOrigin()).toString()
+            ? new URL(
+                `/preview/${m.streamId}/commits/${m.latestCommitId}`,
+                getServerOrigin()
+              ).toString()
             : null,
-          status: null
+          status: null,
+          sourceApplication: m.latestSourceApp || null
         }))
 
         res.json({ data: formattedModels })
