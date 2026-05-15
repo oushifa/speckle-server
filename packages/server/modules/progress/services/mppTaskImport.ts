@@ -39,7 +39,6 @@ const commandOutputPreviewLength = 500
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const serverRoot = resolve(currentDir, '../../..')
 const workspaceRoot = resolve(serverRoot, '../..')
-const javaSourcePath = resolve(currentDir, '../java/ProgressPlanMppExtractor.java')
 const javaBuildDir = join(tmpdir(), 'speckle-progress-mpp-java')
 const compiledClassPath = join(javaBuildDir, 'ProgressPlanMppExtractor.class')
 const javaPathCandidates = ['/opt/homebrew/opt/openjdk/bin/java', 'java']
@@ -89,6 +88,31 @@ const getMpxjLibDirCandidates = (libRoot: string) =>
     (value): value is string => !!value?.trim()
   )
 
+const getJavaSourcePathCandidates = () =>
+  [
+    process.env.PROGRESS_PLAN_MPP_EXTRACTOR_SOURCE,
+    resolve(currentDir, '../java/ProgressPlanMppExtractor.java'),
+    resolve(serverRoot, 'modules/progress/java/ProgressPlanMppExtractor.java'),
+    resolve(workspaceRoot, 'packages/server/modules/progress/java/ProgressPlanMppExtractor.java')
+  ].filter((value): value is string => !!value?.trim())
+
+const resolveJavaSourcePath = async () => {
+  const attemptedPaths: string[] = []
+
+  for (const candidate of getJavaSourcePathCandidates()) {
+    attemptedPaths.push(candidate)
+    if (await pathExists(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(
+    `ProgressPlanMppExtractor.java not found. Set PROGRESS_PLAN_MPP_EXTRACTOR_SOURCE or ensure the source file exists. Tried: ${attemptedPaths.join(
+      ', '
+    )}`
+  )
+}
+
 const resolveMpxjLibDir = async () => {
   const attemptedPaths: string[] = []
 
@@ -127,6 +151,7 @@ const resolveMpxjLibDir = async () => {
 const ensureCompiledExtractor = async () => {
   await mkdir(javaBuildDir, { recursive: true })
 
+  const javaSourcePath = await resolveJavaSourcePath()
   const sourceStats = await stat(javaSourcePath)
   const shouldCompile = !(await pathExists(compiledClassPath))
     ? true
@@ -339,5 +364,6 @@ export const importProgressPlanTasksFromBlobFactory =
   }
 
 export const readCompiledExtractorSourceFactory = async () => {
+  const javaSourcePath = await resolveJavaSourcePath()
   return await readFile(javaSourcePath, 'utf8')
 }
