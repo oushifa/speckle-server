@@ -37,8 +37,9 @@ type ExtractedPlanTask = {
 const commandOutputPreviewLength = 500
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
-const serverRoot = resolve(currentDir, '../../..')
-const workspaceRoot = resolve(serverRoot, '../..')
+const appRoot = resolve(currentDir, '../../..')
+const packageRoot = appRoot.endsWith('/dist') ? resolve(appRoot, '..') : appRoot
+const workspaceRoot = resolve(packageRoot, '..', '..')
 const javaBuildDir = join(tmpdir(), 'speckle-progress-mpp-java')
 const compiledClassPath = join(javaBuildDir, 'ProgressPlanMppExtractor.class')
 const javaPathCandidates = ['/opt/homebrew/opt/openjdk/bin/java', 'java']
@@ -75,7 +76,7 @@ const getMpxjLibRootCandidates = () => {
   const candidates = [
     process.env.MPXJ_LIB_ROOT,
     process.env.MPXJ_RUNTIME_ROOT,
-    resolve(serverRoot, '.venv-progress-mpp/lib'),
+    resolve(packageRoot, '.venv-progress-mpp/lib'),
     resolve(workspaceRoot, '.venv-progress-mpp/lib'),
     resolve(workspaceRoot, 'packages/server/.venv-progress-mpp/lib')
   ].filter((value): value is string => !!value?.trim())
@@ -92,8 +93,12 @@ const getJavaSourcePathCandidates = () =>
   [
     process.env.PROGRESS_PLAN_MPP_EXTRACTOR_SOURCE,
     resolve(currentDir, '../java/ProgressPlanMppExtractor.java'),
-    resolve(serverRoot, 'modules/progress/java/ProgressPlanMppExtractor.java'),
-    resolve(workspaceRoot, 'packages/server/modules/progress/java/ProgressPlanMppExtractor.java')
+    resolve(packageRoot, 'modules/progress/java/ProgressPlanMppExtractor.java'),
+    resolve(packageRoot, 'dist/modules/progress/java/ProgressPlanMppExtractor.java'),
+    resolve(
+      workspaceRoot,
+      'packages/server/modules/progress/java/ProgressPlanMppExtractor.java'
+    )
   ].filter((value): value is string => !!value?.trim())
 
 const resolveJavaSourcePath = async () => {

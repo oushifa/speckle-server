@@ -224,6 +224,7 @@ services:
       ONBOARDING_STREAM_URL: 'https://latest.speckle.systems/projects/843d07eb10'
       FILEIMPORT_QUEUE_POSTGRES_URL: 'postgresql://speckle:speckle@postgres/speckle'
       FF_NEXT_GEN_FILE_IMPORTER_ENABLED: 'true'
+      MPXJ_LIB_ROOT: '/speckle-server/packages/server/.venv-progress-mpp/lib'
       SUPER_REGISTER_TOKEN: 'srj-super-admin-register'
       ADMIN_OVERRIDE_ENABLED: 'true'
       SDUI_URL: 'http://47.100.77.97:64483'

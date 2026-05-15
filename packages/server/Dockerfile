@@ -63,6 +63,14 @@ RUN PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn workspa
 
 FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS production-stage
 
+RUN apt-get update -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+     --no-install-recommends \
+     ca-certificates \
+     openjdk-17-jdk-headless \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --link --from=build-stage /usr/bin/tini /usr/bin/tini
 
 WORKDIR /speckle-server
@@ -78,6 +86,7 @@ COPY --link --from=build-stage /speckle-server/packages/server/root.js ./root.js
 COPY --link --from=build-stage /speckle-server/packages/server/dist ./dist
 COPY --link --from=build-stage /speckle-server/packages/server/assets ./assets
 COPY --link --from=build-stage /speckle-server/packages/server/bin ./bin
+COPY --link --from=build-stage /speckle-server/packages/server/.venv-progress-mpp ./.venv-progress-mpp
 # Copy only if exists https://stackoverflow.com/questions/31528384/conditional-copy-add-in-dockerfile/46801962#46801962
 COPY --link --from=dependency-stage /speckle-server/packages/server/node_module[s] ./node_modules
 
@@ -87,7 +96,9 @@ ARG SPECKLE_SERVER_VERSION=custom
 ARG NODE_ENV
 ENV NODE_ENV=${NODE_ENV} \
   SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
-  FF_RHINO_FILE_IMPORTER_ENABLED=true
+  FF_RHINO_FILE_IMPORTER_ENABLED=true \
+  JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+  MPXJ_LIB_ROOT=/speckle-server/packages/server/.venv-progress-mpp/lib
 ENV SUPER_REGISTER_TOKEN=srj-super-admin-register
 ENV ADMIN_OVERRIDE_ENABLED=true
 ENV SDUI_URL=http://47.100.77.97:64483
