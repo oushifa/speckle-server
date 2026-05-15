@@ -127,7 +127,9 @@ export const listDistinctTaskIdsByElementsFactory =
         })
       })
 
-    return rows.map((row) => row.taskId)
+    return rows
+      .map((row) => row.taskId)
+      .filter((taskId): taskId is string => typeof taskId === 'string')
   }
 
 export const replaceProgressTaskElementsFactory =
