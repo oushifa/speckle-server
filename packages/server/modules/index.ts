@@ -95,6 +95,7 @@ const getEnabledModuleNames = () => {
     FF_GATEKEEPER_MODULE_ENABLED
   } = getFeatureFlags()
   const moduleNames = [
+    'alignment',
     'acc',
     'logs',
     'accessrequests',
