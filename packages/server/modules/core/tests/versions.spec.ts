@@ -70,7 +70,9 @@ describe('Versions', () => {
         objectId,
         message: 'Yoooo!',
         sourceApplication: 'tests',
-        parents: []
+        parents: [],
+        seedId: 'seed-123',
+        assetId: 'asset-456'
       }
       const res = await createVersion(input)
 
@@ -80,6 +82,8 @@ describe('Versions', () => {
       expect(res.data?.versionMutations.create.sourceApplication).to.eq(
         input.sourceApplication
       )
+      expect(res.data?.versionMutations.create.seedId).to.eq(input.seedId)
+      expect(res.data?.versionMutations.create.assetId).to.eq(input.assetId)
       expect(res.data?.versionMutations.create.model.id).to.eq(myBranch.id)
       expect(res.data?.versionMutations.create.referencedObject).to.eq(objectId)
     })

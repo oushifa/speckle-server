@@ -100,6 +100,8 @@ export const createCommitByBranchIdFactory =
       message,
       sourceApplication,
       parents,
+      seedId,
+      assetId,
       createdAt
     } = params
 
@@ -129,6 +131,8 @@ export const createCommitByBranchIdFactory =
       totalChildrenCount,
       parents,
       message,
+      seedId,
+      assetId,
       ...(createdAt ? { createdAt } : {})
     })
     const id = commit.id
@@ -175,6 +179,8 @@ export const createCommitByBranchNameFactory =
       message,
       sourceApplication,
       parents,
+      seedId,
+      assetId,
       totalChildrenCount,
       createdAt
     } = params
@@ -201,6 +207,8 @@ export const createCommitByBranchNameFactory =
       sourceApplication,
       totalChildrenCount,
       parents,
+      seedId,
+      assetId,
       createdAt
     })
 
@@ -224,21 +232,31 @@ export const updateCommitAndNotifyFactory =
     emitEvent: EventBusEmit
   }): UpdateCommitAndNotify =>
   async (params: CommitUpdateInput | UpdateVersionInput, userId: string) => {
-    const {
-      message,
-      newBranchName,
-      streamId,
-      id: commitId
-    } = isOldVersionUpdateInput(params)
-      ? params
+    const normalizedParams = isOldVersionUpdateInput(params)
+      ? {
+          message: params.message,
+          seedId: undefined,
+          assetId: undefined,
+          newBranchName: params.newBranchName,
+          streamId: params.streamId,
+          commitId: params.id
+        }
       : {
           message: params.message,
-          id: params.versionId,
+          seedId: params.seedId,
+          assetId: params.assetId,
+          newBranchName: null,
           streamId: null,
-          newBranchName: null
+          commitId: params.versionId
         }
+    const { message, seedId, assetId, newBranchName, streamId, commitId } =
+      normalizedParams
 
-    if (!message && !newBranchName) {
+    const hasMessageUpdate = typeof message !== 'undefined'
+    const hasSeedIdUpdate = typeof seedId !== 'undefined'
+    const hasAssetIdUpdate = typeof assetId !== 'undefined'
+
+    if (!hasMessageUpdate && !newBranchName && !hasSeedIdUpdate && !hasAssetIdUpdate) {
       throw new CommitUpdateError('Nothing to update', {
         info: { ...params, userId }
       })
@@ -292,8 +310,12 @@ export const updateCommitAndNotifyFactory =
     }
 
     let newCommit: CommitRecord = commit
-    if (message) {
-      newCommit = await deps.updateCommit(commitId, { message })
+    if (hasMessageUpdate || hasSeedIdUpdate || hasAssetIdUpdate) {
+      newCommit = await deps.updateCommit(commitId, {
+        ...(hasMessageUpdate ? { message } : {}),
+        ...(hasSeedIdUpdate ? { seedId } : {}),
+        ...(hasAssetIdUpdate ? { assetId } : {})
+      })
     }
 
     if (commit) {

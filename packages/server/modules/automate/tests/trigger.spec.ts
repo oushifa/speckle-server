@@ -883,6 +883,8 @@ const createAppToken = createAppTokenFactory({
               referencedObject: cryptoRandomString({ length: 10 }),
               totalChildrenCount: null,
               sourceApplication: 'test suite',
+              seedId: null,
+              assetId: null,
               streamId: cryptoRandomString({ length: 10 }),
               branchId: cryptoRandomString({ length: 10 }),
               branchName: cryptoRandomString({ length: 10 })
@@ -947,6 +949,8 @@ const createAppToken = createAppTokenFactory({
               referencedObject: cryptoRandomString({ length: 10 }),
               totalChildrenCount: null,
               sourceApplication: 'test suite',
+              seedId: null,
+              assetId: null,
               streamId: cryptoRandomString({ length: 10 }),
               branchId: cryptoRandomString({ length: 10 }),
               branchName: cryptoRandomString({ length: 10 })
@@ -1009,6 +1013,8 @@ const createAppToken = createAppTokenFactory({
               referencedObject: cryptoRandomString({ length: 10 }),
               totalChildrenCount: null,
               sourceApplication: 'test suite',
+              seedId: null,
+              assetId: null,
               streamId: cryptoRandomString({ length: 10 }),
               branchId: cryptoRandomString({ length: 10 }),
               branchName: cryptoRandomString({ length: 10 })

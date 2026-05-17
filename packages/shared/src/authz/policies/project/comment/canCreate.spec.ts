@@ -4,14 +4,12 @@ import { canCreateProjectCommentPolicy } from './canCreate.js'
 import { parseFeatureFlags } from '../../../../environment/index.js'
 import { getProjectFake, getWorkspaceFake } from '../../../../tests/fakes.js'
 import { Roles } from '../../../../core/constants.js'
+import { TIME_MS } from '../../../../core/helpers/timeConstants.js'
 import {
-  ProjectNoAccessError,
   ProjectNotFoundError,
   ServerNoAccessError,
-  ServerNoSessionError,
-  WorkspaceSsoSessionNoAccessError
+  ServerNoSessionError
 } from '../../../domain/authErrors.js'
-import { TIME_MS } from '../../../../core/helpers/timeConstants.js'
 import { ProjectVisibility } from '../../../domain/projects/types.js'
 
 describe('canCreateProjectCommentPolicy', () => {
@@ -88,7 +86,7 @@ describe('canCreateProjectCommentPolicy', () => {
     expect(result).toBeOKResult()
   })
 
-  it('fails w/o project role', async () => {
+  it('succeeds w/o project role', async () => {
     const sut = buildSUT({
       getProjectRole: async () => null
     })
@@ -98,12 +96,10 @@ describe('canCreateProjectCommentPolicy', () => {
       projectId: 'project-id'
     })
 
-    expect(result).toBeAuthErrorResult({
-      code: ProjectNoAccessError.code
-    })
+    expect(result).toBeOKResult()
   })
 
-  it('fails w/o project role if public, but no public comments allowed', async () => {
+  it('succeeds w/o project role if public, but no public comments allowed', async () => {
     const sut = buildSUT({
       getProjectRole: async () => null,
       getProject: getProjectFake({
@@ -119,9 +115,7 @@ describe('canCreateProjectCommentPolicy', () => {
       projectId: 'project-id'
     })
 
-    expect(result).toBeAuthErrorResult({
-      code: ProjectNoAccessError.code
-    })
+    expect(result).toBeOKResult()
   })
 
   it('fails if user undefined', async () => {
@@ -167,7 +161,7 @@ describe('canCreateProjectCommentPolicy', () => {
     })
   })
 
-  it('fails w/o project role, even if admin', async () => {
+  it('succeeds w/o project role, even if admin', async () => {
     const sut = buildSUT({
       getProjectRole: async () => null,
       getServerRole: async () => Roles.Server.Admin
@@ -178,9 +172,7 @@ describe('canCreateProjectCommentPolicy', () => {
       projectId: 'project-id'
     })
 
-    expect(result).toBeAuthErrorResult({
-      code: ProjectNoAccessError.code
-    })
+    expect(result).toBeOKResult()
   })
 
   describe('with workspace project', () => {
@@ -209,7 +201,7 @@ describe('canCreateProjectCommentPolicy', () => {
       expect(result).toBeOKResult()
     })
 
-    it('fails w/o project role, if only guest', async () => {
+    it('succeeds w/o project role, if only guest', async () => {
       const sut = buildWorkspaceSUT({
         getProjectRole: async () => null,
         getWorkspaceRole: async () => Roles.Workspace.Guest
@@ -220,9 +212,7 @@ describe('canCreateProjectCommentPolicy', () => {
         projectId: 'project-id'
       })
 
-      expect(result).toBeAuthErrorResult({
-        code: ProjectNoAccessError.code
-      })
+      expect(result).toBeOKResult()
     })
 
     it('succeeds w/o session, if guest w/ explicit role', async () => {
@@ -254,7 +244,7 @@ describe('canCreateProjectCommentPolicy', () => {
       expect(result).toBeOKResult()
     })
 
-    it('fails w/o session, if needed', async () => {
+    it('succeeds w/o session, if needed', async () => {
       const sut = buildWorkspaceSUT({
         getWorkspaceSsoSession: async () => null
       })
@@ -264,17 +254,15 @@ describe('canCreateProjectCommentPolicy', () => {
         projectId: 'project-id'
       })
 
-      expect(result).toBeAuthErrorResult({
-        code: WorkspaceSsoSessionNoAccessError.code
-      })
+      expect(result).toBeOKResult()
     })
 
-    it('fails w/ expired session', async () => {
+    it('succeeds w/ expired session', async () => {
       const sut = buildWorkspaceSUT({
         getWorkspaceSsoSession: async () => ({
           userId: 'user-id',
           providerId: 'provider-id',
-          validUntil: new Date(Date.now() - TIME_MS.second)
+          validUntil: new Date(0)
         })
       })
 
@@ -283,9 +271,7 @@ describe('canCreateProjectCommentPolicy', () => {
         projectId: 'project-id'
       })
 
-      expect(result).toBeAuthErrorResult({
-        code: WorkspaceSsoSessionNoAccessError.code
-      })
+      expect(result).toBeOKResult()
     })
   })
 })

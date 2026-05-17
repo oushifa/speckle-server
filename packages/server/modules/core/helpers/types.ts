@@ -121,6 +121,8 @@ export type CommitRecord = {
   sourceApplication: Nullable<string>
   totalChildrenCount: Nullable<number>
   parents: Nullable<string[]>
+  seedId: Nullable<string>
+  assetId: Nullable<string>
 }
 
 export type BranchCommitRecord = {

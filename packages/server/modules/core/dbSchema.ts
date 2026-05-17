@@ -498,7 +498,9 @@ export const Commits = buildTableHelper('commits', [
   'createdAt',
   'sourceApplication',
   'totalChildrenCount',
-  'parents'
+  'parents',
+  'seedId',
+  'assetId'
 ])
 
 export const StreamCommits = buildTableHelper('stream_commits', [

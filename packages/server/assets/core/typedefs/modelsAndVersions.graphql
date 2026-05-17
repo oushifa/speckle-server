@@ -226,6 +226,8 @@ input UpdateVersionInput {
   projectId: ID!
   versionId: ID!
   message: String
+  seedId: String
+  assetId: String
 }
 
 input CreateVersionInput {
@@ -236,6 +238,8 @@ input CreateVersionInput {
   sourceApplication: String
   totalChildrenCount: Int
   parents: [String!]
+  seedId: String
+  assetId: String
 }
 
 input MarkReceivedVersionInput {
@@ -289,6 +293,8 @@ type Version {
   referencedObject: String
   message: String
   sourceApplication: String
+  seedId: String
+  assetId: String
   authorUser: LimitedUser
   createdAt: DateTime!
   model: Model!

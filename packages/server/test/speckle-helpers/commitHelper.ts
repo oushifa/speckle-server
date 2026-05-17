@@ -62,6 +62,8 @@ export type BasicTestCommit = {
    * Optionally override the createdAt date
    */
   createdAt?: Date
+  seedId?: string
+  assetId?: string
 }
 
 export async function createTestObject(params: {
@@ -147,7 +149,9 @@ export async function createTestCommits(
         authorId: c.authorId,
         totalChildrenCount: 0,
         parents: c.parents || [],
-        createdAt: c.createdAt
+        createdAt: c.createdAt,
+        seedId: c.seedId,
+        assetId: c.assetId
       }
 
       const commit = await (c.branchId?.length

@@ -7,6 +7,8 @@ export const createProjectVersionMutation = gql`
         id
         message
         sourceApplication
+        seedId
+        assetId
         model {
           id
         }

@@ -1,7 +1,14 @@
 import type { Router, Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
-import { knex, Branches, Streams, BranchCommits, Commits } from '@/modules/core/dbSchema'
+import {
+  knex,
+  Branches,
+  Streams,
+  BranchCommits,
+  Commits,
+  FileUploads
+} from '@/modules/core/dbSchema'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
 import { ensureError } from '@speckle/shared'
@@ -14,6 +21,8 @@ type ModelRow = {
   updatedAt: string
   versions: string | number
   latestCommitId: string | null
+  latestUploadId: string | null
+  latestUploadFileName: string | null
 }
 
 const modelsErrHandler = (
@@ -56,6 +65,24 @@ export default (app: Router) => {
           .where(BranchCommits.col.branchId, knex.ref(`${Branches.name}.id`))
           .orderBy(Commits.col.createdAt, 'desc')
           .limit(1)
+        const latestUploadBaseQuery = knex(FileUploads.name)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere((q) => {
+            q.where(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`)).orWhere(
+              (legacyQ) => {
+                legacyQ
+                  .whereNull(FileUploads.col.modelId)
+                  .andWhere(FileUploads.col.branchName, knex.ref(`${Branches.name}.name`))
+              }
+            )
+          })
+          .andWhere(FileUploads.col.uploadComplete, true)
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+        const latestUploadIdQuery = latestUploadBaseQuery.clone().select(FileUploads.col.id)
+        const latestUploadFileNameQuery = latestUploadBaseQuery
+          .clone()
+          .select(FileUploads.col.fileName)
 
         const q = knex(Branches.name)
           .select<ModelRow[]>([
@@ -64,7 +91,9 @@ export default (app: Router) => {
             `${Branches.name}.streamId`,
             `${Streams.name}.name as streamName`,
             `${Branches.name}.updatedAt`,
-            knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`)
+            knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`),
+            knex.raw(`(${latestUploadIdQuery.toQuery()}) as "latestUploadId"`),
+            knex.raw(`(${latestUploadFileNameQuery.toQuery()}) as "latestUploadFileName"`)
           ])
           .select([
             `${Branches.name}.createdAt`
@@ -96,7 +125,9 @@ export default (app: Router) => {
           previewUrl: m.latestCommitId
             ? new URL(`/preview/${m.streamId}/commits/${m.latestCommitId}`, getServerOrigin()).toString()
             : null,
-          status: null
+          status: null,
+          sourceFileId: m.latestUploadId,
+          sourceFileName: m.latestUploadFileName
         }))
 
         res.json({ data: formattedModels })

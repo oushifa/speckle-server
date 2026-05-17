@@ -36,6 +36,8 @@ import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middl
 import cors from 'cors'
 import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import { Roles } from '@/modules/core/helpers/mainConstants'
+import { buildAuthPolicies } from '@/modules'
+import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 
 export const blobStorageRouterFactory = (): Router => {
   const processNewFileStream = processNewFileStreamFactory()
@@ -129,42 +131,44 @@ export const blobStorageRouterFactory = (): Router => {
     cors(),
     allowCrossOriginResourceAccessMiddelware(),
     async (req, res, next) => {
-      await authMiddlewareCreator([
-        ...streamReadPermissionsPipelineFactory({
-          getStream: getStreamFactory({ db })
-        }),
-        allowForAllRegisteredUsersOnPublicStreamsWithPublicComments,
-        allowForRegisteredUsersOnPublicStreamsEvenWithoutRole,
-        allowAnonymousUsersOnPublicStreams
-      ])(req, res, next)
-    },
-    async (req, res) => {
-      const streamId = req.params.streamId
-      const [projectDb, projectStorage] = await Promise.all([
-        getProjectDbClient({ projectId: streamId }),
-        getProjectObjectStorage({ projectId: streamId })
-      ])
+      try {
+        const projectId = req.params.streamId
+        const authz = await buildAuthPolicies({ authContext: req.context })
+        throwIfAuthNotOk(
+          await authz.project.canRead({
+            userId: req.context.userId,
+            projectId
+          })
+        )
 
-      const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
-      const getFileStream = getFileStreamFactory({ getBlobMetadata })
-      const getObjectStream = getObjectStreamFactory({
-        storage: projectStorage.private
-      })
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
 
-      const { fileName } = await getBlobMetadata({
-        streamId: req.params.streamId,
-        blobId: req.params.blobId
-      })
-      const fileStream = await getFileStream({
-        getObjectStream,
-        streamId: req.params.streamId,
-        blobId: req.params.blobId
-      })
-      res.writeHead(200, {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': contentDisposition(fileName)
-      })
-      fileStream.pipe(res)
+        const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
+        const getFileStream = getFileStreamFactory({ getBlobMetadata })
+        const getObjectStream = getObjectStreamFactory({
+          storage: projectStorage.private
+        })
+
+        const { fileName } = await getBlobMetadata({
+          streamId: projectId,
+          blobId: req.params.blobId
+        })
+        const fileStream = await getFileStream({
+          getObjectStream,
+          streamId: projectId,
+          blobId: req.params.blobId
+        })
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': contentDisposition(fileName)
+        })
+        fileStream.pipe(res)
+      } catch (err) {
+        next(err)
+      }
     }
   )
 
