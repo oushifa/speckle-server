@@ -228,6 +228,7 @@ input UpdateVersionInput {
   message: String
   seedId: String
   assetId: String
+  treeJson: String
 }
 
 input CreateVersionInput {
@@ -240,6 +241,7 @@ input CreateVersionInput {
   parents: [String!]
   seedId: String
   assetId: String
+  treeJson: String
 }
 
 input MarkReceivedVersionInput {
@@ -295,6 +297,7 @@ type Version {
   sourceApplication: String
   seedId: String
   assetId: String
+  treeJson: String
   authorUser: LimitedUser
   createdAt: DateTime!
   model: Model!

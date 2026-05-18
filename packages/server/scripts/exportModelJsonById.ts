@@ -6,6 +6,7 @@ import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web'
 import { createInterface } from 'node:readline'
 import { fetch } from 'undici'
 import { logger } from '@/observability/logging'
+import { buildModelCustomLabelPayload } from '@/modules/core/services/modelCustomLabelExport'
 
 type OutputFormat = 'bimp-tree' | 'flat' | 'raw'
 
@@ -29,6 +30,7 @@ type GraphqlResponse = {
             id: string
             referencedObject: string
             createdAt: string
+            seedId?: string | null
           }>
         }
       }
@@ -145,6 +147,7 @@ const getLatestVersionObject = async (args: CliArgs) => {
               id
               referencedObject
               createdAt
+              seedId
             }
           }
         }
@@ -191,7 +194,8 @@ const getLatestVersionObject = async (args: CliArgs) => {
     modelName: body.data?.project?.model?.name || null,
     versionId: latest.id,
     objectId: latest.referencedObject,
-    createdAt: latest.createdAt
+    createdAt: latest.createdAt,
+    seedId: latest.seedId || null
   }
 }
 
@@ -288,289 +292,21 @@ const buildTreeNode = (
   }
 }
 
-const collectReachableIds = (
-  rootId: string,
-  map: Map<string, ObjectLite>,
-  visited = new Set<string>()
-): Set<string> => {
-  if (visited.has(rootId)) return visited
-  visited.add(rootId)
-  const node = map.get(rootId)
-  for (const childId of node?.childrenIds || []) {
-    collectReachableIds(childId, map, visited)
-  }
-  return visited
-}
-
-const normalizeParameterValue = (
-  value: unknown
-): string | number | boolean | null | undefined => {
-  if (value === null) return null
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  )
-    return value
-  return undefined
-}
-
-const toFlatPrimitiveRecord = (
-  value: unknown
-): Record<string, string | number | boolean | null> => {
-  const out: Record<string, string | number | boolean | null> = {}
-  if (!isObject(value)) return out
-
-  const walk = (input: unknown, parentKey = '') => {
-    if (Array.isArray(input)) {
-      for (let i = 0; i < input.length; i++) {
-        const nextKey = parentKey ? `${parentKey}[${i}]` : `[${i}]`
-        walk(input[i], nextKey)
-      }
-      return
-    }
-
-    const primitive = normalizeParameterValue(input)
-    if (primitive !== undefined) {
-      if (parentKey) out[parentKey] = primitive
-      return
-    }
-
-    if (!isObject(input)) return
-    for (const [k, v] of Object.entries(input)) {
-      const nextKey = parentKey ? `${parentKey}.${k}` : k
-      walk(v, nextKey)
-    }
-  }
-
-  walk(value)
-  return out
-}
-
-const pickParametersSource = (raw: Record<string, unknown>) => {
-  if (isObject(raw.parameters)) return raw.parameters
-  if (isObject(raw.properties)) return raw.properties
-  return undefined
-}
-
-type QuantityValue = {
-  value: number
-  units?: string
-}
-
-const UNIT_SYMBOL_MAP: Record<string, string> = {
-  'cubic metre': 'm³',
-  'square metre': 'm²',
-  metre: 'm',
-  millimetre: 'mm'
-}
-
-const formatNumber = (value: number): string => {
-  const fixed = value.toFixed(2)
-  return fixed.replace(/\.?0+$/, '')
-}
-
-const normalizeUnit = (unit: string): string => {
-  const normalized = unit.trim().toLowerCase()
-  return UNIT_SYMBOL_MAP[normalized] || unit
-}
-
-const formatQuantityValue = ({ value, units }: QuantityValue): string => {
-  const num = formatNumber(value)
-  if (!units || !units.trim().length) return num
-  return `${num} ${normalizeUnit(units)}`
-}
-
-const collectNamedQuantities = (
-  input: unknown,
-  out: Map<string, QuantityValue> = new Map<string, QuantityValue>()
-): Map<string, QuantityValue> => {
-  if (Array.isArray(input)) {
-    for (const item of input) collectNamedQuantities(item, out)
-    return out
-  }
-  if (!isObject(input)) return out
-
-  const maybeName = typeof input.name === 'string' ? input.name : undefined
-  const maybeValue = typeof input.value === 'number' ? input.value : undefined
-  const maybeUnits = typeof input.units === 'string' ? input.units : undefined
-  if (maybeName && maybeValue !== undefined) {
-    out.set(maybeName, { value: maybeValue, units: maybeUnits })
-  }
-
-  for (const value of Object.values(input)) {
-    collectNamedQuantities(value, out)
-  }
-  return out
-}
-
-const pickFirstQuantity = (
-  quantities: Map<string, QuantityValue>,
-  candidates: string[]
-): QuantityValue | undefined => {
-  for (const key of candidates) {
-    const hit = quantities.get(key)
-    if (hit) return hit
-  }
-  return undefined
-}
-
-const IFC_CATEGORY_MAP: Record<string, string> = {
-  IfcWall: 'OST_Walls',
-  IfcSlab: 'OST_Floors',
-  IfcBeam: 'OST_StructuralFraming',
-  IfcColumn: 'OST_StructuralColumns',
-  IfcFooting: 'OST_StructuralFoundation',
-  IfcSite: 'OST_Site',
-  IfcBuilding: 'OST_Buildings',
-  IfcBuildingStorey: 'OST_Levels',
-  IfcRoof: 'OST_Roofs',
-  IfcDoor: 'OST_Doors',
-  IfcWindow: 'OST_Windows',
-  IfcStair: 'OST_Stairs'
-}
-
-const pickString = (...values: unknown[]): string | undefined => {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim().length) return value
-  }
-  return undefined
-}
-
-const extractReference = (
-  properties: Record<string, unknown> | undefined
-): string | undefined => {
-  if (!properties || !isObject(properties['Property Sets'])) return undefined
-  const propertySets = properties['Property Sets']
-  for (const value of Object.values(propertySets)) {
-    if (!isObject(value)) continue
-    if (typeof value.Reference === 'string' && value.Reference.trim().length) {
-      return value.Reference
-    }
-  }
-  return undefined
-}
-
-const setQuantityField = (
-  out: Record<string, string | number | boolean | null>,
-  label: string,
-  quantities: Map<string, QuantityValue>,
-  candidates: string[]
-) => {
-  const found = pickFirstQuantity(quantities, candidates)
-  if (found) out[label] = formatQuantityValue(found)
-}
-
-const buildDisplayParameters = (
-  raw: Record<string, unknown>
-): Record<string, string | number | boolean | null> => {
-  const out: Record<string, string | number | boolean | null> = {}
-
-  const properties = isObject(raw.properties) ? raw.properties : undefined
-  const attributes = isObject(properties?.Attributes)
-    ? properties.Attributes
-    : undefined
-  const quantities = collectNamedQuantities(
-    isObject(properties?.Quantities) ? properties.Quantities : {}
-  )
-
-  const type = pickString(attributes?.type, raw.ifcType)
-  if (type) out.Type = type
-
-  const typeName = pickString(attributes?.ObjectType)
-  if (typeName) out.TypeName = typeName
-
-  const categoryCandidate =
-    (typeof attributes?.Category === 'string' && attributes.Category) ||
-    (typeof raw.category === 'string' && raw.category) ||
-    (type && IFC_CATEGORY_MAP[type]) ||
-    type
-  if (categoryCandidate) out.Category = categoryCandidate
-
-  const storey = pickString(properties?.['Building Storey'])
-  if (storey) out.Storey = storey
-
-  const reference = extractReference(properties)
-  if (reference) out.Reference = reference
-
-  setQuantityField(out, 'Volume', quantities, ['NetVolume', 'GrossVolume', 'Volume'])
-  setQuantityField(out, 'Area', quantities, [
-    'NetSurfaceArea',
-    'GrossSurfaceArea',
-    'Area',
-    'NetArea',
-    'GrossArea',
-    'NetSideArea',
-    'GrossSideArea',
-    'CrossSectionArea',
-    'OuterSurfaceArea'
-  ])
-  setQuantityField(out, 'Length', quantities, ['Length'])
-  setQuantityField(out, 'Width', quantities, ['Width'])
-  setQuantityField(out, 'Height', quantities, ['Height'])
-
-  return out
-}
-
-const getElementExportId = (obj: ObjectLite): string => {
-  // Flat 导出统一使用 Speckle 对象 ID，避免落到业务名称/外部 GUID
-  return obj.id
-}
-
 const writeFlatPayload = async (
   args: CliArgs,
   modelName: string,
   versionCreatedAt: string,
+  modelSeedId: string,
   rootId: string,
   map: Map<string, ObjectLite>
 ) => {
-  const reachableIds = collectReachableIds(rootId, map)
-  const dedupedElements = new Map<
-    string,
-    Record<string, string | number | boolean | null>
-  >()
-
-  for (const id of reachableIds) {
-    if (id === rootId) continue
-    const item = map.get(id)
-    if (!item) continue
-
-    const source = pickParametersSource(item.raw)
-    const displayParameters = buildDisplayParameters(item.raw)
-    const parameters = Object.keys(displayParameters).length
-      ? displayParameters
-      : toFlatPrimitiveRecord(source)
-    if (!Object.keys(parameters).length) continue
-
-    const exportId = getElementExportId(item)
-    const existing = dedupedElements.get(exportId)
-    if (!existing) {
-      dedupedElements.set(exportId, { ...parameters })
-      continue
-    }
-
-    // 相同业务 ID 的多条记录合并：保留已有值，补齐缺失字段
-    for (const [key, value] of Object.entries(parameters)) {
-      const hasCurrent = Object.prototype.hasOwnProperty.call(existing, key)
-      if (!hasCurrent || existing[key] === null || existing[key] === '') {
-        existing[key] = value
-      }
-    }
-  }
-
-  const elements: FlatExportPayload['elements'] = []
-  for (const [id, parameters] of dedupedElements.entries()) {
-    elements.push({ id, parameters })
-  }
-
-  const payload: FlatExportPayload = {
-    model: {
-      id: args.modelId,
-      name: modelName,
-      timestamp: versionCreatedAt
-    },
-    elements
-  }
+  const payload: FlatExportPayload = buildModelCustomLabelPayload({
+    modelSeedId,
+    modelName,
+    versionCreatedAt,
+    rootId,
+    objectMap: map
+  })
 
   const outputPath = args.outputPath || `model-${args.modelId}-flat-parameters.json`
   const resolvedOutputPath = resolve(outputPath)
@@ -584,7 +320,7 @@ const writeFlatPayload = async (
   })
 
   logger.info(
-    { outputPath: resolvedOutputPath, elementCount: elements.length },
+    { outputPath: resolvedOutputPath, elementCount: payload.elements.length },
     'Flat parameters JSON export completed'
   )
 }
@@ -681,10 +417,14 @@ const exportByFormat = async (args: CliArgs) => {
   )
   const modelName = latest.modelName || args.modelId
   if (args.outputFormat === 'flat') {
+    if (!latest.seedId?.trim()) {
+      throw new Error('Latest version seedId is empty, cannot export flat custom-label JSON.')
+    }
     await writeFlatPayload(
       args,
       modelName,
       latest.createdAt,
+      latest.seedId,
       latest.objectId,
       objectMap
     )

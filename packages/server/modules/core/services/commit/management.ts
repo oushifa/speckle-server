@@ -102,6 +102,7 @@ export const createCommitByBranchIdFactory =
       parents,
       seedId,
       assetId,
+      treeJson,
       createdAt
     } = params
 
@@ -133,6 +134,7 @@ export const createCommitByBranchIdFactory =
       message,
       seedId,
       assetId,
+      treeJson,
       ...(createdAt ? { createdAt } : {})
     })
     const id = commit.id
@@ -181,6 +183,7 @@ export const createCommitByBranchNameFactory =
       parents,
       seedId,
       assetId,
+      treeJson,
       totalChildrenCount,
       createdAt
     } = params
@@ -209,6 +212,7 @@ export const createCommitByBranchNameFactory =
       parents,
       seedId,
       assetId,
+      treeJson,
       createdAt
     })
 
@@ -237,6 +241,7 @@ export const updateCommitAndNotifyFactory =
           message: params.message,
           seedId: undefined,
           assetId: undefined,
+          treeJson: undefined,
           newBranchName: params.newBranchName,
           streamId: params.streamId,
           commitId: params.id
@@ -245,18 +250,26 @@ export const updateCommitAndNotifyFactory =
           message: params.message,
           seedId: params.seedId,
           assetId: params.assetId,
+          treeJson: params.treeJson,
           newBranchName: null,
           streamId: null,
           commitId: params.versionId
         }
-    const { message, seedId, assetId, newBranchName, streamId, commitId } =
+    const { message, seedId, assetId, treeJson, newBranchName, streamId, commitId } =
       normalizedParams
 
     const hasMessageUpdate = typeof message !== 'undefined'
     const hasSeedIdUpdate = typeof seedId !== 'undefined'
     const hasAssetIdUpdate = typeof assetId !== 'undefined'
+    const hasTreeJsonUpdate = typeof treeJson !== 'undefined'
 
-    if (!hasMessageUpdate && !newBranchName && !hasSeedIdUpdate && !hasAssetIdUpdate) {
+    if (
+      !hasMessageUpdate &&
+      !newBranchName &&
+      !hasSeedIdUpdate &&
+      !hasAssetIdUpdate &&
+      !hasTreeJsonUpdate
+    ) {
       throw new CommitUpdateError('Nothing to update', {
         info: { ...params, userId }
       })
@@ -310,11 +323,12 @@ export const updateCommitAndNotifyFactory =
     }
 
     let newCommit: CommitRecord = commit
-    if (hasMessageUpdate || hasSeedIdUpdate || hasAssetIdUpdate) {
+    if (hasMessageUpdate || hasSeedIdUpdate || hasAssetIdUpdate || hasTreeJsonUpdate) {
       newCommit = await deps.updateCommit(commitId, {
         ...(hasMessageUpdate ? { message } : {}),
         ...(hasSeedIdUpdate ? { seedId } : {}),
-        ...(hasAssetIdUpdate ? { assetId } : {})
+        ...(hasAssetIdUpdate ? { assetId } : {}),
+        ...(hasTreeJsonUpdate ? { treeJson } : {})
       })
     }
 

@@ -7,7 +7,8 @@ import type {
 } from '@/modules/core/graph/generated/graphql'
 import {
   CreateProjectVersionDocument,
-  MarkProjectVersionReceivedDocument
+  MarkProjectVersionReceivedDocument,
+  UpdateProjectVersionDocument
 } from '@/modules/core/graph/generated/graphql'
 import type { TestApolloServer } from '@/test/graphqlHelper'
 import { testApolloServer } from '@/test/graphqlHelper'
@@ -126,6 +127,24 @@ describe('Versions', () => {
         })
         expect(activities).to.have.length(1)
         expect(activities[0].info?.message).to.eq(input.message)
+      })
+
+      it('can update external sync fields', async () => {
+        const res = await apollo.execute(UpdateProjectVersionDocument, {
+          input: {
+            projectId: myPrivateStream.id,
+            versionId: firstVersion.id,
+            seedId: 'seed-updated',
+            assetId: 'asset-updated',
+            treeJson: 'done'
+          }
+        })
+
+        expect(res).to.not.haveGraphQLErrors()
+        expect(res.data?.versionMutations.update.id).to.eq(firstVersion.id)
+        expect(res.data?.versionMutations.update.seedId).to.eq('seed-updated')
+        expect(res.data?.versionMutations.update.assetId).to.eq('asset-updated')
+        expect(res.data?.versionMutations.update.treeJson).to.eq('done')
       })
     })
   })

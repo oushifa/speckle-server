@@ -1659,13 +1659,16 @@ export type CreateUserEmailInput = {
 };
 
 export type CreateVersionInput = {
+  assetId?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   modelId: Scalars['String']['input'];
   objectId: Scalars['String']['input'];
   parents?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['String']['input'];
+  seedId?: InputMaybe<Scalars['String']['input']>;
   sourceApplication?: InputMaybe<Scalars['String']['input']>;
   totalChildrenCount?: InputMaybe<Scalars['Int']['input']>;
+  treeJson?: InputMaybe<Scalars['String']['input']>;
 };
 
 export const Currency = {
@@ -5965,8 +5968,11 @@ export type UpdateServerRegionInput = {
 
 /** Only non-null values will be updated */
 export type UpdateVersionInput = {
+  assetId?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
+  seedId?: InputMaybe<Scalars['String']['input']>;
+  treeJson?: InputMaybe<Scalars['String']['input']>;
   versionId: Scalars['ID']['input'];
 };
 
@@ -6399,6 +6405,7 @@ export type VerifyUserEmailInput = {
 
 export type Version = {
   __typename?: 'Version';
+  assetId?: Maybe<Scalars['String']['output']>;
   authorUser?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** All comment threads in this version */
@@ -6413,8 +6420,10 @@ export type Version = {
   permissions: VersionPermissionChecks;
   previewUrl: Scalars['String']['output'];
   referencedObject?: Maybe<Scalars['String']['output']>;
+  seedId?: Maybe<Scalars['String']['output']>;
   sourceApplication?: Maybe<Scalars['String']['output']>;
   totalChildrenCount?: Maybe<Scalars['Int']['output']>;
+  treeJson?: Maybe<Scalars['String']['output']>;
 };
 
 
@@ -12966,6 +12975,7 @@ export type UserStreamCollectionFieldArgs = {
   totalCount: {},
 }
 export type VersionFieldArgs = {
+  assetId: {},
   authorUser: {},
   automationsStatus: {},
   commentThreads: VersionCommentThreadsArgs,
@@ -12979,8 +12989,10 @@ export type VersionFieldArgs = {
   permissions: {},
   previewUrl: {},
   referencedObject: {},
+  seedId: {},
   sourceApplication: {},
   totalChildrenCount: {},
+  treeJson: {},
 }
 export type VersionCollectionFieldArgs = {
   cursor: {},

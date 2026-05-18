@@ -76,6 +76,7 @@ export type CreateCommitByBranchId = (
     parents: Nullable<string[]>
     seedId: Nullable<string>
     assetId: Nullable<string>
+    treeJson: Nullable<string>
     /**
      * Only used in tests: Allows to set the createdAt date
      */
@@ -95,6 +96,7 @@ export type CreateCommitByBranchName = (
     parents: Nullable<string[]>
     seedId: Nullable<string>
     assetId: Nullable<string>
+    treeJson: Nullable<string>
     /**
      * Only used in tests: Allows to set the createdAt date
      */

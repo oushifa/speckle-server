@@ -25,3 +25,17 @@ export const markProjectVersionReceivedMutation = gql`
     }
   }
 `
+
+export const updateProjectVersionMutation = gql`
+  mutation UpdateProjectVersion($input: UpdateVersionInput!) {
+    versionMutations {
+      update(input: $input) {
+        id
+        message
+        seedId
+        assetId
+        treeJson
+      }
+    }
+  }
+`

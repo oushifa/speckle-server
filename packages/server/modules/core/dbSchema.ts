@@ -500,7 +500,8 @@ export const Commits = buildTableHelper('commits', [
   'totalChildrenCount',
   'parents',
   'seedId',
-  'assetId'
+  'assetId',
+  'treeJson'
 ])
 
 export const StreamCommits = buildTableHelper('stream_commits', [
