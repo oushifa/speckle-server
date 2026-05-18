@@ -102,6 +102,7 @@ export const createCommitByBranchIdFactory =
       parents,
       seedId,
       assetId,
+      assetName,
       treeJson,
       createdAt
     } = params
@@ -134,6 +135,7 @@ export const createCommitByBranchIdFactory =
       message,
       seedId,
       assetId,
+      assetName,
       treeJson,
       ...(createdAt ? { createdAt } : {})
     })
@@ -183,6 +185,7 @@ export const createCommitByBranchNameFactory =
       parents,
       seedId,
       assetId,
+      assetName,
       treeJson,
       totalChildrenCount,
       createdAt
@@ -212,6 +215,7 @@ export const createCommitByBranchNameFactory =
       parents,
       seedId,
       assetId,
+      assetName,
       treeJson,
       createdAt
     })
@@ -234,33 +238,55 @@ export const updateCommitAndNotifyFactory =
     updateCommit: UpdateCommit
     markCommitBranchUpdated: MarkCommitBranchUpdated
     emitEvent: EventBusEmit
+    log?: {
+      info: (obj: Record<string, unknown>, msg?: string) => void
+    }
   }): UpdateCommitAndNotify =>
-  async (params: CommitUpdateInput | UpdateVersionInput, userId: string) => {
+  async (
+    params: (CommitUpdateInput | UpdateVersionInput) & {
+      skipStandardUpdateAuth?: boolean
+    },
+    userId: string
+  ) => {
     const normalizedParams = isOldVersionUpdateInput(params)
       ? {
           message: params.message,
           seedId: undefined,
           assetId: undefined,
+          assetName: undefined,
           treeJson: undefined,
           newBranchName: params.newBranchName,
           streamId: params.streamId,
-          commitId: params.id
+          commitId: params.id,
+          skipStandardUpdateAuth: false
         }
       : {
           message: params.message,
           seedId: params.seedId,
           assetId: params.assetId,
+          assetName: params.assetName,
           treeJson: params.treeJson,
           newBranchName: null,
           streamId: null,
-          commitId: params.versionId
+          commitId: params.versionId,
+          skipStandardUpdateAuth: params.skipStandardUpdateAuth
         }
-    const { message, seedId, assetId, treeJson, newBranchName, streamId, commitId } =
-      normalizedParams
+    const {
+      message,
+      seedId,
+      assetId,
+      assetName,
+      treeJson,
+      newBranchName,
+      streamId,
+      commitId,
+      skipStandardUpdateAuth
+    } = normalizedParams
 
     const hasMessageUpdate = typeof message !== 'undefined'
     const hasSeedIdUpdate = typeof seedId !== 'undefined'
     const hasAssetIdUpdate = typeof assetId !== 'undefined'
+    const hasAssetNameUpdate = typeof assetName !== 'undefined'
     const hasTreeJsonUpdate = typeof treeJson !== 'undefined'
 
     if (
@@ -268,6 +294,7 @@ export const updateCommitAndNotifyFactory =
       !newBranchName &&
       !hasSeedIdUpdate &&
       !hasAssetIdUpdate &&
+      !hasAssetNameUpdate &&
       !hasTreeJsonUpdate
     ) {
       throw new CommitUpdateError('Nothing to update', {
@@ -291,7 +318,11 @@ export const updateCommitAndNotifyFactory =
         info: { ...params, userId }
       })
     }
-    if (commit.author !== userId && stream.role !== Roles.Stream.Owner) {
+    if (
+      !skipStandardUpdateAuth &&
+      commit.author !== userId &&
+      stream.role !== Roles.Stream.Owner
+    ) {
       throw new CommitUpdateError(
         'Only the author of a commit or a stream owner may update it',
         {
@@ -323,16 +354,71 @@ export const updateCommitAndNotifyFactory =
     }
 
     let newCommit: CommitRecord = commit
-    if (hasMessageUpdate || hasSeedIdUpdate || hasAssetIdUpdate || hasTreeJsonUpdate) {
+    if (
+      hasMessageUpdate ||
+      hasSeedIdUpdate ||
+      hasAssetIdUpdate ||
+      hasAssetNameUpdate ||
+      hasTreeJsonUpdate
+    ) {
+      deps.log?.info(
+        {
+          source: 'updateCommitAndNotifyFactory',
+          projectId: stream.id,
+          modelId: branch?.id,
+          versionId: commitId,
+          userId,
+          hasMessageUpdate,
+          hasSeedIdUpdate,
+          hasAssetIdUpdate,
+          hasAssetNameUpdate,
+          hasTreeJsonUpdate,
+          update: {
+            message,
+            seedId,
+            assetId,
+            assetName,
+            treeJson,
+            newBranchName,
+            skipStandardUpdateAuth
+          }
+        },
+        'debug version update requested'
+      )
       newCommit = await deps.updateCommit(commitId, {
         ...(hasMessageUpdate ? { message } : {}),
         ...(hasSeedIdUpdate ? { seedId } : {}),
         ...(hasAssetIdUpdate ? { assetId } : {}),
+        ...(hasAssetNameUpdate ? { assetName } : {}),
         ...(hasTreeJsonUpdate ? { treeJson } : {})
       })
     }
 
     if (commit) {
+      deps.log?.info(
+        {
+          source: 'updateCommitAndNotifyFactory',
+          projectId: stream.id,
+          modelId: branch?.id,
+          versionId: commitId,
+          userId,
+          oldVersion: {
+            message: commit.message,
+            seedId: commit.seedId,
+            assetId: commit.assetId,
+            assetName: commit.assetName,
+            treeJson: commit.treeJson
+          },
+          newVersion: {
+            message: newCommit.message,
+            seedId: newCommit.seedId,
+            assetId: newCommit.assetId,
+            assetName: newCommit.assetName,
+            treeJson: newCommit.treeJson
+          }
+        },
+        'debug emitting VersionEvents.Updated'
+      )
       const [updatedBranch] = await Promise.all([
         deps.markCommitBranchUpdated(commit.id),
         deps.emitEvent({

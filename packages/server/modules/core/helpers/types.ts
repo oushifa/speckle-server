@@ -123,6 +123,7 @@ export type CommitRecord = {
   parents: Nullable<string[]>
   seedId: Nullable<string>
   assetId: Nullable<string>
+  assetName: Nullable<string>
   treeJson: Nullable<string>
 }
 

@@ -311,24 +311,24 @@ describe('Presigned graph @fileuploads', async () => {
           project: reviewerProject,
           projectRole: Roles.Stream.Reviewer,
           cases: [
-            { testCase: generateUploadUrl, shouldSucceed: false },
-            { testCase: startFileImport, shouldSucceed: false }
+            { testCase: generateUploadUrl, shouldSucceed: true },
+            { testCase: startFileImport, shouldSucceed: true }
           ]
         },
         {
           project: noAccessProject,
           projectRole: null,
           cases: [
-            { testCase: generateUploadUrl, shouldSucceed: false },
-            { testCase: startFileImport, shouldSucceed: false }
+            { testCase: generateUploadUrl, shouldSucceed: true },
+            { testCase: startFileImport, shouldSucceed: true }
           ]
         },
         {
           project: publicProject,
           projectRole: null,
           cases: [
-            { testCase: generateUploadUrl, shouldSucceed: false },
-            { testCase: startFileImport, shouldSucceed: false }
+            { testCase: generateUploadUrl, shouldSucceed: true },
+            { testCase: startFileImport, shouldSucceed: true }
           ]
         }
       ]

@@ -501,6 +501,7 @@ export const Commits = buildTableHelper('commits', [
   'parents',
   'seedId',
   'assetId',
+  'assetName',
   'treeJson'
 ])
 

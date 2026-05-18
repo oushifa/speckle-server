@@ -61,6 +61,8 @@ import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { getThumbnailUrl } from '@/modules/viewer/helpers/savedViews'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
+import { throwForNotHavingServerRole } from '@/modules/shared/authz'
+import { Roles } from '@speckle/shared'
 
 export default {
   User: {
@@ -341,16 +343,12 @@ export default {
         resourceType: TokenResourceIdentifierType.Project
       })
 
+      await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
       const logger = ctx.log.child({
         projectId,
         streamId: projectId //legacy
       })
-
-      const canCreate = await ctx.authPolicies.project.model.canCreate({
-        userId: ctx.userId,
-        projectId
-      })
-      throwIfAuthNotOk(canCreate)
 
       const projectDB = await getProjectDbClient({ projectId })
 

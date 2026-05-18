@@ -34,6 +34,7 @@ export const updateProjectVersionMutation = gql`
         message
         seedId
         assetId
+        assetName
         treeJson
       }
     }

@@ -5969,6 +5969,7 @@ export type UpdateServerRegionInput = {
 /** Only non-null values will be updated */
 export type UpdateVersionInput = {
   assetId?: InputMaybe<Scalars['String']['input']>;
+  assetName?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
   seedId?: InputMaybe<Scalars['String']['input']>;
@@ -6406,6 +6407,7 @@ export type VerifyUserEmailInput = {
 export type Version = {
   __typename?: 'Version';
   assetId?: Maybe<Scalars['String']['output']>;
+  assetName?: Maybe<Scalars['String']['output']>;
   authorUser?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** All comment threads in this version */
@@ -12976,6 +12978,7 @@ export type UserStreamCollectionFieldArgs = {
 }
 export type VersionFieldArgs = {
   assetId: {},
+  assetName: {},
   authorUser: {},
   automationsStatus: {},
   commentThreads: VersionCommentThreadsArgs,

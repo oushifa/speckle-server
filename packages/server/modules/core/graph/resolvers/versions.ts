@@ -1,4 +1,7 @@
-import type { Resolvers } from '@/modules/core/graph/generated/graphql'
+import type {
+  Resolvers,
+  UpdateVersionInput
+} from '@/modules/core/graph/generated/graphql'
 import {
   filteredSubscribe,
   ProjectSubscriptions
@@ -49,6 +52,7 @@ import { StreamNotFoundError } from '@/modules/core/errors/stream'
 import { throwIfResourceAccessNotAllowed } from '@/modules/core/helpers/token'
 import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
+import { UnauthorizedError } from '@/modules/shared/errors'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { isCreatedBeyondHistoryLimitCutoffFactory } from '@/modules/gatekeeperCore/utils/limits'
 import { SourceApps } from '@speckle/shared'
@@ -56,6 +60,19 @@ import { SourceApps } from '@speckle/shared'
 const throwIfRateLimited = throwIfRateLimitedFactory({
   rateLimiterEnabled: isRateLimiterEnabled()
 })
+
+const isExternalSyncOnlyUpdate = (input: UpdateVersionInput) => {
+  const hasMessageUpdate = typeof input.message !== 'undefined'
+  const hasSeedIdUpdate = typeof input.seedId !== 'undefined'
+  const hasAssetIdUpdate = typeof input.assetId !== 'undefined'
+  const hasAssetNameUpdate = typeof input.assetName !== 'undefined'
+  const hasTreeJsonUpdate = typeof input.treeJson !== 'undefined'
+
+  return (
+    !hasMessageUpdate &&
+    (hasSeedIdUpdate || hasAssetIdUpdate || hasAssetNameUpdate || hasTreeJsonUpdate)
+  )
+}
 
 export default {
   Project: {
@@ -241,6 +258,7 @@ export default {
     async update(_parent, args, ctx) {
       const projectId = args.input.projectId
       const versionId = args.input.versionId
+      const syncOnlyUpdate = isExternalSyncOnlyUpdate(args.input)
       throwIfResourceAccessNotAllowed({
         resourceId: projectId,
         resourceType: TokenResourceIdentifierType.Project,
@@ -254,12 +272,18 @@ export default {
         commitId: versionId //legacy
       })
 
-      const canUpdate = await ctx.authPolicies.project.version.canUpdate({
-        userId: ctx.userId,
-        projectId,
-        versionId
-      })
-      throwIfAuthNotOk(canUpdate)
+      if (syncOnlyUpdate) {
+        if (!ctx.userId) {
+          throw new UnauthorizedError('Authentication required.')
+        }
+      } else {
+        const canUpdate = await ctx.authPolicies.project.version.canUpdate({
+          userId: ctx.userId,
+          projectId,
+          versionId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
 
       const projectDb = await getProjectDbClient({ projectId })
       const stream = await ctx.loaders
@@ -278,10 +302,35 @@ export default {
         switchCommitBranch: switchCommitBranchFactory({ db: projectDb }),
         updateCommit: updateCommitFactory({ db: projectDb }),
         emitEvent: getEventBus().emit,
-        markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
+        markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb }),
+        log: logger
       })
       return await withOperationLogging(
-        async () => await updateCommitAndNotify(args.input, ctx.userId!),
+        async () => {
+          logger.info(
+            {
+              source: 'VersionMutations.update',
+              projectId,
+              versionId,
+              syncOnlyUpdate,
+              input: {
+                message: args.input.message,
+                seedId: args.input.seedId,
+                assetId: args.input.assetId,
+                assetName: args.input.assetName,
+                treeJson: args.input.treeJson
+              }
+            },
+            'debug versionMutations.update called'
+          )
+          return await updateCommitAndNotify(
+            {
+              ...args.input,
+              skipStandardUpdateAuth: syncOnlyUpdate
+            },
+            ctx.userId!
+          )
+        },
         {
           logger,
           operationName: 'updateVersion',

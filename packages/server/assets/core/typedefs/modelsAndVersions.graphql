@@ -228,6 +228,7 @@ input UpdateVersionInput {
   message: String
   seedId: String
   assetId: String
+  assetName: String
   treeJson: String
 }
 
@@ -297,6 +298,7 @@ type Version {
   sourceApplication: String
   seedId: String
   assetId: String
+  assetName: String
   treeJson: String
   authorUser: LimitedUser
   createdAt: DateTime!

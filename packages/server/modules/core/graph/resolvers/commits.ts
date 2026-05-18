@@ -455,10 +455,25 @@ export default {
         switchCommitBranch: switchCommitBranchFactory({ db: projectDb }),
         updateCommit: updateCommitFactory({ db: projectDb }),
         emitEvent: getEventBus().emit,
-        markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
+        markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb }),
+        log: logger
       })
       await withOperationLogging(
-        async () => await updateCommitAndNotify(args.commit, context.userId!),
+        async () => {
+          logger.info(
+            {
+              source: 'CommitMutations.commitUpdate',
+              projectId,
+              versionId: commitId,
+              input: {
+                message: args.commit.message,
+                newBranchName: args.commit.newBranchName
+              }
+            },
+            'debug commitUpdate called'
+          )
+          return await updateCommitAndNotify(args.commit, context.userId!)
+        },
         {
           logger,
           operationName: 'updateCommit',

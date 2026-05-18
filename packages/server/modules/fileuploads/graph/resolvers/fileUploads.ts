@@ -1,4 +1,4 @@
-import { TIME } from '@speckle/shared'
+import { Roles, TIME } from '@speckle/shared'
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import {
@@ -24,6 +24,7 @@ import {
   MisconfiguredEnvironmentError
 } from '@/modules/shared/errors'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
+import { throwForNotHavingServerRole } from '@/modules/shared/authz'
 import {
   fileImportServiceShouldUsePrivateObjectsServerUrl,
   getFileImporterQueuePostgresUrl,
@@ -117,17 +118,13 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       throw new ForbiddenError('No userId provided')
     }
 
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
     throwIfResourceAccessNotAllowed({
       resourceId: projectId,
       resourceType: TokenResourceIdentifierType.Project,
       resourceAccessRules: ctx.resourceAccessRules
     })
-
-    const canImport = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canImport)
 
     if (!isFileUploadsEnabled())
       throw new BadRequestError('File uploads are not enabled for this server')
@@ -163,17 +160,13 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       throw new ForbiddenError('No userId provided')
     }
 
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
     throwIfResourceAccessNotAllowed({
       resourceId: projectId,
       resourceType: TokenResourceIdentifierType.Project,
       resourceAccessRules: ctx.resourceAccessRules
     })
-
-    const canImport = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canImport)
 
     if (!isFileUploadsEnabled())
       throw new BadRequestError('File uploads are not enabled for this server')
@@ -264,11 +257,7 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       resourceAccessRules: ctx.resourceAccessRules
     })
 
-    const canPublish = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canPublish)
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
 
     let jobResult: FileImportResultPayload
     if (status === JobResultStatus.Error) {

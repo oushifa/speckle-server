@@ -29,6 +29,12 @@ describe('Versions', () => {
     id: ''
   }
 
+  const outsider: BasicTestUser = {
+    name: 'outsider',
+    email: '',
+    id: ''
+  }
+
   const myPrivateStream: BasicTestStream = {
     name: 'this is my private stream #1',
     isPublic: false,
@@ -45,13 +51,14 @@ describe('Versions', () => {
 
   before(async () => {
     await beforeEachContext()
-    await createTestUsers([me])
+    await createTestUsers([me, outsider])
     await createTestStreams([[myPrivateStream, me]])
     await createTestBranches([{ branch: myBranch, stream: myPrivateStream, owner: me }])
   })
 
   describe('in GraphQL API', () => {
     let apollo: TestApolloServer
+    let outsiderApollo: TestApolloServer
     let objectId: string
 
     const createVersion = async (input: CreateVersionInput) =>
@@ -60,6 +67,9 @@ describe('Versions', () => {
     before(async () => {
       apollo = await testApolloServer({
         authUserId: me.id
+      })
+      outsiderApollo = await testApolloServer({
+        authUserId: outsider.id
       })
       objectId = await createTestObject({ projectId: myPrivateStream.id })
     })
@@ -136,6 +146,7 @@ describe('Versions', () => {
             versionId: firstVersion.id,
             seedId: 'seed-updated',
             assetId: 'asset-updated',
+            assetName: 'asset-name-updated',
             treeJson: 'done'
           }
         })
@@ -144,7 +155,40 @@ describe('Versions', () => {
         expect(res.data?.versionMutations.update.id).to.eq(firstVersion.id)
         expect(res.data?.versionMutations.update.seedId).to.eq('seed-updated')
         expect(res.data?.versionMutations.update.assetId).to.eq('asset-updated')
+        expect(res.data?.versionMutations.update.assetName).to.eq('asset-name-updated')
         expect(res.data?.versionMutations.update.treeJson).to.eq('done')
+      })
+
+      it('allows any logged in user to update external sync fields', async () => {
+        const res = await outsiderApollo.execute(UpdateProjectVersionDocument, {
+          input: {
+            projectId: myPrivateStream.id,
+            versionId: firstVersion.id,
+            seedId: 'seed-outsider',
+            assetId: 'asset-outsider',
+            assetName: 'asset-name-outsider',
+            treeJson: 'done'
+          }
+        })
+
+        expect(res).to.not.haveGraphQLErrors()
+        expect(res.data?.versionMutations.update.id).to.eq(firstVersion.id)
+        expect(res.data?.versionMutations.update.seedId).to.eq('seed-outsider')
+        expect(res.data?.versionMutations.update.assetId).to.eq('asset-outsider')
+        expect(res.data?.versionMutations.update.assetName).to.eq('asset-name-outsider')
+        expect(res.data?.versionMutations.update.treeJson).to.eq('done')
+      })
+
+      it('still blocks regular version message updates for non-members', async () => {
+        const res = await outsiderApollo.execute(UpdateProjectVersionDocument, {
+          input: {
+            projectId: myPrivateStream.id,
+            versionId: firstVersion.id,
+            message: 'outsider should not edit message'
+          }
+        })
+
+        expect(res).to.haveGraphQLErrors('You do not have access to the project')
       })
     })
   })

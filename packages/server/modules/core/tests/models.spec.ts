@@ -2,6 +2,7 @@ import type { BasicTestWorkspace } from '@/modules/workspaces/tests/helpers/crea
 import { createTestWorkspace } from '@/modules/workspaces/tests/helpers/creation'
 import type { BasicTestUser } from '@/test/authHelper'
 import { createTestUsers } from '@/test/authHelper'
+import { Roles } from '@speckle/shared'
 import type { CreateModelInput } from '@/modules/core/graph/generated/graphql'
 import {
   CreateProjectModelDocument,
@@ -11,13 +12,18 @@ import type { TestApolloServer } from '@/test/graphqlHelper'
 import { testApolloServer } from '@/test/graphqlHelper'
 import { beforeEachContext } from '@/test/hooks'
 import type { BasicTestStream } from '@/test/speckle-helpers/streamHelper'
-import { createTestStreams } from '@/test/speckle-helpers/streamHelper'
+import { addToStream, createTestStreams } from '@/test/speckle-helpers/streamHelper'
 import { expect } from 'chai'
 import { omit } from 'lodash-es'
 
 describe('Models', () => {
   const me: BasicTestUser = {
     name: 'hello itsa me',
+    email: '',
+    id: ''
+  }
+  const reviewer: BasicTestUser = {
+    name: 'review only',
     email: '',
     id: ''
   }
@@ -38,13 +44,16 @@ describe('Models', () => {
 
   before(async () => {
     await beforeEachContext()
-    await createTestUsers([me])
+    await createTestUsers([me, reviewer])
 
     // workspace, to avoid personal project limits
     await createTestWorkspace(workspace, me)
     myPrivateStream.workspaceId = workspace.id
 
     await createTestStreams([[myPrivateStream, me]])
+    await addToStream(myPrivateStream, reviewer, Roles.Stream.Reviewer, {
+      owner: me
+    })
   })
 
   describe('in GraphQL API', () => {
@@ -73,6 +82,25 @@ describe('Models', () => {
       expect(res.data?.modelMutations.create.id).to.be.ok
       expect(res.data?.modelMutations.create.name).to.equal(input.name)
       expect(res.data?.modelMutations.create.description).to.equal(input.description)
+    })
+
+    it('can be created by a reviewer with server:user', async () => {
+      const reviewerApollo = await testApolloServer({
+        authUserId: reviewer.id
+      })
+      const input: CreateModelInput = {
+        projectId: myPrivateStream.id,
+        name: 'reviewer model',
+        description: 'created by reviewer'
+      }
+
+      const res = await reviewerApollo.execute(CreateProjectModelDocument, {
+        input
+      })
+
+      expect(res).to.not.haveGraphQLErrors()
+      expect(res.data?.modelMutations.create.id).to.be.ok
+      expect(res.data?.modelMutations.create.name).to.equal(input.name)
     })
 
     describe('after creation', () => {

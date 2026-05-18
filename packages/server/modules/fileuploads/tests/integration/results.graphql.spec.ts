@@ -18,6 +18,8 @@ import { createFileUploadJob } from '@/modules/fileuploads/tests/helpers/creatio
 import type { BasicTestUser } from '@/test/authHelper'
 import { buildBasicTestUser, createTestUser } from '@/test/authHelper'
 import { createTestStream } from '@/test/speckle-helpers/streamHelper'
+import { addToStream } from '@/test/speckle-helpers/streamHelper'
+import { Roles } from '@speckle/shared'
 
 const { createToken } = initUploadTestEnvironment()
 
@@ -30,7 +32,9 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
     let sendRequest: Awaited<ReturnType<typeof initializeTestServer>>['sendRequest']
 
     let userOne: BasicTestUser
+    let userTwo: BasicTestUser
     let userOneToken: string
+    let userTwoToken: string
     let projectOneId: string
     let jobOneId: string
     let existingCanonicalUrl: string
@@ -50,6 +54,7 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
       process.env['PORT'] = serverPort
 
       userOne = await createTestUser(buildBasicTestUser())
+      userTwo = await createTestUser(buildBasicTestUser())
     })
 
     beforeEach(async () => {
@@ -66,12 +71,23 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
         name: createRandomString(),
         scopes: [Scopes.Streams.Read, Scopes.Streams.Write]
       }))
+      ;({ token: userTwoToken } = await createToken({
+        userId: userTwo.id,
+        name: createRandomString(),
+        scopes: [Scopes.Streams.Read, Scopes.Streams.Write]
+      }))
 
       //FIXME currently assuming a 1:1 file to job mapping
       ;({ id: jobOneId } = await createFileUploadJob({
         projectId: projectOneId,
         userId: userOne.id
       }))
+      await addToStream(
+        { id: projectOneId, name: 'Test Project', isPublic: false, ownerId: userOne.id },
+        userTwo,
+        Roles.Stream.Reviewer,
+        { owner: userOne }
+      )
     })
 
     afterEach(async () => {
@@ -317,6 +333,32 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
         expect(fileResponse.body.data.stream.fileUploads).to.have.lengthOf(1)
         expect(fileResponse.body.data.stream.fileUploads[0].convertedStatus).to.equal(
           FileUploadConvertedStatus.Error
+        )
+      })
+
+      it('should 200 for a reviewer with server:user token', async () => {
+        const successPayload = {
+          projectId: projectOneId,
+          jobId: jobOneId,
+          status: 'success',
+          result: {
+            versionId: cryptoRandomString({ length: 10 }),
+            durationSeconds: randomInt(1, 3600),
+            downloadDurationSeconds: randomInt(1, 3600),
+            parseDurationSeconds: randomInt(1, 3600),
+            parser: 'ifc'
+          }
+        }
+
+        const gqlResponse = await finishFileUpload(userTwoToken, successPayload)
+        expect(noErrors(gqlResponse))
+        expect(gqlResponse.status).to.equal(200)
+
+        const fileResponse = await getFileUploads(projectOneId, userOneToken)
+        expect(noErrors(fileResponse))
+        expect(fileResponse.body.data.stream.fileUploads).to.have.lengthOf(1)
+        expect(fileResponse.body.data.stream.fileUploads[0].convertedStatus).to.equal(
+          FileUploadConvertedStatus.Completed
         )
       })
     })
