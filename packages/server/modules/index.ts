@@ -110,6 +110,7 @@ const getEnabledModuleNames = () => {
     'cross-server-sync',
     'dashboards',
     'emails',
+    'file-conversion',
     'fileuploads',
     'flow',
     'custom-role',

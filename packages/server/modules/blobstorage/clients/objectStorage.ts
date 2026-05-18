@@ -7,7 +7,12 @@ import {
   getS3SecretKey
 } from '@/modules/shared/helpers/envHelper'
 import type { S3ClientConfig } from '@aws-sdk/client-s3'
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client
+} from '@aws-sdk/client-s3'
 import { getSignedUrl as s3GetSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Optional } from '@speckle/shared'
 import type {
@@ -120,6 +125,18 @@ export const getSignedUrlFactory = (deps: {
   return async (params) => {
     const { objectKey, urlExpiryDurationSeconds } = params
     const command = new PutObjectCommand({ Bucket: bucket, Key: objectKey })
+    return s3GetSignedUrl(client, command, { expiresIn: urlExpiryDurationSeconds })
+  }
+}
+
+export const getSignedDownloadUrlFactory = (deps: {
+  objectStorage: ObjectStorage
+}): GetSignedUrl => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+  return async (params) => {
+    const { objectKey, urlExpiryDurationSeconds } = params
+    const command = new GetObjectCommand({ Bucket: bucket, Key: objectKey })
     return s3GetSignedUrl(client, command, { expiresIn: urlExpiryDurationSeconds })
   }
 }
