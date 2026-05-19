@@ -1,8 +1,3 @@
-import {
-  createBareToken,
-  createAppTokenFactory,
-  validateTokenFactory
-} from '@/modules/core/services/tokens'
 import { validateScopes } from '@/modules/shared'
 import { InvalidAccessCodeRequestError } from '@/modules/auth/errors'
 import type { Optional } from '@speckle/shared'
@@ -23,6 +18,7 @@ import {
   createAppTokenFromAccessCodeFactory,
   refreshAppTokenFactory
 } from '@/modules/auth/services/serverApps'
+import { convertSpeckleTokenToThirdParty } from '@/modules/auth/services/thirdPartyToken'
 import {
   getApiTokenByIdFactory,
   getTokenResourceAccessDefinitionsByIdFactory,
@@ -35,6 +31,11 @@ import {
   storeUserServerAppTokenFactory,
   updateApiTokenFactory
 } from '@/modules/core/repositories/tokens'
+import {
+  validateTokenFactory,
+  createBareToken,
+  createAppTokenFactory
+} from '@/modules/core/services/tokens'
 import {
   countAdminUsersFactory,
   getUserByEmailFactory,
@@ -535,6 +536,86 @@ export default function (app: Express) {
       const error = ensureError(err)
       req.log.info({ err: error }, 'SSO token login failed')
       return res.status(400).send({ err: error.message })
+    }
+  })
+
+  /*
+  将 Speckle token 转换为第三方平台 token
+  通过 Speckle token 获取用户信息，加密手机号后调用第三方接口
+   */
+  app.options('/auth/token/convert', corsMiddlewareFactory())
+  app.post('/auth/token/convert', corsMiddlewareFactory(), async (req, res) => {
+    try {
+      // 1. 从请求头获取 Speckle token
+      const authHeader = req.headers.authorization
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new BadRequestError('缺少有效的 Authorization header')
+      }
+      const speckleToken = authHeader.substring(7)
+
+      // 2. 验证 token 并获取用户 ID
+      const validateToken = validateTokenFactory({
+        revokeUserTokenById: revokeUserTokenByIdFactory({ db }),
+        getApiTokenById: getApiTokenByIdFactory({ db }),
+        getTokenAppInfo: getTokenAppInfoFactory({ db }),
+        getTokenScopesById: getTokenScopesByIdFactory({ db }),
+        getUserRole: getUserRoleFactory({ db }),
+        getTokenResourceAccessDefinitionsById:
+          getTokenResourceAccessDefinitionsByIdFactory({ db }),
+        updateApiToken: updateApiTokenFactory({ db })
+      })
+
+      const tokenValidationResult = await validateToken(speckleToken)
+      if (!('userId' in tokenValidationResult) || !tokenValidationResult.userId) {
+        throw new BadRequestError('无效的 Speckle token')
+      }
+
+      const userId = tokenValidationResult.userId
+
+      // 3. 获取用户信息（手机号存储在 email 字段）
+      const getUser = getUserFactory({ db })
+      const user = await getUser(userId)
+      
+      if (!user) {
+        throw new BadRequestError('用户不存在')
+      }
+
+      // 用户的手机号存储在 email 字段中
+      const mobile = user.email
+      if (!mobile) {
+        throw new BadRequestError('用户手机号不存在')
+      }
+
+      // 4. 调用第三方接口获取 token
+      const result = await withOperationLogging(
+        async () => await convertSpeckleTokenToThirdParty(mobile),
+        {
+          operationName: 'convertSpeckleTokenToThirdParty',
+          operationDescription: 'Convert Speckle token to third-party token',
+          logger: req.log
+        }
+      )
+
+      // 5. 返回结果
+      return res.status(200).send({
+        success: true,
+        token: result.results.tokens[0],
+        refreshToken: null,
+        userInfo: {
+          name: result.results.name,
+          mobile: result.results.mobile,
+          wdpId: result.results.wdpId,
+          teamId: result.results.teamId,
+          roles: result.results.roles
+        }
+      })
+    } catch (err) {
+      const error = ensureError(err)
+      req.log.info({ err: error }, 'Error while converting Speckle token to third-party token')
+      return res.status(err instanceof BadRequestError ? 400 : 500).send({
+        success: false,
+        error: error.message
+      })
     }
   })
 
