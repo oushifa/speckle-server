@@ -8,16 +8,31 @@ import {
   updateViewerCatalogFactory,
   deleteViewerCatalogFactory
 } from '@/modules/viewer/repositories/viewerCatalogs'
+import type { ViewerCatalogNode } from '@/modules/viewer/domain/types/viewerCatalogs'
 import { buildAuthPolicies } from '@/modules'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { ensureError } from '@speckle/shared'
 
-const catalogErrHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+const catalogErrHandler = (
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   if (!err) return next()
   const error = ensureError(err)
   const status = resolveStatusCode(error)
   res.status(status).json({ error: error.message })
+}
+
+const getModelIdFromRequest = (req: Request) => {
+  const modelId = req.query.modelId
+  if (typeof modelId !== 'string' || !modelId.trim()) {
+    throw new Error('modelId is required')
+  }
+
+  return modelId
 }
 
 const buildCatalogsRoute = (router: Router) => {
@@ -33,6 +48,7 @@ const buildCatalogsRoute = (router: Router) => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const projectId = req.params.projectId
+        const modelId = getModelIdFromRequest(req)
 
         const authz = await buildAuthPolicies({ authContext: req.context })
         const authResults = await Promise.all([
@@ -44,7 +60,7 @@ const buildCatalogsRoute = (router: Router) => {
         const getViewerCatalogsByProject = getViewerCatalogsByProjectFactory({
           db: projectDb
         })
-        const catalogs = await getViewerCatalogsByProject(projectId)
+        const catalogs = await getViewerCatalogsByProject(projectId, modelId)
 
         res.json({ data: catalogs })
       } catch (err) {
@@ -61,7 +77,11 @@ const buildCatalogsRoute = (router: Router) => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const projectId = req.params.projectId
-        const { title, treeData } = req.body
+        const modelId = getModelIdFromRequest(req)
+        const { title, treeData } = req.body as {
+          title?: string
+          treeData?: ViewerCatalogNode[]
+        }
 
         if (!title) {
           throw new Error('Catalog title is required')
@@ -78,6 +98,7 @@ const buildCatalogsRoute = (router: Router) => {
 
         const newCatalog = await createViewerCatalog({
           projectId,
+          modelId,
           authorId: req.context.userId || null,
           title,
           treeData: JSON.stringify(treeData || [])
@@ -98,8 +119,12 @@ const buildCatalogsRoute = (router: Router) => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const projectId = req.params.projectId
+        const modelId = getModelIdFromRequest(req)
         const catalogId = req.params.catalogId
-        const { title, treeData } = req.body
+        const { title, treeData } = req.body as {
+          title?: string
+          treeData?: ViewerCatalogNode[]
+        }
 
         const authz = await buildAuthPolicies({ authContext: req.context })
         const authResults = await Promise.all([
@@ -110,13 +135,14 @@ const buildCatalogsRoute = (router: Router) => {
         const projectDb = await getProjectDbClient({ projectId })
         const updateViewerCatalog = updateViewerCatalogFactory({ db: projectDb })
 
-        const updatePayload: any = {}
+        const updatePayload: { title?: string; treeData?: string } = {}
         if (title !== undefined) updatePayload.title = title
         if (treeData !== undefined) updatePayload.treeData = JSON.stringify(treeData)
 
         const updatedCatalog = await updateViewerCatalog({
           id: catalogId,
           projectId,
+          modelId,
           update: updatePayload
         })
 
@@ -139,6 +165,7 @@ const buildCatalogsRoute = (router: Router) => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const projectId = req.params.projectId
+        const modelId = getModelIdFromRequest(req)
         const catalogId = req.params.catalogId
 
         const authz = await buildAuthPolicies({ authContext: req.context })
@@ -150,7 +177,7 @@ const buildCatalogsRoute = (router: Router) => {
         const projectDb = await getProjectDbClient({ projectId })
         const deleteViewerCatalog = deleteViewerCatalogFactory({ db: projectDb })
 
-        const success = await deleteViewerCatalog(catalogId, projectId)
+        const success = await deleteViewerCatalog(catalogId, projectId, modelId)
 
         if (!success) {
           return res.status(404).json({ error: 'Catalog not found' })
