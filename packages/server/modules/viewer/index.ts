@@ -2,6 +2,7 @@ import { getFeatureFlags } from '@/modules/shared/helpers/envHelper'
 import type { SpeckleModule } from '@/modules/shared/helpers/typeHelper'
 import { getSavedViewsRouter } from '@/modules/viewer/rest/savedViews'
 import { getViewerCatalogsRouter } from '@/modules/viewer/rest/viewerCatalogs'
+import { getViewerObjectCustomAttributesRouter } from '@/modules/viewer/rest/viewerObjectCustomAttributes'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import { publish } from '@/modules/shared/utils/subscriptions'
 import { reportSubscriptionEventsFactory } from '@/modules/viewer/events/subscriptionListeners'
@@ -14,6 +15,7 @@ const viewerModule: SpeckleModule = {
     viewerLogger.info('🤩 Initializing viewer module...')
     app.use(getSavedViewsRouter())
     app.use(getViewerCatalogsRouter())
+    app.use(getViewerObjectCustomAttributesRouter())
 
     if (isInitial) {
       reportSubscriptionEventsFactory({
