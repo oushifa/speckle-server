@@ -55,16 +55,22 @@ export const getViewerObjectCustomAttributesFactory =
   async (params: {
     projectId: string
     modelId: string
-    applicationId: string
+    applicationId?: string
   }): Promise<ViewerObjectCustomAttribute[]> => {
-    const records = await tables
+    const query = tables
       .viewerObjectCustomAttributes(deps.db)
       .where({
         [ViewerObjectCustomAttributes.col.projectId]: params.projectId,
-        [ViewerObjectCustomAttributes.col.modelId]: params.modelId,
+        [ViewerObjectCustomAttributes.col.modelId]: params.modelId
+      })
+
+    if (params.applicationId) {
+      query.andWhere({
         [ViewerObjectCustomAttributes.col.applicationId]: params.applicationId
       })
-      .orderBy('createdAt', 'asc')
+    }
+
+    const records = await query.orderBy('createdAt', 'asc')
 
     return records
   }

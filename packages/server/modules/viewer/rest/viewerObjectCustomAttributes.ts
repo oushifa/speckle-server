@@ -35,8 +35,12 @@ const getModelIdFromRequest = (req: Request) => {
 
 const getApplicationIdFromRequest = (req: Request) => {
   const applicationId = req.query.applicationId
+  if (applicationId === undefined) {
+    return undefined
+  }
+
   if (typeof applicationId !== 'string' || !applicationId.trim()) {
-    throw new Error('applicationId is required')
+    throw new Error('applicationId must be a non-empty string')
   }
 
   return applicationId
