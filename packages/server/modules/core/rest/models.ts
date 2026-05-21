@@ -10,7 +10,9 @@ import {
 } from '@/modules/core/dbSchema'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
-import { ensureError } from '@speckle/shared'
+import { ensureError, Roles } from '@speckle/shared'
+import { getDepartmentUserIdsFactory } from '@/modules/organizations/services/departmentFilter'
+import { db } from '@/db/knex'
 
 type ModelRow = {
   id: string
@@ -37,6 +39,7 @@ const modelsErrHandler = (
 
 export default (app: Router) => {
   const route = '/api/v1/models'
+  const getDepartmentUserIds = getDepartmentUserIdsFactory({ db })
 
   app.options(route, cors(), allowCrossOriginResourceAccessMiddelware())
 
@@ -66,6 +69,24 @@ export default (app: Router) => {
           Math.max(1, parseInt(pageSize as string) || 10)
         )
 
+        // 根据用户角色决定查询范围
+        let allowedUserIds: string[] | undefined
+        
+        // 如果不是 admin,只查询所属部门用户的模型
+        if (req.context.role !== Roles.Server.Admin && userId) {
+          allowedUserIds = await getDepartmentUserIds(userId)
+          
+          // 如果用户不属于任何部门,返回空列表
+          if (allowedUserIds.length === 0) {
+            return res.json({
+              data: [],
+              total: 0,
+              page: currentPage,
+              pageSize: currentPageSize
+            })
+          }
+        }
+
         const latestCommitIdQuery = knex(BranchCommits.name)
           .select(BranchCommits.col.commitId)
           .innerJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
@@ -92,6 +113,10 @@ export default (app: Router) => {
         }
         if (member === 'mine' && userId) {
           countQuery.where(`${Branches.name}.authorId`, userId)
+        }
+        // 如果不是 admin 且没有设置 member='mine',则按部门用户过滤
+        if (allowedUserIds && member !== 'mine') {
+          countQuery.whereIn(`${Branches.name}.authorId`, allowedUserIds)
         }
 
         const countResult = await countQuery
@@ -128,6 +153,10 @@ export default (app: Router) => {
         // member 筛选：mine = 当前用户创建的模型
         if (member === 'mine' && userId) {
           q.where(`${Branches.name}.authorId`, userId)
+        }
+        // 如果不是 admin 且没有设置 member='mine',则按部门用户过滤
+        if (allowedUserIds && member !== 'mine') {
+          q.whereIn(`${Branches.name}.authorId`, allowedUserIds)
         }
 
         const models = await q

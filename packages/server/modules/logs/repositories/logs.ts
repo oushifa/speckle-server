@@ -96,8 +96,8 @@ type LogEventRow = {
 
 export const listLogEventsFactory =
   ({ db }: { db: Knex }) =>
-  async ({ limit }: { limit: number }) => {
-    const rows = await db(SYS_LOG_TABLE)
+  async ({ limit, userIds }: { limit: number; userIds?: string[] }) => {
+    const query = db(SYS_LOG_TABLE)
       .select<LogEventRow[]>(
         'id',
         'event_time',
@@ -121,6 +121,13 @@ export const listLogEventsFactory =
         'request_id',
         'metadata'
       )
+    
+    // 如果提供了用户ID列表,只查询这些用户的日志
+    if (userIds && userIds.length > 0) {
+      query.whereIn('user_id', userIds)
+    }
+    
+    const rows = await query
       .orderBy('event_time', 'desc')
       .limit(limit)
 

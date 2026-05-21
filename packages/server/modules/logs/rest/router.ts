@@ -6,6 +6,8 @@ import { enqueueLogEvents } from '@/modules/logs/services/queue'
 import { db } from '@/db/knex'
 import { listLogEventsFactory } from '@/modules/logs/repositories/logs'
 import { getUsersFactory } from '@/modules/core/repositories/users'
+import { Roles } from '@speckle/shared'
+import { getDepartmentUserIdsFactory } from '@/modules/organizations/services/departmentFilter'
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.context.auth) return res.status(401).send({ error: 'Authentication required.' })
@@ -25,13 +27,28 @@ export const logsRouterFactory = (): Router => {
   const app = Router()
   const listLogEvents = listLogEventsFactory({ db })
   const getUsers = getUsersFactory({ db })
+  const getDepartmentUserIds = getDepartmentUserIdsFactory({ db })
 
   app.get('/api/v1/logs/events', requireAuth, async (req, res) => {
     const limit = clampLimit(req.query.limit)
-    const rows = await listLogEvents({ limit })
-    const userIds = [...new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id))]
-    const users = userIds.length
-      ? await getUsers(userIds, {
+    
+    // 根据用户角色决定查询范围
+    let userIds: string[] | undefined
+    
+    // 如果不是 admin,只查询所属部门用户的日志
+    if (req.context.role !== Roles.Server.Admin && req.context.userId) {
+      userIds = await getDepartmentUserIds(req.context.userId)
+      
+      // 如果用户不属于任何部门,返回空列表
+      if (userIds.length === 0) {
+        return res.status(200).send({ events: [] })
+      }
+    }
+    
+    const rows = await listLogEvents({ limit, userIds })
+    const rowUserIds = [...new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id))]
+    const users = rowUserIds.length
+      ? await getUsers(rowUserIds, {
           skipClean: true
         })
       : []
