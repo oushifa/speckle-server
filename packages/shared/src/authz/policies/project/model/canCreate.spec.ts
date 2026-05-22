@@ -36,6 +36,9 @@ const buildCanCreateModelPolicy = (
     getServerRole: async () => {
       return Roles.Server.User
     },
+    getAdminOverrideEnabled: async () => {
+      return false
+    },
     getWorkspace: async () => {
       return {} as Workspace
     },
@@ -120,6 +123,22 @@ describe('canCreateModelPolicy returns a function, that', () => {
     })
   })
 
+  it('allows server admins with admin override even without project role', async () => {
+    const result = await buildCanCreateModelPolicy({
+      getServerRole: async () => {
+        return Roles.Server.Admin
+      },
+      getAdminOverrideEnabled: async () => {
+        return true
+      },
+      getProjectRole: async () => {
+        return null
+      }
+    })(canCreateArgs())
+
+    expect(result).toBeAuthOKResult()
+  })
+
   it('forbids if personal project limits are enabled', async () => {
     const sut = buildCanCreateModelPolicy({
       getEnv: async () =>
@@ -184,6 +203,61 @@ describe('canCreateModelPolicy returns a function, that', () => {
       payload: { limit: 'modelCount' }
     })
   })
+
+  it('allows server admins with admin override even if workspace has reached limit', async () => {
+    const result = await buildCanCreateModelPolicy({
+      getServerRole: async () => {
+        return Roles.Server.Admin
+      },
+      getAdminOverrideEnabled: async () => {
+        return true
+      },
+      getProjectRole: async () => {
+        return null
+      },
+      getWorkspaceLimits: async () => {
+        return {
+          projectCount: 1,
+          modelCount: 5,
+          versionsHistory: null,
+          commentHistory: null
+        }
+      },
+      getWorkspaceModelCount: async () => {
+        return 5
+      }
+    })(canCreateArgs())
+
+    expect(result).toBeAuthOKResult()
+  })
+
+  it('allows workspace admins even if workspace has reached limit', async () => {
+    const result = await buildCanCreateModelPolicy({
+      getWorkspaceRole: async () => {
+        return Roles.Workspace.Admin
+      },
+      getWorkspaceSsoProvider: async () => {
+        return null
+      },
+      getProjectRole: async () => {
+        return null
+      },
+      getWorkspaceLimits: async () => {
+        return {
+          projectCount: 1,
+          modelCount: 5,
+          versionsHistory: null,
+          commentHistory: null
+        }
+      },
+      getWorkspaceModelCount: async () => {
+        return 5
+      }
+    })(canCreateArgs())
+
+    expect(result).toBeAuthOKResult()
+  })
+
   it('allows new model creation if workspace is within limits', async () => {
     const result = await buildCanCreateModelPolicy({})(canCreateArgs())
     expect(result).toBeAuthOKResult()

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RVT Worker Simulator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0f172a;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 12px;
+      }
+
+      p,
+      label,
+      input,
+      button,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      .layout {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(320px, 420px) minmax(420px, 1fr);
+      }
+
+      .card {
+        border: 1px solid #1e293b;
+        border-radius: 16px;
+        background: #111827;
+        padding: 20px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .inline {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #334155;
+      }
+
+      button.danger {
+        background: #dc2626;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
+      }
+
+      .status {
+        font-size: 14px;
+        color: #93c5fd;
+      }
+
+      .jobs {
+        display: grid;
+        gap: 12px;
+      }
+
+      .job {
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+        background: #0b1120;
+      }
+
+      .job pre,
+      #logs {
+        margin: 0;
+        padding: 12px;
+        border-radius: 10px;
+        background: #020617;
+        border: 1px solid #1e293b;
+        overflow: auto;
+      }
+
+      #logs {
+        min-height: 280px;
+        max-height: 560px;
+        white-space: pre-wrap;
+      }
+
+      .muted {
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      @media (max-width: 1080px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <section class="card stack">
+        <div>
+          <h1>RVT Worker Simulator</h1>
+          <p class="muted">
+            Connect to
+            <code>/api/ws/rvt-conversion</code>
+            , receive
+            <code>start_rvt_conversion</code>
+            , then callback internal REST APIs.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="serverOrigin">Server Origin</label>
+          <input id="serverOrigin" />
+        </div>
+
+        <div class="field">
+          <label for="workerId">Worker Id</label>
+          <input id="workerId" value="mock-worker-01" />
+        </div>
+
+        <div class="field">
+          <label for="serviceToken">Service Token</label>
+          <input id="serviceToken" value="file-conversion-service-token" />
+        </div>
+
+        <div class="field">
+          <label for="workerVersion">Worker Version</label>
+          <input id="workerVersion" value="mock-1.0.0" />
+        </div>
+
+        <div class="field">
+          <label for="heartbeatSeconds">Heartbeat Seconds</label>
+          <input id="heartbeatSeconds" type="number" min="5" value="15" />
+        </div>
+
+        <div class="field">
+          <label for="versionIdPrefix">Mock Version Id Prefix</label>
+          <input id="versionIdPrefix" value="mock-version" />
+        </div>
+
+        <div class="inline">
+          <label>
+            <input id="autoAck" type="checkbox" checked />
+            Auto ACK
+          </label>
+          <label>
+            <input id="autoSuccess" type="checkbox" checked />
+            Auto success
+          </label>
+        </div>
+
+        <div class="field">
+          <label for="successDelayMs">Auto success delay (ms)</label>
+          <input id="successDelayMs" type="number" min="0" value="2000" />
+        </div>
+
+        <div class="inline">
+          <button id="connectButton">Connect</button>
+          <button id="disconnectButton" class="secondary" disabled>Disconnect</button>
+          <button id="clearLogsButton" class="secondary">Clear Logs</button>
+        </div>
+
+        <div class="status" id="connectionStatus">Disconnected</div>
+      </section>
+
+      <section class="card stack">
+        <div>
+          <h2>Jobs</h2>
+          <p class="muted">
+            WebSocket URL uses only
+            <code>token</code>
+            ; worker identity is sent after connect via
+            <code>worker_register</code>
+            .
+          </p>
+          <p class="muted">
+            ACK/result callbacks use
+            <code>FILE_CONVERSION_SERVICE_TOKEN</code>
+            .
+          </p>
+        </div>
+        <div class="jobs" id="jobs"></div>
+        <div>
+          <h2>Logs</h2>
+          <pre id="logs"></pre>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const state = {
+        socket: null,
+        heartbeatTimer: null,
+        jobs: []
+      }
+
+      const els = {
+        serverOrigin: document.getElementById('serverOrigin'),
+        workerId: document.getElementById('workerId'),
+        serviceToken: document.getElementById('serviceToken'),
+        workerVersion: document.getElementById('workerVersion'),
+        heartbeatSeconds: document.getElementById('heartbeatSeconds'),
+        versionIdPrefix: document.getElementById('versionIdPrefix'),
+        autoAck: document.getElementById('autoAck'),
+        autoSuccess: document.getElementById('autoSuccess'),
+        successDelayMs: document.getElementById('successDelayMs'),
+        connectButton: document.getElementById('connectButton'),
+        disconnectButton: document.getElementById('disconnectButton'),
+        clearLogsButton: document.getElementById('clearLogsButton'),
+        connectionStatus: document.getElementById('connectionStatus'),
+        jobs: document.getElementById('jobs'),
+        logs: document.getElementById('logs')
+      }
+
+      const defaultOrigin = window.location.origin.startsWith('http')
+        ? window.location.origin
+        : 'http://127.0.0.1:3000'
+
+      els.serverOrigin.value = defaultOrigin
+
+      const now = () => new Date().toISOString()
+
+      const log = (message, data) => {
+        const payload =
+          data === undefined
+            ? ''
+            : ` ${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`
+        els.logs.textContent = `[${now()}] ${message}${payload}\n${
+          els.logs.textContent
+        }`
+      }
+
+      const setStatus = (message) => {
+        els.connectionStatus.textContent = message
+      }
+
+      const renderJobs = () => {
+        els.jobs.innerHTML = ''
+
+        if (!state.jobs.length) {
+          const empty = document.createElement('div')
+          empty.className = 'muted'
+          empty.textContent = 'No tasks received yet.'
+          els.jobs.appendChild(empty)
+          return
+        }
+
+        state.jobs.forEach((job) => {
+          const wrapper = document.createElement('div')
+          wrapper.className = 'job'
+
+          const summary = document.createElement('div')
+          summary.innerHTML = `
+            <strong>${job.fileName || job.taskId}</strong><br />
+            <span class="muted">taskId: ${job.taskId}</span><br />
+            <span class="muted">projectId: ${job.projectId}</span><br />
+            <span class="muted">modelId: ${job.modelId}</span><br />
+            <span class="muted">status: ${job.localStatus}</span>
+          `
+
+          const payload = document.createElement('pre')
+          payload.textContent = JSON.stringify(job, null, 2)
+
+          const actions = document.createElement('div')
+          actions.className = 'inline'
+
+          const ackButton = document.createElement('button')
+          ackButton.textContent = 'Send ACK'
+          ackButton.onclick = () => sendAck(job)
+
+          const successButton = document.createElement('button')
+          successButton.textContent = 'Send Success'
+          successButton.onclick = () => sendSuccess(job)
+
+          const failedButton = document.createElement('button')
+          failedButton.className = 'danger'
+          failedButton.textContent = 'Send Failed'
+          failedButton.onclick = () => sendFailed(job)
+
+          actions.appendChild(ackButton)
+          actions.appendChild(successButton)
+          actions.appendChild(failedButton)
+
+          wrapper.appendChild(summary)
+          wrapper.appendChild(actions)
+          wrapper.appendChild(payload)
+          els.jobs.appendChild(wrapper)
+        })
+      }
+
+      const updateJob = (taskId, partial) => {
+        const index = state.jobs.findIndex((job) => job.taskId === taskId)
+        if (index === -1) return
+        state.jobs[index] = { ...state.jobs[index], ...partial }
+        renderJobs()
+      }
+
+      const buildCallbackHeaders = () => {
+        return {
+          'Content-Type': 'application/json',
+          'x-rvt-conversion-token': els.serviceToken.value.trim()
+        }
+      }
+
+      const getWorkerExternalTaskId = (job) => {
+        if (job.externalTaskId) return job.externalTaskId
+        return `${els.workerId.value.trim() || 'worker'}-${job.taskId}`
+      }
+
+      const sendAck = async (job) => {
+        const url = `${els.serverOrigin.value.replace(
+          /\/$/,
+          ''
+        )}/api/v1/internal/projects/${job.projectId}/rvt/jobs/${job.taskId}/ack`
+        const payload = {
+          externalTaskId: getWorkerExternalTaskId(job)
+        }
+
+        log('Sending ACK', { url, payload })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: buildCallbackHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        const text = await res.text()
+        if (!res.ok) {
+          throw new Error(`ACK failed: ${res.status} ${text}`)
+        }
+
+        updateJob(job.taskId, {
+          externalTaskId: payload.externalTaskId,
+          localStatus: 'acknowledged'
+        })
+        log('ACK success', text)
+      }
+
+      const sendSuccess = async (job) => {
+        const url = `${els.serverOrigin.value.replace(
+          /\/$/,
+          ''
+        )}/api/v1/internal/projects/${job.projectId}/rvt/jobs/${job.taskId}/result`
+        const payload = {
+          status: 'success',
+          externalTaskId: getWorkerExternalTaskId(job),
+          versionId: `${els.versionIdPrefix.value.trim() || 'mock-version'}-${
+            job.taskId
+          }`
+        }
+
+        log('Sending success result', { url, payload })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: buildCallbackHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        const text = await res.text()
+        if (!res.ok) {
+          throw new Error(`Success callback failed: ${res.status} ${text}`)
+        }
+
+        updateJob(job.taskId, {
+          externalTaskId: payload.externalTaskId,
+          versionId: payload.versionId,
+          localStatus: 'succeeded'
+        })
+        log('Success callback complete', text)
+      }
+
+      const sendFailed = async (job) => {
+        const url = `${els.serverOrigin.value.replace(
+          /\/$/,
+          ''
+        )}/api/v1/internal/projects/${job.projectId}/rvt/jobs/${job.taskId}/result`
+        const payload = {
+          status: 'failed',
+          externalTaskId: getWorkerExternalTaskId(job),
+          errorMessage: 'Simulated conversion failure from mock worker.'
+        }
+
+        log('Sending failed result', { url, payload })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: buildCallbackHeaders(),
+          body: JSON.stringify(payload)
+        })
+
+        const text = await res.text()
+        if (!res.ok) {
+          throw new Error(`Failed callback failed: ${res.status} ${text}`)
+        }
+
+        updateJob(job.taskId, {
+          externalTaskId: payload.externalTaskId,
+          errorMessage: payload.errorMessage,
+          localStatus: 'failed'
+        })
+        log('Failed callback complete', text)
+      }
+
+      const scheduleHeartbeat = () => {
+        clearInterval(state.heartbeatTimer)
+        const seconds = Number(els.heartbeatSeconds.value || 15)
+        state.heartbeatTimer = window.setInterval(() => {
+          if (!state.socket || state.socket.readyState !== WebSocket.OPEN) return
+          state.socket.send(
+            JSON.stringify({
+              type: 'heartbeat',
+              workerId: els.workerId.value.trim()
+            })
+          )
+          log('Heartbeat sent')
+        }, Math.max(5, seconds) * 1000)
+      }
+
+      const connect = () => {
+        const origin = els.serverOrigin.value.replace(/^http/, 'ws').replace(/\/$/, '')
+        const token = encodeURIComponent(els.serviceToken.value.trim())
+        const socketUrl = `${origin}/api/ws/rvt-conversion?token=${token}`
+
+        log('Connecting', socketUrl)
+        const socket = new WebSocket(socketUrl)
+        state.socket = socket
+
+        socket.addEventListener('open', () => {
+          setStatus(`Connected: ${socketUrl}`)
+          els.connectButton.disabled = true
+          els.disconnectButton.disabled = false
+          socket.send(
+            JSON.stringify({
+              type: 'worker_register',
+              workerId: els.workerId.value.trim(),
+              capabilities: ['rvt'],
+              version: els.workerVersion.value.trim() || null
+            })
+          )
+          log('worker_register sent')
+          scheduleHeartbeat()
+        })
+
+        socket.addEventListener('message', async (event) => {
+          let data
+          try {
+            data = JSON.parse(event.data)
+          } catch (error) {
+            log('Received non-JSON message', String(event.data))
+            return
+          }
+
+          log('Received task', data)
+
+          if (data.type !== 'start_rvt_conversion') return
+
+          state.jobs.unshift({
+            ...data,
+            externalTaskId: `${els.workerId.value.trim() || 'worker'}-${data.taskId}`,
+            localStatus: 'received'
+          })
+          renderJobs()
+
+          try {
+            if (els.autoAck.checked) {
+              await sendAck(data)
+            }
+
+            if (els.autoSuccess.checked) {
+              const delay = Math.max(0, Number(els.successDelayMs.value || 0))
+              window.setTimeout(() => {
+                sendSuccess(data).catch((error) => {
+                  log('Auto success failed', error.message)
+                })
+              }, delay)
+            }
+          } catch (error) {
+            log(
+              'Auto handling failed',
+              error instanceof Error ? error.message : String(error)
+            )
+          }
+        })
+
+        socket.addEventListener('close', () => {
+          setStatus('Disconnected')
+          els.connectButton.disabled = false
+          els.disconnectButton.disabled = true
+          clearInterval(state.heartbeatTimer)
+          state.socket = null
+          log('Socket closed')
+        })
+
+        socket.addEventListener('error', (error) => {
+          log('Socket error', error.type || 'unknown error')
+        })
+      }
+
+      const disconnect = () => {
+        clearInterval(state.heartbeatTimer)
+        if (state.socket) {
+          state.socket.close()
+        }
+      }
+
+      els.connectButton.addEventListener('click', connect)
+      els.disconnectButton.addEventListener('click', disconnect)
+      els.clearLogsButton.addEventListener('click', () => {
+        els.logs.textContent = ''
+      })
+
+      renderJobs()
+      log('Simulator ready')
+    </script>
+  </body>
+</html>

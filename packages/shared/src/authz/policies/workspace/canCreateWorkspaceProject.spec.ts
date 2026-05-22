@@ -14,6 +14,7 @@ import { nanoid } from 'nanoid'
 import { canCreateWorkspaceProjectPolicy } from './canCreateWorkspaceProject.js'
 import { parseFeatureFlags } from '../../../environment/index.js'
 import cryptoRandomString from 'crypto-random-string'
+import { Roles } from '../../../core/constants.js'
 import { WorkspacePlan } from '../../../workspaces/index.js'
 import { Workspace, WorkspaceSsoProvider } from '../../domain/workspaces/types.js'
 
@@ -137,6 +138,42 @@ describe('canCreateWorkspaceProjectPolicy creates a function, that handles', () 
       expect(result).toBeAuthErrorResult({
         code: ServerNotEnoughPermissionsError.code
       })
+    })
+
+    it('allows server admins when admin override is enabled even without workspace role', async () => {
+      const result = await canCreateWorkspaceProjectPolicy({
+        getEnv: async () => parseFeatureFlags({ FF_WORKSPACES_MODULE_ENABLED: 'true' }),
+        getAdminOverrideEnabled: async () => true,
+        getServerRole: async () => {
+          return Roles.Server.Admin
+        },
+        getWorkspaceRole: async () => {
+          assert.fail()
+        },
+        getWorkspace: async () => {
+          assert.fail()
+        },
+        getWorkspaceSeat: async () => {
+          assert.fail()
+        },
+        getWorkspacePlan: async () => {
+          assert.fail()
+        },
+        getWorkspaceLimits: async () => {
+          assert.fail()
+        },
+        getWorkspaceProjectCount: async () => {
+          assert.fail()
+        },
+        getWorkspaceSsoProvider: async () => {
+          assert.fail()
+        },
+        getWorkspaceSsoSession: async () => {
+          assert.fail()
+        }
+      })(canCreateArgs())
+
+      expect(result).toBeAuthOKResult()
     })
   })
 
@@ -334,6 +371,41 @@ describe('canCreateWorkspaceProjectPolicy creates a function, that handles', () 
       expect(result).toBeAuthErrorResult({
         code: WorkspaceNoEditorSeatError.code
       })
+    })
+
+    it('allows workspace admins without checking seat', async () => {
+      const result = await canCreateWorkspaceProjectPolicy({
+        getEnv: async () => parseFeatureFlags({ FF_WORKSPACES_MODULE_ENABLED: 'true' }),
+        getServerRole: async () => {
+          return Roles.Server.User
+        },
+        getWorkspaceRole: async () => {
+          return Roles.Workspace.Admin
+        },
+        getWorkspace: async () => {
+          return {} as Workspace
+        },
+        getWorkspaceSeat: async () => {
+          assert.fail()
+        },
+        getWorkspacePlan: async () => {
+          assert.fail()
+        },
+        getWorkspaceLimits: async () => {
+          assert.fail()
+        },
+        getWorkspaceProjectCount: async () => {
+          assert.fail()
+        },
+        getWorkspaceSsoProvider: async () => {
+          return null
+        },
+        getWorkspaceSsoSession: async () => {
+          assert.fail()
+        }
+      })(canCreateArgs())
+
+      expect(result).toBeAuthOKResult()
     })
   })
 
@@ -621,6 +693,41 @@ describe('canCreateWorkspaceProjectPolicy creates a function, that handles', () 
         code: WorkspaceLimitsReachedError.code,
         payload: { limit: 'projectCount' }
       })
+    })
+
+    it('allows workspace admins even if project limit is reached', async () => {
+      const result = await canCreateWorkspaceProjectPolicy({
+        getEnv: async () => parseFeatureFlags({ FF_WORKSPACES_MODULE_ENABLED: 'true' }),
+        getServerRole: async () => {
+          return Roles.Server.User
+        },
+        getWorkspaceRole: async () => {
+          return Roles.Workspace.Admin
+        },
+        getWorkspace: async () => {
+          return {} as Workspace
+        },
+        getWorkspaceSeat: async () => {
+          assert.fail()
+        },
+        getWorkspacePlan: async () => {
+          assert.fail()
+        },
+        getWorkspaceLimits: async () => {
+          assert.fail()
+        },
+        getWorkspaceProjectCount: async () => {
+          assert.fail()
+        },
+        getWorkspaceSsoProvider: async () => {
+          return null
+        },
+        getWorkspaceSsoSession: async () => {
+          assert.fail()
+        }
+      })(canCreateArgs())
+
+      expect(result).toBeAuthOKResult()
     })
   })
 })

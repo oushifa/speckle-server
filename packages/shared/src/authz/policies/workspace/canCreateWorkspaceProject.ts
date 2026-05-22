@@ -13,6 +13,7 @@ import {
 } from '../../domain/authErrors.js'
 import { err, ok } from 'true-myth/result'
 import { Roles } from '../../../core/constants.js'
+import { hasMinimumWorkspaceRole } from '../../checks/workspaceRole.js'
 import {
   ensureWorkspaceProjectCanBeCreatedFragment,
   ensureWorkspaceRoleAndSessionFragment,
@@ -49,6 +50,22 @@ export const canCreateWorkspaceProjectPolicy: AuthPolicy<
     const ensuredWorkspacesEnabled = await ensureWorkspacesEnabledFragment(loaders)({})
     if (ensuredWorkspacesEnabled.isErr) return err(ensuredWorkspacesEnabled.error)
 
+    const adminOverrideAvailable =
+      'getAdminOverrideEnabled' in loaders
+        ? await (
+            loaders as typeof loaders & {
+              getAdminOverrideEnabled: () => Promise<boolean>
+            }
+          ).getAdminOverrideEnabled()
+        : false
+    if (adminOverrideAvailable) {
+      const ensuredServerAdmin = await ensureMinimumServerRoleFragment(loaders)({
+        userId,
+        role: Roles.Server.Admin
+      })
+      if (ensuredServerAdmin.isOk) return ok()
+    }
+
     const ensuredServerRole = await ensureMinimumServerRoleFragment(loaders)({
       userId,
       role: Roles.Server.User
@@ -64,6 +81,13 @@ export const canCreateWorkspaceProjectPolicy: AuthPolicy<
     if (ensuredWorkspaceAccess.isErr) {
       return err(ensuredWorkspaceAccess.error)
     }
+
+    const isWorkspaceAdmin = await hasMinimumWorkspaceRole(loaders)({
+      userId: userId!,
+      workspaceId,
+      role: Roles.Workspace.Admin
+    })
+    if (isWorkspaceAdmin) return ok()
 
     // Ensure workspace accepts new projects
     const ensuredProjectsAccepted = await ensureWorkspaceProjectCanBeCreatedFragment(

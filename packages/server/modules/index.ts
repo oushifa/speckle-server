@@ -115,6 +115,7 @@ const getEnabledModuleNames = () => {
     'flow',
     'custom-role',
     'notifications',
+    'rvt-conversion',
     'previews',
     'progress',
     'project-statistics',

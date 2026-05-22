@@ -1,4 +1,6 @@
 import { err, ok } from 'true-myth/result'
+import { Roles } from '../../../../core/constants.js'
+import { hasMinimumWorkspaceRole } from '../../../checks/workspaceRole.js'
 import {
   ProjectNotFoundError,
   ProjectNoAccessError,
@@ -17,6 +19,7 @@ import { MaybeUserContext, ProjectContext } from '../../../domain/context.js'
 import { AuthCheckContextLoaderKeys } from '../../../domain/loaders.js'
 import { AuthPolicy } from '../../../domain/policies.js'
 import { ensureImplicitProjectMemberWithWriteAccessFragment } from '../../../fragments/projects.js'
+import { checkIfAdminOverrideEnabledFragment } from '../../../fragments/server.js'
 import { ensureModelCanBeCreatedFragment } from '../../../fragments/workspaces.js'
 
 type PolicyLoaderKeys =
@@ -31,6 +34,7 @@ type PolicyLoaderKeys =
   | typeof AuthCheckContextLoaderKeys.getWorkspacePlan
   | typeof AuthCheckContextLoaderKeys.getWorkspaceLimits
   | typeof AuthCheckContextLoaderKeys.getWorkspaceModelCount
+  | typeof AuthCheckContextLoaderKeys.getAdminOverrideEnabled
 
 type PolicyArgs = MaybeUserContext & ProjectContext
 
@@ -57,6 +61,13 @@ export const canCreateModelPolicy: AuthPolicy<
 > =
   (loaders) =>
   async ({ userId, projectId }) => {
+    const env = await loaders.getEnv()
+
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
+    })
+    if (isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value) return ok()
+
     // Ensure general write access
     const ensureWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
       loaders
@@ -66,6 +77,17 @@ export const canCreateModelPolicy: AuthPolicy<
     })
     if (ensureWriteAccess.isErr) {
       return err(ensureWriteAccess.error)
+    }
+
+    const project = await loaders.getProject({ projectId })
+    const workspaceId = project?.workspaceId
+    if (userId && workspaceId && env.FF_WORKSPACES_MODULE_ENABLED) {
+      const isWorkspaceAdmin = await hasMinimumWorkspaceRole(loaders)({
+        userId,
+        workspaceId,
+        role: Roles.Workspace.Admin
+      })
+      if (isWorkspaceAdmin) return ok()
     }
 
     // Ensure (workspace?) accepts models
