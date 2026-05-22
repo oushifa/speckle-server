@@ -1,15 +1,12 @@
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
-import { getApprovalFlowDefinitionByIdFactory } from '@/modules/flow/repositories/approvalFlows'
 import {
   countQualityAcceptanceFormsFactory,
-  createQualityAcceptanceFormFactory,
   deleteQualityAcceptanceFormFactory,
   getQualityAcceptanceFormsFactory,
   updateQualityAcceptanceFormFactory
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
-import { startApprovalFlowFactory } from '@/modules/flow/services/approvalFlows'
 import { BadRequestError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
@@ -18,13 +15,15 @@ import type { BimElements } from '@/modules/quality-acceptance-form/helpers/type
 import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
 import { isNonNullable } from '@speckle/shared'
 import { Roles } from '@speckle/shared'
-import cryptoRandomString from 'crypto-random-string'
 import { keyBy } from 'lodash-es'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
+import {
+  createQualityAcceptanceFormEntryFactory,
+  importQualityAcceptanceFormsFactory,
+  normalizeApproveStatus,
+  normalizeBimElements
+} from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
 
-const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
-const normalizeApproveStatus = (status?: string | number | null) =>
-  status === null || status === undefined ? null : String(status)
 const hasServerAdminOverride = (ctx: GraphQLContext) =>
   adminOverrideEnabled() && ctx.role === Roles.Server.Admin
 
@@ -47,86 +46,6 @@ type CreateQualityAcceptanceFormArgs = {
   BIMelement?: string[] | null
   timeZone?: string | null
   approveStatus?: string | null
-}
-
-const createQualityAcceptanceForm = async (params: {
-  input: CreateQualityAcceptanceFormArgs
-  ctx: GraphQLContext
-  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
-}) => {
-  const { input, ctx, projectDb } = params
-  if (!ctx.userId) throw new BadRequestError('Authentication required')
-
-  const flowId = input.flowId?.trim()
-  const now = new Date()
-  const created = await createQualityAcceptanceFormFactory({ db: projectDb })({
-    id: cryptoRandomString({ length: 10 }),
-    name: input.name ?? null,
-    boqItemId: input.boqItemId ?? null,
-    code: input.code ?? null,
-    inspectionLotNumber: input.inspectionLotNumber ?? null,
-    acceptancePart: input.acceptancePart ?? null,
-    acceptanceContent: input.acceptanceContent ?? null,
-    actualStartDate: input.actualStartDate ?? null,
-    actualFinishDate: input.actualFinishDate ?? null,
-    inspector: input.inspector ?? null,
-    attachments: input.attachments ?? null,
-    creator: ctx.userId,
-    ['project_id']: input.projectId,
-    workVolume: input.workVolume ?? null,
-    unit: input.unit ?? null,
-    bimElements: normalizeBimElements(
-      input.bimElements ?? null,
-      input.BIMelement ?? null
-    ),
-    timeZone: input.timeZone ?? null,
-    approveStatus: normalizeApproveStatus(input.approveStatus),
-    createdAt: now,
-    updatedAt: now
-  })
-  if (flowId) {
-    const definition = await getApprovalFlowDefinitionByIdFactory({ db })(flowId)
-    if (!definition || !definition.isActive || definition.resourceType !== 'FORMS') {
-      throw new BadRequestError('No active FORMS flow definition found for this form')
-    }
-    try {
-      await startApprovalFlowFactory({ db })({
-        definitionId: flowId,
-        projectId: input.projectId,
-        resourceId: `${QUALITY_ACCEPTANCE_FORM_TABLE}:${created.id}`,
-        formData: {
-          formTable: QUALITY_ACCEPTANCE_FORM_TABLE,
-          formId: created.id,
-          projectId: input.projectId
-        },
-        userId: ctx.userId
-      })
-    } catch (e) {
-      await deleteQualityAcceptanceFormFactory({ db: projectDb })(created.id)
-      throw e
-    }
-  }
-  return created
-}
-
-const normalizeBimElements = (
-  bimElements?: BimElements | null,
-  legacyBimElement?: string[] | null
-): BimElements | null => {
-  if (bimElements) {
-    const modelId = typeof bimElements.modelId === 'string' ? bimElements.modelId : ''
-    const bimIds = Array.isArray(bimElements.bimIds)
-      ? bimElements.bimIds.filter((id): id is string => typeof id === 'string')
-      : []
-    const applicationIds = Array.isArray(bimElements.applicationIds)
-      ? bimElements.applicationIds.filter((id): id is string => typeof id === 'string')
-      : []
-    return { modelId, bimIds, applicationIds }
-  }
-  if (Array.isArray(legacyBimElement)) {
-    return { modelId: '', bimIds: legacyBimElement, applicationIds: [] }
-  }
-  return null
 }
 
 const resolvers = {
@@ -230,10 +149,13 @@ const resolvers = {
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
-      const created = await createQualityAcceptanceForm({
-        input: args.input,
-        ctx,
+      if (!ctx.userId) throw new BadRequestError('Authentication required')
+      const created = await createQualityAcceptanceFormEntryFactory({
+        db,
         projectDb
+      })({
+        input: args.input,
+        actorUserId: ctx.userId
       })
       await recalculateProjectCostSummaryFactory({ db: projectDb })({
         projectId: args.input.projectId
@@ -262,34 +184,25 @@ const resolvers = {
       if (!ctx.userId) throw new BadRequestError('Authentication required')
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
-      let createdCount = 0
-      const failedRows: string[] = []
-
-      for (const item of args.input.items) {
-        try {
-          await createQualityAcceptanceForm({
-            input: {
-              ...item,
-              projectId: args.input.projectId
-            },
-            ctx,
-            projectDb
-          })
-          createdCount += 1
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err)
-          failedRows.push(`第 ${item.rowNumber} 行：${message}`)
-        }
-      }
+      const result = await importQualityAcceptanceFormsFactory({
+        db,
+        projectDb
+      })({
+        projectId: args.input.projectId,
+        items: args.input.items,
+        actorUserId: ctx.userId
+      })
 
       await recalculateProjectCostSummaryFactory({ db: projectDb })({
         projectId: args.input.projectId
       })
 
       return {
-        createdCount,
-        failedCount: failedRows.length,
-        failedRows
+        createdCount: result.createdCount,
+        failedCount: result.failedCount,
+        failedRows: result.failedRows.map(
+          (row) => `第 ${row.rowNumber} 行：${row.error}`
+        )
       }
     },
     updateForm: async (

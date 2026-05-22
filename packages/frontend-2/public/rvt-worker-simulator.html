@@ -200,6 +200,10 @@
             <input id="autoSuccess" type="checkbox" checked />
             Auto success
           </label>
+          <label>
+            <input id="publishWithSpeckleToken" type="checkbox" />
+            Use speckleToken to publish
+          </label>
         </div>
 
         <div class="field">
@@ -256,6 +260,7 @@
         versionIdPrefix: document.getElementById('versionIdPrefix'),
         autoAck: document.getElementById('autoAck'),
         autoSuccess: document.getElementById('autoSuccess'),
+        publishWithSpeckleToken: document.getElementById('publishWithSpeckleToken'),
         successDelayMs: document.getElementById('successDelayMs'),
         connectButton: document.getElementById('connectButton'),
         disconnectButton: document.getElementById('disconnectButton'),
@@ -308,6 +313,7 @@
             <span class="muted">taskId: ${job.taskId}</span><br />
             <span class="muted">projectId: ${job.projectId}</span><br />
             <span class="muted">modelId: ${job.modelId}</span><br />
+            <span class="muted">branchName: ${job.branchName || '-'}</span><br />
             <span class="muted">status: ${job.localStatus}</span>
           `
 
@@ -355,6 +361,171 @@
         }
       }
 
+      const randomHex = (length) => {
+        const bytes = new Uint8Array(Math.ceil(length / 2))
+        window.crypto.getRandomValues(bytes)
+        return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'))
+          .join('')
+          .slice(0, length)
+      }
+
+      const getSpeckleHeaders = (job, contentType) => {
+        const headers = {
+          Authorization: `Bearer ${job.speckleToken}`
+        }
+        if (contentType) {
+          headers['Content-Type'] = contentType
+        }
+
+        return headers
+      }
+
+      const buildMockRootObject = (job) => {
+        return {
+          id: randomHex(32),
+          speckle_type: 'Base',
+          applicationId: `rvt-worker-simulator-${job.taskId}`,
+          name: job.branchName || job.fileName || `RVT ${job.taskId}`,
+          taskId: job.taskId,
+          projectId: job.projectId,
+          modelId: job.modelId,
+          branchName: job.branchName || null,
+          sourceFileName: job.fileName,
+          sourceApplication:
+            job.sourceApplication || 'External RVT Converter (Simulator)',
+          generatedBy: 'rvt-worker-simulator',
+          generatedAt: new Date().toISOString()
+        }
+      }
+
+      const diffObjects = async (job, objectIds) => {
+        const url = `${job.speckleServerUrl.replace(/\/$/, '')}/api/diff/${
+          job.projectId
+        }`
+        const payload = { objects: JSON.stringify(objectIds) }
+
+        log('Diffing objects with speckleToken', { url, payload })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: getSpeckleHeaders(job, 'application/json'),
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) {
+          throw new Error(`Diff failed: ${res.status} ${await res.text()}`)
+        }
+
+        return await res.json()
+      }
+
+      const uploadObjects = async (job, objects) => {
+        const url = `${job.speckleServerUrl.replace(/\/$/, '')}/objects/${
+          job.projectId
+        }`
+        const formData = new FormData()
+        formData.append(
+          'object-batch',
+          new Blob([JSON.stringify(objects)], { type: 'application/json' }),
+          'objects.json'
+        )
+
+        log('Uploading objects with speckleToken', {
+          url,
+          objectCount: objects.length,
+          objectIds: objects.map((obj) => obj.id)
+        })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: getSpeckleHeaders(job),
+          body: formData
+        })
+
+        if (res.status !== 201) {
+          throw new Error(`Objects upload failed: ${res.status} ${await res.text()}`)
+        }
+      }
+
+      const createVersionWithSpeckleToken = async (job, objectId) => {
+        const url = `${job.speckleServerUrl.replace(/\/$/, '')}/graphql`
+        const query = `
+          mutation CreateVersion($input: CreateVersionInput!) {
+            versionMutations {
+              create(input: $input) {
+                id
+              }
+            }
+          }
+        `
+
+        const payload = {
+          query,
+          variables: {
+            input: {
+              projectId: job.projectId,
+              modelId: job.modelId,
+              objectId,
+              message:
+                job.versionMessage ||
+                `Simulated RVT publish for ${
+                  job.branchName || job.fileName || job.taskId
+                }`,
+              sourceApplication: job.sourceApplication || 'External RVT Converter'
+            }
+          }
+        }
+
+        log('Creating version with speckleToken', {
+          url,
+          input: payload.variables.input
+        })
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: getSpeckleHeaders(job, 'application/json'),
+          body: JSON.stringify(payload)
+        })
+
+        const json = await res.json()
+        if (
+          !res.ok ||
+          json.errors?.length ||
+          !json.data?.versionMutations?.create?.id
+        ) {
+          throw new Error(
+            `Create version failed: ${JSON.stringify(json.errors || json)}`
+          )
+        }
+
+        return json.data.versionMutations.create.id
+      }
+
+      const publishMinimalVersion = async (job) => {
+        if (!job.speckleToken) {
+          throw new Error('Missing speckleToken in task payload.')
+        }
+
+        const rootObject = buildMockRootObject(job)
+        const diffResult = await diffObjects(job, [rootObject.id])
+        const alreadyExists = Boolean(diffResult[rootObject.id])
+
+        if (!alreadyExists) {
+          await uploadObjects(job, [rootObject])
+        } else {
+          log('Skipping object upload because object already exists', {
+            objectId: rootObject.id
+          })
+        }
+
+        const versionId = await createVersionWithSpeckleToken(job, rootObject.id)
+        updateJob(job.taskId, {
+          publishedObjectId: rootObject.id,
+          publishedWithSpeckleToken: true
+        })
+        return versionId
+      }
+
       const getWorkerExternalTaskId = (job) => {
         if (job.externalTaskId) return job.externalTaskId
         return `${els.workerId.value.trim() || 'worker'}-${job.taskId}`
@@ -389,7 +560,7 @@
         log('ACK success', text)
       }
 
-      const sendSuccess = async (job) => {
+      const sendSuccess = async (job, versionIdOverride) => {
         const url = `${els.serverOrigin.value.replace(
           /\/$/,
           ''
@@ -397,9 +568,9 @@
         const payload = {
           status: 'success',
           externalTaskId: getWorkerExternalTaskId(job),
-          versionId: `${els.versionIdPrefix.value.trim() || 'mock-version'}-${
-            job.taskId
-          }`
+          versionId:
+            versionIdOverride ||
+            `${els.versionIdPrefix.value.trim() || 'mock-version'}-${job.taskId}`
         }
 
         log('Sending success result', { url, payload })
@@ -522,10 +693,35 @@
 
             if (els.autoSuccess.checked) {
               const delay = Math.max(0, Number(els.successDelayMs.value || 0))
-              window.setTimeout(() => {
-                sendSuccess(data).catch((error) => {
-                  log('Auto success failed', error.message)
-                })
+              window.setTimeout(async () => {
+                try {
+                  let versionId
+                  if (els.publishWithSpeckleToken.checked) {
+                    versionId = await publishMinimalVersion(data)
+                  }
+
+                  await sendSuccess(data, versionId)
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error)
+                  log('Auto success failed', message)
+                  updateJob(data.taskId, {
+                    errorMessage: message,
+                    localStatus: 'failed'
+                  })
+                  try {
+                    await sendFailed({
+                      ...data,
+                      errorMessage: message
+                    })
+                  } catch (callbackError) {
+                    log(
+                      'Auto failed callback also failed',
+                      callbackError instanceof Error
+                        ? callbackError.message
+                        : String(callbackError)
+                    )
+                  }
+                }
               }, delay)
             }
           } catch (error) {
