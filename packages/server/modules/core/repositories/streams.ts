@@ -810,6 +810,8 @@ const getUserStreamsQueryBaseFactory =
       query.whereIn(Streams.col.id, streamIdWhitelist)
     }
 
+    query.andWhere(Streams.col.usage, PROJECT_USAGES.Normal)
+
     return query
   }
 
@@ -1255,7 +1257,8 @@ export const legacyGetStreamsFactory =
     workspaceIdWhitelist,
     offset,
     publicOnly,
-    userId
+    userId,
+    includeStorageOnly = false
   }) => {
     const query = tables.streams(deps.db)
 
@@ -1297,6 +1300,10 @@ export const legacyGetStreamsFactory =
 
     if (workspaceIdWhitelist?.length) {
       query.whereIn('workspaceId', workspaceIdWhitelist)
+    }
+
+    if (!includeStorageOnly) {
+      query.andWhere(Streams.col.usage, PROJECT_USAGES.Normal)
     }
 
     if (userId) {

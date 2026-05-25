@@ -45,6 +45,7 @@ export type LegacyGetStreams = (params: {
    * For filling in stream.role for the specified user
    */
   userId?: string
+  includeStorageOnly?: boolean
 }) => Promise<{
   streams: StreamWithOptionalRole[]
   totalCount: number

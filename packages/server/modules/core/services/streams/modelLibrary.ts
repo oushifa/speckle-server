@@ -11,6 +11,7 @@ import {
   getProjectFactory,
   storeProjectFactory
 } from '@/modules/core/repositories/projects'
+import { updateStreamFactory } from '@/modules/core/repositories/streams'
 import {
   createBranchFactory,
   getStreamBranchByNameFactory
@@ -22,9 +23,29 @@ export const ensureModelLibraryProjectFactory =
   async () => {
     const getProject = getProjectFactory({ db })
     const storeProject = storeProjectFactory({ db })
+    const updateStream = updateStreamFactory({ db })
+    const systemDescription = 'System managed project for model storage.'
 
     const existingProject = await getProject({ projectId: MODEL_LIBRARY_PROJECT_ID })
-    if (existingProject) return existingProject
+    if (existingProject) {
+      const needsUpdate =
+        existingProject.usage !== PROJECT_USAGES.StorageOnly ||
+        existingProject.name !== MODEL_LIBRARY_PROJECT_NAME ||
+        existingProject.description !== systemDescription ||
+        existingProject.visibility !== ProjectRecordVisibility.Private
+
+      if (!needsUpdate) return existingProject
+
+      await updateStream({
+        id: MODEL_LIBRARY_PROJECT_ID,
+        name: MODEL_LIBRARY_PROJECT_NAME,
+        description: systemDescription,
+        visibility: 'PRIVATE',
+        usage: PROJECT_USAGES.StorageOnly
+      })
+
+      return await getProject({ projectId: MODEL_LIBRARY_PROJECT_ID })
+    }
 
     const now = new Date()
     await storeProject({
@@ -38,7 +59,7 @@ export const ensureModelLibraryProjectFactory =
         responsible: null,
         status: null,
         timeZone: null,
-        description: 'System managed project for model storage.',
+        description: systemDescription,
         clonedFrom: null,
         createdAt: now,
         updatedAt: now,

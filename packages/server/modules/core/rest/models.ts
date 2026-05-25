@@ -6,7 +6,8 @@ import {
   Branches,
   Streams,
   BranchCommits,
-  Commits
+  Commits,
+  FileUploads
 } from '@/modules/core/dbSchema'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
@@ -23,6 +24,11 @@ type ModelRow = {
   versions: string | number
   latestCommitId: string | null
   latestSourceApp: string | null
+  latestUploadId: string | null
+  latestUploadFileName: string | null
+  latestUploadComplete: boolean | null
+  latestUploadConvertedStatus: number | null
+  latestUploadConvertedMessage: string | null
 }
 
 const modelsErrHandler = (
@@ -101,6 +107,41 @@ export default (app: Router) => {
           .orderBy(Commits.col.createdAt, 'desc')
           .limit(1)
 
+        const latestUploadIdQuery = knex(FileUploads.name)
+          .select(FileUploads.col.id)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`))
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+
+        const latestUploadFileNameQuery = knex(FileUploads.name)
+          .select(FileUploads.col.fileName)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`))
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+
+        const latestUploadCompleteQuery = knex(FileUploads.name)
+          .select(FileUploads.col.uploadComplete)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`))
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+
+        const latestUploadConvertedStatusQuery = knex(FileUploads.name)
+          .select(FileUploads.col.convertedStatus)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`))
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+
+        const latestUploadConvertedMessageQuery = knex(FileUploads.name)
+          .select(FileUploads.col.convertedMessage)
+          .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
+          .andWhere(FileUploads.col.modelId, knex.ref(`${Branches.name}.id`))
+          .orderBy(FileUploads.col.uploadDate, 'desc')
+          .limit(1)
+
         // 获取总数（用于分页）
         const countQuery = knex(Branches.name)
           .count(`${Branches.name}.id as count`)
@@ -131,7 +172,16 @@ export default (app: Router) => {
             `${Streams.name}.name as streamName`,
             `${Branches.name}.updatedAt`,
             knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`),
-            knex.raw(`(${latestSourceAppQuery.toQuery()}) as "latestSourceApp"`)
+            knex.raw(`(${latestSourceAppQuery.toQuery()}) as "latestSourceApp"`),
+            knex.raw(`(${latestUploadIdQuery.toQuery()}) as "latestUploadId"`),
+            knex.raw(`(${latestUploadFileNameQuery.toQuery()}) as "latestUploadFileName"`),
+            knex.raw(`(${latestUploadCompleteQuery.toQuery()}) as "latestUploadComplete"`),
+            knex.raw(
+              `(${latestUploadConvertedStatusQuery.toQuery()}) as "latestUploadConvertedStatus"`
+            ),
+            knex.raw(
+              `(${latestUploadConvertedMessageQuery.toQuery()}) as "latestUploadConvertedMessage"`
+            )
           ])
           .select([`${Branches.name}.createdAt`])
           .select(knex.raw('count(??) as versions', [Commits.col.id]))
@@ -200,7 +250,26 @@ export default (app: Router) => {
               ).toString()
             : null,
           status: null,
-          sourceApplication: m.latestSourceApp || null
+          sourceApplication: m.latestSourceApp || null,
+          sourceFileId: m.latestUploadId || null,
+          sourceFileName: m.latestUploadFileName || null,
+          latestUpload: m.latestUploadId
+            ? {
+                id: m.latestUploadId,
+                fileName: m.latestUploadFileName || '',
+                uploadComplete:
+                  typeof m.latestUploadComplete === 'boolean'
+                    ? m.latestUploadComplete
+                    : Boolean(m.latestUploadComplete),
+                convertedStatus:
+                  typeof m.latestUploadConvertedStatus === 'number'
+                    ? m.latestUploadConvertedStatus
+                    : m.latestUploadConvertedStatus !== null
+                    ? Number(m.latestUploadConvertedStatus)
+                    : null,
+                convertedMessage: m.latestUploadConvertedMessage || null
+              }
+            : null
         }))
 
         res.json({
