@@ -15,19 +15,28 @@ import { validatePermissionsWriteStreamFactory } from '@/modules/core/services/s
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
+  ActiveRvtConversionJobStatuses,
   createRvtConversionJobFactory,
   getRvtConversionJobByIdFactory,
   getRvtConversionJobForModelFactory,
+  listRvtConversionJobsFactory,
   updateRvtConversionJobFactory
 } from '@/modules/rvt-conversion/repositories/jobs'
-import { releaseRvtWorkerJob } from '@/modules/rvt-conversion/services/workerRegistry'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
+import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
+import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import type { FileUploadRecord } from '@/modules/fileuploads/helpers/types'
+import {
+  getFileInfoFactoryV2,
+  updateFileUploadFactory
+} from '@/modules/fileuploads/repositories/fileUploads'
 import { authorizeResolver, validateScopes } from '@/modules/shared'
 import {
   getFileSizeLimitMB,
   getFileUploadUrlExpiryMinutes
 } from '@/modules/shared/helpers/envHelper'
+import { getEventBus } from '@/modules/shared/services/eventBus'
 
 const DownloadUrlExpirySeconds = 24 * 60 * 60
 const sourceApplicationDefault = 'External RVT Converter'
@@ -41,6 +50,10 @@ const routeParamsSchema = z.object({
 
 const jobRouteParamsSchema = routeParamsSchema.extend({
   jobId: z.string().min(1)
+})
+
+const projectRouteParamsSchema = z.object({
+  projectId: z.string().min(1)
 })
 
 const internalJobRouteParamsSchema = z.object({
@@ -79,6 +92,11 @@ const resultBodySchema = z.discriminatedUnion('status', [
     errorMessage: z.string().trim().min(1)
   })
 ])
+
+const listJobsQuerySchema = z.object({
+  modelId: z.string().trim().min(1).optional(),
+  unfinishedOnly: z.enum(['true', 'false']).optional()
+})
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.context.auth || !req.context.userId) {
@@ -146,6 +164,45 @@ const buildSourceObjectKey = (params: {
 const maxFileSizeBytes = () => getFileSizeLimitMB() * 1024 * 1024
 const isNoWorkerAvailableError = (error: unknown) =>
   error instanceof Error && error.message === 'No connected RVT worker is available.'
+
+const updateFileUploadFromRvtJobFactory = (deps: {
+  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
+}) => {
+  const getFileInfo = getFileInfoFactoryV2({ db: deps.projectDb })
+  const updateFileUpload = updateFileUploadFactory({ db: deps.projectDb })
+  const emitFileStatusChange = notifyChangeInFileStatus({
+    eventEmit: getEventBus().emit
+  })
+
+  return async (params: {
+    job: NonNullable<
+      Awaited<ReturnType<ReturnType<typeof getRvtConversionJobByIdFactory>>>
+    >
+    status: FileUploadConvertedStatus
+    convertedMessage: string | null
+    convertedCommitId: string | null
+  }) => {
+    const fileUpload = await getFileInfo({
+      fileId: params.job.sourceFileId,
+      projectId: params.job.projectId
+    })
+    if (!fileUpload) return
+
+    const updatedFile = (await updateFileUpload({
+      id: fileUpload.id,
+      upload: {
+        convertedStatus: params.status,
+        convertedMessage: params.convertedMessage,
+        convertedCommitId: params.convertedCommitId,
+        convertedLastUpdate: new Date()
+      }
+    })) as FileUploadRecord
+
+    await emitFileStatusChange({
+      file: updatedFile
+    })
+  }
+}
 
 const serializeJob = (
   job: Awaited<ReturnType<ReturnType<typeof getRvtConversionJobByIdFactory>>>
@@ -368,6 +425,46 @@ export const rvtConversionRouterFactory = (): Router => {
   )
 
   app.get(
+    '/api/v1/projects/:projectId/rvt/jobs',
+    requireAuth,
+    validateRequest({
+      params: projectRouteParamsSchema,
+      query: listJobsQuerySchema
+    }),
+    async (req, res) => {
+      const { projectId } = req.params
+      const modelId =
+        typeof req.query.modelId === 'string' ? req.query.modelId : undefined
+      const unfinishedOnly = req.query.unfinishedOnly === 'true'
+
+      const hasStreamAccess = await validatePermissionsReadStream(projectId, req)
+      if (!hasStreamAccess.result) {
+        return res.status(hasStreamAccess.status).end()
+      }
+
+      const projectDb = await getProjectDbClient({ projectId })
+      if (modelId) {
+        const getProjectModelById = getProjectModelByIdFactory({ db: projectDb })
+        const model = await getProjectModelById({ projectId, modelId })
+        if (!model) {
+          return res.status(404).send({ error: 'Model not found in project.' })
+        }
+      }
+
+      const listJobs = listRvtConversionJobsFactory({ db: projectDb })
+      const jobs = await listJobs({
+        projectId,
+        ...(modelId ? { modelId } : {}),
+        ...(unfinishedOnly ? { statuses: ActiveRvtConversionJobStatuses } : {})
+      })
+
+      return res.send({
+        jobs: jobs.map((job) => serializeJob(job))
+      })
+    }
+  )
+
+  app.get(
     '/api/v1/projects/:projectId/models/:modelId/rvt/jobs/:jobId',
     requireAuth,
     validateRequest({
@@ -405,6 +502,9 @@ export const rvtConversionRouterFactory = (): Router => {
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
       const updateJob = updateRvtConversionJobFactory({ db: projectDb })
+      const updateFileUploadFromRvtJob = updateFileUploadFromRvtJobFactory({
+        projectDb
+      })
       const job = await getJob({ id: jobId })
 
       if (!job) {
@@ -419,6 +519,13 @@ export const rvtConversionRouterFactory = (): Router => {
           acknowledgedAt: new Date(),
           updater: serviceUpdater
         }
+      })
+
+      await updateFileUploadFromRvtJob({
+        job: updatedJob || job,
+        status: FileUploadConvertedStatus.Converting,
+        convertedMessage: '转换服务已接单',
+        convertedCommitId: null
       })
 
       return res.send({ job: serializeJob(updatedJob || job) })
@@ -437,6 +544,9 @@ export const rvtConversionRouterFactory = (): Router => {
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
       const updateJob = updateRvtConversionJobFactory({ db: projectDb })
+      const updateFileUploadFromRvtJob = updateFileUploadFromRvtJobFactory({
+        projectDb
+      })
       const job = await getJob({ id: jobId })
 
       if (!job) {
@@ -465,9 +575,15 @@ export const rvtConversionRouterFactory = (): Router => {
               }
       })
 
-      if (req.body.status === 'success' || req.body.status === 'failed') {
-        releaseRvtWorkerJob({ jobId })
-      }
+      await updateFileUploadFromRvtJob({
+        job: updatedJob || job,
+        status:
+          req.body.status === 'success'
+            ? FileUploadConvertedStatus.Completed
+            : FileUploadConvertedStatus.Error,
+        convertedMessage: req.body.status === 'success' ? null : req.body.errorMessage,
+        convertedCommitId: req.body.status === 'success' ? req.body.versionId : null
+      })
 
       return res.send({ job: serializeJob(updatedJob || job) })
     }

@@ -9,6 +9,12 @@ export type RvtConversionJobStatus =
   | 'succeeded'
   | 'failed'
 
+export const ActiveRvtConversionJobStatuses: RvtConversionJobStatus[] = [
+  'pending',
+  'dispatched',
+  'acknowledged'
+]
+
 export type RvtConversionJob = {
   id: string
   projectId: string
@@ -93,6 +99,34 @@ export const getRvtConversionJobForModelFactory =
       .andWhere(cols.projectId, params.projectId)
       .andWhere(cols.modelId, params.modelId)
       .first()) || null
+
+export const listRvtConversionJobsFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    modelId?: string
+    statuses?: RvtConversionJobStatus[]
+    limit?: number
+  }): Promise<RvtConversionJob[]> => {
+    const query = tables
+      .jobs(deps.db)
+      .where(cols.projectId, params.projectId)
+      .orderBy(cols.createdAt, 'desc')
+
+    if (params.modelId) {
+      query.andWhere(cols.modelId, params.modelId)
+    }
+
+    if (params.statuses?.length) {
+      query.whereIn(cols.status, params.statuses)
+    }
+
+    if (params.limit) {
+      query.limit(params.limit)
+    }
+
+    return await query
+  }
 
 export const updateRvtConversionJobFactory =
   (deps: { db: Knex }) =>

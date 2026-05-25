@@ -130,10 +130,6 @@
       v-model:open="showNewAccSync"
       :project-id="project?.id"
     />
-    <ProjectPageModelsRvtUploadDialog
-      v-model:open="showRvtUploadDialog"
-      :project-id="projectId"
-    />
   </div>
 </template>
 <script setup lang="ts">
@@ -238,8 +234,6 @@ const onViewAllClick = () => {
 
 const showNewDialog = ref(false)
 const showNewAccSync = ref(false)
-const showRvtUploadDialog = ref(false)
-
 const showAccIntegration = computed(
   () => props.project?.permissions.canReadAccIntegrationSettings.authorized
 )

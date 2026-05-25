@@ -115,9 +115,6 @@ export const useFailedFileImportJobUtils = () => {
         return `文件${job.fileName}没有有效的文件扩展名。`
       case FailedFileImportJobError.InvalidFileType: {
         const fileExtension = resolveFileExtension(job.fileName)
-        if (fileExtension?.toLowerCase() === 'rvt') {
-          return `文件${job.fileName}（.${fileExtension}）不走通用文件导入流程。请使用页面上的“上传 RVT”入口提交源文件，再由第三方转换为 Speckle 版本。`
-        }
         return `文件${job.fileName}（${fileExtension}）不是受支持的文件类型。此服务器仅支持 ${accept.value}。`
       }
       case FailedFileImportJobError.ImportFailed:
@@ -359,7 +356,7 @@ export const useFileImportBaseSettings = () => {
   const isRhinoFileImportEnabled = useIsRhinoFileImporterEnabled()
 
   const legacyFileImportService = '.ifc,.obj,.stl'
-  const nextGenBackgroundJobs = `.ifc,${
+  const nextGenBackgroundJobs = `.ifc,.rvt,${
     isRhinoFileImportEnabled.value
       ? [...rhinoImporterSupportedFileExtensions]
           .map((ext: string) => `.${ext}`)

@@ -4,6 +4,8 @@ import {
   type RvtConversionJob,
   useRvtConversion
 } from '~/lib/projects/composables/useRvtConversion'
+import { useEvictProjectModelFields } from '~/lib/projects/composables/modelManagement'
+import { useRvtPendingJobs } from '~/lib/projects/composables/useRvtPendingJobs'
 import { sanitizeModelName } from '~/lib/projects/helpers/models'
 
 type RvtTargetModel = {
@@ -20,6 +22,8 @@ const buildModelNameFromFile = (file: File) => {
 
 export const useRvtConversionFlow = () => {
   const createModel = useCreateNewModel()
+  const evictProjectModels = useEvictProjectModelFields()
+  const { upsertJob, removeJob } = useRvtPendingJobs()
   const {
     requestUploadUrl,
     uploadSourceFile,
@@ -96,24 +100,34 @@ export const useRvtConversionFlow = () => {
         versionMessage: params.versionMessage || undefined,
         sourceApplication: params.sourceApplication || sourceApplicationDefault
       })
+      upsertJob(currentJob.value)
 
       statusMessage.value = '等待转换服务处理...'
       currentJob.value = await waitForJobCompletion({
         projectId: params.projectId,
         modelId: targetModel.id,
-        jobId: currentJob.value.id
+        jobId: currentJob.value.id,
+        onUpdate: (job) => {
+          currentJob.value = job
+          upsertJob(job)
+        }
       })
 
       if (currentJob.value.status !== 'succeeded') {
         throw new Error(currentJob.value.errorMessage || 'RVT 转换失败')
       }
 
+      removeJob(currentJob.value.id)
+      evictProjectModels(params.projectId)
       statusMessage.value = '转换完成'
       return {
         model: targetModel,
         job: currentJob.value
       }
     } catch (error) {
+      if (currentJob.value && !['pending', 'dispatched', 'acknowledged'].includes(currentJob.value.status)) {
+        removeJob(currentJob.value.id)
+      }
       statusMessage.value = getErrorMessage(error)
       throw error
     } finally {

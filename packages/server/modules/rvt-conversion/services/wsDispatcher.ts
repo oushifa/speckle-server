@@ -1,9 +1,6 @@
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
 import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/jobs'
-import {
-  assignRvtWorkerJob,
-  getAvailableRvtWorker
-} from '@/modules/rvt-conversion/services/workerRegistry'
+import { getAvailableRvtWorker } from '@/modules/rvt-conversion/services/workerRegistry'
 
 export type DispatchRvtConversionJobPayload = {
   job: RvtConversionJob
@@ -48,7 +45,6 @@ export const dispatchRvtConversionJob = async (
               : new Error('Failed to dispatch RVT conversion job over WebSocket.')
           )
 
-        assignRvtWorkerJob({ workerId: worker.workerId, jobId: params.job.id })
         resolve()
       })
     } catch (error) {

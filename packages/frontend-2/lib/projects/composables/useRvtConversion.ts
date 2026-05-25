@@ -44,6 +44,10 @@ type GetJobResponse = {
   job: RvtConversionJob
 }
 
+type ListJobsResponse = {
+  jobs: RvtConversionJob[]
+}
+
 const pollableStatuses = new Set<RvtConversionJobStatus>([
   'pending',
   'dispatched',
@@ -149,18 +153,39 @@ export const useRvtConversion = () => {
     return response.job
   }
 
+  const listJobs = async (params: {
+    projectId: string
+    modelId?: string
+    unfinishedOnly?: boolean
+  }): Promise<RvtConversionJob[]> => {
+    const response = await $fetch<ListJobsResponse>(
+      `${apiOrigin}/api/v1/projects/${params.projectId}/rvt/jobs`,
+      {
+        headers: buildHeaders(),
+        query: {
+          ...(params.modelId ? { modelId: params.modelId } : {}),
+          ...(params.unfinishedOnly ? { unfinishedOnly: 'true' } : {})
+        }
+      }
+    )
+
+    return response.jobs
+  }
+
   const waitForJobCompletion = async (params: {
     projectId: string
     modelId: string
     jobId: string
     intervalMs?: number
     timeoutMs?: number
+    onUpdate?: (job: RvtConversionJob) => void
   }): Promise<RvtConversionJob> => {
     const intervalMs = params.intervalMs || 3000
     const timeoutMs = params.timeoutMs || 24 * 60 * 60 * 1000
     const startedAt = Date.now()
 
     let latestJob = await getJob(params)
+    params.onUpdate?.(latestJob)
 
     while (pollableStatuses.has(latestJob.status)) {
       if (Date.now() - startedAt > timeoutMs) {
@@ -169,6 +194,7 @@ export const useRvtConversion = () => {
 
       await sleep(intervalMs)
       latestJob = await getJob(params)
+      params.onUpdate?.(latestJob)
     }
 
     return latestJob
@@ -179,6 +205,7 @@ export const useRvtConversion = () => {
     uploadSourceFile,
     createJob,
     getJob,
+    listJobs,
     waitForJobCompletion,
     getErrorMessage: (error: unknown) => ensureError(error).message
   }

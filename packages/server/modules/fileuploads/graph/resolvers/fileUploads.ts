@@ -50,7 +50,8 @@ import {
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import {
   insertNewUploadAndNotifyFactory,
-  insertNewUploadAndNotifyFactoryV2
+  insertNewUploadAndNotifyFactoryV2,
+  notifyChangeInFileStatus
 } from '@/modules/fileuploads/services/management'
 import {
   storeApiTokenFactory,
@@ -78,6 +79,8 @@ import { JobResultStatus } from '@speckle/shared/workers/fileimport'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import { updateBackgroundJobFactory } from '@/modules/backgroundjobs/repositories/backgroundjobs'
 import { configureClient } from '@/knexfile'
+import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
+import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 
 const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
 
@@ -199,6 +202,7 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
 
     const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
       queues: fileImportQueues,
+      allowUnscheduledFileTypes: ['rvt'],
       pushJobToFileImporter,
       saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
       emit: getEventBus().emit
@@ -229,6 +233,11 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       })
 
     const maximumFileSize = getFileSizeLimit()
+    const emitFileStatusChange = notifyChangeInFileStatus({
+      eventEmit: getEventBus().emit
+    })
+    const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+    const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
 
     const uploadedFileData = await registerUploadCompleteAndStartFileImport({
       projectId: args.input.projectId,
@@ -238,6 +247,37 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       expectedETag: args.input.etag,
       maximumFileSize
     })
+
+    if (uploadedFileData.fileType.toLocaleLowerCase() === 'rvt') {
+      try {
+        await dispatchRvtFileImport({
+          projectId,
+          modelId: uploadedFileData.modelId,
+          modelName: uploadedFileData.modelName,
+          fileUpload: uploadedFileData,
+          userId: ctx.userId
+        })
+      } catch (error) {
+        ctx.log.error(
+          { err: error, projectId, fileId: uploadedFileData.id },
+          'Failed to dispatch RVT file import'
+        )
+
+        const failedFile = await updateFileUpload({
+          id: uploadedFileData.id,
+          upload: {
+            convertedStatus: FileUploadConvertedStatus.Error,
+            convertedMessage:
+              error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+            convertedLastUpdate: new Date()
+          }
+        })
+
+        await emitFileStatusChange({
+          file: failedFile
+        })
+      }
+    }
 
     return {
       ...uploadedFileData,

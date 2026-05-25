@@ -23,11 +23,14 @@
             >
               {{ project.name }}
             </NuxtLink>
-            <div v-if="isOwner" class="flex items-center gap-1 text-foreground-2">
+            <div
+              v-if="canManageProject"
+              class="flex items-center gap-1 text-foreground-2"
+            >
               <button
                 type="button"
                 class="p-1 rounded hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="!isOwner || updatingProjectInfo"
+                :disabled="!canManageProject || updatingProjectInfo"
                 @click.stop="openEditDialog"
               >
                 <IconEdit class="h-4 w-4" />
@@ -35,7 +38,7 @@
               <button
                 type="button"
                 class="p-1 rounded hover:bg-highlight-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="!isOwner || deletingProject"
+                :disabled="!canManageProject || deletingProject"
                 @click.stop="openDeleteDialog"
               >
                 <IconDelete class="h-4 w-4" />
@@ -312,6 +315,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
+const { isAdmin: isServerAdmin } = useActiveUser()
 const { formattedRelativeDate, formattedFullDate } = useDateFormatters()
 const logger = useLogger()
 const deleteProject = useDeleteProject()
@@ -338,6 +342,12 @@ const editForm = ref({
 const originalDescription = ref('')
 
 const isOwner = computed(() => props.project.role === Roles.Stream.Owner)
+const isWorkspaceAdmin = computed(
+  () => props.project.workspace?.role === Roles.Workspace.Admin
+)
+const canManageProject = computed(
+  () => isOwner.value || isServerAdmin.value || isWorkspaceAdmin.value
+)
 const projectId = computed(() => props.project.id)
 const updatedAt = computed(() => {
   return {
@@ -353,7 +363,7 @@ useGeneralProjectPageUpdateTracking(
 )
 
 const teamUsers = computed(() => props.project.team.map((t) => t.user))
-const pendingModels = computed(() => props.project.pendingImportedModels)
+const pendingModels = computed(() => props.project.pendingImportedModels.slice(0, 3))
 const models = computed(() => {
   const items = props.project.models?.items || []
   return items.slice(0, Math.max(0, 3 - pendingModels.value.length))
@@ -361,14 +371,16 @@ const models = computed(() => {
 
 const hasNoModels = computed(() => !models.value.length && !pendingModels.value.length)
 const modelItemTotalCount = computed(
-  () => props.project.models.totalCount + pendingModels.value.length
+  () => props.project.models.totalCount + props.project.pendingImportedModels.length
 )
 const canConfirmDelete = computed(
-  () => isOwner.value && deleteProjectNameInput.value === props.project.name
+  () => canManageProject.value && deleteProjectNameInput.value === props.project.name
 )
 const canSaveEdit = computed(
   () =>
-    isOwner.value && !updatingProjectInfo.value && !!editForm.value.name.trim().length
+    canManageProject.value &&
+    !updatingProjectInfo.value &&
+    !!editForm.value.name.trim().length
 )
 
 const gridClasses = computed(() => [
@@ -440,20 +452,20 @@ const setEditFormValues = () => {
 }
 
 const openEditDialog = () => {
-  if (!isOwner.value) return
+  if (!canManageProject.value) return
   setEditFormValues()
   originalDescription.value = editForm.value.description
   showEditDialog.value = true
 }
 
 const openDeleteDialog = () => {
-  if (!isOwner.value) return
+  if (!canManageProject.value) return
   deleteProjectNameInput.value = ''
   showDeleteDialog.value = true
 }
 
 const onSaveProjectInfo = async () => {
-  if (!isOwner.value || updatingProjectInfo.value) return
+  if (!canManageProject.value || updatingProjectInfo.value) return
   updatingProjectInfo.value = true
   try {
     const updatePayload: Record<string, unknown> = {}
