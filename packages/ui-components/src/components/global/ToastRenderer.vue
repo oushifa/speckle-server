@@ -80,7 +80,7 @@
               }"
               @click="dismiss"
             >
-              Close
+              关闭
             </FormButton>
           </div>
         </div>

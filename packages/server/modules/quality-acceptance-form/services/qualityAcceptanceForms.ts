@@ -62,11 +62,13 @@ const normalizeOptionalString = (value?: string | null) => {
   return trimmed.length ? trimmed : null
 }
 
-const normalizeOptionalDateValue = (value?: string | number | null) => {
+const normalizeOptionalDateValue = (
+  value?: string | number | null
+): string | null => {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return null
-    return value
+    return String(value)
   }
 
   const trimmed = value.trim()

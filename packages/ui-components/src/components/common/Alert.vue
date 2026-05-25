@@ -35,7 +35,7 @@
         :class="[hasDescription ? 'items-start' : 'items-center']"
       >
         <FormButton type="button" color="subtle" size="sm" @click="$emit('dismiss')">
-          Dismiss
+          关闭
         </FormButton>
       </div>
     </div>

@@ -67,7 +67,7 @@
           size="sm"
           @click="onDismiss"
         >
-          Dismiss
+          关闭
         </FormButton>
       </div>
     </template>

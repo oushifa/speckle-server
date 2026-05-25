@@ -252,7 +252,7 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       try {
         await dispatchRvtFileImport({
           projectId,
-          modelId: uploadedFileData.modelId,
+          modelId: args.input.modelId,
           modelName: uploadedFileData.modelName,
           fileUpload: uploadedFileData,
           userId: ctx.userId

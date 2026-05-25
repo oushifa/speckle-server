@@ -87,7 +87,7 @@ const title = computed(() => `文件上传失败`)
 
 const buttons = computed((): LayoutDialogButton[] => [
   {
-    text: 'Dismiss',
+    text: '关闭',
     onClick: () => {
       open.value = false
     }
