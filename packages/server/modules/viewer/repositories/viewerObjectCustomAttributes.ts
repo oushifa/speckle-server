@@ -50,6 +50,14 @@ export const createViewerObjectCustomAttributeFactory =
     return insertedItem
   }
 
+export type UpdateViewerObjectCustomAttributeParams = {
+  id: string
+  projectId: string
+  modelId: string
+  name: string
+  value: string
+}
+
 export const getViewerObjectCustomAttributesFactory =
   (deps: { db: Knex }) =>
   async (params: {
@@ -73,6 +81,30 @@ export const getViewerObjectCustomAttributesFactory =
     const records = await query.orderBy('createdAt', 'asc')
 
     return records
+  }
+
+export const updateViewerObjectCustomAttributeFactory =
+  (deps: { db: Knex }) =>
+  async (
+    params: UpdateViewerObjectCustomAttributeParams
+  ): Promise<ViewerObjectCustomAttribute | null> => {
+    const [updatedItem] = await tables
+      .viewerObjectCustomAttributes(deps.db)
+      .where({
+        [ViewerObjectCustomAttributes.col.id]: params.id,
+        [ViewerObjectCustomAttributes.col.projectId]: params.projectId,
+        [ViewerObjectCustomAttributes.col.modelId]: params.modelId
+      })
+      .update(
+        {
+          [ViewerObjectCustomAttributes.short.col.name]: params.name,
+          [ViewerObjectCustomAttributes.short.col.value]: params.value,
+          [ViewerObjectCustomAttributes.short.col.updatedAt]: deps.db.fn.now()
+        },
+        '*'
+      )
+
+    return updatedItem || null
   }
 
 export const deleteViewerObjectCustomAttributeFactory =

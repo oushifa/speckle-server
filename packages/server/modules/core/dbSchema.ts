@@ -287,7 +287,8 @@ export const Streams = buildTableHelper(
     'allowPublicComments',
     'workspaceId',
     'regionKey',
-    'visibility'
+    'visibility',
+    'usage'
   ],
   StreamsMeta
 )

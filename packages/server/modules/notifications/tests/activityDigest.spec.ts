@@ -11,6 +11,7 @@ import {
   StreamResourceTypes
 } from '@/modules/activitystream/helpers/types'
 import type { ServerInfo, UserRecord } from '@/modules/core/helpers/types'
+import { PROJECT_USAGES } from '@/modules/core/constants/modelLibrary'
 import { ProjectRecordVisibility } from '@/modules/core/helpers/types'
 import { renderEmail } from '@/modules/emails/services/emailRendering'
 import type {
@@ -135,7 +136,8 @@ describe('Activity digest notifications @notifications', () => {
         updatedAt: new Date(),
         allowPublicComments: true,
         workspaceId: null,
-        regionKey: null
+        regionKey: null,
+        usage: PROJECT_USAGES.Normal
       },
       activity: activities ?? [createActivity()]
     })

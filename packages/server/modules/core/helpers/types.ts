@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { ProjectUsage } from '@/modules/core/constants/modelLibrary'
 import type { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import type { BaseMetaRecord } from '@/modules/core/helpers/meta'
 import type { Nullable } from '@/modules/shared/helpers/typeHelper'
@@ -70,6 +71,7 @@ export type StreamRecord = {
   workspaceId: Nullable<string>
   regionKey: Nullable<string>
   visibility: ProjectRecordVisibility
+  usage: ProjectUsage
 }
 
 export type StreamAclRecord = {

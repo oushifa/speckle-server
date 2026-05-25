@@ -13,6 +13,8 @@ import modelsRest from '@/modules/core/rest/models'
 import modelCustomLabelRest from '@/modules/core/rest/modelCustomLabel'
 import modelCustomAttributesExcelRest from '@/modules/core/rest/modelCustomAttributesExcel'
 import projectModelObjectsRest from '@/modules/core/rest/projectModelObjects'
+import modelLibraryProjectRest from '@/modules/core/rest/modelLibraryProject'
+import modelLibraryUploadsRest from '@/modules/core/rest/modelLibraryUploads'
 import diffUpload from '@/modules/core/rest/diffUpload'
 import diffDownload from '@/modules/core/rest/diffDownload'
 import scopes from '@/modules/core/scopes'
@@ -50,6 +52,7 @@ import { getServerTotalModelCountFactory } from '@/modules/core/services/branch/
 import { getServerTotalVersionCountFactory } from '@/modules/core/services/commit/retrieval'
 import { bullMonitoringRouterFactory } from '@/modules/core/rest/monitoring'
 import { projectListenersFactory } from '@/modules/core/events/projectListeners'
+import { ensureModelLibraryProjectFactory } from '@/modules/core/services/streams/modelLibrary'
 
 let stopTestSubs: (() => void) | undefined = undefined
 
@@ -87,6 +90,8 @@ const coreModule: SpeckleModule<{
     modelCustomLabelRest(app)
     modelCustomAttributesExcelRest(app)
     projectModelObjectsRest(app)
+    modelLibraryProjectRest(app)
+    modelLibraryUploadsRest(app)
 
     const scopeRegisterFunc = registerOrUpdateScopeFactory({ db })
     // Register core-based scoeps
@@ -137,6 +142,8 @@ const coreModule: SpeckleModule<{
         eventBus: getEventBus(),
         logger: coreLogger
       })()
+
+      await ensureModelLibraryProjectFactory({ db })()
     }
   },
   async finalize({ app }) {

@@ -1,6 +1,7 @@
 export type ViewerCatalogNode = {
   id: string
   title: string
+  locked?: boolean
   isolatedApplicationIds?: string[]
   hiddenApplicationIds?: string[]
   childrens?: ViewerCatalogNode[]

@@ -1,5 +1,6 @@
 import { db } from '@/db/knex'
 import type { Project } from '@/modules/core/domain/streams/types'
+import { PROJECT_USAGES } from '@/modules/core/constants/modelLibrary'
 import { ProjectRecordVisibility } from '@/modules/core/helpers/types'
 import {
   deleteProjectFactory,
@@ -37,7 +38,8 @@ const createTestProject = (overrides?: Partial<Project>): Project => {
     visibility: ProjectRecordVisibility.Public,
     name: cryptoRandomString({ length: 10 }),
     regionKey: null,
-    workspaceId: null
+    workspaceId: null,
+    usage: PROJECT_USAGES.Normal
   }
   return assign(defaults, overrides || {})
 }

@@ -15,6 +15,7 @@ import type {
 import { ProjectQueryError } from '@/modules/core/errors/projects'
 import { ProjectVisibility } from '@/modules/core/graph/generated/graphql'
 import { mapGqlToDbProjectVisibility } from '@/modules/core/helpers/project'
+import { PROJECT_USAGES } from '@/modules/core/constants/modelLibrary'
 import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
@@ -67,7 +68,8 @@ export const createNewProjectFactory =
       updatedAt: new Date(),
       workspaceId: workspaceId || null,
       regionKey: regionKey || null,
-      allowPublicComments: false
+      allowPublicComments: false,
+      usage: PROJECT_USAGES.Normal
     }
 
     await storeProject({ project })

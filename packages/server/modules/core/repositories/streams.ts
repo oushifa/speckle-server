@@ -56,6 +56,7 @@ import {
   isProjectCreateInput,
   mapGqlToDbProjectVisibility
 } from '@/modules/core/helpers/project'
+import { PROJECT_USAGES } from '@/modules/core/constants/modelLibrary'
 import {
   StreamAccessUpdateError,
   StreamNotFoundError,
@@ -254,6 +255,8 @@ const getFavoritedStreamsQueryBaseFactory =
     if (streamIdWhitelist?.length) {
       query.whereIn(Streams.col.id, streamIdWhitelist)
     }
+
+    query.andWhere(Streams.col.usage, PROJECT_USAGES.Normal)
 
     return query
   }

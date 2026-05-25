@@ -1,5 +1,6 @@
 import cryptoRandomString from 'crypto-random-string'
 import type { Project } from '@/modules/core/domain/streams/types'
+import { PROJECT_USAGES } from '@/modules/core/constants/modelLibrary'
 import { ProjectRecordVisibility } from '@/modules/core/helpers/types'
 import { assign } from 'lodash-es'
 import type { BasicTestCommit } from '@/test/speckle-helpers/commitHelper'
@@ -25,7 +26,8 @@ export const buildTestProject = (overrides?: Partial<Project>): Project =>
       allowPublicComments: false,
       workspaceId: cryptoRandomString({ length: 10 }),
       regionKey: null,
-      visibility: ProjectRecordVisibility.Private
+      visibility: ProjectRecordVisibility.Private,
+      usage: PROJECT_USAGES.Normal
     },
     overrides
   )

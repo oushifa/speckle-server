@@ -140,6 +140,7 @@ describe('Versions', () => {
       })
 
       it('can update external sync fields', async () => {
+        const treeJson = JSON.stringify({ model: { id: 'seed-updated' }, elements: [] })
         const res = await apollo.execute(UpdateProjectVersionDocument, {
           input: {
             projectId: myPrivateStream.id,
@@ -147,7 +148,7 @@ describe('Versions', () => {
             seedId: 'seed-updated',
             assetId: 'asset-updated',
             assetName: 'asset-name-updated',
-            treeJson: 'done'
+            treeJson
           }
         })
 
@@ -156,10 +157,11 @@ describe('Versions', () => {
         expect(res.data?.versionMutations.update.seedId).to.eq('seed-updated')
         expect(res.data?.versionMutations.update.assetId).to.eq('asset-updated')
         expect(res.data?.versionMutations.update.assetName).to.eq('asset-name-updated')
-        expect(res.data?.versionMutations.update.treeJson).to.eq('done')
+        expect(res.data?.versionMutations.update.treeJson).to.eq(treeJson)
       })
 
       it('allows any logged in user to update external sync fields', async () => {
+        const treeJson = JSON.stringify({ model: { id: 'seed-outsider' }, elements: [] })
         const res = await outsiderApollo.execute(UpdateProjectVersionDocument, {
           input: {
             projectId: myPrivateStream.id,
@@ -167,7 +169,7 @@ describe('Versions', () => {
             seedId: 'seed-outsider',
             assetId: 'asset-outsider',
             assetName: 'asset-name-outsider',
-            treeJson: 'done'
+            treeJson
           }
         })
 
@@ -176,7 +178,7 @@ describe('Versions', () => {
         expect(res.data?.versionMutations.update.seedId).to.eq('seed-outsider')
         expect(res.data?.versionMutations.update.assetId).to.eq('asset-outsider')
         expect(res.data?.versionMutations.update.assetName).to.eq('asset-name-outsider')
-        expect(res.data?.versionMutations.update.treeJson).to.eq('done')
+        expect(res.data?.versionMutations.update.treeJson).to.eq(treeJson)
       })
 
       it('still blocks regular version message updates for non-members', async () => {
