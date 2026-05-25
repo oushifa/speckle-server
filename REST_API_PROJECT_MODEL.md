@@ -1,79 +1,295 @@
-# 项目与模型 REST 接口文档
+# 前端接入文档
 
-本文档包含以下 3 个接口：
+本文档只保留前端需要关注的 4 个能力：
 
-1. 查询项目列表（支持分页、筛选）
-2. 上传模型（REST）
-3. 查询项目模型列表（支持分页、筛选）
+1. 模型列表查询
+2. 模型构件列表查询
+3. 根据 ID 查询构件
+4. IFC 文件上传链路
 
 ## 通用说明
 
 - Base URL：`/`
-- 鉴权：需要登录态（会话/Cookie 或等价鉴权方式）
-- 分页：
-  - 项目列表使用 `cursor` 游标分页（字符串）
-  - 项目模型列表使用 `cursor` 时间游标（ISO 时间字符串）
-- `limit` 默认 `25`，范围 `1-100`
+- 鉴权：沿用当前前端登录态；如果你是手动发请求，带上 Cookie 或 `Authorization`
+- 读接口：需要当前用户对项目有读权限
+- 写接口：需要当前用户对项目有写权限
+- 分页默认 `limit=25`
 
----
+## 1) 模型列表查询
 
-## 1) 查询项目列表
+### 使用场景
+
+- 模型页初始化列表
+- 搜索模型
+- 加载更多模型
+- 按来源应用或是否有版本做筛选
+
+### 接口
 
 - 方法：`GET`
-- 路径：`/api/v1/projects`
+- 路径：`/api/v1/projects/:projectId/models`
+
+### 路径参数
+
+- `projectId`：项目 ID
 
 ### Query 参数
 
-- `limit`（可选，number）：每页数量，默认 `25`，最大 `100`
-- `cursor`（可选，string）：上一页返回的游标
-- `search`（可选，string）：按项目 `name/description/id` 模糊筛选
-- `workspaceId`（可选，string）：按工作空间筛选
+- `limit`：每页数量，建议前端固定 `20` 或 `50`
+- `cursor`：上一页返回的游标
+- `search`：模型名称搜索关键词
+- `contributors`：贡献者用户 ID，支持逗号分隔
+- `sourceApps`：来源应用，支持逗号分隔
+- `onlyWithVersions`：是否仅看有版本的模型
 
-### 响应示例（200）
+### 前端请求示例
+
+```ts
+const params = new URLSearchParams({
+  limit: '20',
+  search: 'main',
+  onlyWithVersions: 'true'
+})
+
+const res = await fetch(`/api/v1/projects/${projectId}/models?${params.toString()}`, {
+  credentials: 'include'
+})
+
+const data = await res.json()
+```
+
+### 响应示例
 
 ```json
 {
-  "totalCount": 128,
-  "limit": 25,
-  "cursor": "eyJ1cGRhdGVkQXQiOiIyMDI2LTA1LTA3VDEwOjE5OjEyLjAwMFoiLCJpZCI6IjEyMzQ1In0",
+  "totalCount": 36,
+  "limit": 20,
+  "cursor": "2026-05-07T09:21:10.121Z",
   "items": [
     {
-      "id": "project-id-1",
-      "name": "项目A",
-      "description": "示例项目",
-      "visibility": "private",
-      "workspaceId": "ws-1",
-      "role": "stream:owner",
-      "createdAt": "2026-04-01T09:00:00.000Z",
-      "updatedAt": "2026-05-07T10:19:12.000Z"
+      "id": "model-id-1",
+      "projectId": "project-id-1",
+      "name": "main",
+      "description": "主模型",
+      "authorId": "user-1",
+      "createdAt": "2026-03-01T12:00:00.000Z",
+      "updatedAt": "2026-05-07T09:21:10.121Z"
     }
   ]
 }
 ```
 
-### 可能错误码
+### 前端处理建议
 
-- `401`：未登录或鉴权失败
+- 首屏渲染使用 `items`
+- `cursor` 不为空时显示“加载更多”
+- 搜索条件变化时清空旧列表并重置 `cursor`
+- `totalCount` 可用于列表标题或统计信息
 
----
+## 2) 模型构件列表查询
 
-## 2) 上传模型（REST）
+### 使用场景
 
-- 方法：`POST`
-- 路径：`/api/v1/projects/:projectId/models/upload/:fileType/:modelName?`
+- 模型详情页加载构件列表
+- 构件面板分页
+- 按构件属性筛选
+- 只取前端展示需要的字段，减少返回体积
+
+### 接口
+
+- 方法：`GET`
+- 路径：`/api/v1/projects/:projectId/models/:modelId/objects`
 
 ### 路径参数
 
-- `projectId`（必填，string）：项目 ID
-- `fileType`（必填，string）：文件类型，如 `ifc`
-- `modelName`（可选，string）：模型名（分支名），不传默认 `main`
+- `projectId`：项目 ID
+- `modelId`：模型 ID
 
-### 请求体
+### Query 参数
 
-- `multipart/form-data`
-- 文件字段沿用现有文件上传能力（与旧接口 `/api/file/:fileType/:streamId/:branchName?` 一致）
+- `limit`：每页数量
+- `cursor`：分页游标
+- `depth`：构件树查询深度
+- `select`：仅返回指定字段，支持逗号分隔
+- `query`：复杂筛选条件，传 JSON 字符串
+- `orderBy`：排序条件，传 JSON 字符串
 
-### 响应示例（201）
+### 前端请求示例
+
+```ts
+const params = new URLSearchParams({
+  limit: '50',
+  select: 'applicationId,category,name',
+  query: JSON.stringify([
+    {
+      field: 'category',
+      operator: '=',
+      value: 'Door'
+    }
+  ]),
+  orderBy: JSON.stringify({
+    field: 'createdAt',
+    direction: 'desc'
+  })
+})
+
+const res = await fetch(
+  `/api/v1/projects/${projectId}/models/${modelId}/objects?${params.toString()}`,
+  {
+    credentials: 'include'
+  }
+)
+
+const data = await res.json()
+```
+
+### 响应示例
+
+```json
+{
+  "projectId": "project-id-1",
+  "modelId": "model-id-1",
+  "modelName": "main",
+  "versionId": "version-id-1",
+  "rootObjectId": "root-object-id-1",
+  "totalCount": 2,
+  "limit": 50,
+  "cursor": null,
+  "items": [
+    {
+      "id": "child-object-id-1",
+      "speckleType": "Objects.BuiltElements.Door",
+      "createdAt": "2026-05-22T02:12:01.000Z",
+      "totalChildrenCount": 0,
+      "data": {
+        "applicationId": "door-001",
+        "category": "Door",
+        "name": "Main Door"
+      }
+    }
+  ]
+}
+```
+
+### 前端处理建议
+
+- `items` 直接作为构件表格或列表数据源
+- `data` 是动态字段，前端取值时按可选链处理
+- `select` 建议只传当前页面需要的字段
+- `cursor` 不为空时继续请求下一页
+- 如果返回空数组，前端展示“当前模型暂无构件”或“当前筛选条件下无结果”
+
+## 3) 根据 ID 查询构件
+
+### 使用场景
+
+- 点击构件行后加载详情
+- 从 viewer 选中构件后查询右侧详情面板
+- 根据 `applicationId/objectId` 联动详情
+
+### 接口
+
+- 方法：`GET`
+- 路径：`/api/v1/projects/:projectId/models/:modelId/objects/:objectId`
+
+### 路径参数
+
+- `projectId`：项目 ID
+- `modelId`：模型 ID
+- `objectId`：构件对象 ID
+
+### 前端请求示例
+
+```ts
+const res = await fetch(
+  `/api/v1/projects/${projectId}/models/${modelId}/objects/${objectId}`,
+  {
+    credentials: 'include'
+  }
+)
+
+const data = await res.json()
+```
+
+### 响应示例
+
+```json
+{
+  "projectId": "project-id-1",
+  "modelId": "model-id-1",
+  "modelName": "main",
+  "versionId": "version-id-1",
+  "rootObjectId": "root-object-id-1",
+  "item": {
+    "id": "object-id-1",
+    "speckleType": "Objects.BuiltElements.Wall",
+    "createdAt": "2026-05-22T02:12:01.000Z",
+    "totalChildrenCount": 0,
+    "data": {
+      "applicationId": "wall-001",
+      "category": "Wall",
+      "name": "External Wall"
+    }
+  }
+}
+```
+
+### 前端处理建议
+
+- 成功后用 `item` 填充详情面板
+- 如果返回 `404`，前端提示“当前模型下未找到该构件”
+- 如果列表页已拿到部分字段，详情页可只在需要补充更多字段时再请求一次
+
+## 4) IFC 文件上传链路
+
+### 前端目标
+
+- 让用户选择 `.ifc` 文件
+- 上传文件
+- 触发导入
+- 展示上传中、处理中、成功、失败等状态
+
+### 推荐链路
+
+前端推荐使用“预签名上传 + 确认导入”的两段式流程。
+
+### 前端时序
+
+1. 用户选择 IFC 文件
+2. 前端调用 `generateUploadUrl`
+3. 前端拿到 `url` 和 `fileId`
+4. 前端通过 `PUT` 直接上传文件到对象存储
+5. 前端从上传响应头里读取 `ETag`
+6. 前端调用 `startFileImport`
+7. 前端进入轮询 / 刷新列表 / 等待状态更新
+8. 前端展示成功或失败结果
+
+### 兼容型 REST 上传入口
+
+- 方法：`POST`
+- 路径：`/api/v1/projects/:projectId/models/upload/:fileType/:modelName?`
+- `fileType` 传 `ifc`
+- 请求体：`multipart/form-data`
+
+### REST 上传示例
+
+```ts
+const formData = new FormData()
+formData.append('file', file)
+
+const res = await fetch(
+  `/api/v1/projects/${projectId}/models/upload/ifc/${encodeURIComponent(modelName)}`,
+  {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  }
+)
+
+const data = await res.json()
+```
+
+### REST 上传响应示例
 
 ```json
 {
@@ -87,119 +303,71 @@
 }
 ```
 
-### 说明
+### 推荐链路示例
 
-- 该接口复用了现有文件导入流程。
-- 同时保留旧上传接口，确保兼容性。
+#### 第一步：申请上传地址
 
-### 可能错误码
-
-- `400`：请求体格式不合法
-- `401`：未登录或鉴权失败
-- `403`：无项目写权限
-- `404`：`modelName` 对应模型（分支）不存在
-- `500`：服务端处理失败
-
----
-
-## 3) 查询项目模型列表
-
-- 方法：`GET`
-- 路径：`/api/v1/projects/:projectId/models`
-
-### 路径参数
-
-- `projectId`（必填，string）：项目 ID
-
-### Query 参数
-
-- `limit`（可选，number）：每页数量，默认 `25`，最大 `100`
-- `cursor`（可选，string）：上一页返回的游标（ISO 时间字符串）
-- `search`（可选，string）：按模型名称模糊筛选
-- `contributors`（可选，string/string[]）：贡献者用户 ID；支持逗号分隔或重复参数
-- `sourceApps`（可选，string/string[]）：来源应用；支持逗号分隔或重复参数
-- `onlyWithVersions`（可选，boolean）：是否仅返回有版本记录的模型
-
-### 请求示例
-
-```bash
-curl -G "http://localhost:3000/api/v1/projects/project-id-1/models" \
-  --data-urlencode "limit=20" \
-  --data-urlencode "search=main" \
-  --data-urlencode "contributors=user-1,user-2" \
-  --data-urlencode "sourceApps=revit,rhino" \
-  --data-urlencode "onlyWithVersions=true"
-```
-
-### 响应示例（200）
-
-```json
-{
-  "totalCount": 36,
-  "limit": 20,
-  "cursor": "2026-05-07T09:21:10.121Z",
-  "items": [
-    {
-      "id": "model-id-1",
-      "projectId": "project-id-1",
-      "name": "main",
-      "description": "主模型",
-      "authorId": "user-1",
-      "createdAt": "2026-03-01T12:00:00.000Z",
-      "updatedAt": "2026-05-07T09:21:10.121Z"
+```ts
+const generateRes = await apolloClient.mutate({
+  mutation: GenerateUploadUrlDocument,
+  variables: {
+    input: {
+      projectId,
+      fileName: file.name
     }
-  ]
-}
+  }
+})
+
+const { url, fileId } = generateRes.data.fileUploadMutations.generateUploadUrl
 ```
 
-## 4) 导出模型列表
+#### 第二步：直传文件
 
-- 方法：`GET`
-- 路径：`/api/v1/modelList`
+```ts
+const uploadRes = await fetch(url, {
+  method: 'PUT',
+  body: file
+})
 
-### Query 参数
-
-- `limit`（可选，number）：每页数量，默认 `25`，最大 `100`
-- `cursor`（可选，string）：上一页返回的游标（ISO 时间字符串）
-- `search`（可选，string）：按模型名称模糊筛选
-- `contributors`（可选，string/string[]）：贡献者用户 ID；支持逗号分隔或重复参数
-- `sourceApps`（可选，string/string[]）：来源应用；支持逗号分隔或重复参数
-- `onlyWithVersions`（可选，boolean）：是否仅返回有版本记录的模型
-
-### 请求示例
-
-```bash
-curl -G "http://localhost:3000/api/v1/modelList" \
-  --data-urlencode "limit=20" \
-  --data-urlencode "search=main" \
-  --data-urlencode "contributors=user-1,user-2" \
-  --data-urlencode "sourceApps=revit,rhino" \
-  --data-urlencode "onlyWithVersions=true"
+const etag = uploadRes.headers.get('etag')
 ```
 
-### 响应示例（200）
+#### 第三步：确认开始导入
 
-```json
-{
-  "totalCount": 36,
-  "limit": 20,
-  "cursor": "2026-05-07T09:21:10.121Z",
-  "items": [
-    {
-      "id": "model-id-1",
-      "projectId": "project-id-1",
-      "name": "main",
-      "description": "主模型",
-      "authorId": "user-1",
-      "createdAt": "2026-03-01T12:00:00.000Z",
-      "updatedAt": "2026-05-07T09:21:10.121Z"
+```ts
+await apolloClient.mutate({
+  mutation: StartFileImportDocument,
+  variables: {
+    input: {
+      projectId,
+      fileId,
+      modelId,
+      etag
     }
-  ]
-}
+  }
+})
 ```
 
-### 可能错误码
+### 前端状态建议
 
-- `401`：未登录或鉴权失败
-- `403`：无项目读权限
-- `404`：项目不存在
+- `idle`：还没选择文件
+- `uploading`：正在上传到对象存储
+- `starting-import`：正在确认导入
+- `processing`：文件已接收，等待转换完成
+- `success`：导入成功
+- `error`：上传或导入失败
+
+### 前端异常处理建议
+
+- `400`：提示用户文件参数不合法或上传校验失败
+- `401`：提示重新登录
+- `403`：提示当前用户没有模型写权限
+- `404`：提示模型不存在或已被删除
+- `500`：提示“服务繁忙，请稍后重试”
+
+### 前端落地建议
+
+- 新页面优先走推荐链路，不建议只保留旧 REST 上传方式
+- 上传大文件时要显示进度和中间状态
+- 成功后刷新模型列表或上传记录
+- 如果同一页面有模型创建能力，建议先确保 `modelId` 可用，再开始上传
