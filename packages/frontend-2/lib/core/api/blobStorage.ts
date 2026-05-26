@@ -75,6 +75,54 @@ export async function getBlobUrl(params: {
   return url.toString()
 }
 
+export async function downloadBlobWithAuth(params: {
+  blobId: string
+  fileName: string
+  principal: BlobUploadPrincipal
+  token?: string
+  apiOrigin: string
+}) {
+  const { blobId, fileName, principal, token, apiOrigin } = params
+  const dlUrl = new URL(`/api/stream/${principal.streamId}/blob/${blobId}`, apiOrigin)
+  const res = await fetch(dlUrl, {
+    method: 'GET',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+
+  if (!res.ok) {
+    let errorMessage = BlobRetrievalError.defaultMessage
+
+    try {
+      const errorBody = (await res.json()) as
+        | { error?: string | { message?: string } }
+        | undefined
+      if (typeof errorBody?.error === 'string') {
+        errorMessage = errorBody.error
+      } else if (errorBody?.error?.message) {
+        errorMessage = errorBody.error.message
+      }
+    } catch {
+      // Ignore JSON parsing failures and fall back to the default message
+    }
+
+    throw new BlobRetrievalError(errorMessage)
+  }
+
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const dlAnchor = document.createElement('a')
+  dlAnchor.href = objectUrl
+  dlAnchor.download = fileName
+  dlAnchor.style.display = 'none'
+  document.body.appendChild(dlAnchor)
+
+  dlAnchor.click()
+  dlAnchor.remove()
+  URL.revokeObjectURL(objectUrl)
+}
+
 /**
  * Upload a single file and return an UploadFileItem
  * @param file File emitted from FileUploadZone

@@ -55,6 +55,7 @@ import type {
   ProjectPageModelsActions_ProjectFragment
 } from '~~/lib/common/generated/gql/graphql'
 import type { LayoutMenuItem } from '~~/lib/layout/helpers/components'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCopyModelLink } from '~~/lib/projects/composables/modelManagement'
 import { EllipsisHorizontalIcon } from '@heroicons/vue/24/solid'
 import { graphql } from '~~/lib/common/generated/gql'
@@ -62,6 +63,7 @@ import { useMixpanel } from '~~/lib/core/composables/mp'
 import { HorizontalDirection } from '~~/lib/common/composables/window'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { modelVersionsRoute } from '~/lib/common/helpers/route'
+import { useFileDownload } from '~/lib/core/composables/fileUpload'
 import { useWorkspacePlan } from '~/lib/workspaces/composables/plan'
 import { useUpdateAccSyncItem } from '~/lib/acc/composables/useUpdateAccSyncItem'
 
@@ -69,6 +71,13 @@ graphql(`
   fragment ProjectPageModelsActions on Model {
     id
     name
+    lastUpload: uploads(input: { limit: 1, cursor: null }) {
+      items {
+        id
+        fileName
+        uploadComplete
+      }
+    }
     permissions {
       canUpdate {
         ...FullPermissionCheckResult
@@ -122,7 +131,8 @@ enum ActionTypes {
   DeleteSync = 'delete-sync',
   CopyId = 'copy-id',
   Embed = 'embed',
-  ViewUploads = 'view-uploads'
+  ViewUploads = 'view-uploads',
+  DownloadSource = 'download-source'
 }
 
 const emit = defineEmits<{
@@ -146,6 +156,8 @@ const menuId = useId()
 const { isLoggedIn } = useActiveUser()
 const router = useRouter()
 const mp = useMixpanel()
+const { triggerNotification } = useGlobalToast()
+const { download } = useFileDownload()
 const { statusIsCanceled } = useWorkspacePlan(props.project.workspace?.slug || '')
 
 const showActionsMenu = ref(false)
@@ -160,6 +172,7 @@ const canCreateVersion = computed(() => props.model.permissions.canCreateVersion
 const canEditAccSync = computed(
   () => props.project.permissions.canReadAccIntegrationSettings
 )
+const latestUpload = computed(() => props.model.lastUpload.items[0] || null)
 
 const uploadVersionDisabled = computed(() => {
   if (canCreateVersion.value.code === 'WORKSPACES_NOT_AUTHORIZED_ERROR') {
@@ -185,6 +198,27 @@ const uploadVersionDisabled = computed(() => {
   return {
     disabled: false,
     tooltip: ''
+  }
+})
+
+const downloadSourceDisabled = computed(() => {
+  if (!latestUpload.value) {
+    return {
+      disabled: true,
+      tooltip: '暂无可下载的源文件'
+    }
+  }
+
+  if (!latestUpload.value.uploadComplete) {
+    return {
+      disabled: true,
+      tooltip: '源文件仍在上传中'
+    }
+  }
+
+  return {
+    disabled: false,
+    tooltip: '下载最近一次上传的源文件'
   }
 })
 
@@ -225,6 +259,12 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
         {
           title: '查看上传',
           id: ActionTypes.ViewUploads
+        },
+        {
+          title: '下载源文件',
+          id: ActionTypes.DownloadSource,
+          disabled: downloadSourceDisabled.value.disabled,
+          disabledTooltip: downloadSourceDisabled.value.tooltip
         },
         ...(isLoggedIn.value
           ? [
@@ -306,6 +346,21 @@ const onActionChosen = (params: { item: LayoutMenuItem; event: MouseEvent }) => 
       break
     case ActionTypes.UploadVersion:
       emit('upload-version')
+      break
+    case ActionTypes.DownloadSource:
+      if (!latestUpload.value) return
+
+      void download({
+        blobId: latestUpload.value.id,
+        fileName: latestUpload.value.fileName,
+        projectId: props.project.id
+      }).catch((error) => {
+        triggerNotification({
+          type: ToastNotificationType.Danger,
+          title: '下载源文件失败',
+          description: error instanceof Error ? error.message : '下载失败'
+        })
+      })
       break
     case ActionTypes.CopyId:
       copy(props.model.id, { successMessage: 'Copied model ID to clipboard' })

@@ -3,6 +3,7 @@ import type { Optional } from '@speckle/shared'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import {
   deleteBlob,
+  downloadBlobWithAuth,
   downloadBlobWithUrl,
   getBlobUrl,
   isSuccessfullyUploaded,
@@ -43,7 +44,7 @@ export function useFileDownload() {
 
   return {
     download: (params: { blobId: string; fileName: string; projectId: string }) =>
-      downloadBlobWithUrl({
+      downloadBlobWithAuth({
         blobId: params.blobId,
         fileName: params.fileName,
         principal: { streamId: params.projectId },

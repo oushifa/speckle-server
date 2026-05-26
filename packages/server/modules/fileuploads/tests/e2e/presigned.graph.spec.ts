@@ -12,6 +12,7 @@ import { expect } from 'chai'
 import cryptoRandomString from 'crypto-random-string'
 import gql from 'graphql-tag'
 import type { SetNonNullable } from 'type-fest'
+import { mockAdminOverride } from '@/test/mocks/global'
 
 const testForbiddenResponse = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,6 +192,7 @@ const startFileImport = async (params: TestContext) => {
 }
 
 describe('Presigned graph @fileuploads', async () => {
+  const adminOverrideMock = mockAdminOverride()
   const serverAdmin = { id: '', name: 'server admin', role: Roles.Server.Admin }
   const regularServerUser = {
     id: '',
@@ -275,6 +277,14 @@ describe('Presigned graph @fileuploads', async () => {
         ownerId: serverAdmin.id
       })
     ).id
+  })
+
+  afterEach(() => {
+    adminOverrideMock.disable()
+  })
+
+  after(() => {
+    adminOverrideMock.disable()
   })
 
   const testData: {
@@ -516,6 +526,52 @@ describe('Presigned graph @fileuploads', async () => {
             })
           })
         })
+      })
+    })
+  })
+
+  describe('server admin override', () => {
+    let apollo: Awaited<ReturnType<typeof testApolloServer>>
+
+    before(async () => {
+      apollo = await testApolloServer({
+        authUserId: serverAdmin.id
+      })
+    })
+
+    it('allows generateUploadUrl for server admin when admin override is enabled', async () => {
+      adminOverrideMock.enable(true)
+
+      await generateUploadUrl({
+        apollo,
+        shouldSucceed: true,
+        projectId: noAccessProject.id,
+        userId: serverAdmin.id,
+        fileName: `${cryptoRandomString({ length: 10 })}.${FILE_TYPE}`
+      })
+    })
+
+    it('blocks generateUploadUrl for server admin when admin override is disabled', async () => {
+      adminOverrideMock.enable(false)
+
+      await generateUploadUrl({
+        apollo,
+        shouldSucceed: false,
+        projectId: noAccessProject.id,
+        userId: serverAdmin.id,
+        fileName: `${cryptoRandomString({ length: 10 })}.${FILE_TYPE}`
+      })
+    })
+
+    it('allows startFileImport for server admin when admin override is enabled', async () => {
+      adminOverrideMock.enable(true)
+
+      await startFileImport({
+        apollo,
+        shouldSucceed: true,
+        projectId: noAccessProject.id,
+        userId: serverAdmin.id,
+        fileName: `${cryptoRandomString({ length: 10 })}.${FILE_TYPE}`
       })
     })
   })

@@ -1,4 +1,4 @@
-import { TIME } from '@speckle/shared'
+import { Roles, TIME } from '@speckle/shared'
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import {
@@ -25,6 +25,7 @@ import {
 } from '@/modules/shared/errors'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import {
+  adminOverrideEnabled,
   fileImportServiceShouldUsePrivateObjectsServerUrl,
   getFileImporterQueuePostgresUrl,
   getFileUploadUrlExpiryMinutes,
@@ -113,6 +114,9 @@ const queueDb = fileImporterConnectionUri
   ? configureClient({ postgres: { connectionUri: fileImporterConnectionUri } }).public
   : db
 
+const hasServerAdminOverride = (ctx: GraphQLContext) =>
+  adminOverrideEnabled() && ctx.role === Roles.Server.Admin
+
 const fileUploadMutations: Resolvers['FileUploadMutations'] = {
   async generateUploadUrl(_parent, args, ctx) {
     const { projectId } = args.input
@@ -126,11 +130,13 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       resourceAccessRules: ctx.resourceAccessRules
     })
 
-    const canImport = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canImport)
+    if (!hasServerAdminOverride(ctx)) {
+      const canImport = await ctx.authPolicies.project.canPublish({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canImport)
+    }
 
     if (!isFileUploadsEnabled())
       throw new BadRequestError('File uploads are not enabled for this server')
@@ -172,11 +178,13 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       resourceAccessRules: ctx.resourceAccessRules
     })
 
-    const canImport = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canImport)
+    if (!hasServerAdminOverride(ctx)) {
+      const canImport = await ctx.authPolicies.project.canPublish({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canImport)
+    }
 
     if (!isFileUploadsEnabled())
       throw new BadRequestError('File uploads are not enabled for this server')
@@ -304,11 +312,13 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       resourceAccessRules: ctx.resourceAccessRules
     })
 
-    const canPublish = await ctx.authPolicies.project.canPublish({
-      userId: ctx.userId,
-      projectId
-    })
-    throwIfAuthNotOk(canPublish)
+    if (!hasServerAdminOverride(ctx)) {
+      const canPublish = await ctx.authPolicies.project.canPublish({
+        userId: ctx.userId,
+        projectId
+      })
+      throwIfAuthNotOk(canPublish)
+    }
 
     let jobResult: FileImportResultPayload
     if (status === JobResultStatus.Error) {

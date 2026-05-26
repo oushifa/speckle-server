@@ -102,12 +102,17 @@
 
         <template #status="{ item }">
           <div
+            role="button"
+            tabindex="0"
             class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
             :class="
               (item.applicationIds || []).length
-                ? 'bg-success-lighter text-success-darker'
+                ? 'bg-success-lighter text-success-darker cursor-pointer'
                 : 'bg-foundation-2 text-foreground-2'
             "
+            @click="openAssociatedModelDrawer(item)"
+            @keydown.enter="openAssociatedModelDrawer(item)"
+            @keydown.space="openAssociatedModelDrawer(item)"
           >
             {{ (item.applicationIds || []).length ? '已关联BIM模型' : '未关联' }}
           </div>
@@ -166,13 +171,42 @@
         </div>
       </div>
     </LayoutDialog>
+
+    <LayoutDrawer
+      v-model:open="associatedModelDrawerOpen"
+      placement="right"
+      width="95%"
+      body-classes="p-4"
+    >
+      <template #title>
+        关联模型查看
+        <span v-if="selectedAssociationTask" class="text-sm text-foreground-2">
+          | {{ selectedAssociationTask.taskName || selectedAssociationTask.wbs || '-' }}
+        </span>
+      </template>
+      <div class="h-[85vh] relative">
+        <CommonModelPropsViewer
+          v-if="selectedAssociationModelIds.length"
+          :project-id="projectId"
+          :model-ids="selectedAssociationModelIds"
+          :filter-bims="selectedAssociationBimIds"
+          :filter-application-ids="selectedAssociationApplicationIds"
+        />
+        <div v-else class="h-full flex items-center justify-center text-foreground-2">
+          未找到关联模型
+        </div>
+      </div>
+    </LayoutDrawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { Download, Link2, Upload } from 'lucide-vue-next'
-import { CommonModelObjectMultiModelSelectDrawer } from '#components'
+import {
+  CommonModelObjectMultiModelSelectDrawer,
+  CommonModelPropsViewer
+} from '#components'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import {
   downloadLatestProgressPlanFile,
@@ -306,6 +340,11 @@ const linkDialogOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
 const draftModelIds = ref<string[]>([])
 const draftSelections = ref<ProgressPlanTaskBimSelection[]>([])
+const associatedModelDrawerOpen = ref(false)
+const selectedAssociationTaskId = ref<string | null>(null)
+const selectedAssociationModelIds = ref<string[]>([])
+const selectedAssociationBimIds = ref<string[]>([])
+const selectedAssociationApplicationIds = ref<string[]>([])
 
 const projectId = computed(() => {
   const id = route.params.id
@@ -528,6 +567,10 @@ const selectedTask = computed(
   () => items.value.find((item) => item.id === selectedTaskId.value) || null
 )
 
+const selectedAssociationTask = computed(
+  () => items.value.find((item) => item.id === selectedAssociationTaskId.value) || null
+)
+
 const linkDialogButtons = computed<LayoutDialogButton[]>(() => [
   {
     text: '取消',
@@ -709,6 +752,16 @@ const openLinkDialog = (item: ScheduleItem) => {
   linkDialogOpen.value = true
 }
 
+const openAssociatedModelDrawer = (item: ScheduleItem) => {
+  selectedAssociationTaskId.value = item.id
+  selectedAssociationModelIds.value = uniqueStrings(item.modelIds || [])
+  selectedAssociationApplicationIds.value = uniqueStrings(item.applicationIds || [])
+  // Progress plan links currently persist applicationIds without separate bimIds.
+  // Reuse applicationIds as fallback lookup keys so CommonModelPropsViewer can isolate them.
+  selectedAssociationBimIds.value = [...selectedAssociationApplicationIds.value]
+  associatedModelDrawerOpen.value = true
+}
+
 const saveTaskLink = async () => {
   if (!selectedTask.value) return
   if (!projectId.value) return
@@ -758,5 +811,13 @@ watch(projectId, () => {
 onMounted(() => {
   fetchLatestPlanFile()
   fetchPlanTasks()
+})
+
+watch(associatedModelDrawerOpen, (isOpen) => {
+  if (isOpen) return
+  selectedAssociationTaskId.value = null
+  selectedAssociationModelIds.value = []
+  selectedAssociationBimIds.value = []
+  selectedAssociationApplicationIds.value = []
 })
 </script>
