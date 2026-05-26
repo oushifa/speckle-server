@@ -53,6 +53,10 @@ import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUpl
 import { getFileSizeLimit } from '@/modules/blobstorage/services/management'
 import { getFeatureFlags } from '@speckle/shared/environment'
 import { BadRequestError, ForbiddenError } from '@/modules/shared/errors'
+import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
+import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
+import { updateFileUploadFactory } from '@/modules/fileuploads/repositories/fileUploads'
+import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 
 const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
 
@@ -245,6 +249,7 @@ export default (app: Router) => {
 
         const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
           queues: fileImportQueues,
+          allowUnscheduledFileTypes: ['rvt'],
           pushJobToFileImporter,
           saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
           emit: getEventBus().emit
@@ -274,6 +279,12 @@ export default (app: Router) => {
             getModelsByIds: getBranchesByIdsFactory({ db: projectDb })
           })
 
+        const emitFileStatusChange = notifyChangeInFileStatus({
+          eventEmit: getEventBus().emit
+        })
+        const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+        const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
+
         const upload = await registerUploadCompleteAndStartFileImport({
           projectId: MODEL_LIBRARY_PROJECT_ID,
           fileId,
@@ -282,6 +293,37 @@ export default (app: Router) => {
           expectedETag: etag,
           maximumFileSize: getFileSizeLimit()
         })
+
+        if (upload.fileType.toLocaleLowerCase() === 'rvt') {
+          try {
+            await dispatchRvtFileImport({
+              projectId: MODEL_LIBRARY_PROJECT_ID,
+              modelId: resolvedModel.id,
+              modelName: resolvedModel.name,
+              fileUpload: upload,
+              userId
+            })
+          } catch (error) {
+            req.log.error(
+              { err: error, projectId: MODEL_LIBRARY_PROJECT_ID, fileId: upload.id },
+              'Failed to dispatch RVT file import for model library upload'
+            )
+
+            const failedFile = await updateFileUpload({
+              id: upload.id,
+              upload: {
+                convertedStatus: FileUploadConvertedStatus.Error,
+                convertedMessage:
+                  error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+                convertedLastUpdate: new Date()
+              }
+            })
+
+            await emitFileStatusChange({
+              file: failedFile
+            })
+          }
+        }
 
         res.json({
           data: {

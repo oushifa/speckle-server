@@ -23,6 +23,7 @@ type ModelRow = {
   updatedAt: string
   versions: string | number
   latestCommitId: string | null
+  latestVersionSeedId: string | null
   latestSourceApp: string | null
   latestUploadId: string | null
   latestUploadFileName: string | null
@@ -107,6 +108,13 @@ export default (app: Router) => {
           .orderBy(Commits.col.createdAt, 'desc')
           .limit(1)
 
+        const latestVersionSeedIdQuery = knex(BranchCommits.name)
+          .select(Commits.col.seedId)
+          .innerJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
+          .where(BranchCommits.col.branchId, knex.ref(`${Branches.name}.id`))
+          .orderBy(Commits.col.createdAt, 'desc')
+          .limit(1)
+
         const latestUploadIdQuery = knex(FileUploads.name)
           .select(FileUploads.col.id)
           .where(FileUploads.col.streamId, knex.ref(`${Branches.name}.streamId`))
@@ -172,6 +180,7 @@ export default (app: Router) => {
             `${Streams.name}.name as streamName`,
             `${Branches.name}.updatedAt`,
             knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`),
+            knex.raw(`(${latestVersionSeedIdQuery.toQuery()}) as "latestVersionSeedId"`),
             knex.raw(`(${latestSourceAppQuery.toQuery()}) as "latestSourceApp"`),
             knex.raw(`(${latestUploadIdQuery.toQuery()}) as "latestUploadId"`),
             knex.raw(`(${latestUploadFileNameQuery.toQuery()}) as "latestUploadFileName"`),
@@ -243,6 +252,7 @@ export default (app: Router) => {
           versions: parseInt(m.versions as string),
           comments: 0,
           hasModel: Boolean(m.latestCommitId),
+          seedId: m.latestVersionSeedId || null,
           previewUrl: m.latestCommitId
             ? new URL(
                 `/preview/${m.streamId}/commits/${m.latestCommitId}`,

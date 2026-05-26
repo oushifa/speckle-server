@@ -276,6 +276,27 @@ const fakeViewerState = (overrides?: PartialDeep<ViewerState.SerializedViewerSta
     return defaultGroup!
   }
 
+  const createPersonalProjectView = async (params?: {
+    name?: string
+    resourceIdString?: string
+  }) => {
+    const resourceIdString = params?.resourceIdString || model1ResourceIds().toString()
+    const res = await createSavedView(
+      buildCreateInput({
+        projectId: myProject.id,
+        resourceIdString,
+        overrides: {
+          name: params?.name || 'Personal project view'
+        }
+      }),
+      { assertNoErrors: true }
+    )
+
+    const view = res.data?.projectMutations.savedViewMutations.createView
+    expect(view).to.be.ok
+    return view!
+  }
+
   const model1ResourceIds = () => ViewerRoute.resourceBuilder().addModel(myModel1.id)
 
   const model2ResourceIds = () => ViewerRoute.resourceBuilder().addModel(myModel2.id)
@@ -3688,6 +3709,128 @@ const fakeViewerState = (overrides?: PartialDeep<ViewerState.SerializedViewerSta
             // Total should match expected searchable count
             expect(totalFound).to.be.lessThanOrEqual(SEARCHABLE_VIEW_COUNT)
           })
+        })
+      })
+
+      describe('updating/deleting views in unworkspaced projects', () => {
+        it('allows moving a view to a group in a non-workspaced project', async () => {
+          const view = await createPersonalProjectView({
+            name: 'Move in personal project'
+          })
+
+          try {
+            const res = await updateView(
+              {
+                input: {
+                  id: view.id,
+                  projectId: myProject.id,
+                  groupId: testGroup1.id
+                }
+              },
+              { assertNoErrors: true }
+            )
+
+            expect(res.data?.projectMutations.savedViewMutations.updateView.groupId).to.eq(
+              testGroup1.id
+            )
+          } finally {
+            await deleteView(
+              {
+                input: {
+                  id: view.id,
+                  projectId: myProject.id
+                }
+              },
+              { assertNoErrors: true }
+            )
+          }
+        })
+
+        it('allows replacing and setting home view in a non-workspaced project', async () => {
+          const view = await createPersonalProjectView({
+            name: 'Replace in personal project'
+          })
+
+          try {
+            const replaceRes = await updateView(
+              {
+                input: {
+                  id: view.id,
+                  projectId: myProject.id,
+                  resourceIdString: myModel2.id,
+                  screenshot: fakeScreenshot2,
+                  viewerState: fakeViewerState({
+                    projectId: myProject.id,
+                    resources: {
+                      request: {
+                        resourceIdString: myModel2.id
+                      }
+                    }
+                  })
+                }
+              },
+              { assertNoErrors: true }
+            )
+
+            expect(
+              replaceRes.data?.projectMutations.savedViewMutations.updateView.resourceIdString
+            ).to.eq(myModel2.id)
+
+            const homeRes = await updateView(
+              {
+                input: {
+                  id: view.id,
+                  projectId: myProject.id,
+                  isHomeView: true
+                }
+              },
+              { assertNoErrors: true }
+            )
+
+            expect(homeRes.data?.projectMutations.savedViewMutations.updateView.isHomeView).to
+              .be.true
+          } finally {
+            await deleteView(
+              {
+                input: {
+                  id: view.id,
+                  projectId: myProject.id
+                }
+              },
+              { assertNoErrors: true }
+            )
+          }
+        })
+
+        it('allows deleting a view in a non-workspaced project', async () => {
+          const view = await createPersonalProjectView({
+            name: 'Delete in personal project'
+          })
+
+          const deleteRes = await deleteView(
+            {
+              input: {
+                id: view.id,
+                projectId: myProject.id
+              }
+            },
+            { assertNoErrors: true }
+          )
+
+          expect(deleteRes.data?.projectMutations.savedViewMutations.deleteView).to.be.true
+
+          const foundView = await getView(
+            {
+              projectId: myProject.id,
+              viewId: view.id
+            },
+            {
+              authUserId: me.id
+            }
+          )
+
+          expect(foundView.data?.project.savedView).to.not.be.ok
+          expect(foundView).to.haveGraphQLErrors({ code: NotFoundError.code })
         })
       })
     })

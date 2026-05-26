@@ -20,8 +20,7 @@ import {
   SavedViewGroupNotFoundError,
   SavedViewNoAccessError,
   SavedViewNotFoundError,
-  UngroupedSavedViewGroupLockError,
-  WorkspaceNoAccessError
+  UngroupedSavedViewGroupLockError
 } from '../domain/authErrors.js'
 import { nanoid } from 'nanoid'
 import { ProjectVisibility } from '../domain/projects/types.js'
@@ -59,8 +58,8 @@ describe('ensureCanAccessSavedViewFragment', () => {
       ...overrides
     })
 
-  it.each(<const>['read', ...Object.values(WriteTypes)])(
-    'fails when not workspaced project (%s)',
+  it.each(<const>['read', WriteTypes.MoveView, WriteTypes.EditTitle, WriteTypes.EditDescription, WriteTypes.SetHomeView])(
+    'allows unworkspaced project for supported access (%s)',
     async (access) => {
       const sut = buildSUT()
 
@@ -70,11 +69,23 @@ describe('ensureCanAccessSavedViewFragment', () => {
         savedViewId,
         access
       })
-      expect(result).toBeAuthErrorResult({
-        code: WorkspaceNoAccessError.code
-      })
+      expect(result).toBeAuthOKResult()
     }
   )
+
+  it('still blocks general view updates for non-authors in unworkspaced projects', async () => {
+    const sut = buildSUT()
+
+    const result = await sut({
+      userId,
+      projectId,
+      savedViewId,
+      access: WriteTypes.UpdateGeneral
+    })
+    expect(result).toBeAuthErrorResult({
+      code: SavedViewNoAccessError.code
+    })
+  })
 
   describe('w/ workspaced project', () => {
     const buildWorkspaceSUT = (
@@ -390,25 +401,35 @@ describe('ensureCanAccessSavedViewGroupFragment', () => {
       getWorkspaceRole: async () => null,
       getWorkspaceSsoProvider: async () => null,
       getWorkspaceSsoSession: async () => null,
+      getAdminOverrideEnabled: async () => false,
       ...overrides
     })
 
-  it.each(<const>['read', 'write'])(
-    'fails when not workspaced project (%s)',
-    async (access) => {
-      const sut = buildSUT()
+  it('allows reading groups in unworkspaced projects', async () => {
+    const sut = buildSUT()
 
-      const result = await sut({
-        userId,
-        projectId,
-        savedViewGroupId,
-        access
-      })
-      expect(result).toBeAuthErrorResult({
-        code: WorkspaceNoAccessError.code
-      })
-    }
-  )
+    const result = await sut({
+      userId,
+      projectId,
+      savedViewGroupId,
+      access: 'read'
+    })
+    expect(result).toBeAuthOKResult()
+  })
+
+  it('still enforces project role checks for group writes in unworkspaced projects', async () => {
+    const sut = buildSUT()
+
+    const result = await sut({
+      userId,
+      projectId,
+      savedViewGroupId,
+      access: 'write'
+    })
+    expect(result).toBeAuthErrorResult({
+      code: ProjectNotEnoughPermissionsError.code
+    })
+  })
 
   describe('w/ workspaced project', () => {
     const buildWorkspaceSUT = (
