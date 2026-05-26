@@ -38,28 +38,35 @@ export const insertNewUploadAndNotifyFactory =
 export const insertNewUploadAndNotifyFactoryV2 =
   (deps: {
     queues: Pick<FileImportQueue, 'scheduleJob' | 'supportedFileTypes'>[]
+    allowUnscheduledFileTypes?: string[]
     pushJobToFileImporter: PushJobToFileImporter
     saveUploadFile: SaveUploadFileV2
     emit: EventBusEmit
   }): InsertNewUploadAndNotifyV2 =>
   async (upload) => {
     const file = await deps.saveUploadFile(upload)
+    const normalizedFileType = file.fileType.toLocaleLowerCase()
     const queue = deps.queues.find((q) =>
-      q.supportedFileTypes.includes(file.fileType.toLocaleLowerCase())
+      q.supportedFileTypes.includes(normalizedFileType)
     )
-    if (!queue) {
+    const isAllowedWithoutQueue = deps.allowUnscheduledFileTypes?.includes(
+      normalizedFileType
+    )
+    if (!queue && !isAllowedWithoutQueue) {
       throw new UnsupportedFileTypeError()
     }
 
-    await deps.pushJobToFileImporter({
-      scheduleJob: queue.scheduleJob,
-      fileName: file.fileName,
-      fileType: file.fileType,
-      projectId: file.projectId,
-      modelId: upload.modelId,
-      blobId: file.id,
-      userId: upload.userId
-    })
+    if (queue) {
+      await deps.pushJobToFileImporter({
+        scheduleJob: queue.scheduleJob,
+        fileName: file.fileName,
+        fileType: file.fileType,
+        projectId: file.projectId,
+        modelId: upload.modelId,
+        blobId: file.id,
+        userId: upload.userId
+      })
+    }
 
     await deps.emit({
       eventName: FileuploadEvents.Started,

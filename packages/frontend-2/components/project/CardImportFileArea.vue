@@ -187,7 +187,6 @@ const {
     resetSelected()
   }
 })
-
 const { errorMessage, progressBarClasses, progressBarStyle } =
   useFileUploadProgressCore({
     item: fileUpload
@@ -215,16 +214,10 @@ const showEmptyState = computed(
 const emptyStateHeading = computed(() => {
   if (showEmptyState.value) {
     return props.emptyStateVariant === 'modelsSection' ? '该项目暂无模型' : '暂无模型'
-    return props.emptyStateVariant === 'modelsSection'
-      ? 'The project has no models, yet.'
-      : 'No models, yet.'
   }
 
   if (isDisabled.value) {
     return modelName.value ? '改模型暂无历史版本' : '该项目暂无模型'
-    return modelName.value
-      ? 'The model has no versions, yet.'
-      : 'The project has no models, yet.'
   }
 
   return undefined
@@ -310,7 +303,6 @@ const getDashedBorderClasses = (isDraggingFiles: boolean) => {
 
   return 'border-outline-2'
 }
-
 const onModelCreate = (params: { model: ProjectPageLatestItemsModelItemFragment }) => {
   if (!isFileUploadUploadable.value) return
 

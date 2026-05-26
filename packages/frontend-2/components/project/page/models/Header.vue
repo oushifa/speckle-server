@@ -234,7 +234,6 @@ const onViewAllClick = () => {
 
 const showNewDialog = ref(false)
 const showNewAccSync = ref(false)
-
 const showAccIntegration = computed(
   () => props.project?.permissions.canReadAccIntegrationSettings.authorized
 )

@@ -68,6 +68,11 @@ import {
 } from '@/modules/shared/middleware'
 import { buildMocksConfig } from '@/modules/mocks'
 import { defaultErrorHandler } from '@/modules/core/rest/defaultErrorHandler'
+import {
+  getRvtConversionWsPath,
+  handleRvtConversionUpgrade,
+  initRvtConversionWsServer
+} from '@/modules/rvt-conversion/services/wsServer'
 import { migrateDbToLatest } from '@/db/migrations'
 import { statusCodePlugin } from '@/modules/core/graph/plugins/statusCode'
 import { BadRequestError, ForbiddenError } from '@/modules/shared/errors'
@@ -76,6 +81,7 @@ import { initFactory as healthchecksInitFactory } from '@/healthchecks'
 import type { ReadinessHandler } from '@/healthchecks/types'
 import type ws from 'ws'
 import type { Server as MockWsServer } from 'mock-socket'
+import { WebSocketServer } from 'ws'
 import type { SetOptional } from 'type-fest'
 import {
   enterNewRequestContext,
@@ -95,8 +101,9 @@ const GRAPHQL_PATH = '/graphql'
  * In mocked Ws connections, request will be undefined
  */
 type PossiblyMockedConnectionContext = SetOptional<ConnectionContext, 'request'>
+type UpgradableWsServer = MockWsServer | ws.Server
 
-const isWsServer = (server: http.Server | MockWsServer): server is MockWsServer => {
+const isWsServer = (server: http.Server | UpgradableWsServer): server is UpgradableWsServer => {
   return 'on' in server && 'clients' in server
 }
 
@@ -106,7 +113,7 @@ const isWsServer = (server: http.Server | MockWsServer): server is MockWsServer 
  * will be unable to use any WebSocket/subscriptions functionality with the updated server
  */
 export async function buildApolloSubscriptionServer(params: {
-  server: http.Server | MockWsServer
+  server: http.Server | UpgradableWsServer
   registers?: Registry[]
 }): Promise<SubscriptionServer> {
   const { server, registers } = params
@@ -359,9 +366,29 @@ export async function init() {
 
   // Init HTTP server & subscription server
   const server = http.createServer(app)
+  initRvtConversionWsServer()
+  const graphqlWsServer = new WebSocketServer({ noServer: true })
   const subscriptionServer = await buildApolloSubscriptionServer({
-    server,
+    server: graphqlWsServer,
     registers: [promRegister]
+  })
+
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '', 'http://localhost').pathname
+
+    if (pathname === getRvtConversionWsPath()) {
+      handleRvtConversionUpgrade(request, socket, head)
+      return
+    }
+
+    if (pathname === GRAPHQL_PATH) {
+      graphqlWsServer.handleUpgrade(request, socket, head, (ws) => {
+        graphqlWsServer.emit('connection', ws, request)
+      })
+      return
+    }
+
+    socket.destroy()
   })
 
   // Initialize graphql server

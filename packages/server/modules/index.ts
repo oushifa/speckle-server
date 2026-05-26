@@ -121,6 +121,7 @@ const getEnabledModuleNames = () => {
     'project-statistics',
     'quality-acceptance-form',
     'pwdreset',
+    'rvt-conversion',
     'serverinvites',
     'stats',
     'webhooks',
