@@ -159,9 +159,11 @@ export type UpdateStreamRecord = (
   update:
     | (StreamUpdateInput & {
         updatedAt: Date
+        usage?: Project['usage']
       })
     | (ProjectUpdateInput & {
         updatedAt: Date
+        usage?: Project['usage']
       })
 ) => Promise<Nullable<Stream>>
 

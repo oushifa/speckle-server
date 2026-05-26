@@ -36,11 +36,13 @@ export const ensureModelLibraryProjectFactory =
 
       if (!needsUpdate) return existingProject
 
+      const updatedAt = new Date()
       await updateStream({
         id: MODEL_LIBRARY_PROJECT_ID,
         name: MODEL_LIBRARY_PROJECT_NAME,
         description: systemDescription,
         visibility: 'PRIVATE',
+        updatedAt,
         usage: PROJECT_USAGES.StorageOnly
       })
 
