@@ -62,6 +62,9 @@ import {
 import { getAllRegisteredDbs } from '@/modules/multiregion/utils/dbSelector'
 import { deleteProjectFactory } from '@/modules/core/repositories/projects'
 import { deleteProjectCommitsFactory } from '@/modules/core/repositories/commits'
+import { listDepartmentsFactory, listDepartmentUsersFactory } from '@/modules/organizations/repositories/organizations'
+import { DepartmentMembers } from '@/modules/organizations/helpers/db'
+import type { Knex } from 'knex'
 
 const getUser = legacyGetUserFactory({ db })
 const getUserByEmail = legacyGetUserByEmailFactory({ db })
@@ -160,6 +163,67 @@ export default {
           userId: context.userId
         })
         throwIfAuthNotOk(canRead)
+      }
+
+      // 如果不是 admin,需要根据部门过滤用户
+      if (context.role !== Roles.Server.Admin && context.userId) {
+        const listDepartments = listDepartmentsFactory({ db })
+        const listDepartmentUsers = listDepartmentUsersFactory({ db })
+        const getUserDepartmentsFactory = (deps: { db: Knex }) => async (userId: string) => {
+          return await deps
+            .db<{ departmentId: string }>(DepartmentMembers.name)
+            .where(DepartmentMembers.col.userId, userId)
+            .select(DepartmentMembers.col.departmentId)
+        }
+        const getUserDepartments = getUserDepartmentsFactory({ db })
+        
+        // 获取用户所属的部门ID
+        const userDeps = await getUserDepartments(context.userId)
+        const userDepartmentIds = userDeps.map((d: { departmentId: string }) => d.departmentId)
+        
+        if (userDepartmentIds.length > 0) {
+          // 获取所有部门
+          const allDepartments = await listDepartments()
+          
+          // 收集用户有权访问的部门ID(包括子部门)
+          const accessibleDepartmentIds = new Set<string>()
+          for (const depId of userDepartmentIds) {
+            accessibleDepartmentIds.add(depId)
+            
+            // 递归查找所有子部门
+            const findChildren = (parentId: string) => {
+              allDepartments.forEach((dep) => {
+                if (dep.parentId === parentId) {
+                  accessibleDepartmentIds.add(dep.id)
+                  findChildren(dep.id)
+                }
+              })
+            }
+            
+            findChildren(depId)
+          }
+          
+          // 获取这些部门的所有用户ID
+          const accessibleUserIds = new Set<string>()
+          for (const depId of accessibleDepartmentIds) {
+            const deptUsers = await listDepartmentUsers({ departmentId: depId })
+            deptUsers.forEach(u => accessibleUserIds.add(u.id))
+          }
+          
+          // 如果没有可访问的用户,返回空结果
+          if (accessibleUserIds.size === 0) {
+            return { cursor: null, items: [] }
+          }
+          
+          // 查询用户时添加部门过滤
+          const { cursor, users } = await lookupUsers(args.input)
+          const filteredUsers = users.filter(u => accessibleUserIds.has(u.id))
+          
+          return { cursor, items: filteredUsers }
+        }
+        
+        // 如果用户不属于任何部门,返回空结果
+        return { cursor: null, items: [] }
       }
 
       const { cursor, users } = await lookupUsers(args.input)

@@ -18,6 +18,9 @@ import {
   updateCustomRoleNameFactory,
   updateCustomRoleUserPermsFactory
 } from '@/modules/custom-role/repositories/customRoles'
+import { listDepartmentsFactory, listDepartmentUsersFactory } from '@/modules/organizations/repositories/organizations'
+import { DepartmentMembers } from '@/modules/organizations/helpers/db'
+import { Roles } from '@speckle/shared'
 
 const permissionArray = z
   .array(z.string())
@@ -190,7 +193,63 @@ export const customRoleRouterFactory = (): Router => {
     async (req, res) => {
       const role = await getCustomRole({ roleId: req.params.roleId })
       if (!role) return res.status(404).send({ error: 'Role not found.' })
+      
       const users = await listCustomRoleUsers({ roleId: req.params.roleId })
+      
+      // 如果不是 admin,需要根据部门过滤用户
+      const currentUserRole = req.context.role
+      const currentUserId = req.context.userId
+      
+      if (currentUserRole !== Roles.Server.Admin && currentUserId) {
+        const listDepartments = listDepartmentsFactory({ db })
+        const listDepartmentUsers = listDepartmentUsersFactory({ db })
+        
+        // 获取用户所属的部门ID
+        const userDeps = await db<{ departmentId: string }>(DepartmentMembers.name)
+          .where(DepartmentMembers.col.userId, currentUserId)
+          .select(DepartmentMembers.col.departmentId)
+        
+        const userDepartmentIds = userDeps.map((d: { departmentId: string }) => d.departmentId)
+        
+        if (userDepartmentIds.length > 0) {
+          // 获取所有部门
+          const allDepartments = await listDepartments()
+          
+          // 收集用户有权访问的部门ID(包括子部门)
+          const accessibleDepartmentIds = new Set<string>()
+          for (const depId of userDepartmentIds) {
+            accessibleDepartmentIds.add(depId)
+            
+            // 递归查找所有子部门
+            const findChildren = (parentId: string) => {
+              allDepartments.forEach((dep) => {
+                if (dep.parentId === parentId) {
+                  accessibleDepartmentIds.add(dep.id)
+                  findChildren(dep.id)
+                }
+              })
+            }
+            
+            findChildren(depId)
+          }
+          
+          // 获取这些部门的所有用户ID
+          const accessibleUserIds = new Set<string>()
+          for (const depId of accessibleDepartmentIds) {
+            const deptUsers = await listDepartmentUsers({ departmentId: depId })
+            deptUsers.forEach((u: { id: string }) => accessibleUserIds.add(u.id))
+          }
+          
+          // 过滤用户列表
+          const filteredUsers = users.filter((u: { userId: string }) => accessibleUserIds.has(u.userId))
+          
+          return res.status(200).send({ items: filteredUsers })
+        }
+        
+        // 如果用户不属于任何部门,返回空结果
+        return res.status(200).send({ items: [] })
+      }
+      
       return res.status(200).send({ items: users })
     }
   )
@@ -202,11 +261,65 @@ export const customRoleRouterFactory = (): Router => {
       const role = await getCustomRole({ roleId: req.params.roleId })
       if (!role) return res.status(404).send({ error: 'Role not found.' })
 
+      // 如果不是 admin,需要验证用户只能添加自己部门的用户
+      const currentUserRole = req.context.role
+      const currentUserId = req.context.userId
+      
+      let userIdsToAdd = req.body.userIds
+      
+      if (currentUserRole !== Roles.Server.Admin && currentUserId) {
+        const listDepartments = listDepartmentsFactory({ db })
+        const listDepartmentUsers = listDepartmentUsersFactory({ db })
+        
+        // 获取用户所属的部门ID
+        const userDeps = await db<{ departmentId: string }>(DepartmentMembers.name)
+          .where(DepartmentMembers.col.userId, currentUserId)
+          .select(DepartmentMembers.col.departmentId)
+        
+        const userDepartmentIds = userDeps.map((d: { departmentId: string }) => d.departmentId)
+        
+        if (userDepartmentIds.length > 0) {
+          // 获取所有部门
+          const allDepartments = await listDepartments()
+          
+          // 收集用户有权访问的部门ID(包括子部门)
+          const accessibleDepartmentIds = new Set<string>()
+          for (const depId of userDepartmentIds) {
+            accessibleDepartmentIds.add(depId)
+            
+            // 递归查找所有子部门
+            const findChildren = (parentId: string) => {
+              allDepartments.forEach((dep) => {
+                if (dep.parentId === parentId) {
+                  accessibleDepartmentIds.add(dep.id)
+                  findChildren(dep.id)
+                }
+              })
+            }
+            
+            findChildren(depId)
+          }
+          
+          // 获取这些部门的所有用户ID
+          const accessibleUserIds = new Set<string>()
+          for (const depId of accessibleDepartmentIds) {
+            const deptUsers = await listDepartmentUsers({ departmentId: depId })
+            deptUsers.forEach((u: { id: string }) => accessibleUserIds.add(u.id))
+          }
+          
+          // 过滤出用户有权添加的用户ID
+          userIdsToAdd = userIdsToAdd.filter((id: string) => accessibleUserIds.has(id))
+        } else {
+          // 如果用户不属于任何部门,不允许添加任何用户
+          userIdsToAdd = []
+        }
+      }
+
       const existingUserIds = await listExistingUserIds({
-        userIds: req.body.userIds
+        userIds: userIdsToAdd
       })
       const existingUserIdSet = new Set(existingUserIds)
-      const skippedUserIds = req.body.userIds.filter((id) => !existingUserIdSet.has(id))
+      const skippedUserIds = userIdsToAdd.filter((id: string) => !existingUserIdSet.has(id))
 
       const addedCount = await addUsersToRole({
         roleId: role.id,

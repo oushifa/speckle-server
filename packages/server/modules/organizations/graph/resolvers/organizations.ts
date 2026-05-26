@@ -60,7 +60,7 @@ const toDepartmentTree = (departments: Department[]): DepartmentNode[] => {
 }
 
 /**
- * 获取用户所属的所有部门ID(包括通过部门成员关系关联的部门)
+ * 获取用户所属的所有部门ID(包括通过部门成员关系关联的部门)及其所有父部门
  */
 const getUserDepartmentIds = async (
   userId: string,
@@ -77,10 +77,21 @@ const getUserDepartmentIds = async (
     return []
   }
   
-  // 获取这些部门的所有子部门ID
+  // 为每个用户所属部门,添加其所有父部门ID
   const allDepartmentIds = new Set<string>()
   for (const depId of userDepartmentIds) {
     allDepartmentIds.add(depId)
+    
+    // 查找所有父部门
+    const findParents = (departmentId: string) => {
+      const department = departments.find(d => d.id === departmentId)
+      if (department && department.parentId) {
+        allDepartmentIds.add(department.parentId)
+        findParents(department.parentId)
+      }
+    }
+    
+    findParents(depId)
     
     // 查找所有子部门
     const findChildren = (parentId: string) => {
