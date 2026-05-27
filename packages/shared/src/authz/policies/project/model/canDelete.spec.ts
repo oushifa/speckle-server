@@ -1,65 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { Roles } from '../../../../core/constants.js'
-import { parseFeatureFlags } from '../../../../environment/index.js'
-import {
-  getModelFake,
-  getProjectFake,
-  getWorkspaceFake
-} from '../../../../tests/fakes.js'
+import { getModelFake } from '../../../../tests/fakes.js'
 import {
   ModelNotFoundError,
-  ProjectNotFoundError,
   ReservedModelNotDeletableError,
   ServerNoAccessError,
-  ServerNoSessionError,
-  WorkspaceSsoSessionNoAccessError
+  ServerNoSessionError
 } from '../../../domain/authErrors.js'
 import { canDeleteModelPolicy } from './canDelete.js'
-import { TIME_MS } from '../../../../core/helpers/timeConstants.js'
 
 const buildSUT = (overrides?: Partial<Parameters<typeof canDeleteModelPolicy>[0]>) =>
   canDeleteModelPolicy({
-    getEnv: async () => parseFeatureFlags({ FF_WORKSPACES_MODULE_ENABLED: 'true' }),
-    getProject: getProjectFake({
-      id: 'project-id',
-      workspaceId: null
-    }),
     getModel: getModelFake({
       id: 'model-id',
       projectId: 'project-id',
       authorId: 'user-id',
       name: 'model-name'
     }),
-    getProjectRole: async () => Roles.Stream.Contributor,
     getServerRole: async () => Roles.Server.User,
-    getWorkspace: async () => null,
-    getWorkspaceRole: async () => null,
-    getWorkspaceSsoProvider: async () => null,
-    getWorkspaceSsoSession: async () => null,
-    ...overrides
-  })
-
-const buildWorkspaceSUT = (
-  overrides?: Partial<Parameters<typeof canDeleteModelPolicy>[0]>
-) =>
-  buildSUT({
-    getProject: getProjectFake({
-      id: 'project-id',
-      workspaceId: 'workspace-id'
-    }),
-    getWorkspace: getWorkspaceFake({
-      id: 'workspace-id',
-      slug: 'workspace-slug'
-    }),
-    getWorkspaceRole: async () => Roles.Workspace.Member,
-    getWorkspaceSsoProvider: async () => ({
-      providerId: 'provider-id'
-    }),
-    getWorkspaceSsoSession: async () => ({
-      userId: 'user-id',
-      providerId: 'provider-id',
-      validUntil: new Date(Date.now() + TIME_MS.day)
-    }),
     ...overrides
   })
 
@@ -90,19 +48,6 @@ describe('canDeleteModelPolicy', () => {
     expect(result).toBeAuthErrorResult({
       code: ServerNoAccessError.code
     })
-  })
-
-  it('returns ok if project not found but model is resolvable', async () => {
-    const sut = buildSUT({
-      getProject: async () => null
-    })
-
-    const result = await sut({
-      userId: 'user-id',
-      projectId: 'project-id',
-      modelId: 'model-id'
-    })
-    expect(result).toBeAuthOKResult()
   })
 
   it('returns error if model not found', async () => {
@@ -141,14 +86,14 @@ describe('canDeleteModelPolicy', () => {
     })
   })
 
-  it('returns ok if user is not author and not project owner', async () => {
+  it('returns error if model is globals', async () => {
     const sut = buildSUT({
       getModel: getModelFake({
         id: 'model-id',
         projectId: 'project-id',
-        authorId: 'other-user-id'
-      }),
-      getProjectRole: async () => Roles.Stream.Contributor
+        name: 'globals',
+        authorId: 'user-id'
+      })
     })
 
     const result = await sut({
@@ -156,30 +101,19 @@ describe('canDeleteModelPolicy', () => {
       projectId: 'project-id',
       modelId: 'model-id'
     })
-    expect(result).toBeAuthOKResult()
+    expect(result).toBeAuthErrorResult({
+      code: ReservedModelNotDeletableError.code
+    })
   })
 
-  it('returns ok if no project role at all', async () => {
+  it('returns ok for any logged-in server user when model is deletable', async () => {
     const sut = buildSUT({
       getModel: getModelFake({
         id: 'model-id',
         projectId: 'project-id',
-        authorId: 'other-user-id'
-      }),
-      getProjectRole: async () => null
-    })
-
-    const result = await sut({
-      userId: 'user-id',
-      projectId: 'project-id',
-      modelId: 'model-id'
-    })
-    expect(result).toBeAuthOKResult()
-  })
-
-  it('returns ok if not at least contributor', async () => {
-    const sut = buildSUT({
-      getProjectRole: async () => Roles.Stream.Reviewer
+        authorId: 'other-user-id',
+        name: 'model-name'
+      })
     })
     const result = await sut({
       userId: 'user-id',
@@ -187,130 +121,5 @@ describe('canDeleteModelPolicy', () => {
       modelId: 'model-id'
     })
     expect(result).toBeAuthOKResult()
-  })
-
-  it('returns ok if permissible', async () => {
-    const sut = buildSUT()
-    const result = await sut({
-      userId: 'user-id',
-      projectId: 'project-id',
-      modelId: 'model-id'
-    })
-    expect(result).toBeAuthOKResult()
-  })
-
-  it('returns ok if not author, but project owner', async () => {
-    const sut = buildSUT({
-      getModel: getModelFake({
-        id: 'model-id',
-        projectId: 'project-id',
-        authorId: 'other-user-id'
-      }),
-      getProjectRole: async () => Roles.Stream.Owner
-    })
-
-    const result = await sut({
-      userId: 'user-id',
-      projectId: 'project-id',
-      modelId: 'model-id'
-    })
-    expect(result).toBeAuthOKResult()
-  })
-
-  it('returns ok if no author, but project owner', async () => {
-    const sut = buildSUT({
-      getModel: getModelFake({
-        id: 'model-id',
-        projectId: 'project-id',
-        authorId: null
-      }),
-      getProjectRole: async () => Roles.Stream.Owner
-    })
-
-    const result = await sut({
-      userId: 'user-id',
-      projectId: 'project-id',
-      modelId: 'model-id'
-    })
-    expect(result).toBeAuthOKResult()
-  })
-
-  describe('with workspace project', () => {
-    it('returns ok if permissible', async () => {
-      const sut = buildWorkspaceSUT()
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
-
-    it('returns ok with implicit owner role', async () => {
-      const sut = buildWorkspaceSUT({
-        getWorkspaceRole: async () => Roles.Workspace.Admin,
-        getProjectRole: async () => null
-      })
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
-
-    it('returns ok if no implicit project role', async () => {
-      const sut = buildWorkspaceSUT({
-        getWorkspaceRole: async () => Roles.Workspace.Member,
-        getProjectRole: async () => Roles.Stream.Reviewer
-      })
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
-
-    it('returns ok if no sso configured', async () => {
-      const sut = buildWorkspaceSUT({
-        getWorkspaceSsoProvider: async () => null,
-        getWorkspaceSsoSession: async () => null
-      })
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
-
-    it('returns ok if no sso session', async () => {
-      const sut = buildWorkspaceSUT({
-        getWorkspaceSsoSession: async () => null
-      })
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
-
-    it('returns ok if sso expired', async () => {
-      const sut = buildWorkspaceSUT({
-        getWorkspaceSsoSession: async () => ({
-          userId: 'user-id',
-          providerId: 'provider-id',
-          validUntil: new Date(new Date().getTime() - TIME_MS.second)
-        })
-      })
-      const result = await sut({
-        userId: 'user-id',
-        projectId: 'project-id',
-        modelId: 'model-id'
-      })
-      expect(result).toBeAuthOKResult()
-    })
   })
 })
