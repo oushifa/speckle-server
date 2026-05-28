@@ -8,6 +8,9 @@ export const ProjectDrawings = buildTableHelper('project_drawings', [
   'folderId',
   'name',
   'blobId',
+  'convertedBlobId',
+  'conversionStatus',
+  'conversionError',
   'fileName',
   'fileType',
   'contentType',
@@ -24,6 +27,9 @@ export type ProjectDrawingRecord = {
   folderId: string | null
   name: string
   blobId: string
+  convertedBlobId: string | null
+  conversionStatus: string | null
+  conversionError: string | null
   fileName: string
   fileType: string
   contentType: string
@@ -106,6 +112,9 @@ export const createProjectDrawingFactory =
     folderId: string | null
     name: string
     blobId: string
+    convertedBlobId?: string | null
+    conversionStatus?: string | null
+    conversionError?: string | null
     fileName: string
     fileType: string
     contentType: string
@@ -124,6 +133,26 @@ export const createProjectDrawingFactory =
     return record
   }
 
+export const updateProjectDrawingFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    drawingId: string
+    patch: Partial<
+      Pick<ProjectDrawingRecord, 'convertedBlobId' | 'conversionStatus' | 'conversionError' | 'updater'>
+    >
+  }): Promise<ProjectDrawingRecord | null> => {
+    const [updated] = await tables
+      .drawings(deps.db)
+      .where({
+        [ProjectDrawings.col.projectId]: params.projectId,
+        [ProjectDrawings.col.id]: params.drawingId
+      })
+      .update({ ...params.patch, updatedAt: deps.db.fn.now() }, '*')
+
+    return updated || null
+  }
+
 export const deleteProjectDrawingFactory =
   (deps: { db: Knex }) =>
   async (params: { projectId: string; drawingId: string }): Promise<boolean> => {
@@ -137,4 +166,3 @@ export const deleteProjectDrawingFactory =
 
     return deletedCount > 0
   }
-

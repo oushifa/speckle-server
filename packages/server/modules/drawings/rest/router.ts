@@ -19,6 +19,11 @@ import { generatePresignedUrlFactory } from '@/modules/blobstorage/services/pres
 import { getBlobMetadataFactory, deleteBlobFactory } from '@/modules/blobstorage/repositories'
 import { fullyDeleteBlobFactory } from '@/modules/blobstorage/services/management'
 import { deleteObjectFactory } from '@/modules/blobstorage/repositories/blobs'
+import { triggerProjectDrawingDwgToDxfConversion } from '@/modules/drawings/services/dwgToDxf'
+import {
+  onDrawingConversionUpdated,
+  onProjectDrawingConversionUpdated
+} from '@/modules/drawings/services/conversionEvents'
 import {
   createDrawingAnnotationFactory,
   deleteDrawingAnnotationFactory,
@@ -46,6 +51,9 @@ const serializeDrawing = (record: {
   folderId: string | null
   name: string
   blobId: string
+  convertedBlobId: string | null
+  conversionStatus: string | null
+  conversionError: string | null
   fileName: string
   fileType: string
   contentType: string
@@ -60,6 +68,9 @@ const serializeDrawing = (record: {
   folderId: record.folderId,
   name: record.name,
   blobId: record.blobId,
+  convertedBlobId: record.convertedBlobId,
+  conversionStatus: record.conversionStatus,
+  conversionError: record.conversionError,
   fileName: record.fileName,
   fileType: record.fileType,
   contentType: record.contentType,
@@ -265,6 +276,9 @@ export const drawingsRouterFactory = (): Router => {
           folderId: typeof folderId === 'string' && folderId.trim() ? folderId.trim() : null,
           name: name.trim(),
           blobId,
+          convertedBlobId: null,
+          conversionStatus: fileType === 'dwg' ? 'pending' : null,
+          conversionError: null,
           fileName,
           fileType,
           contentType,
@@ -273,7 +287,76 @@ export const drawingsRouterFactory = (): Router => {
           updater: userId
         })
 
+        if (fileType === 'dwg') {
+          void triggerProjectDrawingDwgToDxfConversion({
+            projectId,
+            drawingId: record.id,
+            userId
+          })
+        }
+
         res.status(201).json({ data: serializeDrawing(record) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/:drawingId/convert-to-dxf`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const userId = req.context.userId
+        if (!userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const drawingId = req.params.drawingId
+
+        void triggerProjectDrawingDwgToDxfConversion({ projectId, drawingId, userId })
+
+        res.status(202).json({ data: { status: 'processing' } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${routeBase}/conversion/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        if (!req.context.userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+
+        res.status(200)
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache, no-transform')
+        res.setHeader('Connection', 'keep-alive')
+
+        const writeEvent = (eventName: string, data: unknown) => {
+          res.write(`event: ${eventName}\n`)
+          res.write(`data: ${JSON.stringify(data)}\n\n`)
+        }
+
+        writeEvent('connected', { projectId })
+
+        const unsubscribe = onProjectDrawingConversionUpdated(projectId, (payload) => {
+          writeEvent('update', payload)
+        })
+
+        const heartbeat = setInterval(() => {
+          res.write(`: ping\n\n`)
+        }, 15000)
+
+        req.on('close', () => {
+          clearInterval(heartbeat)
+          unsubscribe()
+        })
       } catch (err) {
         next(err)
       }
@@ -295,6 +378,50 @@ export const drawingsRouterFactory = (): Router => {
         if (!record) return res.status(404).json({ error: 'Drawing not found' })
 
         res.json({ data: serializeDrawing(record) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${routeBase}/:drawingId/conversion/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        if (!req.context.userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const drawingId = req.params.drawingId
+        const projectDb = await getProjectDbClient({ projectId })
+        const record = await getProjectDrawingFactory({ db: projectDb })({ projectId, drawingId })
+        if (!record) return res.status(404).json({ error: 'Drawing not found' })
+
+        res.status(200)
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache, no-transform')
+        res.setHeader('Connection', 'keep-alive')
+
+        const writeEvent = (eventName: string, data: unknown) => {
+          res.write(`event: ${eventName}\n`)
+          res.write(`data: ${JSON.stringify(data)}\n\n`)
+        }
+
+        writeEvent('snapshot', serializeDrawing(record))
+
+        const unsubscribe = onDrawingConversionUpdated(projectId, drawingId, (payload) => {
+          writeEvent('update', payload)
+        })
+
+        const heartbeat = setInterval(() => {
+          res.write(`: ping\n\n`)
+        }, 15000)
+
+        req.on('close', () => {
+          clearInterval(heartbeat)
+          unsubscribe()
+        })
       } catch (err) {
         next(err)
       }

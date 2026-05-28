@@ -564,5 +564,9 @@ export function getOdaUserSecret() {
   return getStringFromEnv('ODA_USER_SECRET')
 }
 
+export function getOdaBaseUrl() {
+  return getStringFromEnv('ODA_BASE_URL', { default: 'http://127.0.0.1:8089' })
+}
+
 export const areSavedViewsEnabled = (): boolean =>
   getFeatureFlags().FF_SAVED_VIEWS_ENABLED

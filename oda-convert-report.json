@@ -1,0 +1,189 @@
+{
+  "generatedAt": "2026-05-28T16:21:37.333Z",
+  "config": {
+    "baseUrl": "http://127.0.0.1:8089",
+    "filePath": "/Users/yujian/work/speckle-server/packages/frontend-2/public/RAC_basic_sample_project - 图纸 - A102 - Plans-楼层平面 - Level 1.dwg",
+    "sourceUrl": "https://docxtpl.oss-cn-shanghai.aliyuncs.com/linshi/2eb99b02-14e9-4e2e-aca2-f17938e458c8.dwg",
+    "outputDir": "/Users/yujian/work/speckle-server",
+    "timeoutMs": 120000
+  },
+  "results": [
+    {
+      "name": "local-success",
+      "expected": "success",
+      "passed": true,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/local",
+        "body": "multipart/form-data file=@/Users/yujian/work/speckle-server/packages/frontend-2/public/RAC_basic_sample_project - 图纸 - A102 - Plans-楼层平面 - Level 1.dwg"
+      },
+      "response": {
+        "ok": true,
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "content-length": "204",
+          "content-type": "application/json",
+          "date": "Thu, 28 May 2026 16:21:19 GMT"
+        },
+        "bodyText": "{\"path\":\"2851eb627fe5b0874503dc4232406b03/output/2f89f2ede30d5bde584f054848315e79.dxf\",\"url\":\"http://127.0.0.1:8089/download/2851eb627fe5b0874503dc4232406b03/output/2f89f2ede30d5bde584f054848315e79.dxf\"}\n",
+        "bodyJson": {
+          "path": "2851eb627fe5b0874503dc4232406b03/output/2f89f2ede30d5bde584f054848315e79.dxf",
+          "url": "http://127.0.0.1:8089/download/2851eb627fe5b0874503dc4232406b03/output/2f89f2ede30d5bde584f054848315e79.dxf"
+        },
+        "durationMs": 762
+      },
+      "download": {
+        "attempted": true,
+        "attempts": 1,
+        "ok": true,
+        "sourceUrl": "http://127.0.0.1:8089/download/2851eb627fe5b0874503dc4232406b03/output/2f89f2ede30d5bde584f054848315e79.dxf",
+        "outputPath": "/Users/yujian/work/speckle-server/oda-local-output.dxf",
+        "sizeBytes": 1107451,
+        "error": null
+      }
+    },
+    {
+      "name": "url-success",
+      "expected": "success",
+      "passed": false,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/url",
+        "body": "multipart/form-data url=https://docxtpl.oss-cn-shanghai.aliyuncs.com/linshi/2eb99b02-14e9-4e2e-aca2-f17938e458c8.dwg"
+      },
+      "response": {
+        "ok": true,
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "content-length": "204",
+          "content-type": "application/json",
+          "date": "Thu, 28 May 2026 16:21:20 GMT"
+        },
+        "bodyText": "{\"path\":\"549d00fad79aa464fd578f630739a17b/output/c334ff5cc5d0e62381bd50d3b011dc3a.dxf\",\"url\":\"http://127.0.0.1:8089/download/549d00fad79aa464fd578f630739a17b/output/c334ff5cc5d0e62381bd50d3b011dc3a.dxf\"}\n",
+        "bodyJson": {
+          "path": "549d00fad79aa464fd578f630739a17b/output/c334ff5cc5d0e62381bd50d3b011dc3a.dxf",
+          "url": "http://127.0.0.1:8089/download/549d00fad79aa464fd578f630739a17b/output/c334ff5cc5d0e62381bd50d3b011dc3a.dxf"
+        },
+        "durationMs": 695
+      },
+      "download": {
+        "attempted": true,
+        "attempts": 5,
+        "ok": false,
+        "sourceUrl": "http://127.0.0.1:8089/download/549d00fad79aa464fd578f630739a17b/output/c334ff5cc5d0e62381bd50d3b011dc3a.dxf",
+        "outputPath": "/Users/yujian/work/speckle-server/oda-url-output.dxf",
+        "sizeBytes": null,
+        "error": "Download failed with status 404 Not Found"
+      }
+    },
+    {
+      "name": "local-missing-file",
+      "expected": "error",
+      "passed": true,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/local",
+        "body": "multipart/form-data without file field"
+      },
+      "response": {
+        "ok": false,
+        "status": 400,
+        "statusText": "Bad Request",
+        "headers": {
+          "content-length": "24",
+          "content-type": "text/plain; charset=utf-8",
+          "date": "Thu, 28 May 2026 16:21:28 GMT",
+          "x-content-type-options": "nosniff"
+        },
+        "bodyText": "no file or url provided\n",
+        "bodyJson": null,
+        "durationMs": 2
+      }
+    },
+    {
+      "name": "local-invalid-file",
+      "expected": "error",
+      "passed": true,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/local",
+        "body": "multipart/form-data file=@invalid.dwg(fake content)"
+      },
+      "response": {
+        "ok": true,
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "content-length": "204",
+          "content-type": "application/json",
+          "date": "Thu, 28 May 2026 16:21:29 GMT"
+        },
+        "bodyText": "{\"path\":\"fd0276ec574542691eb8a5260fa3e014/output/8d2df6096fd57319e1745b1830e194d3.dxf\",\"url\":\"http://127.0.0.1:8089/download/fd0276ec574542691eb8a5260fa3e014/output/8d2df6096fd57319e1745b1830e194d3.dxf\"}\n",
+        "bodyJson": {
+          "path": "fd0276ec574542691eb8a5260fa3e014/output/8d2df6096fd57319e1745b1830e194d3.dxf",
+          "url": "http://127.0.0.1:8089/download/fd0276ec574542691eb8a5260fa3e014/output/8d2df6096fd57319e1745b1830e194d3.dxf"
+        },
+        "durationMs": 593
+      },
+      "download": {
+        "attempted": true,
+        "attempts": 5,
+        "ok": false,
+        "sourceUrl": "http://127.0.0.1:8089/download/fd0276ec574542691eb8a5260fa3e014/output/8d2df6096fd57319e1745b1830e194d3.dxf",
+        "outputPath": "/Users/yujian/work/speckle-server/oda-invalid-output.dxf",
+        "sizeBytes": null,
+        "error": "Download failed with status 404 Not Found"
+      }
+    },
+    {
+      "name": "url-missing-url",
+      "expected": "error",
+      "passed": true,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/url",
+        "body": "multipart/form-data without url field"
+      },
+      "response": {
+        "ok": false,
+        "status": 400,
+        "statusText": "Bad Request",
+        "headers": {
+          "content-length": "24",
+          "content-type": "text/plain; charset=utf-8",
+          "date": "Thu, 28 May 2026 16:21:37 GMT",
+          "x-content-type-options": "nosniff"
+        },
+        "bodyText": "no file or url provided\n",
+        "bodyJson": null,
+        "durationMs": 2
+      }
+    },
+    {
+      "name": "url-invalid-url",
+      "expected": "error",
+      "passed": true,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8089/convert/url",
+        "body": "multipart/form-data url=not-a-valid-url"
+      },
+      "response": {
+        "ok": false,
+        "status": 400,
+        "statusText": "Bad Request",
+        "headers": {
+          "content-length": "54",
+          "content-type": "text/plain; charset=utf-8",
+          "date": "Thu, 28 May 2026 16:21:37 GMT",
+          "x-content-type-options": "nosniff"
+        },
+        "bodyText": "Get \"not-a-valid-url\": unsupported protocol scheme \"\"\n",
+        "bodyJson": null,
+        "durationMs": 1
+      }
+    }
+  ]
+}
