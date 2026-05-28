@@ -1,4 +1,6 @@
 import dotenv from 'dotenv'
+import fs from 'fs'
+import path from 'path'
 import {
   isTestEnv,
   isDevEnv,
@@ -46,6 +48,25 @@ if ((isTestEnv() || isDevEnv()) && startDebugger) {
 
 // Load dotenv
 dotenv.config({ path: `${packageRoot}/.env` })
+
+// Allow branch-specific env overlays without duplicating the main .env file.
+const branchEnvFile = process.env.SERVER_ENV_FILE
+if (branchEnvFile) {
+  const resolvedEnvPath = path.isAbsolute(branchEnvFile)
+    ? branchEnvFile
+    : path.resolve(packageRoot, branchEnvFile)
+
+  if (!fs.existsSync(resolvedEnvPath)) {
+    const e = new Error(`Configured SERVER_ENV_FILE does not exist: ${resolvedEnvPath}`)
+    logger.error(e)
+    process.exit(1)
+  }
+
+  const parsedEnv = dotenv.parse(fs.readFileSync(resolvedEnvPath))
+  Object.entries(parsedEnv).forEach(([key, value]) => {
+    process.env[key] = value
+  })
+}
 
 // knex is a singleton controlled by module so can't wait til app init
 initOpenTelemetry()

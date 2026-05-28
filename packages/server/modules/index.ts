@@ -96,6 +96,7 @@ const getEnabledModuleNames = () => {
   } = getFeatureFlags()
   const moduleNames = [
     'alignment',
+    'drawings',
     'acc',
     'logs',
     'accessrequests',
