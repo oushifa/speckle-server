@@ -566,14 +566,16 @@ export function getOdaUserSecret() {
 
 export function getOdaBaseUrl() {
   // return getStringFromEnv('ODA_BASE_URL', { default: 'http://127.0.0.1:8089' })
-  const defaultBaseUrl = isProdEnv()
-    ? 'http://speckle-server-dwg2dxf-1:8080'
-    : 'http://127.0.0.1:8089'
-
-  console.log(defaultBaseUrl, 'defaultBaseUrl')
   return getStringFromEnv('ODA_BASE_URL', {
-    default: defaultBaseUrl
+    default: 'http://speckle-server-dwg2dxf-1:8080'
   })
+  // const defaultBaseUrl = isProdEnv()
+  //   ? 'http://speckle-server-dwg2dxf-1:8080'
+  //   : 'http://127.0.0.1:8089'
+  // console.log(defaultBaseUrl, 'defaultBaseUrl')
+  // return getStringFromEnv('ODA_BASE_URL', {
+  //   default: defaultBaseUrl
+  // })
 }
 
 export const areSavedViewsEnabled = (): boolean =>
