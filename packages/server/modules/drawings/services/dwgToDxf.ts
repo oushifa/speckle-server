@@ -244,19 +244,36 @@ export const triggerProjectDrawingDwgToDxfConversion = async (params: {
     })
 
     const odaBaseUrl = getOdaBaseUrl().replace(/\/+$/, '')
-    let dxfUrl: string
+    let dxfBuffer: Buffer | null = null
+    let urlAttemptError: Error | null = null
+
     try {
-      dxfUrl = await convertViaUrl({ odaBaseUrl, sourceUrl: dwgUrl })
-    } catch {
-      const dwgBuffer = await downloadWithRetry(dwgUrl, 3, 'download dwg (fallback local convert)')
-      dxfUrl = await convertViaLocal({
-        odaBaseUrl,
-        fileBuffer: dwgBuffer,
-        fileName: record.fileName
-      })
+      const dxfUrl = await convertViaUrl({ odaBaseUrl, sourceUrl: dwgUrl })
+      dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA (url convert)')
+    } catch (e) {
+      urlAttemptError = ensureError(e)
     }
 
-    const dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA')
+    if (!dxfBuffer) {
+      try {
+        const dwgBuffer = await downloadWithRetry(dwgUrl, 3, 'download dwg (fallback local convert)')
+        const dxfUrl = await convertViaLocal({
+          odaBaseUrl,
+          fileBuffer: dwgBuffer,
+          fileName: record.fileName
+        })
+        dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA (local convert)')
+      } catch (e) {
+        const localAttemptError = ensureError(e)
+        if (urlAttemptError) {
+          throw new Error(
+            `url convert failed: ${urlAttemptError.message}\nlocal convert failed: ${localAttemptError.message}`
+          )
+        }
+        throw localAttemptError
+      }
+    }
+
     const convertedBlobId = generateId()
     const objectKey = getObjectKey(projectId, convertedBlobId)
 
