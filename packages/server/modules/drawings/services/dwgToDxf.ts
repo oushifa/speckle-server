@@ -1,10 +1,10 @@
 import cryptoRandomString from 'crypto-random-string'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { BlobUploadStatus } from '@speckle/shared/blobs'
-import { TIME, ensureError } from '@speckle/shared'
+import { TIME_MS, ensureError } from '@speckle/shared'
 import { getObjectKey } from '@/modules/blobstorage/helpers/blobs'
 import { getBlobMetadataFactory, upsertBlobFactory } from '@/modules/blobstorage/repositories'
-import { getSignedDownloadUrlFactory } from '@/modules/blobstorage/clients/objectStorage'
+import { getObjectStreamFactory } from '@/modules/blobstorage/repositories/blobs'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
 import {
@@ -16,6 +16,7 @@ import {
   emitDrawingConversionUpdated,
   emitProjectDrawingConversionUpdated
 } from '@/modules/drawings/services/conversionEvents'
+import type stream from 'stream'
 
 const generateId = () => cryptoRandomString({ length: 10 })
 
@@ -34,11 +35,19 @@ const getFetchErrorDetails = (e: unknown) => {
   }
 }
 
+const streamToBuffer = async (readable: stream.Readable) => {
+  const chunks: Buffer[] = []
+  for await (const chunk of readable) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array))
+  }
+  return Buffer.concat(chunks)
+}
+
 const downloadWithRetry = async (url: string, tries: number, stage: string) => {
   let lastErr: Error | null = null
   for (let i = 0; i < tries; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(2 * TIME.minute) })
+      const res = await fetch(url, { signal: AbortSignal.timeout(10 * TIME_MS.minute) })
       if (!res.ok) throw new Error(`Download failed with status ${res.status}`)
       const buf = Buffer.from(await res.arrayBuffer())
       if (!buf.length) throw new Error('Downloaded DXF is empty')
@@ -84,73 +93,6 @@ const redactUrl = (url: string) => {
   }
 }
 
-const checkUrlAccessible = async (url: string) => {
-  const summary = { ok: false, status: 0, contentType: '', contentLength: '' }
-  try {
-    const head = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(30 * TIME.second) })
-    summary.status = head.status
-    summary.ok = head.ok
-    summary.contentType = head.headers.get('content-type') || ''
-    summary.contentLength = head.headers.get('content-length') || ''
-    if (head.ok) return summary
-  } catch {
-  }
-
-  try {
-    const range = await fetch(url, {
-      headers: { Range: 'bytes=0-0' },
-      signal: AbortSignal.timeout(30 * TIME.second)
-    })
-    summary.status = range.status
-    summary.ok = range.ok
-    summary.contentType = range.headers.get('content-type') || ''
-    summary.contentLength =
-      range.headers.get('content-length') || range.headers.get('content-range') || ''
-    return summary
-  } catch {
-    return summary
-  }
-}
-
-const convertViaUrl = async (params: { odaBaseUrl: string; sourceUrl: string }) => {
-  const form = new FormData()
-  form.set('url', params.sourceUrl)
-
-  const res = await fetch(`${params.odaBaseUrl}/convert/url`, {
-    method: 'POST',
-    body: form,
-    signal: AbortSignal.timeout(2 * TIME.minute)
-  })
-  if (!res.ok) {
-    const body = await readErrorBody(res)
-    const safeUrl = redactUrl(params.sourceUrl)
-    const preflight = await checkUrlAccessible(params.sourceUrl)
-    throw new Error(
-      `ODA convert/url failed (${res.status}): ${body || res.statusText}\n` +
-        `preflight: ${JSON.stringify(preflight)}\n` +
-        `sourceUrl: ${JSON.stringify(safeUrl)}`
-    )
-  }
-
-  const json = (await res.json()) as { url?: string; path?: string }
-  const rawUrl = typeof json.url === 'string' ? json.url.trim() : ''
-  if (rawUrl) {
-    const parsed = new URL(rawUrl, params.odaBaseUrl)
-    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)) {
-      return new URL(`${parsed.pathname}${parsed.search}`, params.odaBaseUrl).toString()
-    }
-    return parsed.toString()
-  }
-
-  const rawPath = typeof json.path === 'string' ? json.path.trim() : ''
-  if (rawPath) {
-    const normalizedPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath
-    return new URL(`/download/${normalizedPath}`, params.odaBaseUrl).toString()
-  }
-
-  throw new Error('ODA convert/url response missing dxf url')
-}
-
 const convertViaLocal = async (params: {
   odaBaseUrl: string
   fileBuffer: Buffer
@@ -166,7 +108,7 @@ const convertViaLocal = async (params: {
   const res = await fetch(`${params.odaBaseUrl}/convert/local`, {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(2 * TIME.minute)
+    signal: AbortSignal.timeout(10 * TIME_MS.minute)
   })
   if (!res.ok) {
     const body = await readErrorBody(res)
@@ -236,43 +178,18 @@ export const triggerProjectDrawingDwgToDxfConversion = async (params: {
       blobId: record.blobId
     })
 
-    const getSignedDownloadUrl = getSignedDownloadUrlFactory({ objectStorage: projectStorage.private })
+    const odaBaseUrl = getOdaBaseUrl().replace(/\/+$/, '')
+    const getObjectStream = getObjectStreamFactory({ storage: projectStorage.private })
+    const dwgStream = await getObjectStream({ objectKey: blobMeta.objectKey! })
+    const dwgBuffer = await streamToBuffer(dwgStream)
 
-    const dwgUrl = await getSignedDownloadUrl({
-      objectKey: blobMeta.objectKey!,
-      urlExpiryDurationSeconds: 30 * TIME.minute
+    const dxfUrl = await convertViaLocal({
+      odaBaseUrl,
+      fileBuffer: dwgBuffer,
+      fileName: record.fileName
     })
 
-    const odaBaseUrl = getOdaBaseUrl().replace(/\/+$/, '')
-    let dxfBuffer: Buffer | null = null
-    let urlAttemptError: Error | null = null
-
-    try {
-      const dxfUrl = await convertViaUrl({ odaBaseUrl, sourceUrl: dwgUrl })
-      dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA (url convert)')
-    } catch (e) {
-      urlAttemptError = ensureError(e)
-    }
-
-    if (!dxfBuffer) {
-      try {
-        const dwgBuffer = await downloadWithRetry(dwgUrl, 3, 'download dwg (fallback local convert)')
-        const dxfUrl = await convertViaLocal({
-          odaBaseUrl,
-          fileBuffer: dwgBuffer,
-          fileName: record.fileName
-        })
-        dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA (local convert)')
-      } catch (e) {
-        const localAttemptError = ensureError(e)
-        if (urlAttemptError) {
-          throw new Error(
-            `url convert failed: ${urlAttemptError.message}\nlocal convert failed: ${localAttemptError.message}`
-          )
-        }
-        throw localAttemptError
-      }
-    }
+    const dxfBuffer = await downloadWithRetry(dxfUrl, 5, 'download dxf from ODA (local convert)')
 
     const convertedBlobId = generateId()
     const objectKey = getObjectKey(projectId, convertedBlobId)
