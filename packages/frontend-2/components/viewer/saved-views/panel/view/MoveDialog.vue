@@ -1,7 +1,7 @@
 <template>
   <LayoutDialog
     v-model:open="open"
-    title="Move to group"
+    title="移动到分组"
     max-width="sm"
     :buttons="buttons"
     :on-submit="onSubmit"
@@ -9,7 +9,7 @@
     <div class="flex flex-col gap-4">
       <FormSelectSavedViewGroup
         name="group"
-        label="Select group"
+        label="选择分组"
         show-label
         :project-id="projectId"
         :resource-id-string="resourceIdString"
@@ -48,7 +48,7 @@ const emit = defineEmits<{
   success: [groupId: string]
 }>()
 
-const props = defineProps<{
+const propsData = defineProps<{
   view: ViewerSavedViewsPanelViewMoveDialog_SavedViewFragment | undefined
 }>()
 
@@ -67,7 +67,7 @@ const updateView = useUpdateSavedView()
 const buttons = computed((): LayoutDialogButton[] => [
   {
     id: 'cancel',
-    text: 'Cancel',
+    text: '取消',
     props: {
       color: 'outline'
     },
@@ -77,21 +77,21 @@ const buttons = computed((): LayoutDialogButton[] => [
   },
   {
     id: 'save',
-    text: 'Save',
+    text: '保存',
     submit: true
   }
 ])
 
 const onSubmit = handleSubmit(async (values) => {
-  if (!props.view) return
-  const groupId = values.group.id !== props.view.group.id ? values.group.id : null
+  if (!propsData.view) return
+  const groupId = values.group.id !== propsData.view.group.id ? values.group.id : null
   if (!groupId) return
 
   const res = await updateView({
-    view: props.view,
+    view: propsData.view,
     input: {
-      id: props.view.id,
-      projectId: props.view.projectId,
+      id: propsData.view.id,
+      projectId: propsData.view.projectId,
       groupId
     }
   })
@@ -103,12 +103,12 @@ const onSubmit = handleSubmit(async (values) => {
 })
 
 watch(open, (newVal, oldVal) => {
-  if (!props.view) return
+  if (!propsData.view) return
 
   if (newVal && !oldVal) {
     // Reset form state when dialog opens
     setValues({
-      group: props.view.group
+      group: markRaw({ ...propsData.view.group })
     })
   }
 })

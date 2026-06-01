@@ -26,7 +26,7 @@
         <span
           class="flex justify-center items-center bg-foundation-page text-body-2xs rounded-md text-foreground-2 border border-dashed border-outline-2 text-center my-2 mx-1.5 px-4 h-10"
         >
-          No views in group
+          该分组暂无视图
         </span>
       </template>
     </div>

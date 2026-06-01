@@ -68,11 +68,6 @@ export const useCollectNewSavedViewViewerData = () => {
 export const useCreateSavedView = () => {
   const { mutate } = useMutation(createSavedViewMutation)
   const { userId } = useActiveUser()
-  const {
-    resources: {
-      response: { project }
-    }
-  } = useInjectedViewerState()
   const { triggerNotification } = useGlobalToast()
   const { collect } = useCollectNewSavedViewViewerData()
   const mp = useMixpanel()
@@ -105,9 +100,7 @@ export const useCreateSavedView = () => {
     if (res?.id) {
       mp.track('Saved View Created', {
         viewId: res.id,
-        groupId: res.groupId,
-        // eslint-disable-next-line camelcase
-        workspace_id: project.value?.workspaceId
+        groupId: res.groupId
       })
     }
 
@@ -214,11 +207,6 @@ export const useUpdateSavedView = () => {
   const { triggerNotification } = useGlobalToast()
   const { isLoggedIn } = useActiveUser()
   const mp = useMixpanel()
-  const {
-    resources: {
-      response: { project }
-    }
-  } = useInjectedViewerState()
 
   return async (
     params: {
@@ -264,9 +252,7 @@ export const useUpdateSavedView = () => {
       if ('isHomeView' in input) {
         mp.track('Saved View Set as Home View', {
           viewId: res.id,
-          isHomeView: input.isHomeView,
-          // eslint-disable-next-line camelcase
-          workspace_id: project.value?.workspaceId
+          isHomeView: input.isHomeView
         })
       }
     }
@@ -294,11 +280,6 @@ export const useCreateSavedViewGroup = () => {
   const { triggerNotification } = useGlobalToast()
   const { isLoggedIn } = useActiveUser()
   const mp = useMixpanel()
-  const {
-    resources: {
-      response: { project }
-    }
-  } = useInjectedViewerState()
 
   return async (input: CreateSavedViewGroupInput) => {
     if (!isLoggedIn.value) return
@@ -321,9 +302,7 @@ export const useCreateSavedViewGroup = () => {
 
     if (res?.id) {
       mp.track('Saved View Group Created', {
-        groupId: res.id,
-        // eslint-disable-next-line camelcase
-        workspace_id: project.value?.workspaceId
+        groupId: res.id
       })
     }
 

@@ -86,6 +86,11 @@ export const init: SpeckleModule['init'] = async ({
           label: 'ifc',
           supportedFileTypes: ['ifc'],
           db: queueDb
+        }),
+        await initializePostgresQueue({
+          label: 'dxf',
+          supportedFileTypes: ['dxf'],
+          db: queueDb
         })
       ]
       if (FF_RHINO_FILE_IMPORTER_ENABLED) {

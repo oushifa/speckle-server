@@ -115,13 +115,16 @@ const {
 } = useInjectedViewerState()
 const eventBus = useEventBus()
 
-const viewBeingEdited = ref<ViewerSavedViewsPanelViewEditDialog_SavedViewFragment>()
-const viewBeingMoved = ref<ViewerSavedViewsPanelViewMoveDialog_SavedViewFragment>()
-const viewBeingDeleted = ref<ViewerSavedViewsPanelViewDeleteDialog_SavedViewFragment>()
+const viewBeingEdited =
+  shallowRef<ViewerSavedViewsPanelViewEditDialog_SavedViewFragment>()
+const viewBeingMoved =
+  shallowRef<ViewerSavedViewsPanelViewMoveDialog_SavedViewFragment>()
+const viewBeingDeleted =
+  shallowRef<ViewerSavedViewsPanelViewDeleteDialog_SavedViewFragment>()
 const groupBeingDeleted =
-  ref<ViewerSavedViewsPanelViewsGroupDeleteDialog_SavedViewGroupFragment>()
-const groupBeingRenamed = ref<UseUpdateSavedViewGroup_SavedViewGroupFragment>()
-const viewBeingEmbedded = ref<FormSelectSavedView_SavedViewFragment>()
+  shallowRef<ViewerSavedViewsPanelViewsGroupDeleteDialog_SavedViewGroupFragment>()
+const groupBeingRenamed = shallowRef<UseUpdateSavedViewGroup_SavedViewGroupFragment>()
+const viewBeingEmbedded = shallowRef<FormSelectSavedView_SavedViewFragment>()
 
 const {
   identifier,

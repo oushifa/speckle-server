@@ -13,7 +13,7 @@
       <div class="relative">
         <img
           :src="view.thumbnailUrl"
-          alt="View screenshot"
+          alt="视图截图"
           class="w-20 h-[60px] object-cover rounded border border-outline-3 bg-foundation-page cursor-pointer"
         />
         <div
@@ -34,7 +34,7 @@
       <div class="w-full flex items-center gap-1">
         <User
           v-if="isOnlyVisibleToMe"
-          v-tippy="getTooltipProps('Only visible to you')"
+          v-tippy="getTooltipProps('仅你可见')"
           :size="12"
           :stroke-width="1.5"
           :absolute-stroke-width="true"
@@ -82,7 +82,7 @@
         v-tippy="
           getTooltipProps(
             canOpenEditDialog?.authorized
-              ? 'Edit view'
+              ? '编辑视图'
               : canOpenEditDialog?.errorMessage
           )
         "
@@ -159,11 +159,6 @@ graphql(`
       name
     }
     updatedAt
-    permissions {
-      canUpdate {
-        ...FullPermissionCheckResult
-      }
-    }
     ...UseDeleteSavedView_SavedView
     ...UseUpdateSavedView_SavedView
     ...ViewerSavedViewsPanelViewEditDialog_SavedView
@@ -178,7 +173,7 @@ const props = defineProps<{
 
 const {
   resources: {
-    response: { savedView, isFederatedView, resourceItemsIds, project }
+    response: { savedView, isFederatedView, resourceItemsIds }
   }
 } = useInjectedViewerState()
 const { collect } = useCollectNewSavedViewViewerData()
@@ -222,7 +217,7 @@ const isOriginalVersionAlreadyLoaded = computed(() => {
 const canLoadOriginal = computed(
   (): { authorized: boolean; message: Optional<string> } => {
     if (isOriginalVersionAlreadyLoaded.value) {
-      return { authorized: false, message: 'Original version is already loaded' }
+      return { authorized: false, message: '已加载原始版本' }
     }
 
     return { authorized: true, message: undefined }
@@ -233,7 +228,7 @@ const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => [
   [
     {
       id: MenuItems.MoveToGroup,
-      title: 'Move to group',
+      title: '移动到分组',
       disabled: !canMove.value?.authorized || isLoading.value,
       disabledTooltip: canMove.value?.errorMessage
     },
@@ -314,9 +309,7 @@ const onActionChosen = async (item: LayoutMenuItem<MenuItems>) => {
         }
       })
       mp.track('Saved View Link Copied', {
-        viewId: props.view.id,
-        // eslint-disable-next-line camelcase
-        workspace_id: project.value?.workspaceId
+        viewId: props.view.id
       })
       break
     case MenuItems.LoadOriginalVersions:
@@ -325,9 +318,7 @@ const onActionChosen = async (item: LayoutMenuItem<MenuItems>) => {
         loadOriginal: true
       })
       mp.track('Saved View Original Version Loaded', {
-        viewId: props.view.id,
-        // eslint-disable-next-line camelcase
-        workspace_id: project.value?.workspaceId
+        viewId: props.view.id
       })
       break
     case MenuItems.ChangeVisibility:

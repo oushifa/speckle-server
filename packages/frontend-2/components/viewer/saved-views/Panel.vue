@@ -15,30 +15,26 @@
           hide-text
           @click="setSearchMode(true)"
         />
-        <div v-tippy="canCreateViewOrGroup?.errorMessage" class="flex items-center">
-          <FormButton
-            v-tippy="getTooltipProps('创建分组')"
-            size="sm"
-            color="subtle"
-            :icon-left="FolderPlus"
-            hide-text
-            name="addGroup"
-            :disabled="!canCreateViewOrGroup?.authorized || isLoading"
-            @click="() => (showCreateGroupDialog = true)"
-          />
-        </div>
-        <div v-tippy="canCreateViewOrGroup?.errorMessage" class="flex items-center">
-          <FormButton
-            v-tippy="getTooltipProps('创建视图')"
-            size="sm"
-            color="subtle"
-            :icon-left="Plus"
-            hide-text
-            name="addView"
-            :disabled="!canCreateViewOrGroup?.authorized || isLoading"
-            @click="onAddView"
-          />
-        </div>
+        <FormButton
+          v-tippy="getTooltipProps('创建分组')"
+          size="sm"
+          color="subtle"
+          :icon-left="FolderPlus"
+          hide-text
+          name="addGroup"
+          :disabled="isLoading"
+          @click="() => (showCreateGroupDialog = true)"
+        />
+        <FormButton
+          v-tippy="getTooltipProps('创建视图')"
+          size="sm"
+          color="subtle"
+          :icon-left="Plus"
+          hide-text
+          name="addView"
+          :disabled="isLoading"
+          @click="onAddView"
+        />
       </div>
     </template>
     <template v-if="searchMode" #fullTitle>
@@ -87,17 +83,6 @@
         :search="searchMode ? search || undefined : undefined"
       />
     </div>
-    <div
-      v-if="isViewerSeat && !hideViewerSeatDisclaimer"
-      class="absolute bottom-0 left-0 right-0 p-2"
-    >
-      <CommonPromoAlert
-        title="保存您的视图"
-        text="使用 Editor 席位解锁保存视图的功能。工作区管理员可以更新您的席位类型。"
-        show-closer
-        @close="hideViewerSeatDisclaimer = true"
-      />
-    </div>
     <ViewerSavedViewsPanelGroupsCreateDialog
       v-model:open="showCreateGroupDialog"
       @success="onAddGroup"
@@ -107,9 +92,7 @@
 <script setup lang="ts">
 import { useMutationLoading } from '@vue/apollo-composable'
 import { Search, FolderPlus, Plus, X } from 'lucide-vue-next'
-import { useSynchronizedCookie } from '~/lib/common/composables/reactiveCookie'
 import { graphql } from '~/lib/common/generated/gql'
-import { WorkspaceSeatType } from '~/lib/common/generated/gql/graphql'
 import { useCreateSavedView } from '~/lib/viewer/composables/savedViews/management'
 import { useInjectedViewerState } from '~/lib/viewer/composables/setup'
 import { ViewsType, viewsTypeLabels } from '~/lib/viewer/helpers/savedViews'
@@ -119,16 +102,6 @@ import { useKeepAliveScrollState } from '~/lib/common/composables/dom'
 graphql(`
   fragment ViewerSavedViewsPanel_Project on Project {
     id
-    permissions {
-      canCreateSavedView {
-        ...FullPermissionCheckResult
-      }
-    }
-    workspace {
-      id
-      seatType
-      planSupportsSavedViews: hasAccessToFeature(featureName: savedViews)
-    }
   }
 `)
 
@@ -149,24 +122,11 @@ const isLoading = useMutationLoading()
 const { on, bind, value: search } = useDebouncedTextInput()
 
 const selectedViewsType = ref<ViewsType>(ViewsType.All)
-const hideViewerSeatDisclaimer = useSynchronizedCookie<boolean>(
-  'hideViewerSeatSavedViewsDisclaimer',
-  {
-    default: () => false
-  }
-)
 const searchMode = ref(false)
 const showCreateGroupDialog = ref(false)
 
 const { getTooltipProps } = useSmartTooltipDelay()
 useKeepAliveScrollState(useTemplateRef('groupsScrollArea'))
-
-const canCreateViewOrGroup = computed(
-  () => project.value?.permissions.canCreateSavedView
-)
-const isViewerSeat = computed(
-  () => project.value?.workspace?.seatType === WorkspaceSeatType.Viewer
-)
 const onAddView = async () => {
   if (isLoading.value) return
   const view = await createSavedView({})

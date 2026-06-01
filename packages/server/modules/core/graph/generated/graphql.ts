@@ -1689,16 +1689,13 @@ export type CreateUserEmailInput = {
 };
 
 export type CreateVersionInput = {
-  assetId?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   modelId: Scalars['String']['input'];
   objectId: Scalars['String']['input'];
   parents?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['String']['input'];
-  seedId?: InputMaybe<Scalars['String']['input']>;
   sourceApplication?: InputMaybe<Scalars['String']['input']>;
   totalChildrenCount?: InputMaybe<Scalars['Int']['input']>;
-  treeJson?: InputMaybe<Scalars['String']['input']>;
 };
 
 export const Currency = {
@@ -6002,12 +5999,8 @@ export type UpdateServerRegionInput = {
 
 /** Only non-null values will be updated */
 export type UpdateVersionInput = {
-  assetId?: InputMaybe<Scalars['String']['input']>;
-  assetName?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
-  seedId?: InputMaybe<Scalars['String']['input']>;
-  treeJson?: InputMaybe<Scalars['String']['input']>;
   versionId: Scalars['ID']['input'];
 };
 
@@ -6440,8 +6433,6 @@ export type VerifyUserEmailInput = {
 
 export type Version = {
   __typename?: 'Version';
-  assetId?: Maybe<Scalars['String']['output']>;
-  assetName?: Maybe<Scalars['String']['output']>;
   authorUser?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** All comment threads in this version */
@@ -6456,10 +6447,8 @@ export type Version = {
   permissions: VersionPermissionChecks;
   previewUrl: Scalars['String']['output'];
   referencedObject?: Maybe<Scalars['String']['output']>;
-  seedId?: Maybe<Scalars['String']['output']>;
   sourceApplication?: Maybe<Scalars['String']['output']>;
   totalChildrenCount?: Maybe<Scalars['Int']['output']>;
-  treeJson?: Maybe<Scalars['String']['output']>;
 };
 
 
@@ -10739,8 +10728,6 @@ export type UserStreamCollectionResolvers<ContextType = GraphQLContext, ParentTy
 };
 
 export type VersionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Version'] = ResolversParentTypes['Version']> = {
-  assetId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  assetName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   authorUser?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   automationsStatus?: Resolver<Maybe<ResolversTypes['TriggeredAutomationsStatus']>, ParentType, ContextType>;
   commentThreads?: Resolver<ResolversTypes['CommentCollection'], ParentType, ContextType, RequireFields<VersionCommentThreadsArgs, 'limit'>>;
@@ -10754,10 +10741,8 @@ export type VersionResolvers<ContextType = GraphQLContext, ParentType extends Re
   permissions?: Resolver<ResolversTypes['VersionPermissionChecks'], ParentType, ContextType>;
   previewUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   referencedObject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  seedId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   sourceApplication?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   totalChildrenCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  treeJson?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

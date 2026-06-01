@@ -6,7 +6,7 @@
         {{ message }}
       </div>
       <div v-if="type === 'base'" class="text-foreground-3 mt-2">
-        Save, organize and share views
+        保存、整理并分享视图
       </div>
     </div>
   </div>
@@ -23,8 +23,8 @@ const props = withDefaults(
 
 const message = computed(() => {
   if (props.type === 'search') {
-    return 'No views found'
+    return '未找到视图'
   }
-  return 'No saved views yet'
+  return '还没有保存的视图'
 })
 </script>

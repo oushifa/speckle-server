@@ -40,7 +40,7 @@
             @click="showMenu = !showMenu"
           />
         </LayoutMenu>
-        <div v-if="!isUngroupedGroup" v-tippy="getTooltipProps('Present')">
+        <div v-if="!isUngroupedGroup" v-tippy="getTooltipProps('演示')">
           <FormButton
             size="sm"
             color="subtle"
@@ -50,18 +50,16 @@
             @click="onPresentGroup"
           />
         </div>
-        <div v-tippy="canCreateView?.errorMessage">
-          <FormButton
-            v-tippy="getTooltipProps('Create view')"
-            size="sm"
-            color="subtle"
-            :icon-left="Plus"
-            hide-text
-            name="addGroupView"
-            :disabled="!canCreateView.authorized || isLoading"
-            @click="onAddGroupView"
-          />
-        </div>
+        <FormButton
+          v-tippy="getTooltipProps('创建视图')"
+          size="sm"
+          color="subtle"
+          :icon-left="Plus"
+          hide-text
+          name="addGroupView"
+          :disabled="isLoading"
+          @click="onAddGroupView"
+        />
       </div>
 
       <PresentationShareDialog
@@ -101,15 +99,6 @@ type MenuItems = StringEnumValues<typeof MenuItems>
 graphql(`
   fragment ViewerSavedViewsPanelViewsGroup_Project on Project {
     id
-    permissions {
-      canCreateSavedView {
-        ...FullPermissionCheckResult
-      }
-    }
-    workspace {
-      id
-      hasAccessToFeature(featureName: presentations)
-    }
   }
 `)
 
@@ -119,11 +108,6 @@ graphql(`
     isUngroupedViewsGroup
     resourceIds
     title
-    permissions {
-      canUpdate {
-        ...FullPermissionCheckResult
-      }
-    }
     ...ViewerSavedViewsPanelViewsGroupInner_SavedViewGroup
     ...ViewerSavedViewsPanelViewsGroupDeleteDialog_SavedViewGroup
     ...UseUpdateSavedViewGroup_SavedViewGroup
@@ -185,8 +169,6 @@ const showMenu = ref(false)
 const showShareDialog = ref(false)
 
 const isUngroupedGroup = computed(() => props.group.isUngroupedViewsGroup)
-const canUpdate = computed(() => props.group.permissions.canUpdate)
-const canCreateView = computed(() => props.project.permissions.canCreateSavedView)
 
 const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => {
   const items: LayoutMenuItem<MenuItems>[][] = []
@@ -194,21 +176,18 @@ const menuItems = computed((): LayoutMenuItem<MenuItems>[][] => {
   items.push([
     {
       id: MenuItems.Rename,
-      title: 'Rename group',
-      disabled: !canUpdate.value?.authorized || isLoading.value,
-      disabledTooltip: canUpdate.value.errorMessage
+      title: '重命名分组',
+      disabled: isLoading.value
     },
     {
       id: MenuItems.Share,
-      title: 'Share presentation...',
-      disabled: isLoading.value,
-      disabledTooltip: canUpdate.value.errorMessage
+      title: '分享演示...',
+      disabled: isLoading.value
     },
     {
       id: MenuItems.Delete,
-      title: 'Delete group...',
-      disabled: !canUpdate.value?.authorized || isLoading.value,
-      disabledTooltip: canUpdate.value.errorMessage
+      title: '删除分组...',
+      disabled: isLoading.value
     }
   ])
 
@@ -246,7 +225,7 @@ const onRename = async (newName: string) => {
   if (!newName.trim() || newName.length > 255) {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: 'Name must be between 1 and 255 characters long'
+        title: '名称长度需为 1-255 个字符'
     })
     renameMode.value = false
     return

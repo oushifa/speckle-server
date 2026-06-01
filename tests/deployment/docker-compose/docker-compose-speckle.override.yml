@@ -27,3 +27,13 @@ services:
     image: speckle/speckle-fileimport-service
     environment:
       LOG_PRETTY: 'true'
+
+  ifc-import-server:
+    image: speckle/speckle-ifc-import-service
+    environment:
+      LOG_PRETTY: 'true'
+
+  dxf-import-server:
+    image: speckle/speckle-dxf-import-service
+    environment:
+      LOG_PRETTY: 'true'

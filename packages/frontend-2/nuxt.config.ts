@@ -86,7 +86,8 @@ export default defineNuxtConfig({
       intercomAppId: '',
       dashboardsOrigin: '',
       parallelMiddlewares: true,
-      disableViewerActivityBroadcasting: false
+      disableViewerActivityBroadcasting: false,
+      FF_SAVED_VIEWS_ENABLED: true
     }
   },
 

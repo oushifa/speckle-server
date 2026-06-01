@@ -120,7 +120,7 @@ describe('Presigned integration @fileuploads', async () => {
         ? insertNewUploadAndNotifyFactoryV2({
             queues: [
               {
-                supportedFileTypes: ['stl', 'obj', 'ifc'],
+                supportedFileTypes: ['stl', 'obj', 'ifc', 'dxf'],
                 scheduleJob: () => Promise.resolve()
               }
             ],
@@ -194,6 +194,41 @@ describe('Presigned integration @fileuploads', async () => {
 
       expect(storedFile).to.exist
       expect(storedFile.fileType).to.equal('stl')
+      expect(storedFile.fileSize).to.equal(fileSize)
+      expect(storedFile.uploadComplete).to.be.true
+    })
+    it('should normalize file extension to lowercase', async () => {
+      const fileId = cryptoRandomString({ length: 10 })
+      const fileSize = 10
+      const fileName = `test-file-${cryptoRandomString({ length: 10 })}.DXF`
+      const expiryDuration = 1 * TIME.minute
+      const url = await generatePresignedUrl({
+        blobId: fileId,
+        fileName,
+        projectId: ownedProject.id,
+        userId: serverAdmin.id,
+        urlExpiryDurationSeconds: expiryDuration
+      })
+
+      const response = await axios.put(url, cryptoRandomString({ length: fileSize }))
+      expect(
+        response.status,
+        JSON.stringify({ statusText: response.statusText, body: response.data })
+      ).to.equal(200)
+      expect(response.headers['etag'], JSON.stringify(response.headers)).to.exist
+
+      const expectedETag = response.headers['etag']
+      const storedFile = await SUT({
+        fileId,
+        modelId: model.id,
+        userId: serverAdmin.id,
+        projectId: ownedProject.id,
+        expectedETag,
+        maximumFileSize: 1 * 1024 * 1024 // 1 MB
+      })
+
+      expect(storedFile).to.exist
+      expect(storedFile.fileType).to.equal('dxf')
       expect(storedFile.fileSize).to.equal(fileSize)
       expect(storedFile.uploadComplete).to.be.true
     })

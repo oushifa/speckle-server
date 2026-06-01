@@ -3,7 +3,6 @@ import type { GenericValidateFunction } from 'vee-validate'
 import { graphql } from '~/lib/common/generated/gql/gql'
 import {
   SavedViewVisibility,
-  type FullPermissionCheckResultFragment,
   type UseSavedViewValidationHelpers_SavedViewFragment
 } from '~/lib/common/generated/gql/graphql'
 import { Globe, User } from 'lucide-vue-next'
@@ -16,25 +15,14 @@ graphql(`
     id
     isHomeView
     visibility
-    permissions {
-      canUpdate {
-        ...FullPermissionCheckResult
-      }
-      canMove {
-        ...FullPermissionCheckResult
-      }
-      canEditTitle {
-        ...FullPermissionCheckResult
-      }
-      canEditDescription {
-        ...FullPermissionCheckResult
-      }
-      canSetAsHomeView {
-        ...FullPermissionCheckResult
-      }
-    }
   }
 `)
+
+type SavedViewActionAuthCheck = {
+  authorized: boolean
+  errorMessage?: Optional<string>
+  message?: Optional<string>
+}
 
 export const useSavedViewValidationHelpers = (params: {
   view: ComputedRef<
@@ -44,25 +32,46 @@ export const useSavedViewValidationHelpers = (params: {
   const homeViewPrivateError = 'Home 视图必须分享'
 
   const isLoading = useMutationLoading()
+  const { isLoggedIn } = useActiveUser()
   const {
     resources: {
       response: { isFederatedView }
     }
   } = useInjectedViewerState()
 
-  const permissions = computed(() => params.view.value?.permissions)
-  const canUpdate = computed(() => permissions.value?.canUpdate)
-  const canMove = computed(() => permissions.value?.canMove)
-  const canEditTitle = computed(() => permissions.value?.canEditTitle)
-  const canEditDescription = computed(() => permissions.value?.canEditDescription)
-
-  const canEmbed = computed((): FullPermissionCheckResultFragment | undefined => {
+  const baseAuth = computed((): SavedViewActionAuthCheck => {
     if (isLoading.value) {
+      return { authorized: false }
+    }
+
+    if (!isLoggedIn.value) {
       return {
         authorized: false,
-        errorMessage: undefined,
-        code: 'LOADING',
-        message: ''
+        errorMessage: '请先登录',
+        message: '请先登录'
+      }
+    }
+
+    return { authorized: true }
+  })
+
+  const canUpdate = computed(() => baseAuth.value)
+  const canMove = computed(() => baseAuth.value)
+  const canEditTitle = computed(() => baseAuth.value)
+  const canEditDescription = computed(() => baseAuth.value)
+
+  const canEmbed = computed((): SavedViewActionAuthCheck => {
+    if (isLoading.value) {
+      return {
+        authorized: false
+      }
+    }
+
+    if (!isLoggedIn.value) {
+      return {
+        authorized: false,
+        errorMessage: '请先登录',
+        message: '请先登录'
       }
     }
 
@@ -70,30 +79,30 @@ export const useSavedViewValidationHelpers = (params: {
       return {
         authorized: false,
         errorMessage: '仅分享视图才能嵌入',
-        code: 'FORBIDDEN',
         message: '仅分享视图才能嵌入'
       }
     }
 
-    return { authorized: true, code: 'OK', message: '' }
+    return { authorized: true }
   })
 
   const canOpenEditDialog = computed(
-    (): FullPermissionCheckResultFragment | undefined => {
+    (): SavedViewActionAuthCheck => {
       if (isLoading.value) {
         return {
-          authorized: false,
-          errorMessage: undefined,
-          code: 'LOADING',
-          message: ''
+          authorized: false
         }
       }
 
-      if (canUpdate.value?.authorized) return canUpdate.value
-      if (canEditTitle.value?.authorized) return canEditTitle.value
-      if (canEditDescription.value?.authorized) return canEditDescription.value
-      if (canMove.value?.authorized) return canMove.value
-      return canMove.value
+      if (!isLoggedIn.value) {
+        return {
+          authorized: false,
+          errorMessage: '请先登录',
+          message: '请先登录'
+        }
+      }
+
+      return { authorized: true }
     }
   )
 
@@ -128,10 +137,10 @@ export const useSavedViewValidationHelpers = (params: {
 
   const canSetHomeView = computed(
     (): { authorized: boolean; message: Optional<string> } => {
-      if (!permissions.value?.canSetAsHomeView.authorized || isLoading.value) {
+      if (!isLoggedIn.value || isLoading.value) {
         return {
           authorized: false,
-          message: permissions.value?.canSetAsHomeView.errorMessage || undefined
+          message: !isLoggedIn.value ? '请先登录' : undefined
         }
       }
 
@@ -147,10 +156,10 @@ export const useSavedViewValidationHelpers = (params: {
   )
 
   const canToggleVisibility = computed(() => {
-    if (!canUpdate.value?.authorized || isLoading.value) {
+    if (!isLoggedIn.value || isLoading.value) {
       return {
         authorized: false,
-        message: canUpdate.value?.errorMessage || undefined
+        message: !isLoggedIn.value ? '请先登录' : undefined
       }
     }
 

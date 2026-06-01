@@ -281,6 +281,21 @@ services:
       - speckle-server
       - postgres
 
+  dxf-import-server:
+    # build:
+    #   context: .
+    #   dockerfile: packages/dxf-import-service/Dockerfile
+    # platform: linux/amd64
+    image: registry.siruijie.com.cn/speckle/dxf-import-service:2.26
+    restart: always
+    environment:
+      LOG_LEVEL: 'info'
+      LOG_PRETTY: 'true'
+      FILEIMPORT_QUEUE_POSTGRES_URL: 'postgresql://speckle:speckle@postgres/speckle'
+    depends_on:
+      - speckle-server
+      - postgres
+
 volumes:
   postgres-data:
   # postgres-region1-data:

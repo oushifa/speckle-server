@@ -1642,6 +1642,38 @@ ifc_import_service:
   ## @param ifc_import_service.additionalEnvVars Additional environment variables to be passed to the FileImport service pod
   additionalEnvVars: []
 
+dxf_import_service:
+  enabled: false
+  replicas: 1
+  deploymentStrategy:
+    type: 'Recreate'
+  logLevel: 'info'
+  logPretty: false
+  image: ''
+  db:
+    postgresMaxConnections: 1
+    connectionString:
+      secretName: ''
+      secretKey: 'fileimport_queue_postgres_url'
+    certificate:
+      enabled: false
+      configMapName: 'dxf-importer-postgres-certificate'
+      configMapKey: 'ca-certificate.crt'
+      data: ''
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  affinity: {}
+  nodeSelector: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  serviceAccount:
+    create: true
+  additionalEnvVars: []
+
 ## @section Monitoring
 ## @descriptionStart
 ## Provides Speckle with metrics related to the Postgres database.

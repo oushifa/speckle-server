@@ -1,0 +1,153 @@
+{{- if .Values.dxf_import_service.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dxf_import_service.name" $ }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "dxf_import_service.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.dxf_import_service.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "dxf_import_service.name" $ }}
+      project: speckle-server
+  {{- with .Values.dxf_import_service.deploymentStrategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+{{ include "dxf_import_service.labels" . | indent 8 }}
+    spec:
+      containers:
+      - name: main
+        image: {{ default (printf "speckle/speckle-dxf-import-service:%s" .Values.docker_image_tag) .Values.dxf_import_service.image }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+
+        ports:
+          - name: metrics
+            containerPort: 9094
+            protocol: TCP
+          - name: healthz
+            containerPort: 9081
+            protocol: TCP
+
+        startupProbe:
+          periodSeconds: 5
+          failureThreshold: 36
+          timeoutSeconds: 3
+          httpGet:
+            path: /healthz
+            port: 9081
+
+        livenessProbe:
+          periodSeconds: 60
+          timeoutSeconds: 3
+          httpGet:
+            path: /healthz
+            port: 9081
+
+        readinessProbe:
+          periodSeconds: 10
+          timeoutSeconds: 3
+          httpGet:
+            path: /healthz
+            port: 9081
+
+        resources:
+          {{- with .Values.dxf_import_service.requests }}
+          requests:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dxf_import_service.limits }}
+          limits:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 20000
+
+        volumeMounts:
+          - mountPath: /tmp
+            name: tmp
+        {{- if .Values.dxf_import_service.db.certificate.enabled }}
+          - name: postgres-certificate
+            mountPath: /postgres-certificate
+        {{- end }}
+
+        env:
+          - name: FILEIMPORT_QUEUE_POSTGRES_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{ default .Values.secretName .Values.dxf_import_service.db.connectionString.secretName }}
+                key: {{ default "postgres_url" .Values.dxf_import_service.db.connectionString.secretKey }}
+
+          - name: LOG_LEVEL
+            value: {{ .Values.dxf_import_service.logLevel | quote }}
+
+          - name: LOG_PRETTY
+            value: {{ .Values.dxf_import_service.logPretty | quote }}
+
+          - name: DXF_IMPORTER_HEALTHCHECK_PORT
+            value: "9081"
+
+          - name: DXF_IMPORTER_METRICS_PORT
+            value: "9094"
+
+          {{- if .Values.dxf_import_service.db.certificate.enabled }}
+          - name: EXTRA_CA_CERTS
+            value: {{ printf "/postgres-certificate/%s" .Values.dxf_import_service.db.certificate.configMapKey }}
+          {{- end }}
+
+          {{- with .Values.dxf_import_service.additionalEnvVars }}
+          {{- toYaml . | nindent 10}}
+          {{- end }}
+      {{- if .Values.dxf_import_service.affinity }}
+      affinity: {{- include "speckle.renderTpl" (dict "value" .Values.dxf_import_service.affinity "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dxf_import_service.nodeSelector }}
+      nodeSelector: {{- include "speckle.renderTpl" (dict "value" .Values.dxf_import_service.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dxf_import_service.tolerations }}
+      tolerations: {{- include "speckle.renderTpl" (dict "value" .Values.dxf_import_service.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dxf_import_service.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- include "speckle.renderTpl" (dict "value" .Values.dxf_import_service.topologySpreadConstraints "context" $) | nindent 8 }}
+      {{- end }}
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 20000
+        fsGroup: 25000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 30000
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: low-priority
+      {{- if .Values.dxf_import_service.serviceAccount.create }}
+      serviceAccountName: {{ include "dxf_import_service.name" $ }}
+      {{- else }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      terminationGracePeriodSeconds: 610
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- if .Values.dxf_import_service.db.certificate.enabled }}
+        - name: postgres-certificate
+          configMap:
+            name: {{ .Values.dxf_import_service.db.certificate.configMapName }}
+      {{- end }}
+{{- end }}

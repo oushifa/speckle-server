@@ -29,10 +29,11 @@ export const generatePresignedUrlFactory =
     const { getSignedUrl, upsertBlob } = deps
     const { projectId, userId, blobId, fileName, urlExpiryDurationSeconds } = params
 
-    const fileType = fileName.split('.').pop()
-    if (!fileType || fileType === fileName) {
+    const fileTypeRaw = fileName.split('.').pop()
+    if (!fileTypeRaw || fileTypeRaw === fileName) {
       throw new UserInputError('File name must have a valid extension')
     }
+    const fileType = fileTypeRaw.toLowerCase()
     //TODO get all image/* & video/* types from https://github.com/jshttp/mime-db
     // and include extensions for those types
     // if (!acceptedFileExtensions.includes(fileType)) {

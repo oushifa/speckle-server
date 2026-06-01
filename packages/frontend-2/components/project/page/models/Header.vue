@@ -16,7 +16,7 @@
           </FormButton>
 
           <div
-            v-tippy="canCreateModel.cantClickCreateReason.value"
+            v-tippy="createModelTooltip"
             class="grow inline-flex sm:grow-0 lg:hidden"
           >
             <LayoutMenu
@@ -35,9 +35,9 @@
                 </div>
               </FormButton>
             </LayoutMenu>
-            <div v-else v-tippy="canCreateModel.cantClickCreateReason.value">
+            <div v-else v-tippy="createModelTooltip">
               <FormButton
-                :disabled="!canCreateModel.canClickCreate.value"
+                :disabled="!canClickCreateModel"
                 @click="handleCreateModelClick"
               >
                 新建模型
@@ -113,9 +113,9 @@
                 </div>
               </FormButton>
             </LayoutMenu>
-            <div v-else v-tippy="canCreateModel.cantClickCreateReason.value">
+            <div v-else v-tippy="createModelTooltip">
               <FormButton
-                :disabled="!canCreateModel.canClickCreate.value"
+                :disabled="!canClickCreateModel"
                 @click="handleCreateModelClick"
               >
                 新建模型
@@ -218,6 +218,7 @@ const sourceAppsLabelId = useId()
 const sourceAppsBtnId = useId()
 const router = useRouter()
 const mp = useMixpanel()
+const { isAdmin: isServerAdmin } = useActiveUser()
 
 const menuId = useId()
 
@@ -240,6 +241,19 @@ const showAccIntegration = computed(
 
 const canCreateModel = useCanCreateModel({
   project: computed(() => props.project)
+})
+
+const canClickCreateModel = computed(() => {
+  if (canCreateModel.canClickCreate.value) return true
+  return !!isServerAdmin.value
+})
+
+const createModelTooltip = computed(() => {
+  const reason = canCreateModel.cantClickCreateReason.value
+  if (!reason) return reason
+  if (canCreateModel.canClickCreate.value) return undefined
+  if (isServerAdmin.value) return `${reason}（管理员可强制创建）`
+  return reason
 })
 
 const debouncedSearch = computed({
@@ -288,8 +302,8 @@ const menuItems = computed<LayoutMenuItem[][]>(() => [
     {
       title: '创建新模型...',
       id: AddNewModelActionTypes.NewModel,
-      disabled: !canCreateModel.canClickCreate.value,
-      disabledTooltip: canCreateModel.cantClickCreateReason.value
+      disabled: !canClickCreateModel.value,
+      disabledTooltip: createModelTooltip.value
     },
     // TODO ACC: Upload a file
     {
@@ -297,8 +311,8 @@ const menuItems = computed<LayoutMenuItem[][]>(() => [
       title: '从 ACC 同步...',
       id: AddNewModelActionTypes.NewAccSyncItem,
       // I believe for now sync limits corralate with model limit since new sync creates new model, once we have limits for syncs, this should change
-      disabled: !canCreateModel.canClickCreate.value,
-      disabledTooltip: canCreateModel.cantClickCreateReason.value
+      disabled: !canClickCreateModel.value,
+      disabledTooltip: createModelTooltip.value
     }
   ]
 ])

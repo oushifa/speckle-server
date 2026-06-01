@@ -1,14 +1,9 @@
 <template>
-  <LayoutDialog
-    v-model:open="open"
-    title="Delete view"
-    max-width="sm"
-    :buttons="buttons"
-  >
+  <LayoutDialog v-model:open="open" title="删除视图" max-width="sm" :buttons="buttons">
     <!-- prettier-ignore -->
     <p>
-      Are you sure you want to delete the view <span class="font-bold">{{ viewName }}</span>?
-      <br/>This action is irreversible.
+      确定要删除视图 <span class="font-bold">{{ viewName }}</span> 吗？
+      <br/>此操作不可撤销。
     </p>
   </LayoutDialog>
 </template>
@@ -44,7 +39,7 @@ const viewName = computed(() => props.view?.name)
 const buttons = computed((): LayoutDialogButton[] => [
   {
     id: 'cancel',
-    text: 'Cancel',
+    text: '取消',
     props: {
       color: 'outline'
     },
@@ -54,7 +49,7 @@ const buttons = computed((): LayoutDialogButton[] => [
   },
   {
     id: 'delete',
-    text: 'Delete',
+    text: '删除',
     props: {
       color: 'danger'
     },

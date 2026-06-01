@@ -1,7 +1,7 @@
 <template>
   <LayoutDialog
     v-model:open="open"
-    title="Edit view"
+    title="编辑视图"
     max-width="sm"
     :buttons="buttons"
     :on-submit="onSubmit"
@@ -9,7 +9,7 @@
     <div class="flex flex-col gap-4">
       <FormTextInput
         name="name"
-        label="Name"
+        label="名称"
         show-label
         color="foundation"
         auto-focus
@@ -17,10 +17,10 @@
       />
       <FormTextArea
         name="description"
-        label="Description"
+        label="描述"
         show-label
         color="foundation"
-        placeholder="Add a description..."
+        placeholder="添加描述..."
         :rules="[isStringOfLength({ maxLength: 1000 })]"
       />
       <FormSelectSavedViewGroup
@@ -101,7 +101,7 @@ const { validateVisibility, visibilityOptions, canToggleVisibility } =
 const buttons = computed((): LayoutDialogButton[] => [
   {
     id: 'cancel',
-    text: 'Cancel',
+    text: '取消',
     props: {
       color: 'outline'
     },
@@ -111,7 +111,7 @@ const buttons = computed((): LayoutDialogButton[] => [
   },
   {
     id: 'save',
-    text: 'Save',
+    text: '保存',
     submit: true
   }
 ])

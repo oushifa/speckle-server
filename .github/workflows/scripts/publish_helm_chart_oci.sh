@@ -48,6 +48,7 @@ if [[ "${IMAGE_PREFIX}" != "speckle" ]]; then
   yq e -i ".webhook_service.image = \"${IMAGE_PREFIX}/speckle-webhook-service:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
   yq e -i ".fileimport_service.image = \"${IMAGE_PREFIX}/speckle-fileimport-service:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
   yq e -i ".ifc_import_service.image = \"${IMAGE_PREFIX}/speckle-ifc-import-service:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
+  yq e -i ".dxf_import_service.image = \"${IMAGE_PREFIX}/speckle-dxf-import-service:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
   yq e -i ".monitoring.image = \"${IMAGE_PREFIX}/speckle-monitor-deployment:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
   yq e -i ".test.image = \"${IMAGE_PREFIX}/speckle-test-deployment:${IMAGE_VERSION_TAG}\"" "${GIT_REPO}/utils/helm/speckle-server/values.yaml"
 fi
