@@ -10,6 +10,7 @@ import staticRest from '@/modules/core/rest/static'
 import uploadRest from '@/modules/core/rest/upload'
 import downloadRest from '@/modules/core/rest/download'
 import modelsRest from '@/modules/core/rest/models'
+import drawingsRest from '@/modules/core/rest/drawings'
 import diffUpload from '@/modules/core/rest/diffUpload'
 import diffDownload from '@/modules/core/rest/diffDownload'
 import scopes from '@/modules/core/scopes'
@@ -47,6 +48,7 @@ import { getServerTotalModelCountFactory } from '@/modules/core/services/branch/
 import { getServerTotalVersionCountFactory } from '@/modules/core/services/commit/retrieval'
 import { bullMonitoringRouterFactory } from '@/modules/core/rest/monitoring'
 import { projectListenersFactory } from '@/modules/core/events/projectListeners'
+import { ensureDrawingsProjectFactory } from '@/modules/core/drawings/ensure'
 
 let stopTestSubs: (() => void) | undefined = undefined
 
@@ -81,6 +83,10 @@ const coreModule: SpeckleModule<{
 
     // Initialises the models REST endpoint
     modelsRest(app)
+
+    drawingsRest(app)
+
+    await ensureDrawingsProjectFactory({ db })()
 
     const scopeRegisterFunc = registerOrUpdateScopeFactory({ db })
     // Register core-based scoeps

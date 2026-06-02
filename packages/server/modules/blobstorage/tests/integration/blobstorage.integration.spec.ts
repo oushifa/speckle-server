@@ -90,11 +90,6 @@ describe('Blob storage @blobstorage', () => {
       ]
     > = [
       [
-        'stream',
-        { streamId: 'a'.padStart(1, 'a'), userId: 'a'.padStart(10, 'b') },
-        { blobId: 'a'.padStart(10, 'c') } as UploadFileStreamBlobData
-      ],
-      [
         'user',
         { streamId: 'a'.padStart(10, 'a'), userId: 'a'.padStart(1, 'b') },
         { blobId: 'a'.padStart(10, 'c') } as UploadFileStreamBlobData
@@ -113,6 +108,20 @@ describe('Blob storage @blobstorage', () => {
         }
       })
     )
+
+    it('Should throw if stream id is empty', async () => {
+      const uploadFileStream = await buildUploadFileStream({ streamId: null })
+
+      try {
+        await uploadFileStream(
+          { streamId: '', userId: 'a'.padStart(10, 'b') },
+          { blobId: 'a'.padStart(10, 'c') } as UploadFileStreamBlobData
+        )
+      } catch (err) {
+        if (!(err instanceof BadRequestError)) throw err
+        expect(err.message).to.equal('The stream id is required')
+      }
+    })
 
     it('Should store file stream', async () => {
       const fileName = `testFile_${fakeIdGenerator()}`

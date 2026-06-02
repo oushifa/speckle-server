@@ -82,6 +82,26 @@
 
                 <NuxtLink
                   v-if="showWorkspaceLinks"
+                  to="/drawings"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'py-2 mb-1',
+                      isActive('/drawings') && 'bg-slate-400 hover:!bg-slate-400',
+                      'text-white',
+                      'hover:bg-slate-300'
+                    ]"
+                    label="图纸库"
+                  >
+                    <template #icon>
+                      <IconFile class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
                   to="/progress"
                   @click="isOpenMobile = false"
                 >
@@ -349,7 +369,7 @@ const showSpeckleCon25Promo = computed(() => {
   return dayjs().isBefore('2025-11-07', 'day')
 })
 const activeWorkspace = computed(() => result.value?.activeUser?.activeWorkspace)
-const canListDashboards = computed(() => {
+const _canListDashboards = computed(() => {
   return permissionsResult.value?.workspaceBySlug?.permissions?.canListDashboards
     ?.authorized
 })
@@ -370,16 +390,16 @@ const projectsLink = computed(() => {
     : projectsRoute
 })
 
-const workbenchLink = computed(() => {
+const _workbenchLink = computed(() => {
   return isWorkspacesEnabled.value ? activeWorkspaceSlug.value : workbenchRoute
 })
 
-const openChat = () => {
+const _openChat = () => {
   $intercom.show()
   isOpenMobile.value = false
 }
 
-const openExplainerVideoDialog = () => {
+const _openExplainerVideoDialog = () => {
   showExplainerVideoDialog.value = true
   isOpenMobile.value = false
   mixpanel.track('Getting Started Video Opened', {

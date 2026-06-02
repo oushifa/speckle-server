@@ -52,9 +52,17 @@ export const ProjectRecordVisibility = <const>{
 export type ProjectRecordVisibility =
   (typeof ProjectRecordVisibility)[keyof typeof ProjectRecordVisibility]
 
+export const StreamType = <const>{
+  Project: 'project',
+  Library: 'library'
+}
+
+export type StreamType = (typeof StreamType)[keyof typeof StreamType]
+
 export type StreamRecord = {
   id: string
   name: string
+  type?: StreamType
   address: Nullable<string>
   progress: Nullable<number>
   startDate: Nullable<bigint>
@@ -70,6 +78,7 @@ export type StreamRecord = {
   workspaceId: Nullable<string>
   regionKey: Nullable<string>
   visibility: ProjectRecordVisibility
+  usage?: Nullable<string>
 }
 
 export type StreamAclRecord = {

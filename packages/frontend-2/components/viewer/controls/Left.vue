@@ -50,6 +50,16 @@
         :icon="MessageSquareText"
         @click="toggleActivePanel('discussions')"
       />
+      <ViewerControlsButtonToggle
+        v-tippy="
+          getTooltipProps('分屏模式', {
+            placement: 'right'
+          })
+        "
+        :active="activePanel === 'splitScreen'"
+        :icon="LucidePanelLeft"
+        @click="toggleActivePanel('splitScreen')"
+      />
 
       <!-- Saved views -->
       <ViewerControlsButtonToggle
@@ -157,6 +167,7 @@
       <ViewerCommentsPanel
         v-if="resourceItems.length !== 0 && activePanel === 'discussions'"
       />
+      <ViewerSplitScreenPanel v-if="activePanel === 'splitScreen'" />
       <AutomateViewerPanel
         v-if="activePanel === 'automate'"
         :automation-runs="allAutomationRuns"
@@ -208,10 +219,18 @@ import { type Nullable, isNonNullable } from '@speckle/shared'
 import { useFunctionRunsStatusSummary } from '~/lib/automate/composables/runStatus'
 import { projectsRoute } from '~~/lib/common/helpers/route'
 import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/general'
-import { Camera, Box, ListFilter, MessageSquareText, LogOut } from 'lucide-vue-next'
+import {
+  Camera,
+  Box,
+  ListFilter,
+  MessageSquareText,
+  LogOut,
+  LucidePanelLeft
+} from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'
 import { useSettingsMenuState } from '~/lib/settings/composables/menu'
+import { useViewerSplitScreenState } from '~/lib/viewer/composables/setup/splitScreen'
 
 // TODO: Refactor all of this event business and just read/write panels state directly
 const emit = defineEmits<{
@@ -230,7 +249,6 @@ const isTablet = breakpoints.smaller('lg')
 const isLargerThanLg = breakpoints.greater('lg')
 const { getTooltipProps } = useSmartTooltipDelay()
 const isSavedViewsEnabled = useAreSavedViewsEnabled()
-const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const {
   filters: { hasAnyFiltersApplied }
 } = useInjectedViewerInterfaceState()
@@ -241,6 +259,7 @@ const {
 } = useInjectedViewerState()
 
 const { onPanelButtonClick } = useViewerPanelsUtilities()
+const { reset: resetSplitScreen } = useViewerSplitScreenState()
 
 const width = ref(264)
 const panelExtensionWidth = ref(isMobile.value ? 200 : isLargerThanLg.value ? 300 : 256)
@@ -365,6 +384,8 @@ const exitSettingsRoute = computed(() => {
 })
 
 const goBackToPreviousPage = async () => {
+  resetSplitScreen()
+
   // if (import.meta.client && window.history.length > 1) {
   //   router.back()
   //   return
@@ -379,6 +400,10 @@ const forceClosePanel = () => {
 }
 
 watch(activePanel, (newVal, oldVal) => {
+  if (oldVal === 'splitScreen' && newVal !== 'splitScreen') {
+    resetSplitScreen()
+  }
+
   const wasNone = oldVal === 'none'
 
   // If a panel is being opened (not closed) on mobile, emit event to parent

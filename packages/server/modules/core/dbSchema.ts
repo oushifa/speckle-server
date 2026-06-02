@@ -273,6 +273,7 @@ export const Streams = buildTableHelper(
   [
     'id',
     'name',
+    'type',
     'address',
     'progress',
     'startDate',
@@ -287,7 +288,8 @@ export const Streams = buildTableHelper(
     'allowPublicComments',
     'workspaceId',
     'regionKey',
-    'visibility'
+    'visibility',
+    'usage'
   ],
   StreamsMeta
 )

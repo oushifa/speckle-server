@@ -1,6 +1,7 @@
 import { getFeatureFlags } from '@/modules/shared/helpers/envHelper'
 import type { SpeckleModule } from '@/modules/shared/helpers/typeHelper'
 import { getSavedViewsRouter } from '@/modules/viewer/rest/savedViews'
+import { getSplitScreenConfigsRouter } from '@/modules/viewer/rest/splitScreenConfigs'
 import { getViewerCatalogsRouter } from '@/modules/viewer/rest/viewerCatalogs'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import { publish } from '@/modules/shared/utils/subscriptions'
@@ -13,6 +14,7 @@ const viewerModule: SpeckleModule = {
 
     viewerLogger.info('🤩 Initializing viewer module...')
     app.use(getSavedViewsRouter())
+    app.use(getSplitScreenConfigsRouter())
     app.use(getViewerCatalogsRouter())
 
     if (isInitial) {

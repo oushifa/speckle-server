@@ -477,6 +477,7 @@ const buildDiscoverableStreamsBaseQueryFactory =
     const q = tables
       .streams(deps.db)
       .select<Result>(Streams.cols)
+      .andWhere(Streams.col.type, 'project')
       .andWhere(Streams.col.visibility, ProjectRecordVisibility.Public)
       .andWhere(false) // TODO: No such thing as discoverability anymore, just return nothing
 
@@ -718,6 +719,7 @@ const getUserStreamsQueryBaseFactory =
         userId
       )
     })
+    query.andWhere(Streams.col.type, 'project')
 
     if (includeImplicitAccess) {
       /**
@@ -1255,6 +1257,7 @@ export const legacyGetStreamsFactory =
     userId
   }) => {
     const query = tables.streams(deps.db)
+    query.andWhere(Streams.col.type, 'project')
 
     if (searchQuery) {
       const whereFunc: Knex.QueryCallback = function () {

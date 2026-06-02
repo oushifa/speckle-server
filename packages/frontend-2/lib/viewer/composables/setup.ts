@@ -101,6 +101,7 @@ import { useFiltersSetup } from '~/lib/viewer/composables/setup/filters'
 import { useViewerPanelsSetup } from '~/lib/viewer/composables/setup/panels'
 import { ViewerRenderPageType } from '~/lib/viewer/helpers/state'
 import { HighlightExtension } from '~/lib/viewer/composables/setup/highlighting'
+import { useViewerSplitScreenState } from '~/lib/viewer/composables/setup/splitScreen'
 
 export type LoadedModel = NonNullable<
   Get<ViewerLoadedResourcesQuery, 'project.models.items[0]'>
@@ -1294,6 +1295,7 @@ export function useResetUiState() {
   const { resetFilters } = useFilterUtilities()
   const { endDiff } = useDiffUtilities()
   const { reset: resetMeasurements } = useMeasurementUtilities()
+  const { reset: resetSplitScreen } = useViewerSplitScreenState()
 
   return () => {
     camera.isOrthoProjection.value = false
@@ -1304,6 +1306,7 @@ export function useResetUiState() {
     resetFilters()
     resetMeasurements()
     endDiff()
+    resetSplitScreen()
   }
 }
 

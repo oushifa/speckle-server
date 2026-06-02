@@ -255,8 +255,10 @@
                 <LayoutSidebarMenuGroup
                   :class="[
                     'project-sidebar-group-wrapper',
-                    isProjectSectionActive(['/archive/model-to-site', '/archive/archives']) &&
-                      'project-sidebar-group-wrapper-active'
+                    isProjectSectionActive([
+                      '/archive/model-to-site',
+                      '/archive/archives'
+                    ]) && 'project-sidebar-group-wrapper-active'
                   ]"
                   title="档案管理"
                   collapsible
@@ -319,10 +321,7 @@ import {
   LayoutSidebarMenuGroup,
   LayoutSidebarMenuGroupItem
 } from '@speckle/ui-components'
-import {
-  projectsRoute,
-  workspaceRoute
-} from '~/lib/common/helpers/route'
+import { projectsRoute, workspaceRoute } from '~/lib/common/helpers/route'
 import { useRoute } from 'vue-router'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useActiveWorkspaceSlug } from '~/lib/user/composables/activeWorkspace'
@@ -396,7 +395,6 @@ const isProjectActive = (suffix = ''): boolean => {
 const isProjectSectionActive = (suffixes: string[]): boolean => {
   return suffixes.some((suffix) => isProjectActive(suffix))
 }
-
 </script>
 
 <style scoped>
@@ -440,10 +438,7 @@ const isProjectSectionActive = (suffixes: string[]): boolean => {
 .project-sidebar :deep(.project-sidebar-group-wrapper > div) {
   border-left: 4px solid transparent;
   border-radius: 0.375rem;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .project-sidebar :deep(.project-sidebar-group-wrapper > div:hover) {

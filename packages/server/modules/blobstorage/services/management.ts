@@ -30,8 +30,7 @@ export const uploadFileStreamFactory =
     const { streamId, userId } = streamData
     const { blobId, fileName, fileType, fileStream } = blobData
 
-    if (streamId.length !== 10)
-      throw new BadRequestError('The stream id has to be of length 10')
+    if (!streamId?.length) throw new BadRequestError('The stream id is required')
     if (!userId || userId.length !== 10)
       throw new BadRequestError('The user id has to be of length 10')
 

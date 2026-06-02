@@ -9744,6 +9744,7 @@ __metadata:
     concurrently: "npm:^9.1.2"
     dayjs: "npm:^1.11.7"
     dompurify: "npm:^3.2.7"
+    dxf-parser: "npm:^1.1.2"
     eslint: "npm:^9.4.0"
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-vuejs-accessibility: "npm:^2.3.0"
@@ -19037,6 +19038,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dxf-parser@npm:^1.1.2":
+  version: 1.1.2
+  resolution: "dxf-parser@npm:1.1.2"
+  dependencies:
+    loglevel: "npm:^1.7.1"
+  checksum: 10/132bb51e9bb56cf949ee3131da1c97e85b6da0453d98045ce25ee81f2f8dd7876ff3b3567fe8387c667190f32c636b61630d9e039e571569207c94b3ea9c88fe
+  languageName: node
+  linkType: hard
+
 "earcut@npm:3.0.1":
   version: 3.0.1
   resolution: "earcut@npm:3.0.1"
@@ -26002,6 +26012,13 @@ __metadata:
   version: 1.8.0
   resolution: "loglevel@npm:1.8.0"
   checksum: 10/72d700ea698b675f8d8d952539de5c3c04acdf95ea7990d991931c53c8731c682432d9c69ae96ac9c52193f59819f18e99b20f9c21ca1ac6535b002152fa783d
+  languageName: node
+  linkType: hard
+
+"loglevel@npm:^1.7.1":
+  version: 1.9.2
+  resolution: "loglevel@npm:1.9.2"
+  checksum: 10/6153d8db308323f7ee20130bc40309e7a976c30a10379d8666b596d9c6441965c3e074c8d7ee3347fe5cfc059c0375b6f3e8a10b93d5b813cc5547f5aa412a29
   languageName: node
   linkType: hard
 

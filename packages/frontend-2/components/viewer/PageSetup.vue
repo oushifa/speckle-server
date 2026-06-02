@@ -33,6 +33,12 @@
         :loading-bar-classes="isEmbedEnabled ? 'top-0' : 'top-12'"
       >
         <template #after-viewer-base>
+          <ClientOnly>
+            <ViewerSplitScreen
+              v-if="splitScreenState.enabled"
+              :drawing="splitScreenState.drawing"
+            />
+          </ClientOnly>
           <Transition
             enter-from-class="opacity-0"
             enter-active-class="transition duration-1000"
@@ -69,7 +75,7 @@
 
         <!-- Viewer Object Selection Info Display -->
         <Transition
-          v-if="!hideSelectionInfo"
+          v-if="!hideSelectionInfo && !splitScreenState.calibration.active"
           enter-from-class="opacity-0"
           enter-active-class="transition duration-1000"
         >
@@ -120,6 +126,8 @@ import { parseUrlParameters, resourceBuilder } from '@speckle/shared/viewer/rout
 import { ViewerLimitsDialogType } from '~/lib/projects/helpers/limits'
 import { TailwindBreakpoints } from '~~/lib/common/helpers/tailwind'
 import { useBreakpoints } from '@vueuse/core'
+import { useViewerSplitScreenState } from '~/lib/viewer/composables/setup/splitScreen'
+import { ViewerSplitScreen } from '#components'
 
 graphql(`
   fragment ViewerPageSetup_SavedView on SavedView {
@@ -159,6 +167,7 @@ const selectionSidebar = ref()
 const anchoredPoints = ref()
 
 const state = useInjectedViewerState()
+const { state: splitScreenState, reset: resetSplitScreen } = useViewerSplitScreenState()
 const resourceIdString = computed(() => state.resources.request.resourceIdString.value)
 
 const {
@@ -308,4 +317,8 @@ const closeAllPanels = (except?: 'left' | 'bottom' | 'threads' | 'top') => {
 
   selectionSidebar.value.forceClose()
 }
+
+onBeforeUnmount(() => {
+  resetSplitScreen()
+})
 </script>
