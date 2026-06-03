@@ -8,12 +8,14 @@ import {
   FindProjectModelByNameDocument
 } from '@/modules/core/graph/generated/graphql'
 import type { TestApolloServer } from '@/test/graphqlHelper'
-import { testApolloServer } from '@/test/graphqlHelper'
+import { testApolloServer, createTestContext } from '@/test/graphqlHelper'
 import { beforeEachContext } from '@/test/hooks'
 import type { BasicTestStream } from '@/test/speckle-helpers/streamHelper'
 import { createTestStreams } from '@/test/speckle-helpers/streamHelper'
 import { expect } from 'chai'
 import { omit } from 'lodash-es'
+import { Roles } from '@speckle/shared'
+import { mockAdminOverride } from '@/test/mocks/global'
 
 describe('Models', () => {
   const me: BasicTestUser = {
@@ -99,6 +101,59 @@ describe('Models', () => {
         expect(res).to.not.haveGraphQLErrors()
         expect(res.data?.project.modelByName.id).to.equal(firstModel.id)
         expect(res.data?.project.modelByName.name).to.equal(firstModel.name)
+      })
+    })
+
+    describe('admin override for model creation', () => {
+      let adminUser: BasicTestUser
+      let adminApollo: TestApolloServer
+      const adminOverrideMock = mockAdminOverride()
+
+      before(async () => {
+        adminUser = {
+          name: 'Admin User',
+          email: 'admin-model-creation@example.com',
+          id: ''
+        }
+        await createTestUsers([adminUser])
+        adminApollo = await testApolloServer({
+          context: await createTestContext({
+            auth: true,
+            userId: adminUser.id,
+            role: Roles.Server.Admin,
+            scopes: ['streams:write'],
+            token: 'admin-token'
+          })
+        })
+      })
+
+      afterEach(() => {
+        adminOverrideMock.disable()
+      })
+
+      it('fails to create a model on a project the admin does not belong to when override is disabled', async () => {
+        adminOverrideMock.enable(false)
+        const res = await adminApollo.execute(CreateProjectModelDocument, {
+          input: {
+            projectId: myPrivateStream.id,
+            name: 'admin model disabled',
+            description: 'test'
+          }
+        })
+        expect(res).to.haveGraphQLErrors()
+      })
+
+      it('succeeds to create a model on a project the admin does not belong to when override is enabled', async () => {
+        adminOverrideMock.enable(true)
+        const res = await adminApollo.execute(CreateProjectModelDocument, {
+          input: {
+            projectId: myPrivateStream.id,
+            name: 'admin model enabled',
+            description: 'test'
+          }
+        })
+        expect(res).to.not.haveGraphQLErrors()
+        expect(res.data?.modelMutations.create.name).to.equal('admin model enabled')
       })
     })
   })

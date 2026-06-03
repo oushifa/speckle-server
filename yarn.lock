@@ -3520,13 +3520,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dimforge/rapier3d-compat@npm:~0.12.0":
-  version: 0.12.0
-  resolution: "@dimforge/rapier3d-compat@npm:0.12.0"
-  checksum: 10/56cd538b59d534d2ed91de3eb7efd804af5defe146f65294e8ce81982a4bd6c27d61c1014c15a77bb5f5eff0de7a12fbc9b16bf895a2ec56ea5496fd80c78e26
-  languageName: node
-  linkType: hard
-
 "@discoveryjs/json-ext@npm:^0.5.3":
   version: 0.5.7
   resolution: "@discoveryjs/json-ext@npm:0.5.7"
@@ -9738,7 +9731,7 @@ __metadata:
     "@types/mixpanel-browser": "npm:^2.50.2"
     "@types/node": "npm:^18.17.5"
     "@types/pino-http": "npm:^5.8.1"
-    "@types/three": "npm:^0"
+    "@types/three": "npm:^0.140.0"
     "@types/tryghost__content-api": "npm:^1"
     "@types/ua-parser-js": "npm:^0.7.39"
     "@typescript-eslint/eslint-plugin": "npm:^7.12.0"
@@ -9787,7 +9780,7 @@ __metadata:
     stylelint-config-standard: "npm:^26.0.0"
     subscriptions-transport-ws: "npm:^0.11.0"
     tailwindcss: "npm:^3.4.1"
-    three: "npm:^0.184.0"
+    three: "npm:^0.140.0"
     true-myth: "npm:^8.5.0"
     tweetnacl-sealedbox-js: "npm:^1.2.0"
     tweetnacl-util: "npm:^0.15.1"
@@ -11994,13 +11987,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tweenjs/tween.js@npm:~23.1.3":
-  version: 23.1.3
-  resolution: "@tweenjs/tween.js@npm:23.1.3"
-  checksum: 10/10ecaf311c975162459bd016ef7eb1f3118a257050c4886de9737dee823fc829100a0887f3fc298f7a5577140eac054f9609b823eb0748ca7b653ec85ffba75e
-  languageName: node
-  linkType: hard
-
 "@tybys/wasm-util@npm:^0.10.0":
   version: 0.10.0
   resolution: "@tybys/wasm-util@npm:0.10.0"
@@ -12989,13 +12975,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/stats.js@npm:*":
-  version: 0.17.4
-  resolution: "@types/stats.js@npm:0.17.4"
-  checksum: 10/6f1a20e09da0c0b371b3c095b2787a91a9397944679aa506a0886160faf0ad185b911a34b4ec325f146810c5be969f085e81264e2dbe39fd57eb8ff98347b5f4
-  languageName: node
-  linkType: hard
-
 "@types/string-pixel-width@npm:^1.10.3":
   version: 1.10.3
   resolution: "@types/string-pixel-width@npm:1.10.3"
@@ -13029,20 +13008,6 @@ __metadata:
   dependencies:
     "@types/superagent": "npm:*"
   checksum: 10/f0e2b44f86bec2f708d6a3d0cb209055b487922040773049b0f8c6b557af52d4b5fa904e17dfaa4ce6e610172206bbec7b62420d158fa57b6ffc2de37b1730d3
-  languageName: node
-  linkType: hard
-
-"@types/three@npm:^0":
-  version: 0.184.1
-  resolution: "@types/three@npm:0.184.1"
-  dependencies:
-    "@dimforge/rapier3d-compat": "npm:~0.12.0"
-    "@tweenjs/tween.js": "npm:~23.1.3"
-    "@types/stats.js": "npm:*"
-    "@types/webxr": "npm:>=0.5.17"
-    fflate: "npm:~0.8.2"
-    meshoptimizer: "npm:~1.1.1"
-  checksum: 10/8c227cf5084a4ae0b89298284d841d0e1fb96a6d9fa9a2133a32acc7fa742ecdd2fb627376e1b3258eac1ca73cc076b160a97d355745399a9711edf7e327e35d
   languageName: node
   linkType: hard
 
@@ -13136,13 +13101,6 @@ __metadata:
   version: 0.0.20
   resolution: "@types/web-bluetooth@npm:0.0.20"
   checksum: 10/2faa323e5c994e9468fff4675e3b6d35f3730eb4dc7c761d02267fb6246dbfd659fd8f3583db0872aae05b3ee139799c25655bbe79bf1b56c08c06e665db814b
-  languageName: node
-  linkType: hard
-
-"@types/webxr@npm:>=0.5.17":
-  version: 0.5.24
-  resolution: "@types/webxr@npm:0.5.24"
-  checksum: 10/780afba558f73588922c2e71a6dcffd29d132179c5ddf290e9e5fe43a8a5eedd34dc7395209c19c06aa7a916cd2230a9d6f3f3afb2c7a9f6c820dc1f775f266a
   languageName: node
   linkType: hard
 
@@ -21234,13 +21192,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fflate@npm:~0.8.2":
-  version: 0.8.3
-  resolution: "fflate@npm:0.8.3"
-  checksum: 10/6ebf528dc9c56e78e715eac615b009b25dc33e15c1920b11ebba44e6d76181c647756a81a23e19247907496b93aa99928514c53090579a65109e026ac2824aa7
-  languageName: node
-  linkType: hard
-
 "figures@npm:^3.0.0":
   version: 3.2.0
   resolution: "figures@npm:3.2.0"
@@ -26592,13 +26543,6 @@ __metadata:
     "@types/node":
       optional: true
   checksum: 10/1893d226866058a32161ab069294a1a16975c765416a2b05165dfafba07cd958ca12503e35c621ffe736c62d935ccb1ce60cb723e2a9e0b85e02bb3236722ef6
-  languageName: node
-  linkType: hard
-
-"meshoptimizer@npm:~1.1.1":
-  version: 1.1.1
-  resolution: "meshoptimizer@npm:1.1.1"
-  checksum: 10/0e05f06059ee2389f45d6245c310cce3a0c5fe57cef7014a925c66e19e9a4a41360250bd39f242c1381eaa821a7089d8da371792147f4bf35b5d95fe3e3d504e
   languageName: node
   linkType: hard
 
@@ -35110,13 +35054,6 @@ __metadata:
   version: 0.140.2
   resolution: "three@npm:0.140.2"
   checksum: 10/353f9289623ba93df24cf18eb5ec1eba85df3fe6e9e804a5eefc67ef0b1458a77d1ec118b0abdb85b123af569cf4cd7b3ea2a654eaec07e4f550415c77abb927
-  languageName: node
-  linkType: hard
-
-"three@npm:^0.184.0":
-  version: 0.184.0
-  resolution: "three@npm:0.184.0"
-  checksum: 10/a79a18747a064d94b01c56205d9c381b1e935e8d14389b484ee38c4d330c85e5e797b97efdfd3e139451997bc88e4984f37b8e151c6dce57eccaf2086777b6e2
   languageName: node
   linkType: hard
 

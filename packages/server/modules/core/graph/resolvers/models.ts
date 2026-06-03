@@ -8,7 +8,8 @@ import {
   getPaginatedProjectModelsFactory,
   getProjectTopLevelModelsTreeFactory
 } from '@/modules/core/services/branch/retrieval'
-import { getFeatureFlags, getServerOrigin } from '@/modules/shared/helpers/envHelper'
+import { getFeatureFlags, getServerOrigin, adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
+import { Roles } from '@speckle/shared'
 import { last } from 'lodash-es'
 import {
   getPaginatedBranchCommitsFactory,
@@ -61,6 +62,9 @@ import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { getThumbnailUrl } from '@/modules/viewer/helpers/savedViews'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
+
+const hasServerAdminOverride = (ctx: GraphQLContext) =>
+  adminOverrideEnabled() && ctx.role === Roles.Server.Admin
 
 export default {
   User: {
@@ -346,11 +350,13 @@ export default {
         streamId: projectId //legacy
       })
 
-      const canCreate = await ctx.authPolicies.project.model.canCreate({
-        userId: ctx.userId,
-        projectId
-      })
-      throwIfAuthNotOk(canCreate)
+      if (!hasServerAdminOverride(ctx)) {
+        const canCreate = await ctx.authPolicies.project.model.canCreate({
+          userId: ctx.userId,
+          projectId
+        })
+        throwIfAuthNotOk(canCreate)
+      }
 
       const projectDB = await getProjectDbClient({ projectId })
 
