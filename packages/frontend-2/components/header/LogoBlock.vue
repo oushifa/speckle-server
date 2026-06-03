@@ -31,8 +31,8 @@ const mainComponent = computed(() => (props.noLink ? 'div' : NuxtLink))
 
 <style scoped>
 #logo {
-  margin-left: -0.375rem;
-  width: 13rem;
+  margin-left: -120px;
+  width: 320px;
   height: 54px;
   background-image: url('~/assets/images/layout/bg-2.png'),
     url('~/assets/images/layout/bg-1.png');
@@ -42,9 +42,9 @@ const mainComponent = computed(() => (props.noLink ? 'div' : NuxtLink))
   align-items: center;
   font-size: 32px;
   letter-spacing: 28%;
-  justify-content: center;
+  justify-content: flex-end;
 }
 #logo > span {
-  padding-right: 1rem;
+  padding-right: 36px;
 }
 </style>
