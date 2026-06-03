@@ -1,6 +1,8 @@
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
+import { buildApprovalBindingSubjectKey, getApprovalFlowBindingBySubjectKeyFactory } from '@/modules/flow/repositories/approvalBindings'
+import { getApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers'
 import {
   countQualityAcceptanceFormsFactory,
   deleteQualityAcceptanceFormFactory,
@@ -21,7 +23,8 @@ import {
   createQualityAcceptanceFormEntryFactory,
   importQualityAcceptanceFormsFactory,
   normalizeApproveStatus,
-  normalizeBimElements
+  normalizeBimElements,
+  QUALITY_ACCEPTANCE_FORM_TABLE
 } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
 
 const hasServerAdminOverride = (ctx: GraphQLContext) =>
@@ -237,6 +240,33 @@ const resolvers = {
           userId: ctx.userId
         })
         throwIfAuthNotOk(canUpdate)
+      }
+
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'FORM_RECORD',
+        subjectTable: QUALITY_ACCEPTANCE_FORM_TABLE,
+        subjectId: args.input.id
+      })
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      if (binding && binding.projectId === args.input.projectId) {
+        if (binding.status === 'IN_REVIEW') {
+          throw new BadRequestError(
+            'Quality acceptance form cannot be edited while approval is in review'
+          )
+        }
+
+        if (binding.status === 'RETURNED') {
+          const subjectHandler = getApprovalSubjectHandler({
+            subjectType: 'FORM_RECORD',
+            subjectTable: QUALITY_ACCEPTANCE_FORM_TABLE
+          })
+          await subjectHandler.canEditWhenReturned({
+            projectId: args.input.projectId,
+            subjectType: 'FORM_RECORD',
+            subjectId: args.input.id,
+            subjectTable: QUALITY_ACCEPTANCE_FORM_TABLE
+          })
+        }
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })

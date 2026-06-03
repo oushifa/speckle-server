@@ -46,6 +46,7 @@ const jsonValue = (db: Knex, value: unknown) =>
 
 export const ApprovalFlowInstanceStatus = {
   Pending: 'PENDING',
+  Returned: 'RETURNED',
   Approved: 'APPROVED',
   Rejected: 'REJECTED',
   Canceled: 'CANCELED'
@@ -55,6 +56,8 @@ export const ApprovalFlowActionType = {
   Started: 'STARTED',
   StepApproved: 'STEP_APPROVED',
   Approved: 'APPROVED',
+  ReturnedToStart: 'RETURNED_TO_START',
+  ReturnedToStep: 'RETURNED_TO_STEP',
   Rejected: 'REJECTED',
   Canceled: 'CANCELED',
   TimeoutRejected: 'TIMEOUT_REJECTED',

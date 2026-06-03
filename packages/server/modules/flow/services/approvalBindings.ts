@@ -1,4 +1,5 @@
 import type { Knex } from 'knex'
+import { getApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers'
 import {
   createApprovalFlowBindingFactory,
   buildApprovalBindingSubjectKey,
@@ -14,18 +15,17 @@ import {
   createApprovalFlowInstanceFactory,
   createApprovalFlowInstanceStepFactory,
   getApprovalFlowActionsFactory,
+  getApprovalFlowCurrentStepFactory,
   getApprovalFlowDefinitionByIdFactory,
   getApprovalFlowDefinitionStepsFactory,
   getApprovalFlowInstanceByIdFactory,
+  updateApprovalFlowInstanceStatusFactory,
   getApprovalFlowInstanceStepsFactory,
   insertApprovalFlowActionFactory,
-  updateApprovalFlowStatusFactory
+  updateApprovalFlowInstanceStepFactory
 } from '@/modules/flow/repositories/approvalFlows'
-import {
-  BadRequestError,
-  NotFoundError,
-  NotImplementedError
-} from '@/modules/shared/errors'
+import { updateApprovalFlowStatusFactory } from '@/modules/flow/services/approvalFlows'
+import { BadRequestError, NotFoundError } from '@/modules/shared/errors'
 import type {
   ApprovalFlowBindingRecord,
   ApprovalFlowDefinitionStepRecord,
@@ -127,12 +127,6 @@ export type CancelApprovalInstanceParams = {
 const START_STEP_INDEX = 0
 const START_STEP_NAME = '开始'
 
-const notImplemented = (methodName: string): never => {
-  throw new NotImplementedError(
-    `Flow binding service method "${methodName}" is not implemented yet.`
-  )
-}
-
 const mapBindingRecord = (
   record: ApprovalFlowBindingRecord | null
 ): ApprovalBindingSummary | null => {
@@ -155,7 +149,9 @@ const mapBindingRecord = (
   }
 }
 
-const mapInstanceRecord = (record: ApprovalFlowInstanceRecord): ApprovalInstanceSummary => ({
+const mapInstanceRecord = (
+  record: ApprovalFlowInstanceRecord
+): ApprovalInstanceSummary => ({
   id: record.id,
   bindingId: record.bindingId || '',
   roundNo: record.roundNo,
@@ -165,7 +161,9 @@ const mapInstanceRecord = (record: ApprovalFlowInstanceRecord): ApprovalInstance
   updatedAt: record.updatedAt
 })
 
-const getDefinitionResourceTypeForSubject = (subjectType: ApprovalBindingSubjectType) => {
+const getDefinitionResourceTypeForSubject = (
+  subjectType: ApprovalBindingSubjectType
+) => {
   if (subjectType === 'MODEL_VERSION') return 'MODEL'
   return 'FORMS'
 }
@@ -353,7 +351,9 @@ const syncBindingStatusFromInstance = async (params: {
   if (!binding) throw new NotFoundError('Approval binding not found')
 
   const nextStatus =
-    instance.status === ApprovalFlowInstanceStatus.Approved
+    instance.status === ApprovalFlowInstanceStatus.Returned
+      ? 'RETURNED'
+      : instance.status === ApprovalFlowInstanceStatus.Approved
       ? 'APPROVED'
       : instance.status === ApprovalFlowInstanceStatus.Rejected
       ? 'REJECTED'
@@ -366,6 +366,10 @@ const syncBindingStatusFromInstance = async (params: {
     currentInstanceId: instance.id,
     currentRoundNo: instance.roundNo,
     status: nextStatus,
+    lastReturnedAt:
+      nextStatus === 'RETURNED' ? new Date() : binding.lastReturnedAt || null,
+    lastReturnedBy:
+      nextStatus === 'RETURNED' ? params.updater : binding.lastReturnedBy || null,
     finishedAt: nextStatus === 'IN_REVIEW' ? null : new Date(),
     updater: params.updater
   })
@@ -375,8 +379,12 @@ const syncBindingStatusFromInstance = async (params: {
 
 export const getApprovalBindingBySubjectFactory =
   (deps: { db: Knex }) =>
-  async (params: ApprovalBindingSubjectInput): Promise<ApprovalBindingSummary | null> => {
-    const getBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db: deps.db })
+  async (
+    params: ApprovalBindingSubjectInput
+  ): Promise<ApprovalBindingSummary | null> => {
+    const getBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({
+      db: deps.db
+    })
     const subjectKey = buildApprovalBindingSubjectKey({
       subjectType: params.subjectType,
       subjectId: params.subjectId,
@@ -391,13 +399,15 @@ export const getApprovalBindingByIdFactory =
   (deps: { db: Knex }) =>
   async (bindingId: string): Promise<ApprovalBindingSummary | null> => {
     const getBindingById = getApprovalFlowBindingRecordByIdFactory({ db: deps.db })
-    return mapBindingRecord(await getBindingById(bindingId))
+    return mapBindingRecord((await getBindingById(bindingId)) || null)
   }
 
 export const listApprovalInstancesByBindingIdFactory =
   (deps: { db: Knex }) =>
   async (bindingId: string): Promise<ApprovalInstanceSummary[]> => {
-    const listInstances = listApprovalFlowInstanceRecordsByBindingIdFactory({ db: deps.db })
+    const listInstances = listApprovalFlowInstanceRecordsByBindingIdFactory({
+      db: deps.db
+    })
     const records = await listInstances(bindingId)
     return records.map(mapInstanceRecord)
   }
@@ -431,11 +441,17 @@ export const submitApprovalBindingFactory =
   (deps: { db: Knex }) =>
   async (params: SubmitApprovalBindingParams): Promise<ApprovalBindingSummary> => {
     return await deps.db.transaction(async (trx) => {
-      const getBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db: trx })
+      const getBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({
+        db: trx
+      })
       const createBinding = createApprovalFlowBindingFactory({ db: trx })
       const updateBinding = updateApprovalFlowBindingFactory({ db: trx })
       const getDefinitionById = getApprovalFlowDefinitionByIdFactory({ db: trx })
       const getDefinitionSteps = getApprovalFlowDefinitionStepsFactory({ db: trx })
+      const subjectHandler = getApprovalSubjectHandler({
+        subjectType: params.subjectType,
+        subjectTable: params.subjectTable || null
+      })
 
       const subjectKey = buildApprovalBindingSubjectKey({
         subjectType: params.subjectType,
@@ -458,12 +474,20 @@ export const submitApprovalBindingFactory =
         throw new BadRequestError('Approval flow definition must be active')
       }
 
-      const expectedResourceType = getDefinitionResourceTypeForSubject(params.subjectType)
+      const expectedResourceType = getDefinitionResourceTypeForSubject(
+        params.subjectType
+      )
       if (definition.resourceType !== expectedResourceType) {
         throw new BadRequestError(
           `Definition resourceType mismatch, expected ${expectedResourceType}`
         )
       }
+      await subjectHandler.canSubmit({
+        projectId: params.projectId,
+        subjectType: params.subjectType,
+        subjectId: params.subjectId,
+        subjectTable: params.subjectTable || null
+      })
 
       const definitionSteps = await getDefinitionSteps(definition.id)
       if (!definitionSteps.length) {
@@ -486,12 +510,19 @@ export const submitApprovalBindingFactory =
         updater: params.actorUserId
       })
 
-      const subjectSnapshot = buildGenericSubjectSnapshot({
-        subjectType: params.subjectType,
-        subjectId: params.subjectId,
-        subjectTable: params.subjectTable || null,
-        projectId: params.projectId
-      })
+      const subjectSnapshot =
+        (await subjectHandler.getSubjectSnapshot({
+          projectId: params.projectId,
+          subjectType: params.subjectType,
+          subjectId: params.subjectId,
+          subjectTable: params.subjectTable || null
+        })) ||
+        buildGenericSubjectSnapshot({
+          subjectType: params.subjectType,
+          subjectId: params.subjectId,
+          subjectTable: params.subjectTable || null,
+          projectId: params.projectId
+        })
 
       const instance = await createApprovalInstanceWithSteps({
         trx,
@@ -552,12 +583,22 @@ export const resubmitApprovalBindingFactory =
       if (binding.lastSubmittedBy && binding.lastSubmittedBy !== params.actorUserId) {
         throw new BadRequestError('Only the last submitter can resubmit this binding')
       }
+      const subjectHandler = getApprovalSubjectHandler({
+        subjectType: binding.subjectType as ApprovalBindingSubjectType,
+        subjectTable: binding.subjectTable || null
+      })
 
       const definition = await getDefinitionById(binding.definitionId)
       if (!definition) throw new NotFoundError('Approval flow definition not found')
       if (!definition.isActive) {
         throw new BadRequestError('Approval flow definition must be active')
       }
+      await subjectHandler.canResubmit({
+        projectId: binding.projectId,
+        subjectType: binding.subjectType as ApprovalBindingSubjectType,
+        subjectId: binding.subjectId,
+        subjectTable: binding.subjectTable || null
+      })
 
       const definitionSteps = await getDefinitionSteps(definition.id)
       if (!definitionSteps.length) {
@@ -565,12 +606,19 @@ export const resubmitApprovalBindingFactory =
       }
 
       const roundNo = binding.currentRoundNo + 1
-      const subjectSnapshot = buildGenericSubjectSnapshot({
-        subjectType: binding.subjectType as ApprovalBindingSubjectType,
-        subjectId: binding.subjectId,
-        subjectTable: binding.subjectTable || null,
-        projectId: binding.projectId
-      })
+      const subjectSnapshot =
+        (await subjectHandler.getSubjectSnapshot({
+          projectId: binding.projectId,
+          subjectType: binding.subjectType as ApprovalBindingSubjectType,
+          subjectId: binding.subjectId,
+          subjectTable: binding.subjectTable || null
+        })) ||
+        buildGenericSubjectSnapshot({
+          subjectType: binding.subjectType as ApprovalBindingSubjectType,
+          subjectId: binding.subjectId,
+          subjectTable: binding.subjectTable || null,
+          projectId: binding.projectId
+        })
 
       const instance = await createApprovalInstanceWithSteps({
         trx,
@@ -634,14 +682,89 @@ export const approveApprovalInstanceFactory =
   }
 
 export const returnApprovalInstanceToStartFactory =
-  (_deps: { db: Knex }) =>
-  async (_params: ReturnApprovalInstanceToStartParams): Promise<Record<string, unknown>> => {
-    return notImplemented('returnApprovalInstanceToStartFactory')
+  (deps: { db: Knex }) =>
+  async (
+    params: ReturnApprovalInstanceToStartParams
+  ): Promise<Record<string, unknown>> => {
+    return await deps.db.transaction(async (trx) => {
+      const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
+      const getCurrentStep = getApprovalFlowCurrentStepFactory({ db: trx })
+      const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
+      const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
+      const updateInstanceStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
+      const insertAction = insertApprovalFlowActionFactory({ db: trx })
+
+      const instance = await getInstanceById({ id: params.instanceId })
+      if (!instance) throw new NotFoundError('Approval instance not found')
+      if (instance.status !== ApprovalFlowInstanceStatus.Pending) {
+        throw new BadRequestError('Only pending approval instances can return to start')
+      }
+
+      const currentStep = await getCurrentStep(params.instanceId)
+      if (!currentStep) {
+        throw new BadRequestError('Current approval step not found')
+      }
+
+      const steps = await getSteps(params.instanceId)
+      const now = new Date()
+
+      for (const step of steps) {
+        if (step.stepIndex < currentStep.stepIndex) continue
+        if (step.id === currentStep.id) {
+          await updateStep({
+            stepId: step.id,
+            status: ApprovalFlowStepStatus.Rejected,
+            completedAt: now
+          })
+          continue
+        }
+
+        if (
+          step.status === ApprovalFlowStepStatus.Waiting ||
+          step.status === ApprovalFlowStepStatus.Pending
+        ) {
+          await updateStep({
+            stepId: step.id,
+            status: ApprovalFlowStepStatus.Canceled,
+            completedAt: now
+          })
+        }
+      }
+
+      const updatedInstance = await updateInstanceStatus({
+        instanceId: params.instanceId,
+        status: ApprovalFlowInstanceStatus.Returned,
+        currentStep: START_STEP_INDEX
+      })
+      if (!updatedInstance) throw new BadRequestError('Approval instance not found')
+
+      await insertAction({
+        instanceId: params.instanceId,
+        stepId: currentStep.id,
+        action: ApprovalFlowActionType.ReturnedToStart,
+        actorId: params.actorUserId,
+        fromStatus: instance.status,
+        toStatus: ApprovalFlowInstanceStatus.Returned,
+        comment: params.comment,
+        metadata: {
+          targetStep: START_STEP_INDEX,
+          targetType: 'START'
+        }
+      })
+
+      return await syncBindingStatusFromInstance({
+        trx,
+        instanceId: params.instanceId,
+        updater: params.actorUserId
+      })
+    })
   }
 
 export const returnApprovalInstanceToStepFactory =
   (deps: { db: Knex }) =>
-  async (params: ReturnApprovalInstanceToStepParams): Promise<Record<string, unknown>> => {
+  async (
+    params: ReturnApprovalInstanceToStepParams
+  ): Promise<Record<string, unknown>> => {
     return await deps.db.transaction(async (trx) => {
       const updateApprovalFlowStatus = updateApprovalFlowStatusFactory({ db: trx })
       await updateApprovalFlowStatus({
@@ -650,6 +773,19 @@ export const returnApprovalInstanceToStepFactory =
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: params.comment,
         rollbackToStep: params.targetStep
+      })
+      const insertAction = insertApprovalFlowActionFactory({ db: trx })
+      await insertAction({
+        instanceId: params.instanceId,
+        action: ApprovalFlowActionType.ReturnedToStep,
+        actorId: params.actorUserId,
+        fromStatus: ApprovalFlowInstanceStatus.Pending,
+        toStatus: ApprovalFlowInstanceStatus.Pending,
+        comment: params.comment,
+        metadata: {
+          targetStep: params.targetStep,
+          targetType: 'STEP'
+        }
       })
       return await syncBindingStatusFromInstance({
         trx,

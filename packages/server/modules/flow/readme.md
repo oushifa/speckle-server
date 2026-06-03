@@ -631,6 +631,122 @@ bindingId -> instances(order by roundNo desc)
 6. 先接入 `FORM_RECORD + quality_acceptance_forms`
 7. 再接入 `MODEL_VERSION`
 
+## 当前实现进度
+
+截至当前提交，第一阶段已完成以下内容：
+
+- 已新增 `approval_flow_bindings` migration 草案
+- 已在 `dbSchema` / `types` 中补充 binding 与 instance 新字段
+- 已新增 `approvalBindings` repository
+- 已新增 REST 路由骨架并接入 `flow` 模块
+- 已实现以下 service 主链路的最小版本：
+  - `submit`
+  - `resubmit`
+  - `get by subject`
+  - `get by id`
+  - `list instances`
+  - `get instance details`
+  - `approve`
+  - `reject`
+  - `cancel`
+  - `return-to-step`
+
+当前仍未完成的关键项：
+
+- `MODEL_VERSION` 的快照与校验
+- 更多业务对象的编辑权限与 `binding.status` 的联动
+
+## 当前代码约束
+
+当前已落地代码是“第一批可运行骨架”，存在以下约束：
+
+- `subjectSnapshot` 已接入 `FORM_RECORD + quality_acceptance_forms` 的真实快照
+- 其他尚未接 handler 的 subject 仍使用通用快照
+- `return-to-step` 仍基于现有 flow 引擎的 `rollbackToStep` 机制实现，但已补写 `RETURNED_TO_STEP` action
+- `MODEL_VERSION` 与其他未接入的 `FORM_RECORD` 仍未通过 handler 读取真实业务快照
+
+## 下一步实施目标
+
+下一步按以下顺序推进：
+
+1. 接入 `MODEL_VERSION` handler
+2. 将更多 `FORM_RECORD` 表单接入 handler
+3. 为更多业务对象补充 `binding.status` 编辑约束
+4. 视情况补充投影查询或列表联表接口
+
+## return-to-start 当前实现
+
+当前 `return-to-start` 已按新语义落地，行为如下：
+
+1. 仅允许 `PENDING` 实例执行
+2. 定位当前 `PENDING` 节点
+3. 将当前节点标记为 `REJECTED`
+4. 将后续尚未开始的 `WAITING/PENDING` 节点标记为 `CANCELED`
+5. 将实例状态更新为 `RETURNED`
+6. 写入 `RETURNED_TO_START` action
+7. 将 binding 状态同步为 `RETURNED`
+
+当前实现的目的：
+
+- 不再复用旧的 `rollbackToStep = 0`
+- 保持当前轮次闭环结束
+- 允许后续通过 `resubmit` 开启下一轮审批
+
+当前实现仍有一个约束：
+
+- 这一步还没有接业务 handler，因此“退回开始后谁能编辑业务数据”仍未和具体业务模块打通
+
+## quality_acceptance_forms handler 当前实现
+
+当前已完成 `FORM_RECORD + quality_acceptance_forms` 的 subject handler 接入，行为如下：
+
+1. `submit` 时先通过 handler 校验质量验收单是否存在
+2. `submit` 时从项目分库读取真实表单数据，并生成 `subjectSnapshot`
+3. `resubmit` 时重新读取真实表单数据，生成新一轮 instance 的快照
+4. 对未接入 handler 的其他 subject，仍回退到通用快照
+
+当前质量验收快照包含：
+
+- `formId`
+- `projectId`
+- `title`
+- `code`
+- `inspectionLotNumber`
+- `acceptancePart`
+- `acceptanceContent`
+- `inspector`
+- `unit`
+- `workVolume`
+- `creator`
+- `actualStartDate`
+- `actualFinishDate`
+- `bimElements`
+- `attachments`
+- `updatedAt`
+
+当前仍未完成的质量验收关联能力：
+
+- 创建质量验收单时仍沿用旧的 `startApprovalFlowFactory` 链路，尚未切到新的 binding REST/Service
+
+## 质量验收编辑约束当前实现
+
+当前质量验收单的 GraphQL `updateForm` 已接入 `binding.status` 约束，规则如下：
+
+- 无 binding：允许编辑
+- `IN_REVIEW`：禁止编辑
+- `RETURNED`：允许编辑，但会先通过 subject handler 校验表单仍存在
+- 其他状态：当前默认允许编辑，后续可按业务再细化
+
+当前实现位置：
+
+- `quality-acceptance-form/graph/resolvers/qualityAcceptanceForms.ts`
+
+当前约束范围：
+
+- 仅拦截质量验收单的更新入口
+- 删除入口尚未接同样规则
+- 创建后自动发起审批仍沿用旧流程服务，尚未切到新的 binding submit 入口
+
 ## 推荐的后续拆分
 
 建议后续在本模块内按职责继续拆分：

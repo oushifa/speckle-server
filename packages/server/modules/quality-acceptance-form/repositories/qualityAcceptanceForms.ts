@@ -69,6 +69,15 @@ export const getQualityAcceptanceFormsFactory =
     }
   }
 
+export const getQualityAcceptanceFormByIdFactory =
+  (deps: { db: Knex }) => async (params: { formId: string; projectId?: string | null }) => {
+    const q = tables.forms(deps.db).where(QualityAcceptanceForms.col.id, params.formId)
+    if (params.projectId) {
+      q.andWhere(QualityAcceptanceForms.col.project_id, params.projectId)
+    }
+    return await q.first()
+  }
+
 export const countQualityAcceptanceFormsFactory =
   (deps: { db: Knex }) =>
   async (params: { projectId: string; search?: string | null }) => {
