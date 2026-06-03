@@ -650,29 +650,28 @@ bindingId -> instances(order by roundNo desc)
   - `reject`
   - `cancel`
   - `return-to-step`
+- **已完成** `MODEL_VERSION` 的快照与校验对接，支持获取正确的版本号，并阻断 `IN_REVIEW` 下的修改与删除
 
 当前仍未完成的关键项：
 
-- `MODEL_VERSION` 的快照与校验
-- 更多业务对象的编辑权限与 `binding.status` 的联动
+- 更多业务对象（如 `monthly_measurements`）的编辑权限与 `binding.status` 的联动及 handler 接入
 
 ## 当前代码约束
 
 当前已落地代码是“第一批可运行骨架”，存在以下约束：
 
-- `subjectSnapshot` 已接入 `FORM_RECORD + quality_acceptance_forms` 的真实快照
+- `subjectSnapshot` 已接入 `FORM_RECORD + quality_acceptance_forms` 以及 `MODEL_VERSION` 的真实快照
 - 其他尚未接 handler 的 subject 仍使用通用快照
 - `return-to-step` 仍基于现有 flow 引擎的 `rollbackToStep` 机制实现，但已补写 `RETURNED_TO_STEP` action
-- `MODEL_VERSION` 与其他未接入的 `FORM_RECORD` 仍未通过 handler 读取真实业务快照
+- `FORM_RECORD` 中的 `monthly_measurements` 仍未通过 handler 读取真实业务快照
 
 ## 下一步实施目标
 
 下一步按以下顺序推进：
 
-1. 接入 `MODEL_VERSION` handler
-2. 将更多 `FORM_RECORD` 表单接入 handler
-3. 为更多业务对象补充 `binding.status` 编辑约束
-4. 视情况补充投影查询或列表联表接口
+1. 将 `FORM_RECORD + monthly_measurements` 接入 subject handler 并读取真实快照
+2. 为 `monthly_measurements` 补充 `binding.status` 编辑和删除约束
+3. 视情况补充投影查询或列表联表接口
 
 ## return-to-start 当前实现
 
@@ -747,6 +746,25 @@ bindingId -> instances(order by roundNo desc)
 - 删除入口尚未接同样规则
 - 创建后自动发起审批仍沿用旧流程服务，尚未切到新的 binding submit 入口
 
+## MODEL_VERSION handler 当前实现
+
+当前已完成 `MODEL_VERSION` 的 subject handler 接入，行为如下：
+
+1. `submit` / `resubmit` 时通过 handler 校验模型版本是否存在
+2. 统计同一模型（分支）下在此之前（包含该版本）创建的版本数，作为 `versionNumber`
+3. 快照中记录：`versionId`、`modelId`、`modelName`、`branchId`、`versionNumber`、`commitId`、`createdAt`、`createdBy`、`message`、`sourceApplication` 和 `referencedObject`
+
+## MODEL_VERSION 编辑/删除约束当前实现
+
+当前模型版本的 GraphQL `update` 与 `delete` 已接入 `binding.status` 约束：
+
+- 针对该版本的 `subjectKey`（`model_version:{versionId}`）查询审批绑定
+- 若审批绑定存在且状态为 `IN_REVIEW`（审批中），则禁止对其执行修改或删除，并抛出 `BadRequestError`
+
+当前实现位置：
+
+- `core/graph/resolvers/versions.ts`
+
 ## 推荐的后续拆分
 
 建议后续在本模块内按职责继续拆分：
@@ -763,3 +781,4 @@ bindingId -> instances(order by roundNo desc)
 - `MODEL_VERSION` 被退回后，允许修改附加说明再重提
 - 第一阶段不做审批状态投影表
 - 第一阶段不保留业务表 `approveStatus`
+

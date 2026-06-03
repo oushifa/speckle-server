@@ -25,6 +25,11 @@ import {
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
 } from '@/modules/flow/services/approvalFlows'
+import {
+  buildApprovalBindingSubjectKey,
+  getApprovalFlowBindingBySubjectKeyFactory
+} from '@/modules/flow/repositories/approvalBindings'
+import { getApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers'
 import { BadRequestError } from '@/modules/shared/errors'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
@@ -328,6 +333,34 @@ const resolvers = {
         projectId: args.input.projectId
       })
       if (!existing) throw new BadRequestError('月度验工不存在')
+
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'FORM_RECORD',
+        subjectTable: MONTHLY_MEASUREMENT_TABLE,
+        subjectId: args.input.id
+      })
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      if (binding && binding.projectId === args.input.projectId) {
+        if (binding.status === 'IN_REVIEW') {
+          throw new BadRequestError(
+            'Monthly measurement cannot be edited while approval is in review'
+          )
+        }
+
+        if (binding.status === 'RETURNED') {
+          const subjectHandler = getApprovalSubjectHandler({
+            subjectType: 'FORM_RECORD',
+            subjectTable: MONTHLY_MEASUREMENT_TABLE
+          })
+          await subjectHandler.canEditWhenReturned({
+            projectId: args.input.projectId,
+            subjectType: 'FORM_RECORD',
+            subjectId: args.input.id,
+            subjectTable: MONTHLY_MEASUREMENT_TABLE
+          })
+        }
+      }
+
       if (isMeasurementSubmitted(existing)) {
         throw new BadRequestError('送审后不可编辑')
       }
@@ -517,6 +550,21 @@ const resolvers = {
         projectId: args.input.projectId
       })
       if (!existing) throw new BadRequestError('月度验工不存在')
+
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'FORM_RECORD',
+        subjectTable: MONTHLY_MEASUREMENT_TABLE,
+        subjectId: args.input.id
+      })
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      if (binding && binding.projectId === args.input.projectId) {
+        if (binding.status === 'IN_REVIEW') {
+          throw new BadRequestError(
+            'Monthly measurement cannot be deleted while approval is in review'
+          )
+        }
+      }
+
       if (isMeasurementSubmitted(existing)) {
         throw new BadRequestError('送审后不可删除')
       }

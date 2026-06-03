@@ -1,7 +1,7 @@
 <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
 <!-- eslint-disable vuejs-accessibility/no-static-element-interactions -->
 <template>
-  <div class="group h-full">
+  <div class="group h-full w-[185px] shrink-0">
     <template v-if="isLoggedIn">
       <Portal to="mobile-navigation">
         <div class="lg:hidden">
@@ -23,8 +23,8 @@
         @click="isOpenMobile = false"
       />
       <div
-        class="absolute z-40 lg:static h-full flex w-64 shrink-0 transition-all"
-        :class="isOpenMobile ? '' : '-translate-x-64 lg:translate-x-0'"
+        class="absolute z-40 lg:static h-full flex w-full shrink-0 transition-all"
+        :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
       >
         <div
           class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
@@ -299,6 +299,57 @@
                       ]"
                       extra-padding
                       label="档案管理"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                </LayoutSidebarMenuGroup>
+
+                <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive([
+                      '/settings/permission',
+                      '/settings/approval'
+                    ]) && 'project-sidebar-group-wrapper-active'
+                  ]"
+                  title="项目设置"
+                  collapsible
+                  :no-hover="true"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
+                >
+                  <template #title-icon>
+                    <IconSettings class="size-4 text-white" />
+                  </template>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks"
+                    :to="projectBaseRoutePath + '/settings/permission'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        isProjectActive('/settings/permission') &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="权限管理"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks"
+                    :to="projectBaseRoutePath + '/settings/approval'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        isProjectActive('/settings/approval') &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="审批流程"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                 </LayoutSidebarMenuGroup>

@@ -16,6 +16,12 @@ import {
   returnApprovalInstanceToStepFactory,
   submitApprovalBindingFactory
 } from '@/modules/flow/services/approvalBindings'
+import {
+  setApprovalFlowDefinitionActiveStateFactory
+} from '@/modules/flow/repositories/approvalFlows'
+import {
+  createApprovalFlowDefinitionWithStepsFactory
+} from '@/modules/flow/services/approvalFlows'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
 
 const bindingIdParamsSchema = z.object({
@@ -314,6 +320,151 @@ export const flowRouterFactory = (): Router => {
       })
 
       return res.status(200).send(result)
+    }
+  )
+
+  app.get(
+    '/api/users',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const users = await db('users')
+        .select('id', 'name', 'avatar')
+        .orderBy('name', 'asc')
+
+      return res.status(200).send(users)
+    }
+  )
+
+  app.get(
+    '/api/projects/:projectId/approval-definitions',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const { projectId } = req.params
+
+      const definitions = await db('approval_flow_definitions')
+        .where('projectId', projectId)
+        .andWhere('isActive', true)
+        .orderBy('updatedAt', 'desc')
+
+      const result = []
+      for (const def of definitions) {
+        const steps = await db('approval_flow_definition_steps')
+          .where('definitionId', def.id)
+          .orderBy('stepIndex', 'asc')
+
+        const stepsWithUsers = []
+        for (const step of steps) {
+          const approvers = await db('users')
+            .select('id', 'name', 'avatar')
+            .whereIn('id', step.approverIds || [])
+
+          stepsWithUsers.push({
+            id: step.id,
+            role: step.name,
+            approvers: approvers.map(u => u.name),
+            selectedApprovers: approvers.map(u => ({
+              id: u.id,
+              name: u.name,
+              avatar: u.avatar || null
+            })),
+            mode: step.requiredApprovals === 1 ? 'OR' : 'AND'
+          })
+        }
+
+        const category = def.triggerConfig?.category || (def.resourceType === 'MODEL' ? '模型管理' : '质量验收')
+        const description = def.triggerConfig?.description || ''
+
+        result.push({
+          id: def.id,
+          templateId: def.templateId,
+          name: def.name,
+          category,
+          isActive: def.isActive,
+          description,
+          steps: stepsWithUsers,
+          createdAt: def.createdAt,
+          updatedAt: def.updatedAt
+        })
+      }
+
+      return res.status(200).send(result)
+    }
+  )
+
+  app.post(
+    '/api/projects/:projectId/approval-definitions',
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const { projectId } = req.params
+      const body = req.body
+
+      const category = body.category || '质量验收'
+      const resourceType = category === '质量验收' ? 'FORMS' : category === '验工计价' ? 'FORMS' : 'MODEL'
+
+      const createWithSteps = createApprovalFlowDefinitionWithStepsFactory({ db })
+      
+      const steps = (body.steps || []).map((s: any) => {
+        const approverIds = (s.selectedApprovers || []).map((u: any) => u.id)
+        return {
+          name: s.role || '审批节点',
+          approverIds,
+          requiredApprovals: s.mode === 'OR' ? 1 : approverIds.length,
+          timeoutHours: null
+        }
+      })
+
+      const triggerConfig = {
+        category,
+        description: body.description || ''
+      }
+
+      let templateId = body.templateId || body.id
+      if (templateId && templateId.startsWith('flow-')) {
+        templateId = null
+      }
+
+      const definition = await createWithSteps({
+        templateId,
+        projectId,
+        name: body.name,
+        resourceType,
+        isActive: body.isActive ?? true,
+        triggerConfig,
+        steps,
+        createdBy: actorUserId
+      })
+
+      return res.status(201).send(definition)
+    }
+  )
+
+  app.post(
+    '/api/projects/:projectId/approval-definitions/:id/toggle-active',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const { id } = req.params
+      const { isActive } = req.body
+
+      const setDefinitionActive = setApprovalFlowDefinitionActiveStateFactory({ db })
+      const definition = await setDefinitionActive({
+        definitionId: id,
+        isActive
+      })
+
+      return res.status(200).send(definition)
+    }
+  )
+
+  app.delete(
+    '/api/projects/:projectId/approval-definitions/:id',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const { id } = req.params
+      
+      await db('approval_flow_definition_steps').where('definitionId', id).del()
+      await db('approval_flow_definitions').where('id', id).del()
+
+      return res.status(200).send({ success: true })
     }
   )
 

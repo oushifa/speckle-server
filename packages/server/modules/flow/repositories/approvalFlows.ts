@@ -82,6 +82,7 @@ export const createApprovalFlowDefinitionFactory =
   async (params: {
     id?: string
     templateId: string
+    projectId?: string | null
     name: string
     resourceType: string
     isActive?: boolean
@@ -105,7 +106,7 @@ export const createApprovalFlowDefinitionFactory =
       .insert({
         id: params.id || generateApprovalFlowId(),
         templateId: params.templateId,
-        projectId: null,
+        projectId: params.projectId || null,
         name: params.name,
         resourceType: params.resourceType,
         isActive: params.isActive ?? true,
@@ -133,12 +134,19 @@ export const getActiveApprovalFlowDefinitionFactory =
   }
 
 export const getApprovalFlowDefinitionsFactory =
-  (deps: { db: Knex }) => async (params: { resourceType?: string }) => {
+  (deps: { db: Knex }) => async (params: { resourceType?: string; projectId?: string | null }) => {
     const q = tables
       .definitions(deps.db)
       .orderBy(ApprovalFlowDefinitions.col.updatedAt, 'desc')
     if (params.resourceType) {
       q.where(ApprovalFlowDefinitions.col.resourceType, params.resourceType)
+    }
+    if (params.projectId !== undefined) {
+      if (params.projectId === null) {
+        q.whereNull(ApprovalFlowDefinitions.col.projectId)
+      } else {
+        q.where(ApprovalFlowDefinitions.col.projectId, params.projectId)
+      }
     }
     return await q
   }

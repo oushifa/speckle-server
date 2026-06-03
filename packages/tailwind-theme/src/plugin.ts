@@ -149,6 +149,19 @@ const plugin = buildPlugin(({ addComponents, addBase }) => {
   })
 
   addBase({
+    /* cyrillic-ext */
+    '@font-face': {
+      fontFamily: 'Youshe',
+      fontStyle: 'normal',
+      fontWeight: '100 900',
+      fontDisplay: 'swap',
+      src: "url('@speckle/tailwind-theme/fonts/youshe.ttf') format('truetype')",
+      unicodeRange:
+        'U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F'
+    }
+  })
+
+  addBase({
     /* cyrillic */
     '@font-face': {
       fontFamily: 'Inter',

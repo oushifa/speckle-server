@@ -509,10 +509,12 @@ export const createApprovalFlowDefinitionWithStepsFactory =
   async (params: {
     id?: string | null
     templateId?: string | null
+    projectId?: string | null
     name: string
     resourceType?: string | null
     isActive?: boolean
     previousVersionId?: string | null
+    triggerConfig?: Record<string, unknown> | null
     effectConfig?: Record<string, unknown> | null
     formSchema?: Array<{
       key: string
@@ -572,12 +574,13 @@ export const createApprovalFlowDefinitionWithStepsFactory =
       const definition = await createApprovalFlowDefinitionFactory({ db: trx })({
         id: params.id || undefined,
         templateId,
+        projectId: params.projectId || null,
         name: params.name,
         resourceType: params.resourceType || 'MODEL',
         isActive: params.isActive ?? true,
         version: nextVersion,
         previousVersionId: params.previousVersionId || null,
-        triggerConfig: null,
+        triggerConfig: params.triggerConfig || null,
         effectConfig: params.effectConfig || null,
         formSchema: params.formSchema || null,
         createdBy: params.createdBy

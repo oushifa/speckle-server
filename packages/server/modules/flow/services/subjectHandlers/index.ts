@@ -1,5 +1,7 @@
 import { QUALITY_ACCEPTANCE_FORM_TABLE } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
 import { qualityAcceptanceApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers/formRecords/qualityAcceptance'
+import { modelVersionApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers/modelVersion'
+import { monthlyMeasurementApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers/formRecords/monthlyMeasurements'
 import {
   getApprovalSubjectHandlerKey,
   type ApprovalSubjectDescriptor,
@@ -27,6 +29,19 @@ const approvalSubjectHandlers = new Map<string, ApprovalSubjectHandler>([
       subjectTable: QUALITY_ACCEPTANCE_FORM_TABLE
     }),
     qualityAcceptanceApprovalSubjectHandler
+  ],
+  [
+    getApprovalSubjectHandlerKey({
+      subjectType: 'MODEL_VERSION'
+    }),
+    modelVersionApprovalSubjectHandler
+  ],
+  [
+    getApprovalSubjectHandlerKey({
+      subjectType: 'FORM_RECORD',
+      subjectTable: 'monthly_measurements'
+    }),
+    monthlyMeasurementApprovalSubjectHandler
   ]
 ])
 
@@ -36,3 +51,5 @@ export const getApprovalSubjectHandler = (params: {
 }) =>
   approvalSubjectHandlers.get(getApprovalSubjectHandlerKey(params)) ||
   genericApprovalSubjectHandler
+
+

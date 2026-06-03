@@ -18,7 +18,7 @@
         <div class="flex items-center truncate gap-6">
           <div
             v-if="currentProjectName"
-            class="truncate text-sm font-medium text-white"
+            class="truncate text-[24px] font-medium text-white font-[Youshe]"
           >
             {{ currentProjectName }}
           </div>

@@ -52,6 +52,12 @@ import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { isCreatedBeyondHistoryLimitCutoffFactory } from '@/modules/gatekeeperCore/utils/limits'
 import { SourceApps } from '@speckle/shared'
+import { BadRequestError } from '@/modules/shared/errors'
+import { db } from '@/db/knex'
+import {
+  buildApprovalBindingSubjectKey,
+  getApprovalFlowBindingBySubjectKeyFactory
+} from '@/modules/flow/repositories/approvalBindings'
 
 const throwIfRateLimited = throwIfRateLimitedFactory({
   rateLimiterEnabled: isRateLimiterEnabled()
@@ -220,6 +226,20 @@ export default {
         throwIfAuthNotOk(result)
       })
 
+      const getApprovalFlowBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db })
+      for (const versionId of versionIds) {
+        const subjectKey = buildApprovalBindingSubjectKey({
+          subjectType: 'MODEL_VERSION',
+          subjectId: versionId
+        })
+        const binding = await getApprovalFlowBindingBySubjectKey(subjectKey)
+        if (binding && binding.projectId === projectId && binding.status === 'IN_REVIEW') {
+          throw new BadRequestError(
+            `Model version ${versionId} is in review and cannot be deleted`
+          )
+        }
+      }
+
       const projectDb = await getProjectDbClient({ projectId })
 
       const batchDeleteCommits = batchDeleteCommitsFactory({
@@ -260,6 +280,18 @@ export default {
         versionId
       })
       throwIfAuthNotOk(canUpdate)
+
+      const getApprovalFlowBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db })
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'MODEL_VERSION',
+        subjectId: versionId
+      })
+      const binding = await getApprovalFlowBindingBySubjectKey(subjectKey)
+      if (binding && binding.projectId === projectId && binding.status === 'IN_REVIEW') {
+        throw new BadRequestError(
+          `Model version ${versionId} is in review and cannot be updated`
+        )
+      }
 
       const projectDb = await getProjectDbClient({ projectId })
       const stream = await ctx.loaders
