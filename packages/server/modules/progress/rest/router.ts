@@ -26,6 +26,8 @@ import {
   listProgressPlanTasksFactory,
   replaceProgressPlanTasksFactory,
   updateProgressPlanTaskBimFactory,
+  updateProgressPlanTaskMarkerFactory,
+  type ProgressPlanTaskBimSelection,
   type ProgressPlanTaskRecord
 } from '@/modules/progress/repositories/progressPlanTasks'
 import {
@@ -36,6 +38,7 @@ import {
 } from '@/modules/progress/repositories/progressElementSnapshots'
 import {
   countProgressTaskSnapshotsFactory,
+  listProgressTaskSnapshotsByTaskIdsFactory,
   listProgressTaskSnapshotsFactory,
   type ProgressTaskSnapshotRecord,
   type ProgressTaskSnapshotStatus
@@ -139,6 +142,12 @@ const taskBimSchema = z.object({
     .optional()
 })
 
+const taskMarkerSchema = z.object({
+  milestoneType: z.enum(['project', 'phase', 'acceptance']).nullable().optional(),
+  milestoneDescription: z.string().trim().max(500).nullable().optional(),
+  isCriticalTask: z.boolean().optional()
+})
+
 const actualRecordBodySchema = z.object({
   taskName: z.string().trim().min(1),
   reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -209,6 +218,9 @@ const taskImportSchema = z.object({
       planEnd: z.string().nullable().optional(),
       predecessor: z.string().nullable().optional(),
       inspectionBatch: z.string().nullable().optional(),
+      milestoneType: z.enum(['project', 'phase', 'acceptance']).nullable().optional(),
+      milestoneDescription: z.string().trim().max(500).nullable().optional(),
+      isCriticalTask: z.boolean().optional(),
       bimElements: taskBimSchema.nullable().optional()
     })
   )
@@ -233,28 +245,355 @@ const withAdminOverride = (middleware: RequestHandler): RequestHandler => {
   }
 }
 
-const serializePlanTask = (task: ProgressPlanTaskRecord) => ({
-  id: task.id,
-  projectId: task.projectId,
-  planFileId: task.planFileId,
-  externalId: task.externalId,
-  wbs: task.wbs,
-  taskName: task.name,
-  parentId: task.parentId,
-  level: task.level,
-  sortOrder: task.sortOrder,
-  duration: task.duration,
-  startDate: task.planStart?.toISOString() || null,
-  endDate: task.planEnd?.toISOString() || null,
-  predecessor: task.predecessor,
-  inspection: task.inspectionBatch,
-  modelId: task.bimElements?.modelId || null,
-  modelIds: task.bimElements?.modelIds || [],
-  applicationIds: task.bimElements?.applicationIds || [],
-  selections: task.bimElements?.selections || [],
-  createdAt: task.createdAt.toISOString(),
-  updatedAt: task.updatedAt.toISOString()
+type SerializedPlanTaskAggregate = {
+  totalElementCount: number
+  finishedElementCount: number
+  inProgressElementCount: number
+  notStartedElementCount: number
+  delayedElementCount: number
+  completionRate: number
+  taskStatus: ProgressTaskSnapshotStatus | null
+  totalTaskCount: number
+  linkedTaskCount: number
+  finishedTaskCount: number
+  delayedTaskCount: number
+}
+
+type SerializedPlanTaskNode = {
+  task: ProgressPlanTaskRecord
+  resolvedParentId: string | null
+  level: number
+  children: SerializedPlanTaskNode[]
+  hasChildren: boolean
+  aggregate: SerializedPlanTaskAggregate & {
+    inProgressTaskCount: number
+    notStartedTaskCount: number
+    noBimLinkTaskCount: number
+    finishedDelayedTaskCount: number
+  }
+}
+
+const getParentWbs = (wbs?: string | null) => {
+  if (!wbs) return null
+  const segments = wbs.split('.').filter(Boolean)
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('.')
+}
+
+const getWbsLevel = (wbs?: string | null, fallbackLevel = 0) => {
+  if (!wbs) return fallbackLevel
+  const segments = wbs.split('.').filter(Boolean)
+  return Math.max(segments.length - 1, 0)
+}
+
+const parseWbsSegments = (wbs?: string | null) => {
+  if (!wbs) return []
+  return wbs
+    .split('.')
+    .filter(Boolean)
+    .map((segment) => Number.parseInt(segment, 10))
+}
+
+const compareWbs = (left?: string | null, right?: string | null) => {
+  if (!left && !right) return 0
+  if (left && !right) return -1
+  if (!left && right) return 1
+
+  const leftSegments = parseWbsSegments(left)
+  const rightSegments = parseWbsSegments(right)
+  const maxLength = Math.max(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < maxLength; index++) {
+    const leftSegment = leftSegments[index]
+    const rightSegment = rightSegments[index]
+
+    if (leftSegment === undefined) return -1
+    if (rightSegment === undefined) return 1
+    if (leftSegment !== rightSegment) return leftSegment - rightSegment
+  }
+
+  return 0
+}
+
+const buildPlanTaskHierarchy = (tasks: ProgressPlanTaskRecord[]) => {
+  const orderedTasks = [...tasks].sort((left, right) => {
+    const wbsOrder = compareWbs(left.wbs, right.wbs)
+    if (wbsOrder !== 0) return wbsOrder
+    if (!left.wbs && !right.wbs && left.sortOrder !== right.sortOrder) {
+      return left.sortOrder - right.sortOrder
+    }
+    if (left.name !== right.name) {
+      return left.name.localeCompare(right.name, 'zh-CN')
+    }
+    return left.sortOrder - right.sortOrder
+  })
+
+  const originalParentIds = new Map(
+    orderedTasks.map((task) => [task.id, task.parentId || null])
+  )
+  const nodeMap = new Map<string, SerializedPlanTaskNode>(
+    orderedTasks.map((task) => [
+      task.id,
+      {
+        task,
+        resolvedParentId: null,
+        level: getWbsLevel(task.wbs, task.level),
+        children: [],
+        hasChildren: false,
+        aggregate: {
+          totalElementCount: 0,
+          finishedElementCount: 0,
+          inProgressElementCount: 0,
+          notStartedElementCount: 0,
+          delayedElementCount: 0,
+          completionRate: 0,
+          taskStatus: null,
+          totalTaskCount: 0,
+          linkedTaskCount: 0,
+          finishedTaskCount: 0,
+          delayedTaskCount: 0,
+          inProgressTaskCount: 0,
+          notStartedTaskCount: 0,
+          noBimLinkTaskCount: 0,
+          finishedDelayedTaskCount: 0
+        }
+      }
+    ])
+  )
+  const nodeByWbs = new Map(
+    orderedTasks.flatMap((task) =>
+      task.wbs ? [[task.wbs, nodeMap.get(task.id)!] as const] : []
+    )
+  )
+
+  nodeMap.forEach((node) => {
+    node.children = []
+    node.resolvedParentId = null
+    node.level = getWbsLevel(node.task.wbs, node.task.level)
+  })
+
+  const rootNodes: SerializedPlanTaskNode[] = []
+
+  orderedTasks.forEach((task) => {
+    const node = nodeMap.get(task.id)
+    if (!node) return
+
+    const wbsParent = getParentWbs(task.wbs)
+    const originalParentId = originalParentIds.get(task.id)
+    const parent = task.wbs
+      ? wbsParent
+        ? nodeByWbs.get(wbsParent)
+        : undefined
+      : originalParentId
+      ? nodeMap.get(originalParentId)
+      : undefined
+
+    if (!parent) {
+      rootNodes.push(node)
+      return
+    }
+
+    node.resolvedParentId = parent.task.id
+    node.level = parent.level + 1
+    parent.children.push(node)
+  })
+
+  nodeMap.forEach((node) => {
+    node.hasChildren = node.children.length > 0
+  })
+
+  return {
+    orderedNodes: orderedTasks
+      .map((task) => nodeMap.get(task.id))
+      .filter((node): node is SerializedPlanTaskNode => !!node),
+    nodeMap,
+    rootNodes
+  }
+}
+
+const resolveAggregatedTaskStatus = (
+  aggregate: SerializedPlanTaskNode['aggregate']
+): ProgressTaskSnapshotStatus | null => {
+  if (!aggregate.totalTaskCount) return aggregate.taskStatus
+  if (aggregate.finishedTaskCount === aggregate.totalTaskCount) {
+    return aggregate.finishedDelayedTaskCount > 0
+      ? 'finished_delayed'
+      : 'finished_on_time'
+  }
+  if (aggregate.delayedTaskCount > 0) return 'delayed'
+  if (aggregate.inProgressTaskCount > 0) return 'in_progress'
+  if (aggregate.notStartedTaskCount > 0) return 'not_started'
+  if (aggregate.noBimLinkTaskCount > 0) return 'no_bim_link'
+  return aggregate.taskStatus
+}
+
+const aggregatePlanTaskNode = (
+  node: SerializedPlanTaskNode,
+  snapshotByTaskId: Map<string, ProgressTaskSnapshotRecord>
+) => {
+  if (!node.hasChildren) {
+    const snapshot = snapshotByTaskId.get(node.task.id)
+    const hasBimLink = (node.task.bimElements?.applicationIds || []).length > 0
+
+    node.aggregate = {
+      totalElementCount: snapshot?.totalElementCount || 0,
+      finishedElementCount: snapshot?.finishedElementCount || 0,
+      inProgressElementCount: snapshot?.inProgressElementCount || 0,
+      notStartedElementCount: snapshot?.notStartedElementCount || 0,
+      delayedElementCount: snapshot?.delayedElementCount || 0,
+      completionRate: Number(snapshot?.completionRate || 0),
+      taskStatus: snapshot?.taskStatus || null,
+      totalTaskCount: 1,
+      linkedTaskCount: hasBimLink ? 1 : 0,
+      finishedTaskCount:
+        snapshot?.taskStatus === 'finished_on_time' ||
+        snapshot?.taskStatus === 'finished_delayed'
+          ? 1
+          : 0,
+      delayedTaskCount: snapshot?.taskStatus === 'delayed' ? 1 : 0,
+      inProgressTaskCount: snapshot?.taskStatus === 'in_progress' ? 1 : 0,
+      notStartedTaskCount: snapshot?.taskStatus === 'not_started' ? 1 : 0,
+      noBimLinkTaskCount: snapshot?.taskStatus === 'no_bim_link' ? 1 : 0,
+      finishedDelayedTaskCount: snapshot?.taskStatus === 'finished_delayed' ? 1 : 0
+    }
+    return node
+  }
+
+  node.children.forEach((child) => aggregatePlanTaskNode(child, snapshotByTaskId))
+
+  const aggregate = node.children.reduce<SerializedPlanTaskNode['aggregate']>(
+    (acc, child) => ({
+      totalElementCount: acc.totalElementCount + child.aggregate.totalElementCount,
+      finishedElementCount:
+        acc.finishedElementCount + child.aggregate.finishedElementCount,
+      inProgressElementCount:
+        acc.inProgressElementCount + child.aggregate.inProgressElementCount,
+      notStartedElementCount:
+        acc.notStartedElementCount + child.aggregate.notStartedElementCount,
+      delayedElementCount:
+        acc.delayedElementCount + child.aggregate.delayedElementCount,
+      completionRate: 0,
+      taskStatus: null,
+      totalTaskCount: acc.totalTaskCount + child.aggregate.totalTaskCount,
+      linkedTaskCount: acc.linkedTaskCount + child.aggregate.linkedTaskCount,
+      finishedTaskCount: acc.finishedTaskCount + child.aggregate.finishedTaskCount,
+      delayedTaskCount: acc.delayedTaskCount + child.aggregate.delayedTaskCount,
+      inProgressTaskCount:
+        acc.inProgressTaskCount + child.aggregate.inProgressTaskCount,
+      notStartedTaskCount:
+        acc.notStartedTaskCount + child.aggregate.notStartedTaskCount,
+      noBimLinkTaskCount: acc.noBimLinkTaskCount + child.aggregate.noBimLinkTaskCount,
+      finishedDelayedTaskCount:
+        acc.finishedDelayedTaskCount + child.aggregate.finishedDelayedTaskCount
+    }),
+    {
+      totalElementCount: 0,
+      finishedElementCount: 0,
+      inProgressElementCount: 0,
+      notStartedElementCount: 0,
+      delayedElementCount: 0,
+      completionRate: 0,
+      taskStatus: null,
+      totalTaskCount: 0,
+      linkedTaskCount: 0,
+      finishedTaskCount: 0,
+      delayedTaskCount: 0,
+      inProgressTaskCount: 0,
+      notStartedTaskCount: 0,
+      noBimLinkTaskCount: 0,
+      finishedDelayedTaskCount: 0
+    }
+  )
+
+  aggregate.completionRate = aggregate.totalElementCount
+    ? Number(
+        ((aggregate.finishedElementCount / aggregate.totalElementCount) * 100).toFixed(
+          2
+        )
+      )
+    : 0
+  aggregate.taskStatus = resolveAggregatedTaskStatus(aggregate)
+  node.aggregate = aggregate
+  return node
+}
+
+const serializePlanTask = (node: SerializedPlanTaskNode) => ({
+  id: node.task.id,
+  projectId: node.task.projectId,
+  planFileId: node.task.planFileId,
+  externalId: node.task.externalId,
+  wbs: node.task.wbs,
+  taskName: node.task.name,
+  parentId: node.resolvedParentId,
+  level: node.level,
+  sortOrder: node.task.sortOrder,
+  duration: node.task.duration,
+  startDate: node.task.planStart?.toISOString() || null,
+  endDate: node.task.planEnd?.toISOString() || null,
+  milestoneType: node.task.milestoneType,
+  milestoneDescription: node.task.milestoneDescription,
+  isCriticalTask: node.task.isCriticalTask,
+  predecessor: node.task.predecessor,
+  inspection: node.task.inspectionBatch,
+  modelId: node.task.bimElements?.modelId || null,
+  modelIds: node.task.bimElements?.modelIds || [],
+  applicationIds: node.task.bimElements?.applicationIds || [],
+  selections: (node.task.bimElements?.selections ||
+    []) as ProgressPlanTaskBimSelection[],
+  hasChildren: node.hasChildren,
+  canEditBimAssociation: !node.hasChildren,
+  totalElementCount: node.aggregate.totalElementCount,
+  finishedElementCount: node.aggregate.finishedElementCount,
+  inProgressElementCount: node.aggregate.inProgressElementCount,
+  notStartedElementCount: node.aggregate.notStartedElementCount,
+  delayedElementCount: node.aggregate.delayedElementCount,
+  completionRate: node.aggregate.completionRate,
+  taskStatus: node.aggregate.taskStatus,
+  totalTaskCount: node.aggregate.totalTaskCount,
+  linkedTaskCount: node.aggregate.linkedTaskCount,
+  finishedTaskCount: node.aggregate.finishedTaskCount,
+  delayedTaskCount: node.aggregate.delayedTaskCount,
+  createdAt: node.task.createdAt.toISOString(),
+  updatedAt: node.task.updatedAt.toISOString()
 })
+
+const serializePlanTasksWithAggregation = (
+  tasks: ProgressPlanTaskRecord[],
+  snapshots: ProgressTaskSnapshotRecord[]
+) => {
+  const hierarchy = buildPlanTaskHierarchy(tasks)
+  const snapshotByTaskId = new Map(
+    snapshots.map((snapshot) => [snapshot.taskId, snapshot])
+  )
+  hierarchy.rootNodes.forEach((node) => aggregatePlanTaskNode(node, snapshotByTaskId))
+  return hierarchy.orderedNodes.map(serializePlanTask)
+}
+
+const serializeSinglePlanTask = (task: ProgressPlanTaskRecord) =>
+  serializePlanTask({
+    task,
+    resolvedParentId: task.parentId,
+    level: task.level,
+    children: [],
+    hasChildren: false,
+    aggregate: {
+      totalElementCount: 0,
+      finishedElementCount: 0,
+      inProgressElementCount: 0,
+      notStartedElementCount: 0,
+      delayedElementCount: 0,
+      completionRate: 0,
+      taskStatus: null,
+      totalTaskCount: 1,
+      linkedTaskCount: (task.bimElements?.applicationIds || []).length ? 1 : 0,
+      finishedTaskCount: 0,
+      delayedTaskCount: 0,
+      inProgressTaskCount: 0,
+      notStartedTaskCount: 0,
+      noBimLinkTaskCount: 0,
+      finishedDelayedTaskCount: 0
+    }
+  })
 
 const buildWeekDay = (reportDate: string) => {
   const match = reportDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -388,6 +727,11 @@ const buildRoute = (router: Router) => {
   )
   router.options(
     `${taskRoute}/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${taskRoute}/:taskId/marker`,
     progressCors,
     allowCrossOriginResourceAccessMiddelware()
   )
@@ -949,8 +1293,65 @@ const buildRoute = (router: Router) => {
         const tasks = await listProgressPlanTasksFactory({ db: projectDb })({
           projectId
         })
+        const taskSnapshots = await listProgressTaskSnapshotsByTaskIdsFactory({
+          db: projectDb
+        })({
+          projectId,
+          taskIds: tasks.map((task) => task.id)
+        })
 
-        return res.status(200).json({ data: tasks.map(serializePlanTask) })
+        return res.status(200).json({
+          data: serializePlanTasksWithAggregation(tasks, taskSnapshots)
+        })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${taskRoute}/:taskId/marker`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: taskParamsSchema, body: taskMarkerSchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const previousTask = await getProgressPlanTaskFactory({ db: projectDb })({
+          projectId,
+          taskId: req.params.taskId
+        })
+
+        if (!previousTask) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        const updated = await updateProgressPlanTaskMarkerFactory({ db: projectDb })({
+          projectId,
+          taskId: req.params.taskId,
+          milestoneType: req.body.milestoneType ?? null,
+          milestoneDescription: req.body.milestoneDescription ?? null,
+          isCriticalTask: req.body.isCriticalTask ?? false,
+          updater: req.context.userId
+        })
+
+        if (!updated) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        return res.status(200).json({ data: serializeSinglePlanTask(updated) })
       } catch (err) {
         next(err)
       }
@@ -977,6 +1378,20 @@ const buildRoute = (router: Router) => {
         }
 
         const projectDb = await getProjectDbClient({ projectId })
+        const allTasks = await listProgressPlanTasksFactory({ db: projectDb })({
+          projectId
+        })
+        const hierarchy = buildPlanTaskHierarchy(allTasks)
+        const targetNode = hierarchy.nodeMap.get(req.params.taskId)
+        if (!targetNode) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+        if (targetNode.hasChildren) {
+          return res
+            .status(400)
+            .json({ error: 'Parent tasks cannot be associated directly.' })
+        }
+
         const updated = await projectDb.transaction(async (trx) => {
           const previousTask = await getProgressPlanTaskFactory({ db: trx })({
             projectId,
@@ -1008,7 +1423,7 @@ const buildRoute = (router: Router) => {
           return res.status(404).json({ error: 'Progress plan task not found.' })
         }
 
-        return res.status(200).json({ data: serializePlanTask(updated) })
+        return res.status(200).json({ data: serializeSinglePlanTask(updated) })
       } catch (err) {
         next(err)
       }
@@ -1056,7 +1471,7 @@ const buildRoute = (router: Router) => {
           return nextTasks
         })
 
-        return res.status(200).json({ data: replaced.map(serializePlanTask) })
+        return res.status(200).json({ data: replaced.map(serializeSinglePlanTask) })
       } catch (err) {
         next(err)
       }

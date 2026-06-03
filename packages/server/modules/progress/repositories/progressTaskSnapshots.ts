@@ -112,6 +112,20 @@ export const listProgressTaskSnapshotsFactory =
     return await query.offset((page - 1) * limit).limit(limit)
   }
 
+export const listProgressTaskSnapshotsByTaskIdsFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    taskIds: string[]
+  }): Promise<ProgressTaskSnapshotRecord[]> => {
+    if (!params.taskIds.length) return []
+
+    return await tables
+      .projectProgressTaskSnapshots(deps.db)
+      .where({ [ProjectProgressTaskSnapshots.col.projectId]: params.projectId })
+      .whereIn(ProjectProgressTaskSnapshots.col.taskId, params.taskIds)
+  }
+
 export const countProgressTaskSnapshotsFactory =
   (deps: { db: Knex }) =>
   async (params: {

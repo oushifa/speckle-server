@@ -58,9 +58,28 @@
           <span class="text-body-sm">{{ item.wbs }}</span>
         </template>
         <template #taskName="{ item }">
-          <span class="truncate font-medium text-body-sm">
-            {{ item.taskName }}
-          </span>
+          <div class="min-w-0 py-1">
+            <div class="flex items-center gap-1.5">
+              <span class="truncate font-medium text-body-sm">
+                {{ item.taskName }}
+              </span>
+              <span
+                v-if="item.milestoneType"
+                v-tippy="getMilestoneTooltipProps(item)"
+                class="inline-flex shrink-0"
+                :class="getMilestoneIconClass(item.milestoneType)"
+              >
+                <Flag class="h-3.5 w-3.5" />
+              </span>
+              <span
+                v-if="item.isCriticalTask"
+                v-tippy="criticalTaskTooltipProps"
+                class="inline-flex shrink-0 text-warning-darker"
+              >
+                <Star class="h-3.5 w-3.5 fill-current" />
+              </span>
+            </div>
+          </div>
         </template>
 
         <template #duration="{ item }">
@@ -79,34 +98,44 @@
           <span class="text-body-sm">{{ item.predecessor || '-' }}</span>
         </template>
 
-        <template #inspection="{ item }">
-          <span class="text-body-sm">{{ item.inspection || '-' }}</span>
-        </template>
-
         <template #taskStatus="{ item }">
           <div class="flex flex-col items-start gap-1">
-            <div
+            <!-- <div
+              v-if="!item.hasChildren"
               class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
               :class="getTaskStatusBadgeClass(item.taskStatus)"
             >
               {{ getTaskStatusText(item.taskStatus) }}
-            </div>
+            </div> -->
             <span
               v-if="typeof item.completionRate === 'number'"
               class="text-body-xs text-foreground-2"
             >
               完成率 {{ item.completionRate }}%
             </span>
+            <!-- <span v-if="item.hasChildren" class="text-body-xs text-foreground-2">
+              子任务 {{ item.totalTaskCount }}，完成
+              {{ item.finishedTaskCount || 0 }}，逾期
+              {{ item.delayedTaskCount || 0 }}
+            </span> -->
           </div>
         </template>
 
         <template #status="{ item }">
+          <template v-if="item.hasChildren">
+            <div
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap bg-foundation-2 text-foreground-2"
+            >
+              -
+            </div>
+          </template>
           <div
+            v-else
             role="button"
             tabindex="0"
             class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
             :class="
-              (item.applicationIds || []).length
+              item.applicationIds.length
                 ? 'bg-success-lighter text-success-darker cursor-pointer'
                 : 'bg-foundation-2 text-foreground-2'
             "
@@ -114,24 +143,123 @@
             @keydown.enter="openAssociatedModelDrawer(item)"
             @keydown.space="openAssociatedModelDrawer(item)"
           >
-            {{ (item.applicationIds || []).length ? '已关联BIM模型' : '未关联' }}
+            {{ item.applicationIds.length ? '已关联BIM模型' : '未关联' }}
           </div>
         </template>
 
         <template #operation="{ item }">
-          <div class="flex justify-center">
+          <div class="flex items-center justify-center gap-2">
             <FormButton
-              size="sm"
+              v-if="item.canEditBimAssociation"
               color="outline"
               :icon-left="Link2"
+              hide-text
               @click.stop="openLinkDialog(item)"
+            ></FormButton>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-outline-3 bg-foundation text-foreground-2 transition hover:bg-primary-muted hover:text-primary"
+              :class="item.milestoneType ? 'border-primary text-primary' : ''"
+              :aria-label="`设置里程碑：${item.taskName}`"
+              @click.stop="openMarkerDialog(item)"
             >
-              关联
-            </FormButton>
+              <Flag class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-outline-3 bg-foundation text-foreground-2 transition hover:bg-warning-lighter hover:text-warning-darker"
+              :class="
+                item.isCriticalTask
+                  ? 'border-warning text-warning-darker bg-warning-lighter'
+                  : ''
+              "
+              :aria-label="`${item.isCriticalTask ? '取消' : '标记'}关键任务：${
+                item.taskName
+              }`"
+              @click.stop="toggleCriticalTask(item)"
+            >
+              <Star
+                class="h-4 w-4"
+                :class="item.isCriticalTask ? 'fill-current' : ''"
+              />
+            </button>
           </div>
         </template>
       </LayoutTable>
     </div>
+
+    <LayoutDialog
+      v-model:open="markerDialogOpen"
+      max-width="lg"
+      :buttons="markerDialogButtons"
+    >
+      <template #header>
+        {{
+          selectedMarkerTask
+            ? `设置里程碑：${selectedMarkerTask.taskName}`
+            : '设置里程碑'
+        }}
+      </template>
+      <div v-if="selectedMarkerTask" class="space-y-4">
+        <div class="rounded border border-outline-2 bg-foundation-page p-3">
+          <div class="text-body-xs text-foreground-2">任务信息</div>
+          <div class="mt-1 text-body-sm font-medium text-foreground">
+            {{ selectedMarkerTask.taskName }}
+          </div>
+          <div class="mt-1 text-body-xs text-foreground-2">
+            层级：{{ selectedMarkerTask.wbs || '-' }}
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <div class="text-body-sm font-medium text-foreground">里程碑</div>
+            <div class="mt-1 text-body-xs text-foreground-2">
+              选择里程碑类型后，可填写节点说明。
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <button
+              v-for="option in milestoneTypeOptions"
+              :key="option.value || 'none'"
+              type="button"
+              class="rounded-lg border px-3 py-3 text-left transition"
+              :class="
+                markerFormMilestoneType === option.value
+                  ? 'border-primary bg-primary-muted text-primary'
+                  : 'border-outline-2 bg-foundation-page text-foreground hover:border-outline-3'
+              "
+              @click="markerFormMilestoneType = option.value"
+            >
+              <div class="text-body-sm font-medium">{{ option.label }}</div>
+              <div class="mt-1 text-body-3xs text-foreground-2">
+                {{ option.description }}
+              </div>
+            </button>
+          </div>
+
+          <div v-if="markerFormMilestoneType" class="space-y-2">
+            <label
+              for="progress-task-milestone-description"
+              class="text-body-sm font-medium text-foreground"
+            >
+              里程碑描述
+            </label>
+            <textarea
+              id="progress-task-milestone-description"
+              v-model="markerFormMilestoneDescription"
+              rows="4"
+              maxlength="500"
+              class="w-full rounded-lg border border-outline-3 bg-foundation-page px-3 py-2 text-body-sm outline-none transition focus:border-primary"
+              placeholder="输入里程碑说明，例如项目整体竣工、阶段验收完成等"
+            />
+            <div class="text-right text-body-3xs text-foreground-2">
+              {{ markerFormMilestoneDescription.length }}/500
+            </div>
+          </div>
+        </div>
+      </div>
+    </LayoutDialog>
 
     <LayoutDialog
       v-model:open="linkDialogOpen"
@@ -202,7 +330,7 @@
 
 <script setup lang="ts">
 import type { LayoutDialogButton } from '@speckle/ui-components'
-import { Download, Link2, Upload } from 'lucide-vue-next'
+import { Download, Flag, Link2, Star, Upload } from 'lucide-vue-next'
 import {
   CommonModelObjectMultiModelSelectDrawer,
   CommonModelPropsViewer
@@ -212,13 +340,13 @@ import {
   downloadLatestProgressPlanFile,
   getLatestProgressPlanFile,
   getProgressPlanTasks,
-  getProgressTaskSnapshots,
+  updateProgressPlanTaskMarker,
   updateProgressPlanTaskBimAssociation,
   uploadProgressPlanFile,
   type ProgressPlanFile,
   type ProgressPlanTask,
   type ProgressPlanTaskBimSelection,
-  type ProgressTaskSnapshot,
+  type ProgressPlanTaskMilestoneType,
   type ProgressTaskSnapshotStatus
 } from '~/lib/projects/api/progress'
 
@@ -229,6 +357,9 @@ interface ScheduleItem {
   duration: string
   startDate: string
   endDate: string
+  milestoneType: ProgressPlanTaskMilestoneType | null
+  milestoneDescription: string | null
+  isCriticalTask: boolean
   predecessor?: string
   inspection?: string
   sortOrder: number
@@ -239,9 +370,31 @@ interface ScheduleItem {
   modelIds: string[]
   applicationIds: string[]
   selections: ProgressPlanTaskBimSelection[]
-  taskStatus?: ProgressTaskSnapshotStatus
-  completionRate?: number
+  hasChildren: boolean
+  canEditBimAssociation: boolean
+  taskStatus: ProgressTaskSnapshotStatus | null
+  completionRate: number
+  totalElementCount: number
+  finishedElementCount: number
+  inProgressElementCount: number
+  notStartedElementCount: number
+  delayedElementCount: number
+  totalTaskCount: number
+  linkedTaskCount: number
+  finishedTaskCount: number
+  delayedTaskCount: number
 }
+
+const milestoneTypeOptions: Array<{
+  value: ProgressPlanTaskMilestoneType | null
+  label: string
+  description: string
+}> = [
+  { value: null, label: '不设置', description: '移除当前里程碑标记' },
+  { value: 'project', label: '项目级', description: '整个项目的重要节点' },
+  { value: 'phase', label: '阶段级', description: '工程阶段完成节点' },
+  { value: 'acceptance', label: '验收级', description: '质量或专项验收节点' }
+]
 
 const normalizeString = (value: unknown) =>
   typeof value === 'string' ? value.trim() : ''
@@ -317,7 +470,6 @@ const columns = [
   { id: 'startDate', header: '开始时间', classes: 'col-span-1' },
   { id: 'endDate', header: '完成时间', classes: 'col-span-1' },
   { id: 'predecessor', header: '前置任务', classes: 'col-span-1' },
-  { id: 'inspection', header: '检验批', classes: 'col-span-1' },
   { id: 'taskStatus', header: '任务状态', classes: 'col-span-1' },
   { id: 'status', header: '关联状态', classes: 'col-span-1' },
   { id: 'operation', header: '操作', classes: 'col-span-1 flex justify-center' }
@@ -326,6 +478,16 @@ const columns = [
 const route = useRoute()
 const { triggerNotification } = useGlobalToast()
 const apiOrigin = useApiOrigin()
+const { getTooltipProps } = useSmartTooltipDelay()
+const criticalTaskTooltipProps = getTooltipProps(
+  {
+    content: '<div>关键任务（中优先级）</div><div>项目关键路径任务，需重点关注</div>',
+    allowHTML: true
+  },
+  {
+    maxWidth: 320
+  }
+)
 
 const items = ref<ScheduleItem[]>([])
 const treeItems = ref<ScheduleItem[]>([])
@@ -337,9 +499,14 @@ const isImporting = ref(false)
 const isLoadingTasks = ref(false)
 const isSavingLink = ref(false)
 const linkDialogOpen = ref(false)
+const markerDialogOpen = ref(false)
 const selectedTaskId = ref<string | null>(null)
+const selectedMarkerTaskId = ref<string | null>(null)
 const draftModelIds = ref<string[]>([])
 const draftSelections = ref<ProgressPlanTaskBimSelection[]>([])
+const markerFormMilestoneType = ref<ProgressPlanTaskMilestoneType | null>(null)
+const markerFormMilestoneDescription = ref('')
+const isSavingMarker = ref(false)
 const associatedModelDrawerOpen = ref(false)
 const selectedAssociationTaskId = ref<string | null>(null)
 const selectedAssociationModelIds = ref<string[]>([])
@@ -371,94 +538,30 @@ const mapTaskRecordToItem = (task: ProgressPlanTask): ScheduleItem => ({
   duration: task.duration || '-',
   startDate: formatPlanDate(task.startDate),
   endDate: formatPlanDate(task.endDate),
+  milestoneType: task.milestoneType,
+  milestoneDescription: task.milestoneDescription,
+  isCriticalTask: task.isCriticalTask,
   predecessor: task.predecessor || undefined,
   inspection: task.inspection || undefined,
   sortOrder: task.sortOrder,
   level: task.level || 0,
   parentId: task.parentId || undefined,
   children: [],
-  ...getTaskBimSummary(task)
+  ...getTaskBimSummary(task),
+  hasChildren: task.hasChildren,
+  canEditBimAssociation: task.canEditBimAssociation,
+  taskStatus: task.taskStatus,
+  completionRate: task.completionRate,
+  totalElementCount: task.totalElementCount,
+  finishedElementCount: task.finishedElementCount,
+  inProgressElementCount: task.inProgressElementCount,
+  notStartedElementCount: task.notStartedElementCount,
+  delayedElementCount: task.delayedElementCount,
+  totalTaskCount: task.totalTaskCount,
+  linkedTaskCount: task.linkedTaskCount,
+  finishedTaskCount: task.finishedTaskCount,
+  delayedTaskCount: task.delayedTaskCount
 })
-
-const getTaskStatusText = (status?: ProgressTaskSnapshotStatus) => {
-  switch (status) {
-    case 'no_bim_link':
-      return '未关联构件'
-    case 'not_started':
-      return '未开始'
-    case 'in_progress':
-      return '进行中'
-    case 'delayed':
-      return '已逾期'
-    case 'finished_on_time':
-      return '按期完成'
-    case 'finished_delayed':
-      return '延期完成'
-    default:
-      return '未生成'
-  }
-}
-
-const getTaskStatusBadgeClass = (status?: ProgressTaskSnapshotStatus) => {
-  switch (status) {
-    case 'finished_on_time':
-      return 'bg-primary-lighter text-primary-darker'
-    case 'finished_delayed':
-    case 'delayed':
-      return 'bg-danger-lighter text-danger-darker'
-    case 'in_progress':
-      return 'bg-warning-lighter text-warning-darker'
-    case 'not_started':
-    case 'no_bim_link':
-      return 'bg-foundation-2 text-foreground-2'
-    default:
-      return 'bg-foundation-2 text-foreground-2'
-  }
-}
-
-const mergeTaskSnapshots = (
-  taskItems: ScheduleItem[],
-  taskSnapshots: ProgressTaskSnapshot[]
-): ScheduleItem[] => {
-  const snapshotMap = new Map(
-    taskSnapshots.map((snapshot) => [snapshot.taskId, snapshot])
-  )
-
-  return taskItems.map((item) => {
-    const snapshot = snapshotMap.get(item.id)
-    return {
-      ...item,
-      taskStatus: snapshot?.taskStatus,
-      completionRate: snapshot?.completionRate
-    }
-  })
-}
-
-const fetchAllTaskSnapshots = async () => {
-  if (!projectId.value) return []
-
-  const limit = 200
-  let page = 1
-  const results: ProgressTaskSnapshot[] = []
-
-  while (true) {
-    const payload = await getProgressTaskSnapshots({
-      projectId: projectId.value,
-      apiOrigin,
-      page,
-      limit
-    })
-    results.push(...payload.data)
-
-    if (results.length >= payload.meta.total || payload.data.length < limit) {
-      break
-    }
-
-    page += 1
-  }
-
-  return results
-}
 
 const getParentWbs = (wbs?: string) => {
   if (!wbs) return null
@@ -567,9 +670,30 @@ const selectedTask = computed(
   () => items.value.find((item) => item.id === selectedTaskId.value) || null
 )
 
+const selectedMarkerTask = computed(
+  () => items.value.find((item) => item.id === selectedMarkerTaskId.value) || null
+)
+
 const selectedAssociationTask = computed(
   () => items.value.find((item) => item.id === selectedAssociationTaskId.value) || null
 )
+
+const markerDialogButtons = computed<LayoutDialogButton[]>(() => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      markerDialogOpen.value = false
+    }
+  },
+  {
+    text: isSavingMarker.value ? '保存中...' : '保存标记',
+    props: { color: 'primary' },
+    onClick: () => {
+      saveTaskMarker()
+    }
+  }
+])
 
 const linkDialogButtons = computed<LayoutDialogButton[]>(() => [
   {
@@ -608,6 +732,46 @@ const showMessage = (
   })
 }
 
+const getMilestoneTypeLabel = (type: ProgressPlanTaskMilestoneType | null) => {
+  switch (type) {
+    case 'project':
+      return '项目级里程碑'
+    case 'phase':
+      return '阶段级里程碑'
+    case 'acceptance':
+      return '验收级里程碑'
+    default:
+      return '里程碑'
+  }
+}
+
+const getMilestoneIconClass = (type: ProgressPlanTaskMilestoneType | null) => {
+  switch (type) {
+    case 'project':
+      return 'text-primary'
+    case 'phase':
+      return 'text-info'
+    case 'acceptance':
+      return 'text-success'
+    default:
+      return 'text-foreground-2'
+  }
+}
+
+const getMilestoneTooltipProps = (item: ScheduleItem) =>
+  getTooltipProps(
+    {
+      content: [
+        `<div>${getMilestoneTypeLabel(item.milestoneType)}</div>`,
+        item.milestoneDescription ? `<div>${item.milestoneDescription}</div>` : ''
+      ].join(''),
+      allowHTML: true
+    },
+    {
+      maxWidth: 360
+    }
+  )
+
 const applyPlanFileState = (file: ProgressPlanFile | null) => {
   latestPlanFile.value = file
   planFileName.value = file?.fileName || '未上传计划文件'
@@ -641,14 +805,11 @@ const fetchPlanTasks = async () => {
 
   isLoadingTasks.value = true
   try {
-    const [tasks, taskSnapshots] = await Promise.all([
-      getProgressPlanTasks({
-        projectId: projectId.value,
-        apiOrigin
-      }),
-      fetchAllTaskSnapshots()
-    ])
-    rebuildTaskTree(mergeTaskSnapshots(tasks.map(mapTaskRecordToItem), taskSnapshots))
+    const tasks = await getProgressPlanTasks({
+      projectId: projectId.value,
+      apiOrigin
+    })
+    rebuildTaskTree(tasks.map(mapTaskRecordToItem))
   } catch (error) {
     items.value = []
     treeItems.value = []
@@ -746,13 +907,22 @@ const handleDownloadPlanFile = async () => {
 }
 
 const openLinkDialog = (item: ScheduleItem) => {
+  if (!item.canEditBimAssociation) return
   selectedTaskId.value = item.id
   draftModelIds.value = [...(item.modelIds || [])]
   draftSelections.value = normalizeSelections(item.selections)
   linkDialogOpen.value = true
 }
 
+const openMarkerDialog = (item: ScheduleItem) => {
+  selectedMarkerTaskId.value = item.id
+  markerFormMilestoneType.value = item.milestoneType
+  markerFormMilestoneDescription.value = item.milestoneDescription || ''
+  markerDialogOpen.value = true
+}
+
 const openAssociatedModelDrawer = (item: ScheduleItem) => {
+  if (item.hasChildren) return
   selectedAssociationTaskId.value = item.id
   selectedAssociationModelIds.value = uniqueStrings(item.modelIds || [])
   selectedAssociationApplicationIds.value = uniqueStrings(item.applicationIds || [])
@@ -760,6 +930,15 @@ const openAssociatedModelDrawer = (item: ScheduleItem) => {
   // Reuse applicationIds as fallback lookup keys so CommonModelPropsViewer can isolate them.
   selectedAssociationBimIds.value = [...selectedAssociationApplicationIds.value]
   associatedModelDrawerOpen.value = true
+}
+
+const applyLocalTaskMarkerState = (task: ProgressPlanTask) => {
+  const target = items.value.find((item) => item.id === task.id)
+  if (!target) return
+
+  target.milestoneType = task.milestoneType
+  target.milestoneDescription = task.milestoneDescription
+  target.isCriticalTask = task.isCriticalTask
 }
 
 const saveTaskLink = async () => {
@@ -781,10 +960,7 @@ const saveTaskLink = async () => {
       selections: bimSummary.selections,
       apiOrigin
     })
-    const target = items.value.find((item) => item.id === updated.id)
-    if (target) {
-      Object.assign(target, getTaskBimSummary(updated))
-    }
+    await fetchPlanTasks()
     linkDialogOpen.value = false
     showSuccess(
       'BIM关联已更新',
@@ -799,6 +975,73 @@ const saveTaskLink = async () => {
     )
   } finally {
     isSavingLink.value = false
+  }
+}
+
+const saveTaskMarker = async () => {
+  if (!selectedMarkerTask.value) return
+  if (!projectId.value) return
+
+  isSavingMarker.value = true
+  try {
+    const updated = await updateProgressPlanTaskMarker({
+      projectId: projectId.value,
+      taskId: selectedMarkerTask.value.id,
+      milestoneType: markerFormMilestoneType.value,
+      milestoneDescription: markerFormMilestoneType.value
+        ? markerFormMilestoneDescription.value.trim()
+        : null,
+      isCriticalTask: selectedMarkerTask.value.isCriticalTask,
+      apiOrigin
+    })
+    applyLocalTaskMarkerState(updated)
+    markerDialogOpen.value = false
+
+    showSuccess(
+      '里程碑已更新',
+      updated.milestoneType
+        ? `任务“${updated.taskName}”已设置为${getMilestoneTypeLabel(
+            updated.milestoneType
+          )}。`
+        : `任务“${updated.taskName}”已移除里程碑标记。`
+    )
+  } catch (error) {
+    showMessage(
+      '里程碑保存失败',
+      error instanceof Error ? error.message : '保存里程碑失败'
+    )
+  } finally {
+    isSavingMarker.value = false
+  }
+}
+
+const toggleCriticalTask = async (item: ScheduleItem) => {
+  if (!projectId.value) return
+
+  isSavingMarker.value = true
+  try {
+    const updated = await updateProgressPlanTaskMarker({
+      projectId: projectId.value,
+      taskId: item.id,
+      milestoneType: item.milestoneType,
+      milestoneDescription: item.milestoneDescription,
+      isCriticalTask: !item.isCriticalTask,
+      apiOrigin
+    })
+    applyLocalTaskMarkerState(updated)
+    showSuccess(
+      updated.isCriticalTask ? '已标记关键任务' : '已取消关键任务',
+      `任务“${updated.taskName}”${
+        updated.isCriticalTask ? '已标记为关键任务。' : '已取消关键任务标记。'
+      }`
+    )
+  } catch (error) {
+    showMessage(
+      '关键任务更新失败',
+      error instanceof Error ? error.message : '更新关键任务标记失败'
+    )
+  } finally {
+    isSavingMarker.value = false
   }
 }
 
@@ -819,5 +1062,12 @@ watch(associatedModelDrawerOpen, (isOpen) => {
   selectedAssociationModelIds.value = []
   selectedAssociationBimIds.value = []
   selectedAssociationApplicationIds.value = []
+})
+
+watch(markerDialogOpen, (isOpen) => {
+  if (isOpen) return
+  selectedMarkerTaskId.value = null
+  markerFormMilestoneType.value = null
+  markerFormMilestoneDescription.value = ''
 })
 </script>

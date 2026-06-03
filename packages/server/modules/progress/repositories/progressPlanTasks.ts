@@ -17,6 +17,9 @@ export const ProjectProgressPlanTasks = buildTableHelper(
     'duration',
     'planStart',
     'planEnd',
+    'milestoneType',
+    'milestoneDescription',
+    'isCriticalTask',
     'predecessor',
     'inspectionBatch',
     'bimElements',
@@ -52,6 +55,9 @@ export type ProgressPlanTaskRecord = {
   duration: string | null
   planStart: Date | null
   planEnd: Date | null
+  milestoneType: ProgressPlanTaskMilestoneType | null
+  milestoneDescription: string | null
+  isCriticalTask: boolean
   predecessor: string | null
   inspectionBatch: string | null
   bimElements: ProgressPlanTaskBimElements | null
@@ -71,9 +77,20 @@ type ReplaceProgressPlanTaskInput = {
   duration?: string | null
   planStart?: string | Date | null
   planEnd?: string | Date | null
+  milestoneType?: ProgressPlanTaskMilestoneType | null
+  milestoneDescription?: string | null
+  isCriticalTask?: boolean
   predecessor?: string | null
   inspectionBatch?: string | null
   bimElements?: Partial<ProgressPlanTaskBimElements> | null
+}
+
+export type ProgressPlanTaskMilestoneType = 'project' | 'phase' | 'acceptance'
+
+type ProgressPlanTaskMarker = {
+  milestoneType: ProgressPlanTaskMilestoneType | null
+  milestoneDescription: string | null
+  isCriticalTask: boolean
 }
 
 const generateId = () => cryptoRandomString({ length: 10 })
@@ -133,6 +150,29 @@ const sanitizeBimElements = (
     modelIds,
     applicationIds,
     selections
+  }
+}
+
+const sanitizeMilestoneType = (
+  value?: ProgressPlanTaskMilestoneType | string | null
+): ProgressPlanTaskMilestoneType | null => {
+  if (value === 'project' || value === 'phase' || value === 'acceptance') {
+    return value
+  }
+
+  return null
+}
+
+const sanitizeMarker = (
+  input?: Partial<ProgressPlanTaskMarker> | null
+): ProgressPlanTaskMarker => {
+  const milestoneType = sanitizeMilestoneType(input?.milestoneType)
+  const milestoneDescription = normalizeString(input?.milestoneDescription)
+
+  return {
+    milestoneType,
+    milestoneDescription: milestoneType ? milestoneDescription || null : null,
+    isCriticalTask: !!input?.isCriticalTask
   }
 }
 
@@ -219,6 +259,42 @@ export const updateProgressPlanTaskBimFactory =
     return updated
   }
 
+export const updateProgressPlanTaskMarkerFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    taskId: string
+    milestoneType?: ProgressPlanTaskMilestoneType | null
+    milestoneDescription?: string | null
+    isCriticalTask?: boolean
+    updater: string
+  }): Promise<ProgressPlanTaskRecord | undefined> => {
+    const marker = sanitizeMarker({
+      milestoneType: params.milestoneType,
+      milestoneDescription: params.milestoneDescription,
+      isCriticalTask: params.isCriticalTask
+    })
+
+    const [updated] = await tables
+      .projectProgressPlanTasks(deps.db)
+      .where({
+        [ProjectProgressPlanTasks.col.id]: params.taskId,
+        [ProjectProgressPlanTasks.col.projectId]: params.projectId
+      })
+      .update(
+        {
+          [planTaskCols.milestoneType]: marker.milestoneType,
+          [planTaskCols.milestoneDescription]: marker.milestoneDescription,
+          [planTaskCols.isCriticalTask]: marker.isCriticalTask,
+          [planTaskCols.updater]: params.updater,
+          [planTaskCols.updatedAt]: deps.db.fn.now()
+        },
+        '*'
+      )
+
+    return updated
+  }
+
 export const replaceProgressPlanTasksFactory =
   (deps: { db: Knex }) =>
   async (params: {
@@ -232,15 +308,36 @@ export const replaceProgressPlanTasksFactory =
       [ProjectProgressPlanTasks.col.projectId]: params.projectId
     })
 
-    const preservedByExternalId = new Map<string, ProgressPlanTaskBimElements>()
-    const preservedByWbs = new Map<string, ProgressPlanTaskBimElements>()
+    const preservedByExternalId = new Map<
+      string,
+      {
+        bimElements: ProgressPlanTaskBimElements | null
+        marker: ProgressPlanTaskMarker
+      }
+    >()
+    const preservedByWbs = new Map<
+      string,
+      {
+        bimElements: ProgressPlanTaskBimElements | null
+        marker: ProgressPlanTaskMarker
+      }
+    >()
 
     for (const task of existingTasks) {
-      if (task.externalId && task.bimElements) {
-        preservedByExternalId.set(task.externalId, task.bimElements)
+      const preservedValue = {
+        bimElements: task.bimElements,
+        marker: sanitizeMarker({
+          milestoneType: task.milestoneType,
+          milestoneDescription: task.milestoneDescription,
+          isCriticalTask: task.isCriticalTask
+        })
       }
-      if (task.wbs && task.bimElements) {
-        preservedByWbs.set(task.wbs, task.bimElements)
+
+      if (task.externalId) {
+        preservedByExternalId.set(task.externalId, preservedValue)
+      }
+      if (task.wbs) {
+        preservedByWbs.set(task.wbs, preservedValue)
       }
     }
 
@@ -260,10 +357,18 @@ export const replaceProgressPlanTasksFactory =
 
     const insertPayload = params.tasks.map((task, index) => {
       const key = task.externalId || `__task_${index}`
-      const preservedBim =
+      const preservedState =
         (task.externalId && preservedByExternalId.get(task.externalId)) ||
         (task.wbs && preservedByWbs.get(task.wbs)) ||
         null
+      const marker = sanitizeMarker({
+        milestoneType: task.milestoneType ?? preservedState?.marker.milestoneType ?? null,
+        milestoneDescription:
+          task.milestoneDescription ??
+          preservedState?.marker.milestoneDescription ??
+          null,
+        isCriticalTask: task.isCriticalTask ?? preservedState?.marker.isCriticalTask
+      })
 
       return {
         id: idsByExternalKey.get(key) || generateId(),
@@ -280,9 +385,13 @@ export const replaceProgressPlanTasksFactory =
         duration: task.duration || null,
         planStart: toNullableDate(task.planStart),
         planEnd: toNullableDate(task.planEnd),
+        milestoneType: marker.milestoneType,
+        milestoneDescription: marker.milestoneDescription,
+        isCriticalTask: marker.isCriticalTask,
         predecessor: task.predecessor || null,
         inspectionBatch: task.inspectionBatch || null,
-        bimElements: sanitizeBimElements(task.bimElements) || preservedBim,
+        bimElements:
+          sanitizeBimElements(task.bimElements) || preservedState?.bimElements || null,
         creator: params.actorId,
         updater: params.actorId
       }

@@ -151,37 +151,97 @@
             :model-ids="selectedModelIds"
             selection-sidbar-disabled
           />
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="rounded-lg border border-outline-2 bg-foundation p-4">
-            <div class="text-body-sm font-medium mb-3">进度统计概览</div>
-            <div class="grid grid-cols-2 gap-3 text-body-sm">
-              <div class="rounded border border-outline-2 bg-foundation-page p-3">
-                构件总数：{{ statistics?.totalElements ?? 0 }}
+          <div
+            v-if="selectedModelIds.length && playbackRange"
+            class="absolute right-4 bottom-4 z-20 w-[28rem] max-w-[calc(100%-2rem)] rounded-lg border border-outline-2 bg-foundation-page/95 backdrop-blur shadow-lg p-4"
+          >
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <div class="text-body-sm font-bold">进度播放</div>
+                <div class="text-body-xs text-foreground-2">
+                  当前时间：{{ formattedPlaybackTime }}
+                </div>
               </div>
-              <div class="rounded border border-outline-2 bg-foundation-page p-3">
-                已完成：{{ statistics?.finishedElements ?? 0 }}
-              </div>
-              <div class="rounded border border-outline-2 bg-foundation-page p-3">
-                进行中：{{ statistics?.inProgressElements ?? 0 }}
-              </div>
-              <div class="rounded border border-outline-2 bg-foundation-page p-3">
-                完成率：{{ formatPercent(statistics?.completionRate) }}
+              <div class="relative">
+                <button
+                  type="button"
+                  class="text-body-xs text-foreground-2 hover:text-foreground"
+                  @click="showPlaybackSpeedPopover = !showPlaybackSpeedPopover"
+                >
+                  播放速度：{{ playbackSpeedDaysPerSecond }} 天/秒
+                </button>
+                <div
+                  v-if="showPlaybackSpeedPopover"
+                  class="absolute right-0 bottom-[calc(100%+0.5rem)] z-30 w-56 rounded-lg border border-outline-2 bg-foundation-page shadow-lg p-3"
+                >
+                  <div
+                    class="flex items-center justify-between gap-3 text-[11px] text-foreground-2 mb-2"
+                  >
+                    <span>播放速度</span>
+                    <span>{{ playbackSpeedDaysPerSecond }} 天/秒</span>
+                  </div>
+                  <label for="physical-progress-speed-range" class="sr-only">
+                    进度播放速度
+                  </label>
+                  <input
+                    id="physical-progress-speed-range"
+                    v-model.number="playbackSpeedDaysPerSecond"
+                    type="range"
+                    class="w-full accent-primary cursor-pointer"
+                    :min="MIN_PLAYBACK_SPEED_DAYS_PER_SECOND"
+                    :max="MAX_PLAYBACK_SPEED_DAYS_PER_SECOND"
+                    step="1"
+                  />
+                  <div
+                    class="flex items-center justify-between gap-3 text-[11px] text-foreground-2 mt-2"
+                  >
+                    <span>{{ MIN_PLAYBACK_SPEED_DAYS_PER_SECOND }} 天/秒</span>
+                    <span>{{ MAX_PLAYBACK_SPEED_DAYS_PER_SECOND }} 天/秒</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="rounded-lg border border-outline-2 bg-foundation p-4">
-            <div class="text-body-sm font-medium mb-3">当前模型进度</div>
-            <div class="space-y-2 text-body-sm">
-              <div>当前项目：{{ projectId || '-' }}</div>
-              <div>当前节点：{{ activeNodeSummary.label }}</div>
-              <div>节点类型：{{ activeNodeSummary.typeLabel }}</div>
-              <div>已勾选模型：{{ selectedModelIds.length }}</div>
-              <div>当前构件快照：{{ selectedSnapshots.length }}</div>
-              <div>延期完成：{{ delayedSnapshotCount }}</div>
-              <div>最近更新：{{ latestSnapshotUpdatedAt }}</div>
+            <div class="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                class="h-9 w-9 rounded-md border border-outline-3 flex items-center justify-center hover:bg-foundation-2 disabled:opacity-50"
+                :disabled="!canPlayTimeline"
+                @click="togglePlayback"
+              >
+                <component :is="isPlaying ? Pause : Play" class="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                class="h-9 w-9 rounded-md border border-outline-3 flex items-center justify-center hover:bg-foundation-2 disabled:opacity-50"
+                :disabled="!playbackRange"
+                @click="resetPlayback"
+              >
+                <RotateCcw class="w-4 h-4" />
+              </button>
+              <div class="flex-1 min-w-0">
+                <label for="physical-progress-playback-range" class="sr-only">
+                  进度播放时间
+                </label>
+                <input
+                  id="physical-progress-playback-range"
+                  v-model.number="playbackSliderValue"
+                  type="range"
+                  class="w-full accent-primary cursor-pointer"
+                  min="0"
+                  :max="playbackSliderMax"
+                  step="1"
+                  :disabled="!playbackRange"
+                />
+              </div>
+            </div>
+
+            <div
+              class="flex items-center justify-between gap-3 text-[11px] text-foreground-2"
+            >
+              <span>{{ playbackRangeLabelStart }}</span>
+              <span>{{ Math.round(playbackProgressPercent) }}%</span>
+              <span>{{ playbackRangeLabelEnd }}</span>
             </div>
           </div>
         </div>
@@ -197,17 +257,21 @@ import {
   ChevronRight,
   FileText,
   Folder,
-  FolderOpen
+  FolderOpen,
+  Pause,
+  Play,
+  RotateCcw
 } from 'lucide-vue-next'
 import { FilteringExtension, ViewerEvent } from '@speckle/viewer'
 import { gql } from '@apollo/client/core'
 import {
   rebuildProgressSnapshots,
   getProgressElementSnapshots,
+  getProgressPlanTasks,
   getProgressStatistics,
   type RebuildProgressSnapshotsSummary,
   type ProgressElementSnapshot,
-  type ProgressElementSnapshotStatus,
+  type ProgressPlanTask,
   type ProgressStatistics
 } from '~/lib/projects/api/progress'
 import { latestModelsPaginationQuery } from '~~/lib/projects/graphql/queries'
@@ -269,6 +333,7 @@ type ViewerTreeNodeLike = {
   model?: {
     id?: unknown
     raw?: SpeckleObject
+    atomic?: boolean
   }
   children?: ViewerTreeNodeLike[]
 }
@@ -278,6 +343,7 @@ type ViewerTreeLike = {
     children?: ViewerTreeNodeLike[]
   }
   findApplicationId?: (applicationId: string) => ViewerTreeNodeLike[] | null
+  findId?: (id: string) => ViewerTreeNodeLike[] | null
 }
 
 type ViewerResourceItemLike = {
@@ -285,18 +351,19 @@ type ViewerResourceItemLike = {
   modelId?: string | null
 }
 
-const getProgressStatusMeta = (status: ProgressElementSnapshotStatus) => {
+type PhysicalProgressDisplayStatus =
+  | 'not_started'
+  | 'finished_on_time'
+  | 'finished_ahead'
+  | 'finished_delayed'
+  | 'in_progress'
+
+const getProgressStatusMeta = (status: PhysicalProgressDisplayStatus) => {
   switch (status) {
     case 'not_started':
       return { label: '未开始', color: '#9CA3AF' }
-    case 'ready_not_started':
-      return { label: '待开始', color: '#6B7280' }
-    case 'delayed_not_started':
-      return { label: '未开始已逾期', color: '#B91C1C' }
     case 'in_progress':
       return { label: '进行中', color: '#F59E0B' }
-    case 'in_progress_delayed':
-      return { label: '进行中已逾期', color: '#EA580C' }
     case 'finished_ahead':
       return { label: '提前完成', color: '#10B981' }
     case 'finished_on_time':
@@ -310,6 +377,11 @@ const route = useRoute()
 const { triggerNotification } = useGlobalToast()
 const ROOT_ID = '__physical_progress_model_root__'
 const apiOrigin = useApiOrigin()
+const PLAYBACK_INTERVAL_MS = 100
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+const DEFAULT_PLAYBACK_SPEED_DAYS_PER_SECOND = 7
+const MIN_PLAYBACK_SPEED_DAYS_PER_SECOND = 1
+const MAX_PLAYBACK_SPEED_DAYS_PER_SECOND = 30
 
 const projectFoldersByParentQuery = gql`
   query PhysicalProgressFoldersByParent($projectId: String!, $parentId: String) {
@@ -346,8 +418,14 @@ const allModels = ref<ModelItem[]>([])
 const selectedModelIds = ref<string[]>([])
 const elementSnapshots = ref<ProgressElementSnapshot[]>([])
 const statistics = ref<ProgressStatistics | null>(null)
+const planTasks = ref<ProgressPlanTask[]>([])
 const viewerState = shallowRef<InjectableViewerState | null>(null)
 const lastRebuildSummary = ref<RebuildProgressSnapshotsSummary | null>(null)
+const currentPlaybackTime = ref<number | null>(null)
+const isPlaying = ref(false)
+const playbackSpeedDaysPerSecond = ref(DEFAULT_PLAYBACK_SPEED_DAYS_PER_SECOND)
+const showPlaybackSpeedPopover = ref(false)
+let playbackTimerId: number | null = null
 
 const projectId = computed(() => {
   const id = route.params.id
@@ -440,36 +518,174 @@ const isPreparingViewer = computed(
 )
 
 const selectedSnapshots = computed(() => elementSnapshots.value)
-const progressStatuses: ProgressElementSnapshotStatus[] = [
+const progressStatuses: PhysicalProgressDisplayStatus[] = [
   'not_started',
-  'ready_not_started',
-  'delayed_not_started',
   'in_progress',
-  'in_progress_delayed',
   'finished_ahead',
   'finished_on_time',
   'finished_delayed'
 ]
 
-const delayedSnapshotCount = computed(
-  () =>
-    selectedSnapshots.value.filter((item) => item.progressStatus === 'finished_delayed')
-      .length
+const parseDateTime = (value?: string | null) => {
+  if (!value) return null
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+const getStartOfDayTimestamp = (timestamp: number) => {
+  const date = new Date(timestamp)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+const parseDateDayTimestamp = (value?: string | null) => {
+  const timestamp = parseDateTime(value)
+  return timestamp === null ? null : getStartOfDayTimestamp(timestamp)
+}
+
+const compareFinishTiming = (
+  actualFinishAt?: string | null,
+  plannedFinishAt?: string | null
+): PhysicalProgressDisplayStatus => {
+  const actualFinish = parseDateDayTimestamp(actualFinishAt)
+  const plannedFinish = parseDateDayTimestamp(plannedFinishAt)
+
+  if (!actualFinish) return 'finished_on_time'
+  if (!plannedFinish) return 'finished_on_time'
+  if (actualFinish < plannedFinish) return 'finished_ahead'
+  if (actualFinish > plannedFinish) return 'finished_delayed'
+  return 'finished_on_time'
+}
+
+const getSnapshotDisplayStatusAtTime = (
+  snapshot: ProgressElementSnapshot,
+  timestamp: number
+): PhysicalProgressDisplayStatus => {
+  const currentDay = getStartOfDayTimestamp(timestamp)
+  const plannedStart = parseDateDayTimestamp(snapshot.plannedStartAt)
+  const plannedFinish = parseDateDayTimestamp(snapshot.plannedFinishAt)
+  const actualFinish = parseDateDayTimestamp(snapshot.actualFinishAt)
+
+  if (plannedStart === null && plannedFinish === null) {
+    return 'not_started'
+  }
+
+  if (plannedStart !== null && currentDay < plannedStart) {
+    return 'not_started'
+  }
+
+  if (plannedFinish !== null && currentDay > plannedFinish) {
+    if (actualFinish !== null) {
+      return compareFinishTiming(snapshot.actualFinishAt, snapshot.plannedFinishAt)
+    }
+    return 'finished_on_time'
+  }
+
+  if (plannedStart !== null) {
+    return 'in_progress'
+  }
+
+  return 'not_started'
+}
+
+const playbackRange = computed(() => {
+  if (!planTasks.value.length) return null
+
+  const topLevel = planTasks.value.filter((task) => task.parentId === null)
+  const sourceTasks = topLevel.length
+    ? topLevel
+    : planTasks.value.filter(
+        (task) => task.level === Math.min(...planTasks.value.map((t) => t.level))
+      )
+
+  const plannedStarts = sourceTasks
+    .map((task) => parseDateTime(task.startDate))
+    .filter((value): value is number => value !== null)
+  const plannedEnds = sourceTasks
+    .map((task) => parseDateTime(task.endDate))
+    .filter((value): value is number => value !== null)
+
+  if (!plannedStarts.length && !plannedEnds.length) return null
+
+  const startAt = plannedStarts.length
+    ? Math.min(...plannedStarts)
+    : Math.min(...plannedEnds)
+  const today = getStartOfDayTimestamp(Date.now())
+
+  return {
+    startAt,
+    endAt: Math.max(today, startAt)
+  }
+})
+
+const getDefaultPlaybackTime = (range: { startAt: number; endAt: number } | null) => {
+  if (!range) return null
+
+  const today = getStartOfDayTimestamp(Date.now())
+  if (today < range.startAt) return range.startAt
+  if (today > range.endAt) return range.endAt
+  return today
+}
+
+const effectivePlaybackTime = computed(
+  () => currentPlaybackTime.value ?? getDefaultPlaybackTime(playbackRange.value)
 )
 
-const latestSnapshotUpdatedAt = computed(() => {
-  const latest = selectedSnapshots.value.reduce<{ raw?: string; value: number }>(
-    (acc, item) => {
-      const raw = item.updatedAt || item.lastReportAt || undefined
-      const value = raw ? new Date(raw).getTime() : Number.NaN
-      if (!Number.isFinite(value) || value <= acc.value) return acc
-      return { raw, value }
-    },
-    { raw: undefined, value: Number.NEGATIVE_INFINITY }
-  )
+const playbackSnapshots = computed(() => {
+  const timestamp = effectivePlaybackTime.value
+  if (!timestamp) return []
 
-  return formatDate(latest.raw)
+  return selectedSnapshots.value.map((snapshot) => ({
+    snapshot,
+    displayStatus: getSnapshotDisplayStatusAtTime(snapshot, timestamp)
+  }))
 })
+
+const playbackSliderMax = computed(() => {
+  if (!playbackRange.value) return 0
+  return Math.max(playbackRange.value.endAt - playbackRange.value.startAt, 0)
+})
+
+const playbackSliderValue = computed({
+  get: () => {
+    if (!playbackRange.value || effectivePlaybackTime.value === null) return 0
+    return Math.max(effectivePlaybackTime.value - playbackRange.value.startAt, 0)
+  },
+  set: (value: number) => {
+    if (!playbackRange.value) return
+    stopPlayback()
+    currentPlaybackTime.value = playbackRange.value.startAt + value
+  }
+})
+
+const playbackProgressPercent = computed(() => {
+  if (!playbackRange.value) return 0
+  const total = playbackRange.value.endAt - playbackRange.value.startAt
+  if (total <= 0) return 100
+  return (playbackSliderValue.value / total) * 100
+})
+
+const playbackRangeLabelStart = computed(() =>
+  playbackRange.value
+    ? formatDateOnly(new Date(playbackRange.value.startAt).toISOString())
+    : '-'
+)
+
+const playbackRangeLabelEnd = computed(() =>
+  playbackRange.value
+    ? formatDateOnly(new Date(playbackRange.value.endAt).toISOString())
+    : '-'
+)
+
+const formattedPlaybackTime = computed(() =>
+  effectivePlaybackTime.value
+    ? formatDateOnly(new Date(effectivePlaybackTime.value).toISOString())
+    : '-'
+)
+
+const canPlayTimeline = computed(
+  () => !!playbackRange.value && playbackRange.value.endAt > playbackRange.value.startAt
+)
 
 const legendItems = computed(() =>
   progressStatuses.map((status) => {
@@ -477,68 +693,15 @@ const legendItems = computed(() =>
     return {
       label: meta.label,
       color: meta.color,
-      count: selectedSnapshots.value.filter((item) => item.progressStatus === status)
+      count: playbackSnapshots.value.filter((item) => item.displayStatus === status)
         .length
     }
   })
 )
 
-const activeNodeSummary = computed(() => {
-  if (activeNodeId.value === ROOT_ID) {
-    return {
-      label: '模型文件',
-      typeLabel: '根节点',
-      modelCount: allModels.value.length,
-      updatedAt: latestUpdatedAt.value
-    }
-  }
-
-  const folder = folderItems.value.find((item) => item.id === activeNodeId.value)
-  if (folder) {
-    return {
-      label: folder.label,
-      typeLabel: '文件夹',
-      modelCount: getFolderModelIds(folder.id).length,
-      updatedAt: formatDate(folder.updatedAt)
-    }
-  }
-
-  const modelId = activeNodeId.value.startsWith('model:')
-    ? activeNodeId.value.split(':')[1]
-    : activeNodeId.value
-  const model = allModels.value.find((item) => item.id === modelId)
-  return {
-    label: model?.label || '-',
-    typeLabel: '模型',
-    modelCount: model ? 1 : 0,
-    updatedAt: formatDate(model?.updatedAt)
-  }
-})
-
-const latestUpdatedAt = computed(() => {
-  const source =
-    selectedModelIds.value.length > 0
-      ? allModels.value.filter((item) => selectedModelIdSet.value.has(item.id))
-      : allModels.value
-
-  const latest = source.reduce<{ raw?: string; value: number }>(
-    (acc, item) => {
-      const value = item.updatedAt ? new Date(item.updatedAt).getTime() : Number.NaN
-      if (!Number.isFinite(value) || value <= acc.value) return acc
-      return { raw: item.updatedAt, value }
-    },
-    { raw: undefined, value: Number.NEGATIVE_INFINITY }
-  )
-
-  return formatDate(latest.raw)
-})
-
 const isExpanded = (id: string) => expandedIds.value.has(id)
 
 const isModelSelected = (modelId: string) => selectedModelIdSet.value.has(modelId)
-
-const formatPercent = (value?: number | null) =>
-  typeof value === 'number' && Number.isFinite(value) ? `${value}%` : '-'
 
 const showMessage = (
   title: string,
@@ -574,6 +737,17 @@ const formatDate = (value?: string) => {
   })
 }
 
+const formatDateOnly = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
 const normalizeString = (value: unknown) =>
   typeof value === 'string' ? value.trim() : ''
 
@@ -592,10 +766,21 @@ const getApplicationIdString = (obj: SpeckleObject): string | null => {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-const getNodeObjectId = (value: unknown) => {
+const getResourceObjectId = (value: unknown) => {
   const normalized = normalizeString(value)
   if (!normalized) return ''
   return normalized.split('/').reverse()[0] || normalized
+}
+
+const getViewerObjectId = (value: unknown) => normalizeString(value)
+const getFilteringObjectId = (nodeId: unknown, rawId: unknown) => {
+  const viewerObjectId = getViewerObjectId(nodeId)
+  if (viewerObjectId.length === 32) return viewerObjectId
+
+  const normalizedRawId = normalizeString(rawId)
+  if (normalizedRawId.length === 32) return normalizedRawId
+
+  return ''
 }
 
 const selectionKey = (modelId: string, applicationId: string) =>
@@ -634,19 +819,6 @@ const handleNodeClick = (node: VisibleNode) => {
   if (node.hasChildren) {
     toggleExpand(node.id)
   }
-}
-
-const getFolderModelIds = (folderId: string): string[] => {
-  const currentIds = (modelsByFolderMap.value.get(folderId) || []).map(
-    (item) => item.id
-  )
-  const childFolders = folderChildrenMap.value.get(folderId) || []
-
-  childFolders.forEach((folder) => {
-    currentIds.push(...getFolderModelIds(folder.id))
-  })
-
-  return Array.from(new Set(currentIds))
 }
 
 const fetchAllElementSnapshotsByModelId = async (modelId: string) => {
@@ -693,6 +865,26 @@ const loadStatistics = async () => {
   }
 }
 
+const loadPlanTasks = async () => {
+  if (!projectId.value) {
+    planTasks.value = []
+    return
+  }
+
+  try {
+    planTasks.value = await getProgressPlanTasks({
+      projectId: projectId.value,
+      apiOrigin
+    })
+  } catch (error) {
+    planTasks.value = []
+    showMessage(
+      '加载计划任务失败',
+      error instanceof Error ? error.message : '未能获取当前计划任务'
+    )
+  }
+}
+
 const loadSelectedModelSnapshots = async () => {
   if (!projectId.value || selectedModelIds.value.length === 0) {
     elementSnapshots.value = []
@@ -713,7 +905,7 @@ const loadSelectedModelSnapshots = async () => {
 }
 
 const refreshPhysicalProgressData = async () => {
-  await Promise.all([loadStatistics(), loadSelectedModelSnapshots()])
+  await Promise.all([loadStatistics(), loadPlanTasks(), loadSelectedModelSnapshots()])
 }
 
 const handleRebuildSnapshots = async () => {
@@ -738,9 +930,14 @@ const handleRebuildSnapshots = async () => {
   }
 }
 
-const buildViewerObjectIdsBySelectionKey = () => {
+const buildViewerObjectMaps = () => {
   const state = viewerState.value
-  if (!state) return new Map<string, string[]>()
+  if (!state) {
+    return {
+      objectIdsBySelectionKey: new Map<string, string[]>(),
+      objectIdsByModelId: new Map<string, string[]>()
+    }
+  }
 
   const tree = getMaybeRefValue(
     state.viewer.metadata.worldTree as unknown as object
@@ -750,10 +947,14 @@ const buildViewerObjectIdsBySelectionKey = () => {
   )
 
   if (!tree?._root?.children?.length || !resourceItems?.length) {
-    return new Map<string, string[]>()
+    return {
+      objectIdsBySelectionKey: new Map<string, string[]>(),
+      objectIdsByModelId: new Map<string, string[]>()
+    }
   }
 
   const objectIdsBySelectionKey = new Map<string, Set<string>>()
+  const objectIdsByModelId = new Map<string, Set<string>>()
   const resourceMap = resourceItems.reduce<Record<string, string>>((acc, item) => {
     const objectId = normalizeString(item.objectId)
     const modelId = normalizeString(item.modelId)
@@ -763,14 +964,21 @@ const buildViewerObjectIdsBySelectionKey = () => {
 
   const visit = (node: ViewerTreeNodeLike, modelId: string) => {
     const raw = node.model?.raw
-    const nodeObjectId = getNodeObjectId(node.model?.id)
+    const filteringObjectId = getFilteringObjectId(node.model?.id, raw?.id)
     const applicationId = raw ? getApplicationIdString(raw) : null
+
+    if (filteringObjectId) {
+      const modelSet = objectIdsByModelId.get(modelId) || new Set<string>()
+      modelSet.add(filteringObjectId)
+      objectIdsByModelId.set(modelId, modelSet)
+    }
 
     if (applicationId) {
       const key = selectionKey(modelId, applicationId)
       const set = objectIdsBySelectionKey.get(key) || new Set<string>()
-      if (raw?.id) set.add(raw.id)
-      if (nodeObjectId) set.add(nodeObjectId)
+      if (filteringObjectId) {
+        set.add(filteringObjectId)
+      }
       objectIdsBySelectionKey.set(key, set)
     }
 
@@ -778,18 +986,79 @@ const buildViewerObjectIdsBySelectionKey = () => {
   }
 
   ;(tree._root.children || []).forEach((rootNode) => {
-    const rootObjectId = getNodeObjectId(rootNode.model?.id)
+    const rootObjectId = getResourceObjectId(rootNode.model?.id)
     const modelId = resourceMap[rootObjectId]
     if (!modelId) return
     visit(rootNode, modelId)
   })
 
-  return new Map(
-    Array.from(objectIdsBySelectionKey.entries()).map(([key, value]) => [
-      key,
-      Array.from(value)
-    ])
-  )
+  return {
+    objectIdsBySelectionKey: new Map(
+      Array.from(objectIdsBySelectionKey.entries()).map(([key, value]) => [
+        key,
+        Array.from(value)
+      ])
+    ),
+    objectIdsByModelId: new Map(
+      Array.from(objectIdsByModelId.entries()).map(([modelId, value]) => [
+        modelId,
+        Array.from(value)
+      ])
+    )
+  }
+}
+
+const stopPlayback = () => {
+  if (playbackTimerId !== null) {
+    window.clearInterval(playbackTimerId)
+    playbackTimerId = null
+  }
+  isPlaying.value = false
+}
+
+const resetPlayback = () => {
+  stopPlayback()
+  currentPlaybackTime.value = getDefaultPlaybackTime(playbackRange.value)
+}
+
+const startPlayback = () => {
+  if (!playbackRange.value || !canPlayTimeline.value) return
+  if (
+    currentPlaybackTime.value === null ||
+    currentPlaybackTime.value >= playbackRange.value.endAt
+  ) {
+    currentPlaybackTime.value = getDefaultPlaybackTime(playbackRange.value)
+  }
+
+  stopPlayback()
+  isPlaying.value = true
+  playbackTimerId = window.setInterval(() => {
+    if (!playbackRange.value || currentPlaybackTime.value === null) {
+      stopPlayback()
+      return
+    }
+
+    const nextTime =
+      currentPlaybackTime.value +
+      (playbackSpeedDaysPerSecond.value * DAY_IN_MS * PLAYBACK_INTERVAL_MS) / 1000
+
+    if (nextTime >= playbackRange.value.endAt) {
+      currentPlaybackTime.value = playbackRange.value.endAt
+      stopPlayback()
+      return
+    }
+
+    currentPlaybackTime.value = nextTime
+  }, PLAYBACK_INTERVAL_MS)
+}
+
+const togglePlayback = () => {
+  if (isPlaying.value) {
+    stopPlayback()
+  } else {
+    startPlayback()
+  }
+  showPlaybackSpeedPopover.value = false
 }
 
 const handleViewerLoadComplete = () => {
@@ -806,18 +1075,40 @@ const applySnapshotColorsToViewer = () => {
   const extension = state.viewer.instance.getExtension(FilteringExtension)
   if (!extension) return
 
-  if (!selectedModelIds.value.length || !selectedSnapshots.value.length) {
+  if (!selectedModelIds.value.length) {
+    extension.resetFilters()
     extension.removeUserObjectColors()
     return
   }
 
-  const objectIdsBySelectionKey = buildViewerObjectIdsBySelectionKey()
-  if (!objectIdsBySelectionKey.size) return
+  const { objectIdsBySelectionKey, objectIdsByModelId } = buildViewerObjectMaps()
+  const activeLinkedObjectIds = playbackSnapshots.value
+    .filter(({ displayStatus }) => displayStatus !== 'not_started')
+    .flatMap(({ snapshot }) => {
+      const key = selectionKey(snapshot.modelId, snapshot.applicationId)
+      return objectIdsBySelectionKey.get(key) || []
+    })
+  const activeLinkedObjectIdSet = new Set(activeLinkedObjectIds)
+  const ghostObjectIds = selectedModelIds.value.flatMap((modelId) =>
+    (objectIdsByModelId.get(modelId) || []).filter(
+      (id) => !activeLinkedObjectIdSet.has(id)
+    )
+  )
+  extension.resetFilters()
+  if (ghostObjectIds.length) {
+    extension.hideObjects(ghostObjectIds, 'physical-progress-ghost', false, true)
+  }
+
+  if (!objectIdsBySelectionKey.size || !playbackSnapshots.value.length) {
+    extension.removeUserObjectColors()
+    return
+  }
 
   const objectIdsByColor = new Map<string, Set<string>>()
 
-  selectedSnapshots.value.forEach((snapshot) => {
-    const color = getProgressStatusMeta(snapshot.progressStatus).color
+  playbackSnapshots.value.forEach(({ snapshot, displayStatus }) => {
+    if (displayStatus === 'not_started') return
+    const color = getProgressStatusMeta(displayStatus).color
     const key = selectionKey(snapshot.modelId, snapshot.applicationId)
     const objectIds = objectIdsBySelectionKey.get(key) || []
     if (!objectIds.length) return
@@ -942,7 +1233,7 @@ const loadTree = async () => {
 watch(
   projectId,
   async () => {
-    await Promise.all([loadTree(), loadStatistics()])
+    await Promise.all([loadTree(), loadStatistics(), loadPlanTasks()])
   },
   { immediate: true }
 )
@@ -956,9 +1247,18 @@ watch(
 )
 
 watch(
+  playbackRange,
+  (range) => {
+    stopPlayback()
+    currentPlaybackTime.value = getDefaultPlaybackTime(range)
+  },
+  { immediate: true }
+)
+
+watch(
   () => [
     viewerState.value,
-    selectedSnapshots.value,
+    playbackSnapshots.value,
     selectedModelIds.value,
     viewerLoadVersion.value
   ],
@@ -986,12 +1286,14 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  stopPlayback()
   const state = viewerState.value
   state?.viewer.instance.removeListener(
     ViewerEvent.LoadComplete,
     handleViewerLoadComplete
   )
   const extension = state?.viewer.instance.getExtension(FilteringExtension)
+  extension?.resetFilters()
   extension?.removeUserObjectColors()
 })
 </script>

@@ -3,7 +3,7 @@
     <Portal to="navigation">
       <div>数智南北</div>
     </Portal>
-    <CommonDevelopingPlaceholder module-name="进度管理" />
+    <ProgressPage />
   </div>
 </template>
 

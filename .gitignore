@@ -91,3 +91,4 @@ packages/*/.tshy/
 .output
 AGENTS.md
 .trae/
+ignores/

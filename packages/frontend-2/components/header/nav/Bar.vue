@@ -16,9 +16,12 @@
           />
         </div>
         <div class="flex items-center truncate gap-6">
-          <FormButton color="primary" class="text-white hover:!text-blue-400">
-            BIM赋能
-          </FormButton>
+          <div
+            v-if="currentProjectName"
+            class="truncate text-sm font-medium text-white"
+          >
+            {{ currentProjectName }}
+          </div>
           <!-- <ClientOnly>
             <PortalTarget name="mobile-navigation"></PortalTarget>
           </ClientOnly>
@@ -63,6 +66,7 @@ const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const { activeUser, isLoggedIn } = useActiveUser()
 const route = useRoute()
 const router = useRouter()
+const currentProjectName = useState<string>('current-project-name', () => '')
 
 const token = computed(() => route.query.token as Optional<string>)
 

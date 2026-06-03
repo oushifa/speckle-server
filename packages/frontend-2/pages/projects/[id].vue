@@ -82,6 +82,7 @@ definePageMeta({
 })
 
 const route = useRoute()
+const currentProjectName = useState<string>('current-project-name', () => '')
 
 const projectId = computed(() => route.params.id as string)
 const token = computed(() => route.query.token as Optional<string>)
@@ -105,6 +106,18 @@ const project = computed(() => projectPageResult.value?.project)
 const projectName = computed(() =>
   project.value?.name.length ? project.value.name : ''
 )
+
+watch(
+  projectName,
+  (name) => {
+    currentProjectName.value = name
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  currentProjectName.value = ''
+})
 
 useHead({
   title: projectName,

@@ -102,6 +102,7 @@ type Documents = {
     "\n  fragment PresentationSlideListSlide_SavedView on SavedView {\n    id\n    name\n    thumbnailUrl\n  }\n": typeof types.PresentationSlideListSlide_SavedViewFragmentDoc,
     "\n  fragment PresentationSlideList_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      items {\n        id\n        ...PresentationSlideListSlide_SavedView\n      }\n    }\n  }\n": typeof types.PresentationSlideList_SavedViewGroupFragmentDoc,
     "\n  fragment PresentationViewerPageWrapper_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      totalCount\n      items {\n        id\n        resourceIdString\n      }\n    }\n  }\n": typeof types.PresentationViewerPageWrapper_SavedViewGroupFragmentDoc,
+    "\n  query ProgressOverviewProjects {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          responsible\n          team {\n            user {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n": typeof types.ProgressOverviewProjectsDocument,
     "\n  fragment ProjectCardImportFileArea_Project on Project {\n    id\n    permissions {\n      canCreateModel {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...UseFileImport_Project\n  }\n": typeof types.ProjectCardImportFileArea_ProjectFragmentDoc,
     "\n  fragment ProjectCardImportFileArea_Model on Model {\n    id\n    name\n    permissions {\n      canCreateVersion {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...UseFileImport_Model\n  }\n": typeof types.ProjectCardImportFileArea_ModelFragmentDoc,
     "\n  fragment ProjectInviteAdd_Project on Project {\n    id\n    ...InviteDialogProject_Project\n    ...UseCanInviteToProject_Project\n    ...WorkspaceMoveProject_Project\n  }\n": typeof types.ProjectInviteAdd_ProjectFragmentDoc,
@@ -705,6 +706,7 @@ const documents: Documents = {
     "\n  fragment PresentationSlideListSlide_SavedView on SavedView {\n    id\n    name\n    thumbnailUrl\n  }\n": types.PresentationSlideListSlide_SavedViewFragmentDoc,
     "\n  fragment PresentationSlideList_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      items {\n        id\n        ...PresentationSlideListSlide_SavedView\n      }\n    }\n  }\n": types.PresentationSlideList_SavedViewGroupFragmentDoc,
     "\n  fragment PresentationViewerPageWrapper_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      totalCount\n      items {\n        id\n        resourceIdString\n      }\n    }\n  }\n": types.PresentationViewerPageWrapper_SavedViewGroupFragmentDoc,
+    "\n  query ProgressOverviewProjects {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          responsible\n          team {\n            user {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n": types.ProgressOverviewProjectsDocument,
     "\n  fragment ProjectCardImportFileArea_Project on Project {\n    id\n    permissions {\n      canCreateModel {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...UseFileImport_Project\n  }\n": types.ProjectCardImportFileArea_ProjectFragmentDoc,
     "\n  fragment ProjectCardImportFileArea_Model on Model {\n    id\n    name\n    permissions {\n      canCreateVersion {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...UseFileImport_Model\n  }\n": types.ProjectCardImportFileArea_ModelFragmentDoc,
     "\n  fragment ProjectInviteAdd_Project on Project {\n    id\n    ...InviteDialogProject_Project\n    ...UseCanInviteToProject_Project\n    ...WorkspaceMoveProject_Project\n  }\n": types.ProjectInviteAdd_ProjectFragmentDoc,
@@ -1586,6 +1588,10 @@ export function graphql(source: "\n  fragment PresentationSlideList_SavedViewGro
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment PresentationViewerPageWrapper_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      totalCount\n      items {\n        id\n        resourceIdString\n      }\n    }\n  }\n"): (typeof documents)["\n  fragment PresentationViewerPageWrapper_SavedViewGroup on SavedViewGroup {\n    id\n    views(input: $input) {\n      totalCount\n      items {\n        id\n        resourceIdString\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProgressOverviewProjects {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          responsible\n          team {\n            user {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProgressOverviewProjects {\n    activeUser {\n      id\n      projects(limit: 100) {\n        items {\n          id\n          name\n          responsible\n          team {\n            user {\n              name\n            }\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

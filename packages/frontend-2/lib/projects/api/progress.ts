@@ -30,6 +30,8 @@ export type ProgressPlanTaskBimSelection = {
   applicationIds: string[]
 }
 
+export type ProgressPlanTaskMilestoneType = 'project' | 'phase' | 'acceptance'
+
 export type ActualProgressRecordBimSelection = {
   modelId: string
   applicationIds: string[]
@@ -48,12 +50,28 @@ export type ProgressPlanTask = {
   duration: string | null
   startDate: string | null
   endDate: string | null
+  milestoneType: ProgressPlanTaskMilestoneType | null
+  milestoneDescription: string | null
+  isCriticalTask: boolean
   predecessor: string | null
   inspection: string | null
   modelId: string | null
   modelIds: string[]
   applicationIds: string[]
   selections: ProgressPlanTaskBimSelection[]
+  hasChildren: boolean
+  canEditBimAssociation: boolean
+  totalElementCount: number
+  finishedElementCount: number
+  inProgressElementCount: number
+  notStartedElementCount: number
+  delayedElementCount: number
+  completionRate: number
+  taskStatus: ProgressTaskSnapshotStatus | null
+  totalTaskCount: number
+  linkedTaskCount: number
+  finishedTaskCount: number
+  delayedTaskCount: number
   createdAt: string
   updatedAt: string
 }
@@ -361,6 +379,43 @@ export async function updateProgressPlanTaskBimAssociation(params: {
           modelIds: modelIds || [],
           applicationIds: applicationIds || [],
           selections: selections || []
+        }
+      }
+    )
+    return payload.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateProgressPlanTaskMarker(params: {
+  projectId: string
+  taskId: string
+  milestoneType?: ProgressPlanTaskMilestoneType | null
+  milestoneDescription?: string | null
+  isCriticalTask?: boolean
+  apiOrigin: string
+}) {
+  const {
+    projectId,
+    taskId,
+    milestoneType,
+    milestoneDescription,
+    isCriticalTask,
+    apiOrigin
+  } = params
+  try {
+    const payload = await $fetch<{ data: ProgressPlanTask }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress/plan-tasks/${taskId}/marker`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'PUT',
+        body: {
+          milestoneType: milestoneType ?? null,
+          milestoneDescription: milestoneDescription ?? null,
+          isCriticalTask: !!isCriticalTask
         }
       }
     )
