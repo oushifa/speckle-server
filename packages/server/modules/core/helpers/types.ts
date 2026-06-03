@@ -270,8 +270,34 @@ export type ApprovalFlowDefinitionRecord = {
   updatedAt: Date
 }
 
+export type ApprovalFlowBindingRecord = {
+  id: string
+  projectId: string
+  subjectType: string
+  subjectId: string
+  subjectTable: Nullable<string>
+  subjectKey: string
+  definitionId: string
+  templateId: string
+  currentInstanceId: Nullable<string>
+  currentRoundNo: number
+  status: string
+  lastSubmittedAt: Nullable<Date>
+  lastSubmittedBy: Nullable<string>
+  lastReturnedAt: Nullable<Date>
+  lastReturnedBy: Nullable<string>
+  finishedAt: Nullable<Date>
+  metadata: Nullable<Record<string, unknown>>
+  createdAt: Date
+  updatedAt: Date
+  creator: string
+  updater: string
+}
+
 export type ApprovalFlowInstanceRecord = {
   id: string
+  bindingId: Nullable<string>
+  roundNo: number
   definitionId: Nullable<string>
   templateId: string
   definitionVersion: Nullable<number>
@@ -279,6 +305,7 @@ export type ApprovalFlowInstanceRecord = {
   resourceType: string
   resourceId: Nullable<string>
   formData: Nullable<Record<string, unknown>>
+  subjectSnapshot: Nullable<Record<string, unknown>>
   flowSnapshot: Nullable<Record<string, unknown>>
   status: string
   currentStep: number

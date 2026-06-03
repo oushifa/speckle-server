@@ -1,5 +1,6 @@
 import {
   ApprovalFlowActions,
+  ApprovalFlowBindings,
   ApprovalFlowDefinitionSteps,
   ApprovalFlowDefinitions,
   ApprovalFlowInstanceStepFormSnapshots,
@@ -9,6 +10,7 @@ import {
 } from '@/modules/core/dbSchema'
 import type {
   ApprovalFlowActionRecord,
+  ApprovalFlowBindingRecord,
   ApprovalFlowDefinitionStepRecord,
   ApprovalFlowDefinitionRecord,
   ApprovalFlowInstanceStepFormSnapshotRecord,
@@ -32,6 +34,7 @@ const tables = {
     db<ApprovalFlowInstanceStepFormSnapshotRecord>(
       ApprovalFlowInstanceStepFormSnapshots.name
     ),
+  bindings: (db: Knex) => db<ApprovalFlowBindingRecord>(ApprovalFlowBindings.name),
   qualityAcceptanceForms: (db: Knex) =>
     db<Record<string, unknown>>(QualityAcceptanceForms.name)
 }
@@ -229,6 +232,8 @@ export const getApprovalFlowDefinitionStepsFactory =
 export const createApprovalFlowInstanceFactory =
   (deps: { db: Knex }) =>
   async (params: {
+    bindingId?: string | null
+    roundNo?: number
     definitionId?: string | null
     templateId: string
     definitionVersion?: number | null
@@ -236,6 +241,7 @@ export const createApprovalFlowInstanceFactory =
     resourceType: string
     resourceId?: string | null
     formData?: Record<string, unknown> | null
+    subjectSnapshot?: Record<string, unknown> | null
     flowSnapshot?: Record<string, unknown> | null
     status: string
     currentStep: number
@@ -246,6 +252,8 @@ export const createApprovalFlowInstanceFactory =
       .instances(deps.db)
       .insert({
         id: generateApprovalFlowId(),
+        bindingId: params.bindingId || null,
+        roundNo: params.roundNo || 1,
         definitionId: params.definitionId || null,
         templateId: params.templateId,
         definitionVersion: params.definitionVersion || null,
@@ -253,6 +261,7 @@ export const createApprovalFlowInstanceFactory =
         resourceType: params.resourceType,
         resourceId: params.resourceId || null,
         formData: jsonValue(deps.db, params.formData || null),
+        subjectSnapshot: jsonValue(deps.db, params.subjectSnapshot || null),
         flowSnapshot: jsonValue(deps.db, params.flowSnapshot || null),
         status: params.status,
         currentStep: params.currentStep,

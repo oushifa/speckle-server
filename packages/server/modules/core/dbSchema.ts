@@ -562,8 +562,34 @@ export const ApprovalFlowDefinitions = buildTableHelper('approval_flow_definitio
   'updatedAt'
 ])
 
+export const ApprovalFlowBindings = buildTableHelper('approval_flow_bindings', [
+  'id',
+  'projectId',
+  'subjectType',
+  'subjectId',
+  'subjectTable',
+  'subjectKey',
+  'definitionId',
+  'templateId',
+  'currentInstanceId',
+  'currentRoundNo',
+  'status',
+  'lastSubmittedAt',
+  'lastSubmittedBy',
+  'lastReturnedAt',
+  'lastReturnedBy',
+  'finishedAt',
+  'metadata',
+  'createdAt',
+  'updatedAt',
+  'creator',
+  'updater'
+])
+
 export const ApprovalFlowInstances = buildTableHelper('approval_flow_instances', [
   'id',
+  'bindingId',
+  'roundNo',
   'definitionId',
   'templateId',
   'definitionVersion',
@@ -571,6 +597,7 @@ export const ApprovalFlowInstances = buildTableHelper('approval_flow_instances',
   'resourceType',
   'resourceId',
   'formData',
+  'subjectSnapshot',
   'flowSnapshot',
   'status',
   'currentStep',
