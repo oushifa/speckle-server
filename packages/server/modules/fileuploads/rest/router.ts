@@ -217,12 +217,14 @@ export const fileuploadRouterFactory = (): Router => {
       })
     ),
     validateRequest({
-      params: bindFileRouteParamsSchema,
-      body: bindFileBodySchema
+      params: bindFileRouteParamsSchema
     }),
     async (req, res) => {
       const { projectId, versionId } = req.params
-      const { fileId, fileName, fileSize, fileType } = req.body
+      const userId = req.context.userId
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
 
       const projectDb = await getProjectDbClient({ projectId })
 
@@ -233,61 +235,115 @@ export const fileuploadRouterFactory = (): Router => {
         return res.status(404).json({ error: 'Version not found in project.' })
       }
 
-      // Check if file upload exists and belongs to project
-      const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
-      let fileUpload = await getFileInfo({ fileId, projectId })
-      if (!fileUpload) {
-        // Fallback: Check if blob exists in blob_storage
-        const getBlob = getBlobFactory({ db: projectDb })
-        const storedBlob = await getBlob({ streamId: projectId, blobId: fileId })
-        if (!storedBlob) {
-          return res.status(404).json({ error: 'File upload not found in project.' })
+      const executeBinding = async (
+        fileId: string,
+        fileName?: string,
+        fileSize?: number,
+        fileType?: string
+      ) => {
+        // Check if file upload exists and belongs to project
+        const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+        let fileUpload = await getFileInfo({ fileId, projectId })
+        if (!fileUpload) {
+          // Fallback: Check if blob exists in blob_storage
+          const getBlob = getBlobFactory({ db: projectDb })
+          const storedBlob = await getBlob({ streamId: projectId, blobId: fileId })
+          if (!storedBlob) {
+            throw new Error('File upload not found in project.')
+          }
+
+          // Insert new file_uploads record using metadata
+          const saveUploadFile = saveUploadFileFactoryV2({ db: projectDb })
+          fileUpload = await saveUploadFile({
+            fileId: storedBlob.id,
+            projectId: storedBlob.streamId,
+            modelId: commit.branchId,
+            userId: storedBlob.userId || userId,
+            fileName: fileName || storedBlob.fileName || 'unknown',
+            fileType: fileType || storedBlob.fileType || fileName?.split('.').pop() || 'unknown',
+            fileSize: fileSize || storedBlob.fileSize || 0,
+            modelName: ''
+          })
+
+          // Ensure blob upload status is marked as Completed
+          await projectDb('blob_storage')
+            .where({ id: fileId, streamId: projectId })
+            .update({
+              uploadStatus: 2, // Completed
+              fileSize: fileSize || storedBlob.fileSize || 0
+            })
         }
 
-        // Insert new file_uploads record using metadata
-        const saveUploadFile = saveUploadFileFactoryV2({ db: projectDb })
-        fileUpload = await saveUploadFile({
-          fileId: storedBlob.id,
-          projectId: storedBlob.streamId,
-          modelId: commit.branchId,
-          userId: storedBlob.userId || req.context.userId || '',
-          fileName: fileName || storedBlob.fileName || 'unknown',
-          fileType: fileType || storedBlob.fileType || fileName?.split('.').pop() || 'unknown',
-          fileSize: fileSize || storedBlob.fileSize || 0,
-          modelName: ''
+        // Update the file upload record
+        const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+        const updatedFile = (await updateFileUpload({
+          id: fileId,
+          upload: {
+            convertedStatus: FileUploadConvertedStatus.Completed,
+            convertedCommitId: versionId,
+            convertedMessage: null,
+            convertedLastUpdate: new Date(),
+            modelId: commit.branchId
+          }
+        })) as FileUploadRecord
+
+        // Emit event notification
+        const emitFileStatusChange = notifyChangeInFileStatus({
+          eventEmit: getEventBus().emit
+        })
+        await emitFileStatusChange({
+          file: updatedFile
         })
 
-        // Ensure blob upload status is marked as Completed
-        await projectDb('blob_storage')
-          .where({ id: fileId, streamId: projectId })
-          .update({
-            uploadStatus: 2, // Completed
-            fileSize: fileSize || storedBlob.fileSize || 0
-          })
+        return updatedFile
       }
 
-      // Update the file upload record
-      const updateFileUpload = updateFileUploadFactory({ db: projectDb })
-      const updatedFile = (await updateFileUpload({
-        id: fileId,
-        upload: {
-          convertedStatus: FileUploadConvertedStatus.Completed,
-          convertedCommitId: versionId,
-          convertedMessage: null,
-          convertedLastUpdate: new Date(),
-          modelId: commit.branchId
+      if (req.is('multipart/form-data')) {
+        const busboy = createBusboy(req)
+        const newFileStreamProcessor = await processNewFileStream({
+          busboy,
+          streamId: projectId,
+          userId,
+          logger: req.log,
+          onFinishAllFileUploads: async (uploadResults) => {
+            try {
+              if (!uploadResults || uploadResults.length === 0) {
+                res.status(400).json({ error: 'No files were uploaded.' })
+                return
+              }
+              const uploadResult = uploadResults[0]
+              const fileType = uploadResult.fileName.split('.').pop() || ''
+              const updatedFile = await executeBinding(
+                uploadResult.blobId,
+                uploadResult.fileName,
+                uploadResult.fileSize || 0,
+                fileType
+              )
+              res.status(200).json({ upload: updatedFile })
+            } catch (err) {
+              req.log.error(ensureError(err), 'Binding uploaded file error')
+              res.status(500).json({ error: ensureError(err).message })
+            }
+          },
+          onError: () => {
+            res.status(400).json({ error: 'File upload error.' })
+          }
+        })
+        req.pipe(newFileStreamProcessor)
+      } else {
+        const bodyParseResult = bindFileBodySchema.safeParse(req.body)
+        if (!bodyParseResult.success) {
+          return res.status(400).json({ error: bodyParseResult.error.message })
         }
-      })) as FileUploadRecord
 
-      // Emit event notification
-      const emitFileStatusChange = notifyChangeInFileStatus({
-        eventEmit: getEventBus().emit
-      })
-      await emitFileStatusChange({
-        file: updatedFile
-      })
-
-      return res.status(200).json({ upload: updatedFile })
+        const { fileId, fileName, fileSize, fileType } = bodyParseResult.data
+        try {
+          const updatedFile = await executeBinding(fileId, fileName, fileSize, fileType)
+          return res.status(200).json({ upload: updatedFile })
+        } catch (err) {
+          return res.status(404).json({ error: ensureError(err).message })
+        }
+      }
     }
   )
 

@@ -63,24 +63,11 @@ import { ref, computed, watch } from 'vue'
 import type { Nullable } from '@speckle/shared'
 import { ensureError } from '@speckle/shared'
 import { ArrowUpTrayIcon } from '@heroicons/vue/24/outline'
-import { useApolloClient } from '@vue/apollo-composable'
-import { graphql } from '~~/lib/common/generated/gql'
 import type { ProjectModelPageDialogDeleteVersionFragment } from '~~/lib/common/generated/gql/graphql'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useFileImportBaseSettings } from '~~/lib/core/composables/fileImport'
 import type { UploadableFileItem } from '@speckle/ui-components'
-
-const generateUploadUrlMutation = graphql(`
-  mutation BindFileDialogGenerateUploadUrl($input: GenerateFileUploadUrlInput!) {
-    fileUploadMutations {
-      generateUploadUrl(input: $input) {
-        url
-        fileId
-      }
-    }
-  }
-`)
 
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
@@ -93,7 +80,6 @@ const props = defineProps<{
   open: boolean
 }>()
 
-const apollo = useApolloClient().client
 const apiOrigin = useApiOrigin()
 const authToken = useAuthCookie()
 const { maxSizeInBytes } = useFileImportBaseSettings()
@@ -135,87 +121,42 @@ const onUploadAndBind = async () => {
   const versionId = props.version.id
 
   try {
-    // 1. Generate upload URL via GQL mutation
-    const generateUploadUrlResponse = await apollo.mutate({
-      mutation: generateUploadUrlMutation,
-      variables: {
-        input: {
-          projectId,
-          fileName: file.name
-        }
-      }
-    })
+    const formData = new FormData()
+    formData.append('file', file)
 
-    const generateUploadUrl = generateUploadUrlResponse.data?.fileUploadMutations.generateUploadUrl
-    if (!generateUploadUrl) {
-      const errMsg = getFirstGqlErrorMessage(
-        generateUploadUrlResponse.errors,
-        '文件上传失败，无法生成上传URL'
-      )
-      throw new Error(errMsg)
-    }
-
-    const { url: uploadUrl, fileId } = generateUploadUrl
-
-    // 2. PUT file content to S3
     const request = new XMLHttpRequest()
-    request.open('PUT', uploadUrl)
-    request.setRequestHeader('Content-Type', file.type)
+    request.open(
+      'POST',
+      `${apiOrigin}/api/v1/projects/${projectId}/versions/${versionId}/bind-file`
+    )
+    request.setRequestHeader('Authorization', `Bearer ${authToken.value}`)
 
     request.upload.addEventListener('progress', (e) => {
       progress.value = (e.loaded / e.total) * 100
     })
 
-    const uploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
+    const uploadPromise = new Promise<{ upload: any }>((resolve, reject) => {
       request.addEventListener('load', () => {
         const statusCode = request.status
+        let responseJson: any = {}
+        try {
+          responseJson = JSON.parse(request.responseText || '{}')
+        } catch {
+          // ignore
+        }
         if (statusCode >= 200 && statusCode < 300) {
-          const etag = request.getResponseHeader('ETag')
-          if (!etag) {
-            reject(new Error('文件上传失败，上传响应中没有ETag'))
-          } else {
-            resolve({ etag })
-          }
+          resolve(responseJson)
         } else {
-          const errorMessage = request.responseText.match(
-            /<Message>(.*?)<\/Message>/
-          )?.[1]
-          reject(new Error(errorMessage || `文件${file.name}上传失败，未知错误发生`))
+          reject(new Error(responseJson.error || `绑定文件失败，状态码: ${statusCode}`))
         }
       })
       request.addEventListener('error', () => {
-        reject(new Error(`文件${file.name}上传失败`))
+        reject(new Error(`文件 ${file.name} 上传与绑定失败`))
       })
     })
 
-    request.send(file)
+    request.send(formData)
     await uploadPromise
-
-    // Extract fileType from fileName
-    const fileType = file.name.split('.').pop() || ''
-
-    // 3. Call REST API to bind the file upload record to the version
-    const bindResponse = await fetch(
-      `${apiOrigin}/api/v1/projects/${projectId}/versions/${versionId}/bind-file`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken.value}`
-        },
-        body: JSON.stringify({
-          fileId,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType
-        })
-      }
-    )
-
-    if (!bindResponse.ok) {
-      const errorJson = await bindResponse.json().catch(() => ({}))
-      throw new Error(errorJson.error || `绑定文件失败，状态码: ${bindResponse.status}`)
-    }
 
     // Success! Show notification
     const { triggerNotification } = useGlobalToast()

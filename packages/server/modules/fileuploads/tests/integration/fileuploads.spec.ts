@@ -488,5 +488,28 @@ describe('FileUploads @fileuploads integration', () => {
       expect(dbUpload.convertedStatus).to.equal(2)
       expect(dbUpload.modelId).to.equal(branchId)
     })
+
+    it('Should upload a file and bind it to a version when using multipart/form-data', async () => {
+      const readmePath = fileURLToPath(import.meta.resolve('@/readme.md'))
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .set('Accept', 'application/json')
+        .attach('file', readmePath, 'uploaded_bind.ifc')
+
+      expect(response.statusCode).to.equal(200)
+      const uploadedFileId = response.body.upload.id
+      expect(uploadedFileId).to.exist
+      expect(response.body.upload.convertedCommitId).to.equal(versionId)
+      expect(response.body.upload.convertedStatus).to.equal(2) // Completed
+      expect(response.body.upload.modelId).to.equal(branchId)
+
+      // Verify db changes
+      const [dbUpload] = await db('file_uploads').where({ id: uploadedFileId })
+      expect(dbUpload).to.exist
+      expect(dbUpload.convertedCommitId).to.equal(versionId)
+      expect(dbUpload.convertedStatus).to.equal(2)
+      expect(dbUpload.modelId).to.equal(branchId)
+    })
   })
 })
