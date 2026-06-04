@@ -1,14 +1,22 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
+import { z } from 'zod'
+import { validateRequest } from 'zod-express'
 import {
   insertNewUploadAndNotifyFactory,
-  insertNewUploadAndNotifyFactoryV2
+  insertNewUploadAndNotifyFactoryV2,
+  notifyChangeInFileStatus
 } from '@/modules/fileuploads/services/management'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
 import {
   saveUploadFileFactory,
-  saveUploadFileFactoryV2
+  saveUploadFileFactoryV2,
+  getFileInfoFactoryV2,
+  updateFileUploadFactory
 } from '@/modules/fileuploads/repositories/fileUploads'
+import { getCommitFactory } from '@/modules/core/repositories/commits'
+import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import type { FileUploadRecord } from '@/modules/fileuploads/helpers/types'
 import { db } from '@/db/knex'
 import { streamWritePermissionsPipelineFactory } from '@/modules/shared/authz'
 import { getStreamBranchByNameFactory } from '@/modules/core/repositories/branches'
@@ -16,6 +24,7 @@ import { getStreamFactory } from '@/modules/core/repositories/streams'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { createBusboy } from '@/modules/blobstorage/rest/busboy'
 import { processNewFileStreamFactory } from '@/modules/blobstorage/services/streams'
+import { getBlobFactory } from '@/modules/blobstorage/repositories'
 import { UnauthorizedError } from '@/modules/shared/errors'
 import type { Nullable } from '@speckle/shared'
 import { ensureError } from '@speckle/shared'
@@ -186,6 +195,100 @@ export const fileuploadRouterFactory = (): Router => {
       })
     ),
     async (req, res) => await handleUploadRequest(req, res)
+  )
+
+  const bindFileRouteParamsSchema = z.object({
+    projectId: z.string().trim().min(1),
+    versionId: z.string().trim().min(1)
+  })
+
+  const bindFileBodySchema = z.object({
+    fileId: z.string().trim().min(1),
+    fileName: z.string().trim().optional(),
+    fileSize: z.number().int().nonnegative().optional(),
+    fileType: z.string().trim().optional()
+  })
+
+  app.post(
+    '/api/v1/projects/:projectId/versions/:versionId/bind-file',
+    authMiddlewareCreator(
+      streamWritePermissionsPipelineFactory({
+        getStream: getStreamFactory({ db })
+      })
+    ),
+    validateRequest({
+      params: bindFileRouteParamsSchema,
+      body: bindFileBodySchema
+    }),
+    async (req, res) => {
+      const { projectId, versionId } = req.params
+      const { fileId, fileName, fileSize, fileType } = req.body
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      // Check if commit/version exists and belongs to project
+      const getCommit = getCommitFactory({ db: projectDb })
+      const commit = await getCommit(versionId, { streamId: projectId })
+      if (!commit) {
+        return res.status(404).json({ error: 'Version not found in project.' })
+      }
+
+      // Check if file upload exists and belongs to project
+      const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+      let fileUpload = await getFileInfo({ fileId, projectId })
+      if (!fileUpload) {
+        // Fallback: Check if blob exists in blob_storage
+        const getBlob = getBlobFactory({ db: projectDb })
+        const storedBlob = await getBlob({ streamId: projectId, blobId: fileId })
+        if (!storedBlob) {
+          return res.status(404).json({ error: 'File upload not found in project.' })
+        }
+
+        // Insert new file_uploads record using metadata
+        const saveUploadFile = saveUploadFileFactoryV2({ db: projectDb })
+        fileUpload = await saveUploadFile({
+          fileId: storedBlob.id,
+          projectId: storedBlob.streamId,
+          modelId: commit.branchId,
+          userId: storedBlob.userId || req.context.userId || '',
+          fileName: fileName || storedBlob.fileName || 'unknown',
+          fileType: fileType || storedBlob.fileType || fileName?.split('.').pop() || 'unknown',
+          fileSize: fileSize || storedBlob.fileSize || 0,
+          modelName: ''
+        })
+
+        // Ensure blob upload status is marked as Completed
+        await projectDb('blob_storage')
+          .where({ id: fileId, streamId: projectId })
+          .update({
+            uploadStatus: 2, // Completed
+            fileSize: fileSize || storedBlob.fileSize || 0
+          })
+      }
+
+      // Update the file upload record
+      const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+      const updatedFile = (await updateFileUpload({
+        id: fileId,
+        upload: {
+          convertedStatus: FileUploadConvertedStatus.Completed,
+          convertedCommitId: versionId,
+          convertedMessage: null,
+          convertedLastUpdate: new Date(),
+          modelId: commit.branchId
+        }
+      })) as FileUploadRecord
+
+      // Emit event notification
+      const emitFileStatusChange = notifyChangeInFileStatus({
+        eventEmit: getEventBus().emit
+      })
+      await emitFileStatusChange({
+        file: updatedFile
+      })
+
+      return res.status(200).json({ upload: updatedFile })
+    }
   )
 
   return app

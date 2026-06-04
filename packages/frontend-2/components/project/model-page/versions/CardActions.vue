@@ -64,6 +64,12 @@ const actionsItems = computed<LayoutMenuItem<VersionActionTypes>[][]>(() => [
       id: VersionActionTypes.EditMessage,
       disabled: !!props.selectionDisabled,
       disabledTooltip: disabledMessage.value
+    },
+    {
+      title: '绑定文件...',
+      id: VersionActionTypes.BindFile,
+      disabled: !!props.selectionDisabled,
+      disabledTooltip: disabledMessage.value
     }
   ],
   [

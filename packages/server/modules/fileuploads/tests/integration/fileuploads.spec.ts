@@ -13,6 +13,18 @@ import type { BasicTestUser } from '@/test/authHelper'
 import { createTestUser } from '@/test/authHelper'
 import { createTestStream } from '@/test/speckle-helpers/streamHelper'
 import { buildBasicTestProject } from '@/modules/core/tests/helpers/creation'
+import { db } from '@/db/knex'
+import { getStreamBranchByNameFactory } from '@/modules/core/repositories/branches'
+import {
+  createCommitFactory,
+  insertStreamCommitsFactory,
+  insertBranchCommitsFactory
+} from '@/modules/core/repositories/commits'
+import { getBranchByIdFactory, markCommitBranchUpdatedFactory } from '@/modules/core/repositories/branches'
+import { getObjectFactory, storeSingleObjectIfNotFoundFactory } from '@/modules/core/repositories/objects'
+import { createCommitByBranchIdFactory } from '@/modules/core/services/commit/management'
+import { createObjectFactory } from '@/modules/core/services/objects/management'
+import { getEventBus } from '@/modules/shared/services/eventBus'
 
 const { createToken } = initUploadTestEnvironment()
 const gqlQueryToListFileUploads = `query ($streamId: String!) {
@@ -306,11 +318,175 @@ describe('FileUploads @fileuploads integration', () => {
         variables: { streamId: createdStreamId }
       })
       expect(noErrors(gqlResponse))
-      expect(
-        gqlResponse.body.data.stream.fileUploads,
-        JSON.stringify(gqlResponse.body.data)
-      ).to.have.lengthOf(0)
+      expect(gqlResponse.body.data.stream.fileUploads, JSON.stringify(gqlResponse.body.data)).to.have.lengthOf(0)
       //TODO expect no subscription notifications
+    })
+  })
+
+  describe('Bind File to Model Version', () => {
+    let fileId: string
+    let versionId: string
+    let branchId: string
+
+    beforeEach(async () => {
+      // 1. Upload a file
+      const readmePath = fileURLToPath(import.meta.resolve('@/readme.md'))
+      const response = await request(app)
+        .post(`/api/file/autodetect/${createdStreamId}/main`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .set('Accept', 'application/json')
+        .attach('test.ifc', readmePath, 'test.ifc')
+
+      expect(response.statusCode).to.equal(201)
+      fileId = response.body.uploadResults[0].blobId
+
+      // 2. Get main branch ID
+      const getStreamBranchByName = getStreamBranchByNameFactory({ db })
+      const branch = await getStreamBranchByName(createdStreamId, 'main')
+      expect(branch).to.exist
+      branchId = branch!.id
+
+      // 3. Create a version (commit)
+      const createCommit = createCommitFactory({ db })
+      const getObject = getObjectFactory({ db })
+      const getBranchById = getBranchByIdFactory({ db })
+      const insertStreamCommits = insertStreamCommitsFactory({ db })
+      const insertBranchCommits = insertBranchCommitsFactory({ db })
+      const markCommitBranchUpdated = markCommitBranchUpdatedFactory({ db })
+
+      const createCommitByBranchId = createCommitByBranchIdFactory({
+        createCommit,
+        getObject,
+        getBranchById,
+        insertStreamCommits,
+        insertBranchCommits,
+        markCommitBranchUpdated,
+        emitEvent: getEventBus().emit
+      })
+
+      const createObject = createObjectFactory({
+        storeSingleObjectIfNotFoundFactory: storeSingleObjectIfNotFoundFactory({ db })
+      })
+
+      const objectId = await createObject({
+        streamId: createdStreamId,
+        object: { foo: 'bar' }
+      })
+
+      const commit = await createCommitByBranchId({
+        authorId: userOne.id,
+        streamId: createdStreamId,
+        branchId: branchId,
+        message: 'Test version for binding',
+        sourceApplication: 'IntegrationTest',
+        objectId: objectId,
+        parents: []
+      })
+      versionId = commit.id
+    })
+
+    it('Should bind a file to a version when user has write access', async () => {
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .send({ fileId })
+
+      expect(response.statusCode).to.equal(200)
+      expect(response.body.upload.id).to.equal(fileId)
+      expect(response.body.upload.convertedCommitId).to.equal(versionId)
+      expect(response.body.upload.convertedStatus).to.equal(2) // Completed
+      expect(response.body.upload.modelId).to.equal(branchId)
+
+      // Verify db changes
+      const [dbUpload] = await db('file_uploads').where({ id: fileId })
+      expect(dbUpload.convertedCommitId).to.equal(versionId)
+      expect(dbUpload.convertedStatus).to.equal(2)
+      expect(dbUpload.modelId).to.equal(branchId)
+    })
+
+    it('Should return 403 when not authenticated', async () => {
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .send({ fileId })
+
+      expect(response.statusCode).to.equal(403)
+    })
+
+    it('Should return 403 when token lacks write permissions', async () => {
+      const { token: readToken } = await createToken({
+        userId: userOne.id,
+        name: 'read token',
+        scopes: [Scopes.Streams.Read]
+      })
+
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .set('Authorization', `Bearer ${readToken}`)
+        .send({ fileId })
+
+      expect(response.statusCode).to.equal(403)
+    })
+
+    it('Should return 404 when version is not in project', async () => {
+      const badVersionId = cryptoRandomString({ length: 10 })
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${badVersionId}/bind-file`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .send({ fileId })
+
+      expect(response.statusCode).to.equal(404)
+      expect(response.body.error).to.contain('Version not found')
+    })
+
+    it('Should return 404 when file is not in project', async () => {
+      const badFileId = cryptoRandomString({ length: 10 })
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .send({ fileId: badFileId })
+
+      expect(response.statusCode).to.equal(404)
+      expect(response.body.error).to.contain('File upload not found')
+    })
+
+    it('Should bind a file to a version and insert file_uploads when file upload record is missing but blob exists', async () => {
+      // 1. Delete from file_uploads to simulate missing record
+      await db('file_uploads').where({ id: fileId }).del()
+
+      // 2. Ensure the blob exists in blob_storage
+      await db('blob_storage').insert({
+        id: fileId,
+        streamId: createdStreamId,
+        userId: userOne.id,
+        objectKey: 'some-key',
+        fileName: 'test.ifc',
+        fileType: 'ifc',
+        fileSize: 100
+      }).onConflict(['id', 'streamId']).ignore()
+
+      // 3. Make bind request
+      const response = await request(app)
+        .post(`/api/v1/projects/${createdStreamId}/versions/${versionId}/bind-file`)
+        .set('Authorization', `Bearer ${userOneToken}`)
+        .send({
+          fileId,
+          fileName: 'test.ifc',
+          fileSize: 100,
+          fileType: 'ifc'
+        })
+
+      expect(response.statusCode).to.equal(200)
+      expect(response.body.upload.id).to.equal(fileId)
+      expect(response.body.upload.convertedCommitId).to.equal(versionId)
+      expect(response.body.upload.convertedStatus).to.equal(2) // Completed
+      expect(response.body.upload.modelId).to.equal(branchId)
+
+      // Verify db changes
+      const [dbUpload] = await db('file_uploads').where({ id: fileId })
+      expect(dbUpload).to.exist
+      expect(dbUpload.convertedCommitId).to.equal(versionId)
+      expect(dbUpload.convertedStatus).to.equal(2)
+      expect(dbUpload.modelId).to.equal(branchId)
     })
   })
 })

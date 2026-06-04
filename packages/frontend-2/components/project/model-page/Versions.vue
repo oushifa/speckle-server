@@ -85,6 +85,12 @@
       :version="editMessageDialogVersion"
       @fully-closed="dialogState = null"
     />
+    <ProjectModelPageDialogBindFile
+      v-model:open="isBindFileDialogOpen"
+      :project-id="project.id"
+      :version="bindFileDialogVersion"
+      @fully-closed="dialogState = null"
+    />
     <ProjectModelPageDialogEmbed
       v-model:open="embedDialogOpen"
       :project="project"
@@ -251,6 +257,20 @@ const editMessageDialogVersion = computed(() =>
 )
 const isEditMessageDialogOpen = computed({
   get: () => !!(editMessageDialogVersion.value && !dialogState.value?.closed),
+  set: (newVal) => {
+    if (!newVal && dialogState.value) {
+      dialogState.value.closed = true
+    }
+  }
+})
+
+const bindFileDialogVersion = computed(() =>
+  dialogState.value?.type === VersionActionTypes.BindFile
+    ? dialogState.value.items[0]
+    : null
+)
+const isBindFileDialogOpen = computed({
+  get: () => !!(bindFileDialogVersion.value && !dialogState.value?.closed),
   set: (newVal) => {
     if (!newVal && dialogState.value) {
       dialogState.value.closed = true

@@ -100,7 +100,8 @@ export enum VersionActionTypes {
   Select = 'select',
   Share = 'share',
   CopyId = 'copy-id',
-  EmbedModel = 'embed-model'
+  EmbedModel = 'embed-model',
+  BindFile = 'bind-file'
 }
 
 export enum OpenSectionType {
