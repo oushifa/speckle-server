@@ -18,7 +18,8 @@ const config: Config = {
   theme: {
     fontFamily: {
       sans: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'",
-      mono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+      mono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+      Youshe: "Youshe, sans-serif"
     },
     extend: {
       // Standard Tailwind Shadows add shadows below the element, 'shadow-t" variant adds shadow to the top of the element.
@@ -93,7 +94,7 @@ const config: Config = {
         xl: '0.625rem',
         '2xl': '0.75rem',
         '4xl': '2rem'
-      }
+      },
     }
   },
   plugins: [FormsPlugin]

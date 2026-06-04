@@ -1,7 +1,7 @@
 <template>
   <div>
     <nav
-      class="fixed z-40 top-0 h-12 bg-gradient-to-r from-[#2c3e50] to-[#34495e] text-white border-outline-2"
+      class="fixed z-40 top-0 h-12 bg-gradient-to-r bg-[rgb(26,40,70)] text-white border-outline-2"
     >
       <div
         class="flex gap-4 items-center justify-between h-full w-screen px-2 lg:pl-1.5"
@@ -16,12 +16,15 @@
           />
         </div>
         <div class="flex items-center truncate gap-6">
-          <div
+          <div class="truncate text-[24px] font-medium text-white font-Youshe">
+            南北通道浦西段和越江段新建工程
+          </div>
+          <!-- <div
             v-if="currentProjectName"
             class="truncate text-[24px] font-medium text-white font-[Youshe]"
           >
             {{ currentProjectName }}
-          </div>
+          </div> -->
           <!-- <ClientOnly>
             <PortalTarget name="mobile-navigation"></PortalTarget>
           </ClientOnly>

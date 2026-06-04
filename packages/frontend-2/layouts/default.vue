@@ -7,14 +7,12 @@
 
       <div class="relative flex h-[calc(100dvh-3rem)]">
         <DashboardSidebar />
-        <div class="size-full bg-[#2c3e50]">
+        <div class="size-full bg-[rgb(26,40,70)]">
           <div
             style="border-top-left-radius: 30px"
             class="size-full bg-white overflow-hidden"
           >
-            <main
-              class="h-full w-full overflow-y-auto simple-scrollbar"
-            >
+            <main class="h-full w-full overflow-y-auto simple-scrollbar">
               <div class="min-h-full w-full p-[25px]">
                 <slot />
               </div>

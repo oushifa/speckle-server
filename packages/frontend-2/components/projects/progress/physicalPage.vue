@@ -92,13 +92,6 @@
               </span>
             </label>
             <span v-else class="truncate text-body-sm flex-1">{{ node.label }}</span>
-
-            <span
-              v-if="node.type === 'model' && node.updatedAt"
-              class="text-[10px] px-1.5 py-0.5 rounded-full bg-foundation-2 text-foreground-2"
-            >
-              {{ formatDate(node.updatedAt) }}
-            </span>
           </div>
         </div>
 
@@ -545,15 +538,23 @@ const parseDateDayTimestamp = (value?: string | null) => {
 
 const compareFinishTiming = (
   actualFinishAt?: string | null,
+  plannedStartAt?: string | null,
   plannedFinishAt?: string | null
 ): PhysicalProgressDisplayStatus => {
   const actualFinish = parseDateDayTimestamp(actualFinishAt)
+  const plannedStart = parseDateDayTimestamp(plannedStartAt)
   const plannedFinish = parseDateDayTimestamp(plannedFinishAt)
 
   if (!actualFinish) return 'finished_on_time'
-  if (!plannedFinish) return 'finished_on_time'
-  if (actualFinish < plannedFinish) return 'finished_ahead'
-  if (actualFinish > plannedFinish) return 'finished_delayed'
+
+  if (plannedStart !== null && actualFinish < plannedStart) {
+    return 'finished_ahead'
+  }
+
+  if (plannedFinish !== null && actualFinish > plannedFinish) {
+    return 'finished_delayed'
+  }
+
   return 'finished_on_time'
 }
 
@@ -564,8 +565,24 @@ const getSnapshotDisplayStatusAtTime = (
   const currentDay = getStartOfDayTimestamp(timestamp)
   const plannedStart = parseDateDayTimestamp(snapshot.plannedStartAt)
   const plannedFinish = parseDateDayTimestamp(snapshot.plannedFinishAt)
+  const actualStart = parseDateDayTimestamp(snapshot.actualStartAt)
   const actualFinish = parseDateDayTimestamp(snapshot.actualFinishAt)
 
+  // 1. If it has actually finished on or before the current playback day
+  if (actualFinish !== null && currentDay >= actualFinish) {
+    return compareFinishTiming(snapshot.actualFinishAt, snapshot.plannedStartAt, snapshot.plannedFinishAt)
+  }
+
+  // 2. Determine if it has started at the current playback day
+  if (actualStart !== null) {
+    if (currentDay >= actualStart) {
+      return 'in_progress'
+    } else {
+      return 'not_started'
+    }
+  }
+
+  // 3. Fallback to planned schedule when there is no actual start info
   if (plannedStart === null && plannedFinish === null) {
     return 'not_started'
   }
@@ -574,14 +591,7 @@ const getSnapshotDisplayStatusAtTime = (
     return 'not_started'
   }
 
-  if (plannedFinish !== null && currentDay > plannedFinish) {
-    if (actualFinish !== null) {
-      return compareFinishTiming(snapshot.actualFinishAt, snapshot.plannedFinishAt)
-    }
-    return 'finished_on_time'
-  }
-
-  if (plannedStart !== null) {
+  if (plannedStart !== null || plannedFinish !== null) {
     return 'in_progress'
   }
 

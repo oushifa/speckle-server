@@ -27,10 +27,10 @@
         :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
       >
         <div
-          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
+          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[rgb(26,40,70)] z-[99] text-red-400 pointer-events-none"
         ></div>
         <LayoutSidebar
-          class="project-sidebar border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b from-[#2c3e50] to-[#1a252f]"
+          class="project-sidebar border-outline-3 px-2 pt-3 pb-2 bg-gradient-to-b bg-[rgb(26,40,70)]"
         >
           <LayoutSidebarMenu>
             <LayoutSidebarMenuGroup

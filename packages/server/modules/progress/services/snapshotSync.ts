@@ -152,13 +152,23 @@ const resolveElementProgressStatus = (params: {
   now: Date
 }): ProgressElementSnapshotStatus => {
   if (params.actualFinishAt) {
-    if (!params.plannedFinishAt) return 'finished_on_time'
-
     const actualTime = params.actualFinishAt.getTime()
-    const plannedTime = params.plannedFinishAt.getTime()
-    if (actualTime < plannedTime) return 'finished_ahead'
-    if (actualTime === plannedTime) return 'finished_on_time'
-    return 'finished_delayed'
+
+    if (
+      params.plannedStartAt &&
+      actualTime < params.plannedStartAt.getTime()
+    ) {
+      return 'finished_ahead'
+    }
+
+    if (
+      params.plannedFinishAt &&
+      actualTime > params.plannedFinishAt.getTime()
+    ) {
+      return 'finished_delayed'
+    }
+
+    return 'finished_on_time'
   }
 
   if (params.actualStartAt) {

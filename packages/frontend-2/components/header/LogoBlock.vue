@@ -6,7 +6,7 @@
     :target="target"
   >
     <div id="logo">
-      <span class="font-[Youshe] text-3xl font-bold">BIM赋能</span>
+      <span class="font-Youshe text-[32px]">BIM赋能</span>
     </div>
   </Component>
 </template>
@@ -41,10 +41,11 @@ const mainComponent = computed(() => (props.noLink ? 'div' : NuxtLink))
   display: flex;
   align-items: center;
   font-size: 32px;
-  letter-spacing: 28%;
+  letter-spacing: 2px;
   justify-content: flex-end;
+  font-weight: regular;
 }
 #logo > span {
-  padding-right: 36px;
+  padding-right: 60px;
 }
 </style>

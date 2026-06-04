@@ -1,7 +1,7 @@
 <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
 <!-- eslint-disable vuejs-accessibility/no-static-element-interactions -->
 <template>
-  <div class="group h-full bg-gradient-to-b from-[#2c3e50] to-[#34495e]">
+  <div class="group h-full bg-gradient-to-b bg-[rgb(26,40,70)]">
     <template v-if="isLoggedIn">
       <Portal to="mobile-navigation">
         <div class="lg:hidden">
@@ -27,7 +27,7 @@
         :class="isOpenMobile ? '' : '-translate-x-[185px] lg:translate-x-0'"
       >
         <div
-          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[#2c3e50] z-[99] text-red-400 pointer-events-none"
+          class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[rgb(26,40,70)] z-[99] text-red-400 pointer-events-none"
         ></div>
         <LayoutSidebar class="border-outline-3 px-2 pt-3 pb-2">
           <LayoutSidebarMenu>
