@@ -198,7 +198,7 @@ describe('MONTHLY_MEASUREMENT Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
 
     expect(res.body.kind).to.equal('single')
@@ -250,7 +250,7 @@ describe('MONTHLY_MEASUREMENT Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
 
     expect(res.body.kind).to.equal('single')
@@ -289,7 +289,7 @@ describe('MONTHLY_MEASUREMENT Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
     expect(resUpdate.body.kind).to.equal('single')
     // @ts-ignore
@@ -319,7 +319,7 @@ describe('MONTHLY_MEASUREMENT Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
     expect(resDelete.body.kind).to.equal('single')
     // @ts-ignore

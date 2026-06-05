@@ -113,6 +113,10 @@ type Model {
   ): VersionCollection!
   folders: [Folder!]!
   projectId: String!
+  """
+  获取当前模型下最新审核通过的版本
+  """
+  latestApprovedVersion: Version
 }
 
 type ModelCollection {
@@ -295,6 +299,7 @@ type Version {
   previewUrl: String!
   totalChildrenCount: Int
   parents: [String]
+  approveStatus: String
 }
 
 type VersionCollection {

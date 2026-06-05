@@ -65,6 +65,14 @@
                 :version-id="version.id"
               />
             </div>
+            <div
+              v-if="!isPendingVersionFragment(version) && version.approveStatus"
+              class="absolute top-2 right-2 z-20"
+            >
+              <div :class="statusTagClass">
+                {{ approveStatusLabel }}
+              </div>
+            </div>
           </template>
         </div>
         <div class="flex items-center">
@@ -132,6 +140,7 @@ graphql(`
   fragment ProjectModelPageVersionsCardVersion on Version {
     id
     message
+    approveStatus
     authorUser {
       ...LimitedUserAvatar
     }
@@ -175,6 +184,34 @@ const { formattedRelativeDate, formattedFullDate } = useDateFormatters()
 const isAutomateModuleEnabled = useIsAutomateModuleEnabled()
 
 const showActionsMenu = ref(false)
+
+const versionApproveStatus = computed(() => {
+  if (isPendingVersionFragment(props.version)) return null
+  return props.version.approveStatus || null
+})
+
+const approveStatusLabel = computed(() => {
+  const status = (versionApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW') return '审核中'
+  if (status === 'REJECTED') return '未通过'
+  if (status === 'APPROVED') return '已通过'
+  if (status === 'RETURNED') return '已退回'
+  if (status === 'CANCELED') return '已取消'
+  return '未审核'
+})
+
+const statusTagClass = computed(() => {
+  const source =
+    'flex items-center gap-1 border-solid border rounded-full px-2 py-0.5 text-xs font-semibold backdrop-blur-sm shadow-sm select-none'
+  const status = (versionApproveStatus.value || '').toUpperCase()
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW')
+    return source + ' !bg-primary-muted !text-primary !border-primary-muted'
+  if (status === 'REJECTED') return source + ' !bg-danger !text-white !border-danger'
+  if (status === 'APPROVED') return source + ' !bg-success !text-white !border-success'
+  if (status === 'RETURNED') return source + ' !bg-warning !text-white !border-warning'
+  if (status === 'CANCELED') return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
+  return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
+})
 
 // Check if the version is limited due to plan restrictions
 const isLimited = computed(() => {

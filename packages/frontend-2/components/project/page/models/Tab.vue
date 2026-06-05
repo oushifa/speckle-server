@@ -5,6 +5,7 @@
       v-model:selected-members="selectedMembers"
       v-model:grid-or-list="gridOrList"
       v-model:search="search"
+      v-model:show-only-approved="showOnlyApproved"
       :project="project"
       :project-id="projectId"
       :disabled="loading"
@@ -15,6 +16,7 @@
       v-model:grid-or-list="gridOrList"
       v-model:search="search"
       v-model:loading="loading"
+      :show-only-approved="showOnlyApproved"
       :source-apps="selectedApps"
       :contributors="selectedMembers"
       :project="project"
@@ -39,6 +41,7 @@ const selectedApps = ref([] as SourceAppDefinition[])
 const gridOrList = useProjectPageItemViewType('Models')
 const search = ref('')
 const loading = ref(false)
+const showOnlyApproved = ref(false)
 
 const { result } = useQuery(projectModelsPageQuery, () => ({
   projectId: projectId.value
@@ -50,5 +53,6 @@ const clearSearch = () => {
   search.value = ''
   selectedMembers.value = []
   selectedApps.value = []
+  showOnlyApproved.value = false
 }
 </script>

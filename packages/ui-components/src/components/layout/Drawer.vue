@@ -1,7 +1,7 @@
 <template>
   <TransitionRoot as="template" :show="open">
-    <Dialog as="div" class="relative" static @close="onDialogClose">
-      <div class="fixed inset-0 overflow-hidden" :style="{ zIndex: `${zIndex}` }">
+    <Dialog as="div" class="relative z-50" static @close="onDialogClose">
+      <div class="fixed inset-0 overflow-hidden">
         <TransitionChild
           v-if="mask"
           as="template"
@@ -128,7 +128,6 @@ const props = withDefaults(
     mask: true,
     maskClosable: true,
     keyboard: true,
-    zIndex: 1000,
     destroyOnClose: false
   }
 )

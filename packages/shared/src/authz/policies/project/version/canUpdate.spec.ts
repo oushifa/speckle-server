@@ -39,6 +39,7 @@ const buildSUT = (overrides?: OverridesOf<typeof canUpdateProjectVersionPolicy>)
     getWorkspaceRole: async () => null,
     getWorkspaceSsoProvider: async () => null,
     getWorkspaceSsoSession: async () => null,
+    getAdminOverrideEnabled: async () => false,
     ...overrides
   })
 
@@ -308,5 +309,25 @@ describe('canUpdateProjectVersionPolicy', () => {
         code: WorkspaceSsoSessionNoAccessError.code
       })
     })
+  })
+
+  it('returns ok if admin override is enabled and user is server admin', async () => {
+    const canUpdateProject = buildSUT({
+      getAdminOverrideEnabled: async () => true,
+      getServerRole: async () => Roles.Server.Admin,
+      getVersion: getVersionFake({
+        id: 'version-id',
+        projectId: 'project-id',
+        authorId: 'not-user-id'
+      }),
+      getProjectRole: async () => null
+    })
+    const result = await canUpdateProject({
+      userId: 'admin-user-id',
+      projectId: 'project-id',
+      versionId: 'version-id'
+    })
+
+    expect(result).toBeAuthOKResult()
   })
 })

@@ -23,6 +23,7 @@ import {
   ensureMinimumProjectRoleFragment
 } from '../../../fragments/projects.js'
 import { Roles } from '../../../../core/constants.js'
+import { checkIfAdminOverrideEnabledFragment } from '../../../fragments/server.js'
 
 export const canUpdateProjectVersionPolicy: AuthPolicy<
   | typeof Loaders.getVersion
@@ -33,7 +34,8 @@ export const canUpdateProjectVersionPolicy: AuthPolicy<
   | typeof Loaders.getWorkspace
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
-  | typeof Loaders.getProjectRole,
+  | typeof Loaders.getProjectRole
+  | typeof Loaders.getAdminOverrideEnabled,
   MaybeUserContext & ProjectContext & VersionContext,
   InstanceType<
     | typeof ProjectNotFoundError
@@ -50,6 +52,11 @@ export const canUpdateProjectVersionPolicy: AuthPolicy<
 > =
   (loaders) =>
   async ({ projectId, versionId, userId }) => {
+    const isAdminOverrideEnabled = await checkIfAdminOverrideEnabledFragment(loaders)({
+      userId
+    })
+    if (isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value) return ok()
+
     // Ensure general write access
     const ensuredWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
       loaders

@@ -79,6 +79,15 @@ export default {
     }
   },
   Version: {
+    async approveStatus(parent: any) {
+      const getApprovalFlowBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db })
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'MODEL_VERSION',
+        subjectId: parent.id
+      })
+      const binding = await getApprovalFlowBindingBySubjectKey(subjectKey)
+      return binding ? binding.status : null
+    },
     async authorUser(parent, _args, ctx) {
       const { author } = parent
       if (!author) return null

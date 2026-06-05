@@ -139,7 +139,7 @@
       <div
         v-if="
           !isPendingFileUpload(item) &&
-          item.model?.previewUrl &&
+          previewUrl &&
           !pendingVersion &&
           !isVersionUploading
         "
@@ -150,8 +150,8 @@
           class="h-full w-full block bg-foundation-page rounded-lg border border-outline-3 hover:border-outline-5 overflow-hidden"
         >
           <PreviewImage
-            v-if="item.model?.previewUrl"
-            :preview-url="item.model.previewUrl"
+            v-if="previewUrl"
+            :preview-url="previewUrl"
           />
         </NuxtLink>
       </div>
@@ -247,6 +247,7 @@
             <ProjectPageModelsStructureItem
               :item="child"
               :project="project"
+              :show-only-approved="showOnlyApproved"
               class="flex-grow"
               @model-updated="onModelUpdated"
               @create-submodel="emit('create-submodel', $event)"
@@ -334,6 +335,7 @@ const props = defineProps<{
   item: SingleLevelModelTreeItemFragment | PendingFileUploadFragment
   project: ProjectPageModelsStructureItem_ProjectFragment
   isSearchResult?: boolean
+  showOnlyApproved?: boolean
 }>()
 
 const router = useRouter()
@@ -458,9 +460,13 @@ const hasChildren = computed(() =>
 )
 
 const updatedAt = computed(() => {
-  const date = isPendingFileUpload(props.item)
+  let date = isPendingFileUpload(props.item)
     ? props.item.convertedLastUpdate || props.item.uploadDate
     : props.item.updatedAt
+
+  if (props.showOnlyApproved && !isPendingFileUpload(props.item) && props.item.model?.latestApprovedVersion) {
+    date = props.item.model.latestApprovedVersion.createdAt
+  }
 
   return {
     full: formattedFullDate(date),
@@ -471,19 +477,36 @@ const updatedAt = computed(() => {
 const modelLink = computed(() => {
   const item = isPendingFileUpload(props.item) ? props.item : props.item.model
   if (!item) return null
-  return getModelItemRoute(item)
+  const approvedVersionId = (props.showOnlyApproved && !isPendingFileUpload(props.item) && props.item.model)
+    ? props.item.model.latestApprovedVersion?.id
+    : undefined
+  return getModelItemRoute(item, approvedVersionId)
+})
+
+const previewUrl = computed(() => {
+  if (isPendingFileUpload(props.item) || !props.item.model) return null
+  if (props.showOnlyApproved && props.item.model.latestApprovedVersion?.previewUrl) {
+    return props.item.model.latestApprovedVersion.previewUrl
+  }
+  return props.item.model.previewUrl
 })
 
 const modelApproveStatus = computed(() => {
   if (isPendingFileUpload(props.item)) return null
+  if (props.showOnlyApproved) {
+    return props.item.model?.latestApprovedVersion ? 'APPROVED' : 'NONE_APPROVED'
+  }
   return props.item.model?.approveStatus || null
 })
 
 const approveStatusLabel = computed(() => {
   const status = (modelApproveStatus.value || '').toUpperCase()
-  if (status === 'PENDING') return '审核中'
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW') return '审核中'
   if (status === 'REJECTED') return '未通过'
-  if (status === 'APPROVED') return '已审核'
+  if (status === 'APPROVED') return '已通过'
+  if (status === 'RETURNED') return '已退回'
+  if (status === 'CANCELED') return '已取消'
+  if (status === 'NONE_APPROVED') return '无已通过版本'
   return '未开始'
 })
 
@@ -491,10 +514,13 @@ const approveStatusTagClass = computed(() => {
   const source =
     'flex items-center gap-1 cursor-pointer border-solid border rounded-full'
   const status = (modelApproveStatus.value || '').toUpperCase()
-  if (status === 'PENDING')
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW')
     return source + ' !bg-primary-muted !text-primary !border-primary-muted'
   if (status === 'REJECTED') return source + ' !bg-danger !text-white !border-danger'
   if (status === 'APPROVED') return source + ' !bg-success !text-white !border-success'
+  if (status === 'RETURNED') return source + ' !bg-warning !text-white !border-warning'
+  if (status === 'CANCELED' || status === 'NONE_APPROVED')
+    return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
   return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
 })
 

@@ -131,6 +131,7 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchRoute } from '~~/lib/common/helpers/route'
+import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
@@ -147,45 +148,8 @@ definePageMeta({
   middleware: ['auth']
 })
 
-const targetFlowId = '5408aa67ee'
+const activeFlowTemplateId = ref<string | null>(null)
 const pageSize = 20
-
-const flowDefinitionsQuery = graphql(`
-  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
-    approvalFlowDefinitions(resourceType: $resourceType) {
-      id
-      templateId
-      name
-      resourceType
-      isActive
-      version
-      previousVersionId
-      effectConfig
-      formSchema {
-        key
-        name
-        type
-        required
-        placeholder
-        options {
-          label
-          value
-        }
-      }
-      steps {
-        id
-        name
-        stepIndex
-        requiredApprovals
-        approverIds
-        timeoutHours
-      }
-    }
-  }
-`) as unknown as TypedDocumentNode<
-  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
-  { resourceType: string | null }
->
 
 const startFlowMutation = graphql(`
   mutation FlowStart($input: StartApprovalFlowInput!) {
@@ -212,6 +176,7 @@ type ReviewableProject = NonNullable<
 type UpdateItem = {
   id: string
   resourceId: string
+  modelId: string
   projectId: string
   projectName: string
   title: string
@@ -228,21 +193,12 @@ const { triggerNotification } = useGlobalToast()
 const loading = ref(false)
 const mutating = ref(false)
 const allItems = ref<UpdateItem[]>([])
-const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
 const selectedUpdate = ref<UpdateItem | null>(null)
 const titleFieldValue = ref<unknown>('')
 const currentPage = ref(1)
-
-const targetFlowDefinitions = computed(() =>
-  flowDefinitions.value.filter(
-    (definition) =>
-      (definition as { templateId?: string }).templateId === targetFlowId ||
-      definition.id === targetFlowId
-  )
-)
-const targetFlowDefinition = computed(() => targetFlowDefinitions.value[0] || null)
+const apiOrigin = useApiOrigin()
 const titleField = computed<DynamicFormSchemaField>(() => ({
   key: 'title',
   name: '备注说明',
@@ -307,20 +263,25 @@ const buildItems = (projects: ReviewableProject[]): UpdateItem[] => {
   const items: UpdateItem[] = []
   projects.forEach((project) => {
     project.models.items.forEach((model) => {
-      if (!canStartFlowForModel(model.approveStatus)) return
-      const updateTimestamp = new Date(model.updatedAt).getTime() || 0
-      items.push({
-        id: `${project.id}-${model.id}`,
-        resourceId: model.id,
-        projectId: project.id,
-        projectName: project.name,
-        title: model.displayName || model.name,
-        version: `v${Math.max(1, model.versions.totalCount)}`,
-        description: model.description?.trim() || `来自项目 ${project.name}`,
-        initiator: project.responsible?.trim() || project.team[0]?.user.name || '系统',
-        time: formatUpdateTime(model.updatedAt),
-        updatedAt: updateTimestamp,
-        approveStatus: model.approveStatus
+      const versions = model.versions?.items || []
+      const totalCount = model.versions?.totalCount || 0
+      versions.forEach((version, idx) => {
+        if (!canStartFlowForModel(version.approveStatus)) return
+        const updateTimestamp = new Date(version.createdAt).getTime() || 0
+        items.push({
+          id: `${project.id}-${model.id}-${version.id}`,
+          resourceId: version.id,
+          modelId: model.id,
+          projectId: project.id,
+          projectName: project.name,
+          title: model.displayName || model.name,
+          version: `v${totalCount - idx}`,
+          description: version.message?.trim() || `来自项目 ${project.name}`,
+          initiator: version.authorUser?.name || project.responsible?.trim() || '系统',
+          time: formatUpdateTime(version.createdAt),
+          updatedAt: updateTimestamp,
+          approveStatus: version.approveStatus
+        })
       })
     })
   })
@@ -353,35 +314,37 @@ const loadAllItems = async () => {
   }
 }
 
-const loadFlowDefinitions = async () => {
-  try {
-    const res = await apollo.query({
-      query: flowDefinitionsQuery,
-      variables: {
-        resourceType: 'MODEL'
-      },
-      fetchPolicy: 'network-only'
-    })
-    flowDefinitions.value = (res.data?.approvalFlowDefinitions ||
-      []) as FlowDefinitionsQuery['approvalFlowDefinitions']
-  } catch (e) {
-    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
-  }
-}
 
-const openReviewDialog = (item: UpdateItem) => {
-  if (!targetFlowDefinitions.value.length) {
+
+const openReviewDialog = async (item: UpdateItem) => {
+  mutating.value = true
+  try {
+    const activeDef = await $fetch<{ templateId: string }>(
+      `${apiOrigin}/api/projects/${item.projectId}/approval-definitions/active?category=MODEL_REVIEW`
+    )
+    if (!activeDef?.templateId) {
+      notify(
+        '流程不可用',
+        '未找到该项目下已启用的模型审核流程配置',
+        ToastNotificationType.Warning
+      )
+      return
+    }
+    activeFlowTemplateId.value = activeDef.templateId
+    selectedResourceId.value = item.resourceId
+    selectedUpdate.value = item
+    titleFieldValue.value = ''
+    isStartDialogOpen.value = true
+  } catch (err) {
+    console.error(err)
     notify(
       '流程不可用',
-      `未找到流程定义 ${targetFlowId}`,
+      '未找到该项目下已启用的模型审核流程配置，或获取流程失败',
       ToastNotificationType.Warning
     )
-    return
+  } finally {
+    mutating.value = false
   }
-  selectedResourceId.value = item.resourceId
-  selectedUpdate.value = item
-  titleFieldValue.value = ''
-  isStartDialogOpen.value = true
 }
 
 const submitReviewApproval = async () => {
@@ -390,11 +353,7 @@ const submitReviewApproval = async () => {
     notify('校验失败', '请输入备注说明', ToastNotificationType.Warning)
     return
   }
-  const templateId =
-    targetFlowDefinition.value?.templateId ||
-    targetFlowDefinition.value?.id ||
-    targetFlowId
-  if (!templateId || !selectedResourceId.value) return
+  if (!activeFlowTemplateId.value || !selectedResourceId.value) return
 
   mutating.value = true
   try {
@@ -402,10 +361,11 @@ const submitReviewApproval = async () => {
       mutation: startFlowMutation,
       variables: {
         input: {
-          templateId,
+          projectId: selectedUpdate.value?.projectId,
+          templateId: activeFlowTemplateId.value,
           resourceId: selectedResourceId.value,
           formData: {
-            [titleField.value.key]: titleValue
+            title: titleValue
           }
         }
       }
@@ -424,11 +384,17 @@ const submitReviewApproval = async () => {
 }
 
 const openModelPage = (item: UpdateItem) => {
-  window.open(`/projects/${item.projectId}/models/${item.resourceId}`)
+  const { versionUrl } = useViewerRouteBuilder()
+  window.open(
+    versionUrl({
+      projectId: item.projectId,
+      modelId: item.modelId,
+      versionId: item.resourceId
+    })
+  )
 }
 
 onMounted(async () => {
-  await loadFlowDefinitions()
   await loadAllItems()
 })
 </script>

@@ -25,6 +25,7 @@ import {
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
 } from '@/modules/flow/services/approvalFlows'
+import { getActiveApprovalFlowByCategoryFactory } from '@/modules/flow/repositories/approvalFlows'
 import {
   buildApprovalBindingSubjectKey,
   getApprovalFlowBindingBySubjectKeyFactory
@@ -276,8 +277,15 @@ const resolvers = {
 
       const flowTemplateId = args.input.flowTemplateId?.trim()
       if (flowTemplateId && ctx.userId) {
+        const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db })
+        const activeDef = await getActiveByCategory({
+          projectId: args.input.projectId,
+          category: 'MONTHLY_INSPECTION'
+        })
+        const templateId = activeDef?.templateId || flowTemplateId
+
         const instance = await startApprovalFlowFactory({ db })({
-          templateId: flowTemplateId,
+          templateId,
           projectId: args.input.projectId,
           resourceId: `${MONTHLY_MEASUREMENT_TABLE}:${measurement.id}`,
           formData: {
@@ -619,8 +627,15 @@ const resolvers = {
         }
       }
 
+      const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db })
+      const activeDef = await getActiveByCategory({
+        projectId: args.input.projectId,
+        category: 'MONTHLY_INSPECTION'
+      })
+      const templateId = activeDef?.templateId || MONTHLY_MEASUREMENT_SUBMIT_TEMPLATE
+
       const instance = await startApprovalFlowFactory({ db })({
-        templateId: MONTHLY_MEASUREMENT_SUBMIT_TEMPLATE,
+        templateId,
         projectId: args.input.projectId,
         resourceId: `${MONTHLY_MEASUREMENT_TABLE}:${args.input.id}`,
         formData: {

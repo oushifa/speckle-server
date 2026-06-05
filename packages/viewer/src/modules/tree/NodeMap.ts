@@ -9,6 +9,14 @@ export class NodeMap {
   public instances: { [id: string]: { [id: string]: TreeNode } } = {}
   public duplicates: { [id: string]: { [id: string]: TreeNode } } = {}
 
+  public get allNodes(): TreeNode[] {
+    const nodes: TreeNode[] = Object.values(this.all)
+    for (const key in this.instances) {
+      nodes.push(...Object.values(this.instances[key]))
+    }
+    return nodes
+  }
+
   public get nodeCount() {
     return Object.keys(this.all).length
   }

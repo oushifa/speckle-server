@@ -173,7 +173,7 @@ const { versions, loadMore, moreToLoad } = useModelVersions({
   projectId: computed(() => props.project.id),
   modelId: modelId.value
 })
-const { activeUser } = useActiveUser()
+const { activeUser, isAdmin } = useActiveUser()
 
 const realVersionItems = computed(() => versions.value?.items)
 
@@ -215,7 +215,7 @@ const selectedItems = computed({
 })
 const disabledSelections = computed(() => {
   const results: Record<string, boolean> = {}
-  if (props.project.role === Roles.Stream.Owner) return results
+  if (isAdmin.value || props.project.role === Roles.Stream.Owner) return results
 
   for (const item of realVersionItems.value || []) {
     if (!activeUser.value || item.authorUser?.id !== activeUser.value.id) {

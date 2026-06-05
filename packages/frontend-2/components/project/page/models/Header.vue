@@ -49,6 +49,13 @@
       <div
         class="flex flex-col space-y-2 xl:space-y-0 xl:flex-row xl:items-center xl:space-x-2"
       >
+        <FormSwitch
+          :id="showOnlyApprovedId"
+          v-model="finalShowOnlyApproved"
+          name="showOnlyApproved"
+          label="展示最新通过版本"
+          class="shrink-0 xl:mr-2"
+        />
         <FormTextInput
           v-model="localSearch"
           name="modelsearch"
@@ -152,7 +159,7 @@ import type {
 } from '~~/lib/layout/helpers/components'
 import { useMixpanel } from '~~/lib/core/composables/mp'
 import { useCanCreateModel } from '~/lib/projects/composables/permissions'
-import { HorizontalDirection } from '@speckle/ui-components'
+import { HorizontalDirection, FormSwitch } from '@speckle/ui-components'
 import { useAccIntegration } from '~/lib/integrations/composables/useAccIntegration'
 
 const emit = defineEmits<{
@@ -160,6 +167,7 @@ const emit = defineEmits<{
   (e: 'update:selected-apps', val: SourceAppDefinition[]): void
   (e: 'update:grid-or-list', val: GridListToggleValue): void
   (e: 'update:search', val: string): void
+  (e: 'update:show-only-approved', val: boolean): void
 }>()
 
 /**
@@ -211,12 +219,19 @@ const props = defineProps<{
   search: string
   gridOrList: GridListToggleValue
   disabled?: boolean
+  showOnlyApproved: boolean
 }>()
 
 const localSearch = ref('')
 const sourceAppsLabelId = useId()
 const sourceAppsBtnId = useId()
 const router = useRouter()
+
+const showOnlyApprovedId = useId()
+const finalShowOnlyApproved = computed({
+  get: () => props.showOnlyApproved,
+  set: (newVal) => emit('update:show-only-approved', newVal)
+})
 const mp = useMixpanel()
 const { isAdmin: isServerAdmin } = useActiveUser()
 

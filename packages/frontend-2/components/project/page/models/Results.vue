@@ -17,6 +17,7 @@
           :source-apps="sourceApps"
           :contributors="contributors"
           :tree-model-ids="selectedTreeModelIds"
+          :show-only-approved="showOnlyApproved"
           @update:loading="finalLoading = $event"
           @clear-search="clearSearch"
         />
@@ -29,6 +30,7 @@
           :contributors="contributors"
           :tree-model-ids="selectedTreeModelIds"
           :disable-default-links="false"
+          :show-only-approved="showOnlyApproved"
           @update:loading="finalLoading = $event"
           @clear-search="clearSearch"
           @model-clicked="onModelClicked"
@@ -69,6 +71,7 @@ const props = defineProps<{
   loading: boolean
   sourceApps: SourceAppDefinition[]
   contributors: FormUsersSelectItemFragment[]
+  showOnlyApproved: boolean
 }>()
 
 const router = useRouter()
@@ -102,6 +105,7 @@ const onModelClicked = (params: {
     return router.push(modelRoute(props.projectId, modelId))
   }
 
-  return router.push(getModelItemRoute(model))
+  const approvedVersionId = props.showOnlyApproved ? model.latestApprovedVersion?.id : undefined
+  return router.push(getModelItemRoute(model, approvedVersionId))
 }
 </script>

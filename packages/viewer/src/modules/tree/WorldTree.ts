@@ -27,6 +27,9 @@ export class WorldTree {
   private applicationNodeMaps: {
     [subtreeId: number]: { [applicationId: string]: { [id: string]: TreeNode } }
   } = {}
+  private bimNodesMap: {
+    [subtreeId: number]: { [bimId: string]: { [id: string]: TreeNode } }
+  } = {}
   private readonly supressWarnings = true
   public static readonly ROOT_ID = 'ROOT'
   private subtreeId: number = 0
@@ -110,16 +113,24 @@ export class WorldTree {
       Logger.error(`Invalid parent node!`)
       return
     }
-    node.model.subtreeId = parent.model.subtreeId
-    if (this.nodeMaps[parent.model.subtreeId]?.addNode(node)) {
+    const subtreeId = parent.model.subtreeId
+    node.model.subtreeId = subtreeId
+    if (this.nodeMaps[subtreeId]?.addNode(node)) {
       this.registerApplicationNode(node)
+      if (this.bimNodesMap[subtreeId]) {
+        this.registerBimNode(node)
+      }
       parent.addChild(node)
     }
   }
 
   public removeNode(node: TreeNode, removeChildren: boolean): void {
     const children = node.children
+    const subtreeId = node.model.subtreeId
     this.unregisterApplicationNode(node)
+    if (subtreeId !== undefined && this.bimNodesMap[subtreeId]) {
+      this.unregisterBimNode(node)
+    }
     this.nodeMaps[node.model.subtreeId]?.removeNode(node)
     node.drop()
     if (!removeChildren || !children) return
@@ -252,6 +263,7 @@ export class WorldTree {
         this.nodeMaps[currentSubtreeId].purge()
         delete this.nodeMaps[currentSubtreeId]
         delete this.applicationNodeMaps[currentSubtreeId]
+        delete this.bimNodesMap[currentSubtreeId]
         // Potentially true?
         this.removeNode(subtreeNode[0], false)
       }
@@ -267,6 +279,9 @@ export class WorldTree {
     })
     Object.keys(this.applicationNodeMaps).forEach((key) => {
       delete this.applicationNodeMaps[parseInt(key, 10)]
+    })
+    Object.keys(this.bimNodesMap).forEach((key) => {
+      delete this.bimNodesMap[parseInt(key, 10)]
     })
 
     this._root.drop()
@@ -306,5 +321,270 @@ export class WorldTree {
     if (Object.keys(map).length === 0) {
       delete this.applicationNodeMaps[subtreeId][key]
     }
+  }
+
+  public getBimNodesMap(subtreeId: number): { [bimId: string]: { [id: string]: TreeNode } } {
+    if (!this.bimNodesMap[subtreeId]) {
+      this.buildBimNodesMap(subtreeId)
+    }
+    return this.bimNodesMap[subtreeId] || {}
+  }
+
+  public findBimNodeId(
+    bimId: string,
+    subtreeId?: number
+  ): TreeNode[] | null {
+    if (!bimId) return null
+    const key = String(bimId)
+
+    if (subtreeId) {
+      const map = this.getBimNodesMap(subtreeId)?.[key]
+      return map ? Object.values(map) : null
+    }
+
+    const nodes: TreeNode[] = []
+    for (const k in this.nodeMaps) {
+      const subId = parseInt(k, 10)
+      const map = this.getBimNodesMap(subId)?.[key]
+      if (map) nodes.push(...Object.values(map))
+    }
+
+    return nodes.length ? nodes : null
+  }
+
+  private buildBimNodesMap(subtreeId: number) {
+    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
+    let spaceCode = ''
+
+    for (const node of allSubtreeNodes) {
+      if (this.isProjectInfoNode(node)) {
+        const sc = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
+        if (sc) {
+          spaceCode = sc
+          break
+        }
+      }
+    }
+
+    const map: { [bimId: string]: { [id: string]: TreeNode } } = {}
+
+    for (const node of allSubtreeNodes) {
+      const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
+      const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
+      const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
+
+      let nodeSpaceCode = spaceCode
+      if (!nodeSpaceCode) {
+        nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
+      }
+
+      if (classCode && nodeSpaceCode && sectionCode && serialNum) {
+        const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+        if (bimId.trim()) {
+          if (!map[bimId]) {
+            map[bimId] = {}
+          }
+          map[bimId][node.model.id] = node
+        }
+      }
+    }
+
+    this.bimNodesMap[subtreeId] = map
+  }
+
+  private registerBimNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    if (!subtreeId || !this.bimNodesMap[subtreeId]) return
+
+    if (this.isProjectInfoNode(node)) {
+      const newSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
+      if (newSpaceCode) {
+        this.buildBimNodesMap(subtreeId)
+        return
+      }
+    }
+
+    let spaceCode = ''
+    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
+    for (const n of allSubtreeNodes) {
+      if (this.isProjectInfoNode(n)) {
+        const sc = this.getPropertyValue(n.model.raw, ['空间代码', 'spacecode'])
+        if (sc) {
+          spaceCode = sc
+          break
+        }
+      }
+    }
+
+    const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
+    const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
+    const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
+
+    let nodeSpaceCode = spaceCode
+    if (!nodeSpaceCode) {
+      nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
+    }
+
+    if (classCode && nodeSpaceCode && sectionCode && serialNum) {
+      const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+      if (bimId.trim()) {
+        if (!this.bimNodesMap[subtreeId][bimId]) {
+          this.bimNodesMap[subtreeId][bimId] = {}
+        }
+        this.bimNodesMap[subtreeId][bimId][node.model.id] = node
+      }
+    }
+  }
+
+  private unregisterBimNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    if (!subtreeId || !this.bimNodesMap[subtreeId]) return
+
+    if (this.isProjectInfoNode(node)) {
+      this.buildBimNodesMap(subtreeId)
+      return
+    }
+
+    let spaceCode = ''
+    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
+    for (const n of allSubtreeNodes) {
+      if (n !== node && this.isProjectInfoNode(n)) {
+        const sc = this.getPropertyValue(n.model.raw, ['空间代码', 'spacecode'])
+        if (sc) {
+          spaceCode = sc
+          break
+        }
+      }
+    }
+
+    const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
+    const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
+    const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
+
+    let nodeSpaceCode = spaceCode
+    if (!nodeSpaceCode) {
+      nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
+    }
+
+    if (classCode && nodeSpaceCode && sectionCode && serialNum) {
+      const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+      if (bimId.trim()) {
+        const map = this.bimNodesMap[subtreeId][bimId]
+        if (map) {
+          delete map[node.model.id]
+          if (Object.keys(map).length === 0) {
+            delete this.bimNodesMap[subtreeId][bimId]
+          }
+        }
+      }
+    }
+  }
+
+  private isProjectInfoNode(node: TreeNode): boolean {
+    const raw = node.model.raw
+    if (!raw) return false
+
+    const category = raw.category
+    if (typeof category === 'string' && (category === '项目信息' || category.toLowerCase() === 'project information' || category.toLowerCase() === 'project info')) {
+      return true
+    }
+
+    const name = raw.name
+    if (typeof name === 'string' && (name === '项目信息' || name.toLowerCase() === 'project information' || name.toLowerCase() === 'project info')) {
+      return true
+    }
+
+    const type = raw.type || raw.speckle_type
+    if (typeof type === 'string' && (type.includes('ProjectInformation') || type.includes('ProjectInfo') || type.includes('项目信息'))) {
+      return true
+    }
+
+    return false
+  }
+
+  private getPropertyValue(raw: any, aliases: string[]): string | null {
+    if (!raw || typeof raw !== 'object') return null
+
+    const clean = (val: string) => val.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
+    const normalizedAliases = aliases.map(clean)
+
+    const entries: Array<{ key: string; path: string; value: any }> = []
+    const visited = new Set()
+
+    const flatten = (obj: any, currentPath = '') => {
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj) || visited.has(obj)) return
+      visited.add(obj)
+
+      const ignoredKeys = [
+        '__closure',
+        'displayMesh',
+        'displayValue',
+        'totalChildrenCount',
+        '__importedUrl',
+        '__parents',
+        'bbox'
+      ]
+
+      for (const [key, rawValue] of Object.entries(obj)) {
+        if (ignoredKeys.includes(key)) continue
+
+        const newPath = currentPath ? `${currentPath}.${key}` : key
+
+        if (
+          rawValue &&
+          typeof rawValue === 'object' &&
+          !Array.isArray(rawValue) &&
+          'name' in rawValue &&
+          'value' in rawValue
+        ) {
+          const param = rawValue as { name?: any; value?: any }
+          const parameterName = typeof param.name === 'string' && param.name.length ? param.name : key
+          entries.push({
+            key: parameterName,
+            path: newPath,
+            value: param.value
+          })
+          continue
+        }
+
+        if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+          flatten(rawValue, newPath)
+          continue
+        }
+
+        entries.push({
+          key,
+          path: newPath,
+          value: rawValue
+        })
+      }
+    }
+
+    flatten(raw)
+
+    const formatVal = (value: any): string | null => {
+      if (value === null || value === undefined || value === '') return null
+      if (Array.isArray(value)) return value.length ? value.join(', ') : null
+      if (typeof value === 'object') return null
+      return String(value)
+    }
+
+    const exactMatch = entries.find((entry) => {
+      const keyNorm = clean(entry.key)
+      const pathNorm = clean(entry.path)
+      return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
+    })
+    if (exactMatch) return formatVal(exactMatch.value)
+
+    const fuzzyMatch = entries.find((entry) => {
+      const keyNorm = clean(entry.key)
+      const pathNorm = clean(entry.path)
+      return normalizedAliases.some(
+        (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
+      )
+    })
+    if (fuzzyMatch) return formatVal(fuzzyMatch.value)
+
+    return null
   }
 }

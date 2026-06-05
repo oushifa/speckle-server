@@ -20,6 +20,7 @@ import type {
 import crs from 'crypto-random-string'
 import type { Knex } from 'knex'
 import { clamp } from 'lodash-es'
+import { normalizeCategory } from '@/modules/flow/helpers/category'
 
 const tables = {
   definitions: (db: Knex) =>
@@ -186,14 +187,36 @@ export const setApprovalFlowDefinitionActiveStateFactory =
       .first()
     if (!definition) return null
     if (params.isActive) {
-      await tables
-        .definitions(deps.db)
-        .where(ApprovalFlowDefinitions.col.templateId, definition.templateId)
-        .andWhereNot(ApprovalFlowDefinitions.col.id, definition.id)
-        .update({
-          isActive: false,
-          updatedAt: new Date()
-        })
+      const category = (definition.triggerConfig as any)?.category
+      if (category && definition.projectId) {
+        const normalized = normalizeCategory(category)
+        let searchCategories: string[] = [normalized]
+        if (normalized === 'MODEL_REVIEW') {
+          searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+        } else if (normalized === 'MONTHLY_INSPECTION') {
+          searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+        }
+
+        await tables
+          .definitions(deps.db)
+          .where(ApprovalFlowDefinitions.col.projectId, definition.projectId)
+          .andWhere(ApprovalFlowDefinitions.col.isActive, true)
+          .whereIn(deps.db.raw(`??->>'category'`, [ApprovalFlowDefinitions.col.triggerConfig]) as any, searchCategories)
+          .andWhereNot(ApprovalFlowDefinitions.col.id, definition.id)
+          .update({
+            isActive: false,
+            updatedAt: new Date()
+          })
+      } else {
+        await tables
+          .definitions(deps.db)
+          .where(ApprovalFlowDefinitions.col.templateId, definition.templateId)
+          .andWhereNot(ApprovalFlowDefinitions.col.id, definition.id)
+          .update({
+            isActive: false,
+            updatedAt: new Date()
+          })
+      }
     }
     const [res] = await tables
       .definitions(deps.db)
@@ -204,6 +227,25 @@ export const setApprovalFlowDefinitionActiveStateFactory =
       })
       .returning('*')
     return res
+  }
+
+export const getActiveApprovalFlowByCategoryFactory =
+  (deps: { db: Knex }) => async (params: { projectId: string; category: string }) => {
+    const normalized = normalizeCategory(params.category)
+    let searchCategories: string[] = [normalized]
+    if (normalized === 'MODEL_REVIEW') {
+      searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+    } else if (normalized === 'MONTHLY_INSPECTION') {
+      searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+    }
+
+    return await tables
+      .definitions(deps.db)
+      .where(ApprovalFlowDefinitions.col.projectId, params.projectId)
+      .andWhere(ApprovalFlowDefinitions.col.isActive, true)
+      .whereIn(deps.db.raw(`??->>'category'`, [ApprovalFlowDefinitions.col.triggerConfig]) as any, searchCategories)
+      .orderBy(ApprovalFlowDefinitions.col.version, 'desc')
+      .first()
   }
 
 export const createApprovalFlowDefinitionStepFactory =

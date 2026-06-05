@@ -56,7 +56,7 @@
               <div class="flex-grow relative">
                 <CommonModelPropsViewer
                   :project-id="selectedInstance.projectId"
-                  :model="[selectedInstance.resourceId]"
+                  :model="modelViewerResources"
                 ></CommonModelPropsViewer>
               </div>
             </div>
@@ -297,6 +297,19 @@ const notify = (title: string, description: string, type: ToastNotificationType)
   })
 }
 
+const modelViewerResources = computed(() => {
+  const instance = selectedInstance.value
+  if (!instance) return []
+  if (
+    instance.model?.id &&
+    instance.resourceId &&
+    instance.resourceId !== instance.model.id
+  ) {
+    return [`${instance.model.id}@${instance.resourceId}`]
+  }
+  return instance.resourceId ? [instance.resourceId] : []
+})
+
 const headerTags = computed(() => {
   const tabs: FlowHeaderTabItem[] = [
     { id: 'pending', title: '待办' },
@@ -422,6 +435,12 @@ const submitReviewAction = async (payload: {
         }
       })
       notify('操作成功', '审批已通过', ToastNotificationType.Success)
+      // 清除 Apollo 缓存，使模型列表的 latestApprovedVersion 数据重新获取
+      try {
+        await apollo.resetStore()
+      } catch {
+        // resetStore 可能因活跃订阅抛出，忽略即可
+      }
     } else if (payload.action === 'reject') {
       await apollo.mutate({
         mutation: rejectFlowMutation,

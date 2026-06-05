@@ -9,6 +9,7 @@
         :show-actions="showActions"
         :show-versions="showVersions"
         :disable-default-links="disableDefaultLinks"
+        :show-only-approved="showOnlyApproved"
         @model-clicked="$emit('model-clicked', $event)"
       />
       <FormButtonSecondaryViewAll
@@ -87,10 +88,12 @@ const props = withDefaults(
     smallView?: boolean
     hideFileUpload?: boolean
     treeModelIds?: string[] | null
+    showOnlyApproved?: boolean
   }>(),
   {
     showActions: true,
-    showVersions: true
+    showVersions: true,
+    showOnlyApproved: false
   }
 )
 
@@ -138,7 +141,8 @@ const isModelUploading = ref(false)
 const {
   result: baseResult,
   variables: latestModelsVariables,
-  onResult: onBaseResult
+  onResult: onBaseResult,
+  refetch: refetchBase
 } = useQuery(
   latestModelsQuery,
   () => latestModelsQueryVariables.value,
@@ -149,7 +153,8 @@ const {
 const {
   result: extraPagesResult,
   fetchMore: fetchMorePages,
-  onResult: onExtraPagesResult
+  onResult: onExtraPagesResult,
+  refetch: refetchPagination
 } = useQuery(
   latestModelsPaginationQuery,
   () => ({
@@ -157,6 +162,17 @@ const {
     cursor: null as Nullable<string>
   }),
   () => ({ enabled: !props.disablePagination && !isTreeSelectionEmpty.value })
+)
+
+// 当切换到「显示最新通过版本」时，强制重新查询以获取最新的 latestApprovedVersion 数据
+watch(
+  () => props.showOnlyApproved,
+  (newVal) => {
+    if (newVal) {
+      void refetchBase()
+      if (!props.disablePagination) void refetchPagination()
+    }
+  }
 )
 
 const isFiltering = computed(() => {

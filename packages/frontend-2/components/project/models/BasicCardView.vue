@@ -11,6 +11,7 @@
       :show-versions="showVersions"
       height="h-32 sm:h-64"
       :disable-default-link="disableDefaultLinks"
+      :show-only-approved="showOnlyApproved"
       :style="`z-index: ${items.length - i};`"
       @click="
         ($event) =>
@@ -53,10 +54,12 @@ const props = withDefaults(
     showActions?: boolean
     showVersions?: boolean
     disableDefaultLinks?: boolean
+    showOnlyApproved?: boolean
   }>(),
   {
     showActions: true,
-    showVersions: true
+    showVersions: true,
+    showOnlyApproved: false
   }
 )
 

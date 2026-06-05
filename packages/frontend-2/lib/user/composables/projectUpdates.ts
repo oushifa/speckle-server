@@ -79,12 +79,12 @@ export function useUserProjectsUpdatedTracking() {
     // Emit toast notification
     triggerNotification({
       type: ToastNotificationType.Info,
-      title: isNewProject ? 'New project added' : 'A project has been removed',
+      title: isNewProject ? '已创建新项目' : '已移除项目',
       cta:
         isNewProject && incomingProject
           ? {
               url: projectRoute(incomingProject.id),
-              title: 'View project'
+              title: '查看项目'
             }
           : undefined
     })

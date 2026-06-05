@@ -17,12 +17,14 @@ import {
   submitApprovalBindingFactory
 } from '@/modules/flow/services/approvalBindings'
 import {
-  setApprovalFlowDefinitionActiveStateFactory
+  setApprovalFlowDefinitionActiveStateFactory,
+  getActiveApprovalFlowByCategoryFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import {
   createApprovalFlowDefinitionWithStepsFactory
 } from '@/modules/flow/services/approvalFlows'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
+import { normalizeCategory, ApprovalFlowCategory } from '@/modules/flow/helpers/category'
 
 const bindingIdParamsSchema = z.object({
   bindingId: z.string().trim().min(1).max(10)
@@ -343,7 +345,7 @@ export const flowRouterFactory = (): Router => {
 
       const definitions = await db('approval_flow_definitions')
         .where('projectId', projectId)
-        .andWhere('isActive', true)
+        .orderBy('version', 'desc')
         .orderBy('updatedAt', 'desc')
 
       const result = []
@@ -371,7 +373,9 @@ export const flowRouterFactory = (): Router => {
           })
         }
 
-        const category = def.triggerConfig?.category || (def.resourceType === 'MODEL' ? '模型管理' : '质量验收')
+        const categoryId = normalizeCategory(def.triggerConfig?.category || (def.resourceType === 'MODEL' ? 'MODEL_REVIEW' : 'MONTHLY_INSPECTION'))
+        const categoryInfo = ApprovalFlowCategory[categoryId]
+        const category = { id: categoryInfo.id, name: categoryInfo.name }
         const description = def.triggerConfig?.description || ''
 
         result.push({
@@ -380,6 +384,7 @@ export const flowRouterFactory = (): Router => {
           name: def.name,
           category,
           isActive: def.isActive,
+          version: def.version,
           description,
           steps: stepsWithUsers,
           createdAt: def.createdAt,
@@ -398,8 +403,9 @@ export const flowRouterFactory = (): Router => {
       const { projectId } = req.params
       const body = req.body
 
-      const category = body.category || '质量验收'
-      const resourceType = category === '质量验收' ? 'FORMS' : category === '验工计价' ? 'FORMS' : 'MODEL'
+      const categoryId = normalizeCategory(body.category)
+      const categoryConfig = ApprovalFlowCategory[categoryId]
+      const resourceType = categoryConfig.resourceType
 
       const createWithSteps = createApprovalFlowDefinitionWithStepsFactory({ db })
       
@@ -414,13 +420,27 @@ export const flowRouterFactory = (): Router => {
       })
 
       const triggerConfig = {
-        category,
+        category: categoryConfig.id,
         description: body.description || ''
       }
 
       let templateId = body.templateId || body.id
       if (templateId && templateId.startsWith('flow-')) {
         templateId = null
+      }
+
+      // Enforce unique workflow template/family per category within a project
+      const searchCategories = categoryId === 'MODEL_REVIEW'
+        ? ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+        : ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+
+      const existingDefinition = await db('approval_flow_definitions')
+        .where('projectId', projectId)
+        .whereIn(db.raw(`"triggerConfig"->>'category'`) as any, searchCategories)
+        .first()
+
+      if (existingDefinition) {
+        templateId = existingDefinition.templateId
       }
 
       const definition = await createWithSteps({
@@ -435,6 +455,80 @@ export const flowRouterFactory = (): Router => {
       })
 
       return res.status(201).send(definition)
+    }
+  )
+
+  app.get(
+    '/api/approval-categories',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const list = Object.values(ApprovalFlowCategory).map(c => ({
+        id: c.id,
+        name: c.name
+      }))
+      return res.status(200).send(list)
+    }
+  )
+
+  app.get(
+    '/api/projects/:projectId/approval-definitions/active',
+    async (req, res) => {
+      requireAuthenticatedUser(req)
+      const { projectId } = req.params
+      const categoryParam = req.query.category as string
+      if (!categoryParam) {
+        throw new BadRequestError('category is required')
+      }
+
+      const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db })
+      const def = await getActiveByCategory({
+        projectId,
+        category: categoryParam
+      })
+
+      if (!def) {
+        return res.status(404).send({ error: 'No active definition found for category' })
+      }
+
+      const steps = await db('approval_flow_definition_steps')
+        .where('definitionId', def.id)
+        .orderBy('stepIndex', 'asc')
+
+      const stepsWithUsers = []
+      for (const step of steps) {
+        const approvers = await db('users')
+          .select('id', 'name', 'avatar')
+          .whereIn('id', step.approverIds || [])
+
+        stepsWithUsers.push({
+          id: step.id,
+          role: step.name,
+          approvers: approvers.map(u => u.name),
+          selectedApprovers: approvers.map(u => ({
+            id: u.id,
+            name: u.name,
+            avatar: u.avatar || null
+          })),
+          mode: step.requiredApprovals === 1 ? 'OR' : 'AND'
+        })
+      }
+
+      const id = normalizeCategory((def.triggerConfig as any)?.category)
+      const categoryInfo = ApprovalFlowCategory[id]
+      const description = def.triggerConfig?.description || ''
+
+      return res.status(200).send({
+        id: def.id,
+        templateId: def.templateId,
+        name: def.name,
+        category: { id: categoryInfo.id, name: categoryInfo.name },
+        isActive: def.isActive,
+        version: def.version,
+        description,
+        steps: stepsWithUsers,
+        createdAt: def.createdAt,
+        updatedAt: def.updatedAt
+      })
     }
   )
 

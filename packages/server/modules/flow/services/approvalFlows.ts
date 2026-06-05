@@ -21,9 +21,16 @@ import {
   generateApprovalFlowId,
   setApprovalFlowDefinitionActiveStateFactory,
   updateApprovalFlowInstanceStepFactory,
-  updateApprovalFlowInstanceStatusFactory
+  updateApprovalFlowInstanceStatusFactory,
+  getActiveApprovalFlowByCategoryFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import { updateBranchFactory } from '@/modules/core/repositories/branches'
+import {
+  buildApprovalBindingSubjectKey,
+  getApprovalFlowBindingBySubjectKeyFactory,
+  createApprovalFlowBindingFactory,
+  updateApprovalFlowBindingFactory
+} from '@/modules/flow/repositories/approvalBindings'
 import { updateQualityAcceptanceFormFactory } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
 import {
   getMonthlyMeasurementItemsFactory,
@@ -619,6 +626,7 @@ export const startApprovalFlowFactory =
     templateId?: string | null
     definitionId?: string | null
     projectId?: string | null
+    category?: string | null
     resourceId?: string | null
     formData?: Record<string, unknown> | null
     comment?: string | null
@@ -630,19 +638,30 @@ export const startApprovalFlowFactory =
       })
       const getActiveDefinition = getActiveApprovalFlowDefinitionFactory({ db: trx })
       const getDefinitionById = getApprovalFlowDefinitionByIdFactory({ db: trx })
+      const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db: trx })
       const createInstance = createApprovalFlowInstanceFactory({ db: trx })
       const getDefinitionSteps = getApprovalFlowDefinitionStepsFactory({ db: trx })
       const createInstanceStep = createApprovalFlowInstanceStepFactory({ db: trx })
       const insertAction = insertApprovalFlowActionFactory({ db: trx })
-      const explicitDefinition = params.definitionId
-        ? await getDefinitionById(params.definitionId)
-        : null
-      const templateId = params.templateId || explicitDefinition?.templateId
-      if (!templateId) {
-        throw new BadRequestError('templateId is required')
+
+      let definition = null
+      if (params.definitionId) {
+        definition = await getDefinitionById(params.definitionId)
+      } else if (params.category && params.projectId) {
+        definition = await getActiveByCategory({
+          projectId: params.projectId,
+          category: params.category
+        })
+      } else {
+        const templateId = params.templateId || null
+        if (templateId) {
+          definition = await getActiveDefinition({ templateId })
+        }
       }
-      const definition = await getActiveDefinition({ templateId })
-      if (!definition) throw new BadRequestError('No active flow version for template')
+
+      if (!definition) {
+        throw new BadRequestError('No active flow version found')
+      }
       const canRunInParallel = shouldAllowParallelInstancesForSameResource(
         (definition.effectConfig as Record<string, unknown> | null) || null
       )
@@ -673,6 +692,49 @@ export const startApprovalFlowFactory =
         steps: definitionSteps
       })
 
+      let bindingId: string | null = null
+      if (definition.resourceType === 'MODEL' && params.resourceId && params.projectId) {
+        const subjectKey = buildApprovalBindingSubjectKey({
+          subjectType: 'MODEL_VERSION',
+          subjectId: params.resourceId
+        })
+        const getBinding = getApprovalFlowBindingBySubjectKeyFactory({ db: trx })
+        const existingBinding = await getBinding(subjectKey)
+        if (existingBinding) {
+          const updateBinding = updateApprovalFlowBindingFactory({ db: trx })
+          const updated = await updateBinding({
+            bindingId: existingBinding.id,
+            definitionId: definition.id,
+            templateId: definition.templateId,
+            currentInstanceId: null,
+            currentRoundNo: (existingBinding.currentRoundNo || 0) + 1,
+            status: 'IN_REVIEW',
+            lastSubmittedAt: new Date(),
+            lastSubmittedBy: params.userId,
+            updater: params.userId
+          })
+          bindingId = updated.id
+        } else {
+          const createBinding = createApprovalFlowBindingFactory({ db: trx })
+          const created = await createBinding({
+            projectId: params.projectId,
+            subjectType: 'MODEL_VERSION',
+            subjectId: params.resourceId,
+            subjectKey,
+            definitionId: definition.id,
+            templateId: definition.templateId,
+            currentInstanceId: null,
+            currentRoundNo: 1,
+            status: 'IN_REVIEW',
+            lastSubmittedAt: new Date(),
+            lastSubmittedBy: params.userId,
+            creator: params.userId,
+            updater: params.userId
+          })
+          bindingId = created.id
+        }
+      }
+
       const instance = await createInstance({
         definitionId: null,
         templateId: definition.templateId,
@@ -680,12 +742,22 @@ export const startApprovalFlowFactory =
         projectId: params.projectId || null,
         resourceType: definition.resourceType,
         resourceId: params.resourceId || null,
+        bindingId,
         formData: params.formData || null,
         flowSnapshot: flowSnapshot as Record<string, unknown>,
         status: ApprovalFlowInstanceStatus.Pending,
         currentStep: 1,
         createdBy: params.userId
       })
+
+      if (bindingId) {
+        const updateBinding = updateApprovalFlowBindingFactory({ db: trx })
+        await updateBinding({
+          bindingId,
+          currentInstanceId: instance.id,
+          updater: params.userId
+        })
+      }
 
       const now = new Date()
       await createInstanceStep({

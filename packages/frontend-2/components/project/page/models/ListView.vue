@@ -9,6 +9,7 @@
           :item="item"
           :project="project"
           :is-search-result="isUsingSearch"
+          :show-only-approved="showOnlyApproved"
           @model-updated="onModelUpdated"
           @create-submodel="onCreateSubmodel"
         />
@@ -84,6 +85,7 @@ const props = defineProps<{
   sourceApps?: SourceAppDefinition[]
   contributors?: FormUsersSelectItemFragment[]
   treeModelIds?: string[] | null
+  showOnlyApproved?: boolean
 }>()
 
 const logger = useLogger()
@@ -162,7 +164,8 @@ const isModelUploading = ref(false)
 const {
   result: baseResult,
   variables: resultVariables,
-  onResult: onBaseResult
+  onResult: onBaseResult,
+  refetch: refetchBase
 } = useQuery(
   projectModelsTreeTopLevelQuery,
   () => baseQueryVariables.value,
@@ -171,7 +174,8 @@ const {
 const {
   result: latestModelsBaseResult,
   variables: latestModelsVariables,
-  onResult: onLatestModelsBaseResult
+  onResult: onLatestModelsBaseResult,
+  refetch: refetchLatestModelsBase
 } = useQuery(
   latestModelsQuery,
   () => latestModelsQueryVariables.value,
@@ -193,7 +197,8 @@ const isFiltering = computed(() => {
 const {
   result: extraPagesResult,
   fetchMore: fetchMorePages,
-  onResult: onExtraPagesResult
+  onResult: onExtraPagesResult,
+  refetch: refetchExtraPages
 } = useQuery(
   projectModelsTreeTopLevelPaginationQuery,
   () => ({
@@ -207,7 +212,8 @@ const {
 const {
   result: latestModelsExtraPagesResult,
   fetchMore: fetchMoreLatestModelsPages,
-  onResult: onLatestModelsExtraPagesResult
+  onResult: onLatestModelsExtraPagesResult,
+  refetch: refetchLatestModelsExtraPages
 } = useQuery(
   latestModelsPaginationQuery,
   () => ({
@@ -215,6 +221,21 @@ const {
     cursor: null as Nullable<string>
   }),
   () => ({ enabled: !props.disablePagination && isTreeModelIdsFiltering.value })
+)
+
+// 当切换到「显示最新通过版本」时，强制重新查询以获取最新的 latestApprovedVersion 数据
+watch(
+  () => props.showOnlyApproved,
+  (newVal) => {
+    if (newVal) {
+      void refetchBase()
+      void refetchLatestModelsBase()
+      if (!props.disablePagination) {
+        void refetchExtraPages()
+        void refetchLatestModelsExtraPages()
+      }
+    }
+  }
 )
 
 const pendingModels = computed(() =>

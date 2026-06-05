@@ -24,6 +24,7 @@ import {
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
 } from '@/modules/flow/services/approvalFlows'
+import { syncBindingStatusFromInstanceFactory } from '@/modules/flow/services/approvalBindings'
 import { BadRequestError } from '@/modules/shared/errors'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import { throwForNotHavingServerRole } from '@/modules/shared/authz'
@@ -170,9 +171,15 @@ export default {
       if (parent.resourceType !== 'MODEL' || !parent.resourceId) return null
 
       const projectDB = await getProjectDbClient({ projectId: parent.projectId })
-      return await ctx.loaders
+      let branch = await ctx.loaders
         .forRegion({ db: projectDB })
         .branches.getById.load(parent.resourceId)
+      if (!branch) {
+        branch = await ctx.loaders
+          .forRegion({ db: projectDB })
+          .commits.getCommitBranch.load(parent.resourceId)
+      }
+      return branch
     },
     async definition(parent: {
       definitionId?: string | null
@@ -429,6 +436,10 @@ export default {
         nextStepApproverIds: args.input.nextStepApproverIds || null,
         forceByAdmin
       })
+      await syncBindingStatusFromInstanceFactory({ db })({
+        instanceId: args.input.instanceId,
+        updater: userId
+      })
       await publishApprovalFlowTodoCountUpdated()
       return instance
     },
@@ -470,6 +481,10 @@ export default {
         rollbackToStep: args.input.rollbackToStep ?? null,
         forceByAdmin
       })
+      await syncBindingStatusFromInstanceFactory({ db })({
+        instanceId: args.input.instanceId,
+        updater: userId
+      })
       await publishApprovalFlowTodoCountUpdated()
       return instance
     },
@@ -508,6 +523,10 @@ export default {
         targetStatus: ApprovalFlowInstanceStatus.Canceled,
         comment: args.input.comment,
         forceByAdmin
+      })
+      await syncBindingStatusFromInstanceFactory({ db })({
+        instanceId: args.input.instanceId,
+        updater: userId
       })
       await publishApprovalFlowTodoCountUpdated()
       return instance

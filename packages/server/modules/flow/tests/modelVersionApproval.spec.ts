@@ -209,7 +209,7 @@ describe('MODEL_VERSION Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
 
     expect(res.body.kind).to.equal('single')
@@ -255,7 +255,7 @@ describe('MODEL_VERSION Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
 
     expect(res.body.kind).to.equal('single')
@@ -291,7 +291,7 @@ describe('MODEL_VERSION Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
     expect(resUpdate.body.kind).to.equal('single')
     // @ts-ignore
@@ -315,10 +315,59 @@ describe('MODEL_VERSION Approval Integration Tests', () => {
           }
         }
       },
-      { contextValue: apollo.context }
+      { contextValue: apollo.context as any }
     )
     expect(resDelete.body.kind).to.equal('single')
     // @ts-ignore
     expect(resDelete.body.singleResult.errors).to.not.exist
+  })
+
+  it('should query correct latestApprovedVersion through GraphQL', async () => {
+    const createBinding = createApprovalFlowBindingFactory({ db })
+    const binding = await createBinding({
+      projectId: stream.id,
+      subjectType: 'MODEL_VERSION',
+      subjectId: versionId2,
+      subjectKey: `model_version:${versionId2}`,
+      definitionId,
+      templateId,
+      status: 'APPROVED',
+      creator: user.id,
+      updater: user.id
+    })
+
+    const modelQuery = `
+      query GetModel($projectId: String!, $modelId: String!) {
+        project(id: $projectId) {
+          model(id: $modelId) {
+            id
+            latestApprovedVersion {
+              id
+              message
+            }
+          }
+        }
+      }
+    `
+    const res = await apollo.apollo.executeOperation(
+      {
+        query: modelQuery,
+        variables: {
+          projectId: stream.id,
+          modelId: branchId
+        }
+      },
+      { contextValue: apollo.context as any }
+    )
+
+    expect(res.body.kind).to.equal('single')
+    // @ts-ignore
+    const singleResult = res.body.singleResult
+    expect(singleResult.errors).to.not.exist
+    expect(singleResult.data.project.model.latestApprovedVersion.id).to.equal(versionId2)
+    expect(singleResult.data.project.model.latestApprovedVersion.message).to.equal('Updated structural elements')
+
+    // Clean up
+    await db('approval_flow_bindings').where('id', binding.id).del()
   })
 })

@@ -2501,6 +2501,8 @@ export type Model = {
   /** The model's home view, if any */
   homeView?: Maybe<SavedView>;
   id: Scalars['ID']['output'];
+  /** 获取当前模型下最新审核通过的版本 */
+  latestApprovedVersion?: Maybe<Version>;
   /** Full name including the names of parent models delimited by forward slashes */
   name: Scalars['String']['output'];
   /** Returns a list of versions that are being created from a file import */
@@ -6433,6 +6435,7 @@ export type VerifyUserEmailInput = {
 
 export type Version = {
   __typename?: 'Version';
+  approveStatus?: Maybe<Scalars['String']['output']>;
   authorUser?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** All comment threads in this version */
@@ -9549,6 +9552,7 @@ export type ModelResolvers<ContextType = GraphQLContext, ParentType extends Reso
   folders?: Resolver<Array<ResolversTypes['Folder']>, ParentType, ContextType>;
   homeView?: Resolver<Maybe<ResolversTypes['SavedView']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  latestApprovedVersion?: Resolver<Maybe<ResolversTypes['Version']>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pendingImportedVersions?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ModelPendingImportedVersionsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ModelPermissionChecks'], ParentType, ContextType>;
@@ -10728,6 +10732,7 @@ export type UserStreamCollectionResolvers<ContextType = GraphQLContext, ParentTy
 };
 
 export type VersionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Version'] = ResolversParentTypes['Version']> = {
+  approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   authorUser?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   automationsStatus?: Resolver<Maybe<ResolversTypes['TriggeredAutomationsStatus']>, ParentType, ContextType>;
   commentThreads?: Resolver<ResolversTypes['CommentCollection'], ParentType, ContextType, RequireFields<VersionCommentThreadsArgs, 'limit'>>;

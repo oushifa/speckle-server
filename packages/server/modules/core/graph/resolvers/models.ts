@@ -63,6 +63,11 @@ import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { getThumbnailUrl } from '@/modules/viewer/helpers/savedViews'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 
+import {
+  buildApprovalBindingSubjectKey,
+  getApprovalFlowBindingBySubjectKeyFactory
+} from '@/modules/flow/repositories/approvalBindings'
+
 const hasServerAdminOverride = (ctx: GraphQLContext) =>
   adminOverrideEnabled() && ctx.role === Roles.Server.Admin
 
@@ -301,6 +306,43 @@ export default {
       }
 
       return version
+    },
+    async latestApprovedVersion(parent, _args, ctx) {
+      const approvedBindings = await db('approval_flow_bindings')
+        .where({
+          projectId: parent.streamId,
+          subjectType: 'MODEL_VERSION',
+          status: 'APPROVED'
+        })
+        .select('subjectId')
+
+      const approvedCommitIds = approvedBindings.map((b) => b.subjectId)
+      if (!approvedCommitIds.length) return null
+
+      const projectDB = await getProjectDbClient({ projectId: parent.streamId })
+      const latestApprovedCommit = await projectDB('commits')
+        .join('branch_commits', 'commits.id', 'branch_commits.commitId')
+        .where('branch_commits.branchId', parent.id)
+        .whereIn('commits.id', approvedCommitIds)
+        .orderBy('commits.createdAt', 'desc')
+        .first()
+
+      return latestApprovedCommit || null
+    },
+    async approveStatus(parent, _args, ctx) {
+      const projectDB = await getProjectDbClient({ projectId: parent.streamId })
+      const latestCommit = await ctx.loaders
+        .forRegion({ db: projectDB })
+        .branches.getLatestCommit.load(parent.id)
+      if (!latestCommit) return null
+
+      const getApprovalFlowBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db })
+      const subjectKey = buildApprovalBindingSubjectKey({
+        subjectType: 'MODEL_VERSION',
+        subjectId: latestCommit.id
+      })
+      const binding = await getApprovalFlowBindingBySubjectKey(subjectKey)
+      return binding ? binding.status : null
     }
   },
   ModelsTreeItem: {

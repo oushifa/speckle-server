@@ -44,11 +44,12 @@ type FlowInstance = {
   status: string
   currentStep: number
   steps: FlowStep[]
+  createdBy?: string
 }
 
 const ACTION_CONFIG: Record<FlowOpActionKey, ActionConfig> = {
   approve: { key: 'approve', label: '通过', color: 'primary' },
-  rollback: { key: 'rollback', label: '驳回', color: 'danger' },
+  rollback: { key: 'rollback', label: '驳回', color: 'outline' },
   reject: { key: 'reject', label: '拒绝', color: 'danger' },
   cancel: { key: 'cancel', label: '取消', color: 'outline' }
 }
@@ -63,22 +64,22 @@ const ACTION_CONFIRMATION: Record<
 > = {
   approve: {
     title: '确认通过审批',
-    text: '确认通过当前审批吗？提交后将立即进入下一步，且无法撤销。',
+    text: '确认通过当前审批吗？',
     confirmText: '确认通过'
   },
   rollback: {
     title: '确认驳回审批',
-    text: '确认驳回当前审批吗？该操作会将流程退回到发起人。',
+    text: '确认驳回当前审批吗？',
     confirmText: '确认驳回'
   },
   reject: {
     title: '确认拒绝审批',
-    text: '确认拒绝当前审批吗？该操作提交后将无法撤销。',
+    text: '确认拒绝当前审批吗？',
     confirmText: '确认拒绝'
   },
   cancel: {
     title: '确认取消审批',
-    text: '确认取消当前审批吗？该操作提交后将无法撤销。',
+    text: '确认取消当前审批吗？',
     confirmText: '确认取消'
   }
 }
@@ -128,15 +129,27 @@ const canOperate = computed(() => {
   return props.instance?.status === 'PENDING' && !!currentStep.value && isTodoUser.value
 })
 
-const availableActions = computed(() => {
-  if (!canOperate.value) return [] as ActionConfig[]
+const isCreator = computed(() => {
+  return props.instance?.createdBy === props.userId
+})
 
-  return [
-    ACTION_CONFIG.approve,
-    ACTION_CONFIG.rollback
-    // ACTION_CONFIG.reject,
-    // ACTION_CONFIG.cancel
-  ]
+const availableActions = computed(() => {
+  const actions: ActionConfig[] = []
+  if (!props.instance || props.instance.status !== 'PENDING') return actions
+
+  // 待办人操作
+  if (currentStep.value && isTodoUser.value) {
+    actions.push(ACTION_CONFIG.approve)
+    // actions.push(ACTION_CONFIG.rollback)
+    actions.push(ACTION_CONFIG.reject)
+  }
+
+  // 发起人操作
+  if (isCreator.value) {
+    actions.push(ACTION_CONFIG.cancel)
+  }
+
+  return actions
 })
 
 const confirmDialogOpen = ref(false)

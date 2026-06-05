@@ -192,6 +192,12 @@ graphql(`
         createdAt
       }
     }
+    latestApprovedVersion {
+      id
+      createdAt
+      previewUrl
+      approveStatus
+    }
   }
 `)
 
@@ -208,11 +214,13 @@ const props = withDefaults(
     showActions?: boolean
     disableDefaultLink?: boolean
     smallView?: boolean
+    showOnlyApproved?: boolean
   }>(),
   {
     showVersions: true,
     showActions: true,
-    smallView: false
+    smallView: false,
+    showOnlyApproved: false
   }
 )
 
@@ -268,11 +276,20 @@ const nameParts = computed(() => {
   return [splitName.join('/') + '/', displayName]
 })
 
-const modelUrl = computed(() => getModelItemRoute(props.model))
+const modelUrl = computed(() => {
+  const approvedVersionId = (props.showOnlyApproved && !isPendingModelFragment(props.model))
+    ? props.model.latestApprovedVersion?.id
+    : undefined
+  return getModelItemRoute(props.model, approvedVersionId)
+})
 
-const previewUrl = computed(() =>
-  isPendingModelFragment(props.model) ? null : props.model.previewUrl
-)
+const previewUrl = computed(() => {
+  if (isPendingModelFragment(props.model)) return null
+  if (props.showOnlyApproved && props.model.latestApprovedVersion?.previewUrl) {
+    return props.model.latestApprovedVersion.previewUrl
+  }
+  return props.model.previewUrl
+})
 const defaultLinkDisabled = computed(
   () => props.disableDefaultLink || versionCount.value < 1
 )
@@ -321,14 +338,20 @@ const onVersionUploading = (payload: FileAreaUploadingPayload) => {
 
 const modelApproveStatus = computed(() => {
   if (isPendingModelFragment(props.model)) return null
+  if (props.showOnlyApproved) {
+    return props.model.latestApprovedVersion ? 'APPROVED' : 'NONE_APPROVED'
+  }
   return props.model.approveStatus || null
 })
 
 const approveStatusLabel = computed(() => {
   const status = (modelApproveStatus.value || '').toUpperCase()
-  if (status === 'PENDING') return '审核中'
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW') return '审核中'
   if (status === 'REJECTED') return '未通过'
-  if (status === 'APPROVED') return '已审核'
+  if (status === 'APPROVED') return '已通过'
+  if (status === 'RETURNED') return '已退回'
+  if (status === 'CANCELED') return '已取消'
+  if (status === 'NONE_APPROVED') return '无已通过版本'
   return '未开始'
 })
 
@@ -336,10 +359,13 @@ const statusTagClass = computed(() => {
   const source =
     'flex items-center gap-1 cursor-pointer border-solid border rounded-full'
   const status = (modelApproveStatus.value || '').toUpperCase()
-  if (status === 'PENDING')
+  if (status === 'PENDING' || status === 'START' || status === 'IN_REVIEW')
     return source + ' !bg-primary-muted !text-primary !border-primary-muted'
   if (status === 'REJECTED') return source + ' !bg-danger !text-white !border-danger'
   if (status === 'APPROVED') return source + ' !bg-success !text-white !border-success'
+  if (status === 'RETURNED') return source + ' !bg-warning !text-white !border-warning'
+  if (status === 'CANCELED' || status === 'NONE_APPROVED')
+    return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
   return source + ' !bg-foundation-page !text-foreground-2 !border-outline-3'
 })
 

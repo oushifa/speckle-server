@@ -377,6 +377,16 @@ const syncBindingStatusFromInstance = async (params: {
   return instance
 }
 
+export const syncBindingStatusFromInstanceFactory =
+  (deps: { db: Knex }) =>
+  async (params: { instanceId: string; updater: string }) => {
+    return await syncBindingStatusFromInstance({
+      trx: deps.db,
+      instanceId: params.instanceId,
+      updater: params.updater
+    })
+  }
+
 export const getApprovalBindingBySubjectFactory =
   (deps: { db: Knex }) =>
   async (

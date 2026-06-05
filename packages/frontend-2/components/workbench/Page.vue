@@ -127,7 +127,7 @@
             <p class="mt-1 text-sm text-slate-600">个模型</p>
           </div>
 
-          <div class="mb-3 text-sm font-medium text-slate-600">最新动态</div>
+          <div class="mb-3 text-sm font-medium text-slate-600">待审核版本</div>
           <div class="flex-1 space-y-3 overflow-y-auto">
             <div
               v-for="update in recentUpdates"
@@ -248,6 +248,7 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
+import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
@@ -258,7 +259,8 @@ import {
 } from '~/components/flow/flowInstances'
 import type {
   FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables
+  FlowDefinitionsQueryVariables,
+  WorkbenchReviewUpdatesQuery
 } from '~~/lib/common/generated/gql/graphql'
 
 type DashboardStatsResponse = {
@@ -300,44 +302,7 @@ const metricCards = [
   }
 ] as const
 
-const templateId = 'model_aprv'
-
-const flowDefinitionsQuery = graphql(`
-  query FlowDefinitions($resourceType: ApprovalFlowResourceType) {
-    approvalFlowDefinitions(resourceType: $resourceType) {
-      id
-      templateId
-      name
-      resourceType
-      isActive
-      version
-      previousVersionId
-      effectConfig
-      formSchema {
-        key
-        name
-        type
-        required
-        placeholder
-        options {
-          label
-          value
-        }
-      }
-      steps {
-        id
-        name
-        stepIndex
-        requiredApprovals
-        approverIds
-        timeoutHours
-      }
-    }
-  }
-`) as unknown as TypedDocumentNode<
-  { approvalFlowDefinitions: FlowDefinitionsQuery['approvalFlowDefinitions'] },
-  { resourceType: string | null }
->
+const activeFlowTemplateId = ref<string | null>(null)
 
 const startFlowMutation = graphql(`
   mutation FlowStart($input: StartApprovalFlowInput!) {
@@ -381,8 +346,19 @@ const workbenchReviewUpdatesQuery = graphql(`
               description
               updatedAt
               approveStatus
-              versions(limit: 1) {
+              versions(limit: 25) {
                 totalCount
+                items {
+                  id
+                  message
+                  createdAt
+                  sourceApplication
+                  authorUser {
+                    id
+                    name
+                  }
+                  approveStatus
+                }
               }
             }
           }
@@ -390,39 +366,15 @@ const workbenchReviewUpdatesQuery = graphql(`
       }
     }
   }
-`) as TypedDocumentNode<WorkbenchReviewUpdatesResult, { cursor: string | null }>
+`) as TypedDocumentNode<WorkbenchReviewUpdatesQuery, { cursor: string | null }>
 
-type ReviewableModel = {
-  id: string
-  name: string
-  displayName: string
-  description?: string | null
-  updatedAt: string
-  approveStatus?: string | null
-  versions: {
-    totalCount: number
-  }
-}
-type ReviewableProject = {
-  id: string
-  name: string
-  responsible?: string | null
-  team: Array<{ user: { name: string } }>
-  models: {
-    items: ReviewableModel[]
-  }
-}
-type WorkbenchReviewUpdatesResult = {
-  activeUser: {
-    projects: {
-      cursor?: string | null
-      items: ReviewableProject[]
-    }
-  } | null
-}
+type ReviewableProject = NonNullable<
+  WorkbenchReviewUpdatesQuery['activeUser']
+>['projects']['items'][number]
 type UpdateItem = {
   id: string
   resourceId: string
+  modelId: string
   projectId: string
   projectName: string
   title: string
@@ -459,54 +411,12 @@ const dashboardStats = ref<DashboardStatsResponse>({
 })
 const todoTotalCount = ref(0)
 const todoList = ref<TodoItem[]>([])
-const flowDefinitions = ref<FlowDefinitionsQuery['approvalFlowDefinitions']>([])
 const recentUpdates = ref<UpdateItem[]>([])
 const totalReviewableModelCount = ref(0)
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
 const selectedUpdate = ref<UpdateItem | null>(null)
-const reviewerFieldValue = ref<unknown>('')
 const titleFieldValue = ref<unknown>('')
-
-const activeFlowDefinitions = computed(() =>
-  flowDefinitions.value
-    .filter((definition) => definition.isActive)
-    .sort((a, b) => b.version - a.version)
-)
-const targetFlowDefinitions = computed(() => activeFlowDefinitions.value.slice(0, 1))
-const hasActiveTargetFlow = computed(() => Boolean(targetFlowDefinitions.value.length))
-
-const targetFlowDefinition = computed<DefinitionItem | null>(
-  () => targetFlowDefinitions.value[0] || null
-)
-const reviewerField = computed<DynamicFormSchemaField>(() => {
-  const userFields = (targetFlowDefinition.value?.formSchema || [])
-    .filter((field) => field.type === 'user')
-    .map((field) => ({
-      key: field.key,
-      name: field.name,
-      type: field.type,
-      required: field.required || false,
-      multiple: false,
-      placeholder: field.placeholder || '请选择审核人',
-      options: []
-    }))
-  const preferredField =
-    userFields.find((field) =>
-      /approver|reviewer|审核人/i.test(`${field.key}${field.name}`)
-    ) || userFields[0]
-  return (
-    preferredField || {
-      key: 'nextApproverId',
-      name: '审核人',
-      type: 'user',
-      required: true,
-      multiple: false,
-      placeholder: '请选择审核人',
-      options: []
-    }
-  )
-})
 
 const titleField = computed<DynamicFormSchemaField>(() => ({
   key: 'title',
@@ -628,20 +538,25 @@ const buildRecentUpdates = (projects: ReviewableProject[]): UpdateItem[] => {
   const items: UpdateItem[] = []
   projects.forEach((project) => {
     project.models.items.forEach((model) => {
-      if (!canStartFlowForModel(model.approveStatus)) return
-      const updateTimestamp = new Date(model.updatedAt).getTime() || 0
-      items.push({
-        id: `${project.id}-${model.id}`,
-        resourceId: model.id,
-        projectId: project.id,
-        projectName: project.name,
-        title: model.displayName || model.name,
-        version: `v${Math.max(1, model.versions.totalCount)}`,
-        description: model.description?.trim() || `来自项目 ${project.name}`,
-        initiator: project.responsible?.trim() || project.team[0]?.user.name || '系统',
-        time: formatUpdateTime(model.updatedAt),
-        updatedAt: updateTimestamp,
-        approveStatus: model.approveStatus
+      const versions = model.versions?.items || []
+      const totalCount = model.versions?.totalCount || 0
+      versions.forEach((version, idx) => {
+        if (!canStartFlowForModel(version.approveStatus)) return
+        const updateTimestamp = new Date(version.createdAt).getTime() || 0
+        items.push({
+          id: `${project.id}-${model.id}-${version.id}`,
+          resourceId: version.id,
+          modelId: model.id,
+          projectId: project.id,
+          projectName: project.name,
+          title: model.displayName || model.name,
+          version: `v${totalCount - idx}`,
+          description: version.message?.trim() || `来自项目 ${project.name}`,
+          initiator: version.authorUser?.name || project.responsible?.trim() || '系统',
+          time: formatUpdateTime(version.createdAt),
+          updatedAt: updateTimestamp,
+          approveStatus: version.approveStatus
+        })
       })
     })
   })
@@ -660,8 +575,8 @@ const loadRecentUpdates = async () => {
           cursor
         },
         fetchPolicy: 'no-cache'
-      })) as { data: WorkbenchReviewUpdatesResult }
-      projects.push(...(result.data.activeUser?.projects.items || []))
+      })) as { data: WorkbenchReviewUpdatesQuery }
+      projects.push(...((result.data.activeUser?.projects.items || []) as ReviewableProject[]))
       cursor = result.data.activeUser?.projects.cursor || null
     } while (cursor)
     const allUpdates = buildRecentUpdates(projects)
@@ -674,22 +589,7 @@ const loadRecentUpdates = async () => {
   }
 }
 
-const loadFlowDefinitions = async () => {
-  try {
-    const res = await apollo.query<FlowDefinitionsQuery, FlowDefinitionsQueryVariables>(
-      {
-        query: flowDefinitionsQuery,
-        variables: {
-          resourceType: 'MODEL'
-        },
-        fetchPolicy: 'network-only'
-      }
-    )
-    flowDefinitions.value = res.data.approvalFlowDefinitions || []
-  } catch (e) {
-    notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
-  }
-}
+
 
 const loadDashboardStats = async () => {
   try {
@@ -718,7 +618,7 @@ const loadDashboardStats = async () => {
   }
 }
 
-const openReviewDialog = (item: UpdateItem) => {
+const openReviewDialog = async (item: UpdateItem) => {
   if (!canStartFlowForModel(item.approveStatus)) {
     notify(
       '不可发起',
@@ -727,24 +627,40 @@ const openReviewDialog = (item: UpdateItem) => {
     )
     return
   }
-  if (!targetFlowDefinitions.value.length || !hasActiveTargetFlow.value) {
+
+  mutating.value = true
+  try {
+    const activeDef = await $fetch<{ templateId: string }>(
+      `${apiOrigin}/api/projects/${item.projectId}/approval-definitions/active?category=MODEL_REVIEW`
+    )
+    if (!activeDef?.templateId) {
+      notify(
+        '流程不可用',
+        '未找到该项目下已启用的模型审核流程配置',
+        ToastNotificationType.Warning
+      )
+      return
+    }
+    activeFlowTemplateId.value = activeDef.templateId
+    selectedResourceId.value = item.resourceId
+    selectedUpdate.value = item
+    titleFieldValue.value = ''
+    isStartDialogOpen.value = true
+  } catch (err) {
+    console.error(err)
     notify(
       '流程不可用',
-      '未找到已启用的模型审批流程定义',
+      '未找到该项目下已启用的模型审核流程配置，或获取流程失败',
       ToastNotificationType.Warning
     )
-    return
+  } finally {
+    mutating.value = false
   }
-  selectedResourceId.value = item.resourceId
-  selectedUpdate.value = item
-  reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
-  titleFieldValue.value = ''
-  isStartDialogOpen.value = true
 }
 
 const submitReviewApproval = async () => {
   const titleValue = `${titleFieldValue.value || ''}`.trim()
-  if (!templateId || !selectedResourceId.value) return
+  if (!activeFlowTemplateId.value || !selectedResourceId.value) return
   mutating.value = true
   try {
     await apollo.mutate({
@@ -752,11 +668,10 @@ const submitReviewApproval = async () => {
       variables: {
         input: {
           projectId: selectedUpdate.value?.projectId,
-          templateId,
+          templateId: activeFlowTemplateId.value,
           resourceId: selectedResourceId.value,
           formData: {
-            [reviewerField.value.key]: reviewerFieldValue.value,
-            [titleField.value.key]: titleValue
+            title: titleValue
           }
         }
       }
@@ -765,7 +680,6 @@ const submitReviewApproval = async () => {
     isStartDialogOpen.value = false
     selectedUpdate.value = null
     selectedResourceId.value = null
-    reviewerFieldValue.value = reviewerField.value.multiple ? [] : ''
     titleFieldValue.value = ''
     await loadRecentUpdates()
   } catch (e) {
@@ -776,12 +690,18 @@ const submitReviewApproval = async () => {
 }
 
 const openModelPage = (item: UpdateItem) => {
-  window.open(`/projects/${item.projectId}/models/${item.resourceId}`)
+  const { versionUrl } = useViewerRouteBuilder()
+  window.open(
+    versionUrl({
+      projectId: item.projectId,
+      modelId: item.modelId,
+      versionId: item.resourceId
+    })
+  )
 }
 
 onMounted(async () => {
   await Promise.all([
-    loadFlowDefinitions(),
     loadRecentUpdates(),
     loadTodoList(),
     loadDashboardStats()
