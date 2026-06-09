@@ -129,6 +129,10 @@ export const useSettingsMenu = () => {
       route: settingsServerRoutes.general
     },
     {
+      title: '部门管理',
+      route: settingsServerRoutes.departments
+    },
+    {
       title: '成员',
       route: settingsServerRoutes.members
     },

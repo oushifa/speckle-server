@@ -22,7 +22,7 @@ export const ProjectProgressPlanTasks = buildTableHelper(
     'isCriticalTask',
     'predecessor',
     'inspectionBatch',
-    'bimElements',
+    'BIM',
     'creator',
     'updater',
     'createdAt',
@@ -30,17 +30,13 @@ export const ProjectProgressPlanTasks = buildTableHelper(
   ]
 )
 
-export type ProgressPlanTaskBimSelection = {
+export type BimElementEntry = {
   modelId: string
   applicationIds: string[]
+  bimIds: (string | null)[]
 }
 
-export type ProgressPlanTaskBimElements = {
-  modelId: string | null
-  modelIds: string[]
-  applicationIds: string[]
-  selections: ProgressPlanTaskBimSelection[]
-}
+export type ProgressPlanTaskBIM = BimElementEntry[]
 
 export type ProgressPlanTaskRecord = {
   id: string
@@ -60,7 +56,7 @@ export type ProgressPlanTaskRecord = {
   isCriticalTask: boolean
   predecessor: string | null
   inspectionBatch: string | null
-  bimElements: ProgressPlanTaskBimElements | null
+  BIM: ProgressPlanTaskBIM | null
   creator: string
   updater: string
   createdAt: Date
@@ -82,7 +78,7 @@ type ReplaceProgressPlanTaskInput = {
   isCriticalTask?: boolean
   predecessor?: string | null
   inspectionBatch?: string | null
-  bimElements?: Partial<ProgressPlanTaskBimElements> | null
+  BIM?: ProgressPlanTaskBIM | null
 }
 
 export type ProgressPlanTaskMilestoneType = 'project' | 'phase' | 'acceptance'
@@ -115,42 +111,27 @@ const uniqueStrings = (values: unknown[]) => {
   }, [])
 }
 
-const sanitizeBimElements = (
-  input?: Partial<ProgressPlanTaskBimElements> | null
-): ProgressPlanTaskBimElements | null => {
-  if (!input) return null
+const sanitizeBIM = (
+  input?: ProgressPlanTaskBIM | null
+): ProgressPlanTaskBIM | null => {
+  if (!Array.isArray(input) || input.length === 0) return null
 
-  const selections = Array.isArray(input.selections)
-    ? input.selections
-        .map((group) => ({
-          modelId: normalizeString(group?.modelId),
-          applicationIds: uniqueStrings(group?.applicationIds || [])
-        }))
-        .filter((group) => group.modelId && group.applicationIds.length > 0)
-    : []
-
-  const legacyModelId = normalizeString(input.modelId)
-  const legacyApplicationIds = uniqueStrings(input.applicationIds || [])
-  if (!selections.length && legacyModelId && legacyApplicationIds.length) {
-    selections.push({
-      modelId: legacyModelId,
-      applicationIds: legacyApplicationIds
+  const normalized = input
+    .map((entry) => {
+      const modelId = normalizeString(entry?.modelId)
+      if (!modelId) return null
+      const applicationIds = uniqueStrings(entry?.applicationIds || [])
+      if (!applicationIds.length) return null
+      const rawBimIds = Array.isArray(entry.bimIds) ? entry.bimIds : []
+      const bimIds: (string | null)[] = applicationIds.map((_, idx) => {
+        const raw = rawBimIds[idx]
+        return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+      })
+      return { modelId, applicationIds, bimIds }
     })
-  }
+    .filter((e): e is BimElementEntry => e !== null)
 
-  if (!selections.length) return null
-
-  const modelIds = uniqueStrings(selections.map((group) => group.modelId))
-  const applicationIds = uniqueStrings(
-    selections.flatMap((group) => group.applicationIds)
-  )
-
-  return {
-    modelId: selections.length === 1 ? selections[0]?.modelId || null : null,
-    modelIds,
-    applicationIds,
-    selections
-  }
+  return normalized.length > 0 ? normalized : null
 }
 
 const sanitizeMilestoneType = (
@@ -232,11 +213,10 @@ export const updateProgressPlanTaskBimFactory =
   async (params: {
     projectId: string
     taskId: string
-    modelId?: string | null
-    applicationIds?: string[]
-    selections?: ProgressPlanTaskBimSelection[]
+    BIM?: ProgressPlanTaskBIM | null
     updater: string
   }): Promise<ProgressPlanTaskRecord | undefined> => {
+    const sanitizedBim = sanitizeBIM(params.BIM ?? null)
     const [updated] = await tables
       .projectProgressPlanTasks(deps.db)
       .where({
@@ -245,14 +225,10 @@ export const updateProgressPlanTaskBimFactory =
       })
       .update(
         {
-          [planTaskCols.bimElements]: sanitizeBimElements({
-            modelId: params.modelId || '',
-            applicationIds: params.applicationIds || [],
-            selections: params.selections || []
-          }),
+          [planTaskCols.BIM]: sanitizedBim ? JSON.stringify(sanitizedBim) : null,
           [planTaskCols.updater]: params.updater,
           [planTaskCols.updatedAt]: deps.db.fn.now()
-        },
+        } as any,
         '*'
       )
 
@@ -295,6 +271,13 @@ export const updateProgressPlanTaskMarkerFactory =
     return updated
   }
 
+const getParentWbs = (wbs?: string | null) => {
+  if (!wbs) return null
+  const segments = wbs.split('.').filter(Boolean)
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('.')
+}
+
 export const replaceProgressPlanTasksFactory =
   (deps: { db: Knex }) =>
   async (params: {
@@ -311,21 +294,21 @@ export const replaceProgressPlanTasksFactory =
     const preservedByExternalId = new Map<
       string,
       {
-        bimElements: ProgressPlanTaskBimElements | null
+        BIM: ProgressPlanTaskBIM | null
         marker: ProgressPlanTaskMarker
       }
     >()
     const preservedByWbs = new Map<
       string,
       {
-        bimElements: ProgressPlanTaskBimElements | null
+        BIM: ProgressPlanTaskBIM | null
         marker: ProgressPlanTaskMarker
       }
     >()
 
     for (const task of existingTasks) {
       const preservedValue = {
-        bimElements: task.bimElements,
+        BIM: task.BIM,
         marker: sanitizeMarker({
           milestoneType: task.milestoneType,
           milestoneDescription: task.milestoneDescription,
@@ -390,12 +373,39 @@ export const replaceProgressPlanTasksFactory =
         isCriticalTask: marker.isCriticalTask,
         predecessor: task.predecessor || null,
         inspectionBatch: task.inspectionBatch || null,
-        bimElements:
-          sanitizeBimElements(task.bimElements) || preservedState?.bimElements || null,
+        BIM:
+          sanitizeBIM(task.BIM ?? null) || preservedState?.BIM || null,
         creator: params.actorId,
         updater: params.actorId
       }
     })
 
-    return await taskTable.insert(insertPayload, '*')
+    // 筛选出所有父任务节点（ID集合与WBS前缀集合）
+    const parentIdsSet = new Set<string>()
+    const parentWbsSet = new Set<string>()
+
+    insertPayload.forEach((item) => {
+      if (item.parentId) {
+        parentIdsSet.add(item.parentId)
+      }
+      const parentWbs = getParentWbs(item.wbs)
+      if (parentWbs) {
+        parentWbsSet.add(parentWbs)
+      }
+    })
+
+    // 对父节点强制清除关联模型
+    insertPayload.forEach((item) => {
+      const isParent = parentIdsSet.has(item.id) || (item.wbs && parentWbsSet.has(item.wbs))
+      if (isParent) {
+        item.BIM = null
+      }
+    })
+
+    const insertPayloadForDb = insertPayload.map((item) => ({
+      ...item,
+      BIM: item.BIM ? JSON.stringify(item.BIM) : null
+    }))
+
+    return await taskTable.insert(insertPayloadForDb as any, '*')
   }

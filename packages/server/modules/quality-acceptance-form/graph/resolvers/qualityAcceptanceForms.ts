@@ -13,7 +13,7 @@ import { BadRequestError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
-import type { BimElements } from '@/modules/quality-acceptance-form/helpers/types'
+import type { BIM } from '@/modules/quality-acceptance-form/helpers/types'
 import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
 import { isNonNullable } from '@speckle/shared'
 import { Roles } from '@speckle/shared'
@@ -23,7 +23,7 @@ import {
   createQualityAcceptanceFormEntryFactory,
   importQualityAcceptanceFormsFactory,
   normalizeApproveStatus,
-  normalizeBimElements,
+  normalizeBIM,
   QUALITY_ACCEPTANCE_FORM_TABLE
 } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
 
@@ -45,7 +45,7 @@ type CreateQualityAcceptanceFormArgs = {
   attachments?: string[] | null
   workVolume?: number | null
   unit?: string | null
-  bimElements?: BimElements | null
+  BIM?: BIM | null
   BIMelement?: string[] | null
   timeZone?: string | null
   approveStatus?: string | null
@@ -72,14 +72,14 @@ const resolvers = {
     },
     creatorId: (parent: { creator?: string | null }) => parent.creator || null,
     projectId: (parent: { project_id?: string | null }) => parent.project_id || null,
-    bimElements: (parent: {
-      bimElements?: BimElements | null
+    BIM: (parent: {
+      BIM?: BIM | null
       BIMelement?: string[] | null
-    }) => normalizeBimElements(parent.bimElements, parent.BIMelement),
+    }) => normalizeBIM(parent.BIM, parent.BIMelement),
     BIMelement: (parent: {
-      bimElements?: BimElements | null
+      BIM?: BIM | null
       BIMelement?: string[] | null
-    }) => normalizeBimElements(parent.bimElements, parent.BIMelement)?.bimIds || null,
+    }) => normalizeBIM(parent.BIM, parent.BIMelement)?.flatMap((e) => e.applicationIds) || null,
     attachments: async (parent: {
       attachments?: string[] | null
       project_id?: string | null
@@ -226,7 +226,7 @@ const resolvers = {
           attachments?: string[] | null
           workVolume?: number | null
           unit?: string | null
-          bimElements?: BimElements | null
+          BIM?: BIM | null
           BIMelement?: string[] | null
           timeZone?: string | null
           approveStatus?: string | null
@@ -286,8 +286,8 @@ const resolvers = {
           ['project_id']: args.input.projectId,
           workVolume: args.input.workVolume ?? null,
           unit: args.input.unit ?? null,
-          bimElements: normalizeBimElements(
-            args.input.bimElements ?? null,
+          BIM: normalizeBIM(
+            args.input.BIM ?? null,
             args.input.BIMelement ?? null
           ),
           timeZone: args.input.timeZone ?? null,

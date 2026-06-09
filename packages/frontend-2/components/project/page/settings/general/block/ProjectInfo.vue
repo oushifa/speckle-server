@@ -21,6 +21,34 @@
         color="foundation"
         :disabled="!canUpdate.authorized"
       />
+      <FormTextInput
+        v-model="localProjectNumber"
+        name="projectNumber"
+        label="项目编号"
+        placeholder="项目编号"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormSelectDepartment
+        v-model="localConstructionUnit"
+        name="constructionUnit"
+        label="施工单位"
+        show-label
+        clearable
+        :disabled="!canUpdate.authorized"
+        class="mb-2"
+      />
+      <FormSelectDepartment
+        v-model="localSupervisionUnit"
+        name="supervisionUnit"
+        label="监理单位"
+        show-label
+        clearable
+        :disabled="!canUpdate.authorized"
+        class="mb-2"
+      />
       <template #bottom-buttons>
         <FormButton color="subtle" :disabled="!hasChanges" @click="resetLocalState">
           取消
@@ -60,6 +88,11 @@ graphql(`
     id
     name
     description
+    projectNumber
+    constructionUnit
+    supervisionUnit
+    constructionUnitName
+    supervisionUnitName
     permissions {
       canUpdate {
         ...FullPermissionCheckResult
@@ -78,13 +111,19 @@ const router = useRouter()
 const targetRoute = ref<RouteLocationRaw | undefined>(undefined)
 const localProjectName = ref(props.project.name)
 const localProjectDescription = ref(props.project.description ?? '')
+const localProjectNumber = ref(props.project.projectNumber ?? '')
+const localConstructionUnit = ref(props.project.constructionUnit ?? '')
+const localSupervisionUnit = ref(props.project.supervisionUnit ?? '')
 const showConfirmDialog = ref(false)
 
 const canUpdate = computed(() => props.project.permissions.canUpdate)
 const hasChanges = computed(() => {
   return (
     localProjectName.value !== props.project.name ||
-    localProjectDescription.value !== props.project.description
+    localProjectDescription.value !== props.project.description ||
+    localProjectNumber.value !== (props.project.projectNumber ?? '') ||
+    localConstructionUnit.value !== (props.project.constructionUnit ?? '') ||
+    localSupervisionUnit.value !== (props.project.supervisionUnit ?? '')
   )
 })
 
@@ -92,6 +131,9 @@ const emitUpdate = () => {
   emit('update-project', {
     name: localProjectName.value,
     description: localProjectDescription.value,
+    projectNumber: localProjectNumber.value,
+    constructionUnit: localConstructionUnit.value,
+    supervisionUnit: localSupervisionUnit.value,
     onComplete: handleRedirection
   })
 }
@@ -108,6 +150,9 @@ const handleRedirection = () => {
 const resetLocalState = () => {
   localProjectName.value = props.project.name
   localProjectDescription.value = props.project.description ?? ''
+  localProjectNumber.value = props.project.projectNumber ?? ''
+  localConstructionUnit.value = props.project.constructionUnit ?? ''
+  localSupervisionUnit.value = props.project.supervisionUnit ?? ''
   showConfirmDialog.value = false
 }
 
@@ -137,6 +182,15 @@ watch(
     }
     if (newProject.description !== oldProject.description) {
       localProjectDescription.value = newProject.description ?? ''
+    }
+    if (newProject.projectNumber !== oldProject.projectNumber) {
+      localProjectNumber.value = newProject.projectNumber ?? ''
+    }
+    if (newProject.constructionUnit !== oldProject.constructionUnit) {
+      localConstructionUnit.value = newProject.constructionUnit ?? ''
+    }
+    if (newProject.supervisionUnit !== oldProject.supervisionUnit) {
+      localSupervisionUnit.value = newProject.supervisionUnit ?? ''
     }
   },
   { deep: true }

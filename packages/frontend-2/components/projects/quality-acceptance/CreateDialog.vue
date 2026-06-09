@@ -195,7 +195,7 @@ const createDefaultForm = (): QualityAcceptanceCreateInput => ({
   creator: '',
   workVolume: 0,
   unit: '',
-  bimElements: null,
+  BIM: null,
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
   approveStatus: null
 })
@@ -219,13 +219,15 @@ const acceptValue = [
 ].join(',')
 
 const applicationIds = computed<string[]>({
-  get: () => form.value.bimElements?.applicationIds || [],
+  get: () => form.value.BIM?.[0]?.applicationIds || [],
   set: (value) => {
-    form.value.bimElements = {
-      modelId: bimModelId.value || '',
-      bimIds: [],
-      applicationIds: value || []
-    }
+    form.value.BIM = [
+      {
+        modelId: bimModelId.value || '',
+        bimIds: (value || []).map(() => null),
+        applicationIds: value || []
+      }
+    ]
   }
 })
 
@@ -286,7 +288,7 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
   actualFinishDateInput.value = formatDateInput(data.actualFinishDate)
   workVolumeInput.value = `${data.workVolume || ''}`
   bimProjectId.value = null
-  bimModelId.value = data.bimElements?.modelId || null
+  bimModelId.value = data.BIM?.[0]?.modelId || null
   uploads.value = []
   errorMessage.value = ''
 }
@@ -329,13 +331,15 @@ const submit = () => {
     attachments: Array.from(
       new Set([...(form.value.attachments || []), ...blobIds.value])
     ),
-    bimElements:
-      form.value.bimElements && form.value.bimElements.applicationIds.length
-        ? {
-            modelId: form.value.bimElements.modelId || '',
-            bimIds: [],
-            applicationIds: form.value.bimElements.applicationIds
-          }
+    BIM:
+      form.value.BIM && form.value.BIM[0] && form.value.BIM[0].applicationIds.length
+        ? [
+            {
+              modelId: form.value.BIM[0].modelId || '',
+              bimIds: form.value.BIM[0].applicationIds.map(() => null),
+              applicationIds: form.value.BIM[0].applicationIds
+            }
+          ]
         : null,
     timeZone: form.value.timeZone.trim()
   })
@@ -343,12 +347,14 @@ const submit = () => {
 }
 
 watch(bimModelId, (modelId) => {
-  if (!form.value.bimElements && !modelId) return
-  form.value.bimElements = {
-    modelId: modelId || '',
-    bimIds: [],
-    applicationIds: form.value.bimElements?.applicationIds || []
-  }
+  if (!form.value.BIM && !modelId) return
+  form.value.BIM = [
+    {
+      modelId: modelId || '',
+      bimIds: (form.value.BIM?.[0]?.applicationIds || []).map(() => null),
+      applicationIds: form.value.BIM?.[0]?.applicationIds || []
+    }
+  ]
 })
 
 const dialogButtons = computed((): LayoutDialogButton[] => {

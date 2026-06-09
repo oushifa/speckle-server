@@ -105,9 +105,13 @@ export const countQualityAcceptanceFormsFactory =
 
 export const createQualityAcceptanceFormFactory =
   (deps: { db: Knex }) => async (form: QualityAcceptanceFormRecord) => {
+    const payload = {
+      ...form,
+      BIM: form.BIM ? JSON.stringify(form.BIM) : null
+    }
     const [created] = (await tables
       .forms(deps.db)
-      .insert(form)
+      .insert(payload as any)
       .returning('*')) as QualityAcceptanceFormRecord[]
     return created
   }
@@ -124,9 +128,12 @@ export const deleteQualityAcceptanceFormFactory =
 export const updateQualityAcceptanceFormFactory =
   (deps: { db: Knex }) =>
   async (formId: string, form: Partial<QualityAcceptanceFormRecord>) => {
-    const payload: Partial<QualityAcceptanceFormRecord> = {
+    const payload: any = {
       ...form,
       updatedAt: new Date()
+    }
+    if (form.BIM !== undefined) {
+      payload.BIM = form.BIM ? JSON.stringify(form.BIM) : null
     }
     const [updated] = (await tables
       .forms(deps.db)

@@ -5,10 +5,10 @@ export type QualityAcceptanceAttachment = {
   fileSize: number | null
 }
 
-export type BimElements = {
+export type BimElementEntry = {
   modelId: string
-  bimIds: string[]
   applicationIds: string[]
+  bimIds: (string | null)[]
 }
 
 export type QualityAcceptanceForm = {
@@ -26,7 +26,7 @@ export type QualityAcceptanceForm = {
   creator: string
   workVolume: number
   unit: string
-  bimElements: BimElements | null
+  BIM: BimElementEntry[] | null
   timeZone: string
   approveStatus: string | null
   createdAt: number

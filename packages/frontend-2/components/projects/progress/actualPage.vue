@@ -1160,17 +1160,26 @@ const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
 const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput => {
   syncConstructionLog()
   syncElementSelections()
+  
+  const startBIM = form.startSelections.map((sel) => ({
+    modelId: sel.modelId,
+    applicationIds: sel.applicationIds,
+    bimIds: sel.applicationIds.map(() => null)
+  }))
+  
+  const finishBIM = form.finishSelections.map((sel) => ({
+    modelId: sel.modelId,
+    applicationIds: sel.applicationIds,
+    bimIds: sel.applicationIds.map(() => null)
+  }))
+
   return {
     taskName: form.taskName.trim(),
     reportDate: form.reportDate,
     startElementCodes: form.startElementCodes,
     finishElementCodes: form.finishElementCodes,
-    startModelIds: form.startModelIds,
-    startApplicationIds: form.startApplicationIds,
-    startSelections: form.startSelections,
-    finishModelIds: form.finishModelIds,
-    finishApplicationIds: form.finishApplicationIds,
-    finishSelections: form.finishSelections,
+    startBIM,
+    finishBIM,
     remark: form.remark,
     highTemperature: form.highTemperature,
     lowTemperature: form.lowTemperature,

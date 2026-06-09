@@ -37,6 +37,9 @@ export const projectsDashboardQuery = graphql(`
           status
           responsible
           timeZone
+          projectNumber
+          constructionUnit
+          supervisionUnit
           ...ProjectDashboardItem
           ...WorkspaceMoveProject_Project
         }
@@ -396,10 +399,10 @@ export const projectQualityAcceptanceFormsQuery = gql`
           projectId
           workVolume
           unit
-          bimElements {
+          BIM {
             modelId
-            bimIds
             applicationIds
+            bimIds
           }
           BIMelement
           timeZone

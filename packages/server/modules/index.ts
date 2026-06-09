@@ -127,7 +127,8 @@ const getEnabledModuleNames = () => {
     'workspacesCore',
     'gatekeeperCore',
     'multiregion',
-    'viewer'
+    'viewer',
+    'external'
   ]
 
   // TODO: add acc with feature flag?

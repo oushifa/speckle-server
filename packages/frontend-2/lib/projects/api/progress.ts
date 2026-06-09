@@ -55,10 +55,11 @@ export type ProgressPlanTask = {
   isCriticalTask: boolean
   predecessor: string | null
   inspection: string | null
-  modelId: string | null
-  modelIds: string[]
-  applicationIds: string[]
-  selections: ProgressPlanTaskBimSelection[]
+  BIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
   hasChildren: boolean
   canEditBimAssociation: boolean
   totalElementCount: number
@@ -93,6 +94,21 @@ export type ActualProgressRecord = {
   finishModelIds: string[]
   finishApplicationIds: string[]
   finishSelections: ActualProgressRecordBimSelection[]
+  startBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
+  finishBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
+  BIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
   remark: string
   highTemperature: string
   lowTemperature: string
@@ -125,6 +141,21 @@ export type ActualProgressRecordInput = {
   finishModelIds?: string[]
   finishApplicationIds?: string[]
   finishSelections?: ActualProgressRecordBimSelection[]
+  startBIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
+  finishBIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
+  BIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
   remark?: string
   highTemperature?: string
   lowTemperature?: string
@@ -351,19 +382,17 @@ export async function getProgressPlanTasks(params: {
 export async function updateProgressPlanTaskBimAssociation(params: {
   projectId: string
   taskId: string
-  modelId?: string | null
-  modelIds?: string[]
-  applicationIds?: string[]
-  selections?: ProgressPlanTaskBimSelection[]
+  BIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
   apiOrigin: string
 }) {
   const {
     projectId,
     taskId,
-    modelId,
-    modelIds,
-    applicationIds,
-    selections,
+    BIM,
     apiOrigin
   } = params
   try {
@@ -375,10 +404,7 @@ export async function updateProgressPlanTaskBimAssociation(params: {
       {
         method: 'PUT',
         body: {
-          modelId: modelId || null,
-          modelIds: modelIds || [],
-          applicationIds: applicationIds || [],
-          selections: selections || []
+          BIM: BIM || []
         }
       }
     )
@@ -431,7 +457,7 @@ export async function getActualProgressRecords(params: {
 }) {
   const { projectId, apiOrigin } = params
   try {
-    const payload = await $fetch<{ data: ActualProgressRecord[] }>(
+    const payload = await $fetch<{ data: any[] }>(
       new URL(
         `/api/v1/projects/${projectId}/progress/actual-records`,
         apiOrigin
@@ -440,7 +466,35 @@ export async function getActualProgressRecords(params: {
         method: 'GET'
       }
     )
-    return payload.data || []
+    const records = payload.data || []
+    return records.map((record) => {
+      const startBIM = record.startBIM || record.BIM || []
+      const finishBIM = record.finishBIM || []
+      
+      const startModelIds = [...new Set(startBIM.map((e: any) => e.modelId))] as string[]
+      const startApplicationIds = startBIM.flatMap((e: any) => e.applicationIds) as string[]
+      const startSelections = startBIM.map((e: any) => ({
+        modelId: e.modelId,
+        applicationIds: e.applicationIds
+      }))
+
+      const finishModelIds = [...new Set(finishBIM.map((e: any) => e.modelId))] as string[]
+      const finishApplicationIds = finishBIM.flatMap((e: any) => e.applicationIds) as string[]
+      const finishSelections = finishBIM.map((e: any) => ({
+        modelId: e.modelId,
+        applicationIds: e.applicationIds
+      }))
+
+      return {
+        ...record,
+        startModelIds,
+        startApplicationIds,
+        startSelections,
+        finishModelIds,
+        finishApplicationIds,
+        finishSelections
+      } as ActualProgressRecord
+    })
   } catch (error) {
     throw new Error(parseUnknownError(error))
   }

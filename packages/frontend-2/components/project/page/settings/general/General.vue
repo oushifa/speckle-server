@@ -3,8 +3,8 @@
     <ProjectPageSettingsGeneralBlockProjectInfo
       :project="project"
       @update-project="
-        ({ name, description, onComplete }) =>
-          handleUpdate({ name, description }, '项目信息已更新', onComplete)
+        ({ name, description, projectNumber, constructionUnit, supervisionUnit, onComplete }) =>
+          handleUpdate({ name, description, projectNumber, constructionUnit, supervisionUnit }, '项目信息已更新', onComplete)
       "
     />
 

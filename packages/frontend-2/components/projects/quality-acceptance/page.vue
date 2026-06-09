@@ -499,15 +499,15 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
       ): item is QualityAcceptanceFormNode => !!item
     )
     .map((item: QualityAcceptanceFormNode) => {
-      const bimElementsRaw = (
+      const bimRaw = (
         item as unknown as {
-          bimElements?: {
+          BIM?: Array<{
             modelId?: string | null
-            bimIds?: string[] | null
+            bimIds?: Array<string | null> | null
             applicationIds?: string[] | null
-          } | null
+          }> | null
         }
-      ).bimElements
+      ).BIM
       return {
         id: item.id,
         name: item.name || '',
@@ -535,18 +535,20 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
         creator: item.creator?.name || item.creator?.id || item.creatorId || '',
         workVolume: Number(item.workVolume || 0),
         unit: item.unit || '',
-        bimElements: bimElementsRaw
-          ? {
-              modelId: bimElementsRaw.modelId || '',
-              bimIds: bimElementsRaw.bimIds || [],
-              applicationIds: bimElementsRaw.applicationIds || []
-            }
+        BIM: bimRaw
+          ? bimRaw.map((entry) => ({
+              modelId: entry.modelId || '',
+              bimIds: entry.bimIds || [],
+              applicationIds: entry.applicationIds || []
+            }))
           : item.BIMelement
-          ? {
-              modelId: '',
-              bimIds: item.BIMelement,
-              applicationIds: []
-            }
+          ? [
+              {
+                modelId: '',
+                bimIds: item.BIMelement,
+                applicationIds: []
+              }
+            ]
           : null,
         timeZone: item.timeZone || '',
         approveStatus: item.approveStatus || null,
@@ -571,21 +573,24 @@ const inspectorNameMap = computed(() => {
 })
 
 const hasValidBimAssociation = (
-  bimElements: QualityAcceptanceForm['bimElements']
+  BIM: QualityAcceptanceForm['BIM']
 ): boolean => {
-  const modelId = (bimElements?.modelId || '').trim()
-  const bimIds = bimElements?.bimIds || []
-  const applicationIds = bimElements?.applicationIds || []
-  return !!modelId && (bimIds.length > 0 || applicationIds.length > 0)
+  if (!BIM || !BIM.length) return false
+  return BIM.some((entry) => {
+    const modelId = (entry.modelId || '').trim()
+    const bimIds = entry.bimIds || []
+    const applicationIds = entry.applicationIds || []
+    return !!modelId && (bimIds.length > 0 || applicationIds.length > 0)
+  })
 }
 
 const canViewAssociation = (item: AcceptanceRow): boolean =>
-  hasValidBimAssociation(item.bimElements)
+  hasValidBimAssociation(item.BIM)
 
 const tableItems = computed<AcceptanceRow[]>(() =>
   acceptanceForms.value.map((item) => ({
     ...item,
-    associationStatus: hasValidBimAssociation(item.bimElements) ? '已关联' : '未关联',
+    associationStatus: hasValidBimAssociation(item.BIM) ? '已关联' : '未关联',
     inspectorName: inspectorNameMap.value.get(item.id) || '-'
   }))
 )
@@ -614,7 +619,7 @@ const editingInitialData = computed<QualityAcceptanceCreateInput | null>(() => {
     creator: item.creator,
     workVolume: item.workVolume,
     unit: item.unit,
-    bimElements: item.bimElements,
+    BIM: item.BIM,
     timeZone: item.timeZone,
     approveStatus: item.approveStatus
   }
@@ -771,27 +776,29 @@ const canDeleteItem = (item: AcceptanceRow) => {
 }
 
 const selectedAssociationModelIds = computed(() => {
-  const modelId = (selectedAssociationItem.value?.bimElements?.modelId || '').trim()
-  return modelId ? [modelId] : []
+  const BIM = selectedAssociationItem.value?.BIM || []
+  return BIM.map((entry) => entry.modelId).filter(Boolean)
 })
 
-const selectedAssociationBimIds = computed(() => [
-  ...(selectedAssociationItem.value?.bimElements?.bimIds || [])
-])
-const selectedAssociationApplicationIds = computed(() => [
-  ...(selectedAssociationItem.value?.bimElements?.applicationIds || [])
-])
+const selectedAssociationBimIds = computed(() => {
+  const BIM = selectedAssociationItem.value?.BIM || []
+  return BIM.flatMap((entry) => entry.bimIds || []).filter((id): id is string => !!id)
+})
+const selectedAssociationApplicationIds = computed(() => {
+  const BIM = selectedAssociationItem.value?.BIM || []
+  return BIM.flatMap((entry) => entry.applicationIds || [])
+})
 
 const onAssociationStatusClick = (item: AcceptanceRow) => {
   if (!canViewAssociation(item)) return
   selectedAssociationItem.value = {
     ...item,
-    bimElements: item.bimElements
-      ? {
-          modelId: item.bimElements.modelId,
-          bimIds: [...item.bimElements.bimIds],
-          applicationIds: [...item.bimElements.applicationIds]
-        }
+    BIM: item.BIM
+      ? item.BIM.map((entry) => ({
+          modelId: entry.modelId,
+          bimIds: [...entry.bimIds],
+          applicationIds: [...entry.applicationIds]
+        }))
       : null
   }
   associatedModelDrawerOpen.value = true
@@ -1140,7 +1147,7 @@ const handleImportFileChange = async (event: Event) => {
           attachments: [],
           workVolume: row.workVolume,
           unit: row.unit || null,
-          bimElements: null,
+          BIM: null,
           timeZone: timeZone || null,
           approveStatus: row.approveStatus
         }))
@@ -1248,7 +1255,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         attachments: payload.attachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
-        bimElements: payload.bimElements,
+        BIM: payload.BIM,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
       } as UpdateQualityAcceptanceFormInput
@@ -1271,7 +1278,7 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         attachments: payload.attachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
-        bimElements: payload.bimElements,
+        BIM: payload.BIM,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
       } as CreateQualityAcceptanceFormInput

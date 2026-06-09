@@ -1,13 +1,13 @@
-type BimElements {
+type BimElementEntry {
   modelId: ID!
-  bimIds: [String!]!
   applicationIds: [String!]!
+  bimIds: [String]!
 }
 
-input BimElementsInput {
+input BimElementEntryInput {
   modelId: ID!
-  bimIds: [String!]!
   applicationIds: [String!]!
+  bimIds: [String]!
 }
 
 type QualityAcceptanceForm {
@@ -28,8 +28,8 @@ type QualityAcceptanceForm {
   projectId: ID
   workVolume: Float
   unit: String
-  bimElements: BimElements
-  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
+  BIM: [BimElementEntry!]
+  BIMelement: [String!] @deprecated(reason: "Use BIM instead")
   timeZone: String
   approveStatus: String
   createdAt: DateTime!
@@ -63,8 +63,8 @@ input CreateQualityAcceptanceFormInput {
   attachments: [String!]
   workVolume: Float
   unit: String
-  bimElements: BimElementsInput
-  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
+  BIM: [BimElementEntryInput!]
+  BIMelement: [String!] @deprecated(reason: "Use BIM instead")
   timeZone: String
   approveStatus: String
 }
@@ -89,8 +89,8 @@ input UpdateQualityAcceptanceFormInput {
   attachments: [String!]
   workVolume: Float
   unit: String
-  bimElements: BimElementsInput
-  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
+  BIM: [BimElementEntryInput!]
+  BIMelement: [String!] @deprecated(reason: "Use BIM instead")
   timeZone: String
   approveStatus: String
 }
@@ -109,8 +109,8 @@ input ImportQualityAcceptanceFormItemInput {
   attachments: [String!]
   workVolume: Float
   unit: String
-  bimElements: BimElementsInput
-  BIMelement: [String!] @deprecated(reason: "Use bimElements instead")
+  BIM: [BimElementEntryInput!]
+  BIMelement: [String!] @deprecated(reason: "Use BIM instead")
   timeZone: String
   approveStatus: String
 }

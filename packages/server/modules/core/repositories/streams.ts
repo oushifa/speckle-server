@@ -907,6 +907,9 @@ export const createStreamFactory =
 
     const workspaceId = 'workspaceId' in input ? input.workspaceId : null
     const regionKey = 'regionKey' in input ? input.regionKey || null : null
+    const projectNumber = 'projectNumber' in input ? (input.projectNumber as string) || null : null
+    const constructionUnit = 'constructionUnit' in input ? (input.constructionUnit as string) || null : null
+    const supervisionUnit = 'supervisionUnit' in input ? (input.supervisionUnit as string) || null : null
 
     const stream = {
       id,
@@ -917,7 +920,10 @@ export const createStreamFactory =
       createdAt,
       workspaceId: workspaceId || null,
       regionKey,
-      allowPublicComments
+      allowPublicComments,
+      projectNumber,
+      constructionUnit,
+      supervisionUnit
     }
 
     // Create the stream & set up permissions

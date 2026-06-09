@@ -874,10 +874,11 @@ const flowActionLoading = ref(false)
 
 type AcceptanceFormLite = {
   id: string
-  bimElements?: {
+  BIM?: Array<{
     modelId?: string | null
-    bimIds?: unknown[] | null
-  } | null
+    bimIds?: Array<string | null> | null
+    applicationIds?: string[] | null
+  }> | null
 }
 
 const createForm = ref({
@@ -936,8 +937,10 @@ const selectedPreviewModelIds = computed(() => {
     (form: unknown) => {
       const row = form as AcceptanceFormLite | null
       if (!row || !selectedIds.has(row.id)) return
-      const modelId = row.bimElements?.modelId || ''
-      if (modelId) ids.add(modelId)
+      const BIM = row.BIM || []
+      BIM.forEach((entry) => {
+        if (entry.modelId) ids.add(entry.modelId)
+      })
     }
   )
   return Array.from(ids)
@@ -950,8 +953,11 @@ const selectedPreviewBimIds = computed(() => {
     (form: unknown) => {
       const row = form as AcceptanceFormLite | null
       if (!row || !selectedIds.has(row.id)) return
-      ;(row.bimElements?.bimIds || []).forEach((id) => {
-        if (typeof id === 'string' && id) ids.add(id)
+      const BIM = row.BIM || []
+      BIM.forEach((entry) => {
+        ;(entry.bimIds || []).forEach((id) => {
+          if (typeof id === 'string' && id) ids.add(id)
+        })
       })
     }
   )
@@ -965,8 +971,11 @@ const selectedPreviewApplicationIds = computed(() => {
     (form: unknown) => {
       const row = form as AcceptanceFormLite | null
       if (!row || !selectedIds.has(row.id)) return
-      ;(row.bimElements?.applicationIds || []).forEach((id) => {
-        if (typeof id === 'string' && id) ids.add(id)
+      const BIM = row.BIM || []
+      BIM.forEach((entry) => {
+        ;(entry.applicationIds || []).forEach((id) => {
+          if (typeof id === 'string' && id) ids.add(id)
+        })
       })
     }
   )
@@ -1066,7 +1075,15 @@ const buildPreview = async () => {
       approvedCumulativeQty: Number(item.approvedCumulativeQty || 0),
       measuredQtyDefault: Number(item.measuredQtyDefault || 0),
       sourceAcceptanceIds: item.sourceAcceptanceIds || [],
-      sourceAcceptances: item.sourceAcceptances,
+      sourceAcceptances: (item.sourceAcceptances || []).map((acc: any) => ({
+        id: acc.id,
+        acceptancePart: acc.acceptancePart || '',
+        inspectionLotNumber: acc.inspectionLotNumber || '',
+        acceptanceContent: acc.acceptanceContent || '',
+        actualFinishDate: acc.actualFinishDate ? Number(acc.actualFinishDate) : null,
+        workVolume: acc.workVolume != null ? Number(acc.workVolume) : null,
+        unit: acc.unit || null
+      })),
       isSummaryRow: !!item.isSummaryRow,
       sortIndex: Number(item.sortIndex || 0)
     }))
@@ -1131,7 +1148,15 @@ const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
       approvedCumulativeQty: Number(row.approvedCumulativeQty || 0),
       measuredQtyDefault: Number(row.measuredQty || 0),
       sourceAcceptanceIds: row.sourceAcceptanceIds || [],
-      sourceAcceptances: row.sourceAcceptances,
+      sourceAcceptances: (row.sourceAcceptances || []).map((acc: any) => ({
+        id: acc.id,
+        acceptancePart: acc.acceptancePart || '',
+        inspectionLotNumber: acc.inspectionLotNumber || '',
+        acceptanceContent: acc.acceptanceContent || '',
+        actualFinishDate: acc.actualFinishDate ? Number(acc.actualFinishDate) : null,
+        workVolume: acc.workVolume != null ? Number(acc.workVolume) : null,
+        unit: acc.unit || null
+      })),
       isSummaryRow: !!row.isSummaryRow,
       sortIndex: Number(row.sortIndex || 0)
     }))

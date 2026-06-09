@@ -52,7 +52,7 @@ export const qualityAcceptanceApprovalSubjectHandler: ApprovalSubjectHandler = {
       creator: form.creator || null,
       actualStartDate: form.actualStartDate || null,
       actualFinishDate: form.actualFinishDate || null,
-      bimElements: form.bimElements || null,
+      BIM: form.BIM || null,
       attachments: form.attachments || null,
       updatedAt:
         form.updatedAt instanceof Date ? form.updatedAt.toISOString() : form.updatedAt

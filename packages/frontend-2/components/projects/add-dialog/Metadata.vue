@@ -78,6 +78,29 @@
         show-optional
         :rules="[isStringOfLength({ maxLength: 128 })]"
       />
+      <FormTextInput
+        name="projectNumber"
+        label="项目编号"
+        placeholder="请输入项目编号"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormSelectDepartment
+        v-model="selectedConstructionUnit"
+        name="constructionUnit"
+        label="施工单位"
+        show-label
+        clearable
+      />
+      <FormSelectDepartment
+        v-model="selectedSupervisionUnit"
+        name="supervisionUnit"
+        label="监理单位"
+        show-label
+        clearable
+      />
       <!-- <div>
         <h3 class="label mb-2">访问权限</h3>
         <ProjectVisibilitySelect
@@ -121,6 +144,9 @@ type FormValues = {
   end_date?: string
   status?: string
   responsible?: string
+  projectNumber?: string
+  constructionUnit?: string
+  supervisionUnit?: string
 }
 
 const props = defineProps<{
@@ -138,6 +164,9 @@ const createProject = useCreateProject()
 const updateProject = useUpdateProject()
 const logger = useLogger()
 const { handleSubmit, isSubmitting } = useForm<FormValues>()
+
+const selectedConstructionUnit = ref<string | undefined>(undefined)
+const selectedSupervisionUnit = ref<string | undefined>(undefined)
 
 const visibility = ref(
   props.workspaceId
@@ -179,6 +208,9 @@ const onSubmit = handleSubmit(async (values) => {
         const updatePayload: Record<string, unknown> = {}
         const trimmedStatus = values.status?.trim() || ''
         const trimmedResponsible = values.responsible?.trim() || ''
+        const trimmedProjectNumber = values.projectNumber?.trim() || ''
+        const trimmedConstructionUnit = selectedConstructionUnit.value || ''
+        const trimmedSupervisionUnit = selectedSupervisionUnit.value || ''
         const nextProgress = toNumberValue(values.progress)
         const nextStartDate = toTimestamp(values.start_date)
         const nextEndDate = toTimestamp(values.end_date)
@@ -197,6 +229,15 @@ const onSubmit = handleSubmit(async (values) => {
         }
         if (trimmedResponsible) {
           updatePayload.responsible = trimmedResponsible
+        }
+        if (trimmedProjectNumber) {
+          updatePayload.projectNumber = trimmedProjectNumber
+        }
+        if (trimmedConstructionUnit) {
+          updatePayload.constructionUnit = trimmedConstructionUnit
+        }
+        if (trimmedSupervisionUnit) {
+          updatePayload.supervisionUnit = trimmedSupervisionUnit
         }
 
         if (Object.keys(updatePayload).length) {

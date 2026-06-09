@@ -70,6 +70,9 @@ export type StreamRecord = {
   timeZone: Nullable<string>
   responsible: Nullable<string>
   status: Nullable<string>
+  projectNumber?: Nullable<string>
+  constructionUnit?: Nullable<string>
+  supervisionUnit?: Nullable<string>
   description: Nullable<string>
   clonedFrom: Nullable<string>
   createdAt: Date
@@ -170,11 +173,11 @@ export type QualityAcceptanceFormRecord = {
   workVolume?: Nullable<number>
   unit?: Nullable<string>
   BIMelement?: Nullable<string[]>
-  bimElements?: Nullable<{
-    modelId?: Nullable<string>
-    bimIds?: Nullable<string[]>
-    applicationIds?: Nullable<string[]>
-  }>
+  BIM?: Nullable<Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }>>
   timeZone?: Nullable<string>
   approveStatus?: Nullable<string>
   createdAt: Date

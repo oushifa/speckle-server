@@ -41,6 +41,9 @@ input ProjectUpdateInput {
   timeZone: String
   responsible: String
   status: String
+  projectNumber: String
+  constructionUnit: String
+  supervisionUnit: String
 }
 
 """
@@ -58,6 +61,9 @@ input ProjectCreateInput {
   progress: Int
   startDate: BigInt
   endDate: BigInt
+  projectNumber: String
+  constructionUnit: String
+  supervisionUnit: String
 }
 
 input ProjectUpdateRoleInput {
@@ -201,6 +207,11 @@ type Project {
   timeZone: String
   responsible: String
   status: String
+  projectNumber: String
+  constructionUnit: String
+  supervisionUnit: String
+  constructionUnitName: String
+  supervisionUnitName: String
   description: String
   visibility: ProjectVisibility!
   """

@@ -294,18 +294,12 @@ const modelIds = computed(() => {
   const selectedIds = new Set(submitSourceAcceptanceIds.value)
   const ids = new Set<string>()
   ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
-    (
-      form: NonNullable<
-        NonNullable<
-          NonNullable<
-            ProjectQualityAcceptanceFormsQuery['project']
-          >['qualityAcceptanceForms']
-        >['items'][number]
-      > | null
-    ) => {
+    (form: any) => {
       if (!form || !selectedIds.has(form.id)) return
-      const modelId = form.bimElements?.modelId || ''
-      if (modelId) ids.add(modelId)
+      const BIM = (form as unknown as { BIM?: Array<{ modelId?: string | null }> | null }).BIM || []
+      BIM.forEach((entry) => {
+        if (entry.modelId) ids.add(entry.modelId)
+      })
     }
   )
   return Array.from(ids)
@@ -315,18 +309,13 @@ const bimIds = computed(() => {
   const selectedIds = new Set(submitSourceAcceptanceIds.value)
   const ids = new Set<string>()
   ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
-    (
-      form: NonNullable<
-        NonNullable<
-          NonNullable<
-            ProjectQualityAcceptanceFormsQuery['project']
-          >['qualityAcceptanceForms']
-        >['items'][number]
-      > | null
-    ) => {
+    (form: any) => {
       if (!form || !selectedIds.has(form.id)) return
-      ;(form.bimElements?.bimIds || []).forEach((id) => {
-        if (typeof id === 'string' && id) ids.add(id)
+      const BIM = (form as unknown as { BIM?: Array<{ bimIds?: Array<string | null> | null }> | null }).BIM || []
+      BIM.forEach((entry) => {
+        ;(entry.bimIds || []).forEach((id) => {
+          if (typeof id === 'string' && id) ids.add(id)
+        })
       })
     }
   )
@@ -337,18 +326,13 @@ const applicationIds = computed(() => {
   const selectedIds = new Set(submitSourceAcceptanceIds.value)
   const ids = new Set<string>()
   ;(acceptanceFormsResult.value?.project?.qualityAcceptanceForms.items || []).forEach(
-    (
-      form: NonNullable<
-        NonNullable<
-          NonNullable<
-            ProjectQualityAcceptanceFormsQuery['project']
-          >['qualityAcceptanceForms']
-        >['items'][number]
-      > | null
-    ) => {
+    (form: any) => {
       if (!form || !selectedIds.has(form.id)) return
-      ;(form.bimElements?.applicationIds || []).forEach((id) => {
-        if (typeof id === 'string' && id) ids.add(id)
+      const BIM = (form as unknown as { BIM?: Array<{ applicationIds?: string[] | null }> | null }).BIM || []
+      BIM.forEach((entry) => {
+        ;(entry.applicationIds || []).forEach((id) => {
+          if (typeof id === 'string' && id) ids.add(id)
+        })
       })
     }
   )

@@ -27,7 +27,6 @@ import {
   replaceProgressPlanTasksFactory,
   updateProgressPlanTaskBimFactory,
   updateProgressPlanTaskMarkerFactory,
-  type ProgressPlanTaskBimSelection,
   type ProgressPlanTaskRecord
 } from '@/modules/progress/repositories/progressPlanTasks'
 import {
@@ -128,18 +127,14 @@ const taskSnapshotQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional()
 })
 
+const bimEntrySchema = z.object({
+  modelId: z.string().min(1),
+  applicationIds: z.array(z.string()),
+  bimIds: z.array(z.string().nullable())
+})
+
 const taskBimSchema = z.object({
-  modelId: z.string().nullable().optional(),
-  applicationIds: z.array(z.string()).optional(),
-  modelIds: z.array(z.string()).optional(),
-  selections: z
-    .array(
-      z.object({
-        modelId: z.string().min(1),
-        applicationIds: z.array(z.string())
-      })
-    )
-    .optional()
+  BIM: z.array(bimEntrySchema).optional()
 })
 
 const taskMarkerSchema = z.object({
@@ -153,37 +148,9 @@ const actualRecordBodySchema = z.object({
   reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startElementCodes: z.string().nullable().optional(),
   finishElementCodes: z.string().nullable().optional(),
-  startModelIds: z.array(z.string()).optional(),
-  startApplicationIds: z.array(z.string()).optional(),
-  startSelections: z
-    .array(
-      z.object({
-        modelId: z.string().min(1),
-        applicationIds: z.array(z.string())
-      })
-    )
-    .optional(),
-  finishModelIds: z.array(z.string()).optional(),
-  finishApplicationIds: z.array(z.string()).optional(),
-  finishSelections: z
-    .array(
-      z.object({
-        modelId: z.string().min(1),
-        applicationIds: z.array(z.string())
-      })
-    )
-    .optional(),
-  modelId: z.string().nullable().optional(),
-  modelIds: z.array(z.string()).optional(),
-  applicationIds: z.array(z.string()).optional(),
-  selections: z
-    .array(
-      z.object({
-        modelId: z.string().min(1),
-        applicationIds: z.array(z.string())
-      })
-    )
-    .optional(),
+  startBIM: z.array(bimEntrySchema).nullable().optional(),
+  finishBIM: z.array(bimEntrySchema).nullable().optional(),
+  BIM: z.array(bimEntrySchema).nullable().optional(),
   remark: z.string().nullable().optional(),
   highTemperature: z.string().nullable().optional(),
   lowTemperature: z.string().nullable().optional(),
@@ -221,7 +188,7 @@ const taskImportSchema = z.object({
       milestoneType: z.enum(['project', 'phase', 'acceptance']).nullable().optional(),
       milestoneDescription: z.string().trim().max(500).nullable().optional(),
       isCriticalTask: z.boolean().optional(),
-      bimElements: taskBimSchema.nullable().optional()
+      BIM: z.array(bimEntrySchema).nullable().optional()
     })
   )
 })
@@ -257,6 +224,7 @@ type SerializedPlanTaskAggregate = {
   linkedTaskCount: number
   finishedTaskCount: number
   delayedTaskCount: number
+  BIM: import('@/modules/progress/repositories/progressPlanTasks').ProgressPlanTaskBIM
 }
 
 type SerializedPlanTaskNode = {
@@ -355,7 +323,8 @@ const buildPlanTaskHierarchy = (tasks: ProgressPlanTaskRecord[]) => {
           inProgressTaskCount: 0,
           notStartedTaskCount: 0,
           noBimLinkTaskCount: 0,
-          finishedDelayedTaskCount: 0
+          finishedDelayedTaskCount: 0,
+          BIM: []
         }
       }
     ])
@@ -433,7 +402,8 @@ const aggregatePlanTaskNode = (
 ) => {
   if (!node.hasChildren) {
     const snapshot = snapshotByTaskId.get(node.task.id)
-    const hasBimLink = (node.task.bimElements?.applicationIds || []).length > 0
+    const taskBIM = node.task.BIM || []
+    const hasBimLink = taskBIM.some((e) => e.applicationIds.length > 0)
 
     node.aggregate = {
       totalElementCount: snapshot?.totalElementCount || 0,
@@ -454,7 +424,8 @@ const aggregatePlanTaskNode = (
       inProgressTaskCount: snapshot?.taskStatus === 'in_progress' ? 1 : 0,
       notStartedTaskCount: snapshot?.taskStatus === 'not_started' ? 1 : 0,
       noBimLinkTaskCount: snapshot?.taskStatus === 'no_bim_link' ? 1 : 0,
-      finishedDelayedTaskCount: snapshot?.taskStatus === 'finished_delayed' ? 1 : 0
+      finishedDelayedTaskCount: snapshot?.taskStatus === 'finished_delayed' ? 1 : 0,
+      BIM: taskBIM
     }
     return node
   }
@@ -484,7 +455,8 @@ const aggregatePlanTaskNode = (
         acc.notStartedTaskCount + child.aggregate.notStartedTaskCount,
       noBimLinkTaskCount: acc.noBimLinkTaskCount + child.aggregate.noBimLinkTaskCount,
       finishedDelayedTaskCount:
-        acc.finishedDelayedTaskCount + child.aggregate.finishedDelayedTaskCount
+        acc.finishedDelayedTaskCount + child.aggregate.finishedDelayedTaskCount,
+      BIM: []
     }),
     {
       totalElementCount: 0,
@@ -501,17 +473,52 @@ const aggregatePlanTaskNode = (
       inProgressTaskCount: 0,
       notStartedTaskCount: 0,
       noBimLinkTaskCount: 0,
-      finishedDelayedTaskCount: 0
+      finishedDelayedTaskCount: 0,
+      BIM: []
     }
   )
 
-  aggregate.completionRate = aggregate.totalElementCount
-    ? Number(
-        ((aggregate.finishedElementCount / aggregate.totalElementCount) * 100).toFixed(
-          2
-        )
-      )
-    : 0
+  // 合并子节点的 BIM 数组：按 modelId 分组，合并 applicationIds
+  const bimMap = new Map<string, Set<string>>()
+  node.children.forEach((child) => {
+    ;(child.aggregate.BIM || []).forEach((entry) => {
+      let appIds = bimMap.get(entry.modelId)
+      if (!appIds) {
+        appIds = new Set<string>()
+        bimMap.set(entry.modelId, appIds)
+      }
+      entry.applicationIds.forEach((id) => appIds!.add(id))
+    })
+  })
+
+  aggregate.BIM = [...bimMap.entries()].map(([modelId, appIds]) => ({
+    modelId,
+    applicationIds: [...appIds],
+    bimIds: [...appIds].map(() => null)
+  }))
+
+  // 按照子任务时间（计划工期）加权百分比计算：
+  // sum(子节点工期 * 子节点进度) / sum(子节点工期)
+  let sumWeight = 0
+  let sumWeightedRate = 0
+  node.children.forEach((child) => {
+    const planStart = child.task.planStart ? new Date(child.task.planStart).getTime() : 0
+    const planEnd = child.task.planEnd ? new Date(child.task.planEnd).getTime() : 0
+    const duration = planStart && planEnd ? planEnd - planStart + 86400000 : 0
+
+    sumWeight += duration
+    sumWeightedRate += duration * child.aggregate.completionRate
+  })
+
+  if (sumWeight > 0) {
+    aggregate.completionRate = Number((sumWeightedRate / sumWeight).toFixed(2))
+  } else {
+    const avg =
+      node.children.reduce((acc, child) => acc + child.aggregate.completionRate, 0) /
+      node.children.length
+    aggregate.completionRate = Number(avg.toFixed(2))
+  }
+
   aggregate.taskStatus = resolveAggregatedTaskStatus(aggregate)
   node.aggregate = aggregate
   return node
@@ -535,11 +542,8 @@ const serializePlanTask = (node: SerializedPlanTaskNode) => ({
   isCriticalTask: node.task.isCriticalTask,
   predecessor: node.task.predecessor,
   inspection: node.task.inspectionBatch,
-  modelId: node.task.bimElements?.modelId || null,
-  modelIds: node.task.bimElements?.modelIds || [],
-  applicationIds: node.task.bimElements?.applicationIds || [],
-  selections: (node.task.bimElements?.selections ||
-    []) as ProgressPlanTaskBimSelection[],
+  // 采用根据下级合并的 BIM 关联信息
+  BIM: node.aggregate.BIM,
   hasChildren: node.hasChildren,
   canEditBimAssociation: !node.hasChildren,
   totalElementCount: node.aggregate.totalElementCount,
@@ -585,13 +589,14 @@ const serializeSinglePlanTask = (task: ProgressPlanTaskRecord) =>
       completionRate: 0,
       taskStatus: null,
       totalTaskCount: 1,
-      linkedTaskCount: (task.bimElements?.applicationIds || []).length ? 1 : 0,
+      linkedTaskCount: (task.BIM || []).some((e) => e.applicationIds.length) ? 1 : 0,
       finishedTaskCount: 0,
       delayedTaskCount: 0,
       inProgressTaskCount: 0,
       notStartedTaskCount: 0,
       noBimLinkTaskCount: 0,
-      finishedDelayedTaskCount: 0
+      finishedDelayedTaskCount: 0,
+      BIM: task.BIM || []
     }
   })
 
@@ -607,8 +612,8 @@ const buildWeekDay = (reportDate: string) => {
 
 const serializeActualRecord = (record: ProgressActualRecord) => {
   const [year = '', month = '', day = ''] = record.reportDate.split('-')
-  const startBimElements = record.startBimElements || record.bimElements
-  const finishBimElements = record.finishBimElements
+  const startBIM = record.startBIM || record.BIM
+  const finishBIM = record.finishBIM
 
   return {
     id: record.id,
@@ -621,12 +626,8 @@ const serializeActualRecord = (record: ProgressActualRecord) => {
     reportDate: record.reportDate,
     startElementCodes: record.startElementCodes || '',
     finishElementCodes: record.finishElementCodes || '',
-    startModelIds: startBimElements?.modelIds || [],
-    startApplicationIds: startBimElements?.applicationIds || [],
-    startSelections: startBimElements?.selections || [],
-    finishModelIds: finishBimElements?.modelIds || [],
-    finishApplicationIds: finishBimElements?.applicationIds || [],
-    finishSelections: finishBimElements?.selections || [],
+    startBIM: startBIM || [],
+    finishBIM: finishBIM || [],
     remark: record.remark || '',
     highTemperature: record.highTemperature || '',
     lowTemperature: record.lowTemperature || '',
@@ -1402,9 +1403,7 @@ const buildRoute = (router: Router) => {
           const nextTask = await updateProgressPlanTaskBimFactory({ db: trx })({
             projectId,
             taskId: req.params.taskId,
-            modelId: req.body.modelId ?? null,
-            applicationIds: req.body.applicationIds || [],
-            selections: req.body.selections || [],
+            BIM: req.body.BIM,
             updater: req.context.userId!
           })
           if (!nextTask) return null

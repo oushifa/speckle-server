@@ -43,7 +43,8 @@ export const settingsServerRoutes = {
   general: '/settings/server/general',
   projects: '/settings/server/projects',
   members: '/settings/server/members',
-  regions: '/settings/server/regions'
+  regions: '/settings/server/regions',
+  departments: '/settings/server/departments'
 }
 
 export const settingsWorkspaceRoutes = {

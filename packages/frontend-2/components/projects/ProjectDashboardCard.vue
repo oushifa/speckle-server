@@ -254,6 +254,29 @@
           show-label
           show-optional
         />
+        <FormTextInput
+          v-model="editForm.projectNumber"
+          name="editProjectNumber"
+          label="项目编号"
+          placeholder="请输入项目编号"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormSelectDepartment
+          v-model="editForm.constructionUnit"
+          name="editConstructionUnit"
+          label="施工单位"
+          show-label
+          clearable
+        />
+        <FormSelectDepartment
+          v-model="editForm.supervisionUnit"
+          name="editSupervisionUnit"
+          label="监理单位"
+          show-label
+          clearable
+        />
       </div>
     </LayoutDialog>
     <LayoutDialog
@@ -337,7 +360,10 @@ const editForm = ref({
   endDate: '',
   status: '',
   responsible: '',
-  timeZone: ''
+  timeZone: '',
+  projectNumber: '',
+  constructionUnit: '',
+  supervisionUnit: ''
 })
 const originalDescription = ref('')
 
@@ -447,7 +473,10 @@ const setEditFormValues = () => {
     endDate: toDatetimeLocal(props.project.endDate),
     status: String(props.project.status || ''),
     responsible: String(props.project.responsible || ''),
-    timeZone: String(props.project.timeZone || '')
+    timeZone: String(props.project.timeZone || ''),
+    projectNumber: String(props.project.projectNumber || ''),
+    constructionUnit: String(props.project.constructionUnit || ''),
+    supervisionUnit: String(props.project.supervisionUnit || '')
   }
 }
 
@@ -476,12 +505,18 @@ const onSaveProjectInfo = async () => {
     const currentAddress = String(props.project.address || '')
     const currentStatus = String(props.project.status || '')
     const currentResponsible = String(props.project.responsible || '')
+    const currentProjectNumber = String(props.project.projectNumber || '')
+    const currentConstructionUnit = String(props.project.constructionUnit || '')
+    const currentSupervisionUnit = String(props.project.supervisionUnit || '')
     const currentProgress = toNumberValue(props.project.progress)
     const nextProgress = toNumberValue(editForm.value.progress)
     const currentStartDate = toDatetimeLocal(props.project.startDate)
     const nextStartDate = editForm.value.startDate
     const currentEndDate = toDatetimeLocal(props.project.endDate)
     const nextEndDate = editForm.value.endDate
+    const nextProjectNumber = editForm.value.projectNumber.trim()
+    const nextConstructionUnit = editForm.value.constructionUnit.trim()
+    const nextSupervisionUnit = editForm.value.supervisionUnit.trim()
 
     if (trimmedName && trimmedName !== props.project.name) {
       updatePayload.name = trimmedName
@@ -493,19 +528,28 @@ const onSaveProjectInfo = async () => {
       updatePayload.address = trimmedAddress
     }
     if (nextProgress !== currentProgress) {
-      updatePayload.progress = nextProgress
+      updatePayload.progress = nextProgress === '' ? null : nextProgress
     }
     if (nextStartDate !== currentStartDate) {
-      updatePayload.startDate = toTimestamp(nextStartDate)
+      updatePayload.startDate = nextStartDate ? toTimestamp(nextStartDate) : null
     }
     if (nextEndDate !== currentEndDate) {
-      updatePayload.endDate = toTimestamp(nextEndDate)
+      updatePayload.endDate = nextEndDate ? toTimestamp(nextEndDate) : null
     }
     if (trimmedStatus !== currentStatus) {
       updatePayload.status = trimmedStatus
     }
     if (trimmedResponsible !== currentResponsible) {
       updatePayload.responsible = trimmedResponsible
+    }
+    if (nextProjectNumber !== currentProjectNumber) {
+      updatePayload.projectNumber = nextProjectNumber
+    }
+    if (nextConstructionUnit !== currentConstructionUnit) {
+      updatePayload.constructionUnit = nextConstructionUnit
+    }
+    if (nextSupervisionUnit !== currentSupervisionUnit) {
+      updatePayload.supervisionUnit = nextSupervisionUnit
     }
 
     if (Object.keys(updatePayload).length) {

@@ -7,7 +7,7 @@ import {
   createQualityAcceptanceFormFactory,
   deleteQualityAcceptanceFormFactory
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
-import type { BimElements } from '@/modules/quality-acceptance-form/helpers/types'
+import type { BimElementEntry, BIM } from '@/modules/quality-acceptance-form/helpers/types'
 import { BadRequestError } from '@/modules/shared/errors'
 
 export const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
@@ -27,7 +27,7 @@ export type CreateQualityAcceptanceFormInput = {
   attachments?: string[] | null
   workVolume?: number | null
   unit?: string | null
-  bimElements?: BimElements | null
+  BIM?: BIM | null
   BIMelement?: string[] | null
   timeZone?: string | null
   approveStatus?: string | number | null
@@ -93,23 +93,39 @@ const normalizeAttachments = (attachments?: string[] | null) => {
 export const normalizeApproveStatus = (status?: string | number | null) =>
   status === null || status === undefined ? null : String(status)
 
-export const normalizeBimElements = (
-  bimElements?: BimElements | null,
+export const normalizeBIM = (
+  bim?: BIM | null,
   legacyBimElement?: string[] | null
-): BimElements | null => {
-  if (bimElements) {
-    const modelId = typeof bimElements.modelId === 'string' ? bimElements.modelId : ''
-    const bimIds = Array.isArray(bimElements.bimIds)
-      ? bimElements.bimIds.filter((id): id is string => typeof id === 'string')
-      : []
-    const applicationIds = Array.isArray(bimElements.applicationIds)
-      ? bimElements.applicationIds.filter((id): id is string => typeof id === 'string')
-      : []
-    return { modelId, bimIds, applicationIds }
+): BIM | null => {
+  if (Array.isArray(bim) && bim.length > 0) {
+    const normalized = bim
+      .map((entry): BimElementEntry | null => {
+        const modelId = typeof entry.modelId === 'string' ? entry.modelId.trim() : ''
+        if (!modelId) return null
+        const applicationIds = Array.isArray(entry.applicationIds)
+          ? entry.applicationIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
+          : []
+        // bimIds 与 applicationIds 对齐，长度不足时补 null
+        const rawBimIds = Array.isArray(entry.bimIds) ? entry.bimIds : []
+        const bimIds: (string | null)[] = applicationIds.map((_, idx) => {
+          const raw = rawBimIds[idx]
+          return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+        })
+        return { modelId, applicationIds, bimIds }
+      })
+      .filter((e): e is BimElementEntry => e !== null && e.applicationIds.length > 0)
+
+    if (normalized.length > 0) return normalized
   }
-  if (Array.isArray(legacyBimElement)) {
-    return { modelId: '', bimIds: legacyBimElement, applicationIds: [] }
+
+  // 兼容旧 BIMelement 字段（字符串数组），但不再支持单独的 modelId 格式
+  if (Array.isArray(legacyBimElement) && legacyBimElement.length > 0) {
+    const ids = legacyBimElement.filter((id): id is string => typeof id === 'string' && !!id.trim())
+    if (ids.length > 0) {
+      return [{ modelId: '', applicationIds: ids, bimIds: ids.map(() => null) }]
+    }
   }
+
   return null
 }
 
@@ -168,8 +184,8 @@ export const createQualityAcceptanceFormEntryFactory =
           ? null
           : params.input.workVolume,
       unit: normalizeOptionalString(params.input.unit) ?? boqItem?.unit ?? null,
-      bimElements: normalizeBimElements(
-        params.input.bimElements ?? null,
+      BIM: normalizeBIM(
+        params.input.BIM ?? null,
         params.input.BIMelement ?? null
       ),
       timeZone: normalizeOptionalString(params.input.timeZone),

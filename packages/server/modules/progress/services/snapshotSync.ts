@@ -29,14 +29,12 @@ import {
 } from '@/modules/progress/repositories/progressTaskElements'
 import type {
   ProgressActualRecord,
-  ProgressActualRecordBimElements,
-  ProgressActualRecordBimSelection
+  ProgressActualRecordBIM
 } from '@/modules/progress/repositories/progressActualRecords'
 import { listProgressActualRecordsFactory } from '@/modules/progress/repositories/progressActualRecords'
 import {
   listProgressPlanTasksFactory,
   listProgressPlanTasksByIdsFactory,
-  type ProgressPlanTaskBimSelection,
   type ProgressPlanTaskRecord
 } from '@/modules/progress/repositories/progressPlanTasks'
 import type { Knex } from 'knex'
@@ -73,37 +71,36 @@ const maxDate = (dates: Array<Date | null | undefined>) => {
   return [...filtered].sort(compareAsc)[filtered.length - 1] || null
 }
 
-const extractElementRefsFromSelections = <
-  TSelection extends ProgressPlanTaskBimSelection | ProgressActualRecordBimSelection
->(
-  selections?: TSelection[] | null
+const extractElementRefsFromBIM = (
+  bim?: ProgressActualRecordBIM | null
 ): ProgressElementRef[] =>
   uniqueElementRefs(
-    (Array.isArray(selections) ? selections : []).flatMap((selection) =>
-      uniqueStrings(selection.applicationIds || []).map((applicationId) => ({
-        modelId: selection.modelId,
+    (Array.isArray(bim) ? bim : []).flatMap((entry) =>
+      uniqueStrings(entry.applicationIds || []).map((applicationId) => ({
+        modelId: entry.modelId,
         applicationId
       }))
     )
   )
 
-const extractElementRefsFromActualBimElements = (
-  bimElements?: ProgressActualRecordBimElements | null
-) => extractElementRefsFromSelections(bimElements?.selections)
-
 export const extractElementRefsFromPlanTask = (
   task: ProgressPlanTaskRecord
 ): ProgressElementRef[] =>
-  extractElementRefsFromSelections(task.bimElements?.selections)
+  uniqueElementRefs(
+    (Array.isArray(task.BIM) ? task.BIM : []).flatMap((entry) =>
+      uniqueStrings(entry.applicationIds || []).map((applicationId) => ({
+        modelId: entry.modelId,
+        applicationId
+      }))
+    )
+  )
 
 export const extractElementRefsFromActualRecord = (
   record: ProgressActualRecord
 ): ProgressElementRef[] =>
   uniqueElementRefs([
-    ...extractElementRefsFromActualBimElements(
-      record.startBimElements || record.bimElements
-    ),
-    ...extractElementRefsFromActualBimElements(record.finishBimElements)
+    ...extractElementRefsFromBIM(record.startBIM || record.BIM),
+    ...extractElementRefsFromBIM(record.finishBIM)
   ])
 
 const buildTaskElementInputs = (
@@ -122,11 +119,11 @@ const buildActualElementEventInputs = (
   record: ProgressActualRecord
 ): UpsertProgressActualElementEventInput[] => {
   const eventAt = toDateFromReportDate(record.reportDate)
-  const startElements = extractElementRefsFromActualBimElements(
-    record.startBimElements || record.bimElements
+  const startElements = extractElementRefsFromBIM(
+    record.startBIM || record.BIM
   )
-  const finishElements = extractElementRefsFromActualBimElements(
-    record.finishBimElements
+  const finishElements = extractElementRefsFromBIM(
+    record.finishBIM
   )
 
   const toEvents = (
@@ -353,6 +350,71 @@ export const rebuildProgressElementSnapshotsFactory =
     }
   }
 
+const getParentWbs = (wbs?: string | null) => {
+  if (!wbs) return null
+  const segments = wbs.split('.').filter(Boolean)
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('.')
+}
+
+const getWbsLevel = (wbs?: string | null, fallbackLevel = 0) => {
+  if (!wbs) return fallbackLevel
+  const segments = wbs.split('.').filter(Boolean)
+  return Math.max(segments.length - 1, 0)
+}
+
+const parseWbsSegments = (wbs?: string | null) => {
+  if (!wbs) return []
+  return wbs
+    .split('.')
+    .filter(Boolean)
+    .map((segment) => Number.parseInt(segment, 10))
+}
+
+const compareWbs = (left?: string | null, right?: string | null) => {
+  if (!left && !right) return 0
+  if (left && !right) return -1
+  if (!left && right) return 1
+
+  const leftSegments = parseWbsSegments(left)
+  const rightSegments = parseWbsSegments(right)
+  const maxLength = Math.max(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < maxLength; index++) {
+    const leftSegment = leftSegments[index]
+    const rightSegment = rightSegments[index]
+
+    if (leftSegment === undefined) return -1
+    if (rightSegment === undefined) return 1
+    if (leftSegment !== rightSegment) return leftSegment - rightSegment
+  }
+
+  return 0
+}
+
+const resolveAggregatedTaskStatus = (aggregate: {
+  totalTaskCount: number
+  finishedTaskCount: number
+  inProgressTaskCount: number
+  notStartedTaskCount: number
+  noBimLinkTaskCount: number
+  finishedDelayedTaskCount: number
+  delayedTaskCount: number
+  taskStatus: ProgressTaskSnapshotStatus | null
+}): ProgressTaskSnapshotStatus | null => {
+  if (!aggregate.totalTaskCount) return aggregate.taskStatus
+  if (aggregate.finishedTaskCount === aggregate.totalTaskCount) {
+    return aggregate.finishedDelayedTaskCount > 0
+      ? 'finished_delayed'
+      : 'finished_on_time'
+  }
+  if (aggregate.delayedTaskCount > 0) return 'delayed'
+  if (aggregate.inProgressTaskCount > 0) return 'in_progress'
+  if (aggregate.notStartedTaskCount > 0) return 'not_started'
+  if (aggregate.noBimLinkTaskCount > 0) return 'no_bim_link'
+  return aggregate.taskStatus
+}
+
 export const rebuildProgressTaskSnapshotsFactory =
   (deps: { db: Knex }) =>
   async (params: {
@@ -360,29 +422,120 @@ export const rebuildProgressTaskSnapshotsFactory =
     taskIds: string[]
     actorId: string
   }): Promise<void> => {
-    const taskIds = uniqueStrings(params.taskIds)
-    if (!taskIds.length) return
+    // 无论 taskIds 是什么，为了保证层级聚合正确，查询项目下的所有任务
+    const allTasks = await listProgressPlanTasksFactory({ db: deps.db })({
+      projectId: params.projectId
+    })
 
-    const [tasks, taskElements] = await Promise.all([
-      listProgressPlanTasksByIdsFactory({ db: deps.db })({
-        projectId: params.projectId,
-        taskIds
-      }),
-      listProgressTaskElementsByTaskIdsFactory({ db: deps.db })({
-        projectId: params.projectId,
-        taskIds
-      })
-    ])
+    if (!allTasks.length) return
 
-    const tasksById = new Map(tasks.map((task) => [task.id, task]))
+    // 建立树形层次结构
+    const orderedTasks = [...allTasks].sort((left, right) => {
+      const wbsOrder = compareWbs(left.wbs, right.wbs)
+      if (wbsOrder !== 0) return wbsOrder
+      if (!left.wbs && !right.wbs && left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder
+      }
+      if (left.name !== right.name) {
+        return left.name.localeCompare(right.name, 'zh-CN')
+      }
+      return left.sortOrder - right.sortOrder
+    })
+
+    type TaskNodeAggregate = {
+      totalElementCount: number
+      finishedElementCount: number
+      inProgressElementCount: number
+      notStartedElementCount: number
+      delayedElementCount: number
+      completionRate: number
+      taskStatus: ProgressTaskSnapshotStatus
+      totalTaskCount: number
+      linkedTaskCount: number
+      finishedTaskCount: number
+      delayedTaskCount: number
+      inProgressTaskCount: number
+      notStartedTaskCount: number
+      noBimLinkTaskCount: number
+      finishedDelayedTaskCount: number
+      actualStartAt: Date | null
+      actualFinishAt: Date | null
+    }
+
+    type TaskNode = {
+      task: ProgressPlanTaskRecord
+      resolvedParentId: string | null
+      level: number
+      children: TaskNode[]
+      hasChildren: boolean
+      aggregate?: TaskNodeAggregate
+    }
+
+    const nodeMap = new Map<string, TaskNode>(
+      orderedTasks.map((task) => [
+        task.id,
+        {
+          task,
+          resolvedParentId: null,
+          level: getWbsLevel(task.wbs, task.level),
+          children: [],
+          hasChildren: false
+        }
+      ])
+    )
+
+    const nodeByWbs = new Map(
+      orderedTasks.flatMap((task) =>
+        task.wbs ? [[task.wbs, nodeMap.get(task.id)!] as const] : []
+      )
+    )
+
+    const rootNodes: TaskNode[] = []
+    orderedTasks.forEach((task) => {
+      const node = nodeMap.get(task.id)
+      if (!node) return
+
+      const wbsParent = getParentWbs(task.wbs)
+      const parent = task.wbs
+        ? wbsParent
+          ? nodeByWbs.get(wbsParent)
+          : undefined
+        : task.parentId
+        ? nodeMap.get(task.parentId)
+        : undefined
+
+      if (!parent) {
+        rootNodes.push(node)
+        return
+      }
+
+      node.resolvedParentId = parent.task.id
+      node.level = parent.level + 1
+      parent.children.push(node)
+    })
+
+    nodeMap.forEach((node) => {
+      node.hasChildren = node.children.length > 0
+    })
+
+    // 区分叶子和非叶子
+    const leafNodes = [...nodeMap.values()].filter((node) => !node.hasChildren)
+    const leafTaskIds = leafNodes.map((node) => node.task.id)
+
+    // 获取叶子节点的关联构件
+    const taskElements = await listProgressTaskElementsByTaskIdsFactory({ db: deps.db })({
+      projectId: params.projectId,
+      taskIds: leafTaskIds
+    })
+
     const taskElementsByTaskId = new Map<string, typeof taskElements>()
-
     taskElements.forEach((row) => {
       const existing = taskElementsByTaskId.get(row.taskId) || []
       existing.push(row)
       taskElementsByTaskId.set(row.taskId, existing)
     })
 
+    // 获取叶子节点涉及的构件快照
     const elementSnapshots = await listProgressElementSnapshotsByElementsFactory({
       db: deps.db
     })({
@@ -398,33 +551,34 @@ export const rebuildProgressTaskSnapshotsFactory =
       elementSnapshots.map((snapshot) => [elementRefKey(snapshot), snapshot])
     )
 
-    const snapshotPayload = [] as Parameters<
-      ReturnType<typeof upsertProgressTaskSnapshotsFactory>
-    >[0]['snapshots']
-    const missingTaskIds = taskIds.filter((taskId) => !tasksById.has(taskId))
     const now = new Date()
 
-    taskIds.forEach((taskId) => {
-      const task = tasksById.get(taskId)
-      if (!task) return
-
+    // 1. 初始化叶子节点聚合属性
+    leafNodes.forEach((node) => {
+      const taskId = node.task.id
+      const task = node.task
       const taskRows = taskElementsByTaskId.get(taskId) || []
+
       if (!taskRows.length) {
-        snapshotPayload.push({
-          taskId,
+        node.aggregate = {
           totalElementCount: 0,
           finishedElementCount: 0,
           inProgressElementCount: 0,
           notStartedElementCount: 0,
           delayedElementCount: 0,
           completionRate: 0,
-          plannedStartAt: task.planStart,
-          plannedFinishAt: task.planEnd,
-          actualStartAt: null,
-          actualFinishAt: null,
           taskStatus: 'no_bim_link',
-          lastCalculatedAt: now
-        })
+          totalTaskCount: 1,
+          linkedTaskCount: 0,
+          finishedTaskCount: 0,
+          delayedTaskCount: 0,
+          inProgressTaskCount: 0,
+          notStartedTaskCount: 0,
+          noBimLinkTaskCount: 1,
+          finishedDelayedTaskCount: 0,
+          actualStartAt: null,
+          actualFinishAt: null
+        }
         return
       }
 
@@ -434,6 +588,7 @@ export const rebuildProgressTaskSnapshotsFactory =
         )
       )
 
+      const totalElementCount = taskRows.length
       const finishedElementCount = linkedSnapshots.filter(
         (snapshot) => !!snapshot?.actualFinishAt
       ).length
@@ -461,10 +616,17 @@ export const rebuildProgressTaskSnapshotsFactory =
       const actualFinishAt = maxDate(
         linkedSnapshots.map((snapshot) => snapshot?.actualFinishAt)
       )
-      const totalElementCount = taskRows.length
 
-      snapshotPayload.push({
-        taskId,
+      const taskStatus = resolveTaskStatus({
+        totalElementCount,
+        finishedElementCount,
+        inProgressElementCount,
+        plannedFinishAt: task.planEnd,
+        actualFinishAt,
+        now
+      })
+
+      node.aggregate = {
         totalElementCount,
         finishedElementCount,
         inProgressElementCount,
@@ -473,26 +635,136 @@ export const rebuildProgressTaskSnapshotsFactory =
         completionRate: totalElementCount
           ? Number(((finishedElementCount / totalElementCount) * 100).toFixed(2))
           : 0,
-        plannedStartAt: task.planStart,
-        plannedFinishAt: task.planEnd,
+        taskStatus,
+        totalTaskCount: 1,
+        linkedTaskCount: 1,
+        finishedTaskCount:
+          taskStatus === 'finished_on_time' || taskStatus === 'finished_delayed' ? 1 : 0,
+        delayedTaskCount: taskStatus === 'delayed' ? 1 : 0,
+        inProgressTaskCount: taskStatus === 'in_progress' ? 1 : 0,
+        notStartedTaskCount: taskStatus === 'not_started' ? 1 : 0,
+        noBimLinkTaskCount: taskStatus === 'no_bim_link' ? 1 : 0,
+        finishedDelayedTaskCount: taskStatus === 'finished_delayed' ? 1 : 0,
         actualStartAt,
-        actualFinishAt,
-        taskStatus: resolveTaskStatus({
-          totalElementCount,
-          finishedElementCount,
-          inProgressElementCount,
-          plannedFinishAt: task.planEnd,
-          actualFinishAt,
-          now
-        }),
-        lastCalculatedAt: now
-      })
+        actualFinishAt
+      }
     })
 
-    if (missingTaskIds.length) {
+    // 2. 递归汇总上层节点的聚合属性
+    const aggregateNode = (node: TaskNode) => {
+      if (!node.hasChildren) return
+
+      node.children.forEach(aggregateNode)
+
+      const agg = node.children.reduce<TaskNodeAggregate>(
+        (acc, child) => {
+          const childAgg = child.aggregate!
+          return {
+            totalElementCount: acc.totalElementCount + childAgg.totalElementCount,
+            finishedElementCount: acc.finishedElementCount + childAgg.finishedElementCount,
+            inProgressElementCount: acc.inProgressElementCount + childAgg.inProgressElementCount,
+            notStartedElementCount: acc.notStartedElementCount + childAgg.notStartedElementCount,
+            delayedElementCount: acc.delayedElementCount + childAgg.delayedElementCount,
+            completionRate: 0,
+            taskStatus: 'no_bim_link',
+            totalTaskCount: acc.totalTaskCount + childAgg.totalTaskCount,
+            linkedTaskCount: acc.linkedTaskCount + childAgg.linkedTaskCount,
+            finishedTaskCount: acc.finishedTaskCount + childAgg.finishedTaskCount,
+            delayedTaskCount: acc.delayedTaskCount + childAgg.delayedTaskCount,
+            inProgressTaskCount: acc.inProgressTaskCount + childAgg.inProgressTaskCount,
+            notStartedTaskCount: acc.notStartedTaskCount + childAgg.notStartedTaskCount,
+            noBimLinkTaskCount: acc.noBimLinkTaskCount + childAgg.noBimLinkTaskCount,
+            finishedDelayedTaskCount: acc.finishedDelayedTaskCount + childAgg.finishedDelayedTaskCount,
+            actualStartAt: null,
+            actualFinishAt: null
+          }
+        },
+        {
+          totalElementCount: 0,
+          finishedElementCount: 0,
+          inProgressElementCount: 0,
+          notStartedElementCount: 0,
+          delayedElementCount: 0,
+          completionRate: 0,
+          taskStatus: 'no_bim_link',
+          totalTaskCount: 0,
+          linkedTaskCount: 0,
+          finishedTaskCount: 0,
+          delayedTaskCount: 0,
+          inProgressTaskCount: 0,
+          notStartedTaskCount: 0,
+          noBimLinkTaskCount: 0,
+          finishedDelayedTaskCount: 0,
+          actualStartAt: null,
+          actualFinishAt: null
+        }
+      )
+
+      agg.actualStartAt = minDate(node.children.map((child) => child.aggregate!.actualStartAt))
+      agg.actualFinishAt = maxDate(node.children.map((child) => child.aggregate!.actualFinishAt))
+
+      // 按照子任务时间（计划工期）加权百分比计算：
+      // sum(子节点工期 * 子节点进度) / sum(子节点工期)
+      let sumWeight = 0
+      let sumWeightedRate = 0
+      node.children.forEach((child) => {
+        const planStart = child.task.planStart ? new Date(child.task.planStart).getTime() : 0
+        const planEnd = child.task.planEnd ? new Date(child.task.planEnd).getTime() : 0
+        const duration = planStart && planEnd ? planEnd - planStart + 86400000 : 0
+
+        sumWeight += duration
+        sumWeightedRate += duration * child.aggregate!.completionRate
+      })
+
+      if (sumWeight > 0) {
+        agg.completionRate = Number((sumWeightedRate / sumWeight).toFixed(2))
+      } else {
+        const avg =
+          node.children.reduce((acc, child) => acc + child.aggregate!.completionRate, 0) /
+          node.children.length
+        agg.completionRate = Number(avg.toFixed(2))
+      }
+
+      agg.taskStatus = resolveAggregatedTaskStatus(agg) || 'no_bim_link'
+      node.aggregate = agg
+    }
+
+    rootNodes.forEach(aggregateNode)
+
+    // 准备全量快照写入 Payload
+    const snapshotPayload = [...nodeMap.values()].map((node) => {
+      const agg = node.aggregate!
+      return {
+        taskId: node.task.id,
+        totalElementCount: agg.totalElementCount,
+        finishedElementCount: agg.finishedElementCount,
+        inProgressElementCount: agg.inProgressElementCount,
+        notStartedElementCount: agg.notStartedElementCount,
+        delayedElementCount: agg.delayedElementCount,
+        completionRate: agg.completionRate,
+        plannedStartAt: node.task.planStart,
+        plannedFinishAt: node.task.planEnd,
+        actualStartAt: agg.actualStartAt,
+        actualFinishAt: agg.actualFinishAt,
+        taskStatus: agg.taskStatus,
+        lastCalculatedAt: now
+      }
+    })
+
+    // 清理已被删除任务对应的陈旧快照
+    const existingSnapshots = await deps
+      .db('project_progress_task_snapshots')
+      .where({ projectId: params.projectId })
+      .select('taskId')
+    const allTaskIdsSet = new Set(allTasks.map((t) => t.id))
+    const staleTaskIds = existingSnapshots
+      .map((s) => s.taskId)
+      .filter((id) => !allTaskIdsSet.has(id))
+
+    if (staleTaskIds.length) {
       await deleteProgressTaskSnapshotsByTaskIdsFactory({ db: deps.db })({
         projectId: params.projectId,
-        taskIds: missingTaskIds
+        taskIds: staleTaskIds
       })
     }
 

@@ -58,6 +58,11 @@ export const projectDashboardItemFragment = graphql(`
     status
     responsible
     timeZone
+    projectNumber
+    constructionUnit
+    supervisionUnit
+    constructionUnitName
+    supervisionUnitName
     id
     ...ProjectDashboardItemNoModels
     ...ProjectCardImportFileArea_Project
@@ -146,6 +151,11 @@ export const projectUpdatableMetadataFragment = graphql(`
     status
     responsible
     timeZone
+    projectNumber
+    constructionUnit
+    supervisionUnit
+    constructionUnitName
+    supervisionUnitName
     visibility
     allowPublicComments
     permissions {

@@ -370,6 +370,11 @@ interface ScheduleItem {
   modelIds: string[]
   applicationIds: string[]
   selections: ProgressPlanTaskBimSelection[]
+  BIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
   hasChildren: boolean
   canEditBimAssociation: boolean
   taskStatus: ProgressTaskSnapshotStatus | null
@@ -420,40 +425,26 @@ const normalizeSelections = (
     }))
     .filter((group) => group.modelId && group.applicationIds.length > 0)
 
-const getTaskBimSummary = (params: {
-  modelId?: string | null
-  modelIds?: string[] | null
-  applicationIds?: string[] | null
-  selections?: ProgressPlanTaskBimSelection[] | null
+const getTaskBimSummary = (task: {
+  BIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
 }) => {
-  const normalizedSelections = normalizeSelections(params.selections)
-  if (!normalizedSelections.length) {
-    const legacyModelId = normalizeString(params.modelId)
-    const legacyApplicationIds = uniqueStrings(params.applicationIds || [])
-    if (legacyModelId && legacyApplicationIds.length) {
-      normalizedSelections.push({
-        modelId: legacyModelId,
-        applicationIds: legacyApplicationIds
-      })
-    }
-  }
-
-  const modelIds = uniqueStrings([
-    ...(params.modelIds || []),
-    ...normalizedSelections.map((group) => group.modelId)
-  ])
-  const applicationIds = uniqueStrings(
-    normalizedSelections.flatMap((group) => group.applicationIds)
-  )
-
+  const BIM = task.BIM || []
+  const modelIds = uniqueStrings(BIM.map((e) => e.modelId))
+  const applicationIds = uniqueStrings(BIM.flatMap((e) => e.applicationIds))
+  const selections = BIM.map((e) => ({
+    modelId: e.modelId,
+    applicationIds: e.applicationIds
+  }))
   return {
-    modelId:
-      normalizedSelections.length === 1
-        ? normalizedSelections[0]?.modelId || null
-        : null,
+    BIM,
+    modelId: modelIds.length === 1 ? modelIds[0] : null,
     modelIds,
     applicationIds,
-    selections: normalizedSelections
+    selections
   }
 }
 
@@ -947,17 +938,15 @@ const saveTaskLink = async () => {
 
   isSavingLink.value = true
   try {
-    const bimSummary = getTaskBimSummary({
-      modelIds: draftModelIds.value,
-      selections: draftSelections.value
-    })
+    const BIM = draftSelections.value.map((sel) => ({
+      modelId: sel.modelId,
+      applicationIds: sel.applicationIds,
+      bimIds: sel.applicationIds.map(() => null)
+    }))
     const updated = await updateProgressPlanTaskBimAssociation({
       projectId: projectId.value,
       taskId: selectedTask.value.id,
-      modelId: bimSummary.modelId,
-      modelIds: bimSummary.modelIds,
-      applicationIds: bimSummary.applicationIds,
-      selections: bimSummary.selections,
+      BIM,
       apiOrigin
     })
     await fetchPlanTasks()

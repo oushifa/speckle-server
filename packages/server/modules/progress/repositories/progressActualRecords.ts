@@ -11,9 +11,9 @@ export const ProjectProgressActualRecords = buildTableHelper(
     'reportDate',
     'startElementCodes',
     'finishElementCodes',
-    'startBimElements',
-    'finishBimElements',
-    'bimElements',
+    'startBIM',
+    'finishBIM',
+    'BIM',
     'remark',
     'highTemperature',
     'lowTemperature',
@@ -38,17 +38,13 @@ export const ProjectProgressActualRecords = buildTableHelper(
   ]
 )
 
-export type ProgressActualRecordBimSelection = {
+export type BimElementEntry = {
   modelId: string
   applicationIds: string[]
+  bimIds: (string | null)[]
 }
 
-export type ProgressActualRecordBimElements = {
-  modelId: string | null
-  modelIds: string[]
-  applicationIds: string[]
-  selections: ProgressActualRecordBimSelection[]
-}
+export type ProgressActualRecordBIM = BimElementEntry[]
 
 export type ProgressActualRecord = {
   id: string
@@ -57,9 +53,9 @@ export type ProgressActualRecord = {
   reportDate: string
   startElementCodes: string | null
   finishElementCodes: string | null
-  startBimElements: ProgressActualRecordBimElements | null
-  finishBimElements: ProgressActualRecordBimElements | null
-  bimElements: ProgressActualRecordBimElements | null
+  startBIM: ProgressActualRecordBIM | null
+  finishBIM: ProgressActualRecordBIM | null
+  BIM: ProgressActualRecordBIM | null
   remark: string | null
   highTemperature: string | null
   lowTemperature: string | null
@@ -88,16 +84,9 @@ export type UpsertProgressActualRecordInput = {
   reportDate: string
   startElementCodes?: string | null
   finishElementCodes?: string | null
-  startModelIds?: string[]
-  startApplicationIds?: string[]
-  startSelections?: ProgressActualRecordBimSelection[]
-  finishModelIds?: string[]
-  finishApplicationIds?: string[]
-  finishSelections?: ProgressActualRecordBimSelection[]
-  modelId?: string | null
-  modelIds?: string[]
-  applicationIds?: string[]
-  selections?: ProgressActualRecordBimSelection[]
+  startBIM?: ProgressActualRecordBIM | null
+  finishBIM?: ProgressActualRecordBIM | null
+  BIM?: ProgressActualRecordBIM | null
   remark?: string | null
   highTemperature?: string | null
   lowTemperature?: string | null
@@ -145,53 +134,34 @@ const uniqueStrings = (values: unknown[]) => {
   }, [])
 }
 
-const sanitizeBimElements = (params: {
-  modelId?: string | null
-  modelIds?: string[]
-  applicationIds?: string[]
-  selections?: ProgressActualRecordBimSelection[]
-}): ProgressActualRecordBimElements | null => {
-  const selections = Array.isArray(params.selections)
-    ? params.selections
-        .map((group) => ({
-          modelId: normalizeString(group?.modelId),
-          applicationIds: uniqueStrings(group?.applicationIds || [])
-        }))
-        .filter((group) => group.modelId && group.applicationIds.length > 0)
-    : []
+const sanitizeBIM = (
+  input?: ProgressActualRecordBIM | null
+): ProgressActualRecordBIM | null => {
+  if (!Array.isArray(input) || input.length === 0) return null
 
-  const legacyModelId = normalizeString(params.modelId)
-  const legacyApplicationIds = uniqueStrings(params.applicationIds || [])
-  if (!selections.length && legacyModelId && legacyApplicationIds.length) {
-    selections.push({
-      modelId: legacyModelId,
-      applicationIds: legacyApplicationIds
+  const normalized = input
+    .map((entry) => {
+      const modelId = normalizeString(entry?.modelId)
+      if (!modelId) return null
+      const applicationIds = uniqueStrings(entry?.applicationIds || [])
+      if (!applicationIds.length) return null
+      const rawBimIds = Array.isArray(entry.bimIds) ? entry.bimIds : []
+      const bimIds: (string | null)[] = applicationIds.map((_, idx) => {
+        const raw = rawBimIds[idx]
+        return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+      })
+      return { modelId, applicationIds, bimIds }
     })
-  }
+    .filter((e): e is BimElementEntry => e !== null)
 
-  if (!selections.length) return null
-
-  const modelIds = uniqueStrings([
-    ...(params.modelIds || []),
-    ...selections.map((group) => group.modelId)
-  ])
-  const applicationIds = uniqueStrings(
-    selections.flatMap((group) => group.applicationIds)
-  )
-
-  return {
-    modelId: selections.length === 1 ? selections[0]?.modelId || null : null,
-    modelIds,
-    applicationIds,
-    selections
-  }
+  return normalized.length > 0 ? normalized : null
 }
 
 const buildElementCodesText = (params: {
   legacyText?: string | null
-  bimElements: ProgressActualRecordBimElements | null
+  bim: ProgressActualRecordBIM | null
 }) => {
-  const applicationIds = params.bimElements?.applicationIds || []
+  const applicationIds = params.bim?.flatMap((e) => e.applicationIds) || []
   if (applicationIds.length) {
     return applicationIds.join('、')
   }
@@ -202,33 +172,24 @@ const buildElementCodesText = (params: {
 const buildUpsertPayload = (
   params: UpsertProgressActualRecordInput & { updater: string }
 ) => {
-  const legacyBimElements = sanitizeBimElements(params)
-  const startBimElements =
-    sanitizeBimElements({
-      modelIds: params.startModelIds,
-      applicationIds: params.startApplicationIds,
-      selections: params.startSelections
-    }) || legacyBimElements
-  const finishBimElements = sanitizeBimElements({
-    modelIds: params.finishModelIds,
-    applicationIds: params.finishApplicationIds,
-    selections: params.finishSelections
-  })
+  const legacyBIM = sanitizeBIM(params.BIM ?? null)
+  const startBIM = sanitizeBIM(params.startBIM ?? null) || legacyBIM
+  const finishBIM = sanitizeBIM(params.finishBIM ?? null)
 
   return {
     [actualRecordCols.taskName]: params.taskName.trim(),
     [actualRecordCols.reportDate]: params.reportDate,
     [actualRecordCols.startElementCodes]: buildElementCodesText({
       legacyText: params.startElementCodes,
-      bimElements: startBimElements
+      bim: startBIM
     }),
     [actualRecordCols.finishElementCodes]: buildElementCodesText({
       legacyText: params.finishElementCodes,
-      bimElements: finishBimElements
+      bim: finishBIM
     }),
-    [actualRecordCols.startBimElements]: startBimElements,
-    [actualRecordCols.finishBimElements]: finishBimElements,
-    [actualRecordCols.bimElements]: legacyBimElements,
+    [actualRecordCols.startBIM]: startBIM ? JSON.stringify(startBIM) : null,
+    [actualRecordCols.finishBIM]: finishBIM ? JSON.stringify(finishBIM) : null,
+    [actualRecordCols.BIM]: legacyBIM ? JSON.stringify(legacyBIM) : null,
     [actualRecordCols.remark]: normalizeNullableString(params.remark),
     [actualRecordCols.highTemperature]: normalizeNullableString(params.highTemperature),
     [actualRecordCols.lowTemperature]: normalizeNullableString(params.lowTemperature),

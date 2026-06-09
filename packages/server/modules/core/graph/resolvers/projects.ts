@@ -670,6 +670,16 @@ const resolvers: Resolvers = {
     async visibility(parent) {
       const { visibility } = parent
       return mapDbToGqlProjectVisibility(visibility)
+    },
+    async constructionUnitName(parent) {
+      if (!parent.constructionUnit) return null
+      const dept = await db('departments').where({ id: parent.constructionUnit }).first()
+      return dept?.name || null
+    },
+    async supervisionUnitName(parent) {
+      if (!parent.supervisionUnit) return null
+      const dept = await db('departments').where({ id: parent.supervisionUnit }).first()
+      return dept?.name || null
     }
   },
   PendingStreamCollaborator: {
