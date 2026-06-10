@@ -233,7 +233,6 @@
                 <th class="text-right px-3 py-2">综合单价</th>
                 <th class="text-right px-3 py-2">本次验工量</th>
                 <th class="text-left px-3 py-2">备注</th>
-                <th class="text-right px-3 py-2">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -323,19 +322,9 @@
                       {{ remarkByBoq[row.boqItemId] || '-' }}
                     </template>
                   </td>
-                  <td class="px-3 py-2 text-right">
-                    <button
-                      v-if="!row.isSummaryRow && !isViewMode"
-                      class="text-danger hover:text-danger-darker transition-colors"
-                      title="删除该验工行"
-                      @click="removePreviewRow(row.boqItemId)"
-                    >
-                      <TrashIcon class="h-4 w-4" />
-                    </button>
-                  </td>
                 </tr>
                 <tr v-if="expandedBoqRowIds.has(row.boqItemId) && row.sourceAcceptances?.length" class="bg-highlight-1/30">
-                  <td colspan="8" class="p-0 border-t border-outline-3">
+                  <td colspan="7" class="p-0 border-t border-outline-3">
                     <div class="px-8 py-3">
                       <div class="text-xs font-medium text-foreground-2 mb-2 flex items-center justify-between">
                         <span>关联的质量验收单</span>
@@ -1283,10 +1272,6 @@ const confirmRemoveSourceAcceptance = async () => {
         if (!Number.isNaN(currentVal) && measuredQtyByBoq.value[boqItemId] !== '') {
           measuredQtyByBoq.value[boqItemId] = `${Math.max(0, currentVal - workVolume)}`
         }
-      }
-
-      if (row.sourceAcceptanceIds.length === 0) {
-        removePreviewRow(boqItemId, true)
       }
     }
   } else {

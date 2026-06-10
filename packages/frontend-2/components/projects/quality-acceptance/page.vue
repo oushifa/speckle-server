@@ -60,7 +60,12 @@
           >
             {{ importingExcel ? '导入中...' : '导入Excel' }}
           </FormButton>
-          <FormButton color="primary" :icon-left="PlusIcon" class="font-normal" @click="onAdd">
+          <FormButton
+            color="primary"
+            :icon-left="PlusIcon"
+            class="font-normal"
+            @click="onAdd"
+          >
             新增
           </FormButton>
         </div>
@@ -95,7 +100,9 @@
             <span class="text-sm text-foreground">{{ item.acceptanceContent }}</span>
           </template>
           <template #workVolume="{ item }">
-            <span class="text-sm text-foreground">{{ formatWorkVolume(item.workVolume) }}</span>
+            <span class="text-sm text-foreground">
+              {{ formatWorkVolume(item.workVolume) }}
+            </span>
           </template>
           <template #approveStatus="{ item }">
             <span
@@ -359,7 +366,6 @@ import type { Nullable } from '@speckle/shared'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { Download, Paperclip, TriangleAlert } from 'lucide-vue-next'
 import type { DocumentNode } from 'graphql'
-import * as XLSX from 'xlsx'
 import type {
   QualityAcceptanceAttachment,
   QualityAcceptanceCreateInput,
@@ -388,6 +394,8 @@ type AcceptanceRow = QualityAcceptanceForm & {
 }
 
 const route = useRoute()
+const { apiOrigin } = useRuntimeConfig().public
+const authToken = useCookie('auth-token')
 const projectId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' ? id : ''
@@ -572,9 +580,7 @@ const inspectorNameMap = computed(() => {
   return map
 })
 
-const hasValidBimAssociation = (
-  BIM: QualityAcceptanceForm['BIM']
-): boolean => {
+const hasValidBimAssociation = (BIM: QualityAcceptanceForm['BIM']): boolean => {
   if (!BIM || !BIM.length) return false
   return BIM.some((entry) => {
     const modelId = (entry.modelId || '').trim()
@@ -835,265 +841,22 @@ const triggerImportExcel = () => {
   qualityAcceptanceImportInputRef.value?.click()
 }
 
-const formatExportDate = (date: string | number | null | undefined) => {
-  if (date === null || date === undefined || date === '') return ''
-  const numeric = Number(date)
-  if (!Number.isNaN(numeric) && numeric > 0) {
-    return dayjs(numeric).format('YYYY-MM-DD')
-  }
-  const parsed = dayjs(String(date))
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
-}
-
-const parseApproveStatus = (value: string): string | null | undefined => {
-  const normalized = value.trim().toUpperCase()
-  if (!normalized) return null
-  if (
-    normalized === '-' ||
-    normalized === 'NULL' ||
-    normalized === 'NONE' ||
-    normalized === 'N/A' ||
-    value.trim() === '未查验' ||
-    value.trim() === '未验工'
-  ) {
-    return null
-  }
-  const statusMap: Record<string, string> = {
-    PENDING: 'PENDING',
-    APPROVED: 'APPROVED',
-    REJECTED: 'REJECTED',
-    CANCELED: 'CANCELED',
-    正在查验: 'PENDING',
-    已查验: 'APPROVED',
-    已拒绝: 'REJECTED',
-    已取消: 'CANCELED'
-  }
-  return statusMap[normalized] || statusMap[value.trim()]
-}
-
-type ImportQualityAcceptanceRow = {
-  rowNumber: number
-  name: string
-  code: string
-  inspectionLotNumber: string
-  acceptancePart: string
-  acceptanceContent: string
-  actualFinishDate: number | null
-  workVolume: number | null
-  unit: string
-  approveStatus: string | null
-}
-
-const parseExcelDate = (raw: string | number): number | null => {
-  if (typeof raw === 'number') {
-    if (raw > 100000000000) return raw
-    const excelDate = XLSX.SSF.parse_date_code(raw)
-    if (!excelDate) return null
-    return new Date(
-      excelDate.y,
-      excelDate.m - 1,
-      excelDate.d,
-      excelDate.H,
-      excelDate.M,
-      excelDate.S
-    ).getTime()
-  }
-  const parsed = dayjs(raw.trim())
-  return parsed.isValid() ? parsed.valueOf() : null
-}
-
-const parseImportRows = (sheet: XLSX.WorkSheet) => {
-  const matrix = XLSX.utils.sheet_to_json<Array<string | number | null>>(sheet, {
-    header: 1,
-    defval: ''
-  })
-  if (matrix.length < 2) {
-    throw new Error('Excel 中没有可导入的数据')
-  }
-
-  const headerRow = matrix[0].map((cell) => String(cell ?? '').trim())
-  const findHeaderIndex = (keys: string[]) =>
-    headerRow.findIndex((cell) => keys.includes(cell))
-
-  const nameIndex = findHeaderIndex(['验收单名称', '名称'])
-  const codeIndex = findHeaderIndex(['编码', '验收编码'])
-  const inspectionLotNumberIndex = findHeaderIndex(['检验批编号'])
-  const acceptancePartIndex = findHeaderIndex(['区域部位'])
-  const acceptanceContentIndex = findHeaderIndex(['检验批内容', '验收内容'])
-  const actualFinishDateIndex = findHeaderIndex(['验收日期'])
-  const workVolumeIndex = findHeaderIndex(['工程量'])
-  const unitIndex = findHeaderIndex(['单位'])
-  const approveStatusIndex = findHeaderIndex(['月度验工', '验工状态', 'approveStatus'])
-
-  if (
-    inspectionLotNumberIndex < 0 ||
-    acceptancePartIndex < 0 ||
-    acceptanceContentIndex < 0
-  ) {
-    throw new Error('模板缺少必要列：检验批编号、区域部位、检验批内容')
-  }
-
-  const rows: ImportQualityAcceptanceRow[] = []
-  matrix.slice(1).forEach((row, index) => {
-    const rowNumber = index + 2
-    const readValue = (cellIndex: number) => {
-      if (cellIndex < 0) return ''
-      return String(row[cellIndex] ?? '').trim()
-    }
-    const readRawValue = (cellIndex: number) => {
-      if (cellIndex < 0) return ''
-      return row[cellIndex]
-    }
-
-    const name = readValue(nameIndex)
-    const code = readValue(codeIndex)
-    const inspectionLotNumber = readValue(inspectionLotNumberIndex)
-    const acceptancePart = readValue(acceptancePartIndex)
-    const acceptanceContent = readValue(acceptanceContentIndex)
-    const actualFinishDateRaw = readRawValue(actualFinishDateIndex)
-    const workVolumeRaw = readValue(workVolumeIndex)
-    const unit = readValue(unitIndex)
-    const approveStatusRaw = readValue(approveStatusIndex)
-
-    if (
-      !name &&
-      !code &&
-      !inspectionLotNumber &&
-      !acceptancePart &&
-      !String(actualFinishDateRaw ?? '').trim() &&
-      !workVolumeRaw &&
-      !unit &&
-      !approveStatusRaw
-    ) {
-      return
-    }
-
-    if (!inspectionLotNumber || !acceptancePart || !acceptanceContent) {
-      throw new Error(`第 ${rowNumber} 行缺少必要字段（检验批编号/区域部位）`)
-    }
-
-    let actualFinishDate: number | null = null
-    if (String(actualFinishDateRaw ?? '').trim()) {
-      actualFinishDate = parseExcelDate(actualFinishDateRaw as string | number)
-      if (!actualFinishDate) {
-        throw new Error(`第 ${rowNumber} 行验收日期格式不正确`)
-      }
-    }
-
-    let workVolume: number | null = null
-    if (workVolumeRaw) {
-      const parsed = Number.parseFloat(workVolumeRaw)
-      if (Number.isNaN(parsed)) {
-        throw new Error(`第 ${rowNumber} 行工程量不是有效数字`)
-      }
-      workVolume = parsed
-    }
-
-    const approveStatus = approveStatusRaw ? parseApproveStatus(approveStatusRaw) : null
-    if (approveStatusRaw && approveStatus === undefined) {
-      throw new Error(`第 ${rowNumber} 行月度验工状态不正确：${approveStatusRaw}`)
-    }
-
-    rows.push({
-      rowNumber,
-      name,
-      code,
-      inspectionLotNumber,
-      acceptancePart,
-      acceptanceContent,
-      actualFinishDate,
-      workVolume,
-      unit,
-      approveStatus: approveStatus ?? null
-    })
-  })
-
-  if (!rows.length) {
-    throw new Error('Excel 中没有可导入的数据')
-  }
-
-  return rows
-}
-
-const fetchAllFormsForExport = async () => {
-  const allItems: QualityAcceptanceFormNode[] = []
-  let cursor: string | null = null
-  const visited = new Set<string | null>()
-
-  while (!visited.has(cursor)) {
-    visited.add(cursor)
-    const response = (await apollo.query({
-      query: projectQualityAcceptanceFormsQuery as DocumentNode,
-      variables: {
-        projectId: projectId.value,
-        search: debouncedSearchQuery.value || null,
-        cursor,
-        limit: 200
-      },
-      fetchPolicy: 'network-only'
-    })) as { data: ProjectQualityAcceptanceFormsQuery }
-    const page: ProjectQualityAcceptanceFormsQuery['project']['qualityAcceptanceForms'] =
-      response.data.project?.qualityAcceptanceForms
-    if (!page) break
-    allItems.push(
-      ...(page.items || []).filter(
-        (
-          item: QualityAcceptanceFormNode | null | undefined
-        ): item is QualityAcceptanceFormNode => !!item
-      )
-    )
-    if (!page.cursor) break
-    cursor = page.cursor
-  }
-
-  return allItems
-}
-
 const handleExportExcel = async () => {
   if (!projectId.value || exportingExcel.value) return
   exportingExcel.value = true
   try {
-    const items = await fetchAllFormsForExport()
-    const normalizedFilter = exportApproveStatus.value || ''
-    const filteredItems = items.filter((item) => {
-      if (!normalizedFilter) return true
-      if (normalizedFilter === NULL_APPROVE_STATUS_FILTER) return !item.approveStatus
-      return item.approveStatus === normalizedFilter
-    })
-    if (!filteredItems.length) {
-      throw new Error('当前筛选条件下没有可导出的数据')
-    }
+    const fileContent = await $fetch<Blob>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/quality-acceptance/forms/export-excel`,
+      {
+        query: {
+          approveStatus: exportApproveStatus.value || undefined,
+          search: debouncedSearchQuery.value || undefined
+        },
+        responseType: 'blob'
+      }
+    )
 
-    const header = [
-      '验收单名称',
-      '编码',
-      '检验批编号',
-      '区域部位',
-      '检验批内容',
-      '验收日期',
-      '工程量',
-      '单位',
-      '月度验工'
-    ]
-    const rows = filteredItems.map((item) => [
-      item.name || '',
-      item.code || '',
-      item.inspectionLotNumber || '',
-      item.acceptancePart || '',
-      item.acceptanceContent || '',
-      formatExportDate(item.actualFinishDate),
-      item.workVolume ?? '',
-      item.unit || '',
-      getStatusText(item.approveStatus)
-    ])
-    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows])
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, '质量验收')
-    const fileContent = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([fileContent], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    })
-    const url = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(fileContent)
     const link = document.createElement('a')
     const statusLabel =
       approveStatusOptions.find((option) => option.value === exportApproveStatus.value)
@@ -1121,62 +884,49 @@ const handleImportFileChange = async (event: Event) => {
 
   importingExcel.value = true
   try {
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const firstSheetName = workbook.SheetNames[0]
-    if (!firstSheetName) {
-      throw new Error('Excel 中未找到工作表')
-    }
-    const sheet = workbook.Sheets[firstSheetName]
-    const rows = parseImportRows(sheet)
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const result = await importFormsMutate({
-      input: {
-        projectId: projectId.value,
-        items: rows.map((row) => ({
-          rowNumber: row.rowNumber,
-          flowId: null,
-          name: row.name || row.acceptancePart,
-          code: row.code || null,
-          inspectionLotNumber: row.inspectionLotNumber,
-          acceptancePart: row.acceptancePart,
-          acceptanceContent: row.acceptanceContent,
-          actualStartDate: row.actualFinishDate,
-          actualFinishDate: row.actualFinishDate,
-          inspector: null,
-          attachments: [],
-          workVolume: row.workVolume,
-          unit: row.unit || null,
-          BIM: null,
-          timeZone: timeZone || null,
-          approveStatus: row.approveStatus
-        }))
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await $fetch<{
+      success: boolean
+      createdCount: number
+      failedCount: number
+      failedRows: string[]
+    }>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/quality-acceptance/forms/import-excel`,
+      {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${authToken.value}`
+        }
       }
-    })
-    const importResult =
-      result?.data?.projectMutations?.qualityAcceptanceMutations?.importForms
-    if (!importResult) {
-      throw new Error('导入失败，请稍后重试')
+    )
+
+    if (!response?.success) {
+      throw new Error('导入失败，服务器没有返回成功状态')
     }
 
     await formsRefetch()
-    if (!importResult.failedCount) {
+
+    if (response.success && response.failedCount === 0) {
       notify(
         '质量验收导入成功',
         ToastNotificationType.Success,
-        `成功导入 ${importResult.createdCount} 条`
+        `成功导入 ${response.createdCount} 条`
       )
       return
     }
 
+    const failedDetails =
+      response.failedRows && response.failedRows.length > 0
+        ? `\n${response.failedRows.slice(0, 5).join('\n')}`
+        : ''
+
     notify(
       '质量验收部分导入失败',
       ToastNotificationType.Danger,
-      `成功 ${importResult.createdCount} 条，失败 ${importResult.failedCount} 条。\n${(
-        importResult.failedRows || []
-      )
-        .slice(0, 5)
-        .join('\n')}`
+      `成功 ${response.createdCount} 条，失败 ${response.failedCount} 条。${failedDetails}`
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

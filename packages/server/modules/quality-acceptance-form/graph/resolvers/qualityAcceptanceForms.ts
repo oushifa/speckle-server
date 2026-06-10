@@ -9,6 +9,7 @@ import {
   getQualityAcceptanceFormsFactory,
   updateQualityAcceptanceFormFactory
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
+import { getBoqItemFactory } from '@/modules/bop-item/repositories/boq'
 import { BadRequestError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
@@ -53,6 +54,18 @@ type CreateQualityAcceptanceFormArgs = {
 
 const resolvers = {
   QualityAcceptanceForm: {
+    boqItem: async (
+      parent: { boqItemId?: string | null; project_id?: string | null },
+      _args: unknown,
+      ctx: GraphQLContext
+    ) => {
+      if (!parent.boqItemId || !parent.project_id) return null
+      const projectDb = await getProjectDbClient({ projectId: parent.project_id })
+      return await getBoqItemFactory({ db: projectDb })({
+        projectId: parent.project_id,
+        id: parent.boqItemId
+      })
+    },
     inspector: async (
       parent: { inspector?: string | null },
       _args: unknown,

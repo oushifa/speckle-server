@@ -14,6 +14,7 @@ type QualityAcceptanceForm {
   id: ID!
   name: String
   boqItemId: ID
+  boqItem: BoqItem
   code: String
   inspectionLotNumber: String
   acceptancePart: String

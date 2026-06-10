@@ -283,7 +283,7 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
     ...data,
     attachments: data.attachments || []
   }
-  selectedChecklistId.value = null
+  selectedChecklistId.value = data.boqItemId || null
   actualStartDateInput.value = formatDateInput(data.actualStartDate)
   actualFinishDateInput.value = formatDateInput(data.actualFinishDate)
   workVolumeInput.value = `${data.workVolume || ''}`

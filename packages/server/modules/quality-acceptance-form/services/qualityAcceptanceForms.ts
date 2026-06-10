@@ -101,19 +101,29 @@ export const normalizeBIM = (
     const normalized = bim
       .map((entry): BimElementEntry | null => {
         const modelId = typeof entry.modelId === 'string' ? entry.modelId.trim() : ''
-        if (!modelId) return null
-        const applicationIds = Array.isArray(entry.applicationIds)
+        
+        let applicationIds = Array.isArray(entry.applicationIds)
           ? entry.applicationIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
           : []
-        // bimIds 与 applicationIds 对齐，长度不足时补 null
-        const rawBimIds = Array.isArray(entry.bimIds) ? entry.bimIds : []
-        const bimIds: (string | null)[] = applicationIds.map((_, idx) => {
+        
+        const rawBimIds = Array.isArray(entry.bimIds)
+          ? entry.bimIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
+          : []
+
+        // 如果只有 bimIds，则将 applicationIds 赋值为和 bimIds 相同，以完成在数据库的结构对齐
+        if (applicationIds.length === 0 && rawBimIds.length > 0) {
+          applicationIds = [...rawBimIds]
+        }
+
+        // 最终的 bimIds 长度对齐 applicationIds
+        const bimIds: (string | null)[] = applicationIds.map((appId, idx) => {
           const raw = rawBimIds[idx]
-          return typeof raw === 'string' && raw.trim() ? raw.trim() : null
+          return typeof raw === 'string' && raw.trim() ? raw.trim() : appId
         })
+
         return { modelId, applicationIds, bimIds }
       })
-      .filter((e): e is BimElementEntry => e !== null && e.applicationIds.length > 0)
+      .filter((e): e is BimElementEntry => e !== null && (e.applicationIds.length > 0 || e.bimIds.length > 0))
 
     if (normalized.length > 0) return normalized
   }

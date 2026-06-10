@@ -9,7 +9,7 @@ import {
   MeasurementsExtension
 } from '@speckle/viewer'
 import { Box3, Vector3, Matrix3 } from 'three'
-import { OBB } from 'three/examples/jsm/math/OBB'
+import { OBB } from 'three/examples/jsm/math/OBB.js'
 import { until } from '@vueuse/shared'
 import { useActiveElement } from '@vueuse/core'
 import { isString, isEqualWith } from 'lodash-es'

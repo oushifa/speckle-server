@@ -4376,6 +4376,7 @@ export type QualityAcceptanceForm = {
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
   approveStatus?: Maybe<Scalars['String']['output']>;
   attachments: Array<BlobMetadata>;
+  boqItem?: Maybe<BoqItem>;
   boqItemId?: Maybe<Scalars['ID']['output']>;
   code?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
@@ -10145,6 +10146,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   attachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
+  boqItem?: Resolver<Maybe<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   boqItemId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   code?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;

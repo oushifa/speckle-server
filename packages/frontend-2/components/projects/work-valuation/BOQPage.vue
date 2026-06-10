@@ -33,6 +33,7 @@
           v-if="!canInitializeBoq"
           color="outline"
           :icon-left="DocumentTextIcon"
+          @click="handleDownloadTemplate"
         >
           清单模板
         </FormButton>
@@ -242,7 +243,6 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useMutation, useQuery } from '@vue/apollo-composable'
 import { useDebounceFn } from '@vueuse/core'
-import * as XLSX from 'xlsx'
 import type {
   BoqItemType,
   ProjectBoqItemsQuery
@@ -257,6 +257,8 @@ import {
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { isRequired } from '~/lib/common/helpers/validation'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useAuthCookie } from '~~/lib/auth/composables/auth'
+import { useApiOrigin } from '~~/composables/env'
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
@@ -266,6 +268,8 @@ const { triggerNotification } = useGlobalToast()
 const boqImportInputRef = ref<HTMLInputElement | null>(null)
 const exportingExcel = ref(false)
 const importingExcel = ref(false)
+const authToken = useAuthCookie()
+const apiOrigin = useApiOrigin()
 
 const updateDebouncedSearch = useDebounceFn((query: string) => {
   debouncedSearchQuery.value = query.trim()
@@ -446,57 +450,25 @@ const notify = (title: string, type: ToastNotificationType, description?: string
   })
 }
 
-const parseType = (value: string): BoqItemType | null => {
-  const normalized = value.trim()
-  if (!normalized.length) return null
-  const upperValue = normalized.toUpperCase()
-  return boqTypeByLabel[upperValue] || boqTypeByLabel[normalized] || null
-}
-
-const parseOptionalNumber = (value: string): number | null => {
-  const trimmed = value.trim()
-  if (!trimmed.length) return null
-  const parsed = Number.parseFloat(trimmed)
-  return Number.isNaN(parsed) ? Number.NaN : parsed
-}
-
 const triggerImportExcel = () => {
   if (importingExcel.value) return
   boqImportInputRef.value?.click()
 }
 
 const handleExportExcel = async () => {
-  if (!allItems.value.length || exportingExcel.value) return
+  if (exportingExcel.value) return
   exportingExcel.value = true
   try {
-    const header = [
-      '清单编码',
-      '清单名称',
-      '类型',
-      '上级编码',
-      '计量单位',
-      '工程量',
-      '综合单价（元）'
-    ]
-    const rows = allItems.value.map((item) => {
-      const parentCode = item.parentId
-        ? itemById.value.get(item.parentId)?.code || ''
-        : ''
-      return [
-        item.code,
-        item.name,
-        childTypeLabelMap[item.type as UiBoqItemType],
-        parentCode,
-        item.unit || '',
-        item.quantity ?? '',
-        item.price ?? ''
-      ]
-    })
-    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows])
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'BOQ')
-    const fileContent = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([fileContent], {
+    const res = await $fetch<Blob>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/boq/export-excel`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`
+        },
+        responseType: 'blob'
+      }
+    )
+    const blob = new Blob([res], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     })
     const url = URL.createObjectURL(blob)
@@ -518,117 +490,35 @@ const handleExportExcel = async () => {
   }
 }
 
-const parseImportRows = (sheet: XLSX.WorkSheet) => {
-  const matrix = XLSX.utils.sheet_to_json<Array<string | number | null>>(sheet, {
-    header: 1,
-    defval: ''
-  })
-  if (matrix.length < 2) {
-    throw new Error('Excel 中没有可导入的数据')
-  }
-
-  const headerRow = matrix[0].map((cell: string | number | null) =>
-    String(cell ?? '').trim()
-  )
-  const findHeaderIndex = (keys: string[]) => {
-    const idx = headerRow.findIndex((cell: string) => keys.includes(cell))
-    return idx
-  }
-
-  const codeIndex = findHeaderIndex(['清单编码', '编码'])
-  const nameIndex = findHeaderIndex(['清单名称', '名称'])
-  const typeIndex = findHeaderIndex(['类型'])
-  const parentCodeIndex = findHeaderIndex(['上级编码', '父级编码'])
-  const unitIndex = findHeaderIndex(['计量单位', '单位'])
-  const quantityIndex = findHeaderIndex(['工程量'])
-  const priceIndex = findHeaderIndex(['综合单价（元）', '综合单价', '单价'])
-
-  if (codeIndex < 0 || nameIndex < 0 || typeIndex < 0) {
-    throw new Error('模板缺少必要列：清单编码、清单名称、类型')
-  }
-
-  const importRows: ImportBoqRow[] = []
-  const codesInFile = new Set<string>()
-
-  matrix.slice(1).forEach((row: Array<string | number | null>, index: number) => {
-    const rowNumber = index + 2
-    const readValue = (cellIndex: number) => {
-      if (cellIndex < 0) return ''
-      return String(row[cellIndex] ?? '').trim()
-    }
-
-    const code = readValue(codeIndex)
-    const name = readValue(nameIndex)
-    const rawType = readValue(typeIndex)
-    const parentCode = readValue(parentCodeIndex)
-    const unit = readValue(unitIndex)
-    const quantityValue = readValue(quantityIndex)
-    const priceValue = readValue(priceIndex)
-
-    if (
-      !code &&
-      !name &&
-      !rawType &&
-      !parentCode &&
-      !unit &&
-      !quantityValue &&
-      !priceValue
-    )
-      return
-    if (!code || !name || !rawType) {
-      throw new Error(`第 ${rowNumber} 行缺少必要字段（清单编码/清单名称/类型）`)
-    }
-    if (codesInFile.has(code)) {
-      throw new Error(`第 ${rowNumber} 行清单编码重复：${code}`)
-    }
-    codesInFile.add(code)
-
-    const type = parseType(rawType)
-    if (!type) {
-      throw new Error(`第 ${rowNumber} 行类型无法识别：${rawType}`)
-    }
-
-    const quantity = parseOptionalNumber(quantityValue)
-    const price = parseOptionalNumber(priceValue)
-
-    if (
-      (quantityValue && Number.isNaN(quantity)) ||
-      (priceValue && Number.isNaN(price))
-    ) {
-      throw new Error(`第 ${rowNumber} 行工程量或综合单价不是有效数字`)
-    }
-
-    if (type === 'ITEM') {
-      if (!unit.length || quantity === null || price === null) {
-        throw new Error(`第 ${rowNumber} 行清单项需填写计量单位、工程量、综合单价`)
+const handleDownloadTemplate = async () => {
+  try {
+    const res = await $fetch<Blob>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/boq/export-excel?template=true`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`
+        },
+        responseType: 'blob'
       }
-    }
-
-    if (type !== 'PROJECT' && !parentCode.length) {
-      throw new Error(`第 ${rowNumber} 行非单位工程必须填写上级编码`)
-    }
-
-    if (type === 'PROJECT' && parentCode.length) {
-      throw new Error(`第 ${rowNumber} 行单位工程不能填写上级编码`)
-    }
-
-    importRows.push({
-      rowNumber,
-      code,
-      name,
-      type,
-      parentCode: parentCode || null,
-      unit: type === 'ITEM' ? unit : null,
-      quantity: type === 'ITEM' ? quantity : null,
-      price: type === 'ITEM' ? price : null
+    )
+    const blob = new Blob([res], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     })
-  })
-
-  if (!importRows.length) {
-    throw new Error('Excel 中没有可导入的数据')
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const projectName = boqItemsResult.value?.project?.name?.trim() || '项目'
+    const safeProjectName = projectName.replace(/[\\/:*?"<>|]/g, '_')
+    link.href = url
+    link.download = `${safeProjectName}-清单模板.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    notify('清单模板下载成功', ToastNotificationType.Success)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    notify('模板下载失败', ToastNotificationType.Danger, message)
   }
-
-  return importRows
 }
 
 const handleImportFileChange = async (event: Event) => {
@@ -639,38 +529,30 @@ const handleImportFileChange = async (event: Event) => {
 
   importingExcel.value = true
   try {
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const firstSheetName = workbook.SheetNames[0]
-    if (!firstSheetName) {
-      throw new Error('Excel 中未找到工作表')
-    }
-    const sheet = workbook.Sheets[firstSheetName]
-    const rows = parseImportRows(sheet)
-    const result = await importBoqItems({
-      input: {
-        projectId: projectId.value,
-        items: rows.map((row) => ({
-          rowNumber: row.rowNumber,
-          code: row.code,
-          name: row.name,
-          type: row.type,
-          parentCode: row.parentCode,
-          unit: row.unit,
-          quantity: row.quantity,
-          price: row.price
-        }))
+    const body = new FormData()
+    body.append('file', file)
+
+    const res = await $fetch<{
+      success: boolean
+      createdCount: number
+      updatedCount: number
+    }>(`${apiOrigin}/api/v1/projects/${projectId.value}/boq/import-excel`, {
+      method: 'POST',
+      body,
+      headers: {
+        Authorization: `Bearer ${authToken.value}`
       }
     })
-    const importResult = result?.data?.projectMutations?.boqMutations?.importItems
-    if (!importResult) {
-      throw new Error('导入失败，请稍后重试')
+
+    if (!res?.success) {
+      throw new Error('导入失败，服务器没有返回成功状态')
     }
+
     await refreshBoq()
     notify(
       '清单导入成功',
       ToastNotificationType.Success,
-      `新增 ${importResult.createdCount} 条，更新 ${importResult.updatedCount} 条`
+      `新增 ${res.createdCount} 条，更新 ${res.updatedCount} 条`
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

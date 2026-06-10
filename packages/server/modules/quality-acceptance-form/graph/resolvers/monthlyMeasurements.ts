@@ -450,31 +450,17 @@ const resolvers = {
         })
       } else {
         // 基准时间未变：仅从现有条目中剔除被移除的细分项，在本地重新计算
-        const nextRows = existingItems.map((item) => {
+        selectedRows = existingItems.map((item) => {
           if (item.isSummaryRow) return item
           const nextIds = (item.sourceAcceptanceIds || []).filter(
             (id) => !excludedIds.has(id)
           )
           return { ...item, sourceAcceptanceIds: nextIds }
         })
-
-        const rowById = new Map(nextRows.map((r) => [r.boqItemId, r]))
-        const keepIds = new Set<string>()
-        for (const row of nextRows) {
-          if (row.isSummaryRow || (row.sourceAcceptanceIds || []).length === 0) continue
-          let cursor: string | null = row.boqItemId
-          while (cursor) {
-            if (keepIds.has(cursor)) break
-            keepIds.add(cursor)
-            cursor = rowById.get(cursor)?.boqParentId || null
-          }
-        }
-        selectedRows = nextRows.filter((r) => keepIds.has(r.boqItemId))
       }
 
-      const leafRows = selectedRows.filter((item) => !item.isSummaryRow)
-      if (!selectedRows.length || !leafRows.length) {
-        throw new BadRequestError('未找到可生成验工明细的质量验收数据')
+      if (!selectedRows.length) {
+        throw new BadRequestError('未找到可生成验工明细的清单项')
       }
 
       const customValues2 = new Map(

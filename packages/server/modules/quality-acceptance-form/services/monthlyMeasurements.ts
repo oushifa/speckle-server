@@ -208,24 +208,14 @@ export const buildMonthlyMeasurementPreviewFactory =
       grouped.set(resolvedBoqItemId, current)
     }
 
-    if (!grouped.size || !pendingBoqIds.size) {
-      return {
-        baseDate: params.baseDate,
-        items: [] as MonthlyMeasurementPreviewItem[]
+    const parentIds = new Set<string>()
+    for (const item of boqItems) {
+      if (item.parentId) {
+        parentIds.add(item.parentId)
       }
     }
 
-    const includedIds = new Set<string>()
-    for (const boqItemId of pendingBoqIds) {
-      let cursor: string | null = boqItemId
-      while (cursor) {
-        if (includedIds.has(cursor)) break
-        includedIds.add(cursor)
-        cursor = boqById.get(cursor)?.parentId || null
-      }
-    }
-
-    const includedItems = boqItems.filter((item) => includedIds.has(item.id))
+    const includedItems = boqItems
     const childrenMap = new Map<string | null, BoqItemRecord[]>()
     for (const item of includedItems) {
       const list = childrenMap.get(item.parentId || null) || []
@@ -255,7 +245,7 @@ export const buildMonthlyMeasurementPreviewFactory =
         measuredQtyDefault: groupedItem?.pendingMeasuredQty || 0,
         sourceAcceptanceIds: groupedItem?.sourceAcceptanceIds || [],
         sourceAcceptances: groupedItem?.sourceAcceptances || [],
-        isSummaryRow: !groupedItem,
+        isSummaryRow: parentIds.has(item.id),
         sortIndex: 0
       })
     }
@@ -268,6 +258,10 @@ export const buildMonthlyMeasurementPreviewFactory =
       const current = previewById.get(boqItemId)
       if (!current) return
       if (!children.length) return
+      
+      current.pendingTotalQty = 0
+      current.approvedCumulativeQty = 0
+      
       for (const child of children) {
         const childPreview = previewById.get(child.id)
         if (!childPreview) continue
@@ -346,16 +340,9 @@ export const createMonthlyMeasurementFromPreviewFactory =
       baseDate: params.baseDate,
       excludedAcceptanceIds: params.excludedAcceptanceIds
     })
-    const rows = preview.items.filter(
-      (item) => item.isSummaryRow || item.sourceAcceptanceIds.length
-    )
-    const selectedRows = prepareMonthlyMeasurementSnapshotRows(
-      rows,
-      params.measuredItems?.map((item) => ({ boqItemId: item.boqItemId }))
-    )
-    const leafRows = selectedRows.filter((item) => !item.isSummaryRow)
-    if (!selectedRows.length || !leafRows.length) {
-      throw new BadRequestError('未找到可生成验工明细的质量验收数据')
+    const rows = preview.items
+    if (!rows.length) {
+      throw new BadRequestError('未找到可生成验工明细的清单项')
     }
 
     const customValues = new Map(
@@ -376,7 +363,7 @@ export const createMonthlyMeasurementFromPreviewFactory =
       updatedAt: now
     })
 
-    const items: MonthlyMeasurementItemRecord[] = selectedRows.map((row) => {
+    const items: MonthlyMeasurementItemRecord[] = rows.map((row) => {
       const custom = customValues.get(row.boqItemId)
       const measuredQty =
         row.isSummaryRow ||
