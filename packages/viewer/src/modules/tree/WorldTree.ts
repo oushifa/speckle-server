@@ -354,38 +354,16 @@ export class WorldTree {
 
   private buildBimNodesMap(subtreeId: number) {
     const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
-    let spaceCode = ''
-
-    for (const node of allSubtreeNodes) {
-      if (this.isProjectInfoNode(node)) {
-        const sc = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
-        if (sc) {
-          spaceCode = sc
-          break
-        }
-      }
-    }
-
     const map: { [bimId: string]: { [id: string]: TreeNode } } = {}
 
     for (const node of allSubtreeNodes) {
-      const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
-      const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
       const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
-
-      let nodeSpaceCode = spaceCode
-      if (!nodeSpaceCode) {
-        nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
-      }
-
-      if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-        const bimId = serialNum
-        if (bimId.trim()) {
-          if (!map[bimId]) {
-            map[bimId] = {}
-          }
-          map[bimId][node.model.id] = node
+      if (serialNum.trim()) {
+        const bimId = serialNum.trim()
+        if (!map[bimId]) {
+          map[bimId] = {}
         }
+        map[bimId][node.model.id] = node
       }
     }
 
@@ -396,43 +374,13 @@ export class WorldTree {
     const subtreeId = node.model.subtreeId
     if (!subtreeId || !this.bimNodesMap[subtreeId]) return
 
-    if (this.isProjectInfoNode(node)) {
-      const newSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
-      if (newSpaceCode) {
-        this.buildBimNodesMap(subtreeId)
-        return
-      }
-    }
-
-    let spaceCode = ''
-    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
-    for (const n of allSubtreeNodes) {
-      if (this.isProjectInfoNode(n)) {
-        const sc = this.getPropertyValue(n.model.raw, ['空间代码', 'spacecode'])
-        if (sc) {
-          spaceCode = sc
-          break
-        }
-      }
-    }
-
-    const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
-    const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
     const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
-
-    let nodeSpaceCode = spaceCode
-    if (!nodeSpaceCode) {
-      nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
-    }
-
-    if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-      const bimId = serialNum
-      if (bimId.trim()) {
-        if (!this.bimNodesMap[subtreeId][bimId]) {
-          this.bimNodesMap[subtreeId][bimId] = {}
-        }
-        this.bimNodesMap[subtreeId][bimId][node.model.id] = node
+    if (serialNum.trim()) {
+      const bimId = serialNum.trim()
+      if (!this.bimNodesMap[subtreeId][bimId]) {
+        this.bimNodesMap[subtreeId][bimId] = {}
       }
+      this.bimNodesMap[subtreeId][bimId][node.model.id] = node
     }
   }
 
@@ -440,41 +388,14 @@ export class WorldTree {
     const subtreeId = node.model.subtreeId
     if (!subtreeId || !this.bimNodesMap[subtreeId]) return
 
-    if (this.isProjectInfoNode(node)) {
-      this.buildBimNodesMap(subtreeId)
-      return
-    }
-
-    let spaceCode = ''
-    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
-    for (const n of allSubtreeNodes) {
-      if (n !== node && this.isProjectInfoNode(n)) {
-        const sc = this.getPropertyValue(n.model.raw, ['空间代码', 'spacecode'])
-        if (sc) {
-          spaceCode = sc
-          break
-        }
-      }
-    }
-
-    const classCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
-    const sectionCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
     const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
-
-    let nodeSpaceCode = spaceCode
-    if (!nodeSpaceCode) {
-      nodeSpaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || ''
-    }
-
-    if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-      const bimId = serialNum
-      if (bimId.trim()) {
-        const map = this.bimNodesMap[subtreeId][bimId]
-        if (map) {
-          delete map[node.model.id]
-          if (Object.keys(map).length === 0) {
-            delete this.bimNodesMap[subtreeId][bimId]
-          }
+    if (serialNum.trim()) {
+      const bimId = serialNum.trim()
+      const map = this.bimNodesMap[subtreeId][bimId]
+      if (map) {
+        delete map[node.model.id]
+        if (Object.keys(map).length === 0) {
+          delete this.bimNodesMap[subtreeId][bimId]
         }
       }
     }

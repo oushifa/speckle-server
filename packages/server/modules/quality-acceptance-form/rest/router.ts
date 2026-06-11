@@ -732,6 +732,15 @@ const buildBimNodesMap = async (projectDb: any, projectId: string) => {
 
     if (!commits.length) return bimIdMap
 
+    const commitIds = commits.map((c: any) => c.commitId)
+    const branchCommits = await projectDb('branch_commits')
+      .whereIn('commitId', commitIds)
+      .select('branchId', 'commitId')
+    const commitToBranchMap = new Map<string, string>()
+    for (const bc of branchCommits) {
+      commitToBranchMap.set(bc.commitId, bc.branchId)
+    }
+
     const commitIdMap = new Map<string, string>() // referencedObject.id -> commitId
     for (const c of commits) {
       commitIdMap.set(c.referencedObject, c.commitId)
@@ -788,28 +797,23 @@ const buildBimNodesMap = async (projectDb: any, projectId: string) => {
       const data = typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data
       if (isProjectInfoNode(data)) continue
 
-      const classCode = getPropertyValue(data, ['分类对象代码', 'classificationobjectcode']) || ''
-      const sectionCode = getPropertyValue(data, ['分部分项代码', 'sectionitemcode']) || ''
       const serialNum = getPropertyValue(data, ['序号码', '序号', 'serialnumber']) || ''
 
-      if (!classCode || !sectionCode || !serialNum) continue
+      if (!serialNum) continue
 
       const belongsToCommits = objectToModelsMap.get(obj.id)
       if (!belongsToCommits) continue
 
       for (const cid of belongsToCommits) {
-        const spaceCode = getPropertyValue(data, ['空间代码', 'spacecode']) || modelDefaultSpaceCode.get(cid) || ''
-        if (spaceCode) {
-          const bimId = serialNum
-          if (bimId.trim()) {
-            if (!bimIdMap.has(bimId)) {
-              bimIdMap.set(bimId, [])
-            }
-            bimIdMap.get(bimId)!.push({
-              modelId: cid,
-              applicationId: obj.id
-            })
+        const bimId = serialNum
+        if (bimId.trim()) {
+          if (!bimIdMap.has(bimId)) {
+            bimIdMap.set(bimId, [])
           }
+          bimIdMap.get(bimId)!.push({
+            modelId: commitToBranchMap.get(cid) || cid,
+            applicationId: obj.id
+          })
         }
       }
     }

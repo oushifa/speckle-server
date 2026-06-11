@@ -152,41 +152,25 @@ const applyFilters = () => {
   if (!state) return
 
   const bimIds = normalizedFilterBims.value
-  const applicationIds = normalizedFilterApplicationIds.value
   isApplyingFilters.value = true
   try {
     const objects: SpeckleObject[] = []
-    const objectIds: string[] = bimIds
+    const objectIds: string[] = []
     const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
     if (tree) {
-      const typedTree = tree as ViewerTreeLike
-      bimIds.forEach((id, index) => {
-        let nodes = typedTree.findId(id) || []
+      const typedTree = tree as ViewerTreeLike & {
+        findBimNodeId: (bimId: string) => ViewerTreeNodeLike[] | null
+      }
+      
+      bimIds.forEach((bimId) => {
+        if (!bimId) return
+        const nodes = typedTree.findBimNodeId(bimId) || []
         nodes?.forEach((node) => {
           if (!node.model?.raw?.id) return
           objects.push(node.model.raw)
+          objectIds.push(node.model.raw.id)
         })
-        if (nodes.length === 0) {
-          nodes = typedTree.findApplicationId?.(applicationIds[index]) || []
-          nodes?.forEach((node) => {
-            if (!node.model?.raw?.id) return
-            // objectIds.splice(index, 1, node.model?.raw?.id)
-            objects.push(node.model.raw)
-          })
-        }
       })
-
-      // if (objects.length === 0) {
-      //   applicationIds.forEach((applicationId) => {
-      //     const nodes = typedTree.findApplicationId?.(applicationId) || []
-      //     nodes?.forEach((node) => {
-      //       if (!node.model?.raw?.id) return
-      //       if (objectIds.has(node.model.raw.id)) return
-      //       objectIds.add(node.model.raw.id)
-      //       objects.push(node.model.raw)
-      //     })
-      //   })
-      // }
     }
 
     const isolatedIds = objectIds.filter((id): id is string => !!id)
