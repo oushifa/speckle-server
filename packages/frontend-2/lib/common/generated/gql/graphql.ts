@@ -4344,6 +4344,7 @@ export type QualityAcceptanceForm = {
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
   approveStatus?: Maybe<Scalars['String']['output']>;
   attachments: Array<BlobMetadata>;
+  boqItem?: Maybe<BoqItem>;
   boqItemId?: Maybe<Scalars['ID']['output']>;
   code?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
@@ -12495,6 +12496,7 @@ export type QualityAcceptanceFormFieldArgs = {
   actualStartDate: {},
   approveStatus: {},
   attachments: {},
+  boqItem: {},
   boqItemId: {},
   code: {},
   createdAt: {},

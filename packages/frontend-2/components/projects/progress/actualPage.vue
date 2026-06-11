@@ -59,45 +59,23 @@
         </template>
 
         <template #startElementCodes="{ item }">
-          <button
-            type="button"
-            class="w-full rounded-lg border border-outline-2 bg-foundation-page px-3 py-2 text-left transition hover:border-primary hover:bg-primary/5"
-            @click="openElementLinkDialog(item, 'start')"
+          <div
+            class="cursor-pointer hover:text-primary hover:underline transition text-body-sm break-all pr-4"
+            :class="{ 'text-foreground-2 font-light': formatElementCodes(item, 'start') === '未关联' }"
+            @click="openDirectLinkDialog(item, 'start')"
           >
-            <div class="flex items-center justify-between gap-2">
-              <div class="text-body-sm font-medium">今日开始施工构件</div>
-              <span
-                class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
-                :class="getElementStatusBadgeClass(item.startApplicationIds)"
-              >
-                {{ getElementStatusText(item.startApplicationIds) }}
-              </span>
-            </div>
-            <div class="mt-2 text-body-sm text-foreground-2 line-clamp-2">
-              {{ item.startElementCodes || '点击关联开始施工构件' }}
-            </div>
-          </button>
+            {{ formatElementCodes(item, 'start') }}
+          </div>
         </template>
 
         <template #finishElementCodes="{ item }">
-          <button
-            type="button"
-            class="w-full rounded-lg border border-outline-2 bg-foundation-page px-3 py-2 text-left transition hover:border-primary hover:bg-primary/5"
-            @click="openElementLinkDialog(item, 'finish')"
+          <div
+            class="cursor-pointer hover:text-primary hover:underline transition text-body-sm break-all pr-4"
+            :class="{ 'text-foreground-2 font-light': formatElementCodes(item, 'finish') === '未关联' }"
+            @click="openDirectLinkDialog(item, 'finish')"
           >
-            <div class="flex items-center justify-between gap-2">
-              <div class="text-body-sm font-medium">今日完成构件</div>
-              <span
-                class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
-                :class="getElementStatusBadgeClass(item.finishApplicationIds)"
-              >
-                {{ getElementStatusText(item.finishApplicationIds) }}
-              </span>
-            </div>
-            <div class="mt-2 text-body-sm text-foreground-2 line-clamp-2">
-              {{ item.finishElementCodes || '点击关联完成构件' }}
-            </div>
-          </button>
+            {{ formatElementCodes(item, 'finish') }}
+          </div>
         </template>
 
         <template #remark="{ item }">
@@ -540,6 +518,25 @@
         </div>
       </div>
     </LayoutDialog>
+
+    <LayoutDialog
+      v-model:open="directLinkDialogOpen"
+      max-width="md"
+      :buttons="directLinkDialogButtons"
+    >
+      <template #header>{{ directLinkDialogTitle }}</template>
+      <div class="space-y-4 py-2">
+        <div class="text-body-xs text-foreground-2">
+          请选择要关联的模型，然后点击下方按钮在三维视图或构件树中选择构件。
+        </div>
+        <CommonModelObjectMultiModelSelectDrawer
+          v-model:model_ids="directLinkModelIds"
+          v-model:selections="directLinkSelections"
+          :project-id="projectId"
+          :placeholder="directLinkPlaceholder"
+        />
+      </div>
+    </LayoutDialog>
   </div>
 </template>
 
@@ -605,6 +602,16 @@ type ActualProgressForm = {
   finishModelIds: string[]
   finishApplicationIds: string[]
   finishSelections: ActualProgressRecordBimSelection[]
+  startBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }>
+  finishBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }>
   remark: string
   highTemperature: string
   lowTemperature: string
@@ -694,6 +701,8 @@ const createDefaultForm = (): ActualProgressForm => ({
   finishModelIds: [],
   finishApplicationIds: [],
   finishSelections: [],
+  startBIM: [],
+  finishBIM: [],
   remark: '',
   highTemperature: '28',
   lowTemperature: '18',
@@ -733,6 +742,19 @@ const isLoadingRecords = ref(false)
 const isImportingExcel = ref(false)
 const isSavingRecord = ref(false)
 const deletingRecordId = ref<string | null>(null)
+
+const directLinkDialogOpen = ref(false)
+const isSavingDirectLink = ref(false)
+const directLinkModelIds = ref<string[]>([])
+const directLinkSelections = ref<ActualProgressRecordBimSelection[]>([])
+
+const directLinkDialogTitle = computed(() => {
+  return activeLinkTarget.value === 'start' ? '选取开始施工构件' : '选取完成构件'
+})
+
+const directLinkPlaceholder = computed(() => {
+  return activeLinkTarget.value === 'start' ? '选择今日开始施工构件' : '选择今日完成构件'
+})
 
 const projectId = computed(() => {
   const id = route.params.id
@@ -868,6 +890,23 @@ const viewDialogButtons = computed<LayoutDialogButton[]>(() => [
   }
 ])
 
+const directLinkDialogButtons = computed<LayoutDialogButton[]>(() => [
+  {
+    text: '取消',
+    props: { color: 'outline', disabled: isSavingDirectLink.value },
+    onClick: () => {
+      directLinkDialogOpen.value = false
+    }
+  },
+  {
+    text: '确定',
+    props: { color: 'primary', disabled: isSavingDirectLink.value },
+    onClick: () => {
+      void saveDirectLink()
+    }
+  }
+])
+
 const showSuccess = (title: string, description: string) => {
   triggerNotification({
     type: ToastNotificationType.Success,
@@ -933,6 +972,40 @@ const syncConstructionLog = () => {
 }
 
 const buildElementCodes = (applicationIds: string[]) => applicationIds.join('、')
+
+const formatBimCodesOrApplicationIds = (
+  bimList: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null | undefined
+) => {
+  if (!bimList || bimList.length === 0) {
+    return '未关联'
+  }
+  
+  const codes: string[] = []
+  for (const group of bimList) {
+    const appIds = group.applicationIds || []
+    const bimIds = group.bimIds || []
+    for (let i = 0; i < appIds.length; i++) {
+      const bimCode = bimIds[i]
+      const appId = appIds[i]
+      if (bimCode) {
+        codes.push(bimCode)
+      } else if (appId) {
+        codes.push(appId)
+      }
+    }
+  }
+
+  return codes.length > 0 ? codes.join('、') : '未关联'
+}
+
+const formatElementCodes = (item: ActualProgressRecord, type: 'start' | 'finish') => {
+  const bimList = type === 'start' ? (item.startBIM || item.BIM) : item.finishBIM
+  return formatBimCodesOrApplicationIds(bimList)
+}
 
 const syncElementSelections = () => {
   const startSummary = getActualRecordBimSummary({
@@ -1008,17 +1081,11 @@ const viewStatusBadgeClass = computed(() =>
 const viewProgressItems = computed(() => [
   {
     label: '今日开始施工构件编码',
-    value: displayDetailValue(
-      draftForm.value.startElementCodes ||
-        getElementStatusText(draftForm.value.startApplicationIds)
-    )
+    value: formatBimCodesOrApplicationIds(draftForm.value.startBIM)
   },
   {
     label: '今日完成构件编码',
-    value: displayDetailValue(
-      draftForm.value.finishElementCodes ||
-        getElementStatusText(draftForm.value.finishApplicationIds)
-    )
+    value: formatBimCodesOrApplicationIds(draftForm.value.finishBIM)
   },
   {
     label: '备注',
@@ -1138,6 +1205,8 @@ const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
   finishModelIds: item.finishModelIds,
   finishApplicationIds: item.finishApplicationIds,
   finishSelections: normalizeSelections(item.finishSelections),
+  startBIM: item.startBIM || [],
+  finishBIM: item.finishBIM || [],
   remark: item.remark,
   highTemperature: item.highTemperature,
   lowTemperature: item.lowTemperature,
@@ -1157,21 +1226,46 @@ const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
   constructionLog: item.constructionLog
 })
 
+const buildBimWithInheritedIds = (
+  selections: ActualProgressRecordBimSelection[],
+  originalBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null | undefined
+) => {
+  const bimIdMap = new Map<string, string | null>()
+  if (originalBIM && Array.isArray(originalBIM)) {
+    for (const group of originalBIM) {
+      const modelId = group.modelId
+      const appIds = group.applicationIds || []
+      const bimIds = group.bimIds || []
+      for (let i = 0; i < appIds.length; i++) {
+        const appId = appIds[i]
+        const bimId = bimIds[i]
+        if (appId) {
+          bimIdMap.set(`${modelId}::${appId}`, bimId)
+        }
+      }
+    }
+  }
+
+  return selections.map((sel) => ({
+    modelId: sel.modelId,
+    applicationIds: sel.applicationIds,
+    bimIds: sel.applicationIds.map((appId) => {
+      const existingBimId = bimIdMap.get(`${sel.modelId}::${appId}`)
+      return existingBimId !== undefined ? existingBimId : null
+    })
+  }))
+}
+
 const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput => {
   syncConstructionLog()
   syncElementSelections()
   
-  const startBIM = form.startSelections.map((sel) => ({
-    modelId: sel.modelId,
-    applicationIds: sel.applicationIds,
-    bimIds: sel.applicationIds.map(() => null)
-  }))
-  
-  const finishBIM = form.finishSelections.map((sel) => ({
-    modelId: sel.modelId,
-    applicationIds: sel.applicationIds,
-    bimIds: sel.applicationIds.map(() => null)
-  }))
+  const startBIM = buildBimWithInheritedIds(form.startSelections, form.startBIM)
+  const finishBIM = buildBimWithInheritedIds(form.finishSelections, form.finishBIM)
 
   return {
     taskName: form.taskName.trim(),
@@ -1290,6 +1384,61 @@ const openElementLinkDialog = async (
     behavior: 'smooth',
     block: 'center'
   })
+}
+
+const openDirectLinkDialog = (item: ActualProgressRecord, target: 'start' | 'finish') => {
+  editingId.value = item.id
+  activeLinkTarget.value = target
+  draftForm.value = cloneRecordToForm(item)
+  syncElementSelections()
+  
+  if (target === 'start') {
+    directLinkModelIds.value = [...draftForm.value.startModelIds]
+    directLinkSelections.value = normalizeSelections(draftForm.value.startSelections)
+  } else {
+    directLinkModelIds.value = [...draftForm.value.finishModelIds]
+    directLinkSelections.value = normalizeSelections(draftForm.value.finishSelections)
+  }
+  
+  directLinkDialogOpen.value = true
+}
+
+const saveDirectLink = async () => {
+  if (!projectId.value || !editingId.value || !activeLinkTarget.value) return
+  
+  isSavingDirectLink.value = true
+  try {
+    if (activeLinkTarget.value === 'start') {
+      draftForm.value.startModelIds = [...directLinkModelIds.value]
+      draftForm.value.startSelections = normalizeSelections(directLinkSelections.value)
+    } else {
+      draftForm.value.finishModelIds = [...directLinkModelIds.value]
+      draftForm.value.finishSelections = normalizeSelections(directLinkSelections.value)
+    }
+    
+    // 更新 codes 字符串
+    syncElementSelections()
+    
+    const input = buildRecordInput(draftForm.value)
+    const updated = await updateActualProgressRecord({
+      projectId: projectId.value,
+      recordId: editingId.value,
+      apiOrigin,
+      input
+    })
+    
+    await fetchActualRecords()
+    lastOperation.value = `已更新 ${updated.reportDate} 的构件关联`
+    showSuccess('关联已更新', '已成功保存最新的 BIM 构件关联。')
+    directLinkDialogOpen.value = false
+  } catch (error) {
+    showMessage(
+      '关联更新失败',
+      error instanceof Error ? error.message : '未能保存构件关联'
+    )
+  } finally {
+    isSavingDirectLink.value = false
+  }
 }
 
 const saveDraft = async () => {

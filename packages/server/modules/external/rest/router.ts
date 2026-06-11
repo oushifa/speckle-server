@@ -476,6 +476,167 @@ const serializeActualRecord = (record: any) => {
   }
 }
 
+const isProjectInfoNode = (raw: any): boolean => {
+  if (!raw) return false
+
+  const category = raw.category
+  if (typeof category === 'string' && (category === '项目信息' || category.toLowerCase() === 'project information' || category.toLowerCase() === 'project info')) {
+    return true
+  }
+
+  const name = raw.name
+  if (typeof name === 'string' && (name === '项目信息' || name.toLowerCase() === 'project information' || name.toLowerCase() === 'project info')) {
+    return true
+  }
+
+  const type = raw.type || raw.speckle_type
+  if (typeof type === 'string' && (type.includes('ProjectInformation') || type.includes('ProjectInfo') || type.includes('项目信息'))) {
+    return true
+  }
+
+  return false
+}
+
+const getPropertyValue = (raw: any, aliases: string[]): string | null => {
+  if (!raw || typeof raw !== 'object') return null
+
+  const clean = (val: string) => val.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
+  const normalizedAliases = aliases.map(clean)
+
+  const entries: Array<{ key: string; path: string; value: any }> = []
+  const visited = new Set()
+
+  const flatten = (obj: any, currentPath = '') => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || visited.has(obj)) return
+    visited.add(obj)
+
+    const ignoredKeys = [
+      '__closure',
+      'displayMesh',
+      'displayValue',
+      'totalChildrenCount',
+      '__importedUrl',
+      '__parents',
+      'bbox'
+    ]
+
+    for (const [key, rawValue] of Object.entries(obj)) {
+      if (ignoredKeys.includes(key)) continue
+
+      const newPath = currentPath ? `${currentPath}.${key}` : key
+
+      if (
+        rawValue &&
+        typeof rawValue === 'object' &&
+        !Array.isArray(rawValue) &&
+        'name' in rawValue &&
+        'value' in rawValue
+      ) {
+        const param = rawValue as { name?: any; value?: any }
+        const parameterName = typeof param.name === 'string' && param.name.length ? param.name : key
+        entries.push({
+          key: parameterName,
+          path: newPath,
+          value: param.value
+        })
+        continue
+      }
+
+      if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+        flatten(rawValue, newPath)
+        continue
+      }
+
+      entries.push({
+        key,
+        path: newPath,
+        value: rawValue
+      })
+    }
+  }
+
+  flatten(raw)
+
+  const formatVal = (value: any): string | null => {
+    if (value === null || value === undefined || value === '') return null
+    if (Array.isArray(value)) return value.length ? value.join(', ') : null
+    if (typeof value === 'object') return null
+    return String(value)
+  }
+
+  const exactMatch = entries.find((entry) => {
+    const keyNorm = clean(entry.key)
+    const pathNorm = clean(entry.path)
+    return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
+  })
+  if (exactMatch) return formatVal(exactMatch.value)
+
+  const fuzzyMatch = entries.find((entry) => {
+    const keyNorm = clean(entry.key)
+    const pathNorm = clean(entry.path)
+    return normalizedAliases.some(
+      (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
+    )
+  })
+  if (fuzzyMatch) return formatVal(fuzzyMatch.value)
+
+  return null
+}
+
+const buildBimCodesLookup = async (
+  projectDb: any,
+  projectId: string,
+  applicationIds: string[]
+): Promise<Map<string, string>> => {
+  const lookup = new Map<string, string>()
+  if (!applicationIds.length) return lookup
+
+  try {
+    const objects = await projectDb('objects')
+      .where('streamId', projectId)
+      .whereIn('id', applicationIds)
+      .select('id', 'data')
+
+    const projectInfoNodes = await projectDb('objects')
+      .where('streamId', projectId)
+      .andWhere(function(this: any) {
+        this.whereILike('data', '%项目信息%')
+          .orWhereILike('data', '%project information%')
+          .orWhereILike('data', '%project info%')
+      })
+      .select('id', 'data')
+
+    let defaultSpaceCode = ''
+    for (const pin of projectInfoNodes) {
+      const data = typeof pin.data === 'string' ? JSON.parse(pin.data) : pin.data
+      if (isProjectInfoNode(data)) {
+        const sc = getPropertyValue(data, ['空间代码', 'spacecode'])
+        if (sc) {
+          defaultSpaceCode = sc
+          break
+        }
+      }
+    }
+
+    for (const obj of objects) {
+      const data = typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data
+      const classCode = getPropertyValue(data, ['分类对象代码', 'classificationobjectcode']) || ''
+      const sectionCode = getPropertyValue(data, ['分部分项代码', 'sectionitemcode']) || ''
+      const serialNum = getPropertyValue(data, ['序号码', '序号', 'serialnumber']) || ''
+      const spaceCode = getPropertyValue(data, ['空间代码', 'spacecode']) || defaultSpaceCode || ''
+
+      if (classCode && spaceCode && sectionCode && serialNum) {
+        const fullBimCode = classCode + spaceCode + sectionCode + serialNum
+        lookup.set(obj.id, fullBimCode)
+      }
+    }
+  } catch (err) {
+    console.error('Failed to build bimCodes lookup:', err)
+  }
+
+  return lookup
+}
+
 // ==========================================
 // 外部 REST API 路由器工厂
 // ==========================================
@@ -519,9 +680,36 @@ export const externalRouterFactory = (): Router => {
       ])
 
       const serializedTasks = serializePlanTasksWithAggregation(tasks, snapshots)
+      const allAppIds = new Set<string>()
+      serializedTasks.forEach((task) => {
+        ;(task.BIM || []).forEach((entry) => {
+          entry.applicationIds.forEach((id) => allAppIds.add(id))
+        })
+      })
+
+      const bimCodesLookup = await buildBimCodesLookup(
+        projectDb,
+        projectId,
+        Array.from(allAppIds)
+      )
+
+      const enrichedTasks = serializedTasks.map((task) => {
+        const enrichedBIM = (task.BIM || []).map((entry) => {
+          const bimCodes = entry.applicationIds.map((appId) => bimCodesLookup.get(appId) || null)
+          return {
+            ...entry,
+            bimCodes
+          }
+        })
+        return {
+          ...task,
+          BIM: enrichedBIM
+        }
+      })
+
       return res.status(200).json({
         projectId,
-        planTasks: serializedTasks
+        planTasks: enrichedTasks
       })
     }
   )
@@ -539,10 +727,43 @@ export const externalRouterFactory = (): Router => {
 
       const projectDb = await getProjectDbClient({ projectId })
       const records = await listProgressActualRecordsFactory({ db: projectDb })({ projectId })
+      const recordsSerialized = records.map(serializeActualRecord)
+      
+      const allAppIds = new Set<string>()
+      recordsSerialized.forEach((rec) => {
+        ;(rec.startBIM || []).forEach((entry: any) => {
+          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
+        })
+        ;(rec.finishBIM || []).forEach((entry: any) => {
+          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
+        })
+      })
+
+      const bimCodesLookup = await buildBimCodesLookup(
+        projectDb,
+        projectId,
+        Array.from(allAppIds)
+      )
+
+      const enrichedRecords = recordsSerialized.map((rec) => {
+        const enrichedStartBIM = (rec.startBIM || []).map((entry: any) => {
+          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          return { ...entry, bimCodes }
+        })
+        const enrichedFinishBIM = (rec.finishBIM || []).map((entry: any) => {
+          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          return { ...entry, bimCodes }
+        })
+        return {
+          ...rec,
+          startBIM: enrichedStartBIM,
+          finishBIM: enrichedFinishBIM
+        }
+      })
 
       return res.status(200).json({
         projectId,
-        actualRecords: records.map(serializeActualRecord)
+        actualRecords: enrichedRecords
       })
     }
   )
@@ -583,6 +804,36 @@ export const externalRouterFactory = (): Router => {
         )
 
         return {
+          form,
+          attachments
+        }
+      })
+
+      const allAppIds = new Set<string>()
+      items.forEach(({ form }) => {
+        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
+        bim.forEach((entry: any) => {
+          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
+        })
+      })
+
+      const bimCodesLookup = await buildBimCodesLookup(
+        projectDb,
+        projectId,
+        Array.from(allAppIds)
+      )
+
+      const enrichedItems = items.map(({ form, attachments }) => {
+        const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
+        const enrichedBIM = normalizedBIM.map((entry: any) => {
+          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          return {
+            ...entry,
+            bimCodes
+          }
+        })
+
+        return {
           id: form.id,
           projectId: form.project_id,
           boqItemId: form.boqItemId,
@@ -597,7 +848,7 @@ export const externalRouterFactory = (): Router => {
           creatorId: form.creator,
           workVolume: form.workVolume,
           unit: form.unit,
-          BIM: normalizeBIM(form.BIM, form.BIMelement),
+          BIM: enrichedBIM,
           approveStatus: form.approveStatus,
           attachments,
           createdAt: form.createdAt.toISOString(),
@@ -608,7 +859,7 @@ export const externalRouterFactory = (): Router => {
       return res.status(200).json({
         totalCount,
         cursor: formsResult.cursor,
-        items
+        items: enrichedItems
       })
     }
   )

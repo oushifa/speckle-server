@@ -379,7 +379,7 @@ export class WorldTree {
       }
 
       if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-        const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+        const bimId = serialNum
         if (bimId.trim()) {
           if (!map[bimId]) {
             map[bimId] = {}
@@ -426,7 +426,7 @@ export class WorldTree {
     }
 
     if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-      const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+      const bimId = serialNum
       if (bimId.trim()) {
         if (!this.bimNodesMap[subtreeId][bimId]) {
           this.bimNodesMap[subtreeId][bimId] = {}
@@ -467,7 +467,7 @@ export class WorldTree {
     }
 
     if (classCode && nodeSpaceCode && sectionCode && serialNum) {
-      const bimId = classCode + nodeSpaceCode + sectionCode + serialNum
+      const bimId = serialNum
       if (bimId.trim()) {
         const map = this.bimNodesMap[subtreeId][bimId]
         if (map) {

@@ -382,6 +382,112 @@ const getStatusText = (status: string | null | undefined) => {
   }
 }
 
+const expandSerialRange = (rangeStr: string): string[] => {
+  rangeStr = rangeStr.trim()
+  const tildeRegex = /[~～]/
+  if (!tildeRegex.test(rangeStr)) {
+    return [rangeStr]
+  }
+  const parts = rangeStr.split(tildeRegex).map((p) => p.trim())
+  if (parts.length !== 2) {
+    return [rangeStr]
+  }
+  const [start, end] = parts
+  const startMatch = start.match(/^(.*?)(\d+)$/)
+  const endMatch = end.match(/^(.*?)(\d+)$/)
+  if (!startMatch || !endMatch) {
+    return [start, end]
+  }
+  const prefix = startMatch[1]
+  const startNumStr = startMatch[2]
+  const endNumStr = endMatch[2]
+  
+  if (endMatch[1] !== '' && prefix !== endMatch[1]) {
+    return [start, end]
+  }
+
+  const startNum = parseInt(startNumStr, 10)
+  const endNum = parseInt(endNumStr, 10)
+  if (startNum > endNum) {
+    return [start, end]
+  }
+  const width = startNumStr.length
+  const results: string[] = []
+  for (let i = startNum; i <= endNum; i++) {
+    const numStr = String(i).padStart(width, '0')
+    results.push(prefix + numStr)
+  }
+  return results
+}
+
+const compressSerialNumbers = (numbers: string[]): string => {
+  if (!numbers || numbers.length === 0) return ''
+  
+  type Parsed = {
+    original: string
+    prefix: string
+    num: number
+    width: number
+  }
+  const parsedItems: Parsed[] = []
+  const nonParsable: string[] = []
+
+  for (const numStr of numbers) {
+    const trimmed = numStr.trim()
+    if (!trimmed) continue
+    const match = trimmed.match(/^(.*?)(\d+)$/)
+    if (match) {
+      parsedItems.push({
+        original: trimmed,
+        prefix: match[1],
+        num: parseInt(match[2], 10),
+        width: match[2].length
+      })
+    } else {
+      nonParsable.push(trimmed)
+    }
+  }
+
+  type GroupKey = string
+  const groups = new Map<GroupKey, Parsed[]>()
+  for (const item of parsedItems) {
+    const key = `${item.prefix}::${item.width}`
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(item)
+  }
+
+  const resultSegments: string[] = []
+
+  for (const [key, items] of groups.entries()) {
+    const lastColonIdx = key.lastIndexOf('::')
+    const prefix = key.substring(0, lastColonIdx)
+    const width = parseInt(key.substring(lastColonIdx + 2), 10)
+
+    const uniqueNums = Array.from(new Set(items.map((it) => it.num))).sort((a, b) => a - b)
+    
+    let k = 0
+    while (k < uniqueNums.length) {
+      let endIdx = k
+      while (endIdx + 1 < uniqueNums.length && uniqueNums[endIdx + 1] === uniqueNums[endIdx] + 1) {
+        endIdx++
+      }
+      
+      const formatNum = (n: number) => prefix + String(n).padStart(width, '0')
+      if (endIdx > k) {
+        resultSegments.push(`${formatNum(uniqueNums[k])}~${formatNum(uniqueNums[endIdx])}`)
+      } else {
+        resultSegments.push(formatNum(uniqueNums[k]))
+      }
+      k = endIdx + 1
+    }
+  }
+
+  resultSegments.push(...nonParsable)
+  return resultSegments.join(', ')
+}
+
 const getBimIdsString = (bim: any) => {
   if (!bim) return ''
   let bimArr = bim
@@ -394,7 +500,8 @@ const getBimIdsString = (bim: any) => {
   }
   if (!Array.isArray(bimArr)) return ''
   const ids = bimArr.flatMap((entry: any) => entry.bimIds || [])
-  return ids.filter((id: any) => typeof id === 'string' && !!id.trim()).join(', ')
+  const validIds = ids.filter((id: any) => typeof id === 'string' && !!id.trim())
+  return compressSerialNumbers(validIds)
 }
 
 const parseExcelDate = (raw: any): number | null => {
@@ -545,10 +652,11 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
     // 根据唯一构件编码 (bimIds) 解析补全 BIM 对象属性 (modelId, applicationId)
     let BIM = null
     if (bimIdsRaw) {
-      const bimIds = bimIdsRaw
-        .split(/[,，;；]/)
+      const rawBimIds = bimIdsRaw
+        .split(/[,，;；、]/)
         .map((s: string) => s.trim())
         .filter(Boolean)
+      const bimIds = rawBimIds.flatMap(expandSerialRange)
       if (bimIds.length > 0) {
         const bimEntryMap = new Map<string, { modelId: string, applicationIds: string[], bimIds: string[] }>()
         for (const bimId of bimIds) {
@@ -692,7 +800,7 @@ const buildBimNodesMap = async (projectDb: any, projectId: string) => {
       for (const cid of belongsToCommits) {
         const spaceCode = getPropertyValue(data, ['空间代码', 'spacecode']) || modelDefaultSpaceCode.get(cid) || ''
         if (spaceCode) {
-          const bimId = classCode + spaceCode + sectionCode + serialNum
+          const bimId = serialNum
           if (bimId.trim()) {
             if (!bimIdMap.has(bimId)) {
               bimIdMap.set(bimId, [])

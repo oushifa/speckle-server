@@ -28,7 +28,9 @@
             class="min-w-[112px]"
             size="base"
           >
-            <template #something-selected="{ value }">{{ value.label }}</template>
+            <template #something-selected="{ value }">
+              {{ Array.isArray(value) ? value[0]?.label : value?.label }}
+            </template>
             <template #option="{ item }">
               {{ item.label }}
             </template>
@@ -896,10 +898,7 @@ const handleImportFileChange = async (event: Event) => {
       `${apiOrigin}/api/v1/projects/${projectId.value}/quality-acceptance/forms/import-excel`,
       {
         method: 'POST',
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${authToken.value}`
-        }
+        body: formData
       }
     )
 

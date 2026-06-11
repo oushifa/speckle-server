@@ -110,7 +110,7 @@ const stats = [
 // Mock Data for Table
 const projects = [
   {
-    id: 1,
+    id: '1',
     name: '南北高速公路工程',
     total: 45,
     qualified: 38,
@@ -119,7 +119,7 @@ const projects = [
     rate: '84%'
   },
   {
-    id: 2,
+    id: '2',
     name: '城市地铁3号线工程',
     total: 32,
     qualified: 28,
@@ -128,7 +128,7 @@ const projects = [
     rate: '88%'
   },
   {
-    id: 3,
+    id: '3',
     name: '跨江大桥建设工程',
     total: 56,
     qualified: 52,
@@ -137,7 +137,7 @@ const projects = [
     rate: '93%'
   },
   {
-    id: 4,
+    id: '4',
     name: '产业园区基础设施工程',
     total: 12,
     qualified: 9,
