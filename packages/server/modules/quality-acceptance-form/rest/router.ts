@@ -142,6 +142,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const isTemplate = req.query.template === 'true'
 
         const headers = [
+          '验收单ID',
           '验收单名称',
           '编码',
           '检验批编号',
@@ -187,6 +188,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const items = await q
 
           rows = items.map((item) => {
+            const id = item.id
             const name = item.name || ''
             const code = item.code || ''
             const inspectionLotNumber = item.inspectionLotNumber || ''
@@ -201,6 +203,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             const bimIdsStr = getBimIdsString(item.BIM)
 
             return [
+              id,
               name,
               code,
               inspectionLotNumber,
@@ -476,7 +479,8 @@ const compressSerialNumbers = (numbers: string[]): string => {
       
       const formatNum = (n: number) => prefix + String(n).padStart(width, '0')
       if (endIdx > k) {
-        resultSegments.push(`${formatNum(uniqueNums[k])}~${formatNum(uniqueNums[endIdx])}`)
+        const endNumStr = String(uniqueNums[endIdx]).padStart(width, '0')
+        resultSegments.push(`${formatNum(uniqueNums[k])}~${endNumStr}`)
       } else {
         resultSegments.push(formatNum(uniqueNums[k]))
       }
@@ -562,6 +566,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
     return headerRow.findIndex((cell: string) => keys.includes(cell))
   }
 
+  const idIndex = findHeaderIndex(['验收单ID', '主键ID', 'ID', 'id'])
   const nameIndex = findHeaderIndex(['验收单名称', '名称'])
   const codeIndex = findHeaderIndex(['编码', '验收编码'])
   const inspectionLotNumberIndex = findHeaderIndex(['检验批编号'])
@@ -597,6 +602,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
       return row[cellIndex]
     }
 
+    const id = readValue(idIndex)
     const name = readValue(nameIndex)
     const code = readValue(codeIndex)
     const inspectionLotNumber = readValue(inspectionLotNumberIndex)
@@ -605,10 +611,10 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
     const actualFinishDateRaw = readRawValue(actualFinishDateIndex)
     const workVolumeRaw = readValue(workVolumeIndex)
     const unit = readValue(unitIndex)
-    const approveStatusRaw = readValue(approveStatusIndex)
     const bimIdsRaw = readValue(bimIdsIndex)
 
     if (
+      !id &&
       !name &&
       !code &&
       !inspectionLotNumber &&
@@ -617,7 +623,6 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
       !String(actualFinishDateRaw ?? '').trim() &&
       !workVolumeRaw &&
       !unit &&
-      !approveStatusRaw &&
       !bimIdsRaw
     ) {
       continue
@@ -644,18 +649,13 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
       workVolume = parsed
     }
 
-    const approveStatus = approveStatusRaw ? parseApproveStatus(approveStatusRaw) : null
-    if (approveStatusRaw && approveStatus === undefined) {
-      throw new Error(`第 ${rowNumber} 行月度验工状态不正确：${approveStatusRaw}`)
-    }
-
     // 根据唯一构件编码 (bimIds) 解析补全 BIM 对象属性 (modelId, applicationId)
     let BIM = null
     if (bimIdsRaw) {
       const rawBimIds = bimIdsRaw
-        .split(/[,，;；、]/)
-        .map((s: string) => s.trim())
-        .filter(Boolean)
+          .split(/[,，;；、]/)
+          .map((s: string) => s.trim())
+          .filter(Boolean)
       const bimIds = rawBimIds.flatMap(expandSerialRange)
       if (bimIds.length > 0) {
         const bimEntryMap = new Map<string, { modelId: string, applicationIds: string[], bimIds: string[] }>()
@@ -694,6 +694,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
     }
 
     importRows.push({
+      id: id || null,
       rowNumber,
       flowId: null,
       name: name || acceptancePart,
@@ -708,7 +709,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet, bimMap: Map<string, Array<{ mode
       workVolume,
       unit: unit || null,
       BIM,
-      approveStatus
+      approveStatus: null
     })
   }
 

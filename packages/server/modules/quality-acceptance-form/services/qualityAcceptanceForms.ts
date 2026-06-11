@@ -5,7 +5,9 @@ import { getApprovalFlowDefinitionByIdFactory } from '@/modules/flow/repositorie
 import { startApprovalFlowFactory } from '@/modules/flow/services/approvalFlows'
 import {
   createQualityAcceptanceFormFactory,
-  deleteQualityAcceptanceFormFactory
+  deleteQualityAcceptanceFormFactory,
+  getQualityAcceptanceFormByIdFactory,
+  updateQualityAcceptanceFormFactory
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
 import type { BimElementEntry, BIM } from '@/modules/quality-acceptance-form/helpers/types'
 import { BadRequestError } from '@/modules/shared/errors'
@@ -13,6 +15,7 @@ import { BadRequestError } from '@/modules/shared/errors'
 export const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
 
 export type CreateQualityAcceptanceFormInput = {
+  id?: string | null
   projectId: string
   flowId?: string | null
   name?: string | null
@@ -240,29 +243,76 @@ export const importQualityAcceptanceFormsFactory =
     creator?: string | null
   }): Promise<ImportQualityAcceptanceFormResult> => {
     const createQualityAcceptanceFormEntry = createQualityAcceptanceFormEntryFactory(deps)
+    const getQualityAcceptanceFormById = getQualityAcceptanceFormByIdFactory({ db: deps.projectDb })
+    const updateQualityAcceptanceForm = updateQualityAcceptanceFormFactory({ db: deps.projectDb })
+
     let createdCount = 0
     const createdItems: ImportQualityAcceptanceFormResult['createdItems'] = []
     const failedRows: ImportQualityAcceptanceFormResult['failedRows'] = []
 
     for (const item of params.items) {
       try {
-        const created = await createQualityAcceptanceFormEntry({
-          input: {
-            ...item,
-            projectId: params.projectId
-          },
-          actorUserId: params.actorUserId,
-          creator: params.creator
-        })
+        let isUpdate = false
+        let recordId = ''
+        let updatedRecord: any = null
 
-        createdCount += 1
-        createdItems.push({
-          rowNumber: item.rowNumber,
-          id: created.id,
-          boqItemId: created.boqItemId || null,
-          code: created.code || null,
-          inspectionLotNumber: created.inspectionLotNumber || null
-        })
+        if (item.id) {
+          const existing = await getQualityAcceptanceFormById({
+            formId: item.id,
+            projectId: params.projectId
+          })
+          if (existing) {
+            isUpdate = true
+            recordId = existing.id
+          }
+        }
+
+        if (isUpdate) {
+          const updatePayload: any = {
+            name: normalizeOptionalString(item.name),
+            code: normalizeOptionalString(item.code),
+            inspectionLotNumber: normalizeOptionalString(item.inspectionLotNumber),
+            acceptancePart: normalizeOptionalString(item.acceptancePart),
+            acceptanceContent: normalizeOptionalString(item.acceptanceContent),
+            actualStartDate: normalizeOptionalDateValue(item.actualStartDate),
+            actualFinishDate: normalizeOptionalDateValue(item.actualFinishDate),
+            workVolume:
+              item.workVolume === null || item.workVolume === undefined
+                ? null
+                : item.workVolume,
+            unit: normalizeOptionalString(item.unit),
+            BIM: normalizeBIM(item.BIM ?? null, item.BIMelement ?? null)
+          }
+
+          updatedRecord = await updateQualityAcceptanceForm(recordId, updatePayload)
+
+          createdCount += 1
+          createdItems.push({
+            rowNumber: item.rowNumber,
+            id: recordId,
+            boqItemId: updatedRecord.boqItemId || null,
+            code: updatedRecord.code || null,
+            inspectionLotNumber: updatedRecord.inspectionLotNumber || null
+          })
+        } else {
+          const created = await createQualityAcceptanceFormEntry({
+            input: {
+              ...item,
+              projectId: params.projectId
+            },
+            actorUserId: params.actorUserId,
+            creator: params.creator
+          })
+
+          createdCount += 1
+          createdItems.push({
+            rowNumber: item.rowNumber,
+            id: created.id,
+            boqItemId: created.boqItemId || null,
+            code: created.code || null,
+            inspectionLotNumber: created.inspectionLotNumber || null
+          })
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         failedRows.push({

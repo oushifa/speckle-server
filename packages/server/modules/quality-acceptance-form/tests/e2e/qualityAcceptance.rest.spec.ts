@@ -65,8 +65,9 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
   
   const excelPath = path.join(__dirname, 'test-quality-acceptance.xlsx')
 
-  const generateTestExcel = () => {
+  const generateTestExcel = (updateRows: any[] = []) => {
     const headers = [
+      '验收单ID',
       '验收单名称',
       '编码',
       '检验批编号',
@@ -78,8 +79,9 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
       '月度验工',
       '关联构件ID'
     ]
-    const rows = [
+    const defaultRows = [
       [
+        '',
         '测试验收单1',
         'QA-001',
         'LOT-2026-001',
@@ -89,9 +91,10 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         150.5,
         'm³',
         '正在查验',
-        'CLASS001SPACE001SEC001001' // 待自动补全关联构件编码 (匹配 object-1)
+        '001' // 待自动补全关联构件编码 (匹配 object-1)
       ],
       [
+        '',
         '测试验收单2',
         'QA-002',
         'LOT-2026-002',
@@ -101,9 +104,10 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         80.0,
         't',
         '已查验',
-        'CLASS002SPACE001SEC002002' // 待自动补全关联构件编码 (匹配 object-2)
+        '002' // 待自动补全关联构件编码 (匹配 object-2)
       ],
       [
+        '',
         '测试验收单3',
         'QA-003',
         'LOT-2026-003',
@@ -116,6 +120,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         'NON_EXISTENT_CODE' // 测试无法匹配时的兜底策略
       ]
     ]
+    const rows = updateRows.length > 0 ? updateRows : defaultRows
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows])
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, '质量验收')
@@ -253,14 +258,14 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     // 校验测试验收单1 (成功匹配构件1)
     expect(records[0].name).to.equal('测试验收单1')
     expect(records[0].inspectionLotNumber).to.equal('LOT-2026-001')
-    expect(records[0].approveStatus).to.equal('PENDING') // '正在查验' mapping
+    expect(records[0].approveStatus).to.be.null // 导入时不处理月度验工状态，默认为未查验（null）
 
     const bim1 = typeof records[0].BIM === 'string' ? JSON.parse(records[0].BIM) : records[0].BIM
     expect(bim1).to.be.an('array')
     expect(bim1.length).to.equal(1)
     expect(bim1[0].modelId).to.equal('tst_commit')
     expect(bim1[0].applicationIds).to.deep.equal(['tst_obj_1'])
-    expect(bim1[0].bimIds).to.deep.equal(['CLASS001SPACE001SEC001001'])
+    expect(bim1[0].bimIds).to.deep.equal(['001'])
 
     // 校验测试验收单3 (没找到任何匹配时的兜底策略)
     expect(records[2].name).to.equal('测试验收单3')
@@ -292,13 +297,75 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     expect(rows.length).to.equal(4)
     const headerRow = rows[0]
     expect(headerRow).to.include('关联构件ID')
+    expect(headerRow).to.include('验收单ID')
+    expect(headerRow).to.include('验收单名称')
     
     const bimColIndex = headerRow.indexOf('关联构件ID')
-    
-    // 由于是按 updatedAt desc 排序，最后插入的第3个单子排第一行
-    expect(rows[1][bimColIndex]).to.equal('NON_EXISTENT_CODE')
-    expect(rows[2][bimColIndex]).to.equal('CLASS002SPACE001SEC002002')
-    expect(rows[3][bimColIndex]).to.equal('CLASS001SPACE001SEC001001')
+    const nameColIndex = headerRow.indexOf('验收单名称')
+    const idColIndex = headerRow.indexOf('验收单ID')
+
+    // 动态验证，防止排序引起的影响
+    const findBimIdByName = (name: string) => {
+      const row = rows.find(r => r[nameColIndex] === name)
+      return row ? row[bimColIndex] : null
+    }
+
+    expect(findBimIdByName('测试验收单1')).to.equal('001')
+    expect(findBimIdByName('测试验收单2')).to.equal('002')
+    expect(findBimIdByName('测试验收单3')).to.equal('NON_EXISTENT_CODE')
+
+    // 导出的 ID 字段应非空且为字符串
+    const test1Row = rows.find(r => r[nameColIndex] === '测试验收单1')
+    expect(test1Row).to.not.be.undefined
+    expect(test1Row![idColIndex]).to.be.a('string').and.not.empty
+  })
+
+  it('Updates existing Quality Acceptance Forms via Excel when ID is provided', async () => {
+    const projectDb = await getProjectDbClient({ projectId })
+    const records = await projectDb('quality_acceptance_forms')
+      .where('project_id', projectId)
+      .orderBy('code', 'asc')
+
+    expect(records.length).to.equal(3)
+    const firstRecord = records[0]
+
+    // 构造更新的数据，修改工程量从 150.5 变更为 999.9，修改名称为 "测试验收单1-已修改"
+    const updateRows = [
+      [
+        firstRecord.id,
+        '测试验收单1-已修改',
+        'QA-001-MOD',
+        'LOT-2026-001',
+        '1层主体',
+        '混凝土浇筑质量验收',
+        '2026-06-09',
+        999.9,
+        'm³',
+        '已查验', // 虽然写了已查验，但导入时应直接忽略
+        '001'
+      ]
+    ]
+
+    // 重新生成含有 ID 的 Excel 并导入
+    generateTestExcel(updateRows)
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/quality-acceptance/forms/import-excel`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', excelPath)
+
+    expect(response.status).to.equal(200)
+    expect(response.body.success).to.be.true
+    expect(response.body.createdCount).to.equal(1)
+
+    // 重新查询该行数据并验证
+    const updatedRecords = await projectDb('quality_acceptance_forms')
+      .where('id', firstRecord.id)
+
+    expect(updatedRecords.length).to.equal(1)
+    expect(updatedRecords[0].name).to.equal('测试验收单1-`已修改`'.replace(/`/g, '')) // 即：测试验收单1-已修改
+    expect(updatedRecords[0].code).to.equal('QA-001-MOD')
+    expect(Number(updatedRecords[0].workVolume)).to.equal(999.9)
+    expect(updatedRecords[0].approveStatus).to.be.null // 原本为 null，应保持不变
   })
 
   it('Exports empty template correctly', async () => {
