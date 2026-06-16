@@ -59,6 +59,10 @@ export const projectDashboardItemFragment = graphql(`
     responsible
     timeZone
     projectNumber
+    contractCode
+    contractName
+    employer
+    contractor
     constructionUnit
     supervisionUnit
     constructionUnitName
@@ -152,6 +156,10 @@ export const projectUpdatableMetadataFragment = graphql(`
     responsible
     timeZone
     projectNumber
+    contractCode
+    contractName
+    employer
+    contractor
     constructionUnit
     supervisionUnit
     constructionUnitName

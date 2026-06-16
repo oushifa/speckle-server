@@ -31,6 +31,46 @@
         class="mb-2"
         :disabled="!canUpdate.authorized"
       />
+      <FormTextInput
+        v-model="localContractCode"
+        name="contractCode"
+        label="合同编号"
+        placeholder="合同编号"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localContractName"
+        name="contractName"
+        label="合同名称"
+        placeholder="合同名称"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localEmployer"
+        name="employer"
+        label="发包人"
+        placeholder="发包人"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localContractor"
+        name="contractor"
+        label="承包人"
+        placeholder="承包人"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
       <FormSelectDepartment
         v-model="localConstructionUnit"
         name="constructionUnit"
@@ -89,6 +129,10 @@ graphql(`
     name
     description
     projectNumber
+    contractCode
+    contractName
+    employer
+    contractor
     constructionUnit
     supervisionUnit
     constructionUnitName
@@ -112,6 +156,10 @@ const targetRoute = ref<RouteLocationRaw | undefined>(undefined)
 const localProjectName = ref(props.project.name)
 const localProjectDescription = ref(props.project.description ?? '')
 const localProjectNumber = ref(props.project.projectNumber ?? '')
+const localContractCode = ref(props.project.contractCode ?? '')
+const localContractName = ref(props.project.contractName ?? '')
+const localEmployer = ref(props.project.employer ?? '')
+const localContractor = ref(props.project.contractor ?? '')
 const localConstructionUnit = ref(props.project.constructionUnit ?? '')
 const localSupervisionUnit = ref(props.project.supervisionUnit ?? '')
 const showConfirmDialog = ref(false)
@@ -122,6 +170,10 @@ const hasChanges = computed(() => {
     localProjectName.value !== props.project.name ||
     localProjectDescription.value !== props.project.description ||
     localProjectNumber.value !== (props.project.projectNumber ?? '') ||
+    localContractCode.value !== (props.project.contractCode ?? '') ||
+    localContractName.value !== (props.project.contractName ?? '') ||
+    localEmployer.value !== (props.project.employer ?? '') ||
+    localContractor.value !== (props.project.contractor ?? '') ||
     localConstructionUnit.value !== (props.project.constructionUnit ?? '') ||
     localSupervisionUnit.value !== (props.project.supervisionUnit ?? '')
   )
@@ -132,6 +184,10 @@ const emitUpdate = () => {
     name: localProjectName.value,
     description: localProjectDescription.value,
     projectNumber: localProjectNumber.value,
+    contractCode: localContractCode.value,
+    contractName: localContractName.value,
+    employer: localEmployer.value,
+    contractor: localContractor.value,
     constructionUnit: localConstructionUnit.value,
     supervisionUnit: localSupervisionUnit.value,
     onComplete: handleRedirection
@@ -151,6 +207,10 @@ const resetLocalState = () => {
   localProjectName.value = props.project.name
   localProjectDescription.value = props.project.description ?? ''
   localProjectNumber.value = props.project.projectNumber ?? ''
+  localContractCode.value = props.project.contractCode ?? ''
+  localContractName.value = props.project.contractName ?? ''
+  localEmployer.value = props.project.employer ?? ''
+  localContractor.value = props.project.contractor ?? ''
   localConstructionUnit.value = props.project.constructionUnit ?? ''
   localSupervisionUnit.value = props.project.supervisionUnit ?? ''
   showConfirmDialog.value = false
@@ -185,6 +245,18 @@ watch(
     }
     if (newProject.projectNumber !== oldProject.projectNumber) {
       localProjectNumber.value = newProject.projectNumber ?? ''
+    }
+    if (newProject.contractCode !== oldProject.contractCode) {
+      localContractCode.value = newProject.contractCode ?? ''
+    }
+    if (newProject.contractName !== oldProject.contractName) {
+      localContractName.value = newProject.contractName ?? ''
+    }
+    if (newProject.employer !== oldProject.employer) {
+      localEmployer.value = newProject.employer ?? ''
+    }
+    if (newProject.contractor !== oldProject.contractor) {
+      localContractor.value = newProject.contractor ?? ''
     }
     if (newProject.constructionUnit !== oldProject.constructionUnit) {
       localConstructionUnit.value = newProject.constructionUnit ?? ''

@@ -42,23 +42,38 @@
         <div
           class="rounded-xl bg-white p-6 shadow-sm border border-outline-3 lg:col-span-2"
         >
-          <div class="mb-6 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-slate-900">待办列表</h2>
-            <span
-              class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
-            >
-              {{ todoTotalCount }} 项待处理
-            </span>
+          <div class="mb-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-lg font-bold text-slate-900">流程列表</h2>
+              <div class="flex items-center gap-3">
+                <span
+                  class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
+                >
+                  {{ activeTodoTotalCount }} 项
+                </span>
+                <NuxtLink
+                  :to="flowPageRoute"
+                  class="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  进入流程页
+                </NuxtLink>
+              </div>
+            </div>
+            <LazyLayoutTabsHorizontal
+              :items="todoTabItems"
+              :active-item="activeTodoTabItem"
+              @update:active-item="onTodoTabChange"
+            />
           </div>
 
-          <div v-if="loadingTodos" class="text-sm text-slate-500">加载中...</div>
-          <div v-else-if="!todoList.length" class="text-sm text-slate-500">
-            暂无待办
+          <div v-if="activeTodoLoading" class="text-sm text-slate-500">加载中...</div>
+          <div v-else-if="!activeTodoList.length" class="text-sm text-slate-500">
+            {{ activeTodoEmptyText }}
           </div>
           <div v-else class="space-y-4">
             <div
-              v-for="todo in todoList"
-              :key="todo.id"
+              v-for="instance in activeTodoList"
+              :key="instance.id"
               class="flex items-center justify-between rounded-lg border border-outline-3 bg-white p-4 transition-shadow hover:shadow-md"
             >
               <div class="flex items-start gap-4">
@@ -67,37 +82,40 @@
                 >
                   <DocumentTextIcon class="h-5 w-5" />
                 </div>
-                <div>
+                <div class="min-w-0">
                   <h3 class="text-base font-semibold text-slate-900">
-                    {{ todo.title }}
+                    {{ getFlowItemTitle(instance) }}
                   </h3>
+                  <p
+                    v-if="instance.resourceType === 'MODEL'"
+                    class="mt-1 truncate text-xs text-slate-500"
+                  >
+                    {{ instance.project?.name || '-' }} -
+                    {{ instance.model?.name || '-' }}
+                  </p>
                   <div
                     class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"
                   >
                     <span class="flex items-center gap-1">
                       <UserIcon class="h-3 w-3" />
-                      发起人: {{ todo.initiator }}
+                      发起人: {{ instance.createdByUser?.name || '-' }}
                     </span>
                     <span class="flex items-center gap-1">
                       <ClockIcon class="h-3 w-3" />
-                      发起时间: {{ todo.time }}
+                      发起时间: {{ formatUpdateTime(instance.createdAt) }}
                     </span>
-                    <span v-if="todo.supervisor" class="flex items-center gap-1">
+                    <span class="flex items-center gap-1">
                       <EyeIcon class="h-3 w-3" />
-                      监: {{ todo.supervisor }}
+                      当前审核人: {{ getCurrentApprovers(instance) }}
                     </span>
                   </div>
                 </div>
               </div>
               <span
                 class="shrink-0 rounded px-2.5 py-1 text-xs font-medium"
-                :class="
-                  todo.status === '进行中'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-orange-100 text-orange-700'
-                "
+                :class="getFlowStatusClass(instance.status)"
               >
-                {{ todo.status }}
+                {{ formatFlowStatusLabel(instance.status) }}
               </span>
             </div>
           </div>
@@ -119,7 +137,9 @@
             </NuxtLink>
           </div>
 
-          <div class="mb-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 px-4 py-4 text-center">
+          <div
+            class="mb-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 px-4 py-4 text-center"
+          >
             <p class="mb-1 text-sm text-slate-600">最近更新</p>
             <p class="text-2xl font-bold text-blue-900">
               {{ totalReviewableModelCount }}
@@ -202,9 +222,7 @@
           >
             <div class="mb-2 flex items-center justify-between gap-2">
               <div class="text-sm font-semibold text-slate-900">待审核模型</div>
-              <span
-                class="rounded bg-white px-2 py-1 text-xs text-blue-600"
-              >
+              <span class="rounded bg-white px-2 py-1 text-xs text-blue-600">
                 {{ selectedUpdate.version }}
               </span>
             </div>
@@ -257,11 +275,7 @@ import {
   type FlowInstancesQueryVariables,
   type FlowListItem
 } from '~/components/flow/flowInstances'
-import type {
-  FlowDefinitionsQuery,
-  FlowDefinitionsQueryVariables,
-  WorkbenchReviewUpdatesQuery
-} from '~~/lib/common/generated/gql/graphql'
+import type { WorkbenchReviewUpdatesQuery } from '~~/lib/common/generated/gql/graphql'
 
 type DashboardStatsResponse = {
   projectCount: number
@@ -385,21 +399,19 @@ type UpdateItem = {
   updatedAt: number
   approveStatus: string | null | undefined
 }
-type DefinitionItem = FlowDefinitionsQuery['approvalFlowDefinitions'][number]
-type TodoItem = {
-  id: string
-  title: string
-  initiator: string
-  supervisor: string
-  time: string
-  status: '进行中' | '待处理'
+type WorkbenchFlowTab = 'pending' | 'initiated' | 'handled'
+type WorkbenchFlowTabItem = { id: WorkbenchFlowTab; title: string }
+type WorkbenchFlowTabState = {
+  loading: boolean
+  loaded: boolean
+  totalCount: number
+  items: FlowListItem[]
 }
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const apiOrigin = useApiOrigin()
 const route = useRoute()
-const loadingTodos = ref(false)
 const loadingUpdates = ref(false)
 const mutating = ref(false)
 const dashboardStats = ref<DashboardStatsResponse>({
@@ -409,14 +421,38 @@ const dashboardStats = ref<DashboardStatsResponse>({
   qualityAcceptanceCount: 0,
   workValuationCount: 0
 })
-const todoTotalCount = ref(0)
-const todoList = ref<TodoItem[]>([])
+const todoTab = ref<WorkbenchFlowTab>('pending')
 const recentUpdates = ref<UpdateItem[]>([])
 const totalReviewableModelCount = ref(0)
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
 const selectedUpdate = ref<UpdateItem | null>(null)
 const titleFieldValue = ref<unknown>('')
+const todoTabItems: WorkbenchFlowTabItem[] = [
+  { id: 'pending', title: '待办' },
+  { id: 'initiated', title: '我发起的' },
+  { id: 'handled', title: '我处理的' }
+]
+const flowTabStates = reactive<Record<WorkbenchFlowTab, WorkbenchFlowTabState>>({
+  pending: {
+    loading: false,
+    loaded: false,
+    totalCount: 0,
+    items: []
+  },
+  initiated: {
+    loading: false,
+    loaded: false,
+    totalCount: 0,
+    items: []
+  },
+  handled: {
+    loading: false,
+    loaded: false,
+    totalCount: 0,
+    items: []
+  }
+})
 
 const titleField = computed<DynamicFormSchemaField>(() => ({
   key: 'title',
@@ -443,6 +479,32 @@ const metrics = computed(() =>
     value: formatMetricValue(dashboardStats.value[item.key])
   }))
 )
+
+const activeTodoState = computed(() => flowTabStates[todoTab.value])
+
+const activeTodoList = computed(() => activeTodoState.value.items)
+
+const activeTodoLoading = computed(() => activeTodoState.value.loading)
+
+const activeTodoTotalCount = computed(() => activeTodoState.value.totalCount)
+
+const activeTodoTabItem = computed(
+  () => todoTabItems.find((item) => item.id === todoTab.value) || todoTabItems[0]
+)
+
+const activeTodoEmptyText = computed(() => {
+  const emptyTextMap: Record<WorkbenchFlowTab, string> = {
+    pending: '暂无待办',
+    initiated: '暂无我发起的流程',
+    handled: '暂无我处理的流程'
+  }
+  return emptyTextMap[todoTab.value]
+})
+
+const flowPageRoute = computed(() => ({
+  path: '/flow',
+  query: todoTab.value === 'pending' ? {} : { tab: todoTab.value }
+}))
 
 const normalizeApproveStatus = (status?: string | null) => {
   if (typeof status !== 'string') return null
@@ -488,27 +550,56 @@ const getCurrentApprovers = (instance: FlowListItem) => {
   return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
 }
 
-const mapTodoItems = (items: FlowListItem[]): TodoItem[] =>
-  items.map((instance) => {
-    const currentStep = getCurrentTodoStep(instance)
-    const isInProgress = Boolean((currentStep?.approvedByIds || []).length)
-    return {
-      id: instance.id,
-      title:
-        instance.definition?.name ||
-        instance.model?.name ||
-        (typeof instance.formData?.title === 'string' ? instance.formData.title : '') ||
-        '未命名流程',
-      initiator: instance.createdByUser?.name || '-',
-      supervisor: getCurrentApprovers(instance),
-      time: formatUpdateTime(instance.createdAt),
-      status: isInProgress ? '进行中' : '待处理'
-    }
-  })
+const getFlowItemTitle = (instance: FlowListItem) =>
+  instance.definition?.name ||
+  instance.model?.name ||
+  (typeof instance.formData?.title === 'string' ? instance.formData.title : '') ||
+  '未命名流程'
 
-const loadTodoList = async () => {
-  loadingTodos.value = true
+const formatFlowStatusLabel = (status?: string | null) => {
+  const statusMap: Record<string, string> = {
+    PENDING: '进行中',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    CANCELED: '已取消',
+    WAITING: '未开始'
+  }
+  if (!status) return '-'
+  return statusMap[status] || status
+}
+
+const getFlowStatusClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'bg-green-100 text-green-700'
+  if (status === 'REJECTED' || status === 'CANCELED') {
+    return 'bg-red-100 text-red-700'
+  }
+  if (status === 'WAITING') return 'bg-slate-100 text-slate-700'
+  return 'bg-blue-100 text-blue-700'
+}
+
+const todoTabQueryConfig: Record<
+  WorkbenchFlowTab,
+  Pick<FlowInstancesQueryVariables, 'scope' | 'status'>
+> = {
+  pending: {
+    scope: 'TODO',
+    status: 'PENDING'
+  },
+  initiated: {
+    scope: 'INITIATED',
+    status: null
+  },
+  handled: {
+    scope: 'HANDLED',
+    status: null
+  }
+}
+
+const loadTodoList = async (tab: WorkbenchFlowTab) => {
+  const state = flowTabStates[tab]
+  state.loading = true
   try {
+    const config = todoTabQueryConfig[tab]
     const res = await apollo.query<
       FlowInstancesQueryResult,
       FlowInstancesQueryVariables
@@ -516,22 +607,29 @@ const loadTodoList = async () => {
       query: flowInstancesQuery,
       variables: {
         cursor: null,
-        status: 'PENDING',
-        scope: 'TODO',
+        status: config.status,
+        scope: config.scope,
         limit: 5
       },
       fetchPolicy: 'network-only'
     })
     const page = res.data?.approvalFlowInstances
-    todoTotalCount.value = page?.totalCount || 0
-    todoList.value = mapTodoItems((page?.items || []) as FlowListItem[])
+    state.totalCount = page?.totalCount || 0
+    state.items = (page?.items || []) as FlowListItem[]
+    state.loaded = true
   } catch (e) {
-    todoTotalCount.value = 0
-    todoList.value = []
+    state.totalCount = 0
+    state.items = []
+    state.loaded = false
     notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
-    loadingTodos.value = false
+    state.loading = false
   }
+}
+
+const ensureTodoTabLoaded = async (tab: WorkbenchFlowTab) => {
+  if (flowTabStates[tab].loaded || flowTabStates[tab].loading) return
+  await loadTodoList(tab)
 }
 
 const buildRecentUpdates = (projects: ReviewableProject[]): UpdateItem[] => {
@@ -576,7 +674,9 @@ const loadRecentUpdates = async () => {
         },
         fetchPolicy: 'no-cache'
       })) as { data: WorkbenchReviewUpdatesQuery }
-      projects.push(...((result.data.activeUser?.projects.items || []) as ReviewableProject[]))
+      projects.push(
+        ...((result.data.activeUser?.projects.items || []) as ReviewableProject[])
+      )
       cursor = result.data.activeUser?.projects.cursor || null
     } while (cursor)
     const allUpdates = buildRecentUpdates(projects)
@@ -588,8 +688,6 @@ const loadRecentUpdates = async () => {
     loadingUpdates.value = false
   }
 }
-
-
 
 const loadDashboardStats = async () => {
   try {
@@ -646,8 +744,7 @@ const openReviewDialog = async (item: UpdateItem) => {
     selectedUpdate.value = item
     titleFieldValue.value = ''
     isStartDialogOpen.value = true
-  } catch (err) {
-    console.error(err)
+  } catch {
     notify(
       '流程不可用',
       '未找到该项目下已启用的模型审核流程配置，或获取流程失败',
@@ -700,11 +797,19 @@ const openModelPage = (item: UpdateItem) => {
   )
 }
 
+const onTodoTabChange = (item: { id: string }) => {
+  todoTab.value = item.id as WorkbenchFlowTab
+}
+
+watch(
+  todoTab,
+  (tab) => {
+    void ensureTodoTabLoaded(tab)
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
-  await Promise.all([
-    loadRecentUpdates(),
-    loadTodoList(),
-    loadDashboardStats()
-  ])
+  await Promise.all([loadRecentUpdates(), loadDashboardStats()])
 })
 </script>

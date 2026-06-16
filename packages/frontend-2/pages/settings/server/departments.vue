@@ -287,12 +287,21 @@
     </LayoutDialog>
 
     <!-- 弹窗 3：二次确认删除 -->
-    <ConfirmDialog
+    <CommonConfirmDialog
       v-model:open="deleteConfirmOpen"
       title="确认删除部门吗？"
       :text="`删除部门 '${departmentToDelete?.name || ''}' 将会自动级联删除其下属的所有子级部门，并且该部门及其子部门内的所有成员关联关系也将同步被清除。该操作不可撤销！`"
       confirm-text="确认删除"
       @confirm="submitDelete"
+    />
+
+    <!-- 移除成员确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="removeMemberConfirmOpen"
+      title="确认移除成员"
+      :text="`确定要把成员 '${memberToRemove?.name || ''}' 从当前部门移除吗？`"
+      confirm-text="确认移除"
+      @confirm="submitRemoveMember"
     />
   </section>
 </template>
@@ -320,6 +329,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { FormButton, FormTextInput } from '@speckle/ui-components'
+import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import {
   getDepartmentsTree,
   getDepartmentUsers,
@@ -351,6 +361,11 @@ useHead({
 const departmentsTree = ref<Department[]>([])
 const departmentUsers = ref<DepartmentUser[]>([])
 const selectedDepartmentId = ref<string | null>(null)
+
+const { triggerNotification } = useGlobalToast()
+
+const removeMemberConfirmOpen = ref(false)
+const memberToRemove = ref<DepartmentUser | null>(null)
 
 // 各种加载状态
 const loadingTree = ref(false)
@@ -399,7 +414,11 @@ const loadTree = async () => {
   try {
     departmentsTree.value = await getDepartmentsTree({ apiOrigin })
   } catch (err: any) {
-    alert(err.message || '获取部门树失败')
+    triggerNotification({
+      title: '获取部门树失败',
+      description: err.message || '获取部门树失败',
+      type: ToastNotificationType.Danger
+    })
   } finally {
     loadingTree.value = false
   }
@@ -410,7 +429,11 @@ const loadUsers = async (depId: string) => {
   try {
     departmentUsers.value = await getDepartmentUsers({ departmentId: depId, apiOrigin })
   } catch (err: any) {
-    alert(err.message || '加载成员失败')
+    triggerNotification({
+      title: '加载成员失败',
+      description: err.message || '加载成员失败',
+      type: ToastNotificationType.Danger
+    })
   } finally {
     loadingUsers.value = false
   }
@@ -492,7 +515,11 @@ const submitDepartment = async () => {
     }
     departmentModalOpen.value = false
   } catch (err: any) {
-    alert(err.message || '部门保存失败')
+    triggerNotification({
+      title: '部门保存失败',
+      description: err.message || '部门保存失败',
+      type: ToastNotificationType.Danger
+    })
   }
 }
 
@@ -531,7 +558,11 @@ const submitDelete = async () => {
     await loadTree()
     deleteConfirmOpen.value = false
   } catch (err: any) {
-    alert(err.message || '删除部门失败')
+    triggerNotification({
+      title: '删除部门失败',
+      description: err.message || '删除部门失败',
+      type: ToastNotificationType.Danger
+    })
   }
 }
 
@@ -596,7 +627,11 @@ const submitMember = async () => {
     await loadUsers(selectedDepartmentId.value)
     memberModalOpen.value = false
   } catch (err: any) {
-    alert(err.message || '分配成员失败')
+    triggerNotification({
+      title: '分配成员失败',
+      description: err.message || '分配成员失败',
+      type: ToastNotificationType.Danger
+    })
   }
 }
 
@@ -616,20 +651,35 @@ const memberModalButtons = computed((): LayoutDialogButton[] => [
 ])
 
 // --- 从部门中移除成员 ---
-const removeMember = async (user: DepartmentUser) => {
+const removeMember = (user: DepartmentUser) => {
   if (!selectedDepartmentId.value) return
-  const confirmed = confirm(`确定要把成员 '${user.name}' 从当前部门移除吗？`)
-  if (!confirmed) return
+  memberToRemove.value = user
+  removeMemberConfirmOpen.value = true
+}
 
+const submitRemoveMember = async () => {
+  if (!selectedDepartmentId.value || !memberToRemove.value) return
   try {
     await removeDepartmentMember({
       departmentId: selectedDepartmentId.value,
-      userId: user.id,
+      userId: memberToRemove.value.id,
       apiOrigin
     })
     await loadUsers(selectedDepartmentId.value)
+    triggerNotification({
+      title: '操作成功',
+      description: `已成功将成员 '${memberToRemove.value.name}' 从当前部门移除。`,
+      type: ToastNotificationType.Success
+    })
   } catch (err: any) {
-    alert(err.message || '移除成员失败')
+    triggerNotification({
+      title: '移除失败',
+      description: err.message || '移除成员失败',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    removeMemberConfirmOpen.value = false
+    memberToRemove.value = null
   }
 }
 

@@ -2,42 +2,87 @@ import {
   BoqItems,
   MonthlyMeasurementItems,
   MonthlyMeasurements,
+  MonthlyMeasurementDetails,
+  MonthlyPaymentDetails,
+  MonthlyPaymentRequests,
   QualityAcceptanceForms
 } from '@/modules/core/dbSchema'
 import type {
   MonthlyMeasurementItemRecord,
   MonthlyMeasurementRecord,
+  MonthlyMeasurementDetailRecord,
+  MonthlyPaymentDetailRecord,
+  MonthlyPaymentRequestRecord,
   QualityAcceptanceFormRecord
 } from '@/modules/core/helpers/types'
 import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
 import type { Knex } from 'knex'
 import { clamp } from 'lodash-es'
+import cryptoRandomString from 'crypto-random-string'
 
 const tables = {
   measurements: (db: Knex) => db<MonthlyMeasurementRecord>(MonthlyMeasurements.name),
   measurementItems: (db: Knex) =>
     db<MonthlyMeasurementItemRecord>(MonthlyMeasurementItems.name),
+  measurementDetails: (db: Knex) =>
+    db<MonthlyMeasurementDetailRecord>(MonthlyMeasurementDetails.name),
+  paymentDetails: (db: Knex) =>
+    db<MonthlyPaymentDetailRecord>(MonthlyPaymentDetails.name),
+  paymentRequests: (db: Knex) =>
+    db<MonthlyPaymentRequestRecord>(MonthlyPaymentRequests.name),
   qualityForms: (db: Knex) =>
     db<QualityAcceptanceFormRecord>(QualityAcceptanceForms.name),
   boqItems: (db: Knex) => db<BoqItemRecord>(BoqItems.name)
 }
 
 export const getQualityAcceptanceFormsBeforeBaseDateFactory =
-  (deps: { db: Knex }) => async (params: { projectId: string; baseDate: number }) => {
-    return await tables
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    baseDate: number
+    startDate?: number | null
+    endDate?: number | null
+  }) => {
+    const q = tables
       .qualityForms(deps.db)
       .where(QualityAcceptanceForms.col.project_id, params.projectId)
-      .andWhere((qb) => {
+
+    if (params.startDate || params.endDate) {
+      q.andWhere((qb) => {
+        qb.whereNull(QualityAcceptanceForms.col.approveStatus).orWhere(
+          QualityAcceptanceForms.col.approveStatus,
+          ''
+        )
+      })
+      if (params.startDate) {
+        q.andWhere(
+          QualityAcceptanceForms.col.actualFinishDate,
+          '>=',
+          String(params.startDate)
+        )
+      }
+      if (params.endDate) {
+        q.andWhere(
+          QualityAcceptanceForms.col.actualFinishDate,
+          '<=',
+          String(params.endDate)
+        )
+      }
+    } else {
+      q.andWhere((qb) => {
         qb.whereNull(QualityAcceptanceForms.col.approveStatus).orWhere(
           QualityAcceptanceForms.col.approveStatus,
           'APPROVED'
         )
       })
-      .andWhere(
+      q.andWhere(
         QualityAcceptanceForms.col.actualFinishDate,
         '<=',
         String(params.baseDate)
       )
+    }
+
+    return await q
       .orderBy(QualityAcceptanceForms.col.actualFinishDate, 'asc')
       .orderBy(QualityAcceptanceForms.col.id, 'asc')
   }
@@ -232,9 +277,136 @@ export const deleteMonthlyMeasurementItemsByMeasurementIdFactory =
 
 export const deleteMonthlyMeasurementByIdFactory =
   (deps: { db: Knex }) => async (measurementId: string) => {
+    await Promise.all([
+      tables.measurementDetails(deps.db).where({ measurementId }).delete(),
+      tables.paymentDetails(deps.db).where({ measurementId }).delete(),
+      tables.paymentRequests(deps.db).where({ measurementId }).delete(),
+      tables.measurementItems(deps.db).where({ measurementId }).delete()
+    ])
     const deleted = await tables
       .measurements(deps.db)
       .where(MonthlyMeasurements.col.id, measurementId)
       .delete()
     return deleted > 0
+  }
+
+export const getMonthlyMeasurementDetailsFactory =
+  (deps: { db: Knex }) => async (measurementId: string) => {
+    return await tables.measurementDetails(deps.db).where({ measurementId }).first()
+  }
+
+export const upsertMonthlyMeasurementDetailsFactory =
+  (deps: { db: Knex }) =>
+  async (measurementId: string, payload: Partial<MonthlyMeasurementDetailRecord>) => {
+    const qb = tables.measurementDetails(deps.db)
+    const existing = await qb.where({ measurementId }).first()
+    if (existing) {
+      const [updated] = await qb
+        .where({ measurementId })
+        .update({
+          ...payload,
+          updatedAt: new Date()
+        })
+        .returning('*')
+      return updated
+    } else {
+      const [created] = await qb
+        .insert({
+          id: cryptoRandomString({ length: 10 }),
+          measurementId,
+          ...payload,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning('*')
+      return created
+    }
+  }
+
+export const getMonthlyPaymentDetailsFactory =
+  (deps: { db: Knex }) => async (measurementId: string) => {
+    return await tables.paymentDetails(deps.db).where({ measurementId }).first()
+  }
+
+export const upsertMonthlyPaymentDetailsFactory =
+  (deps: { db: Knex }) =>
+  async (measurementId: string, payload: Partial<MonthlyPaymentDetailRecord>) => {
+    const qb = tables.paymentDetails(deps.db)
+    const existing = await qb.where({ measurementId }).first()
+    const normalizedPayload = { ...payload } as Record<string, unknown>
+    if (payload.extraPayItems !== undefined) {
+      normalizedPayload.extraPayItems = deps.db.raw('?::jsonb', [
+        JSON.stringify(payload.extraPayItems)
+      ])
+    }
+    if (existing) {
+      const updatePayload: Record<string, unknown> = {
+        ...normalizedPayload,
+        updatedAt: new Date()
+      }
+      const [updated] = await qb
+        .where({ measurementId })
+        .update(updatePayload)
+        .returning('*')
+      return updated
+    } else {
+      const insertPayload: Record<string, unknown> = {
+        id: cryptoRandomString({ length: 10 }),
+        measurementId,
+        ...normalizedPayload,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      const [created] = await qb.insert(insertPayload).returning('*')
+      return created
+    }
+  }
+
+export const getMonthlyPaymentRequestsFactory =
+  (deps: { db: Knex }) => async (measurementId: string) => {
+    return await tables.paymentRequests(deps.db).where({ measurementId }).first()
+  }
+
+export const upsertMonthlyPaymentRequestsFactory =
+  (deps: { db: Knex }) =>
+  async (measurementId: string, payload: Partial<MonthlyPaymentRequestRecord>) => {
+    const qb = tables.paymentRequests(deps.db)
+    const existing = await qb.where({ measurementId }).first()
+    if (existing) {
+      const [updated] = await qb
+        .where({ measurementId })
+        .update({
+          ...payload,
+          updatedAt: new Date()
+        })
+        .returning('*')
+      return updated
+    } else {
+      const [created] = await qb
+        .insert({
+          id: cryptoRandomString({ length: 10 }),
+          measurementId,
+          ...payload,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning('*')
+      return created
+    }
+  }
+
+export const updateMonthlyMeasurementItemsBatchFactory =
+  (deps: { db: Knex }) =>
+  async (
+    measurementId: string,
+    items: Array<{ boqItemId: string } & Record<string, unknown>>
+  ) => {
+    const qb = tables.measurementItems(deps.db)
+    for (const item of items) {
+      const { boqItemId, ...fields } = item
+      await qb.where({ measurementId, boqItemId }).update({
+        ...fields,
+        updatedAt: new Date()
+      })
+    }
   }

@@ -307,6 +307,57 @@
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
+                      '/config-center/main-material',
+                      '/config-center/prepayment-item'
+                    ]) && 'project-sidebar-group-wrapper-active'
+                  ]"
+                  title="配置中心"
+                  collapsible
+                  :no-hover="true"
+                  title-class="project-sidebar-group-title text-white/80"
+                  arrow-class="project-sidebar-group-arrow text-white/80"
+                >
+                  <template #title-icon>
+                    <IconSettings class="size-4 text-white" />
+                  </template>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks"
+                    :to="projectBaseRoutePath + '/config-center/main-material'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        isProjectActive('/config-center/main-material') &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="主材库"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks"
+                    :to="projectBaseRoutePath + '/config-center/prepayment-item'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        isProjectActive('/config-center/prepayment-item') &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="预付 (留) 款条目"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                </LayoutSidebarMenuGroup>
+
+                <LayoutSidebarMenuGroup
+                  :class="[
+                    'project-sidebar-group-wrapper',
+                    isProjectSectionActive([
                       '/settings/permission',
                       '/settings/approval'
                     ]) && 'project-sidebar-group-wrapper-active'

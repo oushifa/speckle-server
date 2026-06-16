@@ -391,4 +391,154 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
 
     expect([401, 403]).to.include(response.status)
   })
-})
+
+  it('Handles single tilde range expansion and multi-version deduplication', async () => {
+    const projectDb = await getProjectDbClient({ projectId })
+    
+    // 1. 插入第二个 commit (代表另一个模型版本)
+    await projectDb('commits').insert({
+      id: 'tst_cmt_v2',
+      referencedObject: 'tst_rt_o_v2',
+      createdAt: new Date(),
+      parents: null
+    })
+    await projectDb('stream_commits').insert({
+      streamId: projectId,
+      commitId: 'tst_cmt_v2'
+    })
+
+    // 2. 插入构件
+    await projectDb('objects').insert([
+      {
+        id: 'tst_rt_o_v2',
+        speckleType: 'Base',
+        totalChildrenCount: 1,
+        totalChildrenCountByDepth: null,
+        createdAt: new Date(),
+        streamId: projectId,
+        data: JSON.stringify({
+          __closure: {
+            'tst_obj_cb13_v2': 1
+          }
+        })
+      },
+      {
+        id: 'tst_obj_cb13_v1',
+        speckleType: 'Element',
+        totalChildrenCount: 0,
+        totalChildrenCountByDepth: null,
+        createdAt: new Date(),
+        streamId: projectId,
+        data: JSON.stringify({
+          classificationobjectcode: 'CB',
+          sectionitemcode: '',
+          serialnumber: 'CB13'
+        })
+      },
+      {
+        id: 'tst_obj_cb13_v2',
+        speckleType: 'Element',
+        totalChildrenCount: 0,
+        totalChildrenCountByDepth: null,
+        createdAt: new Date(),
+        streamId: projectId,
+        data: JSON.stringify({
+          classificationobjectcode: 'CB',
+          sectionitemcode: '',
+          serialnumber: 'CB13'
+        })
+      },
+      {
+        id: 'tst_obj_cb123_v1',
+        speckleType: 'Element',
+        totalChildrenCount: 0,
+        totalChildrenCountByDepth: null,
+        createdAt: new Date(),
+        streamId: projectId,
+        data: JSON.stringify({
+          classificationobjectcode: 'CB',
+          sectionitemcode: '',
+          serialnumber: 'CB123'
+        })
+      }
+    ])
+
+    // 同时要在已有的 tst_rt_obj 的 closure 里添加这两个 v1 的构件
+    const rtObj = await projectDb('objects').where('id', 'tst_rt_obj').first()
+    const rtData = typeof rtObj.data === 'string' ? JSON.parse(rtObj.data) : rtObj.data
+    rtData.__closure['tst_obj_cb13_v1'] = 1
+    rtData.__closure['tst_obj_cb123_v1'] = 1
+    await projectDb('objects').where('id', 'tst_rt_obj').update({ data: JSON.stringify(rtData) })
+
+    // 生成带有一个波浪号范围的 Excel 行
+    const testRows = [
+      [
+        '',
+        '范围导入测试',
+        'QA-RANGE-001',
+        'LOT-2026-RANGE',
+        '范围区域',
+        '范围验收',
+        '2026-06-12',
+        100.0,
+        'm',
+        '未查验',
+        'CB13~123' // 单个波浪号范围，应该展开为 CB13, CB14, ..., CB123
+      ]
+    ]
+
+    generateTestExcel(testRows)
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/quality-acceptance/forms/import-excel`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', excelPath)
+
+    expect(response.status).to.equal(200)
+    expect(response.body.success).to.be.true
+
+    // 验证数据库
+    const records = await projectDb('quality_acceptance_forms')
+      .where('project_id', projectId)
+      .where('code', 'QA-RANGE-001')
+
+    expect(records.length).to.equal(1)
+
+    // 1. 校验单波浪号范围：应该匹配成功，但多版本去重
+    const recordRange1 = records[0]
+    const bimRange1 = typeof recordRange1.BIM === 'string' ? JSON.parse(recordRange1.BIM) : recordRange1.BIM
+    
+    // 我们检查 tst_commit 分组 of applicationIds，去重后不应当包含两个相同的 applicationId
+    const commitGroup = bimRange1.find((x: any) => x.modelId === 'tst_commit')
+    expect(commitGroup).to.not.be.undefined
+    const cb13AppIds = commitGroup.applicationIds.filter((id: string) => id === 'tst_obj_cb13_v1')
+    expect(cb13AppIds.length).to.equal(1)
+  })
+
+  it('Rejects invalid multiple tildes ranges during import', async () => {
+    const testRows = [
+      [
+        '',
+        '错误连写测试',
+        'QA-RANGE-002',
+        'LOT-2026-RANGE2',
+        '范围区域2',
+        '范围验收2',
+        '2026-06-12',
+        100.0,
+        'm',
+        '未查验',
+        'CB1-13~CB1~123' // 错误连写包含两个波浪号，应该报错拦截
+      ]
+    ]
+
+    generateTestExcel(testRows)
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/quality-acceptance/forms/import-excel`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', excelPath)
+
+    expect(response.status).to.equal(400)
+    expect(response.body.error).to.include('关联构件ID中包含错误的连写方式')
+    expect(response.body.error).to.include('连写只能包含一个波浪号')
+  })
+});

@@ -3404,6 +3404,9 @@ export type Project = {
   commentThreads: ProjectCommentCollection;
   constructionUnit?: Maybe<Scalars['String']['output']>;
   constructionUnitName?: Maybe<Scalars['String']['output']>;
+  contractCode?: Maybe<Scalars['String']['output']>;
+  contractName?: Maybe<Scalars['String']['output']>;
+  contractor?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   dashboardTokens: DashboardTokenCollection;
   dashboards: DashboardCollection;
@@ -3411,6 +3414,7 @@ export type Project = {
   /** Public project-level configuration for embedded viewer */
   embedOptions: ProjectEmbedOptions;
   embedTokens: EmbedTokenCollection;
+  employer?: Maybe<Scalars['String']['output']>;
   endDate?: Maybe<Scalars['BigInt']['output']>;
   /** Returns a flat list of all folders */
   folders: FolderCollection;
@@ -3897,7 +3901,11 @@ export type ProjectCreateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
+  contractCode?: InputMaybe<Scalars['String']['input']>;
+  contractName?: InputMaybe<Scalars['String']['input']>;
+  contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  employer?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['BigInt']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   progress?: InputMaybe<Scalars['Int']['input']>;
@@ -4291,7 +4299,11 @@ export type ProjectUpdateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
+  contractCode?: InputMaybe<Scalars['String']['input']>;
+  contractName?: InputMaybe<Scalars['String']['input']>;
+  contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  employer?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['BigInt']['input']>;
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -9860,12 +9872,16 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   commentThreads?: Resolver<ResolversTypes['ProjectCommentCollection'], ParentType, ContextType, Partial<ProjectCommentThreadsArgs>>;
   constructionUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   constructionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   dashboardTokens?: Resolver<ResolversTypes['DashboardTokenCollection'], ParentType, ContextType, Partial<ProjectDashboardTokensArgs>>;
   dashboards?: Resolver<ResolversTypes['DashboardCollection'], ParentType, ContextType, RequireFields<ProjectDashboardsArgs, 'limit'>>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   embedOptions?: Resolver<ResolversTypes['ProjectEmbedOptions'], ParentType, ContextType>;
   embedTokens?: Resolver<ResolversTypes['EmbedTokenCollection'], ParentType, ContextType, Partial<ProjectEmbedTokensArgs>>;
+  employer?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   folders?: Resolver<ResolversTypes['FolderCollection'], ParentType, ContextType, RequireFields<ProjectFoldersArgs, 'limit'>>;
   hasAccessToFeature?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectHasAccessToFeatureArgs, 'featureName'>>;

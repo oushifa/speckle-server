@@ -36,17 +36,43 @@
         >
           <template #code="{ item }">
             <button
-              class="text-sm font-medium text-primary hover:underline"
+              class="text-sm font-medium text-primary hover:underline font-mono"
               @click="viewItem(item)"
             >
               {{ item.code }}
             </button>
           </template>
-          <template #unit="{ item }">
-            <span class="text-sm text-foreground">{{ item.unit || '-' }}</span>
+          <template #contractCode="{ item }">
+            <span class="text-sm text-foreground">{{ item.contractCode || '-' }}</span>
+          </template>
+          <template #creator="{ item }">
+            <span class="text-sm text-foreground">{{ item.creator?.name || '-' }}</span>
+          </template>
+          <template #roundName="{ item }">
+            <span class="text-sm text-foreground">{{ item.roundName || '-' }}</span>
+          </template>
+          <template #createdAt="{ item }">
+            <span class="text-sm text-foreground">
+              {{
+                formatDate(
+                  Number(item.createdAt ? new Date(item.createdAt).getTime() : 0)
+                )
+              }}
+            </span>
           </template>
           <template #baseDate="{ item }">
-            <span class="text-sm text-foreground">{{ formatDate(Number(item.baseDate)) }}</span>
+            <span class="text-sm text-foreground">
+              {{ dayjs(Number(item.baseDate)).format('YYYY-MM') }}
+            </span>
+          </template>
+          <template #totalAmount="{ item }">
+            <span class="text-sm text-foreground font-mono font-medium">
+              {{
+                item.totalAmount != null
+                  ? Number(item.totalAmount).toLocaleString()
+                  : '0'
+              }}
+            </span>
           </template>
           <template #status="{ item }">
             <button
@@ -72,8 +98,10 @@
               {{ getStatusText(item.approveStatus) }}
             </CommonBadge>
           </template>
-          <template #creator="{ item }">
-            <span class="text-sm text-foreground">{{ item.creator?.name || '-' }}</span>
+          <template #currentApprovers="{ item }">
+            <span class="text-sm text-foreground">
+              {{ item.currentStepApprovers?.join(', ') || '-' }}
+            </span>
           </template>
           <template #actions="{ item }">
             <div class="flex items-center justify-end gap-1.5 text-sm">
@@ -88,7 +116,7 @@
                 class="rounded p-1 text-success transition-colors hover:text-success-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="送审"
                 :disabled="isSubmitted(item)"
-                @click="openSubmitDialog(item)"
+                @click="triggerSubmitItem(item)"
               >
                 <PaperAirplaneIcon class="h-4 w-4" />
               </button>
@@ -164,268 +192,83 @@
       <div class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <FormTextInput
-            v-model="createForm.unit"
-            name="monthly-measurement-unit"
-            label="施工单位"
+            v-model="createForm.roundName"
+            name="monthly-measurement-round-name"
+            label="期数"
             show-label
             show-required
-            placeholder="请输入施工单位"
-            :disabled="isViewMode"
-          />
-          <FormTextInput
-            v-model="createForm.code"
-            name="monthly-measurement-code"
-            label="验工编号"
-            show-label
-            show-required
-            placeholder="请输入验工编号"
+            placeholder="如：1期"
             :disabled="isViewMode"
           />
           <FormTextInput
             v-model="createForm.baseDate"
             name="monthly-measurement-base-date"
-            label="基准时间"
+            label="年月"
+            type="month"
+            show-label
+            show-required
+            :disabled="isViewMode"
+          />
+          <FormTextInput
+            v-model="createForm.startDate"
+            name="monthly-measurement-start-date"
+            label="计量开始时间"
+            type="date"
+            show-label
+            show-required
+            :disabled="isViewMode"
+          />
+          <FormTextInput
+            v-model="createForm.endDate"
+            name="monthly-measurement-end-date"
+            label="计量结束时间"
             type="date"
             show-label
             show-required
             :disabled="isViewMode"
           />
         </div>
-
-        <div class="flex items-center gap-2">
-          <FormButton
-            :color="previewViewTag === 'list' ? 'primary' : 'outline'"
-            :loading="previewLoading"
-            @click="switchPreviewView('list')"
-          >
-            {{ isViewMode || dialogMode === 'edit' ? '验工列表' : '生成验工列表' }}
-          </FormButton>
-          <FormButton
-            :color="previewViewTag === 'model' ? 'primary' : 'outline'"
-            :loading="previewLoading"
-            @click="switchPreviewView('model')"
-          >
-            验工模型
-          </FormButton>
-        </div>
-        <div
-          v-if="previewBaseDate && previewViewTag === 'list'"
-          class="text-body-sm text-foreground-2"
-        >
-          基准时间 {{ formatDate(previewBaseDate) }} 前的清单项聚合结果
-        </div>
-
-        <div v-if="createError" class="text-body-sm text-danger">
+        <div v-if="createError" class="text-body-sm text-danger mt-2">
           {{ createError }}
-        </div>
-
-        <div
-          v-if="previewViewTag === 'list' && previewItems.length"
-          class="rounded border border-outline-3 overflow-auto max-h-[420px]"
-        >
-          <table class="w-full text-sm">
-            <thead class="bg-foundation-2 sticky top-0">
-              <tr>
-                <th class="text-left px-3 py-2">清单编码</th>
-                <th class="text-left px-3 py-2">清单名称</th>
-                <th class="text-right px-3 py-2">工程总量</th>
-                <th class="text-right px-3 py-2">累计验工</th>
-                <th class="text-right px-3 py-2">综合单价</th>
-                <th class="text-right px-3 py-2">本次验工量</th>
-                <th class="text-left px-3 py-2">备注</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template
-                v-for="row in previewItems"
-                :key="row.boqItemId"
-              >
-                <tr class="border-t border-outline-3">
-                  <td class="px-3 py-2">{{ row.boqCode }}</td>
-                  <td class="px-3 py-2">
-                    <div
-                      :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 16}px` }"
-                      class="flex items-center"
-                    >
-                      <button
-                        v-if="!row.isSummaryRow && row.sourceAcceptances?.length"
-                        class="p-0.5 rounded hover:bg-highlight-1 focus:outline-none focus:ring-2 focus:ring-primary mr-1"
-                        @click="toggleExpand(row.boqItemId)"
-                      >
-                        <ChevronRightIcon
-                          class="h-4 w-4 transition-transform text-foreground-2"
-                          :class="expandedBoqRowIds.has(row.boqItemId) ? 'rotate-90' : ''"
-                        />
-                      </button>
-                      <span
-                        :class="row.isSummaryRow ? 'font-medium text-foreground' : ''"
-                      >
-                        {{ row.boqName }}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2 text-right">
-                    <span
-                      v-if="isBoqQuantityMissing(row)"
-                      class="text-danger font-semibold"
-                    >
-                      未维护清单工程量
-                    </span>
-                    <template v-else-if="!row.isSummaryRow">
-                      {{ formatQty(row.pendingTotalQty) }}
-                    </template>
-                  </td>
-                  <td class="px-3 py-2 text-right">
-                    <div
-                      v-if="!row.isSummaryRow"
-                      :class="
-                        isCumulativeExceeded(row)
-                          ? 'text-danger font-semibold'
-                          : 'text-foreground'
-                      "
-                    >
-                      {{ formatQty(row.approvedCumulativeQty) }}
-                      <span v-if="isCumulativeExceeded(row)">（超出工程总量）</span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2 text-right">
-                    <template v-if="!row.isSummaryRow">
-                      {{ formatPrice(row.price, row.isSummaryRow) }}
-                    </template>
-                  </td>
-                  <td class="px-3 py-2">
-                    <FormTextInput
-                      v-if="!row.isSummaryRow && !isViewMode"
-                      v-model="measuredQtyByBoq[row.boqItemId]"
-                      :name="`measured-${row.boqItemId}`"
-                      type="number"
-                      step="any"
-                      :disabled="row.isSummaryRow"
-                      class="max-w-[140px] ml-auto"
-                    />
-                    <template v-else-if="!row.isSummaryRow">
-                      {{
-                        measuredQtyByBoq[row.boqItemId] ||
-                        formatQty(row.measuredQtyDefault)
-                      }}
-                    </template>
-                  </td>
-                  <td class="px-3 py-2">
-                    <FormTextInput
-                      v-if="!row.isSummaryRow && !isViewMode"
-                      v-model="remarkByBoq[row.boqItemId]"
-                      :name="`remark-${row.boqItemId}`"
-                      :disabled="row.isSummaryRow"
-                      placeholder="可选"
-                    />
-                    <template v-else-if="!row.isSummaryRow">
-                      {{ remarkByBoq[row.boqItemId] || '-' }}
-                    </template>
-                  </td>
-                </tr>
-                <tr v-if="expandedBoqRowIds.has(row.boqItemId) && row.sourceAcceptances?.length" class="bg-highlight-1/30">
-                  <td colspan="7" class="p-0 border-t border-outline-3">
-                    <div class="px-8 py-3">
-                      <div class="text-xs font-medium text-foreground-2 mb-2 flex items-center justify-between">
-                        <span>关联的质量验收单</span>
-                      </div>
-                      <table class="w-full text-xs text-foreground-2 border border-outline-3 rounded overflow-hidden">
-                        <thead class="bg-foundation text-left">
-                          <tr>
-                            <th class="px-2 py-1 border-b border-outline-3">区域部位</th>
-                            <th class="px-2 py-1 border-b border-outline-3">检验批编号</th>
-                            <th class="px-2 py-1 border-b border-outline-3">检验批内容</th>
-                            <th class="px-2 py-1 border-b border-outline-3 w-24">验收日期</th>
-                            <th class="px-2 py-1 border-b border-outline-3 text-right w-24">工程量</th>
-                            <th v-if="!isViewMode" class="px-2 py-1 border-b border-outline-3 text-center w-12">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="acc in row.sourceAcceptances" :key="acc.id" class="border-b border-outline-3 last:border-b-0 hover:bg-highlight-1/50 transition-colors bg-foundation">
-                            <td class="px-2 py-1.5">{{ acc.acceptancePart || '-' }}</td>
-                            <td class="px-2 py-1.5">{{ acc.inspectionLotNumber || '-' }}</td>
-                            <td class="px-2 py-1.5">{{ acc.acceptanceContent || '-' }}</td>
-                            <td class="px-2 py-1.5">{{ acc.actualFinishDate ? formatDate(acc.actualFinishDate) : '-' }}</td>
-                            <td class="px-2 py-1.5 text-right">{{ acc.workVolume != null ? acc.workVolume : '-' }} {{ acc.unit || '' }}</td>
-                            <td v-if="!isViewMode" class="px-2 py-1.5 text-center">
-                              <button
-                                class="text-danger hover:text-danger-darker transition-colors inline-block"
-                                title="移除此验收单（将从本次验工中剔除）"
-                                @click.stop.prevent="removeSourceAcceptance(row.boqItemId, acc.id)"
-                              >
-                                <TrashIcon class="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          v-else-if="previewViewTag === 'list'"
-          class="text-body-sm text-foreground-2"
-        >
-          请先选择基准时间并生成验工列表
-        </div>
-        <div
-          v-else-if="previewViewTag === 'model'"
-          class="rounded border border-outline-3 h-[420px] relative overflow-hidden"
-        >
-          <div
-            v-if="acceptanceFormsLoading"
-            class="h-full flex items-center justify-center text-body-sm text-foreground-2"
-          >
-            关联模型加载中...
-          </div>
-          <div
-            v-else-if="!selectedPreviewModelIds.length"
-            class="h-full flex items-center justify-center text-body-sm text-foreground-2"
-          >
-            暂无可展示的验工模型
-          </div>
-          <CommonModelPropsViewer
-            v-else
-            :project-id="projectId"
-            :model-ids="selectedPreviewModelIds"
-            :filter-bims="selectedPreviewBimIds"
-            :filter-application-ids="selectedPreviewApplicationIds"
-          />
         </div>
       </div>
     </LayoutDialog>
 
     <LayoutDialog
-      v-model:open="viewDialogOpen"
+      v-model:open="submitConfirmOpen"
       max-width="xl"
-      :buttons="viewDialogButtons"
+      :buttons="submitConfirmButtons"
     >
-      <template #header>月度验工详情</template>
-      <ProjectsWorkValuationMmDetail
-        v-if="viewTargetItem"
-        :item="viewTargetItem"
-        :project-id="projectId"
-      >
-        <template #default />
-      </ProjectsWorkValuationMmDetail>
-    </LayoutDialog>
-
-    <LayoutDialog
-      v-model:open="submitDialogOpen"
-      max-width="xl"
-      :buttons="submitDialogButtons"
-    >
-      <template #header>送审验工单</template>
-      <ProjectsWorkValuationMmDetail
-        v-if="submitTargetItem"
-        :item="submitTargetItem"
-        :project-id="projectId"
-      >
+      <template #header>确认送审流程</template>
+      <div v-if="submitTargetItem" class="space-y-4">
+        <div class="text-sm text-foreground-2">
+          请确认本次送审将使用当前已启用的月度验工审批流程。
+          <p class="mt-1 font-semibold text-foreground">
+            验工编码：
+            <span class="font-mono">{{ submitTargetItem.code }}</span>
+          </p>
+        </div>
+        <div class="rounded-lg border border-outline-3 bg-foundation p-3">
+          <div v-if="submitFlowLoading" class="text-sm text-foreground-2">
+            正在读取当前已启用的月度验工审批流程...
+          </div>
+          <div v-else-if="activeSubmitFlow" class="space-y-2 text-sm">
+            <div class="font-medium text-foreground">
+              流程名称：{{ activeSubmitFlow.name }}
+              <span class="ml-2 text-foreground-2">
+                V{{ activeSubmitFlow.version }}
+              </span>
+            </div>
+            <div class="text-foreground-2">
+              审批节点：{{
+                activeSubmitFlow.steps.map((step) => step.role).join(' -> ') || '-'
+              }}
+            </div>
+          </div>
+          <div v-else class="text-sm text-danger">
+            未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用。
+          </div>
+        </div>
         <FormTextArea
           v-model="submitRemark"
           label="送审说明"
@@ -433,7 +276,32 @@
           name="remark"
           show-label
         />
-      </ProjectsWorkValuationMmDetail>
+      </div>
+    </LayoutDialog>
+
+    <LayoutDialog
+      v-model:open="submitFinalConfirmOpen"
+      max-width="lg"
+      :buttons="submitFinalConfirmButtons"
+    >
+      <template #header>二次确认送审</template>
+      <div v-if="submitTargetItem && activeSubmitFlow" class="space-y-4">
+        <div class="text-sm text-foreground-2">
+          请再次确认，送审后将按当前启用版本发起审批流程。
+        </div>
+        <div class="rounded-lg border border-outline-3 bg-foundation p-3 text-sm">
+          <div class="font-medium text-foreground">
+            验工编码：
+            <span class="font-mono">{{ submitTargetItem.code }}</span>
+          </div>
+          <div class="mt-2 text-foreground-2">
+            审批流程：{{ activeSubmitFlow.name }}（V{{ activeSubmitFlow.version }}）
+          </div>
+          <div class="mt-1 text-foreground-2">
+            送审说明：{{ submitRemark.trim() || '送审' }}
+          </div>
+        </div>
+      </div>
     </LayoutDialog>
 
     <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
@@ -611,12 +479,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 删除确认弹窗 -->
     <CommonConfirmDialog
-      v-model:open="removeDialogOpen"
-      title="移除质量验收单"
-      text="确认从此验工项中移除该质量验收单吗？移除后将重新加载验工数据。"
-      confirm-text="确认移除"
-      @confirm="confirmRemoveSourceAcceptance"
+      v-model:open="deleteConfirmOpen"
+      title="确认删除该验工单吗？"
+      text="确认删除该验工单吗？此操作不可撤销。"
+      confirm-text="确认删除"
+      @confirm="confirmDeleteItem"
     />
   </div>
 </template>
@@ -638,6 +508,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import {
   LayoutTable,
   FormTextInput,
@@ -695,6 +566,22 @@ type FlowInstanceNode = NonNullable<
   ApprovalFlowInstanceDetailsForMonthlyMeasurementQuery['approvalFlowInstance']
 >
 type PreviewViewTag = 'list' | 'model'
+type ActiveApprovalFlow = {
+  id: string
+  templateId: string
+  name: string
+  version: number
+  category: {
+    id: string
+    name: string
+  }
+  steps: Array<{
+    id: string
+    role: string
+    approvers: string[]
+    mode: 'OR' | 'AND'
+  }>
+}
 
 const approveFlowMutation = gql`
   mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {
@@ -774,38 +661,65 @@ const updateDebouncedSearch = useDebounceFn((value: string) => {
 watch(searchQuery, (value) => updateDebouncedSearch(value), { immediate: true })
 
 const columns = [
-  { id: 'code', header: '验工编码', classes: 'col-span-3' },
-  { id: 'unit', header: '施工单位', classes: 'col-span-2' },
-  { id: 'baseDate', header: '基准时间', classes: 'col-span-2' },
-  { id: 'status', header: '状态', classes: 'col-span-2' },
-  { id: 'creator', header: '创建人', classes: 'col-span-1' },
-  { id: 'actions', header: '操作', classes: 'col-span-2 text-right text-sm' }
+  { id: 'code', header: '验工编码', classes: 'col-span-2' },
+  { id: 'contractCode', header: '合同编号', classes: 'col-span-1 font-mono' },
+  { id: 'creator', header: '发起人', classes: 'col-span-1' },
+  { id: 'roundName', header: '期数', classes: 'col-span-1' },
+  { id: 'createdAt', header: '发起时间', classes: 'col-span-1 font-mono' },
+  { id: 'baseDate', header: '基准时间', classes: 'col-span-1 font-mono' },
+  {
+    id: 'totalAmount',
+    header: '验工总额(元)',
+    classes: 'col-span-1.5 text-right pr-4 font-mono'
+  },
+  { id: 'status', header: '审核状态', classes: 'col-span-1' },
+  { id: 'currentApprovers', header: '当前负责人', classes: 'col-span-1.5' },
+  { id: 'actions', header: '操作', classes: 'col-span-1 text-right text-sm' }
 ]
 
-const { result: monthlyResult, refetch: refetchMonthly } = useQuery(
-  projectMonthlyMeasurementsQuery,
-  () => ({
-    projectId: projectId.value,
-    search: debouncedSearchQuery.value || null,
-    cursor: currentCursor.value,
-    limit: pageSize.value
-  }),
-  {
-    enabled: computed(() => !!projectId.value)
+const tableItems = ref<any[]>([])
+const totalItems = ref(0)
+const nextCursor = ref<string | null>(null)
+const listLoading = ref(false)
+
+const refetchMonthly = async () => {
+  if (!projectId.value) return
+  listLoading.value = true
+  const apiOrigin = useApiOrigin()
+  try {
+    const res: any = await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements`,
+      {
+        params: {
+          search: debouncedSearchQuery.value || '',
+          cursor: currentCursor.value || '',
+          limit: pageSize.value
+        }
+      }
+    )
+    tableItems.value = res.items || []
+    nextCursor.value = res.cursor || null
+    totalItems.value = res.totalCount || 0
+  } catch (err) {
+    console.error('获取列表失败', err)
+  } finally {
+    listLoading.value = false
   }
+}
+
+watch(
+  [projectId, debouncedSearchQuery, pageSize, currentCursor],
+  () => {
+    refetchMonthly()
+  },
+  { immediate: true }
 )
 
-const tableItems = computed<MonthlyMeasurementNode[]>(() =>
-  (monthlyResult.value?.project?.monthlyMeasurements.items || []).filter(
-    (item): item is MonthlyMeasurementNode => !!item
-  )
-)
-const totalItems = computed(
-  () => monthlyResult.value?.project?.monthlyMeasurements.totalCount || 0
-)
-const nextCursor = computed(
-  () => monthlyResult.value?.project?.monthlyMeasurements.cursor || null
-)
+watch([projectId, debouncedSearchQuery, pageSize], () => {
+  currentPage.value = 1
+  pageCursors.value = { 1: null }
+})
+
 const totalPages = computed(() =>
   Math.ceil(totalItems.value / Number(pageSize.value || 1))
 )
@@ -815,11 +729,6 @@ const startItem = computed(() =>
 const endItem = computed(() =>
   Math.min(currentPage.value * Number(pageSize.value), totalItems.value)
 )
-
-watch([projectId, debouncedSearchQuery, pageSize], () => {
-  currentPage.value = 1
-  pageCursors.value = { 1: null }
-})
 
 const goPrevPage = () => {
   if (currentPage.value <= 1) return
@@ -834,6 +743,10 @@ const goNextPage = () => {
   currentPage.value = nextPage
 }
 
+const { triggerNotification } = useGlobalToast()
+const deleteConfirmOpen = ref(false)
+const itemToDelete = ref<any>(null)
+
 const createDialogOpen = ref(false)
 const createError = ref('')
 const dialogMode = ref<'create' | 'edit' | 'view'>('create')
@@ -844,16 +757,17 @@ const removeDialogOpen = ref(false)
 const pendingRemoveItem = ref<{ boqItemId: string; acceptanceId: string } | null>(null)
 const previewLoading = ref(false)
 const previewBaseDate = ref(0)
-const previewItems = ref<PreviewItem[]>([])
+const previewItems = ref<any[]>([])
 const previewViewTag = ref<PreviewViewTag>('list')
 const measuredQtyByBoq = ref<Record<string, string>>({})
 const remarkByBoq = ref<Record<string, string>>({})
 const actionLoadingId = ref<string | null>(null)
-const viewDialogOpen = ref(false)
-const viewTargetItem = ref<MonthlyMeasurementNode | null>(null)
-const submitDialogOpen = ref(false)
-const submitTargetItem = ref<MonthlyMeasurementNode | null>(null)
+const submitConfirmOpen = ref(false)
+const submitFinalConfirmOpen = ref(false)
+const submitTargetItem = ref<any>(null)
 const submitRemark = ref('')
+const submitFlowLoading = ref(false)
+const activeSubmitFlow = ref<ActiveApprovalFlow | null>(null)
 const flowDetailDrawerOpen = ref(false)
 const flowDetailLoading = ref(false)
 const selectedFlowInstance = ref<FlowInstanceNode | null>(null)
@@ -870,27 +784,16 @@ type AcceptanceFormLite = {
   }> | null
 }
 
+const saveLoading = ref(false)
+
 const createForm = ref({
   unit: '',
   code: '',
-  baseDate: dayjs().format('YYYY-MM-DD')
+  baseDate: dayjs().format('YYYY-MM'),
+  roundName: '',
+  startDate: '',
+  endDate: ''
 })
-
-const { mutate: previewMutate, loading: previewMutationLoading } = useMutation(
-  monthlyMeasurementPreviewMutation
-)
-const { mutate: createMutate, loading: createLoading } = useMutation(
-  createMonthlyMeasurementMutation
-)
-const { mutate: updateMutate, loading: updateLoading } = useMutation(
-  updateMonthlyMeasurementMutation
-)
-const { mutate: deleteMutate, loading: deleteLoading } = useMutation(
-  deleteMonthlyMeasurementMutation
-)
-const { mutate: submitMutate, loading: submitLoading } = useMutation(
-  submitMonthlyMeasurementMutation
-)
 const previewSourceAcceptanceIds = computed(() =>
   Array.from(
     new Set(
@@ -980,18 +883,14 @@ const dialogTitle = computed(() => {
 
 const resetDialogState = () => {
   createError.value = ''
-  previewItems.value = []
-  previewViewTag.value = 'list'
-  previewBaseDate.value = 0
-  measuredQtyByBoq.value = {}
-  remarkByBoq.value = {}
-  excludedAcceptanceIds.value = []
-  expandedBoqRowIds.value = new Set()
   editingMeasurementId.value = null
   createForm.value = {
     unit: '',
     code: '',
-    baseDate: dayjs().format('YYYY-MM-DD')
+    baseDate: dayjs().format('YYYY-MM'),
+    roundName: '',
+    startDate: dayjs().subtract(1, 'month').date(19).format('YYYY-MM-DD'),
+    endDate: dayjs().date(20).format('YYYY-MM-DD')
   }
 }
 
@@ -1001,125 +900,20 @@ const openCreateDialog = () => {
   createDialogOpen.value = true
 }
 
-const switchPreviewView = async (tag: PreviewViewTag) => {
-  if (isViewMode.value) {
-    previewViewTag.value = tag
-    return
-  }
-
-  if (tag === 'list') {
-    previewViewTag.value = 'list'
-    if (!previewItems.value.length) await buildPreview()
-    return
-  }
-
-  if (!previewItems.value.length) {
-    await buildPreview()
-  }
-  previewViewTag.value = 'model'
-}
-
-const buildPreview = async () => {
-  if (!projectId.value) return
-  if (!createForm.value.baseDate) {
-    createError.value = '请选择基准时间'
-    return
-  }
-  createError.value = ''
-  previewLoading.value = true
-  const baseDate = dayjs(createForm.value.baseDate).endOf('day').valueOf()
-  // In edit mode, collect the IDs of acceptances already in the current measurement
-  // so the backend keeps them even though their approveStatus is PENDING
-  const pinnedAcceptanceIds =
-    dialogMode.value === 'edit'
-      ? Array.from(
-          new Set(
-            previewItems.value
-              .filter((r) => !r.isSummaryRow)
-              .flatMap((r) => r.sourceAcceptanceIds || [])
-              .filter((id) => !excludedAcceptanceIds.value.includes(id))
-          )
-        )
-      : undefined
-  try {
-    const res = await previewMutate({
-      input: {
-        projectId: projectId.value,
-        baseDate,
-        excludedAcceptanceIds: excludedAcceptanceIds.value,
-        pinnedAcceptanceIds
-      }
-    })
-    const items =
-      res?.data?.projectMutations?.monthlyMeasurementMutations?.preview.items || []
-    previewItems.value = items.map((item) => ({
-      boqItemId: item.boqItemId,
-      boqCode: item.boqCode,
-      boqName: item.boqName,
-      boqParentId: item.boqParentId || null,
-      boqDepth: item.boqDepth,
-      uom: item.uom || null,
-      price: item.price || null,
-      pendingTotalQty: Number(item.pendingTotalQty || 0),
-      approvedCumulativeQty: Number(item.approvedCumulativeQty || 0),
-      measuredQtyDefault: Number(item.measuredQtyDefault || 0),
-      sourceAcceptanceIds: item.sourceAcceptanceIds || [],
-      sourceAcceptances: (item.sourceAcceptances || []).map((acc: any) => ({
-        id: acc.id,
-        acceptancePart: acc.acceptancePart || '',
-        inspectionLotNumber: acc.inspectionLotNumber || '',
-        acceptanceContent: acc.acceptanceContent || '',
-        actualFinishDate: acc.actualFinishDate ? Number(acc.actualFinishDate) : null,
-        workVolume: acc.workVolume != null ? Number(acc.workVolume) : null,
-        unit: acc.unit || null
-      })),
-      isSummaryRow: !!item.isSummaryRow,
-      sortIndex: Number(item.sortIndex || 0)
-    }))
-    previewItems.value.sort((a, b) => a.sortIndex - b.sortIndex)
-    previewBaseDate.value = Number(
-      res?.data?.projectMutations?.monthlyMeasurementMutations?.preview.baseDate || 0
-    )
-    measuredQtyByBoq.value = Object.fromEntries(
-      previewItems.value.map((item) => [
-        item.boqItemId,
-        item.isSummaryRow 
-          ? '' 
-          : (measuredQtyByBoq.value[item.boqItemId] !== undefined 
-              ? measuredQtyByBoq.value[item.boqItemId] 
-              : `${item.measuredQtyDefault}`)
-      ])
-    )
-    remarkByBoq.value = Object.fromEntries(
-      previewItems.value.map((item) => [
-        item.boqItemId,
-        item.isSummaryRow 
-          ? '' 
-          : (remarkByBoq.value[item.boqItemId] || '')
-      ])
-    )
-  } catch (e) {
-    createError.value = e instanceof Error ? e.message : '生成验工列表失败'
-  } finally {
-    previewLoading.value = false
-  }
-}
-
 watch(
   () => createForm.value.baseDate,
-  async (nextBaseDate, prevBaseDate) => {
+  (nextBaseDate, prevBaseDate) => {
     if (!createDialogOpen.value || isViewMode.value) return
     if (nextBaseDate === prevBaseDate) return
 
-    // 基准时间变化后，原预览结果失效，需要重新生成列表并联动更新模型
-    // 编辑模式下保留已有验收单 IDs 作为 pinnedAcceptanceIds，传给后端合并
-    previewItems.value = []
-    previewBaseDate.value = 0
-    measuredQtyByBoq.value = {}
-    remarkByBoq.value = {}
-
     if (!nextBaseDate) return
-    await buildPreview()
+
+    // 默认开始结束时间联动计算
+    const m = dayjs(nextBaseDate, 'YYYY-MM')
+    if (m.isValid()) {
+      createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
+      createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
+    }
   }
 )
 
@@ -1171,134 +965,62 @@ const buildPreviewFromMeasurement = (item: MonthlyMeasurementNode) => {
   )
 }
 
-const removePreviewRow = (boqItemId: string, skipConfirm = false) => {
-  if (!skipConfirm) {
-    // eslint-disable-next-line no-alert
-    const confirmed = window.confirm('确认删除该验工行吗？删除后该清单项不参与本次验工。')
-    if (!confirmed) return
-  }
+const isSubmitted = (item: { approveStatus?: string | null }) => {
+  if (!item.approveStatus) return false
+  const status = item.approveStatus.toUpperCase()
+  return status !== 'START' && status !== 'RETURNED'
+}
 
-  const nextRows = previewItems.value.filter((row) => row.boqItemId !== boqItemId)
-  const rowById = new Map(nextRows.map((row) => [row.boqItemId, row]))
-  const keepIds = new Set<string>()
-
-  for (const row of nextRows) {
-    if (row.isSummaryRow) continue
-    let cursor: string | null = row.boqItemId
-    while (cursor) {
-      if (keepIds.has(cursor)) break
-      keepIds.add(cursor)
-      cursor = rowById.get(cursor)?.boqParentId || null
-    }
-  }
-
-  const filteredRows = nextRows.filter((row) => keepIds.has(row.boqItemId))
-  const childrenMap = new Map<string | null, PreviewItem[]>()
-  for (const row of filteredRows) {
-    const parentId = row.boqParentId || null
-    const list = childrenMap.get(parentId) || []
-    list.push(row)
-    childrenMap.set(parentId, list)
-  }
-
-  const rebuiltRows = filteredRows
-    .map((row) => ({ ...row }))
-    .sort((a, b) => a.sortIndex - b.sortIndex)
-  // const rebuiltRowById = new Map(rebuiltRows.map((row) => [row.boqItemId, row]))
-  // for (const row of rebuiltRows) {
-  //   if (!row.isSummaryRow) continue
-  //   row.pendingTotalQty = 0
-  //   row.approvedCumulativeQty = 0
-  //   row.measuredQtyDefault = 0
-  // }
-  // for (const row of [...rebuiltRows].sort((a, b) => b.sortIndex - a.sortIndex)) {
-  //   if (!row.isSummaryRow) continue
-  //   const children = childrenMap.get(row.boqItemId) || []
-  //   const current = rebuiltRowById.get(row.boqItemId)
-  //   if (!current) continue
-  //   for (const child of children) {
-  //     current.pendingTotalQty += Math.max(child.pendingTotalQty, 0)
-  //     current.approvedCumulativeQty += child.approvedCumulativeQty
-  //   }
-  // }
-
-  previewItems.value = rebuiltRows
-  measuredQtyByBoq.value = Object.fromEntries(
-    rebuiltRows.map((row) => [
-      row.boqItemId,
-      row.isSummaryRow
-        ? ''
-        : measuredQtyByBoq.value[row.boqItemId] || `${row.measuredQtyDefault}`
-    ])
-  )
-  remarkByBoq.value = Object.fromEntries(
-    rebuiltRows
-      .filter((row) => !row.isSummaryRow)
-      .map((row) => [row.boqItemId, remarkByBoq.value[row.boqItemId] || ''])
+const viewItem = (item: any) => {
+  navigateTo(
+    `/projects/${projectId.value}/work-valuation/monthly-measurement/${item.id}/acceptance`
   )
 }
 
-const toggleExpand = (boqItemId: string) => {
-  if (expandedBoqRowIds.value.has(boqItemId)) {
-    expandedBoqRowIds.value.delete(boqItemId)
-  } else {
-    expandedBoqRowIds.value.add(boqItemId)
-  }
+const resetSubmitState = () => {
+  submitConfirmOpen.value = false
+  submitFinalConfirmOpen.value = false
+  submitTargetItem.value = null
+  submitRemark.value = ''
+  submitFlowLoading.value = false
+  activeSubmitFlow.value = null
 }
 
-const removeSourceAcceptance = (boqItemId: string, acceptanceId: string) => {
-  pendingRemoveItem.value = { boqItemId, acceptanceId }
-  removeDialogOpen.value = true
-}
-
-const confirmRemoveSourceAcceptance = async () => {
-  if (!pendingRemoveItem.value) return
-  const { boqItemId, acceptanceId } = pendingRemoveItem.value
-  excludedAcceptanceIds.value.push(acceptanceId)
-  
-  if (dialogMode.value === 'edit') {
-    // 处于编辑模式时，仅在本地数据中剔除细分项，不重新向后端请求全新列表
-    const row = previewItems.value.find((r) => r.boqItemId === boqItemId)
-    if (row && row.sourceAcceptances) {
-      const accIndex = row.sourceAcceptances.findIndex((a) => a.id === acceptanceId)
-      if (accIndex >= 0) {
-        const acc = row.sourceAcceptances[accIndex]
-        const workVolume = Number(acc.workVolume || 0)
-        row.sourceAcceptances = row.sourceAcceptances.filter((a) => a.id !== acceptanceId)
-        row.sourceAcceptanceIds = row.sourceAcceptanceIds.filter((id) => id !== acceptanceId)
-        row.measuredQtyDefault = Math.max(0, row.measuredQtyDefault - workVolume)
-
-        const currentVal = Number(measuredQtyByBoq.value[boqItemId])
-        if (!Number.isNaN(currentVal) && measuredQtyByBoq.value[boqItemId] !== '') {
-          measuredQtyByBoq.value[boqItemId] = `${Math.max(0, currentVal - workVolume)}`
-        }
+const loadActiveSubmitFlow = async () => {
+  if (!projectId.value) return null
+  const apiOrigin = useApiOrigin()
+  return await $fetch<ActiveApprovalFlow>(
+    `${apiOrigin}/api/projects/${projectId.value}/approval-definitions/active`,
+    {
+      params: {
+        category: 'MONTHLY_INSPECTION'
       }
     }
-  } else {
-    // 新建模式下，请求后端根据当前的 excludedAcceptanceIds 重新生成全部明细
-    await buildPreview()
-  }
-
-  pendingRemoveItem.value = null
-  removeDialogOpen.value = false
+  )
 }
 
-const isSubmitted = (item: { approveStatus?: string | null }) =>
-  Boolean(item.approveStatus && item.approveStatus.toUpperCase() !== 'START')
-
-const viewItem = (item: MonthlyMeasurementNode) => {
-  viewTargetItem.value = item
-  viewDialogOpen.value = true
-}
-
-const openSubmitDialog = (item: MonthlyMeasurementNode) => {
+const triggerSubmitItem = async (item: any) => {
   if (isSubmitted(item)) return
+  resetSubmitState()
   submitTargetItem.value = item
-  submitRemark.value = ''
-  submitDialogOpen.value = true
+  submitFlowLoading.value = true
+  try {
+    activeSubmitFlow.value = await loadActiveSubmitFlow()
+    submitConfirmOpen.value = true
+  } catch (e: any) {
+    triggerNotification({
+      title: '操作失败',
+      description:
+        e.data?.error || '未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用',
+      type: ToastNotificationType.Danger
+    })
+    resetSubmitState()
+  } finally {
+    submitFlowLoading.value = false
+  }
 }
 
-const editItem = async (item: MonthlyMeasurementNode) => {
+const editItem = async (item: any) => {
   if (isSubmitted(item)) return
   resetDialogState()
   dialogMode.value = 'edit'
@@ -1306,79 +1028,81 @@ const editItem = async (item: MonthlyMeasurementNode) => {
   createForm.value = {
     unit: item.unit || '',
     code: item.code,
-    baseDate: dayjs(Number(item.baseDate)).format('YYYY-MM-DD')
+    baseDate: dayjs(Number(item.baseDate)).format('YYYY-MM'),
+    roundName: item.roundName || '',
+    startDate: item.startDate ? dayjs(Number(item.startDate)).format('YYYY-MM-DD') : '',
+    endDate: item.endDate ? dayjs(Number(item.endDate)).format('YYYY-MM-DD') : ''
   }
-  previewBaseDate.value = Number(item.baseDate || 0)
-  buildPreviewFromMeasurement(item)
-  // Wait for Vue to flush all watchers triggered by resetDialogState / createForm changes
-  // while createDialogOpen is still false (so the baseDate watcher returns early).
-  // Without this, the watcher fires AFTER createDialogOpen=true and clears previewItems.
   await nextTick()
   createDialogOpen.value = true
 }
 
 const submitDialog = async () => {
-  if (!projectId.value || createLoading.value || updateLoading.value) return
-  if (!createForm.value.unit.trim()) {
-    createError.value = '施工单位不能为空'
-    return
-  }
-  if (!createForm.value.code.trim()) {
-    createError.value = '验工编号不能为空'
+  if (!projectId.value) return
+  if (!createForm.value.roundName.trim()) {
+    createError.value = '期数不能为空'
     return
   }
   if (!createForm.value.baseDate) {
-    createError.value = '基准时间不能为空'
+    createError.value = '年月不能为空'
     return
   }
-  if (!previewItems.value.length) {
-    createError.value = '请先生成验工列表'
+  if (!createForm.value.startDate || !createForm.value.endDate) {
+    createError.value = '计量时间段不能为空'
     return
   }
 
   createError.value = ''
-  const measuredItems = previewItems.value
-    .filter((item) => !item.isSummaryRow)
-    .map((item) => {
-      const rawQty = measuredQtyByBoq.value[item.boqItemId]
-      const parsedQty = Number(rawQty)
-      return {
-        boqItemId: item.boqItemId,
-        measuredQty: Number.isNaN(parsedQty) ? item.measuredQtyDefault : parsedQty,
-        remark: (remarkByBoq.value[item.boqItemId] || '').trim() || null
-      }
-    })
+  const apiOrigin = useApiOrigin()
+  const baseDateTs = dayjs(createForm.value.baseDate, 'YYYY-MM')
+    .endOf('month')
+    .endOf('day')
+    .valueOf()
+  const startDateTs = dayjs(createForm.value.startDate).startOf('day').valueOf()
+  const endDateTs = dayjs(createForm.value.endDate).endOf('day').valueOf()
 
+  saveLoading.value = true
   try {
     if (dialogMode.value === 'edit' && editingMeasurementId.value) {
-      await updateMutate({
-        input: {
-          projectId: projectId.value,
-          id: editingMeasurementId.value,
-          unit: createForm.value.unit.trim(),
-          code: createForm.value.code.trim(),
-          baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
-          measuredItems,
-          excludedAcceptanceIds: excludedAcceptanceIds.value
+      await $fetch(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${editingMeasurementId.value}`,
+        {
+          method: 'PUT',
+          body: {
+            unit: (createForm.value.unit || '').trim(),
+            baseDate: baseDateTs,
+            startDate: startDateTs,
+            endDate: endDateTs,
+            roundName: createForm.value.roundName.trim(),
+            measuredItems: [],
+            excludedAcceptanceIds: []
+          }
         }
-      })
+      )
     } else {
-      await createMutate({
-        input: {
-          projectId: projectId.value,
-          unit: createForm.value.unit.trim(),
-          code: createForm.value.code.trim(),
-          baseDate: dayjs(createForm.value.baseDate).endOf('day').valueOf(),
-          measuredItems,
-          excludedAcceptanceIds: excludedAcceptanceIds.value
+      await $fetch(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements`,
+        {
+          method: 'POST',
+          body: {
+            unit: (createForm.value.unit || '').trim(),
+            baseDate: baseDateTs,
+            startDate: startDateTs,
+            endDate: endDateTs,
+            roundName: createForm.value.roundName.trim(),
+            measuredItems: [],
+            excludedAcceptanceIds: []
+          }
         }
-      })
+      )
     }
     createDialogOpen.value = false
     await refetchMonthly()
     if (currentPage.value !== 1) currentPage.value = 1
-  } catch (e) {
-    createError.value = e instanceof Error ? e.message : '保存失败'
+  } catch (e: any) {
+    createError.value = e.data?.error || e.message || '保存失败'
+  } finally {
+    saveLoading.value = false
   }
 }
 
@@ -1395,80 +1119,86 @@ const createDialogButtons = computed((): LayoutDialogButton[] => [
     text: dialogMode.value === 'edit' ? '保存' : '提交',
     props: {
       color: 'primary',
-      loading:
-        createLoading.value ||
-        updateLoading.value ||
-        previewMutationLoading.value ||
-        submitLoading.value ||
-        deleteLoading.value
+      loading: saveLoading.value
     },
-    disabled:
-      isViewMode.value ||
-      createLoading.value ||
-      updateLoading.value ||
-      previewMutationLoading.value ||
-      submitLoading.value ||
-      deleteLoading.value,
+    disabled: isViewMode.value || saveLoading.value,
     onClick: () => {
       submitDialog().catch(() => undefined)
     }
   }
 ])
 
-const viewDialogButtons = computed((): LayoutDialogButton[] => [
-  {
-    text: '关闭',
-    props: { color: 'outline' },
-    onClick: () => {
-      viewDialogOpen.value = false
-      viewTargetItem.value = null
-    }
+const confirmSubmitItem = async () => {
+  if (!submitTargetItem.value || !projectId.value) return
+  actionLoadingId.value = submitTargetItem.value.id
+  const apiOrigin = useApiOrigin()
+  try {
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/submit`,
+      {
+        method: 'POST',
+        body: {
+          remark: submitRemark.value.trim() || '送审',
+          templateId: activeSubmitFlow.value?.templateId
+        }
+      }
+    )
+    await refetchMonthly()
+  } catch (e: any) {
+    triggerNotification({
+      title: '送审失败',
+      description: e.data?.error || '送审失败',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    actionLoadingId.value = null
+    resetSubmitState()
   }
-])
+}
 
-const submitDialogButtons = computed((): LayoutDialogButton[] => [
+const submitConfirmButtons = computed((): LayoutDialogButton[] => [
   {
     text: '取消',
     props: { color: 'outline' },
     onClick: () => {
-      submitDialogOpen.value = false
+      resetSubmitState()
+    }
+  },
+  {
+    text: '下一步',
+    props: {
+      color: 'primary',
+      loading: submitFlowLoading.value
+    },
+    disabled:
+      !submitTargetItem.value || submitFlowLoading.value || !activeSubmitFlow.value,
+    onClick: () => {
+      submitConfirmOpen.value = false
+      submitFinalConfirmOpen.value = true
+    }
+  }
+])
+
+const submitFinalConfirmButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      resetSubmitState()
     }
   },
   {
     text: '确认送审',
     props: {
       color: 'primary',
-      loading: submitLoading.value
+      loading: actionLoadingId.value === submitTargetItem.value?.id
     },
-    disabled: submitLoading.value || !submitTargetItem.value,
+    disabled: !submitTargetItem.value || !activeSubmitFlow.value,
     onClick: () => {
-      if (!submitTargetItem.value) return
-      submitItem(submitTargetItem.value).catch(() => undefined)
+      confirmSubmitItem().catch(() => undefined)
     }
   }
 ])
-
-const submitItem = async (item: MonthlyMeasurementNode) => {
-  if (!projectId.value || isSubmitted(item)) return
-  actionLoadingId.value = item.id
-  try {
-    await submitMutate({
-      input: {
-        projectId: projectId.value,
-        id: item.id,
-        remark: submitRemark.value.trim() || null
-      }
-    })
-    await refetchMonthly()
-    submitDialogOpen.value = false
-    submitTargetItem.value = null
-    submitRemark.value = ''
-  } catch (e) {
-    createError.value = e instanceof Error ? e.message : '送审失败'
-  } finally {
-    actionLoadingId.value = null
-  }
-}
 
 const openFlowDetail = async (item: MonthlyMeasurementNode) => {
   if (!item.flowInstanceId) return
@@ -1678,21 +1408,39 @@ const resetFlowToUnsubmitted = async () => {
   }
 }
 
-const deleteItem = async (item: MonthlyMeasurementNode) => {
+const deleteItem = (item: any) => {
   if (!projectId.value || isSubmitted(item)) return
-  actionLoadingId.value = item.id
+  itemToDelete.value = item
+  deleteConfirmOpen.value = true
+}
+
+const confirmDeleteItem = async () => {
+  if (!projectId.value || !itemToDelete.value) return
+  actionLoadingId.value = itemToDelete.value.id
+  const apiOrigin = useApiOrigin()
   try {
-    await deleteMutate({
-      input: {
-        projectId: projectId.value,
-        id: item.id
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${itemToDelete.value.id}`,
+      {
+        method: 'DELETE'
       }
+    )
+    triggerNotification({
+      title: '删除成功',
+      description: '月度验工单已成功删除。',
+      type: ToastNotificationType.Success
     })
     await refetchMonthly()
-  } catch (e) {
-    createError.value = e instanceof Error ? e.message : '删除失败'
+  } catch (e: any) {
+    triggerNotification({
+      title: '删除失败',
+      description: e.data?.error || e.message || '删除失败',
+      type: ToastNotificationType.Danger
+    })
   } finally {
     actionLoadingId.value = null
+    deleteConfirmOpen.value = false
+    itemToDelete.value = null
   }
 }
 
@@ -1700,9 +1448,11 @@ const getStatusText = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: '待送审',
     PENDING: '审批中',
+    IN_REVIEW: '审批中',
     APPROVED: '已通过',
     REJECTED: '已驳回',
-    CANCELED: '已取消'
+    CANCELED: '已取消',
+    RETURNED: '已退回'
   }
   return map[(status || '').toUpperCase()] || '未送审'
 }
@@ -1711,9 +1461,11 @@ const getStatusColor = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: 'bg-warning-lighter text-warning-darker',
     PENDING: 'bg-primary-muted text-primary',
+    IN_REVIEW: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
-    CANCELED: 'bg-highlight-3 text-foreground-2'
+    CANCELED: 'bg-highlight-3 text-foreground-2',
+    RETURNED: 'bg-warning-lighter text-warning-darker'
   }
   return map[(status || '').toUpperCase()] || 'bg-foundation-3 text-foreground-2'
 }

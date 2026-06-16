@@ -8,7 +8,7 @@
       <div class="relative flex h-[calc(100dvh-3rem)]">
         <ProjectsSidebar />
 
-        <div class="size-full bg-[rgb(26,40,70)]">
+        <div class="flex-grow overflow-hidden bg-[rgb(26,40,70)]">
           <div
             style="border-top-left-radius: 30px"
             class="size-full bg-white overflow-hidden"

@@ -87,6 +87,42 @@
         show-optional
         :rules="[isStringOfLength({ maxLength: 256 })]"
       />
+      <FormTextInput
+        name="contractCode"
+        label="合同编号"
+        placeholder="请输入合同编号"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="contractName"
+        label="合同名称"
+        placeholder="请输入合同名称"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="employer"
+        label="发包人"
+        placeholder="请输入发包人"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="contractor"
+        label="承包人"
+        placeholder="请输入承包人"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
       <FormSelectDepartment
         v-model="selectedConstructionUnit"
         name="constructionUnit"
@@ -145,6 +181,10 @@ type FormValues = {
   status?: string
   responsible?: string
   projectNumber?: string
+  contractCode?: string
+  contractName?: string
+  employer?: string
+  contractor?: string
   constructionUnit?: string
   supervisionUnit?: string
 }
@@ -209,6 +249,10 @@ const onSubmit = handleSubmit(async (values) => {
         const trimmedStatus = values.status?.trim() || ''
         const trimmedResponsible = values.responsible?.trim() || ''
         const trimmedProjectNumber = values.projectNumber?.trim() || ''
+        const trimmedContractCode = values.contractCode?.trim() || ''
+        const trimmedContractName = values.contractName?.trim() || ''
+        const trimmedEmployer = values.employer?.trim() || ''
+        const trimmedContractor = values.contractor?.trim() || ''
         const trimmedConstructionUnit = selectedConstructionUnit.value || ''
         const trimmedSupervisionUnit = selectedSupervisionUnit.value || ''
         const nextProgress = toNumberValue(values.progress)
@@ -232,6 +276,18 @@ const onSubmit = handleSubmit(async (values) => {
         }
         if (trimmedProjectNumber) {
           updatePayload.projectNumber = trimmedProjectNumber
+        }
+        if (trimmedContractCode) {
+          updatePayload.contractCode = trimmedContractCode
+        }
+        if (trimmedContractName) {
+          updatePayload.contractName = trimmedContractName
+        }
+        if (trimmedEmployer) {
+          updatePayload.employer = trimmedEmployer
+        }
+        if (trimmedContractor) {
+          updatePayload.contractor = trimmedContractor
         }
         if (trimmedConstructionUnit) {
           updatePayload.constructionUnit = trimmedConstructionUnit

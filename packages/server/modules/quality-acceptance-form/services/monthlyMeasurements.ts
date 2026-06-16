@@ -6,6 +6,8 @@ import type {
 import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
 import { BadRequestError } from '@/modules/shared/errors'
 import cryptoRandomString from 'crypto-random-string'
+import type { Knex } from 'knex'
+import dayjs from 'dayjs'
 
 type MonthlyMeasurementPreviewItem = {
   boqItemId: string
@@ -109,7 +111,11 @@ const isApprovedStatus = (status: unknown) => {
 }
 
 const isPendingStatus = (status: unknown) => {
-  return status === null || status === undefined
+  return (
+    status === null ||
+    status === undefined ||
+    (typeof status === 'string' && status.trim() === '')
+  )
 }
 
 const mapQualityApproveStatusFromFlowStatus = (status: string) => {
@@ -124,6 +130,8 @@ type BuildPreviewDeps = {
   getQualityAcceptanceFormsBeforeBaseDate: (params: {
     projectId: string
     baseDate: number
+    startDate?: number | null
+    endDate?: number | null
   }) => Promise<QualityAcceptanceFormRecord[]>
   getProjectBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
   getQualityAcceptanceFormsByIds: (params: { ids: string[] }) => Promise<QualityAcceptanceFormRecord[]>
@@ -134,13 +142,17 @@ export const buildMonthlyMeasurementPreviewFactory =
   async (params: {
     projectId: string
     baseDate: number
+    startDate?: number | null
+    endDate?: number | null
     excludedAcceptanceIds?: string[]
     pinnedAcceptanceIds?: string[]
   }) => {
     const [allAcceptanceForms, pinnedForms, boqItems] = await Promise.all([
       deps.getQualityAcceptanceFormsBeforeBaseDate({
         projectId: params.projectId,
-        baseDate: params.baseDate
+        baseDate: params.baseDate,
+        startDate: params.startDate,
+        endDate: params.endDate
       }),
       params.pinnedAcceptanceIds?.length
         ? deps.getQualityAcceptanceFormsByIds({ ids: params.pinnedAcceptanceIds })
@@ -151,10 +163,18 @@ export const buildMonthlyMeasurementPreviewFactory =
     const excludedIds = new Set(params.excludedAcceptanceIds || [])
     const seenIds = new Set<string>()
     const acceptanceForms: QualityAcceptanceFormRecord[] = []
+    const isInMeasurementWindow = (form: QualityAcceptanceFormRecord) => {
+      const actualFinishDate = toNullableNumber(form.actualFinishDate)
+      if (actualFinishDate === null) return false
+      if (params.startDate && actualFinishDate < params.startDate) return false
+      if (params.endDate && actualFinishDate > params.endDate) return false
+      return true
+    }
     // Merge: pinned first (so they keep their approveStatus as-is for qty calc),
     // then new unreviewed ones from the date range
     for (const f of [...pinnedForms, ...allAcceptanceForms]) {
       if (excludedIds.has(f.id) || seenIds.has(f.id)) continue
+      if ((params.startDate || params.endDate) && !isInMeasurementWindow(f)) continue
       seenIds.add(f.id)
       // Treat pinned forms (PENDING status) as if they are still unreviewed for qty calc
       acceptanceForms.push(
@@ -309,9 +329,12 @@ export const mapFlowStatusToMonthlyMeasurementApproveStatus = (status: string) =
 }
 
 type CreateMeasurementDeps = {
+  db: any
   buildPreview: (params: {
     projectId: string
     baseDate: number
+    startDate?: number | null
+    endDate?: number | null
     excludedAcceptanceIds?: string[]
   }) => Promise<{ baseDate: number; items: MonthlyMeasurementPreviewItem[] }>
   createMeasurement: (
@@ -327,6 +350,8 @@ export const createMonthlyMeasurementFromPreviewFactory =
     unit?: string | null
     code: string
     baseDate: number
+    startDate?: number | null
+    endDate?: number | null
     creator: string
     measuredItems?: Array<{
       boqItemId: string
@@ -338,11 +363,49 @@ export const createMonthlyMeasurementFromPreviewFactory =
     const preview = await deps.buildPreview({
       projectId: params.projectId,
       baseDate: params.baseDate,
+      startDate: params.startDate,
+      endDate: params.endDate,
       excludedAcceptanceIds: params.excludedAcceptanceIds
     })
     const rows = preview.items
     if (!rows.length) {
       throw new BadRequestError('未找到可生成验工明细的清单项')
+    }
+
+    const currentYear = dayjs(params.baseDate).year()
+
+    // 1. 获取所有的历史已通过的明细记录（投资监理审定量）
+    const approvedItems = await deps.db('monthly_measurement_items')
+      .join(
+        'monthly_measurements',
+        'monthly_measurement_items.measurementId',
+        'monthly_measurements.id'
+      )
+      .where('monthly_measurements.project_id', params.projectId)
+      .andWhere('monthly_measurements.approveStatus', 'APPROVED')
+      .select(
+        'monthly_measurement_items.boqItemId',
+        'monthly_measurement_items.investmentQty',
+        'monthly_measurement_items.leaderPayAmt',
+        'monthly_measurement_items.investmentPayAmt',
+        'monthly_measurements.baseDate'
+      )
+
+    // 汇总成 Map
+    const historyMap = new Map<string, number>()
+    const yearlyMap = new Map<string, number>()
+    const payMap = new Map<string, number>()
+
+    for (const row of approvedItems) {
+      const qty = Number(row.investmentQty || 0)
+      const pay = Number(row.leaderPayAmt || 0) + Number(row.investmentPayAmt || 0)
+      const rowYear = dayjs(Number(row.baseDate)).year()
+
+      historyMap.set(row.boqItemId, (historyMap.get(row.boqItemId) || 0) + qty)
+      payMap.set(row.boqItemId, (payMap.get(row.boqItemId) || 0) + pay)
+      if (rowYear === currentYear) {
+        yearlyMap.set(row.boqItemId, (yearlyMap.get(row.boqItemId) || 0) + qty)
+      }
     }
 
     const customValues = new Map(
@@ -371,6 +434,7 @@ export const createMonthlyMeasurementFromPreviewFactory =
         custom?.measuredQty === undefined
           ? row.measuredQtyDefault
           : Number(custom.measuredQty)
+      const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
       return {
         id: cryptoRandomString({ length: 10 }),
         measurementId: measurement.id,
@@ -385,7 +449,18 @@ export const createMonthlyMeasurementFromPreviewFactory =
         price: row.price,
         pendingTotalQty: row.pendingTotalQty,
         approvedCumulativeQty: row.approvedCumulativeQty,
-        measuredQty: Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty,
+        measuredQty: finalQty,
+        contractorQty: finalQty,
+        supervisionQty: finalQty,
+        headquartersQty: finalQty,
+        investmentQty: finalQty,
+        contractorPayAmt: 0,
+        investmentPayAmt: 0,
+        contractPayAmt: 0,
+        leaderPayAmt: 0,
+        lastCumulativeQty: historyMap.get(row.boqItemId) || 0,
+        yearlyCumulativeQty: yearlyMap.get(row.boqItemId) || 0,
+        lastCumulativePay: payMap.get(row.boqItemId) || 0,
         remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
         sourceAcceptanceIds: row.sourceAcceptanceIds,
         createdAt: now,

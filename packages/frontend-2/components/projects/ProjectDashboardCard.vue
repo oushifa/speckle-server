@@ -263,6 +263,42 @@
           show-label
           show-optional
         />
+        <FormTextInput
+          v-model="editForm.contractCode"
+          name="editContractCode"
+          label="合同编号"
+          placeholder="请输入合同编号"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.contractName"
+          name="editContractName"
+          label="合同名称"
+          placeholder="请输入合同名称"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.employer"
+          name="editEmployer"
+          label="发包人"
+          placeholder="请输入发包人"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.contractor"
+          name="editContractor"
+          label="承包人"
+          placeholder="请输入承包人"
+          color="foundation"
+          show-label
+          show-optional
+        />
         <FormSelectDepartment
           v-model="editForm.constructionUnit"
           name="editConstructionUnit"
@@ -362,6 +398,10 @@ const editForm = ref({
   responsible: '',
   timeZone: '',
   projectNumber: '',
+  contractCode: '',
+  contractName: '',
+  employer: '',
+  contractor: '',
   constructionUnit: '',
   supervisionUnit: ''
 })
@@ -475,6 +515,10 @@ const setEditFormValues = () => {
     responsible: String(props.project.responsible || ''),
     timeZone: String(props.project.timeZone || ''),
     projectNumber: String(props.project.projectNumber || ''),
+    contractCode: String(props.project.contractCode || ''),
+    contractName: String(props.project.contractName || ''),
+    employer: String(props.project.employer || ''),
+    contractor: String(props.project.contractor || ''),
     constructionUnit: String(props.project.constructionUnit || ''),
     supervisionUnit: String(props.project.supervisionUnit || '')
   }
@@ -506,6 +550,10 @@ const onSaveProjectInfo = async () => {
     const currentStatus = String(props.project.status || '')
     const currentResponsible = String(props.project.responsible || '')
     const currentProjectNumber = String(props.project.projectNumber || '')
+    const currentContractCode = String(props.project.contractCode || '')
+    const currentContractName = String(props.project.contractName || '')
+    const currentEmployer = String(props.project.employer || '')
+    const currentContractor = String(props.project.contractor || '')
     const currentConstructionUnit = String(props.project.constructionUnit || '')
     const currentSupervisionUnit = String(props.project.supervisionUnit || '')
     const currentProgress = toNumberValue(props.project.progress)
@@ -515,6 +563,10 @@ const onSaveProjectInfo = async () => {
     const currentEndDate = toDatetimeLocal(props.project.endDate)
     const nextEndDate = editForm.value.endDate
     const nextProjectNumber = editForm.value.projectNumber.trim()
+    const nextContractCode = editForm.value.contractCode.trim()
+    const nextContractName = editForm.value.contractName.trim()
+    const nextEmployer = editForm.value.employer.trim()
+    const nextContractor = editForm.value.contractor.trim()
     const nextConstructionUnit = editForm.value.constructionUnit.trim()
     const nextSupervisionUnit = editForm.value.supervisionUnit.trim()
 
@@ -544,6 +596,18 @@ const onSaveProjectInfo = async () => {
     }
     if (nextProjectNumber !== currentProjectNumber) {
       updatePayload.projectNumber = nextProjectNumber
+    }
+    if (nextContractCode !== currentContractCode) {
+      updatePayload.contractCode = nextContractCode
+    }
+    if (nextContractName !== currentContractName) {
+      updatePayload.contractName = nextContractName
+    }
+    if (nextEmployer !== currentEmployer) {
+      updatePayload.employer = nextEmployer
+    }
+    if (nextContractor !== currentContractor) {
+      updatePayload.contractor = nextContractor
     }
     if (nextConstructionUnit !== currentConstructionUnit) {
       updatePayload.constructionUnit = nextConstructionUnit

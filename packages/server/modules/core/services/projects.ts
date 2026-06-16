@@ -44,7 +44,14 @@ export const createNewProjectFactory =
     status,
     progress,
     startDate,
-    endDate
+    endDate,
+    projectNumber,
+    contractCode,
+    contractName,
+    employer,
+    contractor,
+    constructionUnit,
+    supervisionUnit
   }) => {
     visibility =
       visibility ||
@@ -59,6 +66,13 @@ export const createNewProjectFactory =
       timeZone: timeZone || null,
       responsible: responsible || null,
       status: status || null,
+      projectNumber: projectNumber || null,
+      contractCode: contractCode || null,
+      contractName: contractName || null,
+      employer: employer || null,
+      contractor: contractor || null,
+      constructionUnit: constructionUnit || null,
+      supervisionUnit: supervisionUnit || null,
       name: name || generateProjectName(),
       description: description || '',
       visibility: mapGqlToDbProjectVisibility(visibility),

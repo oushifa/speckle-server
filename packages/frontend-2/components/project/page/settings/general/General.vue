@@ -3,8 +3,33 @@
     <ProjectPageSettingsGeneralBlockProjectInfo
       :project="project"
       @update-project="
-        ({ name, description, projectNumber, constructionUnit, supervisionUnit, onComplete }) =>
-          handleUpdate({ name, description, projectNumber, constructionUnit, supervisionUnit }, '项目信息已更新', onComplete)
+        ({
+          name,
+          description,
+          projectNumber,
+          contractCode,
+          contractName,
+          employer,
+          contractor,
+          constructionUnit,
+          supervisionUnit,
+          onComplete
+        }) =>
+          handleUpdate(
+            {
+              name,
+              description,
+              projectNumber,
+              contractCode,
+              contractName,
+              employer,
+              contractor,
+              constructionUnit,
+              supervisionUnit
+            },
+            '项目信息已更新',
+            onComplete
+          )
       "
     />
 
@@ -18,7 +43,7 @@
     <ProjectPageSettingsGeneralBlockDiscussions
       :project="project"
       @update-comments-permission="
-        (newCommentsPermission) =>
+        (newCommentsPermission: boolean) =>
           handleUpdate(
             { allowPublicComments: newCommentsPermission },
             '项目讨论权限已更新'
@@ -30,7 +55,7 @@
     <ProjectPageSettingsGeneralBlockDelete
       :project="project"
       @update-comments-permission="
-        (newCommentsPermission) =>
+        (newCommentsPermission: boolean) =>
           handleUpdate(
             { allowPublicComments: newCommentsPermission },
             '项目删除权限已更新'

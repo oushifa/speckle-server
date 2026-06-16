@@ -908,6 +908,10 @@ export const createStreamFactory =
     const workspaceId = 'workspaceId' in input ? input.workspaceId : null
     const regionKey = 'regionKey' in input ? input.regionKey || null : null
     const projectNumber = 'projectNumber' in input ? (input.projectNumber as string) || null : null
+    const contractCode = 'contractCode' in input ? (input.contractCode as string) || null : null
+    const contractName = 'contractName' in input ? (input.contractName as string) || null : null
+    const employer = 'employer' in input ? (input.employer as string) || null : null
+    const contractor = 'contractor' in input ? (input.contractor as string) || null : null
     const constructionUnit = 'constructionUnit' in input ? (input.constructionUnit as string) || null : null
     const supervisionUnit = 'supervisionUnit' in input ? (input.supervisionUnit as string) || null : null
 
@@ -922,6 +926,10 @@ export const createStreamFactory =
       regionKey,
       allowPublicComments,
       projectNumber,
+      contractCode,
+      contractName,
+      employer,
+      contractor,
       constructionUnit,
       supervisionUnit
     }

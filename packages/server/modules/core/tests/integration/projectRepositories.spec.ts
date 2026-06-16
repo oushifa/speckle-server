@@ -1,6 +1,6 @@
 import { db } from '@/db/knex'
 import type { Project } from '@/modules/core/domain/streams/types'
-import { ProjectRecordVisibility } from '@/modules/core/helpers/types'
+import { ProjectRecordVisibility, StreamType } from '@/modules/core/helpers/types'
 import {
   deleteProjectFactory,
   getProjectFactory,
@@ -22,6 +22,7 @@ import { getProjectReplicationDbs } from '@/modules/multiregion/utils/dbSelector
 const createTestProject = (overrides?: Partial<Project>): Project => {
   const defaults: Project = {
     id: cryptoRandomString({ length: 10 }),
+    type: StreamType.Project,
     address: null,
     progress: 0,
     startDate: null,
@@ -29,12 +30,20 @@ const createTestProject = (overrides?: Partial<Project>): Project => {
     timeZone: null,
     responsible: null,
     status: null,
+    projectNumber: null,
+    contractCode: null,
+    contractName: null,
+    employer: null,
+    contractor: null,
+    constructionUnit: null,
+    supervisionUnit: null,
     allowPublicComments: false,
     clonedFrom: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     description: 'a test project',
     visibility: ProjectRecordVisibility.Public,
+    usage: 'normal',
     name: cryptoRandomString({ length: 10 }),
     regionKey: null,
     workspaceId: null

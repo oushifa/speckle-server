@@ -1,0 +1,996 @@
+<template>
+  <div class="space-y-6 bg-foundation p-1.5 w-full max-w-full overflow-hidden">
+    <!-- 顶部项目页眉和副标题 -->
+    <div class="text-center space-y-1.5 mb-5">
+      <h1 class="text-lg font-bold text-foreground tracking-wide">
+        验工计价中间支付单
+      </h1>
+      <p class="text-[11px] text-foreground-2">
+        {{ props.item?.roundName || '南北高速公路工程' }} 阶段
+        {{
+          props.item?.baseDate
+            ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
+            : '2020年12月'
+        }}
+        {{ props.item?.code || '第3期' }}
+      </p>
+      <div
+        class="flex justify-between items-center text-[10px] text-foreground-2 px-1 pt-1.5 border-t border-outline-3 border-dashed mt-2"
+      >
+        <span>承包人（签章）：{{ getPaymentDetailAuditUser('contractor') }}</span>
+        <span>合同编号：{{ projectContractCode }}</span>
+        <span>单位：元</span>
+      </div>
+    </div>
+
+    <!-- 中间支付单大表格（只支持横向滚动） -->
+    <div class="overflow-x-auto w-full max-w-full rounded border border-outline-3">
+      <table class="w-full text-xs text-left min-w-[1200px] border-collapse">
+        <thead
+          class="bg-[#1e56a0] text-white text-center font-medium sticky top-0 z-10"
+        >
+          <tr class="border-b border-blue-400">
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-center w-12 align-middle"
+            >
+              序号
+            </th>
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-center w-20 align-middle"
+            >
+              章节
+            </th>
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-left pl-3 w-48 align-middle"
+            >
+              项目名称
+            </th>
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-right pr-3 w-32 align-middle"
+            >
+              合同价
+            </th>
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-right pr-3 w-32 align-middle"
+            >
+              本期完成工作量
+            </th>
+            <th
+              rowspan="2"
+              class="px-2 py-2.5 border-r border-blue-400 text-right pr-3 w-32 align-middle"
+            >
+              累计完成工作量
+            </th>
+            <th colspan="4" class="px-2 py-1.5 border-r border-blue-400 text-center">
+              本期支付款
+            </th>
+            <th rowspan="2" class="px-2 py-2.5 text-right pr-3 w-32 align-middle">
+              累计支付款
+            </th>
+          </tr>
+          <tr class="bg-[#2A4B7C] text-white text-[11px]">
+            <th class="px-2 py-1.5 border-r border-blue-400 text-right pr-3 w-28">
+              施工单位
+            </th>
+            <th class="px-2 py-1.5 border-r border-blue-400 text-right pr-3 w-28">
+              投资监理
+            </th>
+            <th class="px-2 py-1.5 border-r border-blue-400 text-right pr-3 w-28">
+              合约管理部
+            </th>
+            <th
+              class="px-2 py-1.5 border-r border-blue-400 text-right pr-3 w-28 font-semibold"
+            >
+              分管领导
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="group in chapterGroups" :key="group.groupKey">
+            <tr
+              v-for="row in group.rows"
+              :key="row.boqItemId"
+              class="border-b border-outline-3 bg-foundation hover:bg-highlight-1/5 transition-colors text-[11px]"
+            >
+              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+                {{ row.displayIndex }}
+              </td>
+              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+                {{ row.boqCode }}
+              </td>
+              <td
+                class="px-2 py-2 border-r border-outline-3 pl-3 truncate max-w-[200px]"
+                :title="row.boqName"
+              >
+                {{ row.boqName }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(row.contractAmount) }}
+              </td>
+              <td
+                class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3 font-medium"
+              >
+                {{ formatMoney(row.investmentAmount) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(row.cumulativeAmount) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(getDerivedPay(row).contractorPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(getDerivedPay(row).investmentPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(getDerivedPay(row).contractPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(getDerivedPay(row).leaderPayAmt) }}
+              </td>
+              <td
+                class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
+              >
+                {{
+                  formatMoney(
+                    Number(row.lastCumulativePay || 0) +
+                      Number(getDerivedPay(row).investmentPayAmt || 0)
+                  )
+                }}
+              </td>
+            </tr>
+
+            <tr
+              class="border-b border-outline-3 bg-highlight-1/10 font-semibold text-[11px]"
+            >
+              <td
+                class="px-2 py-2 text-center border-r border-outline-3 font-mono"
+              ></td>
+              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+                -
+              </td>
+              <td class="px-2 py-2 border-r border-outline-3 pl-3 text-left">
+                {{ group.groupBoqName }} 小计
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.contractAmount) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.investmentAmount) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.cumulativeAmount) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.contractorPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.investmentPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.contractPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+                {{ formatMoney(group.subtotal.leaderPayAmt) }}
+              </td>
+              <td class="px-2 py-2 text-right font-mono pr-3">
+                {{ formatMoney(group.subtotal.cumulativePayAmt) }}
+              </td>
+            </tr>
+          </template>
+
+          <tr
+            class="border-b border-outline-3 bg-highlight-1/5 font-semibold text-[11px]"
+          >
+            <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+              {{ chapterSumIndex }}
+            </td>
+            <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">-</td>
+            <td class="px-2 py-2 border-r border-outline-3 pl-3 text-left">
+              合计 1-{{ chapterRowCount }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.contractAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.investmentAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.cumulativeAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.contractorPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.investmentPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.contractPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(chapterSums.leaderPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right font-mono pr-3">
+              {{ formatMoney(chapterSums.cumulativePayAmt) }}
+            </td>
+          </tr>
+
+          <!-- 预付(留)款条目行（额外章节） -->
+          <tr
+            v-for="(row, idx) in extraPayRows"
+            :key="row.item.prepaymentItemId"
+            class="border-b border-outline-3 bg-foundation text-[11px]"
+          >
+            <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+              {{ chapterSumIndex + idx + 1 }}
+            </td>
+            <td
+              v-if="row.rowspan > 0"
+              class="px-2 py-2 text-center border-r border-outline-3 font-mono"
+              :rowspan="row.rowspan"
+            >
+              {{ row.item.category || '-' }}
+            </td>
+            <td
+              class="px-2 py-2 border-r border-outline-3 pl-3 truncate max-w-[200px]"
+              :title="row.item.name"
+            >
+              {{ row.item.name || '-' }}
+            </td>
+            <td
+              class="px-2 py-2 border-r border-outline-3 text-center text-foreground-2 font-mono"
+            >
+              -
+            </td>
+            <td
+              class="px-2 py-2 border-r border-outline-3 text-center text-foreground-2 font-mono"
+            >
+              -
+            </td>
+            <td
+              class="px-2 py-2 border-r border-outline-3 text-center text-foreground-2 font-mono"
+            >
+              -
+            </td>
+            <td class="px-2 py-1 border-r border-outline-3 w-28">
+              <input
+                v-model.number="row.item.contractorPayAmt"
+                type="number"
+                step="any"
+                :disabled="!permissions.contractor"
+                class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+              />
+            </td>
+            <td class="px-2 py-1 border-r border-outline-3 w-28">
+              <input
+                v-model.number="row.item.investmentPayAmt"
+                type="number"
+                step="any"
+                :disabled="!permissions.investment"
+                class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+              />
+            </td>
+            <td class="px-2 py-1 border-r border-outline-3 w-28">
+              <input
+                v-model.number="row.item.contractPayAmt"
+                type="number"
+                step="any"
+                :disabled="!permissions.contract"
+                class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+              />
+            </td>
+            <td class="px-2 py-1 border-r border-outline-3 w-28">
+              <input
+                v-model.number="row.item.leaderPayAmt"
+                type="number"
+                step="any"
+                :disabled="!permissions.leader"
+                class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+              />
+            </td>
+            <td
+              class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
+            >
+              {{
+                formatMoney(
+                  Number(row.item.leaderPayAmt || 0) +
+                    Number(row.item.investmentPayAmt || 0)
+                )
+              }}
+            </td>
+          </tr>
+
+          <!-- 本期实际支付款行（亮蓝色高亮） -->
+          <tr
+            class="bg-blue-600 text-white font-semibold text-[11px] border-b border-blue-600"
+          >
+            <td class="px-2 py-2 text-center border-r border-blue-500 font-mono">
+              {{ actualPayIndex }}
+            </td>
+            <td colspan="2" class="px-2 py-2 pl-3 text-left border-r border-blue-500">
+              本期实际支付款
+            </td>
+            <td colspan="8" class="px-2 py-2 text-right pr-3 font-mono">
+              {{ formatMoney(totalSums.investmentPayAmt) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 签字及操作控制大面板 -->
+    <div class="border border-outline-3 rounded-lg p-4 bg-foundation space-y-4">
+      <!-- 进度款与农民工工资 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-foreground w-40 shrink-0">
+            本期应支付进度款 (万元)
+          </span>
+          <input
+            v-model.number="paymentDetails.interimPayProgress"
+            type="number"
+            step="any"
+            placeholder="请输入"
+            :disabled="!canEditInterimAmounts"
+            class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-3 py-1.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-foreground w-40 shrink-0">
+            其中农民工工资 (万元)
+          </span>
+          <input
+            v-model.number="paymentDetails.migrantWorkerSalary"
+            type="number"
+            step="any"
+            placeholder="请输入"
+            :disabled="!canEditInterimAmounts"
+            class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-3 py-1.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono"
+          />
+        </div>
+      </div>
+
+      <!-- 备注 -->
+      <div class="space-y-1.5">
+        <span class="text-xs font-semibold text-foreground block">备注</span>
+        <textarea
+          v-model="paymentDetails.interimRemark"
+          placeholder="请输入备注..."
+          rows="3"
+          :disabled="!permissions.investment && !permissions.contractor"
+          class="w-full text-xs bg-foundation border border-outline-3 rounded p-2 focus:outline-none focus:border-primary disabled:opacity-60 resize-y"
+        ></textarea>
+      </div>
+
+      <!-- 附件管理已移入清爽的弹出层中 -->
+
+      <!-- 底部签字、日期和控制按钮区 -->
+      <div
+        class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 pt-2.5"
+      >
+        <!-- 签字项与制表日期 -->
+        <div class="flex flex-wrap items-center gap-3.5 text-xs text-foreground-2">
+          <div
+            class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
+          >
+            <div class="text-[10px] text-foreground-2">施工单位</div>
+            <div class="text-xs font-medium text-foreground">
+              {{ getPaymentDetailAuditUser('contractor') }}
+            </div>
+          </div>
+          <div
+            class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
+          >
+            <div class="text-[10px] text-foreground-2">施工监理</div>
+            <div class="text-xs font-medium text-foreground">
+              {{ getPaymentDetailAuditUser('supervision') }}
+            </div>
+          </div>
+          <div
+            class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
+          >
+            <div class="text-[10px] text-foreground-2">投资监理</div>
+            <div class="text-xs font-medium text-foreground">
+              {{ getPaymentDetailAuditUser('investment') }}
+            </div>
+          </div>
+          <div
+            class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
+          >
+            <div class="text-[10px] text-foreground-2">日期</div>
+            <div class="text-xs font-mono text-foreground">
+              {{ getPaymentDetailAuditDate(paymentDetails.interimSignDate) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 按钮组 -->
+        <div class="flex items-center justify-end gap-2.5 shrink-0">
+          <!-- 附件按钮，打开清爽弹出层 -->
+          <button
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-3 text-xs font-semibold rounded hover:bg-foundation-2 bg-foundation text-foreground-2 transition-colors focus:outline-none"
+            @click="openAttachmentsDialog"
+          >
+            <PaperClipIcon class="h-3.5 w-3.5" />
+            附件 ({{ paymentDetails.paymentAttachments?.length || 0 }})
+          </button>
+
+          <!-- 保存按钮 -->
+          <button
+            v-if="isCurrentApprover"
+            class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none"
+            :disabled="paymentSaving"
+            @click="saveTab2Payment"
+          >
+            <ArrowDownTrayIcon class="h-3.5 w-3.5" />
+            {{ paymentSaving ? '保存中...' : '保存' }}
+          </button>
+
+          <!-- 关闭按钮 -->
+          <button
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-3 text-xs font-semibold rounded hover:bg-foundation-2 bg-foundation text-foreground-2 transition-colors focus:outline-none"
+            @click="closeDetails"
+          >
+            <XMarkIcon class="h-3.5 w-3.5" />
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 附件管理弹出层 LayoutDialog -->
+    <LayoutDialog v-model:open="attachmentsDialogOpen" max-width="md">
+      <template #header>支付单附件管理</template>
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <span class="text-sm font-semibold">
+            附件列表 ({{ paymentDetails.paymentAttachments?.length || 0 }} 个)
+          </span>
+          <input
+            ref="paymentFileRef"
+            type="file"
+            class="hidden"
+            multiple
+            @change="handlePaymentFileUpload"
+          />
+          <button
+            v-if="isCurrentApprover"
+            class="px-3 py-1.5 text-xs font-semibold text-white rounded bg-blue-600 hover:bg-blue-700 transition-colors focus:outline-none"
+            @click="triggerPaymentUpload"
+          >
+            上传新文件
+          </button>
+        </div>
+
+        <div
+          v-if="paymentDetails.paymentAttachments?.length"
+          class="space-y-2 max-h-[300px] overflow-y-auto pr-1"
+        >
+          <div
+            v-for="(attachment, aIdx) in paymentDetails.paymentAttachments"
+            :key="aIdx"
+            class="flex justify-between items-center p-2 rounded bg-foundation-2 border border-outline-3 text-xs"
+          >
+            <div class="flex items-center gap-1.5 min-w-0 pr-3">
+              <PaperClipIcon class="h-4 w-4 text-foreground-2 flex-shrink-0" />
+              <span class="truncate" :title="attachment.name">
+                {{ attachment.name || attachment.blobId }}
+              </span>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <a
+                :href="getBlobDownloadUrl(attachment.blobId)"
+                target="_blank"
+                class="text-primary hover:underline font-medium"
+              >
+                下载
+              </a>
+              <button
+                v-if="isCurrentApprover"
+                class="text-danger hover:underline font-medium"
+                @click="removePaymentAttachment(Number(aIdx))"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else
+          class="text-center text-xs text-foreground-2 py-6 border border-dashed rounded-lg border-outline-3"
+        >
+          暂无上传的附件文件
+        </div>
+      </div>
+    </LayoutDialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { PaperClipIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import dayjs from 'dayjs'
+import { useQuery } from '@vue/apollo-composable'
+import { gql } from '@apollo/client/core'
+import { LayoutDialog } from '@speckle/ui-components'
+import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import {
+  getMonthlyMeasurementAuditDisplayStatus,
+  getMonthlyMeasurementPermissions
+} from '~/lib/projects/helpers/monthlyMeasurementApproval'
+import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+
+type MonthlyMeasurementNode = {
+  id: string
+  code: string
+  baseDate: string
+  approveStatus?: string | null
+  flowInstanceId?: string | null
+  currentStepName?: string | null
+  currentStepApprovers?: string[] | null
+  roundName?: string | null
+  creator?: {
+    id: string
+    name: string
+  } | null
+}
+
+const props = defineProps<{
+  item: MonthlyMeasurementNode | null
+  projectId: string
+  flowInstance?: any
+}>()
+
+const emit = defineEmits(['refetch'])
+
+const apiOrigin = useApiOrigin()
+const { userId } = useActiveUser()
+const { triggerNotification } = useGlobalToast()
+
+const { result: projectResult } = useQuery(
+  gql`
+    query ProjectContractCodeForPaymentDetails($id: String!) {
+      project(id: $id) {
+        id
+        contractCode
+      }
+    }
+  `,
+  () => ({
+    id: props.projectId
+  })
+)
+const projectContractCode = computed(() => {
+  const code = projectResult.value?.project?.contractCode
+  if (code && code.trim().length) return code
+  return '-'
+})
+
+// 数据缓存
+const aggregatedItems = ref<any[]>([])
+
+const getDerivedPay = (row: any) => {
+  const contractorPayAmt = Number(row.contractorAmount || 0)
+  const investmentPayAmt = Number(row.investmentAmount || 0)
+  return {
+    contractorPayAmt,
+    investmentPayAmt,
+    contractPayAmt: 0,
+    leaderPayAmt: 0
+  }
+}
+
+const sumPaymentRows = (rows: any[]) => {
+  const sums = {
+    contractAmount: 0,
+    investmentAmount: 0,
+    cumulativeAmount: 0,
+    contractorPayAmt: 0,
+    investmentPayAmt: 0,
+    contractPayAmt: 0,
+    leaderPayAmt: 0,
+    cumulativePayAmt: 0
+  }
+  rows.forEach((row) => {
+    sums.contractAmount += Number(row.contractAmount || 0)
+    sums.investmentAmount += Number(row.investmentAmount || 0)
+    sums.cumulativeAmount += Number(row.cumulativeAmount || 0)
+    const pay = getDerivedPay(row)
+    sums.contractorPayAmt += Number(pay.contractorPayAmt || 0)
+    sums.investmentPayAmt += Number(pay.investmentPayAmt || 0)
+    sums.contractPayAmt += Number(pay.contractPayAmt || 0)
+    sums.leaderPayAmt += Number(pay.leaderPayAmt || 0)
+    sums.cumulativePayAmt +=
+      Number(row.lastCumulativePay || 0) + Number(pay.investmentPayAmt || 0)
+  })
+  return sums
+}
+
+const chapterGroups = computed(() => {
+  const groups = new Map<
+    string,
+    {
+      groupKey: string
+      groupBoqCode: string
+      groupBoqName: string
+      rows: any[]
+      subtotal: ReturnType<typeof sumPaymentRows>
+    }
+  >()
+
+  let displayIndex = 1
+  for (const row of aggregatedItems.value) {
+    const groupKey = row.groupBoqItemId || row.boqParentId || row.boqItemId
+    const groupBoqCode = row.groupBoqCode || row.boqCode || '-'
+    const groupBoqName = row.groupBoqName || row.boqName || '未分类'
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        groupKey,
+        groupBoqCode,
+        groupBoqName,
+        rows: [],
+        subtotal: sumPaymentRows([])
+      })
+    }
+    groups.get(groupKey)!.rows.push({
+      ...row,
+      displayIndex
+    })
+    displayIndex += 1
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    subtotal: sumPaymentRows(group.rows)
+  }))
+})
+
+const chapterRowCount = computed(() => aggregatedItems.value.length)
+const chapterSumIndex = computed(() => chapterRowCount.value + 1)
+const chapterSums = computed(() => sumPaymentRows(aggregatedItems.value))
+
+const totalSums = computed(() => {
+  const sums = { ...chapterSums.value }
+  for (const extra of extraPayItems.value) {
+    sums.contractorPayAmt += Number(extra.contractorPayAmt || 0)
+    sums.investmentPayAmt += Number(extra.investmentPayAmt || 0)
+    sums.contractPayAmt += Number(extra.contractPayAmt || 0)
+    sums.leaderPayAmt += Number(extra.leaderPayAmt || 0)
+    sums.cumulativePayAmt +=
+      Number(extra.leaderPayAmt || 0) + Number(extra.investmentPayAmt || 0)
+  }
+
+  return sums
+})
+
+const extraPayItems = computed(() => paymentDetails.value.extraPayItems || [])
+const extraPayRows = computed(() => {
+  const rows: Array<{ item: any; rowspan: number }> = []
+  const groups = new Map<string, any[]>()
+  for (const item of extraPayItems.value) {
+    const key = String(item.category || '')
+    const bucket = groups.get(key)
+    if (bucket) bucket.push(item)
+    else groups.set(key, [item])
+  }
+
+  for (const [, items] of groups) {
+    items.forEach((item, idx) => {
+      rows.push({
+        item,
+        rowspan: idx === 0 ? items.length : 0
+      })
+    })
+  }
+  return rows
+})
+const actualPayIndex = computed(
+  () => chapterSumIndex.value + extraPayItems.value.length + 1
+)
+
+const closeDetails = () => {
+  navigateTo(`/projects/${props.projectId}/work-valuation/monthly-measurement`)
+}
+
+const attachmentsDialogOpen = ref(false)
+const openAttachmentsDialog = () => {
+  attachmentsDialogOpen.value = true
+}
+
+// Tab 2 数据
+const paymentDetails = ref<any>({
+  measurementId: '',
+  paymentAttachments: [],
+  extraPayItems: [],
+  interimPayProgress: 0,
+  migrantWorkerSalary: 0,
+  interimRemark: '',
+  contractorSign: '',
+  supervisionSign: '',
+  preparerSign: '',
+  interimSignDate: null
+})
+const paymentSaving = ref(false)
+
+const permissions = computed(() => {
+  const result = {
+    contractor: false,
+    supervision: false,
+    headquarters: false,
+    investment: false,
+    contract: false,
+    leader: false,
+    owner: false
+  }
+
+  const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
+  const currentUserId = userId.value
+
+  if (!currentUserId) return result
+
+  if (isDraft) {
+    const creatorId = props.item?.creator?.id
+    if (creatorId === currentUserId) {
+      result.contractor = true
+    }
+    return result
+  }
+
+  if (props.flowInstance && props.flowInstance.status === 'PENDING') {
+    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    if (pendingStep) {
+      const stepName = (pendingStep.name || '').trim()
+      const approverIds = pendingStep.approverIds || []
+      
+      if (approverIds.includes(currentUserId)) {
+        const isStep = (names: string[]) => names.includes(stepName)
+
+        if (isStep(['施工单位'])) result.contractor = true
+        if (isStep(['施工监理经办人', '施工监理总监'])) result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥'])) result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监'])) result.investment = true
+        if (isStep(['合约管理部经办人', '合约管理部负责人'])) result.contract = true
+        if (isStep(['分管领导'])) result.leader = true
+        if (isStep(['合约管理部负责人', '分管领导'])) result.owner = true
+      }
+    }
+  }
+
+  return result
+})
+
+const isCurrentApprover = computed(() => {
+  const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
+  const currentUserId = userId.value
+  if (!currentUserId) return false
+
+  if (isDraft) {
+    const creatorId = props.item?.creator?.id
+    return creatorId === currentUserId
+  }
+
+  if (props.flowInstance && props.flowInstance.status === 'PENDING') {
+    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    if (pendingStep) {
+      const approverIds = pendingStep.approverIds || []
+      return approverIds.includes(currentUserId)
+    }
+  }
+
+  return false
+})
+
+const paymentDetailAuditStepMap = {
+  contractor: ['施工单位'],
+  supervision: ['施工监理经办人', '施工监理总监'],
+  investment: ['投资监理经办人', '投资监理总监']
+} as const
+
+type PaymentDetailAuditKey = keyof typeof paymentDetailAuditStepMap
+
+const getAuditUserDisplay = (stepNames: readonly string[]) => {
+  if (!props.flowInstance) return ''
+  const steps = props.flowInstance.steps || []
+  const actions = props.flowInstance.actions || []
+
+  const matchingSteps = steps.filter((s: any) =>
+    stepNames.map((n) => n.trim()).includes(s.name?.trim())
+  )
+
+  const names: string[] = []
+  for (const s of matchingSteps) {
+    if (s.status === 'APPROVED' || s.status === 'REJECTED') {
+      const action = actions.find(
+        (a: any) =>
+          a.stepId === s.id &&
+          (a.action === 'APPROVED' ||
+            a.action === 'STEP_APPROVED' ||
+            a.action === 'REJECTED')
+      )
+      if (action && action.actor?.name) {
+        names.push(action.actor.name)
+      } else if (s.approvers && s.approvers.length > 0) {
+        names.push(...s.approvers.map((u: any) => u.name).filter(Boolean))
+      }
+    }
+  }
+
+  const uniqueNames = Array.from(new Set(names))
+  return uniqueNames.join('、') || '\u00A0'
+}
+
+const getPaymentDetailAuditUser = (key: PaymentDetailAuditKey) => {
+  return getAuditUserDisplay(paymentDetailAuditStepMap[key])
+}
+
+const getPaymentDetailAuditDate = (value: string | number | null | undefined) => {
+  if (!value) return '-'
+  return formatDate(value)
+}
+
+const canEditInterimAmounts = computed(() => {
+  return isCurrentApprover.value
+})
+
+// 载入聚合工程列表数据
+const loadAggregatedItems = async () => {
+  if (!props.item?.id || !props.projectId) return
+  try {
+    const items = await $fetch<any[]>(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/aggregated-items?level=section`
+    )
+    aggregatedItems.value = items
+  } catch {
+    aggregatedItems.value = []
+  }
+}
+
+// 载入 Tab 2 数据
+const loadTab2Data = async () => {
+  if (!props.item?.id || !props.projectId) return
+  try {
+    const data = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/payment-details`
+    )
+    paymentDetails.value = {
+      ...data,
+      paymentAttachments: data.paymentAttachments || [],
+      extraPayItems: data.extraPayItems || []
+    }
+  } catch {}
+}
+
+watch(
+  () => totalSums.value.investmentAmount,
+  (investmentAmount) => {
+    const current = Number(paymentDetails.value.interimPayProgress || 0)
+    if (current > 0) return
+    const suggested = Number(investmentAmount || 0) / 10000
+    if (!Number.isFinite(suggested) || suggested <= 0) return
+    paymentDetails.value.interimPayProgress = Math.round(suggested * 100) / 100
+  }
+)
+
+const saveTab2Payment = async () => {
+  if (!props.item?.id || !props.projectId) return
+  paymentSaving.value = true
+  try {
+    const body: Record<string, unknown> = {
+      paymentAttachments: paymentDetails.value.paymentAttachments
+    }
+    if (canEditInterimAmounts.value) {
+      body.interimPayProgress = Number(paymentDetails.value.interimPayProgress || 0)
+      body.migrantWorkerSalary = Number(paymentDetails.value.migrantWorkerSalary || 0)
+    }
+    if (permissions.value.investment || permissions.value.contractor) {
+      body.interimRemark = paymentDetails.value.interimRemark
+    }
+    if (
+      permissions.value.contractor ||
+      permissions.value.investment ||
+      permissions.value.contract ||
+      permissions.value.leader
+    ) {
+      body.extraPayItems = paymentDetails.value.extraPayItems
+    }
+
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/payment-details`,
+      {
+        method: 'PATCH',
+        body
+      }
+    )
+    await loadTab2Data()
+    emit('refetch')
+    triggerNotification({
+      title: '保存成功',
+      description: '中间支付单保存成功！',
+      type: ToastNotificationType.Success
+    })
+  } catch (err: any) {
+    triggerNotification({
+      title: '保存失败',
+      description: err.data?.error || '保存失败',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    paymentSaving.value = false
+  }
+}
+
+const paymentFileRef = ref<HTMLInputElement | null>(null)
+const triggerPaymentUpload = () => {
+  paymentFileRef.value?.click()
+}
+const handlePaymentFileUpload = async (event: Event) => {
+  const files = (event.target as HTMLInputElement).files
+  if (!files?.length) return
+  try {
+    for (const file of files) {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await $fetch<any>(`${apiOrigin}/api/stream/${props.projectId}/blob`, {
+        method: 'POST',
+        body: formData
+      })
+      const list = paymentDetails.value.paymentAttachments || []
+      list.push({ blobId: res.blobId, name: file.name })
+      paymentDetails.value.paymentAttachments = [...list]
+    }
+    await saveTab2Payment()
+  } catch (err) {
+    triggerNotification({
+      title: '文件上传失败',
+      description: '文件上传失败：' + err,
+      type: ToastNotificationType.Danger
+    })
+  }
+}
+const removePaymentAttachment = async (idx: number) => {
+  const list = [...(paymentDetails.value.paymentAttachments || [])]
+  list.splice(idx, 1)
+  paymentDetails.value.paymentAttachments = list
+  await saveTab2Payment()
+}
+
+// -------------------------------------------------------------
+// 通用辅助方法
+// -------------------------------------------------------------
+const getBlobDownloadUrl = (blobId: string) => {
+  return `${apiOrigin}/api/stream/${props.projectId}/blob/${blobId}`
+}
+
+const formatMoney = (value: number | null | undefined) => {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '0.00'
+  return value.toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const formatDate = (value: any) => {
+  if (!value) return '-'
+  const ts = Number(value)
+  if (!Number.isNaN(ts) && ts > 0) {
+    return dayjs(ts).format('YYYY-MM-DD')
+  }
+  return dayjs(String(value)).format('YYYY-MM-DD')
+}
+
+// 深度监听月度验工单 props 变化
+watch(
+  () => props.item?.id,
+  () => {
+    if (props.item?.id) {
+      void loadAggregatedItems()
+      void loadTab2Data()
+    }
+  },
+  { immediate: true }
+)
+</script>

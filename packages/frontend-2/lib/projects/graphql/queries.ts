@@ -561,6 +561,10 @@ export const approvalFlowInstanceDetailsForMonthlyMeasurementQuery = graphql(`
         status
         requiredApprovals
         approverIds
+        approvers {
+          id
+          name
+        }
         approvedByIds
         startedAt
         dueAt

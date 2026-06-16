@@ -124,5 +124,39 @@ describe('project services @core', () => {
         input: { description: '', name: project.name, visibility: 'PRIVATE' }
       })
     })
+
+    it('persists contract metadata fields when provided', async () => {
+      const ownerId = cryptoRandomString({ length: 10 })
+      let storedProject: Project | undefined = undefined
+      const createNewProject = createNewProjectFactory({
+        storeProject: async ({ project }) => {
+          storedProject = project
+        },
+        storeProjectRole: async () => {},
+        emitEvent: async () => {}
+      })
+
+      const project = await createNewProject({
+        ownerId,
+        projectNumber: 'PRJ-001',
+        contractCode: 'HT-2026-001',
+        contractName: '示例合同',
+        employer: '示例发包人',
+        contractor: '示例承包人',
+        constructionUnit: 'dept-construction',
+        supervisionUnit: 'dept-supervision'
+      })
+
+      expect(project).deep.equal(storedProject)
+      expect(storedProject).to.include({
+        projectNumber: 'PRJ-001',
+        contractCode: 'HT-2026-001',
+        contractName: '示例合同',
+        employer: '示例发包人',
+        contractor: '示例承包人',
+        constructionUnit: 'dept-construction',
+        supervisionUnit: 'dept-supervision'
+      })
+    })
   })
 })

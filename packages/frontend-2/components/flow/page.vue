@@ -234,6 +234,8 @@ type RefreshablePage = { refresh: () => Promise<void> }
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { userId, isAdmin } = useActiveUser()
+const route = useRoute()
+const router = useRouter()
 
 const mutating = ref(false)
 const currentTag = ref<FlowHeaderTag>('pending')
@@ -347,10 +349,54 @@ const onTagChange = (item: { id: string }) => {
   currentTag.value = item.id as FlowHeaderTag
 }
 
+const getRouteFlowTag = (value: unknown) => {
+  if (
+    value === 'pending' ||
+    value === 'initiated' ||
+    value === 'handled' ||
+    value === 'all'
+  ) {
+    return value as FlowHeaderTag
+  }
+  return null
+}
+
 watch(isAdmin, (admin) => {
   if (!admin && currentTag.value === 'all') {
     currentTag.value = 'pending'
   }
+})
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const routeTag = getRouteFlowTag(value)
+    if (!routeTag) {
+      if (currentTag.value !== 'pending') currentTag.value = 'pending'
+      return
+    }
+    if (routeTag === 'all' && !isAdmin.value) {
+      if (currentTag.value !== 'pending') currentTag.value = 'pending'
+      return
+    }
+    if (currentTag.value !== routeTag) {
+      currentTag.value = routeTag
+    }
+  },
+  { immediate: true }
+)
+
+watch(currentTag, (tag) => {
+  const routeTag = getRouteFlowTag(route.query.tab)
+  const nextTag = tag === 'pending' ? null : tag
+  if (routeTag === nextTag) return
+  const nextQuery = { ...route.query }
+  if (nextTag) {
+    nextQuery.tab = nextTag
+  } else {
+    delete nextQuery.tab
+  }
+  void router.replace({ query: nextQuery })
 })
 
 const onDetailTabChange = (item: { id: string }) => {
@@ -384,7 +430,38 @@ const drawerOpen = computed({
   }
 })
 
+const getMonthlyMeasurementId = (instance: FlowListItem) => {
+  if (instance.resourceType === 'MODEL') return null
+
+  const formTable =
+    typeof instance.formData?.formTable === 'string'
+      ? instance.formData.formTable
+      : null
+  const formId =
+    typeof instance.formData?.formId === 'string' ? instance.formData.formId : null
+  if (formTable === 'monthly_measurements' && formId) return formId
+
+  const resourceId =
+    typeof instance.resourceId === 'string' ? instance.resourceId : null
+  if (resourceId?.startsWith('monthly_measurements:')) {
+    return resourceId.split(':')[1] || null
+  }
+
+  return null
+}
+
 const openInstanceDrawer = (instance: FlowListItem) => {
+  const monthlyMeasurementId = getMonthlyMeasurementId(instance)
+  if (monthlyMeasurementId) {
+    if (!instance.projectId) {
+      notify('流程打开失败', '未找到月度验工详情数据', ToastNotificationType.Warning)
+      return
+    }
+    void navigateTo(
+      `/projects/${instance.projectId}/work-valuation/monthly-measurement/${monthlyMeasurementId}/acceptance`
+    )
+    return
+  }
   if (!instance.projectId && instance.resourceType === 'MODEL') {
     notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
     return

@@ -251,7 +251,6 @@ import { projectBoqItemsQuery } from '~/lib/projects/graphql/queries'
 import {
   createBoqItemMutation,
   deleteBoqItemMutation,
-  importBoqItemsMutation,
   updateBoqItemMutation
 } from '~/lib/projects/graphql/mutations'
 import type { LayoutDialogButton } from '@speckle/ui-components'
@@ -303,7 +302,6 @@ const { mutate: updateBoqItem, loading: updateBoqItemLoading } =
   useMutation(updateBoqItemMutation)
 const { mutate: deleteBoqItem, loading: deleteBoqItemLoading } =
   useMutation(deleteBoqItemMutation)
-const { mutate: importBoqItems } = useMutation(importBoqItemsMutation)
 
 const columns = [
   { id: 'code', header: '清单编码', classes: 'col-span-3' },
@@ -399,32 +397,6 @@ const childTypeLabelMap: Record<UiBoqItemType, string> = {
   ITEM: '清单项'
 }
 
-type ImportBoqRow = {
-  rowNumber: number
-  code: string
-  name: string
-  type: BoqItemType
-  parentCode: string | null
-  unit: string | null
-  quantity: number | null
-  price: number | null
-}
-
-const boqTypeByLabel: Record<string, BoqItemType> = {
-  PROJECT: 'PROJECT',
-  SUBPROJECT: 'SUBPROJECT',
-  CATEGORY: 'CATEGORY',
-  SECTION: 'SECTION',
-  SUBSECTION: 'SUBSECTION',
-  ITEM: 'ITEM',
-  单位工程: 'PROJECT',
-  子单位工程: 'SUBPROJECT',
-  分类工程: 'CATEGORY',
-  分部工程: 'SECTION',
-  分项工程: 'SUBSECTION',
-  清单项: 'ITEM'
-}
-
 type BoqDialogMode = 'edit' | 'delete' | 'addChild'
 
 const boqDialogOpen = ref(false)
@@ -448,6 +420,45 @@ const notify = (title: string, type: ToastNotificationType, description?: string
     description,
     type
   })
+}
+
+const getRequestErrorMessage = (error: unknown) => {
+  const fetchError = error as
+    | (Error & {
+        data?: {
+          error?: string
+          message?: string
+        }
+        statusMessage?: string
+      })
+    | null
+
+  const serverMessage =
+    fetchError?.data?.error || fetchError?.data?.message || fetchError?.statusMessage
+
+  if (typeof serverMessage === 'string' && serverMessage.trim().length) {
+    return serverMessage.trim()
+  }
+
+  return error instanceof Error ? error.message : String(error)
+}
+
+const formatBoqImportErrorMessage = (error: unknown) => {
+  const message = getRequestErrorMessage(error)
+  const rowMatch = message.match(/第\s*(\d+)\s*行/)
+
+  if (message.includes('缺少必要字段（清单编码/清单名称/类型）')) {
+    const rowHint = rowMatch?.[1]
+      ? `请检查 Excel 第 ${rowMatch[1]} 行是否填写了“清单编码”“清单名称”“类型”三列。`
+      : '请检查 Excel 中是否填写了“清单编码”“清单名称”“类型”三列。'
+    return `${message} ${rowHint}`
+  }
+
+  if (message.includes('模板缺少必要列')) {
+    return `${message} 请使用“清单模板”按钮下载最新模板，并确认表头包含“清单编码”“清单名称”“类型”。`
+  }
+
+  return message
 }
 
 const triggerImportExcel = () => {
@@ -555,7 +566,7 @@ const handleImportFileChange = async (event: Event) => {
       `新增 ${res.createdCount} 条，更新 ${res.updatedCount} 条`
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = formatBoqImportErrorMessage(error)
     notify('清单导入失败', ToastNotificationType.Danger, message)
   } finally {
     importingExcel.value = false

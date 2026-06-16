@@ -71,6 +71,10 @@ export type StreamRecord = {
   responsible: Nullable<string>
   status: Nullable<string>
   projectNumber?: Nullable<string>
+  contractCode?: Nullable<string>
+  contractName?: Nullable<string>
+  employer?: Nullable<string>
+  contractor?: Nullable<string>
   constructionUnit?: Nullable<string>
   supervisionUnit?: Nullable<string>
   description: Nullable<string>
@@ -193,6 +197,90 @@ export type MonthlyMeasurementRecord = {
   approveStatus?: Nullable<string>
   flowInstanceId?: Nullable<string>
   creator?: Nullable<string>
+  roundName?: Nullable<string>
+  startDate?: Nullable<string>
+  endDate?: Nullable<string>
+  contractCode?: Nullable<string>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type MonthlyMeasurementDetailRecord = {
+  id: string
+  measurementId: string
+  acceptanceAttachments?: Nullable<string[]>
+  supervisionOpinion?: Nullable<string>
+  supervisionAuditor?: Nullable<string>
+  supervisionDate?: Nullable<Date>
+  headquartersOpinion?: Nullable<string>
+  headquartersAuditor?: Nullable<string>
+  headquartersDate?: Nullable<Date>
+  investmentOpinion?: Nullable<string>
+  investmentAuditor?: Nullable<string>
+  investmentDate?: Nullable<Date>
+  ownerOpinion?: Nullable<string>
+  ownerAuditor?: Nullable<string>
+  ownerDate?: Nullable<Date>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type MonthlyPaymentDetailRecord = {
+  id: string
+  measurementId: string
+  paymentAttachments?: Nullable<string[]>
+  extraPayItems?: Nullable<
+    Array<{
+      prepaymentItemId: string
+      category: string
+      name: string
+      contractorPayAmt?: Nullable<number>
+      investmentPayAmt?: Nullable<number>
+      contractPayAmt?: Nullable<number>
+      leaderPayAmt?: Nullable<number>
+    }>
+  >
+  interimPayProgress?: Nullable<number>
+  migrantWorkerSalary?: Nullable<number>
+  interimRemark?: Nullable<string>
+  contractorSign?: Nullable<string>
+  supervisionSign?: Nullable<string>
+  preparerSign?: Nullable<string>
+  interimSignDate?: Nullable<Date>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type MonthlyPaymentRequestRecord = {
+  id: string
+  measurementId: string
+  requestAttachments?: Nullable<string[]>
+  lastCumulativePayment?: Nullable<number>
+  contractAmount?: Nullable<number>
+  contractorPayAmt?: Nullable<number>
+  supervisionPayAmt?: Nullable<number>
+  headquartersPayAmt?: Nullable<number>
+  investmentPayAmt?: Nullable<number>
+  contractPayAmt?: Nullable<number>
+  leaderPayAmt?: Nullable<number>
+  reqContractorOpinion?: Nullable<string>
+  reqContractorAuditor?: Nullable<string>
+  reqContractorDate?: Nullable<Date>
+  reqSupervisionOpinion?: Nullable<string>
+  reqSupervisionAuditor?: Nullable<string>
+  reqSupervisionDate?: Nullable<Date>
+  reqHeadquartersOpinion?: Nullable<string>
+  reqHeadquartersAuditor?: Nullable<string>
+  reqHeadquartersDate?: Nullable<Date>
+  reqInvestmentOpinion?: Nullable<string>
+  reqInvestmentAuditor?: Nullable<string>
+  reqInvestmentDate?: Nullable<Date>
+  reqContractOpinion?: Nullable<string>
+  reqContractAuditor?: Nullable<string>
+  reqContractDate?: Nullable<Date>
+  reqLeaderOpinion?: Nullable<string>
+  reqLeaderAuditor?: Nullable<string>
+  reqLeaderDate?: Nullable<Date>
   createdAt: Date
   updatedAt: Date
 }
@@ -214,6 +302,17 @@ export type MonthlyMeasurementItemRecord = {
   price?: Nullable<number>
   remark?: Nullable<string>
   sourceAcceptanceIds?: Nullable<string[]>
+  contractorQty?: Nullable<number>
+  supervisionQty?: Nullable<number>
+  headquartersQty?: Nullable<number>
+  investmentQty?: Nullable<number>
+  contractorPayAmt?: Nullable<number>
+  investmentPayAmt?: Nullable<number>
+  contractPayAmt?: Nullable<number>
+  leaderPayAmt?: Nullable<number>
+  lastCumulativeQty?: Nullable<number>
+  yearlyCumulativeQty?: Nullable<number>
+  lastCumulativePay?: Nullable<number>
   createdAt: Date
   updatedAt: Date
 }

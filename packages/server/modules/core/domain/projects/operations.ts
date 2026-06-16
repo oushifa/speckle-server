@@ -76,6 +76,13 @@ export type ProjectCreateArgs = {
   progress?: MaybeNullOrUndefined<number>
   startDate?: MaybeNullOrUndefined<bigint>
   endDate?: MaybeNullOrUndefined<bigint>
+  projectNumber?: MaybeNullOrUndefined<string>
+  contractCode?: MaybeNullOrUndefined<string>
+  contractName?: MaybeNullOrUndefined<string>
+  employer?: MaybeNullOrUndefined<string>
+  contractor?: MaybeNullOrUndefined<string>
+  constructionUnit?: MaybeNullOrUndefined<string>
+  supervisionUnit?: MaybeNullOrUndefined<string>
 }
 
 export type CreateProject = (params: ProjectCreateArgs) => Promise<Project>
