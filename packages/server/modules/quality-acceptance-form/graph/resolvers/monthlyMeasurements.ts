@@ -235,6 +235,7 @@ const resolvers = {
         getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
       })
       const createMonthlyMeasurement = createMonthlyMeasurementFromPreviewFactory({
+        db: projectDb,
         buildPreview,
         createMeasurement: createMonthlyMeasurementFactory({ db: projectDb }),
         insertMeasurementItems: insertMonthlyMeasurementItemsFactory({ db: projectDb })
