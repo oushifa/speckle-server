@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full space-y-4">
+  <div class="flex flex-col h-[calc(100vh-130px)] overflow-hidden">
     <!-- 面包屑导航 Portal -->
     <Portal to="current-page">
       <div class="flex items-center space-x-1.5 text-body-sm text-foreground-2">
@@ -19,7 +19,7 @@
     </Portal>
 
     <!-- 顶部项目页眉和位置 -->
-    <div class="flex items-center justify-between mt-3">
+    <div class="flex items-center justify-between mt-3 flex-shrink-0">
       <div class="flex items-center space-x-3">
         <NuxtLink
           :to="`/projects/${projectId}/work-valuation/monthly-measurement`"
@@ -30,6 +30,15 @@
           返回
         </NuxtLink>
         <h1 class="text-heading-lg text-foreground font-bold">{{ projectName }}</h1>
+        <FormButton
+          v-if="!isReadOnly && item && !isSubmitted(item)"
+          size="sm"
+          color="outline"
+          class="ml-2"
+          @click="openEditDialog"
+        >
+          修改基本信息
+        </FormButton>
       </div>
     </div>
 
@@ -41,7 +50,7 @@
     <template v-else-if="item">
       <div class="flex-grow min-h-0 w-full relative">
         <!-- 左侧主体内容：页签与子页面视图 -->
-        <div class="h-full flex flex-col space-y-4 overflow-hidden pr-0">
+        <div class="h-full flex flex-col overflow-hidden pr-0">
           <!-- 扁平无边框页签导航 -->
           <div
             v-if="!isEditMode"
@@ -66,7 +75,12 @@
 
           <!-- 子页面视图 -->
           <div class="flex-grow min-w-0 overflow-y-auto">
-            <NuxtPage :item="item" :project-id="projectId" :flow-instance="flowInstance" @refetch="loadBaseMeasurement" />
+            <NuxtPage
+              :item="item"
+              :project-id="projectId"
+              :flow-instance="flowInstance"
+              @refetch="loadBaseMeasurement"
+            />
           </div>
         </div>
 
@@ -74,15 +88,15 @@
         <div
           v-if="item.flowInstanceId"
           class="fixed right-0 top-12 bottom-0 z-40 flex flex-col border-l border-outline-3 bg-foundation h-[calc(100vh-48px)] overflow-hidden transition-transform duration-300 ease-in-out shadow-2xl w-[320px]"
-          :class="[isSidebarExpanded ? 'translate-x-0' : 'translate-x-full pointer-events-none']"
+          :class="[
+            isSidebarExpanded ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+          ]"
         >
           <!-- 面板头部 / 折叠控制 -->
           <div
             class="p-3 border-b border-outline-3 flex items-center justify-between flex-shrink-0 bg-foundation-2 h-[48px]"
           >
-            <span class="text-sm font-bold text-foreground">
-              审批流程
-            </span>
+            <span class="text-sm font-bold text-foreground">审批流程</span>
             <button
               class="p-1 hover:bg-highlight-1 rounded text-foreground-2 flex items-center justify-center transition-colors"
               title="收起面板"
@@ -93,14 +107,16 @@
           </div>
 
           <!-- 展开状态的内容 -->
-          <div
-            class="flex-grow flex flex-col min-h-0 overflow-y-auto p-4 space-y-5"
-          >
+          <div class="flex-grow flex flex-col min-h-0 overflow-y-auto p-4 space-y-5">
             <!-- 流程总体状态 -->
-            <div class="flex items-center justify-between text-xs pb-3 border-b border-outline-3">
+            <div
+              class="flex items-center justify-between text-xs pb-3 border-b border-outline-3"
+            >
               <span class="text-foreground-2">流程状态:</span>
               <CommonBadge
-                :color-classes="getStatusColor(flowInstance?.status || item.approveStatus)"
+                :color-classes="
+                  getStatusColor(flowInstance?.status || item.approveStatus)
+                "
                 class="text-xs font-medium"
                 rounded
               >
@@ -118,7 +134,14 @@
                 <span>当前步骤: {{ getCurrentFlowStepName(flowInstance) }}</span>
               </div>
               <div class="text-foreground-2 pl-5">
-                待办人: {{ flowInstance.steps?.find((s: any) => s.status === 'PENDING')?.approvers?.map((u: any) => u?.name).filter(Boolean).join(', ') || '所有人' }}
+                待办人:
+                {{
+                  flowInstance.steps
+                    ?.find((s: any) => s.status === 'PENDING')
+                    ?.approvers?.map((u: any) => u?.name)
+                    .filter(Boolean)
+                    .join(', ') || '所有人'
+                }}
               </div>
             </div>
 
@@ -138,6 +161,7 @@
               <div class="flex gap-2 justify-end">
                 <template v-if="isTodoUser">
                   <FormButton
+                    v-if="!isStartStep"
                     color="danger"
                     size="sm"
                     :disabled="mutating"
@@ -153,7 +177,7 @@
                     :loading="mutating"
                     @click="confirmApprove"
                   >
-                    通过
+                    {{ isStartStep ? '重新送审' : '通过' }}
                   </FormButton>
                 </template>
                 <template v-else-if="isCreator">
@@ -195,10 +219,17 @@
                     </span>
                   </div>
                   <div class="text-foreground-2 mt-1.5">
-                    审核进度: {{ step.approvedByIds?.length || 0 }} / {{ step.requiredApprovals }}
+                    审核进度: {{ step.approvedByIds?.length || 0 }} /
+                    {{ step.requiredApprovals }}
                   </div>
                   <div v-if="step.approvers?.length" class="text-foreground-2 mt-0.5">
-                    审核人: {{ step.approvers.map((u: any) => u?.name).filter(Boolean).join('、') }}
+                    审核人:
+                    {{
+                      step.approvers
+                        .map((u: any) => u?.name)
+                        .filter(Boolean)
+                        .join('、')
+                    }}
                   </div>
                 </div>
               </div>
@@ -226,8 +257,13 @@
                   <div
                     class="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full border border-foundation-page bg-outline-3"
                     :class="[
-                      action.action === 'APPROVED' || action.action === 'STEP_APPROVED' ? 'bg-success' : '',
-                      action.action === 'REJECTED' || action.action === 'TIMEOUT_REJECTED' ? 'bg-danger' : '',
+                      action.action === 'APPROVED' || action.action === 'STEP_APPROVED'
+                        ? 'bg-success'
+                        : '',
+                      action.action === 'REJECTED' ||
+                      action.action === 'TIMEOUT_REJECTED'
+                        ? 'bg-danger'
+                        : '',
                       action.action === 'CANCELED' ? 'bg-foreground-2' : ''
                     ]"
                   />
@@ -235,7 +271,9 @@
                     {{ formatFlowActionLabel(action.action) }}
                   </div>
                   <div class="text-[11px] text-foreground-2 flex flex-wrap gap-x-2">
-                    <span>处理人: {{ action.actor?.name || action.actorId || '-' }}</span>
+                    <span>
+                      处理人: {{ action.actor?.name || action.actorId || '-' }}
+                    </span>
                     <span>·</span>
                     <span class="font-mono">{{ formatDate(action.createdAt) }}</span>
                   </div>
@@ -259,7 +297,10 @@
           @click="isSidebarExpanded = true"
         >
           <QueueListIcon class="h-5 w-5" />
-          <span class="text-[10px] font-bold tracking-widest" style="writing-mode: vertical-rl;">
+          <span
+            class="text-[10px] font-bold tracking-widest"
+            style="writing-mode: vertical-rl"
+          >
             审批流程
           </span>
         </button>
@@ -274,12 +315,96 @@
         :loading="mutating"
         @confirm="handleConfirm"
       />
+
+      <LayoutDialog
+        v-model:open="createDialogOpen"
+        max-width="xl"
+        prevent-close-on-click-outside
+        :buttons="createDialogButtons"
+      >
+        <template #header>编辑月度验工</template>
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="createForm.roundName"
+              name="monthly-measurement-round-name"
+              label="期数"
+              show-label
+              show-required
+              placeholder="如：1期"
+            />
+            <FormTextInput
+              v-model="createForm.baseDate"
+              name="monthly-measurement-base-date"
+              label="年月"
+              type="month"
+              show-label
+              show-required
+            />
+            <FormTextInput
+              v-model="createForm.startDate"
+              name="monthly-measurement-start-date"
+              label="计量开始时间"
+              type="date"
+              show-label
+              show-required
+            />
+            <FormTextInput
+              v-model="createForm.endDate"
+              name="monthly-measurement-end-date"
+              label="计量结束时间"
+              type="date"
+              show-label
+              show-required
+            />
+          </div>
+          <div v-if="createError" class="text-body-sm text-danger mt-2">
+            {{ createError }}
+          </div>
+        </div>
+      </LayoutDialog>
+
+      <!-- 驳回弹窗选择节点 -->
+      <LayoutDialog
+        v-model:open="rejectDialogOpen"
+        max-width="md"
+        :buttons="rejectDialogButtons"
+      >
+        <template #header>驳回审批</template>
+        <div class="space-y-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-foreground">
+              选择退回目标节点
+            </label>
+            <select
+              v-model="selectedRollbackStep"
+              class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
+            >
+              <option
+                v-for="step in rejectTargetSteps"
+                :key="step.id"
+                :value="step.stepIndex"
+              >
+                Step {{ step.stepIndex }} · {{ step.name }}
+              </option>
+            </select>
+          </div>
+          <FormTextArea
+            v-model="reviewComment"
+            name="reject-comment"
+            label="驳回意见"
+            placeholder="请输入驳回意见（选填）"
+            :rows="3"
+            class="text-xs"
+          />
+        </div>
+      </LayoutDialog>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import {
   ArrowLeftIcon,
   MapPinIcon,
@@ -293,7 +418,14 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useQuery, useApolloClient } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
-import { FormButton, FormTextArea, CommonBadge } from '@speckle/ui-components'
+import {
+  FormButton,
+  FormTextArea,
+  CommonBadge,
+  LayoutDialog,
+  FormTextInput
+} from '@speckle/ui-components'
+import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { approvalFlowInstanceDetailsForMonthlyMeasurementQuery } from '~/lib/projects/graphql/queries'
@@ -374,6 +506,12 @@ const isTodoUser = computed(() => {
   return step.approverIds.includes(uid)
 })
 
+const isStartStep = computed(() => {
+  if (!flowInstance.value) return false
+  const step = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
+  return step ? step.stepIndex === 0 : false
+})
+
 const isCreator = computed(() => {
   return flowInstance.value?.createdBy === userId.value
 })
@@ -385,7 +523,12 @@ const confirmDialogText = ref('')
 const confirmDialogConfirmText = ref('')
 const confirmDialogAction = ref<(() => Promise<void>) | null>(null)
 
-const triggerConfirm = (title: string, text: string, confirmText: string, action: () => Promise<void>) => {
+const triggerConfirm = (
+  title: string,
+  text: string,
+  confirmText: string,
+  action: () => Promise<void>
+) => {
   confirmDialogTitle.value = title
   confirmDialogText.value = text
   confirmDialogConfirmText.value = confirmText
@@ -443,11 +586,15 @@ const executeReject = async () => {
         input: {
           instanceId: flowInstance.value.id,
           comment: reviewComment.value.trim() || '',
-          rollbackToStep: null
+          // 若未指定退回步骤，默认传 0 退回到起点（发起人）
+          rollbackToStep:
+            selectedRollbackStep.value !== null ? Number(selectedRollbackStep.value) : 0
         }
       }
     })
     reviewComment.value = ''
+    selectedRollbackStep.value = null
+    rejectDialogOpen.value = false
     triggerNotification({
       title: '审批驳回成功',
       description: '已成功驳回当前审批步骤。',
@@ -499,15 +646,29 @@ const executeCancel = async () => {
 }
 
 const confirmApprove = () => {
-  triggerConfirm('确认通过审批', '您确定要通过当前的审批步骤吗？', '确认通过', executeApprove)
+  const title = isStartStep.value ? '确认重新送审' : '确认通过审批'
+  const text = isStartStep.value
+    ? '您确定要重新送审当前月度验工单吗？'
+    : '您确定要通过当前的审批步骤吗？'
+  const confirmText = isStartStep.value ? '确认送审' : '确认通过'
+  triggerConfirm(title, text, confirmText, executeApprove)
 }
 
 const confirmReject = () => {
-  triggerConfirm('确认驳回审批', '您确定要驳回当前的审批步骤吗？', '确认驳回', executeReject)
+  const pendingStep = flowInstance.value?.steps?.find(
+    (s: any) => s.status === 'PENDING'
+  )
+  selectedRollbackStep.value = pendingStep ? Math.max(0, pendingStep.stepIndex - 1) : 0
+  rejectDialogOpen.value = true
 }
 
 const confirmCancel = () => {
-  triggerConfirm('确认取消审批', '您确定要取消当前的审批流程吗？', '确认取消', executeCancel)
+  triggerConfirm(
+    '确认取消审批',
+    '您确定要取消当前的审批流程吗？',
+    '确认取消',
+    executeCancel
+  )
 }
 
 // 格式化与样式辅助函数
@@ -584,13 +745,17 @@ const getCurrentFlowStepName = (instance: any) => {
   if (!instance?.steps) return '-'
   const byStatus = instance.steps.find((step: any) => step.status === 'PENDING')
   if (byStatus) return byStatus.name
-  const byIndex = instance.steps.find((step: any) => step.stepIndex === instance.currentStep)
+  const byIndex = instance.steps.find(
+    (step: any) => step.stepIndex === instance.currentStep
+  )
   return byIndex?.name || '-'
 }
 
 const formatDate = (date?: string | number | null) => {
   if (!date) return '-'
-  return dayjs(Number(date)).isValid() ? dayjs(Number(date)).format('YYYY-MM-DD HH:mm:ss') : '-'
+  return dayjs(Number(date)).isValid()
+    ? dayjs(Number(date)).format('YYYY-MM-DD HH:mm:ss')
+    : '-'
 }
 
 // 查询项目名字以实现面包屑动态渲染
@@ -640,17 +805,26 @@ const tabs = computed(() => [
   {
     id: 'acceptance',
     name: '月度验工',
-    to: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/acceptance`
+    to: {
+      path: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/acceptance`,
+      query: route.query
+    }
   },
   {
     id: 'payment-details',
     name: '中间支付单',
-    to: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/payment-details`
+    to: {
+      path: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/payment-details`,
+      query: route.query
+    }
   },
   {
     id: 'payment-requests',
     name: '工程费用支付申请单',
-    to: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/payment-requests`
+    to: {
+      path: `/projects/${projectId.value}/work-valuation/monthly-measurement/${measurementId.value}/payment-requests`,
+      query: route.query
+    }
   }
 ])
 
@@ -663,4 +837,167 @@ const isTabActive = (tabId: string) => {
 }
 
 const isEditMode = computed(() => route.path.includes('/acceptance-edit'))
+
+const isReadOnly = computed(() => route.query.mode !== 'edit')
+
+// 基础信息编辑相关变量
+const createDialogOpen = ref(false)
+const createError = ref('')
+const saveLoading = ref(false)
+
+const createForm = ref({
+  unit: '',
+  code: '',
+  baseDate: '',
+  roundName: '',
+  startDate: '',
+  endDate: ''
+})
+
+const isSubmitted = (item: { approveStatus?: string | null }) => {
+  if (!item.approveStatus) return false
+  const status = item.approveStatus.toUpperCase()
+  return status !== 'START' && status !== 'RETURNED'
+}
+
+const openEditDialog = () => {
+  if (!item.value) return
+  createError.value = ''
+  createForm.value = {
+    unit: item.value.unit || '',
+    code: item.value.code || '',
+    baseDate: dayjs(Number(item.value.baseDate)).format('YYYY-MM'),
+    roundName: item.value.roundName || '',
+    startDate: item.value.startDate
+      ? dayjs(Number(item.value.startDate)).format('YYYY-MM-DD')
+      : '',
+    endDate: item.value.endDate
+      ? dayjs(Number(item.value.endDate)).format('YYYY-MM-DD')
+      : ''
+  }
+  createDialogOpen.value = true
+}
+
+// 联动计算：年月改变自动算开始和结束时间
+watch(
+  () => createForm.value.baseDate,
+  (nextBaseDate, prevBaseDate) => {
+    if (!createDialogOpen.value) return
+    if (nextBaseDate === prevBaseDate) return
+    if (!nextBaseDate) return
+
+    const m = dayjs(nextBaseDate, 'YYYY-MM')
+    if (m.isValid()) {
+      createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
+      createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
+    }
+  }
+)
+
+const submitDialog = async () => {
+  if (!projectId.value || !measurementId.value) return
+  if (!createForm.value.roundName.trim()) {
+    createError.value = '期数不能为空'
+    return
+  }
+  if (!createForm.value.baseDate) {
+    createError.value = '年月不能为空'
+    return
+  }
+  if (!createForm.value.startDate || !createForm.value.endDate) {
+    createError.value = '计量时间段不能为空'
+    return
+  }
+
+  createError.value = ''
+  const baseDateTs = dayjs(createForm.value.baseDate, 'YYYY-MM')
+    .endOf('month')
+    .endOf('day')
+    .valueOf()
+  const startDateTs = dayjs(createForm.value.startDate).startOf('day').valueOf()
+  const endDateTs = dayjs(createForm.value.endDate).endOf('day').valueOf()
+
+  saveLoading.value = true
+  try {
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}`,
+      {
+        method: 'PUT',
+        body: {
+          unit: (createForm.value.unit || '').trim(),
+          baseDate: baseDateTs,
+          startDate: startDateTs,
+          endDate: endDateTs,
+          roundName: createForm.value.roundName.trim(),
+          measuredItems: [],
+          excludedAcceptanceIds: []
+        }
+      }
+    )
+    createDialogOpen.value = false
+    await loadBaseMeasurement()
+    triggerNotification({
+      title: '修改成功',
+      description: '月度验工基本信息已成功更新',
+      type: ToastNotificationType.Success
+    })
+  } catch (e: any) {
+    createError.value = e.data?.error || e.message || '保存失败'
+  } finally {
+    saveLoading.value = false
+  }
+}
+
+const createDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      createDialogOpen.value = false
+    }
+  },
+  {
+    text: '保存',
+    props: {
+      color: 'primary',
+      loading: saveLoading.value
+    },
+    disabled: saveLoading.value,
+    onClick: () => {
+      submitDialog().catch(() => undefined)
+    }
+  }
+])
+
+// 驳回弹窗选择节点相关状态
+const rejectDialogOpen = ref(false)
+const selectedRollbackStep = ref<number | null>(null)
+
+const rejectTargetSteps = computed(() => {
+  if (!flowInstance.value?.steps) return []
+  const pendingStep = flowInstance.value.steps.find((s: any) => s.status === 'PENDING')
+  const currentIdx = pendingStep ? pendingStep.stepIndex : 999
+  return flowInstance.value.steps.filter((s: any) => s.stepIndex < currentIdx)
+})
+
+const rejectDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      rejectDialogOpen.value = false
+    }
+  },
+  {
+    text: '确定驳回',
+    props: {
+      color: 'danger',
+      loading: mutating.value
+    },
+    disabled: mutating.value,
+    onClick: () => {
+      executeReject().catch(() => undefined)
+    }
+  }
+])
 </script>

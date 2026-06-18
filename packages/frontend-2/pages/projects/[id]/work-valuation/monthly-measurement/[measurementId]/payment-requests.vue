@@ -881,6 +881,8 @@ const applicantUnitName = computed(() => {
   if (value && value.trim().length) return value
   return '费用申请单位'
 })
+const route = useRoute()
+const isReadOnly = computed(() => route.query.mode !== 'edit')
 
 const tenderName = computed(() => {
   const value = coverProjectResult.value?.project?.contractName
@@ -928,6 +930,8 @@ const permissions = computed(() => {
     owner: false
   }
 
+  if (isReadOnly.value) return result
+
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
 
@@ -951,11 +955,12 @@ const permissions = computed(() => {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])) result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])) result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理'])) result.investment = true
+        if (isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])) result.contract = true
         if (isStep(['分管领导'])) result.leader = true
+        if (isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])) result.owner = true
       }
     }
   }
@@ -964,6 +969,7 @@ const permissions = computed(() => {
 })
 
 const isCurrentApprover = computed(() => {
+  if (isReadOnly.value) return false
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
   if (!currentUserId) return false

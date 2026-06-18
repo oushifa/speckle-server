@@ -317,6 +317,71 @@ export type MonthlyMeasurementItemRecord = {
   updatedAt: Date
 }
 
+export type SafetyMeasureRecord = {
+  id: string
+  project_id: string
+  unit?: Nullable<string>
+  code: string
+  baseDate: string
+  roundName: string
+  startDate?: Nullable<string>
+  endDate?: Nullable<string>
+  boqSectionIds?: Nullable<string[]>
+  approveStatus?: Nullable<string>
+  flowInstanceId?: Nullable<string>
+  creator?: Nullable<string>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type SafetyMeasureDetailRecord = {
+  id: string
+  safetyMeasureId: string
+  attachments?: Nullable<Array<{ blobId: string; name: string }>>
+  supervisionOpinion?: Nullable<string>
+  supervisionAuditor?: Nullable<string>
+  supervisionDate?: Nullable<Date>
+  headquartersOpinion?: Nullable<string>
+  headquartersAuditor?: Nullable<string>
+  headquartersDate?: Nullable<Date>
+  engineeringOpinion?: Nullable<string>
+  engineeringAuditor?: Nullable<string>
+  engineeringDate?: Nullable<Date>
+  contractOpinion?: Nullable<string>
+  contractAuditor?: Nullable<string>
+  contractDate?: Nullable<Date>
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type SafetyMeasureItemRecord = {
+  id: string
+  safetyMeasureId: string
+  boqItemId: string
+  boqCode?: Nullable<string>
+  boqName?: Nullable<string>
+  boqParentId?: Nullable<string>
+  boqDepth: number
+  isSummaryRow: boolean
+  sortIndex: number
+  uom?: Nullable<string>
+  price?: Nullable<number>
+  contractQty?: Nullable<number>
+  contractAmount?: Nullable<number>
+  contractorQty?: Nullable<number>
+  contractorAmount?: Nullable<number>
+  supervisionQty?: Nullable<number>
+  supervisionAmount?: Nullable<number>
+  headquartersQty?: Nullable<number>
+  headquartersAmount?: Nullable<number>
+  engineeringQty?: Nullable<number>
+  engineeringAmount?: Nullable<number>
+  contractDeptQty?: Nullable<number>
+  contractDeptAmount?: Nullable<number>
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type ProjectCostSummaryRecord = {
   projectId: string
   totalContractAmount: number

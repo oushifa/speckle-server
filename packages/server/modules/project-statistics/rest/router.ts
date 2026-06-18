@@ -17,11 +17,31 @@ import {
   getUserStreamsPageFactory
 } from '@/modules/core/repositories/streams'
 import {
+  ApprovalFlowActions,
+  ApprovalFlowDefinitions,
+  ApprovalFlowInstances,
+  ApprovalFlowInstanceSteps,
+  BranchCommits,
+  Branches,
+  Commits,
+  Users
+} from '@/modules/core/dbSchema'
+import { buildApprovalBindingSubjectKey } from '@/modules/flow/repositories/approvalBindings'
+import {
   getOrRecalculateProjectCostSummaryFactory,
   recalculateProjectCostSummaryFactory
 } from '@/modules/project-statistics/services/projectCostSummaries'
 import { moduleAuthLoaders } from '@/modules/index'
+import type {
+  ApprovalFlowActionRecord,
+  ApprovalFlowDefinitionRecord,
+  ApprovalFlowInstanceRecord,
+  ApprovalFlowInstanceStepRecord,
+  BranchRecord,
+  CommitRecord
+} from '@/modules/core/helpers/types'
 import { Authz } from '@speckle/shared'
+import type { Knex } from 'knex'
 
 const toNumber = (value: unknown) => {
   const num = Number(value)
@@ -127,6 +147,511 @@ type CostSummaryStatsResponse = {
   completedAmount: number
   currentMonthCompletedAmount: number
   pendingAmount: number
+}
+
+type WorkbenchTodoUser = {
+  id: string
+  name: string
+  avatar: string | null
+}
+
+type WorkbenchTodoAction = {
+  id: string
+  stepId: string | null
+  action: string
+  fromStatus: string | null
+  toStatus: string | null
+  comment: string | null
+  metadata: Record<string, unknown> | null
+  actorId: string
+  createdAt: Date
+  actor: WorkbenchTodoUser | null
+}
+
+type WorkbenchTodoStep = {
+  id: string
+  name: string
+  stepIndex: number
+  status: string
+  requiredApprovals: number
+  approverIds: string[]
+  approvers: WorkbenchTodoUser[]
+  approvedByIds: string[]
+  approvedBy: WorkbenchTodoUser[]
+  startedAt: Date | null
+  dueAt: Date | null
+  completedAt: Date | null
+}
+
+type WorkbenchTodoItem = {
+  id: string
+  projectId: string | null
+  project: {
+    id: string
+    name: string | null
+  } | null
+  resourceType: string
+  resourceId: string | null
+  model: {
+    id: string
+    name: string
+  } | null
+  formData: Record<string, unknown> | null
+  status: string
+  currentStep: number
+  createdBy: string
+  createdByUser: WorkbenchTodoUser | null
+  createdAt: Date
+  updatedAt: Date
+  definition: {
+    id: string
+    name: string
+    resourceType: string
+    isActive: boolean
+    templateId: string
+  } | null
+  actions: WorkbenchTodoAction[]
+  steps: WorkbenchTodoStep[]
+}
+
+type WorkbenchReviewUpdate = {
+  id: string
+  resourceId: string
+  modelId: string
+  projectId: string
+  projectName: string
+  title: string
+  version: string
+  description: string
+  initiator: string
+  time: string
+  updatedAt: number
+  approveStatus: string | null
+}
+
+type ProjectWorkbenchResponse = {
+  stats: {
+    projectCount: number
+    modelCount: number
+    boqCount: number
+    qualityAcceptanceCount: number
+    workValuationCount: number
+  }
+  todos: {
+    totalCount: number
+    items: WorkbenchTodoItem[]
+  }
+  reviewUpdates: {
+    totalCount: number
+    items: WorkbenchReviewUpdate[]
+  }
+}
+
+const getProjectStats = async (projectId: string) => {
+  const projectDb = await getProjectDbClient({ projectId })
+  const getProjectModelsTotalCount = getPaginatedProjectModelsTotalCountFactory({
+    db: projectDb
+  })
+
+  const [modelCount, boqRow, qualityRow, valuationRow] = await Promise.all([
+    getProjectModelsTotalCount(projectId, {}),
+    projectDb('boq_items')
+      .where('projectId', projectId)
+      .count<{ count: string }>('* as count')
+      .first(),
+    projectDb('quality_acceptance_forms')
+      .where('project_id', projectId)
+      .count<{ count: string }>('* as count')
+      .first(),
+    projectDb('monthly_measurements')
+      .where('project_id', projectId)
+      .count<{ count: string }>('* as count')
+      .first()
+  ])
+
+  return {
+    modelCount,
+    boqCount: toCount(boqRow?.count),
+    qualityAcceptanceCount: toCount(qualityRow?.count),
+    workValuationCount: toCount(valuationRow?.count)
+  }
+}
+
+const normalizeApproveStatus = (status?: string | null) => {
+  if (typeof status !== 'string') return null
+  const normalized = status.trim().toLowerCase()
+  return normalized || null
+}
+
+const canStartFlowForModel = (status?: string | null) => {
+  const normalizedStatus = normalizeApproveStatus(status)
+  return (
+    !normalizedStatus ||
+    normalizedStatus === 'undefine' ||
+    normalizedStatus === 'undefined' ||
+    normalizedStatus === 'null'
+  )
+}
+
+const formatWorkbenchTime = (dateString?: string | Date | null) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${month}-${day} ${hours}:${minutes}`
+}
+
+const toModelDisplayName = (name: string) => {
+  const segments = name.split('/')
+  return segments[segments.length - 1] || name
+}
+
+const getPendingTodoScopeFilter = <TRecord extends {}, TResult>(
+  query: Knex.QueryBuilder<TRecord, TResult>,
+  userId: string
+): Knex.QueryBuilder<TRecord, TResult> => {
+  return query
+    .where(ApprovalFlowInstances.col.status, 'PENDING')
+    .whereExists(
+      db(ApprovalFlowInstanceSteps.name)
+        .select(db.raw('1'))
+        .whereRaw('?? = ??', [
+          ApprovalFlowInstanceSteps.col.instanceId,
+          ApprovalFlowInstances.col.id
+        ])
+        .andWhere(ApprovalFlowInstanceSteps.col.status, 'PENDING')
+        .andWhereRaw('(COALESCE(cardinality(??), 0) = 0 OR ? = ANY(??))', [
+          ApprovalFlowInstanceSteps.short.col.approverIds,
+          userId,
+          ApprovalFlowInstanceSteps.short.col.approverIds
+        ])
+        .andWhereRaw('NOT (? = ANY(??))', [
+          userId,
+          ApprovalFlowInstanceSteps.short.col.approvedByIds
+        ])
+    )
+}
+
+const getUserMap = async (userIds: string[]) => {
+  if (!userIds.length) return new Map<string, WorkbenchTodoUser>()
+  const rows = await db(Users.name)
+    .select<{ id: string; name: string; avatar: string | null }[]>('id', 'name', 'avatar')
+    .whereIn('id', userIds)
+  return new Map(
+    rows.map((user) => [
+      user.id,
+      {
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar || null
+      }
+    ])
+  )
+}
+
+const buildProjectWorkbenchTodos = async (params: {
+  projectId: string
+  projectName: string | null
+  userId: string
+}): Promise<{ totalCount: number; items: WorkbenchTodoItem[] }> => {
+  const totalCountQuery = db(ApprovalFlowInstances.name)
+    .where(ApprovalFlowInstances.col.projectId, params.projectId)
+    .countDistinct<{ count: string }[]>(`${ApprovalFlowInstances.col.id} as count`)
+    .first()
+
+  getPendingTodoScopeFilter(totalCountQuery, params.userId)
+
+  const instanceRows = await getPendingTodoScopeFilter(
+    db<ApprovalFlowInstanceRecord>(ApprovalFlowInstances.name)
+      .where(ApprovalFlowInstances.col.projectId, params.projectId)
+      .orderBy(ApprovalFlowInstances.col.updatedAt, 'desc')
+      .orderBy(ApprovalFlowInstances.col.id, 'desc')
+      .limit(5),
+    params.userId
+  )
+
+  const totalCountRow = await totalCountQuery
+  const totalCount = parseInt(totalCountRow?.count || '0')
+
+  if (!instanceRows.length) {
+    return {
+      totalCount,
+      items: []
+    }
+  }
+
+  const definitionIds = Array.from(
+    new Set(instanceRows.map((item) => item.definitionId).filter((id): id is string => !!id))
+  )
+  const instanceIds = instanceRows.map((item) => item.id)
+  const modelResourceIds = Array.from(
+    new Set(
+      instanceRows
+        .filter((item) => item.resourceType === 'MODEL' && item.resourceId)
+        .map((item) => item.resourceId as string)
+    )
+  )
+
+  const [definitions, actions, steps, projectDb] = await Promise.all([
+    definitionIds.length
+      ? db<ApprovalFlowDefinitionRecord>(ApprovalFlowDefinitions.name).whereIn(
+          ApprovalFlowDefinitions.col.id,
+          definitionIds
+        )
+      : Promise.resolve<ApprovalFlowDefinitionRecord[]>([]),
+    db<ApprovalFlowActionRecord>(ApprovalFlowActions.name)
+      .whereIn(ApprovalFlowActions.col.instanceId, instanceIds)
+      .orderBy(ApprovalFlowActions.col.createdAt, 'desc'),
+    db<ApprovalFlowInstanceStepRecord>(ApprovalFlowInstanceSteps.name)
+      .whereIn(ApprovalFlowInstanceSteps.col.instanceId, instanceIds)
+      .orderBy(ApprovalFlowInstanceSteps.col.stepIndex, 'asc'),
+    getProjectDbClient({ projectId: params.projectId })
+  ])
+
+  const [modelRows, versionModelRows] = await Promise.all([
+    modelResourceIds.length
+      ? projectDb<BranchRecord>(Branches.name)
+          .select<BranchRecord[]>(Branches.cols)
+          .whereIn(Branches.col.id, modelResourceIds)
+      : Promise.resolve<BranchRecord[]>([]),
+    modelResourceIds.length
+      ? projectDb(Commits.name)
+          .distinctOn(Commits.col.id)
+          .select<Array<{ resourceId: string; modelId: string; modelName: string }>>([
+            `${Commits.col.id} as resourceId`,
+            `${Branches.col.id} as modelId`,
+            `${Branches.col.name} as modelName`
+          ])
+          .innerJoin(BranchCommits.name, BranchCommits.col.commitId, Commits.col.id)
+          .innerJoin(Branches.name, Branches.col.id, BranchCommits.col.branchId)
+          .whereIn(Commits.col.id, modelResourceIds)
+          .orderBy([
+            { column: Commits.col.id, order: 'desc' },
+            { column: Commits.col.createdAt, order: 'desc' }
+          ])
+      : Promise.resolve<Array<{ resourceId: string; modelId: string; modelName: string }>>([])
+  ])
+
+  const directModelMap = new Map(
+    modelRows.map((model) => [
+      model.id,
+      {
+        id: model.id,
+        name: toModelDisplayName(model.name)
+      }
+    ])
+  )
+  const versionModelMap = new Map(
+    versionModelRows.map((item) => [
+      item.resourceId,
+      {
+        id: item.modelId,
+        name: toModelDisplayName(item.modelName)
+      }
+    ])
+  )
+  const definitionMap = new Map(definitions.map((item) => [item.id, item]))
+  const actionsByInstanceId = new Map<string, ApprovalFlowActionRecord[]>()
+  const stepsByInstanceId = new Map<string, ApprovalFlowInstanceStepRecord[]>()
+
+  for (const action of actions) {
+    const collection = actionsByInstanceId.get(action.instanceId) || []
+    collection.push(action)
+    actionsByInstanceId.set(action.instanceId, collection)
+  }
+
+  for (const step of steps) {
+    const collection = stepsByInstanceId.get(step.instanceId) || []
+    collection.push(step)
+    stepsByInstanceId.set(step.instanceId, collection)
+  }
+
+  const userIds = Array.from(
+    new Set(
+      [
+        ...instanceRows.map((item) => item.createdBy),
+        ...actions.map((item) => item.actorId),
+        ...steps.flatMap((item) => [...(item.approverIds || []), ...(item.approvedByIds || [])])
+      ].filter((id): id is string => !!id && id !== 'system')
+    )
+  )
+  const userMap = await getUserMap(userIds)
+
+  const items = instanceRows.map<WorkbenchTodoItem>((instance) => {
+    const definition = instance.definitionId ? definitionMap.get(instance.definitionId) : null
+    const model =
+      (instance.resourceId && directModelMap.get(instance.resourceId)) ||
+      (instance.resourceId && versionModelMap.get(instance.resourceId)) ||
+      null
+
+    return {
+      id: instance.id,
+      projectId: instance.projectId || null,
+      project: instance.projectId
+        ? {
+            id: instance.projectId,
+            name: params.projectName || ''
+          }
+        : null,
+      resourceType: instance.resourceType,
+      resourceId: instance.resourceId || null,
+      model,
+      formData: (instance.formData as Record<string, unknown> | null) || null,
+      status: instance.status,
+      currentStep: instance.currentStep,
+      createdBy: instance.createdBy,
+      createdByUser: userMap.get(instance.createdBy) || null,
+      createdAt: instance.createdAt,
+      updatedAt: instance.updatedAt,
+      definition: definition
+        ? {
+            id: definition.id,
+            name: definition.name,
+            resourceType: definition.resourceType,
+            isActive: definition.isActive,
+            templateId: definition.templateId
+          }
+        : null,
+      actions: (actionsByInstanceId.get(instance.id) || []).map((action) => ({
+        id: action.id,
+        stepId: action.stepId || null,
+        action: action.action,
+        fromStatus: action.fromStatus || null,
+        toStatus: action.toStatus || null,
+        comment: action.comment || null,
+        metadata: (action.metadata as Record<string, unknown> | null) || null,
+        actorId: action.actorId,
+        createdAt: action.createdAt,
+        actor: userMap.get(action.actorId) || null
+      })),
+      steps: (stepsByInstanceId.get(instance.id) || []).map((step) => ({
+        id: step.id,
+        name: step.name,
+        stepIndex: step.stepIndex,
+        status: step.status,
+        requiredApprovals: step.requiredApprovals,
+        approverIds: step.approverIds || [],
+        approvers: (step.approverIds || [])
+          .map((id) => userMap.get(id))
+          .filter((user): user is WorkbenchTodoUser => !!user),
+        approvedByIds: step.approvedByIds || [],
+        approvedBy: (step.approvedByIds || [])
+          .map((id) => userMap.get(id))
+          .filter((user): user is WorkbenchTodoUser => !!user),
+        startedAt: step.startedAt || null,
+        dueAt: step.dueAt || null,
+        completedAt: step.completedAt || null
+      }))
+    }
+  })
+
+  return {
+    totalCount,
+    items
+  }
+}
+
+const buildProjectWorkbenchReviewUpdates = async (params: {
+  projectId: string
+  projectName: string | null
+}): Promise<{ totalCount: number; items: WorkbenchReviewUpdate[] }> => {
+  const projectDb = await getProjectDbClient({ projectId: params.projectId })
+  const versionRows = await projectDb(Commits.name)
+    .select<
+      Array<
+        CommitRecord & {
+          streamId: string
+          modelId: string
+          modelName: string
+          versionCount: string
+          versionOrder: string
+        }
+      >
+    >([
+      ...Commits.cols,
+      `${Branches.col.streamId} as streamId`,
+      `${Branches.col.id} as modelId`,
+      `${Branches.col.name} as modelName`,
+      projectDb.raw('count(*) over (partition by ??) as "versionCount"', [Branches.col.id]),
+      projectDb.raw(
+        'row_number() over (partition by ?? order by ?? desc, ?? desc) as "versionOrder"',
+        [Branches.col.id, Commits.col.createdAt, Commits.col.id]
+      )
+    ])
+    .innerJoin(BranchCommits.name, BranchCommits.col.commitId, Commits.col.id)
+    .innerJoin(Branches.name, Branches.col.id, BranchCommits.col.branchId)
+    .where(Branches.col.streamId, params.projectId)
+    .andWhereNot(Branches.col.name, 'globals')
+    .orderBy(Commits.col.createdAt, 'desc')
+    .orderBy(Commits.col.id, 'desc')
+
+  if (!versionRows.length) {
+    return {
+      totalCount: 0,
+      items: []
+    }
+  }
+
+  const subjectKeyEntries = versionRows.map((row) => ({
+    versionId: row.id,
+    subjectKey: buildApprovalBindingSubjectKey({
+      subjectType: 'MODEL_VERSION',
+      subjectId: row.id
+    })
+  }))
+
+  const [bindings, userMap] = await Promise.all([
+    db('approval_flow_bindings')
+      .select<{ subjectKey: string; status: string | null }[]>('subjectKey', 'status')
+      .whereIn(
+        'subjectKey',
+        subjectKeyEntries.map((entry) => entry.subjectKey)
+      ),
+    getUserMap(
+      Array.from(
+        new Set(versionRows.map((item) => item.author).filter((id): id is string => !!id))
+      )
+    )
+  ])
+
+  const bindingStatusMap = new Map(bindings.map((item) => [item.subjectKey, item.status]))
+  const items = versionRows
+    .map<WorkbenchReviewUpdate | null>((row) => {
+      const bindingStatus = bindingStatusMap.get(
+        buildApprovalBindingSubjectKey({
+          subjectType: 'MODEL_VERSION',
+          subjectId: row.id
+        })
+      )
+      if (!canStartFlowForModel(bindingStatus)) return null
+
+      const versionCount = Number(row.versionCount) || 0
+      const versionOrder = Number(row.versionOrder) || 1
+      return {
+        id: `${params.projectId}-${row.modelId}-${row.id}`,
+        resourceId: row.id,
+        modelId: row.modelId,
+        projectId: params.projectId,
+        projectName: params.projectName || '',
+        title: toModelDisplayName(row.modelName),
+        version: `v${Math.max(versionCount - versionOrder + 1, 1)}`,
+        description: row.message?.trim() || `来自项目 ${params.projectName || '-'}`,
+        initiator: (row.author && userMap.get(row.author)?.name) || '系统',
+        time: formatWorkbenchTime(row.createdAt),
+        updatedAt: new Date(row.createdAt).getTime() || 0,
+        approveStatus: bindingStatus || null
+      }
+    })
+    .filter((item): item is WorkbenchReviewUpdate => !!item)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+
+  return {
+    totalCount: items.length,
+    items: items.slice(0, 5)
+  }
 }
 
 export const projectCostSummaryRouterFactory = (): Router => {
@@ -432,6 +957,48 @@ export const projectCostSummaryRouterFactory = (): Router => {
     }
   )
 
+  app.options('/api/v1/projects/:projectId/workbench', corsMiddlewareFactory())
+  app.get(
+    '/api/v1/projects/:projectId/workbench',
+    corsMiddlewareFactory(),
+    authMiddlewareCreator(
+      streamReadPermissionsPipelineFactory({
+        getStream: getStreamFactory({ db })
+      })
+    ),
+    async (req, res) => {
+      const { projectId } = req.params
+      const project = await getStreamFactory({ db })({ streamId: projectId })
+
+      const [stats, todos, reviewUpdates] = await Promise.all([
+        getProjectStats(projectId),
+        buildProjectWorkbenchTodos({
+          projectId,
+          projectName: project?.name || null,
+          userId: req.context.userId!
+        }),
+        buildProjectWorkbenchReviewUpdates({
+          projectId,
+          projectName: project?.name || null
+        })
+      ])
+
+      const response: ProjectWorkbenchResponse = {
+        stats: {
+          projectCount: 1,
+          modelCount: stats.modelCount,
+          boqCount: stats.boqCount,
+          qualityAcceptanceCount: stats.qualityAcceptanceCount,
+          workValuationCount: stats.workValuationCount
+        },
+        todos,
+        reviewUpdates
+      }
+
+      return res.status(200).send(response)
+    }
+  )
+
   app.options('/api/stream/:streamId/cost-summary/recalculate', corsMiddlewareFactory())
   app.post(
     '/api/stream/:streamId/cost-summary/recalculate',
@@ -498,20 +1065,11 @@ export const projectCostSummaryRouterFactory = (): Router => {
     let workValuationCount = 0
 
     for (const id of projectIds) {
-      const projectDb = await getProjectDbClient({ projectId: id })
-      const [modelRow, boqRow, qualityRow, valuationRow] = await Promise.all([
-        projectDb('branches').count<{ count: string }>('* as count').first(),
-        projectDb('boq_items').count<{ count: string }>('* as count').first(),
-        projectDb('quality_acceptance_forms')
-          .count<{ count: string }>('* as count')
-          .first(),
-        projectDb('monthly_measurements').count<{ count: string }>('* as count').first()
-      ])
-
-      modelCount += toCount(modelRow?.count)
-      boqCount += toCount(boqRow?.count)
-      qualityAcceptanceCount += toCount(qualityRow?.count)
-      workValuationCount += toCount(valuationRow?.count)
+      const stats = await getProjectStats(id)
+      modelCount += stats.modelCount
+      boqCount += stats.boqCount
+      qualityAcceptanceCount += stats.qualityAcceptanceCount
+      workValuationCount += stats.workValuationCount
     }
 
     return res.status(200).send({

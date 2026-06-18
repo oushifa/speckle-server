@@ -989,4 +989,69 @@ export const UserRoles = buildTableHelper('user_roles', [
   'public'
 ])
 
+export const SafetyMeasures = buildTableHelper('safety_measures', [
+  'id',
+  'project_id',
+  'unit',
+  'code',
+  'baseDate',
+  'roundName',
+  'startDate',
+  'endDate',
+  'boqSectionIds',
+  'approveStatus',
+  'flowInstanceId',
+  'creator',
+  'createdAt',
+  'updatedAt'
+])
+
+export const SafetyMeasureDetails = buildTableHelper('safety_measure_details', [
+  'id',
+  'safetyMeasureId',
+  'attachments',
+  'supervisionOpinion',
+  'supervisionAuditor',
+  'supervisionDate',
+  'headquartersOpinion',
+  'headquartersAuditor',
+  'headquartersDate',
+  'engineeringOpinion',
+  'engineeringAuditor',
+  'engineeringDate',
+  'contractOpinion',
+  'contractAuditor',
+  'contractDate',
+  'createdAt',
+  'updatedAt'
+])
+
+export const SafetyMeasureItems = buildTableHelper('safety_measure_items', [
+  'id',
+  'safetyMeasureId',
+  'boqItemId',
+  'boqCode',
+  'boqName',
+  'boqParentId',
+  'boqDepth',
+  'isSummaryRow',
+  'sortIndex',
+  'uom',
+  'price',
+  'contractQty',
+  'contractAmount',
+  'contractorQty',
+  'contractorAmount',
+  'supervisionQty',
+  'supervisionAmount',
+  'headquartersQty',
+  'headquartersAmount',
+  'engineeringQty',
+  'engineeringAmount',
+  'contractDeptQty',
+  'contractDeptAmount',
+  'createdAt',
+  'updatedAt'
+])
+
 export { knex }

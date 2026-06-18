@@ -324,6 +324,24 @@ const updateResourceByHookAction = async (params: {
         projectId: params.instance.projectId
       })
     }
+    if (parsed.formTable === 'safety_measures') {
+      const safetyPayload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(payload)) {
+        safetyPayload[key] =
+          key === 'approveStatus' && typeof value === 'string'
+            ? mapFlowStatusToMonthlyMeasurementApproveStatus(
+                value,
+                params.instance.currentStep
+              )
+            : value
+      }
+      await params.trx('safety_measures')
+        .where('id', parsed.formId)
+        .update({
+          ...safetyPayload,
+          updatedAt: new Date()
+        })
+    }
   }
 }
 

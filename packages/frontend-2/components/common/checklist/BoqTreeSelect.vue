@@ -184,7 +184,10 @@ const { result, loading, refetch } = useQuery(
 )
 
 const toChecklistNode = (node: BoqNode): ChecklistNode => {
-  const childNodes = (node.children || []).filter((child): child is BoqNode => !!child)
+  const isLeafSelectable = node.type === selectableType.value
+  const childNodes = isLeafSelectable
+    ? []
+    : (node.children || []).filter((child): child is BoqNode => !!child)
   expandedIds.value.add(node.id)
   return {
     id: node.id,
@@ -194,7 +197,7 @@ const toChecklistNode = (node: BoqNode): ChecklistNode => {
     name: node.name,
     unit: node.unit || '',
     depth: node.depth,
-    hasChildren: node.hasChildren,
+    hasChildren: isLeafSelectable ? false : node.hasChildren,
     children: childNodes.map(toChecklistNode)
   }
 }

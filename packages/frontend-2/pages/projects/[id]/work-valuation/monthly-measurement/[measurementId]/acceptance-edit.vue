@@ -438,7 +438,7 @@
       </div>
 
       <!-- 右下角取消和保存操作区 -->
-      <div class="flex justify-end items-center gap-2 mt-4">
+      <div v-if="!isReadOnly" class="flex justify-end items-center gap-2 mt-4">
         <FormButton color="outline" @click="closeTreeEdit">取消</FormButton>
         <FormButton v-if="isCurrentApprover" color="primary" :loading="treeSaving" @click="saveTreeItems">
           保存数据
@@ -486,6 +486,7 @@ const route = useRoute()
 const activeParentBoqItemId = ref<string | null>(null)
 const activeParentBoqName = ref<string>('全部章节')
 const treeRows = ref<any[]>([])
+const originalRows = ref<any[]>([])
 const treeSaving = ref(false)
 const rowById = shallowRef<Map<string, any>>(new Map())
 const rowsByDepth = shallowRef<Map<number, any[]>>(new Map())
@@ -513,6 +514,8 @@ const buildTreeIndex = (rows: any[]) => {
   hasChildrenSet.value = children
 }
 
+const isReadOnly = computed(() => route.query.mode !== 'edit')
+
 const permissions = computed(() => {
   const result = {
     contractor: false,
@@ -523,6 +526,8 @@ const permissions = computed(() => {
     leader: false,
     owner: false
   }
+
+  if (isReadOnly.value) return result
 
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
@@ -547,12 +552,12 @@ const permissions = computed(() => {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])) result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])) result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理'])) result.investment = true
+        if (isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])) result.contract = true
         if (isStep(['分管领导'])) result.leader = true
-        if (isStep(['合约管理部负责人', '分管领导'])) result.owner = true
+        if (isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])) result.owner = true
       }
     }
   }
@@ -561,6 +566,7 @@ const permissions = computed(() => {
 })
 
 const isCurrentApprover = computed(() => {
+  if (isReadOnly.value) return false
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
   if (!currentUserId) return false
@@ -710,6 +716,8 @@ const loadTreeData = async () => {
       row.isExpanded = true
     })
 
+    originalRows.value = JSON.parse(JSON.stringify(list))
+
     if (boqItemId) {
       const subtreeSet = getSubtreeItemIds(boqItemId, list)
       treeRows.value = list.filter((row) => subtreeSet.has(row.boqItemId))
@@ -729,24 +737,48 @@ const loadTreeData = async () => {
 }
 
 const closeTreeEdit = () => {
-  navigateTo(
-    `/projects/${props.projectId}/work-valuation/monthly-measurement/${props.item?.id}/acceptance`
-  )
+  navigateTo({
+    path: `/projects/${props.projectId}/work-valuation/monthly-measurement/${props.item?.id}/acceptance`,
+    query: {
+      mode: route.query.mode || ''
+    }
+  })
 }
 
 const saveTreeItems = async () => {
   if (!props.item?.id || !props.projectId || !treeRows.value.length) return
   treeSaving.value = true
   try {
-    const itemsPayload = treeRows.value
+    const changedRows = treeRows.value
       .filter((row) => !row.isSummaryRow)
-      .map((row) => ({
-        boqItemId: row.boqItemId,
-        contractorQty: Number(row.contractorQty || 0),
-        supervisionQty: Number(row.supervisionQty || 0),
-        headquartersQty: Number(row.headquartersQty || 0),
-        investmentQty: Number(row.investmentQty || 0)
-      }))
+      .filter((row) => {
+        const orig = originalRows.value.find((o) => o.boqItemId === row.boqItemId)
+        if (!orig) return true
+        return (
+          Number(row.contractorQty || 0) !== Number(orig.contractorQty || 0) ||
+          Number(row.supervisionQty || 0) !== Number(orig.supervisionQty || 0) ||
+          Number(row.headquartersQty || 0) !== Number(orig.headquartersQty || 0) ||
+          Number(row.investmentQty || 0) !== Number(orig.investmentQty || 0)
+        )
+      })
+
+    if (changedRows.length === 0) {
+      triggerNotification({
+        title: '提示',
+        description: '未检测到任何修改',
+        type: ToastNotificationType.Info
+      })
+      closeTreeEdit()
+      return
+    }
+
+    const itemsPayload = changedRows.map((row) => ({
+      boqItemId: row.boqItemId,
+      contractorQty: Number(row.contractorQty || 0),
+      supervisionQty: Number(row.supervisionQty || 0),
+      headquartersQty: Number(row.headquartersQty || 0),
+      investmentQty: Number(row.investmentQty || 0)
+    }))
 
     await $fetch(
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/detail-items`,

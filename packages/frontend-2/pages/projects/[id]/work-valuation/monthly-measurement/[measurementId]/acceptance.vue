@@ -7,13 +7,10 @@
       <!-- 表格上方单据元数据区 -->
       <div class="text-center space-y-2 relative">
         <h2 class="text-xl font-bold text-foreground">
-          {{ contractName }}
+          {{ contractName }}&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;{{
+            item?.roundName || '1'
+          }}
         </h2>
-        <div class="text-xs text-foreground-2 flex justify-center space-x-6">
-          <span>合同编号：{{ projectContractCode }}</span>
-          <span>基准年月：{{ formatDateMonth(item?.baseDate) }}</span>
-          <span>{{ item?.roundName || '1' }} 验工月报汇总</span>
-        </div>
         <div
           class="flex justify-between items-center text-xs text-foreground-2 px-1 pt-2 border-b border-outline-3 pb-1.5"
         >
@@ -24,15 +21,16 @@
             </span>
           </div>
           <div class="flex items-center space-x-3">
+            <span>合同编号：{{ projectContractCode }}</span>
+          </div>
+          <div class="flex items-center space-x-3">
             <span>单位：元</span>
           </div>
         </div>
       </div>
 
       <!-- 经典深蓝色双层表头表格 -->
-      <div
-        class="border border-outline-3 rounded-lg overflow-auto max-h-[420px] shadow-sm"
-      >
+      <div class="border border-outline-3 rounded-lg overflow-auto shadow-sm">
         <table class="w-full text-[11px] text-left min-w-[1050px] border-collapse">
           <thead class="bg-[#0f4c9c] text-white text-center sticky top-0 z-10">
             <tr class="border-b border-blue-800">
@@ -103,12 +101,16 @@
                 <td class="px-2 py-2 text-center font-mono">{{ row.boqCode }}</td>
                 <td class="px-2 py-2 text-left pl-3 font-medium">
                   <button
+                    v-if="!isReadOnly"
                     class="text-primary hover:underline text-left"
                     title="点击编辑清单明细"
                     @click="openTreeEdit(row.boqItemId, row.boqName)"
                   >
                     {{ row.boqName }}
                   </button>
+                  <span v-else class="text-foreground text-left">
+                    {{ row.boqName }}
+                  </span>
                 </td>
                 <td class="px-2 py-2 text-right pr-3 font-mono">
                   {{ formatMoney(row.contractAmount) }}
@@ -646,6 +648,9 @@ const acceptanceSaving = ref(false)
 const attachmentsDialogOpen = ref(false)
 const modelViewerOpen = ref(false)
 
+const route = useRoute()
+const isReadOnly = computed(() => route.query.mode !== 'edit')
+
 const permissions = computed(() => {
   const result = {
     contractor: false,
@@ -656,6 +661,8 @@ const permissions = computed(() => {
     leader: false,
     owner: false
   }
+
+  if (isReadOnly.value) return result
 
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
@@ -682,12 +689,27 @@ const permissions = computed(() => {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
+          result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+          result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
+          result.investment = true
+        if (
+          isStep([
+            '合约管理部经办人',
+            '合约管理部负责人',
+            '计划合同部',
+            '合约部',
+            '合约管理部'
+          ])
+        )
+          result.contract = true
         if (isStep(['分管领导'])) result.leader = true
-        if (isStep(['合约管理部负责人', '分管领导'])) result.owner = true
+        if (
+          isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+        )
+          result.owner = true
       }
     }
   }
@@ -696,6 +718,7 @@ const permissions = computed(() => {
 })
 
 const isCurrentApprover = computed(() => {
+  if (isReadOnly.value) return false
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
   if (!currentUserId) return false
@@ -995,7 +1018,8 @@ const openTreeEdit = (
     path: `/projects/${props.projectId}/work-valuation/monthly-measurement/${props.item?.id}/acceptance-edit`,
     query: {
       boqItemId: boqItemId || '',
-      boqName: boqName || ''
+      boqName: boqName || '',
+      mode: route.query.mode || ''
     }
   })
 }

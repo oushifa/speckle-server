@@ -458,7 +458,7 @@ const openInstanceDrawer = (instance: FlowListItem) => {
       return
     }
     void navigateTo(
-      `/projects/${instance.projectId}/work-valuation/monthly-measurement/${monthlyMeasurementId}/acceptance`
+      `/projects/${instance.projectId}/work-valuation/monthly-measurement/${monthlyMeasurementId}/acceptance?mode=edit`
     )
     return
   }

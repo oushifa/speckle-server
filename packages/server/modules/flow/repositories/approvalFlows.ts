@@ -193,6 +193,8 @@ export const setApprovalFlowDefinitionActiveStateFactory =
         let searchCategories: string[] = [normalized]
         if (normalized === 'MODEL_REVIEW') {
           searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+        } else if (normalized === 'SAFETY_MEASURE') {
+          searchCategories = ['SAFETY_MEASURE', '安全文明措施费', '安全文明措施']
         } else if (normalized === 'MONTHLY_INSPECTION') {
           searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
         }
@@ -235,6 +237,8 @@ export const getActiveApprovalFlowByCategoryFactory =
     let searchCategories: string[] = [normalized]
     if (normalized === 'MODEL_REVIEW') {
       searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+    } else if (normalized === 'SAFETY_MEASURE') {
+      searchCategories = ['SAFETY_MEASURE', '安全文明措施费', '安全文明措施']
     } else if (normalized === 'MONTHLY_INSPECTION') {
       searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
     }

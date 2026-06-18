@@ -430,9 +430,14 @@ export const flowRouterFactory = (): Router => {
       }
 
       // Enforce unique workflow template/family per category within a project
-      const searchCategories = categoryId === 'MODEL_REVIEW'
-        ? ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
-        : ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+      let searchCategories: string[]
+      if (categoryId === 'MODEL_REVIEW') {
+        searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
+      } else if (categoryId === 'SAFETY_MEASURE') {
+        searchCategories = ['SAFETY_MEASURE', '安全文明措施费', '安全文明措施']
+      } else {
+        searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+      }
 
       const existingDefinition = await db('approval_flow_definitions')
         .where('projectId', projectId)

@@ -478,19 +478,31 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const stepName = (pendingStep.name || '').trim()
       const isStep = (names: string[]) => names.includes(stepName)
       if (requiredRole === 'contractor' && isStep(['施工单位'])) return true
-      if (requiredRole === 'supervision' && isStep(['施工监理经办人', '施工监理总监']))
+      if (
+        requiredRole === 'supervision' &&
+        isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])
+      )
         return true
-      if (requiredRole === 'headquarters' && isStep(['现场指挥部经办人', '现场指挥']))
+      if (
+        requiredRole === 'headquarters' &&
+        isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])
+      )
         return true
-      if (requiredRole === 'investment' && isStep(['投资监理经办人', '投资监理总监']))
+      if (
+        requiredRole === 'investment' &&
+        isStep(['投资监理经办人', '投资监理总监', '投资监理'])
+      )
         return true
       if (
         requiredRole === 'contract' &&
-        isStep(['合约管理部经办人', '合约管理部负责人'])
+        isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])
       )
         return true
       if (requiredRole === 'leader' && isStep(['分管领导'])) return true
-      if (requiredRole === 'owner' && isStep(['合约管理部负责人', '分管领导']))
+      if (
+        requiredRole === 'owner' &&
+        isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+      )
         return true
 
       throw new BadRequestError(
@@ -1896,6 +1908,943 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       // 更新主表状态
       await projectDb('monthly_measurements').where('id', id).update({
+        flowInstanceId: result.currentInstanceId,
+        approveStatus: 'PENDING',
+        updatedAt: new Date()
+      })
+
+      return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
+    }
+  )
+
+  // -------------------------------------------------------------
+  // 安全文明措施费 (Safety Measures) REST APIs
+  // -------------------------------------------------------------
+
+  const checkSafetyWritePermission = async (
+    projectDb: any,
+    measureId: string,
+    userId: string,
+    requiredRole: 'contractor' | 'supervision' | 'headquarters' | 'engineering' | 'contract'
+  ) => {
+    const measure = await projectDb('safety_measures').where('id', measureId).first()
+    if (!measure) {
+      throw new BadRequestError('安全文明措施费单据不存在')
+    }
+
+    const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
+    if (isDraft) {
+      if (requiredRole === 'contractor') {
+        return true
+      }
+      throw new BadRequestError('草稿期仅允许施工单位填报数据')
+    }
+
+    if (measure.flowInstanceId) {
+      const pendingStep = await db('approval_flow_instance_steps')
+        .where('instanceId', measure.flowInstanceId)
+        .andWhere('status', 'PENDING')
+        .orderBy('stepIndex', 'asc')
+        .first()
+
+      if (!pendingStep) {
+        throw new BadRequestError('当前无可编辑的审批流节点')
+      }
+
+      if (pendingStep.approverIds && pendingStep.approverIds.length > 0) {
+        if (!pendingStep.approverIds.includes(userId)) {
+          throw new BadRequestError('您不是当前步骤的审批负责人')
+        }
+      }
+
+      const stepName = (pendingStep.name || '').trim()
+      const matchRole = (role: string) => {
+        if (role === 'supervision') {
+          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && !stepName.includes('投资监理')
+        }
+        if (role === 'headquarters') {
+          return stepName.includes('指挥部') || stepName.includes('现场指挥') || ['指挥部', '现场指挥部', '指挥部审核', '现场指挥部经办人', '现场指挥'].includes(stepName)
+        }
+        if (role === 'engineering') {
+          return stepName.includes('工管') || stepName.includes('工程管理') || ['工管部', '工程管理部', '工管部审核', '工程管理部经办人', '工程管理部负责人'].includes(stepName)
+        }
+        if (role === 'contract') {
+          return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
+        }
+        return false
+      }
+
+      if (requiredRole === 'supervision' && matchRole('supervision')) return true
+      if (requiredRole === 'headquarters' && matchRole('headquarters')) return true
+      if (requiredRole === 'engineering' && matchRole('engineering')) return true
+      if (requiredRole === 'contract' && matchRole('contract')) return true
+
+      throw new BadRequestError(`当前审批步骤【${stepName}】不允许【${requiredRole}】角色修改数据`)
+    }
+
+    throw new BadRequestError('流程已结束，数据无法修改')
+  }
+
+  // 0. 获取项目下的清单树节段（至分部工程）
+  app.get(
+    '/api/v1/projects/:projectId/boq-sections',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId } = req.params
+      const projectDb = await getProjectDbClient({ projectId })
+      const list = await projectDb('boq_items')
+        .where('projectId', projectId)
+        .whereIn('type', ['PROJECT', 'SUBPROJECT', 'CATEGORY', 'SECTION'])
+        .orderBy('depth', 'asc')
+        .orderBy('sortOrder', 'asc')
+        .orderBy('createdAt', 'asc')
+      return res.status(200).json(list)
+    }
+  )
+
+  // 1. 获取安全文明措施费列表
+  app.get(
+    '/api/v1/projects/:projectId/safety-measures',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId } = req.params
+      const search = (req.query.search as string) || null
+      const cursor = (req.query.cursor as string) || null
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      // 分页查询安全文明措施费主表
+      const q = projectDb('safety_measures')
+        .where('project_id', projectId)
+        .orderBy('updatedAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(limit + 1)
+
+      if (search) {
+        q.andWhere((qb) => {
+          qb.whereILike('code', `%${search}%`).orWhereILike('unit', `%${search}%`)
+        })
+      }
+
+      if (cursor) {
+        const [cursorDateRaw, cursorId] = cursor.split('|')
+        if (cursorDateRaw && cursorId) {
+          const cursorDate = new Date(cursorDateRaw)
+          q.andWhere((w) => {
+            w.where('updatedAt', '<', cursorDate).orWhere((w2) => {
+              w2.where('updatedAt', '=', cursorDate).andWhere('id', '<', cursorId)
+            })
+          })
+        }
+      }
+
+      const items = await q
+      const hasMore = items.length > limit
+      const trimmed = hasMore ? items.slice(0, limit) : items
+
+      // 计算本单本期金额以及累计金额
+      const itemsWithDetails = await Promise.all(
+        trimmed.map(async (item) => {
+          let creatorUser = null
+          if (item.creator) {
+            const u = await db('users')
+              .where('id', item.creator)
+              .select('id', 'name')
+              .first()
+            if (u) {
+              creatorUser = { id: u.id, name: u.name }
+            }
+          }
+
+          // 本期金额：统计非汇总行 contractDeptAmount 的总和
+          const [{ total }] = await projectDb('safety_measure_items')
+            .where('safetyMeasureId', item.id)
+            .andWhere('isSummaryRow', false)
+            .select(projectDb.raw('SUM(COALESCE("contractDeptAmount", 0)) as total'))
+          const totalAmount = Number(total || 0)
+
+          // 累计金额：统计本项目所有已审批通过的单据金额之和
+          const [{ cumulative }] = await projectDb('safety_measure_items')
+            .whereIn('safetyMeasureId', function () {
+              this.select('id')
+                .from('safety_measures')
+                .where('project_id', projectId)
+                .andWhere('approveStatus', 'APPROVED')
+            })
+            .andWhere('isSummaryRow', false)
+            .select(projectDb.raw('SUM(COALESCE("contractDeptAmount", 0)) as total'))
+          const cumulativeAmount = Number(cumulative || 0)
+
+          // 获取当前步骤负责人
+          let currentStepApprovers: string[] = []
+          let actualApproveStatus = item.approveStatus || 'START'
+          let actualFlowInstanceId = item.flowInstanceId
+
+          // 检查工作流绑定
+          const binding = await db('approval_flow_bindings')
+            .where('subjectKey', `safety_measures:${item.id}`)
+            .select('status', 'currentInstanceId')
+            .first()
+
+          if (binding) {
+            actualApproveStatus = binding.status
+            actualFlowInstanceId = binding.currentInstanceId
+          }
+
+          if (actualFlowInstanceId) {
+            const pendingStep = await db('approval_flow_instance_steps')
+              .where('instanceId', actualFlowInstanceId)
+              .andWhere('status', 'PENDING')
+              .orderBy('stepIndex', 'asc')
+              .first()
+            if (pendingStep?.approverIds?.length) {
+              const users = await db('users')
+                .whereIn('id', pendingStep.approverIds)
+                .select('name')
+              currentStepApprovers = users.map((u) => u.name).filter(Boolean)
+            }
+          }
+
+          return {
+            ...item,
+            approveStatus: actualApproveStatus,
+            flowInstanceId: actualFlowInstanceId,
+            creator: creatorUser,
+            totalAmount,
+            cumulativeAmount,
+            currentStepApprovers
+          }
+        })
+      )
+
+      // 统计总数
+      const countQ = projectDb('safety_measures').where('project_id', projectId)
+      if (search) {
+        countQ.andWhere((qb) => {
+          qb.whereILike('code', `%${search}%`).orWhereILike('unit', `%${search}%`)
+        })
+      }
+      const [countRes] = await countQ.count()
+      const totalCount = parseInt(String(countRes?.count || '0'))
+
+      const last = trimmed[trimmed.length - 1]
+      const nextCursor = hasMore && last ? `${new Date(last.updatedAt).toISOString()}|${last.id}` : null
+
+      return res.status(200).json({
+        items: itemsWithDetails,
+        cursor: nextCursor,
+        totalCount
+      })
+    }
+  )
+
+  // 2. 获取特定安全文明措施费主表信息
+  app.get(
+    '/api/v1/projects/:projectId/safety-measures/:id',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const measure = await projectDb('safety_measures')
+        .where('id', id)
+        .andWhere('project_id', projectId)
+        .first()
+
+      if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      // 查询绑定
+      const binding = await db('approval_flow_bindings')
+        .where('subjectKey', `safety_measures:${id}`)
+        .select('status', 'currentInstanceId')
+        .first()
+
+      let actualApproveStatus = measure.approveStatus || 'START'
+      let actualFlowInstanceId = measure.flowInstanceId
+
+      if (binding) {
+        actualApproveStatus = binding.status
+        actualFlowInstanceId = binding.currentInstanceId
+      }
+
+      let creatorUser = null
+      if (measure.creator) {
+        const u = await db('users').where('id', measure.creator).select('id', 'name').first()
+        if (u) {
+          creatorUser = { id: u.id, name: u.name }
+        }
+      }
+
+      let flowInitiatorUser = null
+      let currentStepName = ''
+      let currentStepApprovers: string[] = []
+
+      if (actualFlowInstanceId) {
+        const flowInstance = await db('approval_flow_instances')
+          .where('id', actualFlowInstanceId)
+          .select('createdBy')
+          .first()
+        if (flowInstance?.createdBy) {
+          const u = await db('users').where('id', flowInstance.createdBy).select('id', 'name').first()
+          if (u) {
+            flowInitiatorUser = { id: u.id, name: u.name }
+          }
+        }
+
+        const pendingStep = await db('approval_flow_instance_steps')
+          .where('instanceId', actualFlowInstanceId)
+          .andWhere('status', 'PENDING')
+          .orderBy('stepIndex', 'asc')
+          .first()
+        if (pendingStep) {
+          currentStepName = pendingStep.name || ''
+          if (pendingStep.approverIds?.length) {
+            const users = await db('users').whereIn('id', pendingStep.approverIds).select('name')
+            currentStepApprovers = users.map((u) => u.name).filter(Boolean)
+          }
+        }
+      }
+
+      return res.status(200).json({
+        ...measure,
+        approveStatus: actualApproveStatus,
+        flowInstanceId: actualFlowInstanceId,
+        creator: creatorUser,
+        flowInitiator: flowInitiatorUser,
+        currentStepName,
+        currentStepApprovers
+      })
+    }
+  )
+
+  // 3. 获取明细项列表（支持自底向上小计、历史已审批累计、本年累计）
+  app.get(
+    '/api/v1/projects/:projectId/safety-measures/:id/items',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const measure = await projectDb('safety_measures').where('id', id).first()
+      if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      const items = await projectDb('safety_measure_items')
+        .where('safetyMeasureId', id)
+        .orderBy('sortIndex', 'asc')
+        .orderBy('boqDepth', 'asc')
+        .orderBy('boqCode', 'asc')
+        .orderBy('id', 'asc')
+
+      // 获取历史已审批通过的单据以计算本年和累计数据
+      const measureYear = dayjs(Number(measure.baseDate)).format('YYYY')
+
+      // 除了本期外，所有 APPROVED 单据
+      const approvedMeasures = await projectDb('safety_measures')
+        .where('project_id', projectId)
+        .andWhere('approveStatus', 'APPROVED')
+        .andWhereNot('id', id)
+        .select('id', 'baseDate')
+
+      const approvedMeasureIds = approvedMeasures.map((m) => m.id)
+      const yearlyApprovedIds = approvedMeasures
+        .filter((m) => dayjs(Number(m.baseDate)).format('YYYY') === measureYear)
+        .map((m) => m.id)
+
+      // 各明细项的历史累计完成量
+      const lastCumulativeMap = new Map<string, { qty: number; amt: number }>()
+      if (approvedMeasureIds.length > 0) {
+        const histories = await projectDb('safety_measure_items')
+          .whereIn('safetyMeasureId', approvedMeasureIds)
+          .andWhere('isSummaryRow', false)
+          .select('boqItemId')
+          .sum('contractDeptQty as qty')
+          .sum('contractDeptAmount as amt')
+          .groupBy('boqItemId')
+        histories.forEach((h: any) => {
+          lastCumulativeMap.set(h.boqItemId, { qty: Number(h.qty || 0), amt: Number(h.amt || 0) })
+        })
+      }
+
+      // 各明细项的本年历史累计完成量
+      const yearlyCumulativeMap = new Map<string, { qty: number; amt: number }>()
+      if (yearlyApprovedIds.length > 0) {
+        const histories = await projectDb('safety_measure_items')
+          .whereIn('safetyMeasureId', yearlyApprovedIds)
+          .andWhere('isSummaryRow', false)
+          .select('boqItemId')
+          .sum('contractDeptQty as qty')
+          .sum('contractDeptAmount as amt')
+          .groupBy('boqItemId')
+        histories.forEach((h: any) => {
+          yearlyCumulativeMap.set(h.boqItemId, { qty: Number(h.qty || 0), amt: Number(h.amt || 0) })
+        })
+      }
+
+      // 遍历叶子节点计算本年和累计完成量
+      const rowById = new Map<string, any>()
+      const rowsByDepth = new Map<number, any[]>()
+      
+      const mappedItems = items.map((item) => {
+        const contractorQty = Number(item.contractorQty || 0)
+        const price = Number(item.price || 0)
+
+        // 叶子项的累计和本年数
+        let lastCumulativeQty = 0
+        let lastCumulativeAmount = 0
+        let cumulativeQty = 0
+        let cumulativeAmount = 0
+        let yearlyCumulativeQty = 0
+        let yearlyCumulativeAmount = 0
+        let yearlyQty = 0
+        let yearlyAmount = 0
+        let cumulativeRate = 0
+
+        if (!item.isSummaryRow) {
+          const history = lastCumulativeMap.get(item.boqItemId) || { qty: 0, amt: 0 }
+          const yearlyHist = yearlyCumulativeMap.get(item.boqItemId) || { qty: 0, amt: 0 }
+
+          lastCumulativeQty = history.qty
+          lastCumulativeAmount = history.amt
+
+          const contractDeptQty = Number(item.contractDeptQty || 0)
+          cumulativeQty = lastCumulativeQty + contractDeptQty
+          cumulativeAmount = lastCumulativeAmount + (contractDeptQty * price)
+
+          yearlyCumulativeQty = yearlyHist.qty
+          yearlyCumulativeAmount = yearlyHist.amt
+          yearlyQty = yearlyCumulativeQty + contractDeptQty
+          yearlyAmount = yearlyCumulativeAmount + (contractDeptQty * price)
+
+          const contractAmount = Number(item.contractAmount || 0)
+          cumulativeRate = contractAmount > 0 ? (cumulativeAmount / contractAmount) * 100 : 0
+        }
+
+        const row = {
+          ...item,
+          lastCumulativeQty,
+          lastCumulativeAmount,
+          cumulativeQty,
+          cumulativeAmount,
+          yearlyCumulativeQty,
+          yearlyCumulativeAmount,
+          yearlyQty,
+          yearlyAmount,
+          cumulativeRate: parseFloat(cumulativeRate.toFixed(2))
+        }
+
+        rowById.set(row.boqItemId, row)
+        const depth = Number(row.boqDepth || 0)
+        const bucket = rowsByDepth.get(depth)
+        if (bucket) bucket.push(row)
+        else rowsByDepth.set(depth, [row])
+
+        return row
+      })
+
+      // 自底向上重新计算非叶子节点（汇总行）的小计
+      const depths = Array.from(rowsByDepth.keys()).sort((a, b) => b - a)
+      depths.forEach((depth) => {
+        const rows = rowsByDepth.get(depth)
+        if (!rows) return
+        rows.forEach((row) => {
+          if (!row.boqParentId) return
+          const parent = rowById.get(row.boqParentId)
+          if (!parent || !parent.isSummaryRow) return
+
+          // 重新初始化父节点各项数据为 0 (仅在第一次累加时)
+          if (!parent._isInitialized) {
+            parent._isInitialized = true
+            parent.contractorQty = 0
+            parent.contractorAmount = 0
+            parent.supervisionQty = 0
+            parent.supervisionAmount = 0
+            parent.headquartersQty = 0
+            parent.headquartersAmount = 0
+            parent.engineeringQty = 0
+            parent.engineeringAmount = 0
+            parent.contractDeptQty = 0
+            parent.contractDeptAmount = 0
+            
+            parent.lastCumulativeQty = 0
+            parent.lastCumulativeAmount = 0
+            parent.cumulativeQty = 0
+            parent.cumulativeAmount = 0
+            parent.yearlyCumulativeQty = 0
+            parent.yearlyCumulativeAmount = 0
+            parent.yearlyQty = 0
+            parent.yearlyAmount = 0
+            parent.contractQty = 0
+            parent.contractAmount = 0
+          }
+
+          parent.contractorQty += (row.contractorQty || 0)
+          parent.contractorAmount += (row.contractorAmount || 0)
+          parent.supervisionQty += (row.supervisionQty || 0)
+          parent.supervisionAmount += (row.supervisionAmount || 0)
+          parent.headquartersQty += (row.headquartersQty || 0)
+          parent.headquartersAmount += (row.headquartersAmount || 0)
+          parent.engineeringQty += (row.engineeringQty || 0)
+          parent.engineeringAmount += (row.engineeringAmount || 0)
+          parent.contractDeptQty += (row.contractDeptQty || 0)
+          parent.contractDeptAmount += (row.contractDeptAmount || 0)
+
+          parent.lastCumulativeQty += (row.lastCumulativeQty || 0)
+          parent.lastCumulativeAmount += (row.lastCumulativeAmount || 0)
+          parent.cumulativeQty += (row.cumulativeQty || 0)
+          parent.cumulativeAmount += (row.cumulativeAmount || 0)
+          parent.yearlyCumulativeQty += (row.yearlyCumulativeQty || 0)
+          parent.yearlyCumulativeAmount += (row.yearlyCumulativeAmount || 0)
+          parent.yearlyQty += (row.yearlyQty || 0)
+          parent.yearlyAmount += (row.yearlyAmount || 0)
+          parent.contractQty += (row.contractQty || 0)
+          parent.contractAmount += (row.contractAmount || 0)
+
+          const cAmount = Number(parent.contractAmount || 0)
+          parent.cumulativeRate = cAmount > 0 ? parseFloat(((parent.cumulativeAmount / cAmount) * 100).toFixed(2)) : 0
+        })
+      })
+
+      // 清除临时标记 _isInitialized
+      mappedItems.forEach((row) => {
+        delete row._isInitialized
+      })
+
+      return res.status(200).json(mappedItems)
+    }
+  )
+
+  // 4. 获取签署的意见和附件列表
+  app.get(
+    '/api/v1/projects/:projectId/safety-measures/:id/details',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const details = await projectDb('safety_measure_details')
+        .where('safetyMeasureId', id)
+        .first()
+
+      if (!details) {
+        // 如果详情未初始化，自动初始化一个空详情
+        const newDetails = {
+          id: cryptoRandomString({ length: 10 }),
+          safetyMeasureId: id,
+          attachments: JSON.stringify([]),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        await projectDb('safety_measure_details').insert(newDetails)
+        return res.status(200).json({
+          ...newDetails,
+          attachments: []
+        })
+      }
+
+      return res.status(200).json({
+        ...details,
+        attachments: typeof details.attachments === 'string' ? JSON.parse(details.attachments) : (details.attachments || [])
+      })
+    }
+  )
+
+  // 5. 新增安全文明措施费 (递归初始化清单明细)
+  app.post(
+    '/api/v1/projects/:projectId/safety-measures',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId } = req.params
+      const userId = req.context.userId!
+      const body = req.body || {}
+
+      const roundName = body.roundName?.trim()
+      const baseDate = Number(body.baseDate)
+      const startDate = body.startDate ? Number(body.startDate) : null
+      const endDate = body.endDate ? Number(body.endDate) : null
+      const unit = body.unit?.trim()
+      const boqSectionIds = body.boqSectionIds || [] // 多选分部工程
+
+      if (!baseDate || Number.isNaN(baseDate)) {
+        return res.status(400).json({ error: '基准时间/年月无效' })
+      }
+      if (!roundName) {
+        return res.status(400).json({ error: '期数不能为空' })
+      }
+      if (!boqSectionIds.length) {
+        return res.status(400).json({ error: '分部工程至少需要选择一项' })
+      }
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      // 获取项目的默认承包人作为默认施工单位
+      let defaultUnit = '上海建工集团股份有限公司'
+      const streamRecord = await db('streams')
+        .where('id', projectId)
+        .select('contractor')
+        .first()
+      if (streamRecord && streamRecord.contractor) {
+        defaultUnit = streamRecord.contractor
+      }
+
+      // 自动生成编码 AQWM-YYYYMM-XXX
+      const monthStr = dayjs(baseDate).format('YYYYMM')
+      const prefix = `AQWM-${monthStr}-`
+      const existingList = await projectDb('safety_measures')
+        .where('project_id', projectId)
+        .whereILike('code', `${prefix}%`)
+        .select('code')
+      
+      let nextNum = 1
+      if (existingList.length > 0) {
+        const nums = existingList
+          .map((item) => {
+            const part = item.code.substring(prefix.length)
+            return parseInt(part, 10)
+          })
+          .filter((n) => !Number.isNaN(n))
+        if (nums.length > 0) {
+          nextNum = Math.max(...nums) + 1
+        }
+      }
+      const code = `${prefix}${String(nextNum).padStart(3, '0')}`
+
+      // 内存检索选中分部工程节点及其所有后代节点
+      const boqItems = await projectDb('boq_items')
+        .where('projectId', projectId)
+        .orderBy('depth', 'asc')
+        .orderBy('sortOrder', 'asc')
+        .orderBy('createdAt', 'asc')
+
+      const selectedSections = new Set(boqSectionIds)
+      const itemMap = new Map()
+      boqItems.forEach((item) => itemMap.set(item.id, item))
+
+      const boqItemIdsToInclude = new Set<string>()
+
+      const isDescendant = (item: any) => {
+        if (selectedSections.has(item.id)) return true
+        let parentId = item.parentId
+        while (parentId) {
+          if (selectedSections.has(parentId)) return true
+          const p = itemMap.get(parentId)
+          parentId = p ? p.parentId : null
+        }
+        return false
+      }
+
+      const addAncestors = (itemId: string) => {
+        let current = itemMap.get(itemId)
+        while (current && current.parentId) {
+          const parent = itemMap.get(current.parentId)
+          if (parent) {
+            boqItemIdsToInclude.add(parent.id)
+            if (parent.type === 'CATEGORY') {
+              break
+            }
+          }
+          current = parent
+        }
+      }
+
+      boqItems.forEach((item) => {
+        if (isDescendant(item)) {
+          boqItemIdsToInclude.add(item.id)
+          addAncestors(item.id)
+        }
+      })
+
+      const selectedBoqItems = boqItems.filter((item) => boqItemIdsToInclude.has(item.id))
+      if (!selectedBoqItems.length) {
+        return res.status(400).json({ error: '所选分部工程下未找到清单内容' })
+      }
+
+      const parentIds = new Set(selectedBoqItems.map((item) => item.parentId).filter(Boolean))
+      const measureId = cryptoRandomString({ length: 10 })
+
+      const nextItems = selectedBoqItems.map((item, index) => {
+        const isSummary = parentIds.has(item.id)
+        const qty = isSummary ? 0 : Number(item.quantity || 0)
+        const price = isSummary ? 0 : Number(item.price || 0)
+        const amt = qty * price
+
+        return {
+          id: cryptoRandomString({ length: 10 }),
+          safetyMeasureId: measureId,
+          boqItemId: item.id,
+          boqCode: item.code,
+          boqName: item.name,
+          boqParentId: item.parentId,
+          boqDepth: item.depth,
+          isSummaryRow: isSummary,
+          sortIndex: index,
+          uom: item.unit || null,
+          price: isSummary ? null : price,
+          contractQty: qty,
+          contractAmount: amt,
+          
+          contractorQty: 0,
+          contractorAmount: 0,
+          supervisionQty: 0,
+          supervisionAmount: 0,
+          headquartersQty: 0,
+          headquartersAmount: 0,
+          engineeringQty: 0,
+          engineeringAmount: 0,
+          contractDeptQty: 0,
+          contractDeptAmount: 0
+        }
+      })
+
+      // 保存事务
+      const created = await projectDb.transaction(async (trx) => {
+        const payload = {
+          id: measureId,
+          project_id: projectId,
+          unit: unit || defaultUnit,
+          code,
+          baseDate: String(baseDate),
+          roundName,
+          startDate: startDate ? String(startDate) : null,
+          endDate: endDate ? String(endDate) : null,
+          boqSectionIds: JSON.stringify(boqSectionIds),
+          approveStatus: 'START',
+          flowInstanceId: null,
+          creator: userId
+        }
+        
+        await trx('safety_measures').insert(payload)
+        await trx('safety_measure_items').insert(nextItems)
+        await trx('safety_measure_details').insert({
+          id: cryptoRandomString({ length: 10 }),
+          safetyMeasureId: measureId,
+          attachments: JSON.stringify([]),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+
+        return payload
+      })
+
+      return res.status(201).json(created)
+    }
+  )
+
+  // 6. 保存安全文明措施费（支持各方数量编辑和意见、附件保存）
+  app.put(
+    '/api/v1/projects/:projectId/safety-measures/:id',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const userId = req.context.userId!
+      const body = req.body || {}
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const measure = await projectDb('safety_measures').where('id', id).first()
+      if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      // 根据当前流转节点进行角色和修改权限的鉴权
+      let currentRole: 'contractor' | 'supervision' | 'headquarters' | 'engineering' | 'contract' = 'contractor'
+      const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
+      
+      if (!isDraft && measure.flowInstanceId) {
+        const pendingStep = await db('approval_flow_instance_steps')
+          .where('instanceId', measure.flowInstanceId)
+          .andWhere('status', 'PENDING')
+          .orderBy('stepIndex', 'asc')
+          .first()
+        if (pendingStep) {
+          const stepName = (pendingStep.name || '').trim()
+          const matchRole = (role: string) => {
+            if (role === 'supervision') {
+              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && !stepName.includes('投资监理')
+            }
+            if (role === 'headquarters') {
+              return stepName.includes('指挥部') || stepName.includes('现场指挥') || ['指挥部', '现场指挥部', '指挥部审核', '现场指挥部经办人', '现场指挥'].includes(stepName)
+            }
+            if (role === 'engineering') {
+              return stepName.includes('工管') || stepName.includes('工程管理') || ['工管部', '工程管理部', '工管部审核', '工程管理部经办人', '工程管理部负责人'].includes(stepName)
+            }
+            if (role === 'contract') {
+              return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
+            }
+            return false
+          }
+
+          if (matchRole('supervision')) currentRole = 'supervision'
+          else if (matchRole('headquarters')) currentRole = 'headquarters'
+          else if (matchRole('engineering')) currentRole = 'engineering'
+          else if (matchRole('contract')) currentRole = 'contract'
+        }
+      }
+
+      await checkSafetyWritePermission(projectDb, id, userId, currentRole)
+
+      // 保存明细行数量与金额（只更新有权更新的角色列）
+      const itemsPayload = body.items || []
+      const detailPayload = body.details || {}
+
+      await projectDb.transaction(async (trx) => {
+        // 更新明细数量与金额
+        for (const it of itemsPayload) {
+          const updateFields: Record<string, any> = {}
+          const price = Number(it.price || 0)
+
+          if (currentRole === 'contractor') {
+            updateFields.contractorQty = Number(it.contractorQty || 0)
+            updateFields.contractorAmount = updateFields.contractorQty * price
+          } else if (currentRole === 'supervision') {
+            updateFields.supervisionQty = Number(it.supervisionQty || 0)
+            updateFields.supervisionAmount = updateFields.supervisionQty * price
+          } else if (currentRole === 'headquarters') {
+            updateFields.headquartersQty = Number(it.headquartersQty || 0)
+            updateFields.headquartersAmount = updateFields.headquartersQty * price
+          } else if (currentRole === 'engineering') {
+            updateFields.engineeringQty = Number(it.engineeringQty || 0)
+            updateFields.engineeringAmount = updateFields.engineeringQty * price
+          } else if (currentRole === 'contract') {
+            updateFields.contractDeptQty = Number(it.contractDeptQty || 0)
+            updateFields.contractDeptAmount = updateFields.contractDeptQty * price
+          }
+
+          if (Object.keys(updateFields).length > 0) {
+            await trx('safety_measure_items')
+              .where({ safetyMeasureId: id, boqItemId: it.boqItemId })
+              .update({
+                ...updateFields,
+                updatedAt: new Date()
+              })
+          }
+        }
+
+        // 更新意见表字段
+        const updateDetail: Record<string, any> = {
+          updatedAt: new Date()
+        }
+
+        if (detailPayload.attachments) {
+          updateDetail.attachments = JSON.stringify(detailPayload.attachments)
+        }
+
+        const now = new Date()
+        const userName = await db('users').where('id', userId).select('name').first().then(u => u?.name || '未知')
+
+        if (currentRole === 'supervision') {
+          updateDetail.supervisionOpinion = detailPayload.supervisionOpinion || ''
+          updateDetail.supervisionAuditor = userName
+          updateDetail.supervisionDate = now
+        } else if (currentRole === 'headquarters') {
+          updateDetail.headquartersOpinion = detailPayload.headquartersOpinion || ''
+          updateDetail.headquartersAuditor = userName
+          updateDetail.headquartersDate = now
+        } else if (currentRole === 'engineering') {
+          updateDetail.engineeringOpinion = detailPayload.engineeringOpinion || ''
+          updateDetail.engineeringAuditor = userName
+          updateDetail.engineeringDate = now
+        } else if (currentRole === 'contract') {
+          updateDetail.contractOpinion = detailPayload.contractOpinion || ''
+          updateDetail.contractAuditor = userName
+          updateDetail.contractDate = now
+        }
+
+        await trx('safety_measure_details')
+          .where({ safetyMeasureId: id })
+          .update(updateDetail)
+
+        // 更新主表更新时间
+        await trx('safety_measures')
+          .where({ id })
+          .update({ updatedAt: new Date() })
+      })
+
+      return res.status(200).json({ success: true })
+    }
+  )
+
+  // 7. 删除安全文明措施费
+  app.delete(
+    '/api/v1/projects/:projectId/safety-measures/:id',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const measure = await projectDb('safety_measures').where('id', id).first()
+      if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
+      if (!isDraft) {
+        return res.status(400).json({ error: '送审后单据不可删除' })
+      }
+
+      await projectDb.transaction(async (trx) => {
+        await trx('safety_measure_items').where({ safetyMeasureId: id }).delete()
+        await trx('safety_measure_details').where({ safetyMeasureId: id }).delete()
+        await trx('safety_measures').where({ id }).delete()
+      })
+
+      return res.status(200).json({ success: true })
+    }
+  )
+
+  // 8. 送审安全文明措施费 (发起工作流实例)
+  app.post(
+    '/api/v1/projects/:projectId/safety-measures/:id/submit',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const userId = req.context.userId!
+
+      const projectDb = await getProjectDbClient({ projectId })
+      const measure = await projectDb('safety_measures').where('id', id).first()
+      if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
+      if (!isDraft) {
+        return res.status(400).json({ error: '已送审，请勿重复操作' })
+      }
+
+      // 获取启用的安全文明措施费工作流配置
+      const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db })
+      const activeDef = await getActiveByCategory({
+        projectId,
+        category: 'SAFETY_MEASURE'
+      })
+
+      if (!activeDef) {
+        return res.status(400).json({ error: '未找到启用的安全文明措施费审批流程，请先去流程设置中创建并启用。' })
+      }
+
+      // 发起工作流并绑定
+      const submitApprovalBinding = submitApprovalBindingFactory({ db })
+      const result = await submitApprovalBinding({
+        projectId,
+        subjectType: 'FORM_RECORD',
+        subjectId: id,
+        subjectTable: 'safety_measures',
+        definitionId: activeDef.id,
+        formData: {
+          formTable: 'safety_measures',
+          formId: id,
+          projectId
+        },
+        comment: (req.body.remark as string)?.trim() || '送审安全文明措施费',
+        actorUserId: userId
+      })
+
+      // 更新主表 flowInstanceId 与状态
+      await projectDb('safety_measures').where('id', id).update({
         flowInstanceId: result.currentInstanceId,
         approveStatus: 'PENDING',
         updatedAt: new Date()

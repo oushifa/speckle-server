@@ -401,8 +401,8 @@ export const updateMonthlyMeasurementItemsBatchFactory =
     measurementId: string,
     items: Array<{ boqItemId: string } & Record<string, unknown>>
   ) => {
-    const qb = tables.measurementItems(deps.db)
     for (const item of items) {
+      const qb = tables.measurementItems(deps.db)
       const { boqItemId, ...fields } = item
       await qb.where({ measurementId, boqItemId }).update({
         ...fields,

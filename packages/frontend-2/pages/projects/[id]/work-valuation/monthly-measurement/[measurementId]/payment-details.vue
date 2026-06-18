@@ -6,13 +6,13 @@
         验工计价中间支付单
       </h1>
       <p class="text-[11px] text-foreground-2">
-        {{ props.item?.roundName || '南北高速公路工程' }} 阶段
+        {{ projectName }}
         {{
           props.item?.baseDate
             ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
             : '2020年12月'
         }}
-        {{ props.item?.code || '第3期' }}
+        {{ props.item?.roundName }}
       </p>
       <div
         class="flex justify-between items-center text-[10px] text-foreground-2 px-1 pt-1.5 border-t border-outline-3 border-dashed mt-2"
@@ -556,6 +556,7 @@ const { result: projectResult } = useQuery(
     query ProjectContractCodeForPaymentDetails($id: String!) {
       project(id: $id) {
         id
+        name
         contractCode
       }
     }
@@ -564,6 +565,9 @@ const { result: projectResult } = useQuery(
     id: props.projectId
   })
 )
+const projectName = computed(() => {
+  return projectResult.value?.project?.name || ''
+})
 const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
   if (code && code.trim().length) return code
@@ -716,6 +720,9 @@ const paymentDetails = ref<any>({
 })
 const paymentSaving = ref(false)
 
+const route = useRoute()
+const isReadOnly = computed(() => route.query.mode !== 'edit')
+
 const permissions = computed(() => {
   const result = {
     contractor: false,
@@ -726,6 +733,8 @@ const permissions = computed(() => {
     leader: false,
     owner: false
   }
+
+  if (isReadOnly.value) return result
 
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
@@ -741,21 +750,38 @@ const permissions = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
       const approverIds = pendingStep.approverIds || []
-      
+
       if (approverIds.includes(currentUserId)) {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
+          result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+          result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
+          result.investment = true
+        if (
+          isStep([
+            '合约管理部经办人',
+            '合约管理部负责人',
+            '计划合同部',
+            '合约部',
+            '合约管理部'
+          ])
+        )
+          result.contract = true
         if (isStep(['分管领导'])) result.leader = true
-        if (isStep(['合约管理部负责人', '分管领导'])) result.owner = true
+        if (
+          isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+        )
+          result.owner = true
       }
     }
   }
@@ -764,6 +790,7 @@ const permissions = computed(() => {
 })
 
 const isCurrentApprover = computed(() => {
+  if (isReadOnly.value) return false
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
   if (!currentUserId) return false
@@ -774,7 +801,9 @@ const isCurrentApprover = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const approverIds = pendingStep.approverIds || []
       return approverIds.includes(currentUserId)

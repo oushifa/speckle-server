@@ -74,7 +74,12 @@
             <div
               v-for="instance in activeTodoList"
               :key="instance.id"
-              class="flex items-center justify-between rounded-lg border border-outline-3 bg-white p-4 transition-shadow hover:shadow-md"
+              class="flex cursor-pointer items-center justify-between rounded-lg border border-outline-3 bg-white p-4 transition-shadow hover:shadow-md"
+              role="button"
+              tabindex="0"
+              @click="openInstanceDrawer(instance)"
+              @keydown.enter="openInstanceDrawer(instance)"
+              @keydown.space.prevent="openInstanceDrawer(instance)"
             >
               <div class="flex items-start gap-4">
                 <div
@@ -204,6 +209,157 @@
           </div>
         </div>
       </div>
+      <LayoutDrawer
+        v-model:open="drawerOpen"
+        placement="right"
+        :width="'95%'"
+        body-classes="p-4"
+      >
+        <template #title>
+          {{ selectedInstance?.definition?.name || '未命名流程' }}
+          <span
+            v-if="selectedInstance?.resourceType === 'MODEL'"
+            class="text-sm text-primary"
+          >
+            | {{ selectedInstance.project?.name }} - {{ selectedInstance.model?.name }}
+          </span>
+        </template>
+        <template #extra>
+          <span class="text-body-xs text-foreground-2">
+            #{{ selectedInstance?.id }}
+          </span>
+        </template>
+
+        <div v-if="selectedInstance" class="flex h-full gap-4">
+          <div class="min-h-[520px] flex-grow rounded-lg border border-outline-3 p-4">
+            <div class="relative size-full text-body-xs text-foreground-2">
+              <div
+                v-if="selectedInstance.resourceType === 'MODEL'"
+                class="flex size-full flex-col"
+              >
+                <div class="relative flex-grow">
+                  <CommonModelPropsViewer
+                    :project-id="selectedInstance.projectId"
+                    :model="modelViewerResources"
+                  ></CommonModelPropsViewer>
+                </div>
+              </div>
+              <FlowMonthMeasure
+                v-else-if="selectedInstance.definition?.templateId === 'm_measure'"
+                :instance="selectedInstance"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-col xl:col-span-1">
+            <div class="flex-grow rounded-lg border border-outline-3">
+              <div class="p-3">
+                <LazyLayoutTabsHorizontal
+                  :items="layoutTabs"
+                  :active-item="activeDetailTabItem"
+                  @update:active-item="onDetailTabChange"
+                />
+              </div>
+
+              <div class="space-y-3 p-3">
+                <div v-if="detailTab === 'logs'" class="space-y-2">
+                  <div
+                    v-if="!selectedInstance.actions.length"
+                    class="rounded-lg border border-outline-3 p-3 text-body-sm text-foreground-2"
+                  >
+                    暂无流程日志
+                  </div>
+                  <div
+                    v-for="action in selectedInstance.actions"
+                    :key="action.id"
+                    class="rounded-lg border border-outline-3 p-3 text-body-xs text-foreground-2"
+                  >
+                    {{ formatActionLabel(action.action) }} ·
+                    {{ action.actor?.name || action.actorId }} ·
+                    {{ formatDate(action.createdAt) }}
+                    <span v-if="action.comment && action.action !== 'APPROVED'">
+                      · {{ action.comment }}
+                    </span>
+                  </div>
+                </div>
+
+                <div v-else class="space-y-3">
+                  <div class="flex flex-wrap gap-2 text-body-xs">
+                    <span class="rounded-full bg-success/10 px-2 py-1 text-success">
+                      已完成
+                    </span>
+                    <span class="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                      当前步骤
+                    </span>
+                    <span
+                      class="rounded-full bg-foundation-2 px-2 py-1 text-foreground-2"
+                    >
+                      未开始
+                    </span>
+                    <span class="rounded-full bg-danger/10 px-2 py-1 text-danger">
+                      已拒绝/已取消
+                    </span>
+                  </div>
+                  <div
+                    v-for="step in selectedInstance.steps"
+                    :key="step.id"
+                    class="rounded-lg border p-3"
+                    :class="getStepCardClass(step.status)"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="text-body-sm font-medium">
+                        Step {{ step.stepIndex }} · {{ step.name }}
+                      </div>
+                      <span
+                        class="rounded-full px-2 py-0.5 text-body-xs"
+                        :class="getStepTagClass(step.status)"
+                      >
+                        {{ formatStepStatusLabel(step.status) }}
+                      </span>
+                    </div>
+                    <div class="mt-1 text-body-xs text-foreground-2">
+                      审核：{{ step.approvedByIds.length }}/{{ step.requiredApprovals }}
+                    </div>
+                    <div class="mt-1 text-body-xs text-foreground-2">
+                      审核人：{{
+                        step.approvers?.length
+                          ? step.approvers.map((e) => e?.name).join('、')
+                          : '任意审批人'
+                      }}
+                    </div>
+                    <div class="mt-1 text-body-xs text-foreground-2">
+                      开始：{{ formatDate(step.startedAt) }} · 截止：{{
+                        formatDate(step.dueAt)
+                      }}
+                      · 完成：{{ formatDate(step.completedAt) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="isTodoUser" class="pt-1">
+              <FormTextArea
+                v-model="reviewComment"
+                name="review-comment"
+                label="审核意见"
+                placeholder="请输入审核意见（选填）"
+                :rows="4"
+                bordered
+              />
+            </div>
+          </div>
+        </div>
+
+        <template #footer>
+          <FlowOpButtons
+            :instance="selectedInstance"
+            :user-id="userId"
+            :loading="mutating"
+            @action="openReviewDialogFromOp"
+          />
+        </template>
+      </LayoutDrawer>
+
       <CommonConfirmDialog
         v-model:open="isStartDialogOpen"
         title="发起审核"
@@ -264,9 +420,11 @@ import {
 import { useApolloClient } from '@vue/apollo-composable'
 import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
+import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
 import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
+import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
@@ -284,6 +442,9 @@ type DashboardStatsResponse = {
   qualityAcceptanceCount: number
   workValuationCount: number
 }
+type FlowReviewAction = 'approve' | 'reject' | 'cancel'
+type FlowDetailTab = 'logs' | 'diagram'
+type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
 
 const metricCards = [
   {
@@ -317,6 +478,39 @@ const metricCards = [
 ] as const
 
 const activeFlowTemplateId = ref<string | null>(null)
+
+const approveFlowMutation = graphql(`
+  mutation FlowApprove($input: ApproveApprovalFlowInput!) {
+    approvalMutations {
+      approve(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`)
+
+const rejectFlowMutation = graphql(`
+  mutation FlowReject($input: RejectApprovalFlowInput!) {
+    approvalMutations {
+      reject(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`)
+
+const cancelFlowMutation = graphql(`
+  mutation FlowCancel($input: CancelApprovalFlowInput!) {
+    approvalMutations {
+      cancel(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`)
 
 const startFlowMutation = graphql(`
   mutation FlowStart($input: StartApprovalFlowInput!) {
@@ -410,6 +604,7 @@ type WorkbenchFlowTabState = {
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
+const { userId } = useActiveUser()
 const apiOrigin = useApiOrigin()
 const route = useRoute()
 const loadingUpdates = ref(false)
@@ -427,11 +622,18 @@ const totalReviewableModelCount = ref(0)
 const isStartDialogOpen = ref(false)
 const selectedResourceId = ref<string | null>(null)
 const selectedUpdate = ref<UpdateItem | null>(null)
+const selectedInstance = ref<FlowListItem | null>(null)
 const titleFieldValue = ref<unknown>('')
+const detailTab = ref<FlowDetailTab>('logs')
+const reviewComment = ref('')
 const todoTabItems: WorkbenchFlowTabItem[] = [
   { id: 'pending', title: '待办' },
   { id: 'initiated', title: '我发起的' },
   { id: 'handled', title: '我处理的' }
+]
+const layoutTabs = [
+  { id: 'logs' as FlowDetailTab, title: '流程日志' },
+  { id: 'diagram' as FlowDetailTab, title: '流程图' }
 ]
 const flowTabStates = reactive<Record<WorkbenchFlowTab, WorkbenchFlowTabState>>({
   pending: {
@@ -463,6 +665,10 @@ const titleField = computed<DynamicFormSchemaField>(() => ({
   options: []
 }))
 
+const activeDetailTabItem = computed(
+  () => layoutTabs.find((tab) => tab.id === detailTab.value) || layoutTabs[0]
+)
+
 const notify = (title: string, description: string, type: ToastNotificationType) => {
   triggerNotification({
     title,
@@ -472,6 +678,11 @@ const notify = (title: string, description: string, type: ToastNotificationType)
 }
 
 const formatMetricValue = (value: number) => value.toLocaleString('zh-CN')
+
+const formatDate = (date?: string | null) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString()
+}
 
 const metrics = computed(() =>
   metricCards.map((item) => ({
@@ -577,6 +788,67 @@ const getFlowStatusClass = (status?: string | null) => {
   return 'bg-blue-100 text-blue-700'
 }
 
+const formatStepStatusLabel = (status?: string | null) => {
+  const statusMap: Record<string, string> = {
+    WAITING: '未开始',
+    PENDING: '当前步骤',
+    APPROVED: '已完成',
+    REJECTED: '已驳回',
+    CANCELED: '已取消'
+  }
+  if (!status) return '-'
+  return statusMap[status] || status
+}
+
+const formatActionLabel = (action?: string | null) => {
+  const actionMap: Record<string, string> = {
+    STARTED: '发起流程',
+    STEP_APPROVED: '通过',
+    APPROVED: '流程结束',
+    REJECTED: '驳回',
+    CANCELED: '取消',
+    TIMEOUT_REJECTED: '超时驳回'
+  }
+  if (!action) return '-'
+  return actionMap[action] || action
+}
+
+const getStepCardClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'border-success bg-success/5'
+  if (status === 'PENDING') return 'border-primary bg-primary/5'
+  if (status === 'REJECTED' || status === 'CANCELED') return 'border-danger bg-danger/5'
+  return 'border-outline-3 bg-foundation'
+}
+
+const getStepTagClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'bg-success/10 text-success'
+  if (status === 'PENDING') return 'bg-primary/10 text-primary'
+  if (status === 'REJECTED' || status === 'CANCELED') return 'bg-danger/10 text-danger'
+  return 'bg-foundation-2 text-foreground-2'
+}
+
+const modelViewerResources = computed(() => {
+  const instance = selectedInstance.value
+  if (!instance) return []
+  if (
+    instance.model?.id &&
+    instance.resourceId &&
+    instance.resourceId !== instance.model.id
+  ) {
+    return [`${instance.model.id}@${instance.resourceId}`]
+  }
+  return instance.resourceId ? [instance.resourceId] : []
+})
+
+const isTodoUser = computed(() => {
+  const step =
+    selectedInstance.value?.steps.find((item) => item.status === 'PENDING') || null
+  const uid = userId.value || ''
+  if (!step || !uid) return false
+  if (!step.approverIds.length) return true
+  return step.approverIds.includes(uid)
+})
+
 const todoTabQueryConfig: Record<
   WorkbenchFlowTab,
   Pick<FlowInstancesQueryVariables, 'scope' | 'status'>
@@ -660,6 +932,16 @@ const buildRecentUpdates = (projects: ReviewableProject[]): UpdateItem[] => {
   })
   return items.sort((a, b) => b.updatedAt - a.updatedAt)
 }
+
+const drawerOpen = computed({
+  get: () => !!selectedInstance.value,
+  set: (value: boolean) => {
+    if (!value) {
+      selectedInstance.value = null
+      reviewComment.value = ''
+    }
+  }
+})
 
 const loadRecentUpdates = async () => {
   loadingUpdates.value = true
@@ -795,6 +1077,126 @@ const openModelPage = (item: UpdateItem) => {
       versionId: item.resourceId
     })
   )
+}
+
+const onDetailTabChange = (item: { id: string }) => {
+  detailTab.value = item.id as FlowDetailTab
+}
+
+const getMonthlyMeasurementId = (instance: FlowListItem) => {
+  if (instance.resourceType === 'MODEL') return null
+
+  const formTable =
+    typeof instance.formData?.formTable === 'string'
+      ? instance.formData.formTable
+      : null
+  const formId =
+    typeof instance.formData?.formId === 'string' ? instance.formData.formId : null
+  if (formTable === 'monthly_measurements' && formId) return formId
+
+  const resourceId =
+    typeof instance.resourceId === 'string' ? instance.resourceId : null
+  if (resourceId?.startsWith('monthly_measurements:')) {
+    return resourceId.split(':')[1] || null
+  }
+
+  return null
+}
+
+const openInstanceDrawer = (instance: FlowListItem) => {
+  const monthlyMeasurementId = getMonthlyMeasurementId(instance)
+  if (monthlyMeasurementId) {
+    if (!instance.projectId) {
+      notify('流程打开失败', '未找到月度验工详情数据', ToastNotificationType.Warning)
+      return
+    }
+    void navigateTo(
+      `/projects/${instance.projectId}/work-valuation/monthly-measurement/${monthlyMeasurementId}/acceptance?mode=edit`
+    )
+    return
+  }
+  if (!instance.projectId && instance.resourceType === 'MODEL') {
+    notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
+    return
+  }
+  selectedInstance.value = instance
+  detailTab.value = 'logs'
+  reviewComment.value = ''
+}
+
+const openReviewDialogFromOp = (payload: {
+  action: FlowReviewAction
+  operation: FlowOpActionKey
+  rollbackToStep: number | null
+}) => {
+  if (!selectedInstance.value) return
+  void submitReviewAction({
+    action: payload.action,
+    instanceId: selectedInstance.value.id,
+    comment: reviewComment.value.trim() || null,
+    rollbackToStep:
+      payload.action === 'reject' && payload.operation === 'rollback'
+        ? payload.rollbackToStep
+        : null
+  })
+}
+
+const submitReviewAction = async (payload: {
+  action: FlowReviewAction
+  instanceId: string
+  comment: string | null
+  rollbackToStep: number | null
+}) => {
+  mutating.value = true
+  try {
+    if (payload.action === 'approve') {
+      await apollo.mutate({
+        mutation: approveFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment
+          }
+        }
+      })
+      notify('操作成功', '审批已通过', ToastNotificationType.Success)
+      try {
+        await apollo.resetStore()
+      } catch {
+        // resetStore 可能因活跃订阅失败，这里忽略即可
+      }
+    } else if (payload.action === 'reject') {
+      await apollo.mutate({
+        mutation: rejectFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment || '',
+            rollbackToStep: payload.rollbackToStep
+          }
+        }
+      })
+      notify('操作成功', '审批已驳回', ToastNotificationType.Success)
+    } else {
+      await apollo.mutate({
+        mutation: cancelFlowMutation,
+        variables: {
+          input: {
+            instanceId: payload.instanceId,
+            comment: payload.comment
+          }
+        }
+      })
+      notify('操作成功', '审批已取消', ToastNotificationType.Success)
+    }
+    selectedInstance.value = null
+    reviewComment.value = ''
+    await loadTodoList(todoTab.value)
+  } catch (e) {
+    notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    mutating.value = false
+  }
 }
 
 const onTodoTabChange = (item: { id: string }) => {

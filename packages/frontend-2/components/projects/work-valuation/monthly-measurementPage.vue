@@ -234,75 +234,6 @@
       </div>
     </LayoutDialog>
 
-    <LayoutDialog
-      v-model:open="submitConfirmOpen"
-      max-width="xl"
-      :buttons="submitConfirmButtons"
-    >
-      <template #header>确认送审流程</template>
-      <div v-if="submitTargetItem" class="space-y-4">
-        <div class="text-sm text-foreground-2">
-          请确认本次送审将使用当前已启用的月度验工审批流程。
-          <p class="mt-1 font-semibold text-foreground">
-            验工编码：
-            <span class="font-mono">{{ submitTargetItem.code }}</span>
-          </p>
-        </div>
-        <div class="rounded-lg border border-outline-3 bg-foundation p-3">
-          <div v-if="submitFlowLoading" class="text-sm text-foreground-2">
-            正在读取当前已启用的月度验工审批流程...
-          </div>
-          <div v-else-if="activeSubmitFlow" class="space-y-2 text-sm">
-            <div class="font-medium text-foreground">
-              流程名称：{{ activeSubmitFlow.name }}
-              <span class="ml-2 text-foreground-2">
-                V{{ activeSubmitFlow.version }}
-              </span>
-            </div>
-            <div class="text-foreground-2">
-              审批节点：{{
-                activeSubmitFlow.steps.map((step) => step.role).join(' -> ') || '-'
-              }}
-            </div>
-          </div>
-          <div v-else class="text-sm text-danger">
-            未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用。
-          </div>
-        </div>
-        <FormTextArea
-          v-model="submitRemark"
-          label="送审说明"
-          placeholder="请输入送审说明"
-          name="remark"
-          show-label
-        />
-      </div>
-    </LayoutDialog>
-
-    <LayoutDialog
-      v-model:open="submitFinalConfirmOpen"
-      max-width="lg"
-      :buttons="submitFinalConfirmButtons"
-    >
-      <template #header>二次确认送审</template>
-      <div v-if="submitTargetItem && activeSubmitFlow" class="space-y-4">
-        <div class="text-sm text-foreground-2">
-          请再次确认，送审后将按当前启用版本发起审批流程。
-        </div>
-        <div class="rounded-lg border border-outline-3 bg-foundation p-3 text-sm">
-          <div class="font-medium text-foreground">
-            验工编码：
-            <span class="font-mono">{{ submitTargetItem.code }}</span>
-          </div>
-          <div class="mt-2 text-foreground-2">
-            审批流程：{{ activeSubmitFlow.name }}（V{{ activeSubmitFlow.version }}）
-          </div>
-          <div class="mt-1 text-foreground-2">
-            送审说明：{{ submitRemark.trim() || '送审' }}
-          </div>
-        </div>
-      </div>
-    </LayoutDialog>
 
     <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
       <button class="absolute inset-0 bg-black/40" @click="closeFlowDrawer" />
@@ -487,6 +418,16 @@
       text="确认删除该验工单吗？此操作不可撤销。"
       confirm-text="确认删除"
       @confirm="confirmDeleteItem"
+    />
+
+    <!-- 送审确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="submitConfirmOpen"
+      title="确认送审"
+      text="是否要发起月度验工送审"
+      confirm-text="确认"
+      :loading="actionLoadingId === submitTargetItem?.id"
+      @confirm="confirmSubmitItem"
     />
   </div>
 </template>
@@ -999,42 +940,18 @@ const loadActiveSubmitFlow = async () => {
   )
 }
 
-const triggerSubmitItem = async (item: any) => {
+const triggerSubmitItem = (item: any) => {
   if (isSubmitted(item)) return
   resetSubmitState()
   submitTargetItem.value = item
-  submitFlowLoading.value = true
-  try {
-    activeSubmitFlow.value = await loadActiveSubmitFlow()
-    submitConfirmOpen.value = true
-  } catch (e: any) {
-    triggerNotification({
-      title: '操作失败',
-      description:
-        e.data?.error || '未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用',
-      type: ToastNotificationType.Danger
-    })
-    resetSubmitState()
-  } finally {
-    submitFlowLoading.value = false
-  }
+  submitConfirmOpen.value = true
 }
 
-const editItem = async (item: any) => {
+const editItem = (item: any) => {
   if (isSubmitted(item)) return
-  resetDialogState()
-  dialogMode.value = 'edit'
-  editingMeasurementId.value = item.id
-  createForm.value = {
-    unit: item.unit || '',
-    code: item.code,
-    baseDate: dayjs(Number(item.baseDate)).format('YYYY-MM'),
-    roundName: item.roundName || '',
-    startDate: item.startDate ? dayjs(Number(item.startDate)).format('YYYY-MM-DD') : '',
-    endDate: item.endDate ? dayjs(Number(item.endDate)).format('YYYY-MM-DD') : ''
-  }
-  await nextTick()
-  createDialogOpen.value = true
+  navigateTo(
+    `/projects/${projectId.value}/work-valuation/monthly-measurement/${item.id}/acceptance?mode=edit`
+  )
 }
 
 const submitDialog = async () => {
@@ -1133,21 +1050,30 @@ const confirmSubmitItem = async () => {
   actionLoadingId.value = submitTargetItem.value.id
   const apiOrigin = useApiOrigin()
   try {
+    const activeFlow = await loadActiveSubmitFlow()
+    if (!activeFlow) {
+      throw new Error('未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用')
+    }
     await $fetch(
       `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/submit`,
       {
         method: 'POST',
         body: {
-          remark: submitRemark.value.trim() || '送审',
-          templateId: activeSubmitFlow.value?.templateId
+          remark: '发起月度验工审核',
+          templateId: activeFlow.templateId
         }
       }
     )
     await refetchMonthly()
+    triggerNotification({
+      title: '操作成功',
+      description: '已成功发起月度验工送审。',
+      type: ToastNotificationType.Success
+    })
   } catch (e: any) {
     triggerNotification({
       title: '送审失败',
-      description: e.data?.error || '送审失败',
+      description: e.data?.error || e.message || '送审失败',
       type: ToastNotificationType.Danger
     })
   } finally {
@@ -1155,50 +1081,6 @@ const confirmSubmitItem = async () => {
     resetSubmitState()
   }
 }
-
-const submitConfirmButtons = computed((): LayoutDialogButton[] => [
-  {
-    text: '取消',
-    props: { color: 'outline' },
-    onClick: () => {
-      resetSubmitState()
-    }
-  },
-  {
-    text: '下一步',
-    props: {
-      color: 'primary',
-      loading: submitFlowLoading.value
-    },
-    disabled:
-      !submitTargetItem.value || submitFlowLoading.value || !activeSubmitFlow.value,
-    onClick: () => {
-      submitConfirmOpen.value = false
-      submitFinalConfirmOpen.value = true
-    }
-  }
-])
-
-const submitFinalConfirmButtons = computed((): LayoutDialogButton[] => [
-  {
-    text: '取消',
-    props: { color: 'outline' },
-    onClick: () => {
-      resetSubmitState()
-    }
-  },
-  {
-    text: '确认送审',
-    props: {
-      color: 'primary',
-      loading: actionLoadingId.value === submitTargetItem.value?.id
-    },
-    disabled: !submitTargetItem.value || !activeSubmitFlow.value,
-    onClick: () => {
-      confirmSubmitItem().catch(() => undefined)
-    }
-  }
-])
 
 const openFlowDetail = async (item: MonthlyMeasurementNode) => {
   if (!item.flowInstanceId) return
