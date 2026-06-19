@@ -398,7 +398,7 @@ export const createMonthlyMeasurementFromPreviewFactory =
 
     for (const row of approvedItems) {
       const qty = Number(row.investmentQty || 0)
-      const pay = Number(row.leaderPayAmt || 0) + Number(row.investmentPayAmt || 0)
+      const pay = Number(row.leaderPayAmt || 0)
       const rowYear = dayjs(Number(row.baseDate)).year()
 
       historyMap.set(row.boqItemId, (historyMap.get(row.boqItemId) || 0) + qty)

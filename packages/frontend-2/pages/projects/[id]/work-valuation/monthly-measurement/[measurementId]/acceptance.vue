@@ -8,7 +8,7 @@
       <div class="text-center space-y-2 relative">
         <h2 class="text-xl font-bold text-foreground">
           {{ contractName }}&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;{{
-            item?.roundName || '1'
+            item?.roundName ? `第${item.roundName}期` : '第1期'
           }}
         </h2>
         <div
@@ -101,16 +101,12 @@
                 <td class="px-2 py-2 text-center font-mono">{{ row.boqCode }}</td>
                 <td class="px-2 py-2 text-left pl-3 font-medium">
                   <button
-                    v-if="!isReadOnly"
                     class="text-primary hover:underline text-left"
-                    title="点击编辑清单明细"
+                    :title="isReadOnly ? '点击查看清单明细' : '点击编辑清单明细'"
                     @click="openTreeEdit(row.boqItemId, row.boqName)"
                   >
                     {{ row.boqName }}
                   </button>
-                  <span v-else class="text-foreground text-left">
-                    {{ row.boqName }}
-                  </span>
                 </td>
                 <td class="px-2 py-2 text-right pr-3 font-mono">
                   {{ formatMoney(row.contractAmount) }}
@@ -381,7 +377,11 @@
     </div>
 
     <!-- 附件弹出层 LayoutDialog -->
-    <LayoutDialog v-model:open="attachmentsDialogOpen" max-width="md">
+    <LayoutDialog
+      v-model:open="attachmentsDialogOpen"
+      max-width="md"
+      :prevent-close-on-click-outside="deleteConfirmOpen"
+    >
       <template #header>验工附件管理</template>
       <div class="space-y-4">
         <div class="flex justify-between items-center">
@@ -421,13 +421,12 @@
               </span>
             </div>
             <div class="flex gap-2 flex-shrink-0">
-              <a
-                :href="getBlobDownloadUrl(attachment.blobId)"
-                target="_blank"
+              <button
                 class="text-primary hover:underline font-medium"
+                @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
               >
                 下载
-              </a>
+              </button>
               <button
                 v-if="isCurrentApprover"
                 class="text-danger hover:underline font-medium"
@@ -472,6 +471,15 @@
         />
       </div>
     </LayoutDialog>
+    <!-- 删除附件二次确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="deleteConfirmOpen"
+      title="确认删除附件"
+      text="您确定要删除该附件吗？此操作无法撤销。"
+      confirm-text="确认删除"
+      :loading="deletingAttachment"
+      @confirm="executeDeleteAttachment"
+    />
   </div>
 </template>
 
@@ -489,6 +497,7 @@ import {
   getMonthlyMeasurementPermissions
 } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -516,6 +525,11 @@ const emit = defineEmits(['refetch'])
 const apiOrigin = useApiOrigin()
 const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+const { download: downloadBlobWithAuth } = useFileDownload()
+
+const deleteConfirmOpen = ref(false)
+const deleteTargetIdx = ref<number | null>(null)
+const deletingAttachment = ref(false)
 
 // 数据缓存
 const aggregatedItems = ref<any[]>([])
@@ -907,9 +921,16 @@ const handleAcceptanceFileUpload = async (event: Event) => {
         method: 'POST',
         body: formData
       })
-      const list = acceptanceDetails.value.acceptanceAttachments || []
-      list.push({ blobId: res.blobId, name: file.name })
-      acceptanceDetails.value.acceptanceAttachments = [...list]
+      const uploadResults = res?.uploadResults || []
+      const result = uploadResults.find((r: any) => r.formKey === 'file')
+      const blobId = result?.blobId
+      if (blobId) {
+        const list = acceptanceDetails.value.acceptanceAttachments || []
+        list.push({ blobId, name: file.name })
+        acceptanceDetails.value.acceptanceAttachments = [...list]
+      } else {
+        throw new Error('未获取到文件标识')
+      }
     }
     await saveTab1Acceptance()
   } catch (err) {
@@ -920,11 +941,24 @@ const handleAcceptanceFileUpload = async (event: Event) => {
     })
   }
 }
-const removeAcceptanceAttachment = async (idx: number) => {
-  const list = [...(acceptanceDetails.value.acceptanceAttachments || [])]
-  list.splice(idx, 1)
-  acceptanceDetails.value.acceptanceAttachments = list
-  await saveTab1Acceptance()
+const removeAcceptanceAttachment = (idx: number) => {
+  deleteTargetIdx.value = idx
+  deleteConfirmOpen.value = true
+}
+
+const executeDeleteAttachment = async () => {
+  if (deleteTargetIdx.value === null) return
+  deletingAttachment.value = true
+  try {
+    const list = [...(acceptanceDetails.value.acceptanceAttachments || [])]
+    list.splice(deleteTargetIdx.value, 1)
+    acceptanceDetails.value.acceptanceAttachments = list
+    await saveTab1Acceptance()
+  } finally {
+    deletingAttachment.value = false
+    deleteConfirmOpen.value = false
+    deleteTargetIdx.value = null
+  }
 }
 
 // -------------------------------------------------------------

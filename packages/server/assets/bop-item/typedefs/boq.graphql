@@ -17,6 +17,7 @@ type BoqItem {
   unit: String
   quantity: Float
   price: Float
+  amount: Float
   sortOrder: Int!
   depth: Int!
   hasChildren: Boolean!
@@ -50,6 +51,7 @@ input CreateBoqItemInput {
   unit: String
   quantity: Float
   price: Float
+  amount: Float
   sortOrder: Int
 }
 
@@ -61,6 +63,7 @@ input UpdateBoqItemInput {
   unit: String
   quantity: Float
   price: Float
+  amount: Float
   sortOrder: Int
 }
 
@@ -86,6 +89,7 @@ input ImportBoqItemInput {
   unit: String
   quantity: Float
   price: Float
+  amount: Float
 }
 
 input ImportBoqItemsInput {

@@ -200,7 +200,8 @@ const resolvers: Resolvers = {
           parentCode: item.parentCode ?? null,
           unit: item.unit ?? null,
           quantity: item.quantity ?? null,
-          price: item.price ?? null
+          price: item.price ?? null,
+          amount: item.amount ?? null
         }))
       })
       await recalculateProjectCostSummaryFactory({ db: projectDb })({

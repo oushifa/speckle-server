@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express'
 import type { Request, Response } from 'express'
+import { preciseAdd, preciseMul } from '@/modules/shared/helpers/preciseMath'
 import { z } from 'zod'
 import { validateRequest } from 'zod-express'
 import type Busboy from 'busboy'
@@ -110,6 +111,58 @@ const requireServiceToken: RequestHandler = (req, res, next) => {
   }
 
   return next()
+}
+
+
+
+const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: string) => {
+  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(measurementId)
+  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(measurementId)
+  const extraPayItems = Array.isArray(paymentDetails?.extraPayItems)
+    ? paymentDetails.extraPayItems
+    : []
+
+  let contractorPayAmtSum = 0
+  let supervisionPayAmtSum = 0
+  let contractPayAmtSum = 0
+  let leaderPayAmtSum = 0
+
+  for (const item of items) {
+    if (!item.isSummaryRow) {
+      const price = Number(item.price || 0)
+      const contractorQty = Number(item.contractorQty || 0)
+      const investmentQty = Number(item.investmentQty || 0)
+      
+      const contractorAmt = preciseMul(contractorQty, price)
+      const supervisionAmt = preciseMul(investmentQty, price)
+      const contractAmt = supervisionAmt
+      const leaderAmt = supervisionAmt
+
+      contractorPayAmtSum = preciseAdd(contractorPayAmtSum, contractorAmt)
+      supervisionPayAmtSum = preciseAdd(supervisionPayAmtSum, supervisionAmt)
+      contractPayAmtSum = preciseAdd(contractPayAmtSum, contractAmt)
+      leaderPayAmtSum = preciseAdd(leaderPayAmtSum, leaderAmt)
+    }
+  }
+
+  for (const extra of extraPayItems) {
+    const contractorAmt = Number(extra.contractorPayAmt || 0)
+    const supervisionAmt = Number(extra.investmentPayAmt || 0)
+    const contractAmt = Number(extra.contractPayAmt || 0)
+    const leaderAmt = Number(extra.leaderPayAmt || 0)
+
+    contractorPayAmtSum = preciseAdd(contractorPayAmtSum, contractorAmt)
+    supervisionPayAmtSum = preciseAdd(supervisionPayAmtSum, supervisionAmt)
+    contractPayAmtSum = preciseAdd(contractPayAmtSum, contractAmt)
+    leaderPayAmtSum = preciseAdd(leaderPayAmtSum, leaderAmt)
+  }
+
+  return {
+    contractorPayAmt: contractorPayAmtSum,
+    supervisionPayAmt: supervisionPayAmtSum,
+    contractPayAmt: contractPayAmtSum,
+    leaderPayAmt: leaderPayAmtSum
+  }
 }
 
 export const qualityAcceptanceRouterFactory = (): Router => {
@@ -965,6 +1018,40 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           excludedAcceptanceIds: body.excludedAcceptanceIds || [],
           pinnedAcceptanceIds: currentPinnedIds
         })
+        // 1. 获取所有的历史已通过的明细记录（投资监理审定量），用于重新计算 lastCumulativeQty, yearlyCumulativeQty, lastCumulativePay
+        const currentYear = dayjs(newBaseDate).year()
+        const approvedItems = await projectDb('monthly_measurement_items')
+          .join(
+            'monthly_measurements',
+            'monthly_measurement_items.measurementId',
+            'monthly_measurements.id'
+          )
+          .where('monthly_measurements.project_id', projectId)
+          .andWhere('monthly_measurements.approveStatus', 'APPROVED')
+          .andWhere('monthly_measurements.id', '!=', id) // 排除自身
+          .select(
+            'monthly_measurement_items.boqItemId',
+            'monthly_measurement_items.investmentQty',
+            'monthly_measurement_items.leaderPayAmt',
+            'monthly_measurements.baseDate'
+          )
+
+        const historyMap = new Map<string, number>()
+        const yearlyMap = new Map<string, number>()
+        const payMap = new Map<string, number>()
+
+        for (const row of approvedItems) {
+          const qty = Number(row.investmentQty || 0)
+          const pay = Number(row.leaderPayAmt || 0) // 只加分管领导的支付额
+          const rowYear = dayjs(Number(row.baseDate)).year()
+
+          historyMap.set(row.boqItemId, (historyMap.get(row.boqItemId) || 0) + qty)
+          payMap.set(row.boqItemId, (payMap.get(row.boqItemId) || 0) + pay)
+          if (rowYear === currentYear) {
+            yearlyMap.set(row.boqItemId, (yearlyMap.get(row.boqItemId) || 0) + qty)
+          }
+        }
+
         const customValues = new Map(
           (body.measuredItems || []).map((item: any) => [item.boqItemId, item])
         )
@@ -976,6 +1063,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             : custom?.measuredQty !== null && custom?.measuredQty !== undefined
             ? Number(custom.measuredQty)
             : row.measuredQtyDefault
+          const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
           return {
             id: cryptoRandomString({ length: 10 }),
             measurementId: id,
@@ -990,9 +1078,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             price: row.price,
             pendingTotalQty: row.pendingTotalQty,
             approvedCumulativeQty: row.approvedCumulativeQty,
-            measuredQty: Number.isNaN(measuredQty)
-              ? row.measuredQtyDefault
-              : measuredQty,
+            measuredQty: finalQty,
+            contractorQty: finalQty,
+            supervisionQty: finalQty,
+            headquartersQty: finalQty,
+            investmentQty: finalQty,
+            contractorPayAmt: 0,
+            investmentPayAmt: 0,
+            contractPayAmt: 0,
+            leaderPayAmt: 0,
+            lastCumulativeQty: historyMap.get(row.boqItemId) || 0,
+            yearlyCumulativeQty: yearlyMap.get(row.boqItemId) || 0,
+            lastCumulativePay: payMap.get(row.boqItemId) || 0,
             remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
             sourceAcceptanceIds: row.sourceAcceptanceIds,
             createdAt: nowTs,
@@ -1016,6 +1113,41 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const customValues2 = new Map(
         (body.measuredItems || []).map((item: any) => [item.boqItemId, item])
       )
+
+      // 如果年月没有变化，需要获取最新历史通过，以防在此期间其它月度单据审批通过了
+      const currentYear = dayjs(newBaseDate).year()
+      const approvedItems = await projectDb('monthly_measurement_items')
+        .join(
+          'monthly_measurements',
+          'monthly_measurement_items.measurementId',
+          'monthly_measurements.id'
+        )
+        .where('monthly_measurements.project_id', projectId)
+        .andWhere('monthly_measurements.approveStatus', 'APPROVED')
+        .andWhere('monthly_measurements.id', '!=', id)
+        .select(
+          'monthly_measurement_items.boqItemId',
+          'monthly_measurement_items.investmentQty',
+          'monthly_measurement_items.leaderPayAmt',
+          'monthly_measurements.baseDate'
+        )
+
+      const historyMap = new Map<string, number>()
+      const yearlyMap = new Map<string, number>()
+      const payMap = new Map<string, number>()
+
+      for (const row of approvedItems) {
+        const qty = Number(row.investmentQty || 0)
+        const pay = Number(row.leaderPayAmt || 0)
+        const rowYear = dayjs(Number(row.baseDate)).year()
+
+        historyMap.set(row.boqItemId, (historyMap.get(row.boqItemId) || 0) + qty)
+        payMap.set(row.boqItemId, (payMap.get(row.boqItemId) || 0) + pay)
+        if (rowYear === currentYear) {
+          yearlyMap.set(row.boqItemId, (yearlyMap.get(row.boqItemId) || 0) + qty)
+        }
+      }
+
       const now = new Date()
       const nextItems =
         baseDateChanged || windowChanged
@@ -1040,7 +1172,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
                 measuredQty: Number.isNaN(measuredQty)
                   ? row.measuredQty ?? 0
                   : measuredQty,
-                remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
+                contractorQty: row.contractorQty ?? 0,
+                supervisionQty: row.supervisionQty ?? 0,
+                headquartersQty: row.headquartersQty ?? 0,
+                investmentQty: row.investmentQty ?? 0,
+                contractorPayAmt: row.contractorPayAmt ?? 0,
+                investmentPayAmt: row.investmentPayAmt ?? 0,
+                contractPayAmt: row.contractPayAmt ?? 0,
+                leaderPayAmt: row.leaderPayAmt ?? 0,
+                lastCumulativeQty: historyMap.get(row.boqItemId) || 0,
+                yearlyCumulativeQty: yearlyMap.get(row.boqItemId) || 0,
+                lastCumulativePay: payMap.get(row.boqItemId) || 0,
+                remark: row.isSummaryRow ? null : custom?.remark?.trim() || row.remark || null,
                 sourceAcceptanceIds: row.sourceAcceptanceIds,
                 createdAt: now,
                 updatedAt: now
@@ -1105,19 +1248,35 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const { projectId, id } = req.params
       const projectDb = await getProjectDbClient({ projectId })
       const details = await getMonthlyMeasurementDetailsFactory({ db: projectDb })(id)
+      
+      let acceptanceAttachments: Array<{ blobId: string; name: string }> = []
+      if (details && Array.isArray(details.acceptanceAttachments) && details.acceptanceAttachments.length > 0) {
+        const blobIds = details.acceptanceAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        acceptanceAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
       return res.status(200).json(
-        details || {
-          measurementId: id,
-          acceptanceAttachments: [],
-          supervisionOpinion: '',
-          supervisionAuditor: '',
-          headquartersOpinion: '',
-          headquartersAuditor: '',
-          investmentOpinion: '',
-          investmentAuditor: '',
-          ownerOpinion: '',
-          ownerAuditor: ''
-        }
+        details
+          ? { ...details, acceptanceAttachments }
+          : {
+              measurementId: id,
+              acceptanceAttachments: [],
+              supervisionOpinion: '',
+              supervisionAuditor: '',
+              headquartersOpinion: '',
+              headquartersAuditor: '',
+              investmentOpinion: '',
+              investmentAuditor: '',
+              ownerOpinion: '',
+              ownerAuditor: ''
+            }
       )
     }
   )
@@ -1134,7 +1293,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const fieldsToSave: any = {}
       if ('acceptanceAttachments' in body) {
         // 附件在草稿期或流程中，允许对应可写人员修改更新
-        fieldsToSave.acceptanceAttachments = body.acceptanceAttachments
+        fieldsToSave.acceptanceAttachments = (body.acceptanceAttachments || []).map((x: any) =>
+          typeof x === 'string' ? x : x.blobId
+        )
       }
 
       const existing = await getMonthlyMeasurementDetailsFactory({ db: projectDb })(id)
@@ -1186,7 +1347,21 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         id,
         fieldsToSave
       )
-      return res.status(200).json(updated)
+
+      let acceptanceAttachments: Array<{ blobId: string; name: string }> = []
+      if (updated && Array.isArray(updated.acceptanceAttachments) && updated.acceptanceAttachments.length > 0) {
+        const blobIds = updated.acceptanceAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        acceptanceAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
+      return res.status(200).json(updated ? { ...updated, acceptanceAttachments } : null)
     }
   )
 
@@ -1198,10 +1373,25 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const { projectId, id } = req.params
       const projectDb = await getProjectDbClient({ projectId })
       const details = await getMonthlyPaymentDetailsFactory({ db: projectDb })(id)
+
+      let paymentAttachments: Array<{ blobId: string; name: string }> = []
+      if (details && Array.isArray(details.paymentAttachments) && details.paymentAttachments.length > 0) {
+        const blobIds = details.paymentAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        paymentAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
       return res.status(200).json(
         details
           ? {
               ...details,
+              paymentAttachments,
               extraPayItems: Array.isArray(details.extraPayItems)
                 ? details.extraPayItems
                 : []
@@ -1232,8 +1422,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const body = req.body || {}
 
       const fieldsToSave: any = {}
-      if ('paymentAttachments' in body)
-        fieldsToSave.paymentAttachments = body.paymentAttachments
+      if ('paymentAttachments' in body) {
+        fieldsToSave.paymentAttachments = (body.paymentAttachments || []).map((x: any) =>
+          typeof x === 'string' ? x : x.blobId
+        )
+      }
       if ('interimRemark' in body) fieldsToSave.interimRemark = body.interimRemark
 
       if ('extraPayItems' in body && Array.isArray(body.extraPayItems)) {
@@ -1334,7 +1527,31 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         id,
         fieldsToSave
       )
-      return res.status(200).json(updated)
+
+      let paymentAttachments: Array<{ blobId: string; name: string }> = []
+      if (updated && Array.isArray(updated.paymentAttachments) && updated.paymentAttachments.length > 0) {
+        const blobIds = updated.paymentAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        paymentAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
+      return res.status(200).json(
+        updated
+          ? {
+              ...updated,
+              paymentAttachments,
+              extraPayItems: Array.isArray(updated.extraPayItems)
+                ? updated.extraPayItems
+                : []
+            }
+          : null
+      )
     }
   )
 
@@ -1378,31 +1595,49 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         ) // 万元折合元
       }
 
+      let requestAttachments: Array<{ blobId: string; name: string }> = []
+      if (details && Array.isArray(details.requestAttachments) && details.requestAttachments.length > 0) {
+        const blobIds = details.requestAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        requestAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
+      const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
+
       return res.status(200).json(
-        details || {
-          measurementId: id,
-          requestAttachments: [],
-          lastCumulativePayment,
-          contractAmount,
-          contractorPayAmt: 0,
-          supervisionPayAmt: 0,
-          headquartersPayAmt: 0,
-          investmentPayAmt: 0,
-          contractPayAmt: 0,
-          leaderPayAmt: 0,
-          reqContractorOpinion: '',
-          reqContractorAuditor: '',
-          reqSupervisionOpinion: '',
-          reqSupervisionAuditor: '',
-          reqHeadquartersOpinion: '',
-          reqHeadquartersAuditor: '',
-          reqInvestmentOpinion: '',
-          reqInvestmentAuditor: '',
-          reqContractOpinion: '',
-          reqContractAuditor: '',
-          reqLeaderOpinion: '',
-          reqLeaderAuditor: ''
-        }
+        details
+          ? {
+              ...details,
+              requestAttachments,
+              ...calculatedAmts
+            }
+          : {
+              measurementId: id,
+              requestAttachments: [],
+              lastCumulativePayment,
+              contractAmount,
+              ...calculatedAmts,
+              headquartersPayAmt: 0,
+              investmentPayAmt: 0,
+              reqContractorOpinion: '',
+              reqContractorAuditor: '',
+              reqSupervisionOpinion: '',
+              reqSupervisionAuditor: '',
+              reqHeadquartersOpinion: '',
+              reqHeadquartersAuditor: '',
+              reqInvestmentOpinion: '',
+              reqInvestmentAuditor: '',
+              reqContractOpinion: '',
+              reqContractAuditor: '',
+              reqLeaderOpinion: '',
+              reqLeaderAuditor: ''
+            }
       )
     }
   )
@@ -1419,8 +1654,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const existing = await getMonthlyPaymentRequestsFactory({ db: projectDb })(id)
 
       const fieldsToSave: any = {}
-      if ('requestAttachments' in body)
-        fieldsToSave.requestAttachments = body.requestAttachments
+      if ('requestAttachments' in body) {
+        fieldsToSave.requestAttachments = (body.requestAttachments || []).map((x: any) =>
+          typeof x === 'string' ? x : x.blobId
+        )
+      }
 
       const roles = [
         'contractor',
@@ -1433,17 +1671,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const changedRoles = new Set<'contractor' | 'supervision' | 'headquarters' | 'investment' | 'contract' | 'leader'>()
       for (const role of roles) {
-        const amtKey = `${role}PayAmt`
         const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
 
         let hasChange = false
-        if (amtKey in body) {
-          const bodyVal = Number(body[amtKey] || 0)
-          const dbVal = Number((existing as any)?.[amtKey] || 0)
-          if (bodyVal !== dbVal) {
-            hasChange = true
-          }
-        }
         if (opinionKey in body) {
           const bodyVal = (body[opinionKey] || '').trim()
           const dbVal = ((existing as any)?.[opinionKey] || '').trim()
@@ -1452,33 +1682,90 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           }
         }
 
+        if (role === 'headquarters' || role === 'investment') {
+          const payAmtKey = `${role}PayAmt`
+          if (payAmtKey in body) {
+            const bodyAmt = Number(body[payAmtKey] || 0)
+            const dbAmt = Number((existing as any)?.[payAmtKey] || 0)
+            if (bodyAmt !== dbAmt) {
+              hasChange = true
+            }
+          }
+        }
+
         if (hasChange) {
           changedRoles.add(role)
         }
       }
 
-      if (changedRoles.size > 1) {
-        throw new BadRequestError('本次保存包含多角色支付字段变更，请分别在对应节点填写并保存')
+      if (changedRoles.size > 0) {
+        let hasPermission = false
+        let firstError: any = null
+
+        for (const role of changedRoles) {
+          try {
+            await checkWritePermission(projectDb, id, userId, role as any)
+            hasPermission = true
+          } catch (err) {
+            if (!firstError) {
+              firstError = err
+            }
+          }
+        }
+
+        if (!hasPermission) {
+          throw firstError || new BadRequestError('没有权限修改数据')
+        }
+
+        for (const role of changedRoles) {
+          const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
+          const dateKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Date`
+
+          if (opinionKey in body) fieldsToSave[opinionKey] = body[opinionKey]
+          fieldsToSave[dateKey] = new Date()
+
+          if (role === 'headquarters' || role === 'investment') {
+            const payAmtKey = `${role}PayAmt`
+            if (payAmtKey in body) {
+              fieldsToSave[payAmtKey] = Number(body[payAmtKey] || 0)
+            }
+          }
+        }
       }
 
-      if (changedRoles.size === 1) {
-        const role = Array.from(changedRoles)[0]
-        await checkWritePermission(projectDb, id, userId, role)
-
-        const amtKey = `${role}PayAmt`
-        const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
-        const dateKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Date`
-
-        if (amtKey in body) fieldsToSave[amtKey] = body[amtKey]
-        if (opinionKey in body) fieldsToSave[opinionKey] = body[opinionKey]
-        fieldsToSave[dateKey] = new Date()
-      }
+      const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
+      fieldsToSave.contractorPayAmt = calculatedAmts.contractorPayAmt
+      fieldsToSave.supervisionPayAmt = calculatedAmts.supervisionPayAmt
+      fieldsToSave.contractPayAmt = calculatedAmts.contractPayAmt
+      fieldsToSave.leaderPayAmt = calculatedAmts.leaderPayAmt
 
       const updated = await upsertMonthlyPaymentRequestsFactory({ db: projectDb })(
         id,
         fieldsToSave
       )
-      return res.status(200).json(updated)
+
+      let requestAttachments: Array<{ blobId: string; name: string }> = []
+      if (updated && Array.isArray(updated.requestAttachments) && updated.requestAttachments.length > 0) {
+        const blobIds = updated.requestAttachments
+        const blobs = await projectDb('blob_storage')
+          .where('streamId', projectId)
+          .whereIn('id', blobIds)
+          .select('id', 'fileName')
+        requestAttachments = blobIds.map((bid: string) => {
+          const b = blobs.find((x: any) => x.id === bid)
+          return { blobId: bid, name: b ? b.fileName : bid }
+        })
+      }
+
+      return res.status(200).json(
+        updated
+          ? {
+              ...updated,
+              requestAttachments,
+              ...calculatedAmts
+            }
+          : null
+      )
     }
   )
 
@@ -1541,6 +1828,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
       }
 
+      // 获取 boq_items 上配置的合价 amount
+      const boqItems = await projectDb('boq_items')
+        .where('projectId', projectId)
+        .select('id', 'amount')
+      const boqAmountMap = new Map<string, number | null>()
+      for (const boq of boqItems) {
+        boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+      }
+
       const payload = items.map((item) => ({
         ...item,
         measuredQtyDefault: item.isSummaryRow
@@ -1550,7 +1846,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           ? item.sourceAcceptanceIds
           : livePendingMap.get(item.boqItemId)?.sourceAcceptanceIds || [],
         lastCumulativeQty: item.lastCumulativeQty || 0,
-        yearlyCumulativeQty: item.yearlyCumulativeQty || 0
+        yearlyCumulativeQty: item.yearlyCumulativeQty || 0,
+        boqAmount: boqAmountMap.get(item.boqItemId) ?? null
       }))
 
       return res.status(200).json(payload)
@@ -1609,15 +1906,25 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
       }
 
-      if (changedRoles.size > 1) {
-        throw new BadRequestError(
-          '本次保存包含多角色工程量或支付字段变更，请分别在对应节点填写并保存'
-        )
-      }
+      if (changedRoles.size > 0) {
+        let hasPermission = false
+        let firstError: any = null
 
-      const requiredRole = Array.from(changedRoles)[0]
-      if (requiredRole) {
-        await checkWritePermission(projectDb, id, userId, requiredRole as any)
+        for (const role of changedRoles) {
+          try {
+            await checkWritePermission(projectDb, id, userId, role as any)
+            hasPermission = true
+            break
+          } catch (err) {
+            if (!firstError) {
+              firstError = err
+            }
+          }
+        }
+
+        if (!hasPermission) {
+          throw firstError || new BadRequestError('没有权限修改数据')
+        }
       }
 
       await updateMonthlyMeasurementItemsBatchFactory({ db: projectDb })(id, items)
@@ -1652,6 +1959,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       // 获取当前年
       const currentYear = dayjs(Number(measurement.baseDate)).year()
+
+      // 提前查询 boq_items 表以获取每个 item 的 amount 字段
+      const boqItems = await projectDb('boq_items')
+        .where('projectId', projectId)
+        .select('id', 'type', 'parentId', 'amount')
+      const boqTypeMap = new Map<string, string>()
+      const boqAmountMap = new Map<string, number | null>()
+      for (const boq of boqItems) {
+        boqTypeMap.set(boq.id, boq.type)
+        boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+      }
 
       // 2. 自底向上金额聚合计算
       const itemMap = new Map<
@@ -1705,18 +2023,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         if (!node.record.isSummaryRow) {
           const price = Number(node.record.price || 0)
-          node.contractAmount = Number(node.record.pendingTotalQty || 0) * price
-          node.contractorAmount = Number(node.record.contractorQty || 0) * price
-          node.supervisionAmount = Number(node.record.supervisionQty || 0) * price
-          node.headquartersAmount = Number(node.record.headquartersQty || 0) * price
-          node.investmentAmount = Number(node.record.investmentQty || 0) * price
+          
+          // 如果清单有合价，则直接从清单的合价获取，否则自行计算
+          const boqAmt = boqAmountMap.get(node.record.boqItemId)
+          if (boqAmt !== undefined && boqAmt !== null) {
+            node.contractAmount = boqAmt
+          } else {
+            node.contractAmount = preciseMul(Number(node.record.pendingTotalQty || 0), price)
+          }
+
+          node.contractorAmount = preciseMul(Number(node.record.contractorQty || 0), price)
+          node.supervisionAmount = preciseMul(Number(node.record.supervisionQty || 0), price)
+          node.headquartersAmount = preciseMul(Number(node.record.headquartersQty || 0), price)
+          node.investmentAmount = preciseMul(Number(node.record.investmentQty || 0), price)
           node.contractorPayAmt = Number(node.record.contractorPayAmt || 0)
           node.investmentPayAmt = Number(node.record.investmentPayAmt || 0)
           node.contractPayAmt = Number(node.record.contractPayAmt || 0)
           node.leaderPayAmt = Number(node.record.leaderPayAmt || 0)
 
-          node.historyCumulative = Number(node.record.lastCumulativeQty || 0) * price
-          node.historyYearly = Number(node.record.yearlyCumulativeQty || 0) * price
+          node.historyCumulative = preciseMul(Number(node.record.lastCumulativeQty || 0), price)
+          node.historyYearly = preciseMul(Number(node.record.yearlyCumulativeQty || 0), price)
           node.historyPay = Number(node.record.lastCumulativePay || 0)
           return
         }
@@ -1725,18 +2051,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           calculateAmounts(childId)
           const child = itemMap.get(childId)
           if (child) {
-            node.contractAmount += child.contractAmount
-            node.contractorAmount += child.contractorAmount
-            node.supervisionAmount += child.supervisionAmount
-            node.headquartersAmount += child.headquartersAmount
-            node.investmentAmount += child.investmentAmount
-            node.contractorPayAmt += child.contractorPayAmt
-            node.investmentPayAmt += child.investmentPayAmt
-            node.contractPayAmt += child.contractPayAmt
-            node.leaderPayAmt += child.leaderPayAmt
-            node.historyCumulative += child.historyCumulative
-            node.historyYearly += child.historyYearly
-            node.historyPay += child.historyPay
+            node.contractAmount = preciseAdd(node.contractAmount, child.contractAmount)
+            node.contractorAmount = preciseAdd(node.contractorAmount, child.contractorAmount)
+            node.supervisionAmount = preciseAdd(node.supervisionAmount, child.supervisionAmount)
+            node.headquartersAmount = preciseAdd(node.headquartersAmount, child.headquartersAmount)
+            node.investmentAmount = preciseAdd(node.investmentAmount, child.investmentAmount)
+            node.contractorPayAmt = preciseAdd(node.contractorPayAmt, child.contractorPayAmt)
+            node.investmentPayAmt = preciseAdd(node.investmentPayAmt, child.investmentPayAmt)
+            node.contractPayAmt = preciseAdd(node.contractPayAmt, child.contractPayAmt)
+            node.leaderPayAmt = preciseAdd(node.leaderPayAmt, child.leaderPayAmt)
+            node.historyCumulative = preciseAdd(node.historyCumulative, child.historyCumulative)
+            node.historyYearly = preciseAdd(node.historyYearly, child.historyYearly)
+            node.historyPay = preciseAdd(node.historyPay, child.historyPay)
           }
         }
       }
@@ -1748,16 +2074,6 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 3. 根据不同页面需要，输出不同聚合层级
-      const boqItems = await projectDb('boq_items')
-        .where('projectId', projectId)
-        .select('id', 'type', 'parentId')
-      const boqTypeMap = new Map<string, string>()
-      const boqParentMap = new Map<string, string | null>()
-      for (const boq of boqItems) {
-        boqTypeMap.set(boq.id, boq.type)
-        boqParentMap.set(boq.id, boq.parentId || null)
-      }
-
       const hasCategory = currentItems.some(
         (item) => boqTypeMap.get(item.boqItemId) === 'CATEGORY'
       )
@@ -1775,8 +2091,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const result = aggregatedDisplayItems.map((item) => {
         const sums = itemMap.get(item.boqItemId)!
-        const cumulativeAmount = sums.historyCumulative + sums.investmentAmount
-        const yearlyAmount = sums.historyYearly + sums.investmentAmount
+        const cumulativeAmount = preciseAdd(sums.historyCumulative, sums.investmentAmount)
+        const yearlyAmount = preciseAdd(sums.historyYearly, sums.investmentAmount)
         const cumulativeRate =
           sums.contractAmount > 0
             ? Math.round((cumulativeAmount / sums.contractAmount) * 10000) / 100
@@ -1925,7 +2241,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     projectDb: any,
     measureId: string,
     userId: string,
-    requiredRole: 'contractor' | 'supervision' | 'headquarters' | 'engineering' | 'contract'
+    requiredRole: 'contractor' | 'supervision' | 'supervision_approver' | 'headquarters' | 'headquarters_approver' | 'engineering' | 'engineering_approver' | 'contract'
   ) => {
     const measure = await projectDb('safety_measures').where('id', measureId).first()
     if (!measure) {
@@ -1960,23 +2276,47 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const stepName = (pendingStep.name || '').trim()
       const matchRole = (role: string) => {
         if (role === 'supervision') {
-          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && !stepName.includes('投资监理')
+          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
+                 !stepName.includes('投资监理') && 
+                 (stepName.includes('经办') || !stepName.includes('审核'))
+        }
+        if (role === 'supervision_approver') {
+          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
+                 !stepName.includes('投资监理') && 
+                 (stepName.includes('审核') || stepName.includes('负责人'))
         }
         if (role === 'headquarters') {
-          return stepName.includes('指挥部') || stepName.includes('现场指挥') || ['指挥部', '现场指挥部', '指挥部审核', '现场指挥部经办人', '现场指挥'].includes(stepName)
+          return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
+                 (stepName.includes('经办') || !stepName.includes('审核'))
+        }
+        if (role === 'headquarters_approver') {
+          return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
+                 (stepName.includes('审核') || stepName.includes('负责人'))
         }
         if (role === 'engineering') {
-          return stepName.includes('工管') || stepName.includes('工程管理') || ['工管部', '工程管理部', '工管部审核', '工程管理部经办人', '工程管理部负责人'].includes(stepName)
+          return (stepName.includes('工管') || stepName.includes('工程管理')) && 
+                 (stepName.includes('经办') || !stepName.includes('审核'))
+        }
+        if (role === 'engineering_approver') {
+          return (stepName.includes('工管') || stepName.includes('工程管理')) && 
+                 (stepName.includes('审核') || stepName.includes('负责人'))
         }
         if (role === 'contract') {
           return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
         }
+        if (role === 'contractor') {
+          return stepName.includes('施工单位') || stepName.includes('开始') || stepName.includes('送审')
+        }
         return false
       }
 
+      if (requiredRole === 'contractor' && matchRole('contractor')) return true
       if (requiredRole === 'supervision' && matchRole('supervision')) return true
+      if (requiredRole === 'supervision_approver' && matchRole('supervision_approver')) return true
       if (requiredRole === 'headquarters' && matchRole('headquarters')) return true
+      if (requiredRole === 'headquarters_approver' && matchRole('headquarters_approver')) return true
       if (requiredRole === 'engineering' && matchRole('engineering')) return true
+      if (requiredRole === 'engineering_approver' && matchRole('engineering_approver')) return true
       if (requiredRole === 'contract' && matchRole('contract')) return true
 
       throw new BadRequestError(`当前审批步骤【${stepName}】不允许【${requiredRole}】角色修改数据`)
@@ -2312,13 +2652,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           lastCumulativeAmount = history.amt
 
           const contractDeptQty = Number(item.contractDeptQty || 0)
-          cumulativeQty = lastCumulativeQty + contractDeptQty
-          cumulativeAmount = lastCumulativeAmount + (contractDeptQty * price)
+          cumulativeQty = preciseAdd(lastCumulativeQty, contractDeptQty)
+          cumulativeAmount = preciseAdd(lastCumulativeAmount, preciseMul(contractDeptQty, price))
 
           yearlyCumulativeQty = yearlyHist.qty
           yearlyCumulativeAmount = yearlyHist.amt
-          yearlyQty = yearlyCumulativeQty + contractDeptQty
-          yearlyAmount = yearlyCumulativeAmount + (contractDeptQty * price)
+          yearlyQty = preciseAdd(yearlyCumulativeQty, contractDeptQty)
+          yearlyAmount = preciseAdd(yearlyCumulativeAmount, preciseMul(contractDeptQty, price))
 
           const contractAmount = Number(item.contractAmount || 0)
           cumulativeRate = contractAmount > 0 ? (cumulativeAmount / contractAmount) * 100 : 0
@@ -2382,27 +2722,27 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             parent.contractAmount = 0
           }
 
-          parent.contractorQty += (row.contractorQty || 0)
-          parent.contractorAmount += (row.contractorAmount || 0)
-          parent.supervisionQty += (row.supervisionQty || 0)
-          parent.supervisionAmount += (row.supervisionAmount || 0)
-          parent.headquartersQty += (row.headquartersQty || 0)
-          parent.headquartersAmount += (row.headquartersAmount || 0)
-          parent.engineeringQty += (row.engineeringQty || 0)
-          parent.engineeringAmount += (row.engineeringAmount || 0)
-          parent.contractDeptQty += (row.contractDeptQty || 0)
-          parent.contractDeptAmount += (row.contractDeptAmount || 0)
+          parent.contractorQty = preciseAdd(parent.contractorQty, row.contractorQty || 0)
+          parent.contractorAmount = preciseAdd(parent.contractorAmount, row.contractorAmount || 0)
+          parent.supervisionQty = preciseAdd(parent.supervisionQty, row.supervisionQty || 0)
+          parent.supervisionAmount = preciseAdd(parent.supervisionAmount, row.supervisionAmount || 0)
+          parent.headquartersQty = preciseAdd(parent.headquartersQty, row.headquartersQty || 0)
+          parent.headquartersAmount = preciseAdd(parent.headquartersAmount, row.headquartersAmount || 0)
+          parent.engineeringQty = preciseAdd(parent.engineeringQty, row.engineeringQty || 0)
+          parent.engineeringAmount = preciseAdd(parent.engineeringAmount, row.engineeringAmount || 0)
+          parent.contractDeptQty = preciseAdd(parent.contractDeptQty, row.contractDeptQty || 0)
+          parent.contractDeptAmount = preciseAdd(parent.contractDeptAmount, row.contractDeptAmount || 0)
 
-          parent.lastCumulativeQty += (row.lastCumulativeQty || 0)
-          parent.lastCumulativeAmount += (row.lastCumulativeAmount || 0)
-          parent.cumulativeQty += (row.cumulativeQty || 0)
-          parent.cumulativeAmount += (row.cumulativeAmount || 0)
-          parent.yearlyCumulativeQty += (row.yearlyCumulativeQty || 0)
-          parent.yearlyCumulativeAmount += (row.yearlyCumulativeAmount || 0)
-          parent.yearlyQty += (row.yearlyQty || 0)
-          parent.yearlyAmount += (row.yearlyAmount || 0)
-          parent.contractQty += (row.contractQty || 0)
-          parent.contractAmount += (row.contractAmount || 0)
+          parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty, row.lastCumulativeQty || 0)
+          parent.lastCumulativeAmount = preciseAdd(parent.lastCumulativeAmount, row.lastCumulativeAmount || 0)
+          parent.cumulativeQty = preciseAdd(parent.cumulativeQty, row.cumulativeQty || 0)
+          parent.cumulativeAmount = preciseAdd(parent.cumulativeAmount, row.cumulativeAmount || 0)
+          parent.yearlyCumulativeQty = preciseAdd(parent.yearlyCumulativeQty, row.yearlyCumulativeQty || 0)
+          parent.yearlyCumulativeAmount = preciseAdd(parent.yearlyCumulativeAmount, row.yearlyCumulativeAmount || 0)
+          parent.yearlyQty = preciseAdd(parent.yearlyQty, row.yearlyQty || 0)
+          parent.yearlyAmount = preciseAdd(parent.yearlyAmount, row.yearlyAmount || 0)
+          parent.contractQty = preciseAdd(parent.contractQty, row.contractQty || 0)
+          parent.contractAmount = preciseAdd(parent.contractAmount, row.contractAmount || 0)
 
           const cAmount = Number(parent.contractAmount || 0)
           parent.cumulativeRate = cAmount > 0 ? parseFloat(((parent.cumulativeAmount / cAmount) * 100).toFixed(2)) : 0
@@ -2570,7 +2910,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const isSummary = parentIds.has(item.id)
         const qty = isSummary ? 0 : Number(item.quantity || 0)
         const price = isSummary ? 0 : Number(item.price || 0)
-        const amt = qty * price
+        
+        let amt = 0
+        if (!isSummary) {
+          if (item.amount !== null && item.amount !== undefined) {
+            amt = Number(item.amount)
+          } else {
+            amt = preciseMul(qty, price)
+          }
+        }
 
         return {
           id: cryptoRandomString({ length: 10 }),
@@ -2651,7 +2999,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 根据当前流转节点进行角色和修改权限的鉴权
-      let currentRole: 'contractor' | 'supervision' | 'headquarters' | 'engineering' | 'contract' = 'contractor'
+      let currentRole: 'contractor' | 'supervision' | 'supervision_approver' | 'headquarters' | 'headquarters_approver' | 'engineering' | 'engineering_approver' | 'contract' = 'contractor'
       const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
       
       if (!isDraft && measure.flowInstanceId) {
@@ -2664,24 +3012,48 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const stepName = (pendingStep.name || '').trim()
           const matchRole = (role: string) => {
             if (role === 'supervision') {
-              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && !stepName.includes('投资监理')
+              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
+                     !stepName.includes('投资监理') && 
+                     (stepName.includes('经办') || !stepName.includes('审核'))
+            }
+            if (role === 'supervision_approver') {
+              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
+                     !stepName.includes('投资监理') && 
+                     (stepName.includes('审核') || stepName.includes('负责人'))
             }
             if (role === 'headquarters') {
-              return stepName.includes('指挥部') || stepName.includes('现场指挥') || ['指挥部', '现场指挥部', '指挥部审核', '现场指挥部经办人', '现场指挥'].includes(stepName)
+              return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
+                     (stepName.includes('经办') || !stepName.includes('审核'))
+            }
+            if (role === 'headquarters_approver') {
+              return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
+                     (stepName.includes('审核') || stepName.includes('负责人'))
             }
             if (role === 'engineering') {
-              return stepName.includes('工管') || stepName.includes('工程管理') || ['工管部', '工程管理部', '工管部审核', '工程管理部经办人', '工程管理部负责人'].includes(stepName)
+              return (stepName.includes('工管') || stepName.includes('工程管理')) && 
+                     (stepName.includes('经办') || !stepName.includes('审核'))
+            }
+            if (role === 'engineering_approver') {
+              return (stepName.includes('工管') || stepName.includes('工程管理')) && 
+                     (stepName.includes('审核') || stepName.includes('负责人'))
             }
             if (role === 'contract') {
               return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
+            }
+            if (role === 'contractor') {
+              return stepName.includes('施工单位') || stepName.includes('开始') || stepName.includes('送审')
             }
             return false
           }
 
           if (matchRole('supervision')) currentRole = 'supervision'
+          else if (matchRole('supervision_approver')) currentRole = 'supervision_approver'
           else if (matchRole('headquarters')) currentRole = 'headquarters'
+          else if (matchRole('headquarters_approver')) currentRole = 'headquarters_approver'
           else if (matchRole('engineering')) currentRole = 'engineering'
+          else if (matchRole('engineering_approver')) currentRole = 'engineering_approver'
           else if (matchRole('contract')) currentRole = 'contract'
+          else if (matchRole('contractor')) currentRole = 'contractor'
         }
       }
 
@@ -2699,19 +3071,19 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
           if (currentRole === 'contractor') {
             updateFields.contractorQty = Number(it.contractorQty || 0)
-            updateFields.contractorAmount = updateFields.contractorQty * price
-          } else if (currentRole === 'supervision') {
+            updateFields.contractorAmount = preciseMul(updateFields.contractorQty, price)
+          } else if (currentRole === 'supervision' || currentRole === 'supervision_approver') {
             updateFields.supervisionQty = Number(it.supervisionQty || 0)
-            updateFields.supervisionAmount = updateFields.supervisionQty * price
-          } else if (currentRole === 'headquarters') {
+            updateFields.supervisionAmount = preciseMul(updateFields.supervisionQty, price)
+          } else if (currentRole === 'headquarters' || currentRole === 'headquarters_approver') {
             updateFields.headquartersQty = Number(it.headquartersQty || 0)
-            updateFields.headquartersAmount = updateFields.headquartersQty * price
-          } else if (currentRole === 'engineering') {
+            updateFields.headquartersAmount = preciseMul(updateFields.headquartersQty, price)
+          } else if (currentRole === 'engineering' || currentRole === 'engineering_approver') {
             updateFields.engineeringQty = Number(it.engineeringQty || 0)
-            updateFields.engineeringAmount = updateFields.engineeringQty * price
+            updateFields.engineeringAmount = preciseMul(updateFields.engineeringQty, price)
           } else if (currentRole === 'contract') {
             updateFields.contractDeptQty = Number(it.contractDeptQty || 0)
-            updateFields.contractDeptAmount = updateFields.contractDeptQty * price
+            updateFields.contractDeptAmount = preciseMul(updateFields.contractDeptQty, price)
           }
 
           if (Object.keys(updateFields).length > 0) {
@@ -2740,14 +3112,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           updateDetail.supervisionOpinion = detailPayload.supervisionOpinion || ''
           updateDetail.supervisionAuditor = userName
           updateDetail.supervisionDate = now
+        } else if (currentRole === 'supervision_approver') {
+          updateDetail.supervisionOpinion = detailPayload.supervisionOpinion || ''
+          updateDetail.supervisionApproveAuditor = userName
+          updateDetail.supervisionApproveDate = now
         } else if (currentRole === 'headquarters') {
           updateDetail.headquartersOpinion = detailPayload.headquartersOpinion || ''
           updateDetail.headquartersAuditor = userName
           updateDetail.headquartersDate = now
+        } else if (currentRole === 'headquarters_approver') {
+          updateDetail.headquartersOpinion = detailPayload.headquartersOpinion || ''
+          updateDetail.headquartersApproveAuditor = userName
+          updateDetail.headquartersApproveDate = now
         } else if (currentRole === 'engineering') {
           updateDetail.engineeringOpinion = detailPayload.engineeringOpinion || ''
           updateDetail.engineeringAuditor = userName
           updateDetail.engineeringDate = now
+        } else if (currentRole === 'engineering_approver') {
+          updateDetail.engineeringOpinion = detailPayload.engineeringOpinion || ''
+          updateDetail.engineeringApproveAuditor = userName
+          updateDetail.engineeringApproveDate = now
         } else if (currentRole === 'contract') {
           updateDetail.contractOpinion = detailPayload.contractOpinion || ''
           updateDetail.contractAuditor = userName

@@ -22,6 +22,7 @@ export type BoqItemRecord = {
   unit: string | null
   quantity: string | null
   price: string | null
+  amount: string | null
   sortOrder: number
   depth: number
   createdAt: Date
@@ -142,6 +143,7 @@ export const updateBoqItemFactory =
         | 'unit'
         | 'quantity'
         | 'price'
+        | 'amount'
         | 'sortOrder'
         | 'depth'
         | 'updatedAt'

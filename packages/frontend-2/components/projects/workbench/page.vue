@@ -40,18 +40,25 @@
         <div
           class="rounded-xl border border-outline-3 bg-white p-6 shadow-sm lg:col-span-2"
         >
-          <div class="mb-6 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-slate-900">待办列表</h2>
-            <span
-              class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
-            >
-              {{ projectTodoTotalCount }} 项待处理
-            </span>
+          <div class="mb-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-lg font-bold text-slate-900">流程列表</h2>
+              <span
+                class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
+              >
+                {{ projectTodoTotalCount }} 项
+              </span>
+            </div>
+            <LazyLayoutTabsHorizontal
+              :items="todoTabItems"
+              :active-item="activeTodoTabItem"
+              @update:active-item="onTodoTabChange"
+            />
           </div>
 
           <div v-if="loadingTodos" class="text-sm text-slate-500">加载中...</div>
           <div v-else-if="!projectTodoList.length" class="text-sm text-slate-500">
-            暂无待办
+            {{ activeTodoEmptyText }}
           </div>
           <div v-else class="space-y-4">
             <div
@@ -84,6 +91,10 @@
                   <div
                     class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"
                   >
+                    <span class="flex items-center gap-1">
+                      <DocumentTextIcon class="h-3.5 w-3.5" />
+                      流程名称: {{ todo.definition?.name || '-' }}
+                    </span>
                     <span class="flex items-center gap-1">
                       <UserIcon class="h-3 w-3" />
                       发起人: {{ todo.createdByUser?.name || '-' }}
@@ -454,6 +465,8 @@ type WorkbenchMetricKey =
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'logs' | 'diagram'
 type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
+type WorkbenchFlowTab = 'pending' | 'initiated' | 'handled'
+type WorkbenchFlowTabItem = { id: WorkbenchFlowTab; title: string }
 
 const metricCards: Array<{
   key: WorkbenchMetricKey
@@ -590,6 +603,30 @@ const layoutTabs = [
   { id: 'logs' as FlowDetailTab, title: '流程日志' },
   { id: 'diagram' as FlowDetailTab, title: '流程图' }
 ]
+
+const todoTab = ref<WorkbenchFlowTab>('pending')
+const todoTabItems: WorkbenchFlowTabItem[] = [
+  { id: 'pending', title: '待办' },
+  { id: 'initiated', title: '我发起的' },
+  { id: 'handled', title: '我处理的' }
+]
+
+const activeTodoTabItem = computed(
+  () => todoTabItems.find((item) => item.id === todoTab.value) || todoTabItems[0]
+)
+
+const activeTodoEmptyText = computed(() => {
+  const emptyTextMap: Record<WorkbenchFlowTab, string> = {
+    pending: '暂无待办',
+    initiated: '暂无我发起的流程',
+    handled: '暂无我处理的流程'
+  }
+  return emptyTextMap[todoTab.value]
+})
+
+const onTodoTabChange = (item: { id: string }) => {
+  todoTab.value = item.id as WorkbenchFlowTab
+}
 
 const titleField = computed<DynamicFormSchemaField>(() => ({
   key: 'title',
@@ -778,8 +815,19 @@ const loadWorkbenchData = async (targetProjectId: string, token: number) => {
   loadingTodos.value = true
   loadingUpdates.value = true
   try {
+    const scopeMap: Record<WorkbenchFlowTab, string> = {
+      pending: 'TODO',
+      initiated: 'INITIATED',
+      handled: 'HANDLED'
+    }
+    const targetScope = scopeMap[todoTab.value] || 'TODO'
     const data = await $fetch<ProjectWorkbenchResponse>(
-      `${apiOrigin}/api/v1/projects/${targetProjectId}/workbench`
+      `${apiOrigin}/api/v1/projects/${targetProjectId}/workbench`,
+      {
+        query: {
+          scope: targetScope
+        }
+      }
     )
     if (!isTokenActive(token)) return
 
@@ -926,6 +974,26 @@ const getMonthlyMeasurementId = (instance: FlowListItem) => {
   return null
 }
 
+const getSafetyMeasureId = (instance: FlowListItem) => {
+  if (instance.resourceType === 'MODEL') return null
+
+  const formTable =
+    typeof instance.formData?.formTable === 'string'
+      ? instance.formData.formTable
+      : null
+  const formId =
+    typeof instance.formData?.formId === 'string' ? instance.formData.formId : null
+  if (formTable === 'safety_measures' && formId) return formId
+
+  const resourceId =
+    typeof instance.resourceId === 'string' ? instance.resourceId : null
+  if (resourceId?.startsWith('safety_measures:')) {
+    return resourceId.split(':')[1] || null
+  }
+
+  return null
+}
+
 const openInstanceDrawer = (instance: FlowListItem) => {
   const monthlyMeasurementId = getMonthlyMeasurementId(instance)
   if (monthlyMeasurementId) {
@@ -938,6 +1006,19 @@ const openInstanceDrawer = (instance: FlowListItem) => {
     )
     return
   }
+
+  const safetyMeasureId = getSafetyMeasureId(instance)
+  if (safetyMeasureId) {
+    if (!instance.projectId) {
+      notify('流程打开失败', '未找到安全文明措施详情数据', ToastNotificationType.Warning)
+      return
+    }
+    void navigateTo(
+      `/projects/${instance.projectId}/work-valuation/safety-measure/${safetyMeasureId}?mode=edit`
+    )
+    return
+  }
+
   if (!instance.projectId && instance.resourceType === 'MODEL') {
     notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
     return
@@ -1055,5 +1136,14 @@ watch(
     await loadWorkbenchData(id, token)
   },
   { immediate: true }
+)
+
+watch(
+  todoTab,
+  async () => {
+    if (!projectId.value) return
+    const token = nextRefreshToken()
+    await loadWorkbenchData(projectId.value, token)
+  }
 )
 </script>

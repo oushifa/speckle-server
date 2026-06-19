@@ -48,6 +48,9 @@ input ProjectUpdateInput {
   contractor: String
   constructionUnit: String
   supervisionUnit: String
+  projectGuid: String
+  bidSection: String
+  contractPrice: Float
 }
 
 """
@@ -72,6 +75,9 @@ input ProjectCreateInput {
   contractor: String
   constructionUnit: String
   supervisionUnit: String
+  projectGuid: String
+  bidSection: String
+  contractPrice: Float
 }
 
 input ProjectUpdateRoleInput {
@@ -222,6 +228,9 @@ type Project {
   contractor: String
   constructionUnit: String
   supervisionUnit: String
+  projectGuid: String
+  bidSection: String
+  contractPrice: Float
   constructionUnitName: String
   supervisionUnitName: String
   description: String

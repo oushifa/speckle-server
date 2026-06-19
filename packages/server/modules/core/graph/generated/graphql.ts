@@ -1066,6 +1066,7 @@ export type BoqImportResult = {
 
 export type BoqItem = {
   __typename?: 'BoqItem';
+  amount?: Maybe<Scalars['Float']['output']>;
   children: Array<BoqItem>;
   code: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -1558,6 +1559,7 @@ export type CreateAutomateFunctionWithoutVersionInput = {
 };
 
 export type CreateBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentId?: InputMaybe<Scalars['ID']['input']>;
@@ -2231,6 +2233,7 @@ export type GetUngroupedViewGroupInput = {
 };
 
 export type ImportBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentCode?: InputMaybe<Scalars['String']['input']>;
@@ -5924,6 +5927,7 @@ export type UpdateAutomateFunctionInput = {
 };
 
 export type UpdateBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   itemId: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -9086,6 +9090,7 @@ export type BoqImportResultResolvers<ContextType = GraphQLContext, ParentType ex
 };
 
 export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItem'] = ResolversParentTypes['BoqItem']> = {
+  amount?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   children?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;

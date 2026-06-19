@@ -42,8 +42,8 @@
         class="h-full"
         empty-message="暂无安全文明措施费记录"
       >
-        <template #index="{ index }">
-          <span class="text-sm text-foreground-2 font-mono">{{ index + startItem }}</span>
+        <template #index="{ item }">
+          <span class="text-sm text-foreground-2 font-mono">{{ tableItems.indexOf(item) + startItem }}</span>
         </template>
         <template #code="{ item }">
           <NuxtLink
@@ -57,7 +57,9 @@
           <span class="text-sm text-foreground">{{ item.unit || '-' }}</span>
         </template>
         <template #roundName="{ item }">
-          <span class="text-sm text-foreground">{{ item.roundName || '-' }}</span>
+          <span class="text-sm text-foreground">
+            {{ item.roundName ? `第${item.roundName}期` : '-' }}
+          </span>
         </template>
         <template #baseDate="{ item }">
           <span class="text-sm text-foreground font-mono">
@@ -179,7 +181,7 @@
             label="期数"
             show-label
             show-required
-            placeholder="如：第1期"
+            placeholder="如：1"
           />
           <FormTextInput
             v-model="createForm.baseDate"
@@ -246,7 +248,7 @@
               <span class="ml-2 text-foreground-2">V{{ activeSubmitFlow.version }}</span>
             </div>
             <div class="text-foreground-2">
-              审批节点：{{ activeSubmitFlow.steps.map(s => s.role).join(' -> ') }}
+              审批节点：{{ activeSubmitFlow.steps.map((s: any) => s.role).join(' -> ') }}
             </div>
           </div>
           <div v-else class="text-danger">
@@ -371,6 +373,15 @@ watch([projectId, debouncedSearchQuery, pageSize], () => {
   currentPage.value = 1
   pageCursors.value = { 1: null }
 })
+
+watch(
+  () => createForm.value.roundName,
+  (newVal) => {
+    if (newVal) {
+      createForm.value.roundName = String(newVal).replace(/\D/g, '')
+    }
+  }
+)
 
 const totalPages = computed(() => Math.ceil(totalItems.value / Number(pageSize.value || 1)))
 const startItem = computed(() => totalItems.value === 0 ? 0 : (currentPage.value - 1) * Number(pageSize.value) + 1)

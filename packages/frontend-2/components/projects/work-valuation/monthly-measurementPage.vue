@@ -49,7 +49,9 @@
             <span class="text-sm text-foreground">{{ item.creator?.name || '-' }}</span>
           </template>
           <template #roundName="{ item }">
-            <span class="text-sm text-foreground">{{ item.roundName || '-' }}</span>
+            <span class="text-sm text-foreground">
+              {{ item.roundName ? `第${item.roundName}期` : '-' }}
+            </span>
           </template>
           <template #createdAt="{ item }">
             <span class="text-sm text-foreground">
@@ -197,7 +199,7 @@
             label="期数"
             show-label
             show-required
-            placeholder="如：1期"
+            placeholder="如：1"
             :disabled="isViewMode"
           />
           <FormTextInput
@@ -854,6 +856,15 @@ watch(
     if (m.isValid()) {
       createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
       createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
+    }
+  }
+)
+
+watch(
+  () => createForm.value.roundName,
+  (newVal) => {
+    if (newVal) {
+      createForm.value.roundName = String(newVal).replace(/\D/g, '')
     }
   }
 )

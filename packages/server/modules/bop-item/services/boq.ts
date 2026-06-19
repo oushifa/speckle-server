@@ -40,6 +40,7 @@ export type BoqItem = {
   unit: string | null
   quantity: number | null
   price: number | null
+  amount: number | null
   sortOrder: number
   depth: number
   createdAt: Date
@@ -58,6 +59,7 @@ const toBoqItem = (item: BoqItemRecord): BoqItem => ({
   ...item,
   quantity: toNullableNumber(item.quantity),
   price: toNullableNumber(item.price),
+  amount: toNullableNumber(item.amount),
   hasChildren: false,
   children: []
 })
@@ -199,6 +201,7 @@ export type CreateBoqItem = (params: {
   unit?: string | null
   quantity?: number | null
   price?: number | null
+  amount?: number | null
   sortOrder?: number | null
 }) => Promise<BoqItem>
 
@@ -223,6 +226,7 @@ export const createBoqItemFactory =
     unit,
     quantity,
     price,
+    amount,
     sortOrder
   }) => {
     if (!validateType(type)) {
@@ -267,6 +271,7 @@ export const createBoqItemFactory =
       unit: unit ?? null,
       quantity: quantity === null || quantity === undefined ? null : String(quantity),
       price: price === null || price === undefined ? null : String(price),
+      amount: amount === null || amount === undefined ? null : String(amount),
       sortOrder: sortOrder ?? (maxSortOrder !== null ? maxSortOrder + 1 : 0),
       depth: resolvedDepth,
       createdAt: now,
@@ -284,6 +289,7 @@ export type UpdateBoqItem = (params: {
   unit?: string | null
   quantity?: number | null
   price?: number | null
+  amount?: number | null
   sortOrder?: number | null
 }) => Promise<BoqItem>
 
@@ -305,6 +311,7 @@ export const updateBoqItemFactory =
           | 'unit'
           | 'quantity'
           | 'price'
+          | 'amount'
           | 'sortOrder'
           | 'depth'
           | 'updatedAt'
@@ -312,7 +319,7 @@ export const updateBoqItemFactory =
       >
     }) => Promise<number>
   }): UpdateBoqItem =>
-  async ({ projectId, itemId, code, name, unit, quantity, price, sortOrder }) => {
+  async ({ projectId, itemId, code, name, unit, quantity, price, amount, sortOrder }) => {
     const item = await deps.getBoqItem({ projectId, id: itemId })
     if (!item) throw new BoqItemNotFoundError()
 
@@ -328,6 +335,7 @@ export const updateBoqItemFactory =
           ? null
           : String(quantity),
       price: price === undefined ? item.price : price === null ? null : String(price),
+      amount: amount === undefined ? item.amount : amount === null ? null : String(amount),
       sortOrder: sortOrder ?? item.sortOrder,
       updatedAt: new Date()
     }
@@ -341,6 +349,7 @@ export const updateBoqItemFactory =
         unit: updated.unit,
         quantity: updated.quantity,
         price: updated.price,
+        amount: updated.amount,
         sortOrder: updated.sortOrder,
         updatedAt: updated.updatedAt
       }
@@ -358,6 +367,7 @@ export type ImportBoqItemRow = {
   unit?: string | null
   quantity?: number | null
   price?: number | null
+  amount?: number | null
 }
 
 export type BoqImportResult = {
@@ -460,7 +470,8 @@ export const importBoqItemsFactory =
             name: row.name,
             unit: row.unit ?? null,
             quantity: row.quantity ?? null,
-            price: row.price ?? null
+            price: row.price ?? null,
+            amount: row.amount ?? null
           })
           updatedCount += 1
           progressed = true
@@ -475,7 +486,8 @@ export const importBoqItemsFactory =
           name: row.name,
           unit: row.unit ?? null,
           quantity: row.quantity ?? null,
-          price: row.price ?? null
+          price: row.price ?? null,
+          amount: row.amount ?? null
         })
 
         runtimeItems.set(row.code, {

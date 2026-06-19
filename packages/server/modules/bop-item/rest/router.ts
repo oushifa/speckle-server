@@ -128,7 +128,8 @@ export const bopItemRouterFactory = (): Router => {
           '上级编码',
           '计量单位',
           '工程量',
-          '综合单价（元）'
+          '综合单价（元）',
+          '合价'
         ]
 
         const idToCodeMap = new Map(items.map((i) => [i.id, i.code]))
@@ -144,6 +145,10 @@ export const bopItemRouterFactory = (): Router => {
             ? '' 
             : Number.parseFloat(item.price)
 
+          const amountVal = item.amount === null || item.amount === undefined 
+            ? '' 
+            : Number.parseFloat(item.amount)
+
           return [
             item.code,
             item.name,
@@ -151,7 +156,8 @@ export const bopItemRouterFactory = (): Router => {
             parentCode,
             item.unit || '',
             Number.isNaN(quantityVal) ? '' : quantityVal,
-            Number.isNaN(priceVal) ? '' : priceVal
+            Number.isNaN(priceVal) ? '' : priceVal,
+            Number.isNaN(amountVal) ? '' : amountVal
           ]
         })
 
@@ -321,6 +327,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
   const unitIndex = findHeaderIndex(['计量单位', '单位'])
   const quantityIndex = findHeaderIndex(['工程量'])
   const priceIndex = findHeaderIndex(['综合单价（元）', '综合单价', '单价'])
+  const amountIndex = findHeaderIndex(['合价', '合价（元）'])
 
   if (codeIndex < 0 || nameIndex < 0 || typeIndex < 0) {
     throw new Error('模板缺少必要列：清单编码、清单名称、类型')
@@ -344,6 +351,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
     const unit = readValue(unitIndex)
     const quantityValue = readValue(quantityIndex)
     const priceValue = readValue(priceIndex)
+    const amountValue = readValue(amountIndex)
 
     if (
       !code &&
@@ -352,7 +360,8 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
       !parentCode &&
       !unit &&
       !quantityValue &&
-      !priceValue
+      !priceValue &&
+      !amountValue
     ) {
       continue
     }
@@ -372,12 +381,14 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
 
     const quantity = parseOptionalNumber(quantityValue)
     const price = parseOptionalNumber(priceValue)
+    const amount = parseOptionalNumber(amountValue)
 
     if (
       (quantityValue && Number.isNaN(quantity)) ||
-      (priceValue && Number.isNaN(price))
+      (priceValue && Number.isNaN(price)) ||
+      (amountValue && Number.isNaN(amount))
     ) {
-      throw new Error(`第 ${rowNumber} 行工程量或综合单价不是有效数字`)
+      throw new Error(`第 ${rowNumber} 行工程量、综合单价或合价不是有效数字`)
     }
 
     if (type === 'ITEM') {
@@ -402,7 +413,8 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
       parentCode: parentCode || null,
       unit: type === 'ITEM' ? unit : null,
       quantity: type === 'ITEM' ? quantity : null,
-      price: type === 'ITEM' ? price : null
+      price: type === 'ITEM' ? price : null,
+      amount: type === 'ITEM' ? amount : null
     })
   }
 

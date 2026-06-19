@@ -93,6 +93,10 @@
         <span class="text-foreground">{{ formatNumber(item.price, 2) }}</span>
       </template>
 
+      <template #amount="{ item }">
+        <span class="text-foreground">{{ formatNumber(item.amount, 2) }}</span>
+      </template>
+
       <template #actions="{ item }">
         <div class="flex items-center justify-end gap-2">
           <FormButton
@@ -304,12 +308,13 @@ const { mutate: deleteBoqItem, loading: deleteBoqItemLoading } =
   useMutation(deleteBoqItemMutation)
 
 const columns = [
-  { id: 'code', header: '清单编码', classes: 'col-span-3' },
+  { id: 'code', header: '清单编码', classes: 'col-span-2' },
   { id: 'name', header: '名称', classes: 'col-span-2' },
   { id: 'type', header: '类型', classes: 'col-span-1' },
   { id: 'unit', header: '计量单位', classes: 'col-span-1' },
   { id: 'quantity', header: '工程量', classes: 'col-span-2' },
   { id: 'price', header: '综合单价（元）', classes: 'col-span-2' },
+  { id: 'amount', header: '合价（元）', classes: 'col-span-1' },
   { id: 'actions', header: '操作', classes: 'col-span-1 text-right' }
 ]
 

@@ -450,6 +450,26 @@ const getMonthlyMeasurementId = (instance: FlowListItem) => {
   return null
 }
 
+const getSafetyMeasureId = (instance: FlowListItem) => {
+  if (instance.resourceType === 'MODEL') return null
+
+  const formTable =
+    typeof instance.formData?.formTable === 'string'
+      ? instance.formData.formTable
+      : null
+  const formId =
+    typeof instance.formData?.formId === 'string' ? instance.formData.formId : null
+  if (formTable === 'safety_measures' && formId) return formId
+
+  const resourceId =
+    typeof instance.resourceId === 'string' ? instance.resourceId : null
+  if (resourceId?.startsWith('safety_measures:')) {
+    return resourceId.split(':')[1] || null
+  }
+
+  return null
+}
+
 const openInstanceDrawer = (instance: FlowListItem) => {
   const monthlyMeasurementId = getMonthlyMeasurementId(instance)
   if (monthlyMeasurementId) {
@@ -462,6 +482,19 @@ const openInstanceDrawer = (instance: FlowListItem) => {
     )
     return
   }
+
+  const safetyMeasureId = getSafetyMeasureId(instance)
+  if (safetyMeasureId) {
+    if (!instance.projectId) {
+      notify('流程打开失败', '未找到安全文明措施详情数据', ToastNotificationType.Warning)
+      return
+    }
+    void navigateTo(
+      `/projects/${instance.projectId}/work-valuation/safety-measure/${safetyMeasureId}?mode=edit`
+    )
+    return
+  }
+
   if (!instance.projectId && instance.resourceType === 'MODEL') {
     notify('流程审核失败', '旧流程已弃置，请重新发起', ToastNotificationType.Warning)
     return

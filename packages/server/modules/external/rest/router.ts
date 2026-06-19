@@ -657,6 +657,9 @@ export const externalRouterFactory = (): Router => {
       name: project.name,
       description: project.description,
       isPublic: project.visibility === 'public',
+      projectGuid: project.projectGuid || null,
+      bidSection: project.bidSection || null,
+      contractPrice: project.contractPrice !== null && project.contractPrice !== undefined ? Number(project.contractPrice) : null,
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString()
     })

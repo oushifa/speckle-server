@@ -65,6 +65,9 @@ export const projectDashboardItemFragment = graphql(`
     contractor
     constructionUnit
     supervisionUnit
+    projectGuid
+    bidSection
+    contractPrice
     constructionUnitName
     supervisionUnitName
     id
@@ -162,6 +165,9 @@ export const projectUpdatableMetadataFragment = graphql(`
     contractor
     constructionUnit
     supervisionUnit
+    projectGuid
+    bidSection
+    contractPrice
     constructionUnitName
     supervisionUnitName
     visibility

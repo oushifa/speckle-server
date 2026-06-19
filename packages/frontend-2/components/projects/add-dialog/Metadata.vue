@@ -123,6 +123,34 @@
         show-optional
         :rules="[isStringOfLength({ maxLength: 256 })]"
       />
+      <FormTextInput
+        name="projectGuid"
+        label="项目GUID"
+        placeholder="请输入项目GUID"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="bidSection"
+        label="标段"
+        placeholder="请输入标段"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="contractPrice"
+        label="签约合同价（元）"
+        placeholder="请输入签约合同价"
+        type="number"
+        step="0.01"
+        color="foundation"
+        show-label
+        show-optional
+      />
       <FormSelectDepartment
         v-model="selectedConstructionUnit"
         name="constructionUnit"
@@ -187,6 +215,9 @@ type FormValues = {
   contractor?: string
   constructionUnit?: string
   supervisionUnit?: string
+  projectGuid?: string
+  bidSection?: string
+  contractPrice?: string | number
 }
 
 const props = defineProps<{
@@ -255,6 +286,9 @@ const onSubmit = handleSubmit(async (values) => {
         const trimmedContractor = values.contractor?.trim() || ''
         const trimmedConstructionUnit = selectedConstructionUnit.value || ''
         const trimmedSupervisionUnit = selectedSupervisionUnit.value || ''
+        const trimmedProjectGuid = values.projectGuid?.trim() || ''
+        const trimmedBidSection = values.bidSection?.trim() || ''
+        const nextContractPrice = toNumberValue(values.contractPrice)
         const nextProgress = toNumberValue(values.progress)
         const nextStartDate = toTimestamp(values.start_date)
         const nextEndDate = toTimestamp(values.end_date)
@@ -288,6 +322,15 @@ const onSubmit = handleSubmit(async (values) => {
         }
         if (trimmedContractor) {
           updatePayload.contractor = trimmedContractor
+        }
+        if (trimmedProjectGuid) {
+          updatePayload.projectGuid = trimmedProjectGuid
+        }
+        if (trimmedBidSection) {
+          updatePayload.bidSection = trimmedBidSection
+        }
+        if (nextContractPrice !== '') {
+          updatePayload.contractPrice = nextContractPrice
         }
         if (trimmedConstructionUnit) {
           updatePayload.constructionUnit = trimmedConstructionUnit

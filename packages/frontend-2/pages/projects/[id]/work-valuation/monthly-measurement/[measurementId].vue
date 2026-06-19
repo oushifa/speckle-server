@@ -147,7 +147,11 @@
 
             <!-- 审核意见与操作按钮区 -->
             <div
-              v-if="flowInstance?.status === 'PENDING' && (isTodoUser || isCreator)"
+              v-if="
+                !isReadOnly &&
+                flowInstance?.status === 'PENDING' &&
+                (isTodoUser || isCreator)
+              "
               class="bg-foundation-2 border border-outline-3 rounded-lg p-3 space-y-3"
             >
               <FormTextArea
@@ -331,7 +335,7 @@
               label="期数"
               show-label
               show-required
-              placeholder="如：1期"
+              placeholder="如：1"
             />
             <FormTextInput
               v-model="createForm.baseDate"
@@ -890,6 +894,15 @@ watch(
     if (m.isValid()) {
       createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
       createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
+    }
+  }
+)
+
+watch(
+  () => createForm.value.roundName,
+  (newVal) => {
+    if (newVal) {
+      createForm.value.roundName = String(newVal).replace(/\D/g, '')
     }
   }
 )

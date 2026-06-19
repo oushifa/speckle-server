@@ -89,6 +89,38 @@
         :disabled="!canUpdate.authorized"
         class="mb-2"
       />
+      <FormTextInput
+        v-model="localProjectGuid"
+        name="projectGuid"
+        label="项目GUID"
+        placeholder="项目GUID"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localBidSection"
+        name="bidSection"
+        label="标段"
+        placeholder="标段"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localContractPrice"
+        name="contractPrice"
+        label="签约合同价（元）"
+        placeholder="签约合同价"
+        type="number"
+        step="0.01"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
       <template #bottom-buttons>
         <FormButton color="subtle" :disabled="!hasChanges" @click="resetLocalState">
           取消
@@ -135,6 +167,9 @@ graphql(`
     contractor
     constructionUnit
     supervisionUnit
+    projectGuid
+    bidSection
+    contractPrice
     constructionUnitName
     supervisionUnitName
     permissions {
@@ -162,6 +197,9 @@ const localEmployer = ref(props.project.employer ?? '')
 const localContractor = ref(props.project.contractor ?? '')
 const localConstructionUnit = ref(props.project.constructionUnit ?? '')
 const localSupervisionUnit = ref(props.project.supervisionUnit ?? '')
+const localProjectGuid = ref(props.project.projectGuid ?? '')
+const localBidSection = ref(props.project.bidSection ?? '')
+const localContractPrice = ref(props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '')
 const showConfirmDialog = ref(false)
 
 const canUpdate = computed(() => props.project.permissions.canUpdate)
@@ -175,7 +213,10 @@ const hasChanges = computed(() => {
     localEmployer.value !== (props.project.employer ?? '') ||
     localContractor.value !== (props.project.contractor ?? '') ||
     localConstructionUnit.value !== (props.project.constructionUnit ?? '') ||
-    localSupervisionUnit.value !== (props.project.supervisionUnit ?? '')
+    localSupervisionUnit.value !== (props.project.supervisionUnit ?? '') ||
+    localProjectGuid.value !== (props.project.projectGuid ?? '') ||
+    localBidSection.value !== (props.project.bidSection ?? '') ||
+    localContractPrice.value !== (props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '')
   )
 })
 
@@ -190,6 +231,9 @@ const emitUpdate = () => {
     contractor: localContractor.value,
     constructionUnit: localConstructionUnit.value,
     supervisionUnit: localSupervisionUnit.value,
+    projectGuid: localProjectGuid.value,
+    bidSection: localBidSection.value,
+    contractPrice: localContractPrice.value !== '' ? Number(localContractPrice.value) : null,
     onComplete: handleRedirection
   })
 }
@@ -213,6 +257,9 @@ const resetLocalState = () => {
   localContractor.value = props.project.contractor ?? ''
   localConstructionUnit.value = props.project.constructionUnit ?? ''
   localSupervisionUnit.value = props.project.supervisionUnit ?? ''
+  localProjectGuid.value = props.project.projectGuid ?? ''
+  localBidSection.value = props.project.bidSection ?? ''
+  localContractPrice.value = props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : ''
   showConfirmDialog.value = false
 }
 
@@ -263,6 +310,15 @@ watch(
     }
     if (newProject.supervisionUnit !== oldProject.supervisionUnit) {
       localSupervisionUnit.value = newProject.supervisionUnit ?? ''
+    }
+    if (newProject.projectGuid !== oldProject.projectGuid) {
+      localProjectGuid.value = newProject.projectGuid ?? ''
+    }
+    if (newProject.bidSection !== oldProject.bidSection) {
+      localBidSection.value = newProject.bidSection ?? ''
+    }
+    if (newProject.contractPrice !== oldProject.contractPrice) {
+      localContractPrice.value = newProject.contractPrice !== null && newProject.contractPrice !== undefined ? String(newProject.contractPrice) : ''
     }
   },
   { deep: true }

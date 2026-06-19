@@ -13,6 +13,9 @@
           contractor,
           constructionUnit,
           supervisionUnit,
+          projectGuid,
+          bidSection,
+          contractPrice,
           onComplete
         }) =>
           handleUpdate(
@@ -25,7 +28,10 @@
               employer,
               contractor,
               constructionUnit,
-              supervisionUnit
+              supervisionUnit,
+              projectGuid,
+              bidSection,
+              contractPrice
             },
             '项目信息已更新',
             onComplete

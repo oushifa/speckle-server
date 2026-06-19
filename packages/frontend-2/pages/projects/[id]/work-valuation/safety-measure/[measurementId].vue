@@ -32,7 +32,7 @@
           返回
         </NuxtLink>
         <h1 class="text-heading-lg text-foreground font-bold">
-          {{ measureCode }} ({{ roundName }})
+          {{ measureCode }} (第{{ roundName }}期)
         </h1>
       </div>
     </div>
@@ -47,7 +47,7 @@
         <div class="bg-foundation border border-outline-3 rounded-lg p-4 flex flex-col">
           <div class="text-center space-y-2 relative">
             <h2 class="text-lg font-bold text-foreground">
-              {{ contractName }}&nbsp;{{ baseDateStr }}&nbsp;{{ roundName }}
+              {{ contractName }}&nbsp;{{ baseDateStr }}&nbsp;第{{ roundName }}期
             </h2>
             <div
               class="flex justify-between items-center text-xs text-foreground-2 px-1 pt-2 border-b border-outline-3 pb-1.5"
@@ -72,161 +72,64 @@
               <thead class="bg-[#0f4c9c] text-white text-center sticky top-0 z-10">
                 <!-- 第一层表头 -->
                 <tr class="border-b border-blue-800 text-[11px] bg-[#0f4c9c]">
-                  <th
-                    rowspan="3"
-                    class="px-2 py-2 border-r border-blue-800 w-32 align-middle"
-                  >
-                    清单编号
+                  <th rowspan="2" class="px-2 py-2 border-r border-blue-800 w-12 align-middle text-center">
+                    序号
                   </th>
-                  <th
-                    rowspan="3"
-                    class="px-2 py-2 border-r border-blue-800 w-72 align-middle text-left pl-3"
-                  >
+                  <th rowspan="2" class="px-2 py-2 border-r border-blue-800 w-32 align-middle text-center">
+                    编码
+                  </th>
+                  <th rowspan="2" class="px-2 py-2 border-r border-blue-800 w-72 align-middle text-left pl-3">
                     项目名称
                   </th>
-                  <th
-                    rowspan="3"
-                    class="px-2 py-2 border-r border-blue-800 w-16 align-middle"
-                  >
-                    单位
+                  <th colspan="3" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    合同金额（元）
                   </th>
-                  <th
-                    rowspan="3"
-                    class="px-2 py-2 border-r border-blue-800 w-28 align-middle text-right pr-3"
-                  >
-                    上期累计完成
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    施工单位
                   </th>
-                  <th
-                    colspan="3"
-                    class="px-2 py-1.5 border-r border-blue-800 align-middle"
-                  >
-                    合同清单
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    施工监理
                   </th>
-                  <th
-                    colspan="10"
-                    class="px-2 py-1.5 border-r border-blue-800 align-middle"
-                  >
-                    本期计量完成
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    现场指挥部
                   </th>
-                  <th
-                    colspan="2"
-                    class="px-2 py-1.5 border-r border-blue-800 align-middle"
-                  >
-                    本年完成累计
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    工程管理部
                   </th>
-                  <th
-                    colspan="3"
-                    class="px-2 py-1.5 border-r border-blue-800 align-middle"
-                  >
-                    总完成累计
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    累计完成数
                   </th>
-                  <th rowspan="3" class="px-2 py-2 w-36 align-middle text-center">
+                  <th colspan="2" class="px-2 py-1.5 border-r border-blue-800 align-middle text-center">
+                    剩余
+                  </th>
+                  <th rowspan="2" class="px-2 py-2 w-36 align-middle text-center">
                     备注
                   </th>
                 </tr>
                 <!-- 第二层表头 -->
-                <tr class="border-b border-blue-800 text-[11px] bg-[#1a5ba8]">
-                  <!-- 合同清单 -->
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    单价
-                  </th>
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    数量
-                  </th>
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    合价
-                  </th>
-                  <!-- 本期计量 -->
-                  <th colspan="2" class="px-2 py-1 border-r border-blue-800">
-                    施工单位
-                  </th>
-                  <th colspan="2" class="px-2 py-1 border-r border-blue-800">
-                    施工监理
-                  </th>
-                  <th colspan="2" class="px-2 py-1 border-r border-blue-800">
-                    现场指挥部
-                  </th>
-                  <th colspan="2" class="px-2 py-1 border-r border-blue-800">
-                    工程管理部
-                  </th>
-                  <th colspan="2" class="px-2 py-1 border-r border-blue-800">
-                    计划合同部
-                  </th>
-                  <!-- 本年完成累计 -->
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    数量
-                  </th>
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    工作量(元)
-                  </th>
-                  <!-- 总完成累计 -->
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    数量
-                  </th>
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    工作量(元)
-                  </th>
-                  <th
-                    rowspan="2"
-                    class="px-2 py-1 border-r border-blue-800 text-right pr-3"
-                  >
-                    完成比例%
-                  </th>
-                </tr>
-                <!-- 第三层表头 -->
                 <tr class="border-b border-blue-800 text-[10px] bg-[#1a5ba8]">
-                  <!-- 本期计量明细数量金额 -->
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    数量
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    金额(元)
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    数量
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    金额(元)
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    数量
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    金额(元)
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    数量
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    金额(元)
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    数量
-                  </th>
-                  <th class="px-2 py-0.5 border-r border-blue-800 text-right pr-3">
-                    金额(元)
-                  </th>
+                  <!-- 合同金额 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">单价</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">合价</th>
+                  <!-- 施工单位 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
+                  <!-- 施工监理 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
+                  <!-- 现场指挥部 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
+                  <!-- 工程管理部 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
+                  <!-- 累计完成数 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
+                  <!-- 剩余 -->
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">数量</th>
+                  <th class="px-2 py-1 border-r border-blue-800 text-right pr-3">金额</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,12 +143,17 @@
                       : 'bg-foundation text-foreground-2'
                   "
                 >
-                  <!-- 1. 清单编号 -->
+                  <!-- 1. 序号 -->
+                  <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+                    {{ getRowIndex(row) }}
+                  </td>
+
+                  <!-- 2. 编码 -->
                   <td class="px-2 py-2 truncate font-mono border-r border-outline-3">
                     {{ row.boqCode }}
                   </td>
 
-                  <!-- 2. 项目名称 (含折叠缩进) -->
+                  <!-- 3. 项目名称 (含折叠缩进) -->
                   <td class="px-2 py-2 border-r border-outline-3 pl-3">
                     <div
                       class="flex items-center"
@@ -301,18 +209,6 @@
                         </template>
                       </span>
                     </div>
-                  </td>
-
-                  <!-- 3. 单位 -->
-                  <td class="px-2 py-2 text-center border-r border-outline-3">
-                    {{ row.isSummaryRow ? '-' : row.uom || '-' }}
-                  </td>
-
-                  <!-- 4. 上期累计完成 -->
-                  <td
-                    class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
-                  >
-                    {{ formatQty(row.lastCumulativeQty) }}
                   </td>
 
                   <!-- 合同价：单价/数量/合价 -->
@@ -429,43 +325,7 @@
                     {{ formatMoney(row.engineeringAmount) }}
                   </td>
 
-                  <!-- 合约部数量 & 金额 -->
-                  <td class="px-2 py-1 border-r border-outline-3 w-28 text-primary">
-                    <input
-                      v-if="!row.isSummaryRow"
-                      v-model.number="row.contractDeptQty"
-                      type="number"
-                      step="any"
-                      :disabled="!permissions.contract"
-                      class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                      @input="scheduleRecalculate"
-                    />
-                    <span
-                      v-else
-                      class="font-mono pr-3 inline-block w-full text-right text-primary font-bold"
-                    >
-                      {{ formatQty(row.contractDeptQty) }}
-                    </span>
-                  </td>
-                  <td
-                    class="px-2 py-2 text-right border-r border-outline-3 font-mono text-primary font-bold pr-3"
-                  >
-                    {{ formatMoney(row.contractDeptAmount) }}
-                  </td>
-
-                  <!-- 本年完成累计数量与合价 -->
-                  <td
-                    class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
-                  >
-                    {{ formatQty(row.yearlyQty) }}
-                  </td>
-                  <td
-                    class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
-                  >
-                    {{ formatMoney(row.yearlyAmount) }}
-                  </td>
-
-                  <!-- 总完成累计数量与合价与比例 -->
+                  <!-- 累计完成数数量与金额 -->
                   <td
                     class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
                   >
@@ -476,10 +336,17 @@
                   >
                     {{ formatMoney(row.cumulativeAmount) }}
                   </td>
+
+                  <!-- 剩余数量与金额 -->
                   <td
                     class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
                   >
-                    {{ getCumulativeRate(row) }}%
+                    {{ formatQty(row.remainingQty) }}
+                  </td>
+                  <td
+                    class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                  >
+                    {{ formatMoney(row.remainingAmount) }}
                   </td>
 
                   <!-- 备注 -->
@@ -501,11 +368,6 @@
                     总价
                   </td>
                   <td class="px-2 py-2.5 text-center border-r border-blue-800" />
-                  <td
-                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
-                  >
-                    {{ formatQty(totalSums.lastCumulativeQty) }}
-                  </td>
                   <td class="px-2 py-2.5 text-center border-r border-blue-800">-</td>
                   <td
                     class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
@@ -561,29 +423,7 @@
                   >
                     {{ formatMoney(totalSums.engineeringAmount) }}
                   </td>
-                  <!-- 合约部数量 & 金额 -->
-                  <td
-                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
-                  >
-                    {{ formatQty(totalSums.contractDeptQty) }}
-                  </td>
-                  <td
-                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3 text-white"
-                  >
-                    {{ formatMoney(totalSums.contractDeptAmount) }}
-                  </td>
-                  <!-- 本年完成累计数量与合价 -->
-                  <td
-                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
-                  >
-                    {{ formatQty(totalSums.yearlyQty) }}
-                  </td>
-                  <td
-                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
-                  >
-                    {{ formatMoney(totalSums.yearlyAmount) }}
-                  </td>
-                  <!-- 总完成累计数量与合价与比例 -->
+                  <!-- 累计完成数数量与金额 -->
                   <td
                     class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
                   >
@@ -594,10 +434,16 @@
                   >
                     {{ formatMoney(totalSums.cumulativeAmount) }}
                   </td>
+                  <!-- 剩余数量与金额 -->
                   <td
                     class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3"
                   >
-                    {{ totalSums.cumulativeRate }}%
+                    {{ formatQty(totalSums.remainingQty) }}
+                  </td>
+                  <td
+                    class="px-2 py-2.5 text-right border-r border-blue-800 font-mono pr-3 text-white"
+                  >
+                    {{ formatMoney(totalSums.remainingAmount) }}
                   </td>
                   <!-- 备注 -->
                   <td class="px-2 py-2.5 text-center" />
@@ -607,9 +453,9 @@
           </div>
         </div>
 
-        <!-- 审核签署意见卡片区 (4方意见卡片，精简布局) -->
+        <!-- 审核签署意见卡片区 (3防意见卡片，精简布局) -->
         <div class="bg-foundation space-y-4 shadow-sm">
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <!-- 监理意见 -->
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
@@ -621,21 +467,33 @@
                 :disabled="!permissions.supervision"
                 class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
               />
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">经办人</div>
-                  <div class="text-xs font-medium text-foreground">
-                    {{ details.supervisionAuditor || '-' }}
+              <div class="space-y-2">
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">经办人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.supervisionAuditor || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.supervisionDate ? formatDate(details.supervisionDate) : '-' }}
+                    </span>
                   </div>
                 </div>
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">日期</div>
-                  <div class="text-xs font-mono text-foreground">
-                    {{
-                      details.supervisionDate
-                        ? formatDate(details.supervisionDate)
-                        : '\u00A0'
-                    }}
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">审核人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.supervisionApproveAuditor || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.supervisionApproveDate ? formatDate(details.supervisionApproveDate) : '-' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -645,30 +503,40 @@
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
-              <span class="text-xs font-semibold text-foreground-2">
-                现场指挥部意见
-              </span>
+              <span class="text-xs font-semibold text-foreground-2">现场指挥部意见</span>
               <textarea
                 v-model="details.headquartersOpinion"
                 placeholder="请输入现场指挥部审核意见"
                 :disabled="!permissions.headquarters"
                 class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
               />
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">经办人</div>
-                  <div class="text-xs font-medium text-foreground">
-                    {{ details.headquartersAuditor || '-' }}
+              <div class="space-y-2">
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">经办人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.headquartersAuditor || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.headquartersDate ? formatDate(details.headquartersDate) : '-' }}
+                    </span>
                   </div>
                 </div>
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">日期</div>
-                  <div class="text-xs font-mono text-foreground">
-                    {{
-                      details.headquartersDate
-                        ? formatDate(details.headquartersDate)
-                        : '\u00A0'
-                    }}
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">审核人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.headquartersApproveAuditor || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.headquartersApproveDate ? formatDate(details.headquartersApproveDate) : '-' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -678,61 +546,40 @@
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
-              <span class="text-xs font-semibold text-foreground-2">
-                工程管理部审核意见
-              </span>
+              <span class="text-xs font-semibold text-foreground-2">工程管理部审核意见</span>
               <textarea
                 v-model="details.engineeringOpinion"
                 placeholder="请输入工程管理部审核意见"
                 :disabled="!permissions.engineering"
                 class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
               />
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">经办人</div>
-                  <div class="text-xs font-medium text-foreground">
-                    {{ details.engineeringAuditor || '-' }}
+              <div class="space-y-2">
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">经办人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.engineeringAuditor || '-' }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.engineeringDate ? formatDate(details.engineeringDate) : '-' }}
+                    </span>
                   </div>
                 </div>
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">日期</div>
-                  <div class="text-xs font-mono text-foreground">
-                    {{
-                      details.engineeringDate
-                        ? formatDate(details.engineeringDate)
-                        : '\u00A0'
-                    }}
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">审核人</span>
+                  <div class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1">
+                    <span class="font-medium text-foreground">
+                      {{ details.engineeringApproveAuditor || '-' }}
+                    </span>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 合约部意见 -->
-            <div
-              class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
-            >
-              <span class="text-xs font-semibold text-foreground-2">
-                计划合同部意见
-              </span>
-              <textarea
-                v-model="details.contractOpinion"
-                placeholder="请输入计划合同部审核意见"
-                :disabled="!permissions.contract"
-                class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
-              />
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">经办人</div>
-                  <div class="text-xs font-medium text-foreground">
-                    {{ details.contractAuditor || '-' }}
-                  </div>
-                </div>
-                <div class="rounded border border-outline-3 bg-foundation px-2 py-1.5">
-                  <div class="text-[10px] text-foreground-2">日期</div>
-                  <div class="text-xs font-mono text-foreground">
-                    {{
-                      details.contractDate ? formatDate(details.contractDate) : '\u00A0'
-                    }}
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center">
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{ details.engineeringApproveDate ? formatDate(details.engineeringApproveDate) : '-' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1123,7 +970,7 @@
                 计量期号
               </td>
               <td class="border border-black px-4 py-2 text-left">
-                {{ roundName || '-' }}
+                {{ roundName ? '第' + roundName + '期' : '-' }}
               </td>
             </tr>
             <tr>
@@ -1189,7 +1036,7 @@
               <td
                 class="border border-black px-4 py-2 font-mono text-right text-primary font-bold pr-4"
               >
-                {{ formatMoney(totalSums.contractDeptAmount) }}
+                {{ formatMoney(totalSums.engineeringAmount) }}
               </td>
             </tr>
             <tr>
@@ -1217,7 +1064,7 @@
         <table class="w-full border-collapse border border-black text-xs">
           <tbody>
             <tr>
-              <td class="border border-black p-3 w-1/2 h-24 valign-top relative">
+              <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
                 <div class="font-semibold mb-1">施工单位负责人意见：</div>
                 <div class="text-foreground-2 italic text-[10px] mb-6">同意申报。</div>
                 <div class="absolute bottom-2 right-4 text-right scale-95 origin-right">
@@ -1226,16 +1073,20 @@
                   日期：______年___月___日
                 </div>
               </td>
-              <td class="border border-black p-3 w-1/2 h-24 valign-top relative">
+              <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
                 <div class="font-semibold mb-1">监理工程师审核意见：</div>
                 <div class="text-foreground-2 italic text-[10px] mb-6">
                   {{ details.supervisionOpinion || '同意。' }}
                 </div>
                 <div class="absolute bottom-2 right-4 text-right scale-95 origin-right">
-                  签章：{{ details.supervisionAuditor || '___________________' }}
+                  经办人签字：{{ details.supervisionAuditor || '___________________' }}
+                  <br />
+                  审核人签字：{{ details.supervisionApproveAuditor || '___________________' }}
                   <br />
                   日期：{{
-                    details.supervisionDate
+                    details.supervisionApproveDate
+                      ? formatDate(details.supervisionApproveDate)
+                      : details.supervisionDate
                       ? formatDate(details.supervisionDate)
                       : '______年___月___日'
                   }}
@@ -1243,32 +1094,40 @@
               </td>
             </tr>
             <tr>
-              <td class="border border-black p-3 w-1/2 h-24 valign-top relative">
+              <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
                 <div class="font-semibold mb-1">现场指挥部核定意见：</div>
                 <div class="text-foreground-2 italic text-[10px] mb-6">
                   {{ details.headquartersOpinion || '同意。' }}
                 </div>
                 <div class="absolute bottom-2 right-4 text-right scale-95 origin-right">
-                  签章：{{ details.headquartersAuditor || '___________________' }}
+                  经办人签字：{{ details.headquartersAuditor || '___________________' }}
+                  <br />
+                  审核人签字：{{ details.headquartersApproveAuditor || '___________________' }}
                   <br />
                   日期：{{
-                    details.headquartersDate
+                    details.headquartersApproveDate
+                      ? formatDate(details.headquartersApproveDate)
+                      : details.headquartersDate
                       ? formatDate(details.headquartersDate)
                       : '______年___月___日'
                   }}
                 </div>
               </td>
-              <td class="border border-black p-3 w-1/2 h-24 valign-top relative">
-                <div class="font-semibold mb-1">计划合同部审核意见：</div>
+              <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
+                <div class="font-semibold mb-1">工程管理部审核意见：</div>
                 <div class="text-foreground-2 italic text-[10px] mb-6">
-                  {{ details.contractOpinion || '同意。' }}
+                  {{ details.engineeringOpinion || '同意。' }}
                 </div>
                 <div class="absolute bottom-2 right-4 text-right scale-95 origin-right">
-                  签章：{{ details.contractAuditor || '___________________' }}
+                  经办人签字：{{ details.engineeringAuditor || '___________________' }}
+                  <br />
+                  审核人签字：{{ details.engineeringApproveAuditor || '___________________' }}
                   <br />
                   日期：{{
-                    details.contractDate
-                      ? formatDate(details.contractDate)
+                    details.engineeringApproveDate
+                      ? formatDate(details.engineeringApproveDate)
+                      : details.engineeringDate
+                      ? formatDate(details.engineeringDate)
                       : '______年___月___日'
                   }}
                 </div>
@@ -1324,6 +1183,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, shallowRef } from 'vue'
+import { preciseAdd, preciseMul } from '~~/lib/common/helpers/preciseMath'
 import { Portal } from 'portal-vue'
 import dayjs from 'dayjs'
 import {
@@ -1458,12 +1318,18 @@ const details = ref({
   supervisionOpinion: '',
   supervisionAuditor: '',
   supervisionDate: null as any,
+  supervisionApproveAuditor: '',
+  supervisionApproveDate: null as any,
   headquartersOpinion: '',
   headquartersAuditor: '',
   headquartersDate: null as any,
+  headquartersApproveAuditor: '',
+  headquartersApproveDate: null as any,
   engineeringOpinion: '',
   engineeringAuditor: '',
   engineeringDate: null as any,
+  engineeringApproveAuditor: '',
+  engineeringApproveDate: null as any,
   contractOpinion: '',
   contractAuditor: '',
   contractDate: null as any
@@ -1518,6 +1384,14 @@ const permissions = computed(() => {
           )
         }
 
+        if (
+          checkStep(
+            ['施工单位'],
+            ['施工单位', '施工单位经办人', '施工单位审核人']
+          )
+        ) {
+          result.contractor = true
+        }
         if (
           checkStep(
             ['监理'],
@@ -1602,6 +1476,8 @@ const isCreator = computed(() => {
   return flowInstance.value?.createdBy === userId.value
 })
 
+
+
 // 树状索引构建
 const buildTreeIndex = (rows: any[]) => {
   const byId = new Map<string, any>()
@@ -1644,6 +1520,8 @@ const calculateSums = (rows: any[]) => {
   let yearlyAmount = 0
   let cumulativeQty = 0
   let cumulativeAmount = 0
+  let remainingQty = 0
+  let remainingAmount = 0
 
   rows.forEach((row) => {
     contractQty += Number(row.contractQty || 0)
@@ -1664,6 +1542,8 @@ const calculateSums = (rows: any[]) => {
     yearlyAmount += Number(row.yearlyAmount || 0)
     cumulativeQty += Number(row.cumulativeQty || 0)
     cumulativeAmount += Number(row.cumulativeAmount || 0)
+    remainingQty += Number(row.remainingQty || 0)
+    remainingAmount += Number(row.remainingAmount || 0)
   })
 
   const cumulativeRate =
@@ -1687,7 +1567,9 @@ const calculateSums = (rows: any[]) => {
     yearlyAmount,
     cumulativeQty,
     cumulativeAmount,
-    cumulativeRate
+    cumulativeRate,
+    remainingQty,
+    remainingAmount
   }
 }
 
@@ -1768,22 +1650,28 @@ const recalculateTreeRows = () => {
 
       row.contractQty = 0
       row.contractAmount = 0
+
+      row.remainingQty = 0
+      row.remainingAmount = 0
     } else {
       // 叶子节点初始化/计算其本期及累计
       const price = Number(row.price || 0)
-      row.contractorAmount = (row.contractorQty || 0) * price
-      row.supervisionAmount = (row.supervisionQty || 0) * price
-      row.headquartersAmount = (row.headquartersQty || 0) * price
-      row.engineeringAmount = (row.engineeringQty || 0) * price
-      row.contractDeptAmount = (row.contractDeptQty || 0) * price
+      row.contractorAmount = preciseMul(row.contractorQty || 0, price)
+      row.supervisionAmount = preciseMul(row.supervisionQty || 0, price)
+      row.headquartersAmount = preciseMul(row.headquartersQty || 0, price)
+      row.engineeringAmount = preciseMul(row.engineeringQty || 0, price)
+      row.contractDeptAmount = preciseMul(row.contractDeptQty || 0, price)
 
-      row.lastCumulativeAmount = (row.lastCumulativeQty || 0) * price
+      row.lastCumulativeAmount = preciseMul(row.lastCumulativeQty || 0, price)
 
-      row.yearlyQty = (row.yearlyCumulativeQty || 0) + (row.contractDeptQty || 0)
-      row.yearlyAmount = row.yearlyQty * price
+      row.yearlyQty = preciseAdd(row.yearlyCumulativeQty || 0, row.engineeringQty || 0)
+      row.yearlyAmount = preciseMul(row.yearlyQty, price)
 
-      row.cumulativeQty = (row.lastCumulativeQty || 0) + (row.contractDeptQty || 0)
-      row.cumulativeAmount = row.cumulativeQty * price
+      row.cumulativeQty = preciseAdd(row.lastCumulativeQty || 0, row.engineeringQty || 0)
+      row.cumulativeAmount = preciseMul(row.cumulativeQty, price)
+
+      row.remainingQty = preciseAdd(row.contractQty || 0, -row.cumulativeQty)
+      row.remainingAmount = preciseMul(row.remainingQty, price)
     }
   })
 
@@ -1797,38 +1685,31 @@ const recalculateTreeRows = () => {
       const parent = rowById.value.get(row.boqParentId)
       if (!parent || !parent.isSummaryRow) return
 
-      parent.contractorQty = (parent.contractorQty || 0) + (row.contractorQty || 0)
-      parent.contractorAmount =
-        (parent.contractorAmount || 0) + (row.contractorAmount || 0)
-      parent.supervisionQty = (parent.supervisionQty || 0) + (row.supervisionQty || 0)
-      parent.supervisionAmount =
-        (parent.supervisionAmount || 0) + (row.supervisionAmount || 0)
-      parent.headquartersQty =
-        (parent.headquartersQty || 0) + (row.headquartersQty || 0)
-      parent.headquartersAmount =
-        (parent.headquartersAmount || 0) + (row.headquartersAmount || 0)
-      parent.engineeringQty = (parent.engineeringQty || 0) + (row.engineeringQty || 0)
-      parent.engineeringAmount =
-        (parent.engineeringAmount || 0) + (row.engineeringAmount || 0)
-      parent.contractDeptQty =
-        (parent.contractDeptQty || 0) + (row.contractDeptQty || 0)
-      parent.contractDeptAmount =
-        (parent.contractDeptAmount || 0) + (row.contractDeptAmount || 0)
+      parent.contractorQty = preciseAdd(parent.contractorQty || 0, row.contractorQty || 0)
+      parent.contractorAmount = preciseAdd(parent.contractorAmount || 0, row.contractorAmount || 0)
+      parent.supervisionQty = preciseAdd(parent.supervisionQty || 0, row.supervisionQty || 0)
+      parent.supervisionAmount = preciseAdd(parent.supervisionAmount || 0, row.supervisionAmount || 0)
+      parent.headquartersQty = preciseAdd(parent.headquartersQty || 0, row.headquartersQty || 0)
+      parent.headquartersAmount = preciseAdd(parent.headquartersAmount || 0, row.headquartersAmount || 0)
+      parent.engineeringQty = preciseAdd(parent.engineeringQty || 0, row.engineeringQty || 0)
+      parent.engineeringAmount = preciseAdd(parent.engineeringAmount || 0, row.engineeringAmount || 0)
+      parent.contractDeptQty = preciseAdd(parent.contractDeptQty || 0, row.contractDeptQty || 0)
+      parent.contractDeptAmount = preciseAdd(parent.contractDeptAmount || 0, row.contractDeptAmount || 0)
 
-      parent.lastCumulativeQty =
-        (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
-      parent.lastCumulativeAmount =
-        (parent.lastCumulativeAmount || 0) + (row.lastCumulativeAmount || 0)
+      parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty || 0, row.lastCumulativeQty || 0)
+      parent.lastCumulativeAmount = preciseAdd(parent.lastCumulativeAmount || 0, row.lastCumulativeAmount || 0)
 
-      parent.yearlyQty = (parent.yearlyQty || 0) + (row.yearlyQty || 0)
-      parent.yearlyAmount = (parent.yearlyAmount || 0) + (row.yearlyAmount || 0)
+      parent.yearlyQty = preciseAdd(parent.yearlyQty || 0, row.yearlyQty || 0)
+      parent.yearlyAmount = preciseAdd(parent.yearlyAmount || 0, row.yearlyAmount || 0)
 
-      parent.cumulativeQty = (parent.cumulativeQty || 0) + (row.cumulativeQty || 0)
-      parent.cumulativeAmount =
-        (parent.cumulativeAmount || 0) + (row.cumulativeAmount || 0)
+      parent.cumulativeQty = preciseAdd(parent.cumulativeQty || 0, row.cumulativeQty || 0)
+      parent.cumulativeAmount = preciseAdd(parent.cumulativeAmount || 0, row.cumulativeAmount || 0)
 
-      parent.contractQty = (parent.contractQty || 0) + (row.contractQty || 0)
-      parent.contractAmount = (parent.contractAmount || 0) + (row.contractAmount || 0)
+      parent.contractQty = preciseAdd(parent.contractQty || 0, row.contractQty || 0)
+      parent.contractAmount = preciseAdd(parent.contractAmount || 0, row.contractAmount || 0)
+
+      parent.remainingQty = preciseAdd(parent.remainingQty || 0, row.remainingQty || 0)
+      parent.remainingAmount = preciseAdd(parent.remainingAmount || 0, row.remainingAmount || 0)
     })
   })
 }
@@ -1879,6 +1760,12 @@ const sortTreeRowsByDFS = (list: any[]) => {
   return sortedList
 }
 
+const getRowIndex = (row: any) => {
+  if (row.isSummaryRow) return ''
+  const index = treeRows.value.filter((r) => !r.isSummaryRow).findIndex((r) => r.boqItemId === row.boqItemId)
+  return index !== -1 ? index + 1 : ''
+}
+
 // 加载全部数据
 const loadData = async () => {
   if (!projectId.value || !measurementId.value) return
@@ -1919,12 +1806,18 @@ const loadData = async () => {
         supervisionOpinion: detailRes.supervisionOpinion || '',
         supervisionAuditor: detailRes.supervisionAuditor || '',
         supervisionDate: detailRes.supervisionDate,
+        supervisionApproveAuditor: detailRes.supervisionApproveAuditor || '',
+        supervisionApproveDate: detailRes.supervisionApproveDate,
         headquartersOpinion: detailRes.headquartersOpinion || '',
         headquartersAuditor: detailRes.headquartersAuditor || '',
         headquartersDate: detailRes.headquartersDate,
+        headquartersApproveAuditor: detailRes.headquartersApproveAuditor || '',
+        headquartersApproveDate: detailRes.headquartersApproveDate,
         engineeringOpinion: detailRes.engineeringOpinion || '',
         engineeringAuditor: detailRes.engineeringAuditor || '',
         engineeringDate: detailRes.engineeringDate,
+        engineeringApproveAuditor: detailRes.engineeringApproveAuditor || '',
+        engineeringApproveDate: detailRes.engineeringApproveDate,
         contractOpinion: detailRes.contractOpinion || '',
         contractAuditor: detailRes.contractAuditor || '',
         contractDate: detailRes.contractDate
@@ -1971,8 +1864,7 @@ const saveAllData = async (silent = false) => {
             attachments: details.value.attachments,
             supervisionOpinion: details.value.supervisionOpinion,
             headquartersOpinion: details.value.headquartersOpinion,
-            engineeringOpinion: details.value.engineeringOpinion,
-            contractOpinion: details.value.contractOpinion
+            engineeringOpinion: details.value.engineeringOpinion
           }
         }
       }
@@ -2134,9 +2026,9 @@ const executeCancel = async () => {
 }
 
 const confirmApprove = () => {
-  const title = isStartStep.value ? '确认重新送审' : '确认通过审批'
+  const title = isStartStep.value ? '是否送审安全文明措施费' : '确认通过审批'
   const text = isStartStep.value
-    ? '您确定要重新送审当前单据吗？'
+    ? ''
     : '您确定要通过当前的审批步骤吗？'
   const confirmText = isStartStep.value ? '确认送审' : '确认通过'
   triggerConfirm(title, text, confirmText, executeApprove)

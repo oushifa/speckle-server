@@ -231,6 +231,7 @@ export const projectBoqItemsQuery = graphql(`
         unit
         quantity
         price
+        amount
         sortOrder
         depth
         hasChildren
@@ -246,6 +247,7 @@ export const projectBoqItemsQuery = graphql(`
           unit
           quantity
           price
+          amount
           sortOrder
           depth
           hasChildren
@@ -261,6 +263,7 @@ export const projectBoqItemsQuery = graphql(`
             unit
             quantity
             price
+            amount
             sortOrder
             depth
             hasChildren
@@ -276,6 +279,7 @@ export const projectBoqItemsQuery = graphql(`
               unit
               quantity
               price
+              amount
               sortOrder
               depth
               hasChildren
@@ -291,6 +295,7 @@ export const projectBoqItemsQuery = graphql(`
                 unit
                 quantity
                 price
+                amount
                 sortOrder
                 depth
                 hasChildren
@@ -306,6 +311,7 @@ export const projectBoqItemsQuery = graphql(`
                   unit
                   quantity
                   price
+                  amount
                   sortOrder
                   depth
                   hasChildren

@@ -68,7 +68,7 @@
               <input
                 v-model.number="paymentRequest.contractorPayAmt"
                 type="number"
-                :disabled="!permissions.contractor"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -126,7 +126,7 @@
               <input
                 v-model.number="paymentRequest.supervisionPayAmt"
                 type="number"
-                :disabled="!permissions.supervision"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -179,7 +179,7 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次支付</span>
               <input
                 v-model.number="paymentRequest.headquartersPayAmt"
                 type="number"
@@ -210,7 +210,7 @@
               />
             </div>
             <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">现场指挥部</span>
+              <span class="shrink-0 w-10">现场指挥</span>
               <input
                 type="text"
                 :value="headquartersAuditorModel"
@@ -236,7 +236,7 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次支付</span>
               <input
                 v-model.number="paymentRequest.investmentPayAmt"
                 type="number"
@@ -297,7 +297,7 @@
               <input
                 v-model.number="paymentRequest.contractPayAmt"
                 type="number"
-                :disabled="!permissions.contract"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -354,7 +354,7 @@
               <input
                 v-model.number="paymentRequest.leaderPayAmt"
                 type="number"
-                :disabled="!permissions.leader"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -436,7 +436,11 @@
       </div>
 
       <!-- 附件管理弹出层 LayoutDialog -->
-      <LayoutDialog v-model:open="attachmentsDialogOpen" max-width="md">
+      <LayoutDialog
+        v-model:open="attachmentsDialogOpen"
+        max-width="md"
+        :prevent-close-on-click-outside="deleteConfirmOpen"
+      >
         <template #header>支付申请单附件管理</template>
         <div class="space-y-4">
           <div class="flex justify-between items-center">
@@ -475,13 +479,12 @@
                 </span>
               </div>
               <div class="flex gap-2 flex-shrink-0">
-                <a
-                  :href="getBlobDownloadUrl(attachment.blobId)"
-                  target="_blank"
+                <button
                   class="text-primary hover:underline font-medium"
+                  @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
                 >
                   下载
-                </a>
+                </button>
                 <button
                   v-if="isCurrentApprover"
                   class="text-danger hover:underline font-medium"
@@ -523,7 +526,7 @@
                       : '-'
                   }}
                 </span>
-                <span>{{ props.item?.roundName || '-' }}</span>
+                <span>{{ props.item?.roundName ? `第${props.item.roundName}期` : '-' }}</span>
               </div>
 
               <div class="grid grid-cols-4 border-t border-green-700">
@@ -706,6 +709,15 @@
         </table>
       </div>
     </div>
+    <!-- 删除附件二次确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="deleteConfirmOpen"
+      title="确认删除附件"
+      text="您确定要删除该附件吗？此操作无法撤销。"
+      confirm-text="确认删除"
+      :loading="deletingAttachment"
+      @confirm="executeDeleteAttachment"
+    />
   </div>
 </template>
 
@@ -726,6 +738,7 @@ import {
   getMonthlyMeasurementPermissions
 } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -757,6 +770,11 @@ const emit = defineEmits(['refetch'])
 const apiOrigin = useApiOrigin()
 const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+const { download: downloadBlobWithAuth } = useFileDownload()
+
+const deleteConfirmOpen = ref(false)
+const deleteTargetIdx = ref<number | null>(null)
+const deletingAttachment = ref(false)
 
 // Tab 3 数据
 const paymentRequest = ref<any>({
@@ -1091,6 +1109,16 @@ const getCardDateDisplayValue = (
   key: PaymentRequestAuditKey,
   storedValue?: string | number | null
 ) => {
+  if (props.flowInstance?.steps) {
+    const stepNames = paymentRequestAuditStepMap[key] as readonly string[]
+    const matchedStep = props.flowInstance.steps.find(
+      (s: any) => stepNames.includes(s.name) && (s.status === 'APPROVED' || s.completedAt)
+    )
+    if (matchedStep?.completedAt) {
+      return formatDate(matchedStep.completedAt)
+    }
+  }
+
   const state = getCardSignerState(key)
   if (!state.isReached || state.isCurrentStep || !storedValue) return ''
   return formatDate(storedValue)
@@ -1198,9 +1226,16 @@ const handleRequestFileUpload = async (event: Event) => {
         method: 'POST',
         body: formData
       })
-      const list = paymentRequest.value.requestAttachments || []
-      list.push({ blobId: res.blobId, name: file.name })
-      paymentRequest.value.requestAttachments = [...list]
+      const uploadResults = res?.uploadResults || []
+      const result = uploadResults.find((r: any) => r.formKey === 'file')
+      const blobId = result?.blobId
+      if (blobId) {
+        const list = paymentRequest.value.requestAttachments || []
+        list.push({ blobId, name: file.name })
+        paymentRequest.value.requestAttachments = [...list]
+      } else {
+        throw new Error('未获取到文件标识')
+      }
     }
     await saveTab3Request()
   } catch (err) {
@@ -1211,11 +1246,24 @@ const handleRequestFileUpload = async (event: Event) => {
     })
   }
 }
-const removeRequestAttachment = async (idx: number) => {
-  const list = [...(paymentRequest.value.requestAttachments || [])]
-  list.splice(idx, 1)
-  paymentRequest.value.requestAttachments = list
-  await saveTab3Request()
+const removeRequestAttachment = (idx: number) => {
+  deleteTargetIdx.value = idx
+  deleteConfirmOpen.value = true
+}
+
+const executeDeleteAttachment = async () => {
+  if (deleteTargetIdx.value === null) return
+  deletingAttachment.value = true
+  try {
+    const list = [...(paymentRequest.value.requestAttachments || [])]
+    list.splice(deleteTargetIdx.value, 1)
+    paymentRequest.value.requestAttachments = list
+    await saveTab3Request()
+  } finally {
+    deletingAttachment.value = false
+    deleteConfirmOpen.value = false
+    deleteTargetIdx.value = null
+  }
 }
 
 // -------------------------------------------------------------

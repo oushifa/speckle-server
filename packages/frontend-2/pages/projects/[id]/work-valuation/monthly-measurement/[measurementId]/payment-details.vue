@@ -12,7 +12,7 @@
             ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
             : '2020年12月'
         }}
-        {{ props.item?.roundName }}
+        {{ props.item?.roundName ? `第${props.item.roundName}期` : '' }}
       </p>
       <div
         class="flex justify-between items-center text-[10px] text-foreground-2 px-1 pt-1.5 border-t border-outline-3 border-dashed mt-2"
@@ -138,7 +138,7 @@
                 {{
                   formatMoney(
                     Number(row.lastCumulativePay || 0) +
-                      Number(getDerivedPay(row).investmentPayAmt || 0)
+                      Number(getDerivedPay(row).leaderPayAmt || 0)
                   )
                 }}
               </td>
@@ -297,8 +297,7 @@
             >
               {{
                 formatMoney(
-                  Number(row.item.leaderPayAmt || 0) +
-                    Number(row.item.investmentPayAmt || 0)
+                  Number(row.item.leaderPayAmt || 0)
                 )
               }}
             </td>
@@ -314,8 +313,29 @@
             <td colspan="2" class="px-2 py-2 pl-3 text-left border-r border-blue-500">
               本期实际支付款
             </td>
-            <td colspan="8" class="px-2 py-2 text-right pr-3 font-mono">
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.contractAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.investmentAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.cumulativeAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.contractorPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
               {{ formatMoney(totalSums.investmentPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.contractPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-blue-500 font-mono pr-3">
+              {{ formatMoney(totalSums.leaderPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right pr-3 font-mono">
+              {{ formatMoney(totalSums.cumulativePayAmt) }}
             </td>
           </tr>
         </tbody>
@@ -377,23 +397,23 @@
           <div
             class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
           >
-            <div class="text-[10px] text-foreground-2">施工单位</div>
+            <div class="text-[10px] text-foreground-2">分管领导</div>
             <div class="text-xs font-medium text-foreground">
-              {{ getPaymentDetailAuditUser('contractor') }}
+              {{ getPaymentDetailAuditUser('leader') }}
             </div>
           </div>
           <div
             class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
           >
-            <div class="text-[10px] text-foreground-2">施工监理</div>
+            <div class="text-[10px] text-foreground-2">复核</div>
             <div class="text-xs font-medium text-foreground">
-              {{ getPaymentDetailAuditUser('supervision') }}
+              {{ getPaymentDetailAuditUser('contract') }}
             </div>
           </div>
           <div
             class="rounded border border-outline-3 bg-foundation px-3 py-1.5 min-w-[132px]"
           >
-            <div class="text-[10px] text-foreground-2">投资监理</div>
+            <div class="text-[10px] text-foreground-2">制表</div>
             <div class="text-xs font-medium text-foreground">
               {{ getPaymentDetailAuditUser('investment') }}
             </div>
@@ -443,7 +463,11 @@
     </div>
 
     <!-- 附件管理弹出层 LayoutDialog -->
-    <LayoutDialog v-model:open="attachmentsDialogOpen" max-width="md">
+    <LayoutDialog
+      v-model:open="attachmentsDialogOpen"
+      max-width="md"
+      :prevent-close-on-click-outside="deleteConfirmOpen"
+    >
       <template #header>支付单附件管理</template>
       <div class="space-y-4">
         <div class="flex justify-between items-center">
@@ -482,13 +506,12 @@
               </span>
             </div>
             <div class="flex gap-2 flex-shrink-0">
-              <a
-                :href="getBlobDownloadUrl(attachment.blobId)"
-                target="_blank"
+              <button
                 class="text-primary hover:underline font-medium"
+                @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
               >
                 下载
-              </a>
+              </button>
               <button
                 v-if="isCurrentApprover"
                 class="text-danger hover:underline font-medium"
@@ -507,11 +530,21 @@
         </div>
       </div>
     </LayoutDialog>
+    <!-- 删除附件二次确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="deleteConfirmOpen"
+      title="确认删除附件"
+      text="您确定要删除该附件吗？此操作无法撤销。"
+      confirm-text="确认删除"
+      :loading="deletingAttachment"
+      @confirm="executeDeleteAttachment"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import { PaperClipIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { useQuery } from '@vue/apollo-composable'
@@ -523,6 +556,7 @@ import {
   getMonthlyMeasurementPermissions
 } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -550,6 +584,11 @@ const emit = defineEmits(['refetch'])
 const apiOrigin = useApiOrigin()
 const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+const { download: downloadBlobWithAuth } = useFileDownload()
+
+const deleteConfirmOpen = ref(false)
+const deleteTargetIdx = ref<number | null>(null)
+const deletingAttachment = ref(false)
 
 const { result: projectResult } = useQuery(
   gql`
@@ -583,8 +622,8 @@ const getDerivedPay = (row: any) => {
   return {
     contractorPayAmt,
     investmentPayAmt,
-    contractPayAmt: 0,
-    leaderPayAmt: 0
+    contractPayAmt: investmentPayAmt,
+    leaderPayAmt: investmentPayAmt
   }
 }
 
@@ -600,16 +639,18 @@ const sumPaymentRows = (rows: any[]) => {
     cumulativePayAmt: 0
   }
   rows.forEach((row) => {
-    sums.contractAmount += Number(row.contractAmount || 0)
-    sums.investmentAmount += Number(row.investmentAmount || 0)
-    sums.cumulativeAmount += Number(row.cumulativeAmount || 0)
+    sums.contractAmount = preciseAdd(sums.contractAmount, Number(row.contractAmount || 0))
+    sums.investmentAmount = preciseAdd(sums.investmentAmount, Number(row.investmentAmount || 0))
+    sums.cumulativeAmount = preciseAdd(sums.cumulativeAmount, Number(row.cumulativeAmount || 0))
     const pay = getDerivedPay(row)
-    sums.contractorPayAmt += Number(pay.contractorPayAmt || 0)
-    sums.investmentPayAmt += Number(pay.investmentPayAmt || 0)
-    sums.contractPayAmt += Number(pay.contractPayAmt || 0)
-    sums.leaderPayAmt += Number(pay.leaderPayAmt || 0)
-    sums.cumulativePayAmt +=
-      Number(row.lastCumulativePay || 0) + Number(pay.investmentPayAmt || 0)
+    sums.contractorPayAmt = preciseAdd(sums.contractorPayAmt, Number(pay.contractorPayAmt || 0))
+    sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(pay.investmentPayAmt || 0))
+    sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(pay.contractPayAmt || 0))
+    sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(pay.leaderPayAmt || 0))
+    sums.cumulativePayAmt = preciseAdd(
+      sums.cumulativePayAmt,
+      preciseAdd(Number(row.lastCumulativePay || 0), Number(pay.leaderPayAmt || 0))
+    )
   })
   return sums
 }
@@ -660,12 +701,11 @@ const chapterSums = computed(() => sumPaymentRows(aggregatedItems.value))
 const totalSums = computed(() => {
   const sums = { ...chapterSums.value }
   for (const extra of extraPayItems.value) {
-    sums.contractorPayAmt += Number(extra.contractorPayAmt || 0)
-    sums.investmentPayAmt += Number(extra.investmentPayAmt || 0)
-    sums.contractPayAmt += Number(extra.contractPayAmt || 0)
-    sums.leaderPayAmt += Number(extra.leaderPayAmt || 0)
-    sums.cumulativePayAmt +=
-      Number(extra.leaderPayAmt || 0) + Number(extra.investmentPayAmt || 0)
+    sums.contractorPayAmt = preciseAdd(sums.contractorPayAmt, Number(extra.contractorPayAmt || 0))
+    sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(extra.investmentPayAmt || 0))
+    sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(extra.contractPayAmt || 0))
+    sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(extra.leaderPayAmt || 0))
+    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, Number(extra.leaderPayAmt || 0))
   }
 
   return sums
@@ -816,7 +856,9 @@ const isCurrentApprover = computed(() => {
 const paymentDetailAuditStepMap = {
   contractor: ['施工单位'],
   supervision: ['施工监理经办人', '施工监理总监'],
-  investment: ['投资监理经办人', '投资监理总监']
+  investment: ['投资监理经办人'],
+  leader: ['分管领导'],
+  contract: ['合约管理部经办人']
 } as const
 
 type PaymentDetailAuditKey = keyof typeof paymentDetailAuditStepMap
@@ -967,9 +1009,16 @@ const handlePaymentFileUpload = async (event: Event) => {
         method: 'POST',
         body: formData
       })
-      const list = paymentDetails.value.paymentAttachments || []
-      list.push({ blobId: res.blobId, name: file.name })
-      paymentDetails.value.paymentAttachments = [...list]
+      const uploadResults = res?.uploadResults || []
+      const result = uploadResults.find((r: any) => r.formKey === 'file')
+      const blobId = result?.blobId
+      if (blobId) {
+        const list = paymentDetails.value.paymentAttachments || []
+        list.push({ blobId, name: file.name })
+        paymentDetails.value.paymentAttachments = [...list]
+      } else {
+        throw new Error('未获取到文件标识')
+      }
     }
     await saveTab2Payment()
   } catch (err) {
@@ -980,11 +1029,24 @@ const handlePaymentFileUpload = async (event: Event) => {
     })
   }
 }
-const removePaymentAttachment = async (idx: number) => {
-  const list = [...(paymentDetails.value.paymentAttachments || [])]
-  list.splice(idx, 1)
-  paymentDetails.value.paymentAttachments = list
-  await saveTab2Payment()
+const removePaymentAttachment = (idx: number) => {
+  deleteTargetIdx.value = idx
+  deleteConfirmOpen.value = true
+}
+
+const executeDeleteAttachment = async () => {
+  if (deleteTargetIdx.value === null) return
+  deletingAttachment.value = true
+  try {
+    const list = [...(paymentDetails.value.paymentAttachments || [])]
+    list.splice(deleteTargetIdx.value, 1)
+    paymentDetails.value.paymentAttachments = list
+    await saveTab2Payment()
+  } finally {
+    deletingAttachment.value = false
+    deleteConfirmOpen.value = false
+    deleteTargetIdx.value = null
+  }
 }
 
 // -------------------------------------------------------------

@@ -914,6 +914,9 @@ export const createStreamFactory =
     const contractor = 'contractor' in input ? (input.contractor as string) || null : null
     const constructionUnit = 'constructionUnit' in input ? (input.constructionUnit as string) || null : null
     const supervisionUnit = 'supervisionUnit' in input ? (input.supervisionUnit as string) || null : null
+    const projectGuid = 'projectGuid' in input ? (input.projectGuid as string) || null : null
+    const bidSection = 'bidSection' in input ? (input.bidSection as string) || null : null
+    const contractPrice = 'contractPrice' in input ? (input.contractPrice as number) || null : null
 
     const stream = {
       id,
@@ -931,7 +934,10 @@ export const createStreamFactory =
       employer,
       contractor,
       constructionUnit,
-      supervisionUnit
+      supervisionUnit,
+      projectGuid,
+      bidSection,
+      contractPrice
     }
 
     // Create the stream & set up permissions

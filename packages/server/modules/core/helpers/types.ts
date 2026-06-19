@@ -77,6 +77,9 @@ export type StreamRecord = {
   contractor?: Nullable<string>
   constructionUnit?: Nullable<string>
   supervisionUnit?: Nullable<string>
+  projectGuid?: Nullable<string>
+  bidSection?: Nullable<string>
+  contractPrice?: Nullable<number>
   description: Nullable<string>
   clonedFrom: Nullable<string>
   createdAt: Date

@@ -144,7 +144,10 @@ describe('project services @core', () => {
         employer: '示例发包人',
         contractor: '示例承包人',
         constructionUnit: 'dept-construction',
-        supervisionUnit: 'dept-supervision'
+        supervisionUnit: 'dept-supervision',
+        projectGuid: 'guid-123-abc',
+        bidSection: 'bid-section-1',
+        contractPrice: 5000000.5
       })
 
       expect(project).deep.equal(storedProject)
@@ -155,7 +158,10 @@ describe('project services @core', () => {
         employer: '示例发包人',
         contractor: '示例承包人',
         constructionUnit: 'dept-construction',
-        supervisionUnit: 'dept-supervision'
+        supervisionUnit: 'dept-supervision',
+        projectGuid: 'guid-123-abc',
+        bidSection: 'bid-section-1',
+        contractPrice: 5000000.5
       })
     })
   })

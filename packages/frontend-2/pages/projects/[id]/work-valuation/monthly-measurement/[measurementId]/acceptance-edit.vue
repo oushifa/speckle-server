@@ -7,7 +7,7 @@
           @click="closeTreeEdit"
         >
           <ChevronLeftIcon class="h-4 w-4" />
-          返回汇总（当前录入：{{ activeParentBoqName }}）
+          返回汇总（当前{{ isReadOnly ? '查看' : '录入' }}：{{ activeParentBoqName }}）
         </button>
       </div>
 
@@ -277,7 +277,7 @@
               </td>
               <!-- 合同价 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney((row.pendingTotalQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}
               </td>
 
               <!-- 6. 复核量 -->
@@ -294,7 +294,7 @@
               </td>
               <!-- 合价 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney((row.pendingTotalQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}
               </td>
 
               <!-- 7. 本月完成数 -->
@@ -312,7 +312,7 @@
                   step="any"
                   :disabled="!permissions.contractor"
                   class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="scheduleRecalculate"
+                  @input="handleQtyInput(row, 'contractor')"
                 />
                 <span v-else class="font-mono pr-3 inline-block w-full text-right">
                   {{ formatQty(row.contractorQty) }}
@@ -332,7 +332,7 @@
                   step="any"
                   :disabled="!permissions.supervision"
                   class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="scheduleRecalculate"
+                  @input="handleQtyInput(row, 'supervision')"
                 />
                 <span v-else class="font-mono pr-3 inline-block w-full text-right">
                   {{ formatQty(row.supervisionQty) }}
@@ -352,7 +352,7 @@
                   step="any"
                   :disabled="!permissions.headquarters"
                   class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="scheduleRecalculate"
+                  @input="handleQtyInput(row, 'headquarters')"
                 />
                 <span v-else class="font-mono pr-3 inline-block w-full text-right">
                   {{ formatQty(row.headquartersQty) }}
@@ -372,7 +372,7 @@
                   step="any"
                   :disabled="!permissions.investment"
                   class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="scheduleRecalculate"
+                  @input="handleQtyInput(row, 'investment')"
                 />
                 <span
                   v-else
@@ -440,7 +440,12 @@
       <!-- 右下角取消和保存操作区 -->
       <div v-if="!isReadOnly" class="flex justify-end items-center gap-2 mt-4">
         <FormButton color="outline" @click="closeTreeEdit">取消</FormButton>
-        <FormButton v-if="isCurrentApprover" color="primary" :loading="treeSaving" @click="saveTreeItems">
+        <FormButton
+          v-if="isCurrentApprover"
+          color="primary"
+          :loading="treeSaving"
+          @click="saveTreeItems"
+        >
           保存数据
         </FormButton>
       </div>
@@ -450,6 +455,7 @@
 
 <script setup lang="ts">
 import { computed, ref, shallowRef, onMounted } from 'vue'
+import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import { ChevronLeftIcon } from '@heroicons/vue/24/outline'
 import { FormButton } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
@@ -491,6 +497,8 @@ const treeSaving = ref(false)
 const rowById = shallowRef<Map<string, any>>(new Map())
 const rowsByDepth = shallowRef<Map<number, any[]>>(new Map())
 const hasChildrenSet = shallowRef<Set<string>>(new Set())
+
+
 
 const buildTreeIndex = (rows: any[]) => {
   const byId = new Map<string, any>()
@@ -543,21 +551,38 @@ const permissions = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
       const approverIds = pendingStep.approverIds || []
-      
+
       if (approverIds.includes(currentUserId)) {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监', '投资监理'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
+          result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+          result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
+          result.investment = true
+        if (
+          isStep([
+            '合约管理部经办人',
+            '合约管理部负责人',
+            '计划合同部',
+            '合约部',
+            '合约管理部'
+          ])
+        )
+          result.contract = true
         if (isStep(['分管领导'])) result.leader = true
-        if (isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])) result.owner = true
+        if (
+          isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+        )
+          result.owner = true
       }
     }
   }
@@ -577,7 +602,9 @@ const isCurrentApprover = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const approverIds = pendingStep.approverIds || []
       return approverIds.includes(currentUserId)
@@ -657,6 +684,26 @@ const scheduleRecalculate = () => {
   })
 }
 
+const handleQtyInput = (
+  row: any,
+  type: 'contractor' | 'supervision' | 'headquarters' | 'investment'
+) => {
+  const val = row[`${type}Qty`]
+
+  if (type === 'contractor') {
+    row.supervisionQty = val
+    row.headquartersQty = val
+    row.investmentQty = val
+  } else if (type === 'supervision') {
+    row.headquartersQty = val
+    row.investmentQty = val
+  } else if (type === 'headquarters') {
+    row.investmentQty = val
+  }
+
+  scheduleRecalculate()
+}
+
 // 自底向上重新计算汇总
 const recalculateTreeRows = () => {
   if (!treeRows.value.length) return
@@ -682,18 +729,14 @@ const recalculateTreeRows = () => {
       if (!row.boqParentId) return
       const parent = rowById.value.get(row.boqParentId)
       if (!parent || !parent.isSummaryRow) return
-      parent.contractorQty = (parent.contractorQty || 0) + (row.contractorQty || 0)
-      parent.supervisionQty = (parent.supervisionQty || 0) + (row.supervisionQty || 0)
-      parent.headquartersQty =
-        (parent.headquartersQty || 0) + (row.headquartersQty || 0)
-      parent.investmentQty = (parent.investmentQty || 0) + (row.investmentQty || 0)
-      parent.measuredQtyDefault =
-        (parent.measuredQtyDefault || 0) + (row.measuredQtyDefault || 0)
-      parent.lastCumulativeQty =
-        (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
-      parent.yearlyCumulativeQty =
-        (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
-      parent.pendingTotalQty = (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
+      parent.contractorQty = preciseAdd(parent.contractorQty || 0, row.contractorQty || 0)
+      parent.supervisionQty = preciseAdd(parent.supervisionQty || 0, row.supervisionQty || 0)
+      parent.headquartersQty = preciseAdd(parent.headquartersQty || 0, row.headquartersQty || 0)
+      parent.investmentQty = preciseAdd(parent.investmentQty || 0, row.investmentQty || 0)
+      parent.measuredQtyDefault = preciseAdd(parent.measuredQtyDefault || 0, row.measuredQtyDefault || 0)
+      parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty || 0, row.lastCumulativeQty || 0)
+      parent.yearlyCumulativeQty = preciseAdd(parent.yearlyCumulativeQty || 0, row.yearlyCumulativeQty || 0)
+      parent.pendingTotalQty = preciseAdd(parent.pendingTotalQty || 0, row.pendingTotalQty || 0)
     })
   })
 }

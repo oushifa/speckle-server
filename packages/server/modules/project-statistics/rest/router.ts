@@ -309,10 +309,27 @@ const toModelDisplayName = (name: string) => {
   return segments[segments.length - 1] || name
 }
 
-const getPendingTodoScopeFilter = <TRecord extends {}, TResult>(
+const getScopeFilter = <TRecord extends {}, TResult>(
   query: Knex.QueryBuilder<TRecord, TResult>,
-  userId: string
+  userId: string,
+  scope: 'TODO' | 'INITIATED' | 'HANDLED'
 ): Knex.QueryBuilder<TRecord, TResult> => {
+  if (scope === 'INITIATED') {
+    return query.where(ApprovalFlowInstances.col.createdBy, userId)
+  }
+  if (scope === 'HANDLED') {
+    return query.whereExists(
+      db(ApprovalFlowActions.name)
+        .select(db.raw('1'))
+        .whereRaw('?? = ??', [
+          ApprovalFlowActions.col.instanceId,
+          ApprovalFlowInstances.col.id
+        ])
+        .andWhere(ApprovalFlowActions.col.actorId, userId)
+        .andWhere(ApprovalFlowActions.col.action, '!=', 'STARTED')
+    )
+  }
+  // TODO
   return query
     .where(ApprovalFlowInstances.col.status, 'PENDING')
     .whereExists(
@@ -356,21 +373,23 @@ const buildProjectWorkbenchTodos = async (params: {
   projectId: string
   projectName: string | null
   userId: string
+  scope: 'TODO' | 'INITIATED' | 'HANDLED'
 }): Promise<{ totalCount: number; items: WorkbenchTodoItem[] }> => {
   const totalCountQuery = db(ApprovalFlowInstances.name)
     .where(ApprovalFlowInstances.col.projectId, params.projectId)
     .countDistinct<{ count: string }[]>(`${ApprovalFlowInstances.col.id} as count`)
     .first()
 
-  getPendingTodoScopeFilter(totalCountQuery, params.userId)
+  getScopeFilter(totalCountQuery, params.userId, params.scope)
 
-  const instanceRows = await getPendingTodoScopeFilter(
+  const instanceRows = await getScopeFilter(
     db<ApprovalFlowInstanceRecord>(ApprovalFlowInstances.name)
       .where(ApprovalFlowInstances.col.projectId, params.projectId)
       .orderBy(ApprovalFlowInstances.col.updatedAt, 'desc')
       .orderBy(ApprovalFlowInstances.col.id, 'desc')
       .limit(5),
-    params.userId
+    params.userId,
+    params.scope
   )
 
   const totalCountRow = await totalCountQuery
@@ -487,6 +506,9 @@ const buildProjectWorkbenchTodos = async (params: {
       (instance.resourceId && versionModelMap.get(instance.resourceId)) ||
       null
 
+    const snapshot = (instance as any).flowSnapshot
+    const snapshotName = (snapshot && typeof snapshot === 'object') ? snapshot.name : null
+
     return {
       id: instance.id,
       projectId: instance.projectId || null,
@@ -506,13 +528,13 @@ const buildProjectWorkbenchTodos = async (params: {
       createdByUser: userMap.get(instance.createdBy) || null,
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
-      definition: definition
+      definition: (definition || snapshotName)
         ? {
-            id: definition.id,
-            name: definition.name,
-            resourceType: definition.resourceType,
-            isActive: definition.isActive,
-            templateId: definition.templateId
+            id: definition?.id || snapshot?.definitionId || '',
+            name: definition?.name || snapshotName || '',
+            resourceType: definition?.resourceType || snapshot?.resourceType || '',
+            isActive: definition?.isActive ?? true,
+            templateId: definition?.templateId || snapshot?.templateId || ''
           }
         : null,
       actions: (actionsByInstanceId.get(instance.id) || []).map((action) => ({
@@ -968,6 +990,10 @@ export const projectCostSummaryRouterFactory = (): Router => {
     ),
     async (req, res) => {
       const { projectId } = req.params
+      const scope = (req.query.scope as string) || 'TODO'
+      const validScopes = ['TODO', 'INITIATED', 'HANDLED']
+      const targetScope = validScopes.includes(scope.toUpperCase()) ? scope.toUpperCase() : 'TODO'
+
       const project = await getStreamFactory({ db })({ streamId: projectId })
 
       const [stats, todos, reviewUpdates] = await Promise.all([
@@ -975,7 +1001,8 @@ export const projectCostSummaryRouterFactory = (): Router => {
         buildProjectWorkbenchTodos({
           projectId,
           projectName: project?.name || null,
-          userId: req.context.userId!
+          userId: req.context.userId!,
+          scope: targetScope as 'TODO' | 'INITIATED' | 'HANDLED'
         }),
         buildProjectWorkbenchReviewUpdates({
           projectId,
