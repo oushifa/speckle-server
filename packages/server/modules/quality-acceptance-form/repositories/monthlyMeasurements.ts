@@ -42,6 +42,7 @@ export const getQualityAcceptanceFormsBeforeBaseDateFactory =
     baseDate: number
     startDate?: number | null
     endDate?: number | null
+    currentMeasurementId?: string | null
   }) => {
     const q = tables
       .qualityForms(deps.db)
@@ -53,6 +54,12 @@ export const getQualityAcceptanceFormsBeforeBaseDateFactory =
           QualityAcceptanceForms.col.approveStatus,
           ''
         )
+      })
+      q.andWhere((qb) => {
+        qb.whereNull('occupiedMeasurementId')
+        if (params.currentMeasurementId) {
+          qb.orWhere('occupiedMeasurementId', params.currentMeasurementId)
+        }
       })
       if (params.startDate) {
         q.andWhere(

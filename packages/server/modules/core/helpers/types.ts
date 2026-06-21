@@ -204,6 +204,7 @@ export type MonthlyMeasurementRecord = {
   startDate?: Nullable<string>
   endDate?: Nullable<string>
   contractCode?: Nullable<string>
+  safetyMeasureId?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }

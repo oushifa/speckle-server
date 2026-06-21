@@ -157,6 +157,7 @@ export const initializeRegisteredRegionClients = async (): Promise<RegionClients
 }
 
 export const getRegisteredRegionClients = async (): Promise<RegionClients> => {
+  if (!isMultiRegionEnabled()) return {}
   if (!registeredRegionClients)
     registeredRegionClients = await initializeRegisteredRegionClients()
 

@@ -381,7 +381,7 @@
           v-model="paymentDetails.interimRemark"
           placeholder="请输入备注..."
           rows="3"
-          :disabled="!permissions.investment && !permissions.contractor"
+          :disabled="!canEditInterimAmounts"
           class="w-full text-xs bg-foundation border border-outline-3 rounded p-2 focus:outline-none focus:border-primary disabled:opacity-60 resize-y"
         ></textarea>
       </div>
@@ -437,6 +437,15 @@
           >
             <PaperClipIcon class="h-3.5 w-3.5" />
             附件 ({{ paymentDetails.paymentAttachments?.length || 0 }})
+          </button>
+
+          <!-- 打印按钮 -->
+          <button
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-3 text-xs font-semibold rounded hover:bg-foundation-2 bg-foundation text-foreground-2 transition-colors focus:outline-none"
+            @click="triggerPrint"
+          >
+            <PrinterIcon class="h-3.5 w-3.5" />
+            打印
           </button>
 
           <!-- 保存按钮 -->
@@ -539,13 +548,158 @@
       :loading="deletingAttachment"
       @confirm="executeDeleteAttachment"
     />
+
+    <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
+    <Teleport v-if="isPrinting" to="body">
+      <div id="print-section" class="print-sheet">
+        <div class="print-container">
+          <!-- 1. 主标题 -->
+          <div class="print-title">验工计价中间支付单</div>
+
+          <!-- 2. 副标题 -->
+          <div class="print-subtitle">
+            {{ projectName }} &nbsp;&nbsp;&nbsp;&nbsp;
+            {{
+              props.item?.baseDate
+                ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
+                : ''
+            }} &nbsp;&nbsp;&nbsp;&nbsp;
+            {{ props.item?.roundName ? `第${props.item.roundName}期` : '' }}
+          </div>
+
+          <!-- 3. 信息行 -->
+          <table class="print-meta-table">
+            <tr>
+              <td class="print-meta-left">
+                承包人（签章）：{{ getPaymentDetailAuditUser('contractor') }}
+              </td>
+              <td class="print-meta-center">
+                合同编号：{{ projectContractCode }}
+              </td>
+              <td class="print-meta-right">单位：元</td>
+            </tr>
+          </table>
+
+          <!-- 4. 主表格 -->
+          <table class="print-main-table">
+            <thead>
+              <tr>
+                <th class="print-th w-[6%]">序号</th>
+                <th class="print-th w-[10%]">章号</th>
+                <th class="print-th w-[24%]">项目名称</th>
+                <th class="print-th w-[12%]">合同价</th>
+                <th class="print-th w-[12%]">本期完成工作量</th>
+                <th class="print-th w-[12%]">累计完成工作量</th>
+                <th class="print-th w-[12%]">本期支付款</th>
+                <th class="print-th w-[12%]">累计验工支付款</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 循环渲染章节数据 -->
+              <template v-for="group in chapterGroups" :key="group.groupKey">
+                <tr v-for="row in group.rows" :key="row.boqItemId" class="print-tr">
+                  <td class="print-td text-center font-mono">{{ row.displayIndex }}</td>
+                  <td class="print-td text-center font-mono">{{ row.boqCode }}</td>
+                  <td class="print-td text-left truncate-cell" :title="row.boqName">{{ row.boqName }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.contractAmount) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.investmentAmount) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(getDerivedPay(row).leaderPayAmt) }}</td>
+                  <td class="print-td text-right font-mono">
+                    {{
+                      formatMoney(
+                        Number(row.lastCumulativePay || 0) +
+                          Number(getDerivedPay(row).leaderPayAmt || 0)
+                      )
+                    }}
+                  </td>
+                </tr>
+                <!-- 小计 -->
+                <tr class="print-tr print-subtotal-row">
+                  <td class="print-td text-center"></td>
+                  <td class="print-td text-center">-</td>
+                  <td class="print-td text-left font-semibold">{{ group.groupBoqName }} 小计</td>
+                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.contractAmount) }}</td>
+                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.investmentAmount) }}</td>
+                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.cumulativeAmount) }}</td>
+                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.leaderPayAmt) }}</td>
+                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.cumulativePayAmt) }}</td>
+                </tr>
+              </template>
+
+              <!-- 合计 -->
+              <tr class="print-tr print-total-row">
+                <td class="print-td text-center font-mono">{{ chapterSumIndex }}</td>
+                <td class="print-td text-left font-semibold" colspan="2">合计 1-{{ chapterRowCount }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.contractAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.investmentAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.cumulativeAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.leaderPayAmt) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.cumulativePayAmt) }}</td>
+              </tr>
+
+              <!-- 预付款等 extra rows -->
+              <template v-for="(row, idx) in extraPayRows" :key="row.item.prepaymentItemId">
+                <tr class="print-tr">
+                  <td class="print-td text-center font-mono">{{ chapterSumIndex + idx + 1 }}</td>
+                  <td v-if="row.rowspan > 0" class="print-td text-center font-mono" :rowspan="row.rowspan">{{ row.item.category || '-' }}</td>
+                  <td class="print-td text-left truncate-cell">{{ row.item.name || '-' }}</td>
+                  <td class="print-td text-center font-mono">-</td>
+                  <td class="print-td text-center font-mono">-</td>
+                  <td class="print-td text-center font-mono">-</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
+                </tr>
+              </template>
+
+              <!-- 本期实际支付款 -->
+              <tr class="print-tr print-actual-pay-row">
+                <td class="print-td text-center font-mono">{{ actualPayIndex }}</td>
+                <td class="print-td text-left font-semibold" colspan="2">本期实际支付款</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.contractAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.investmentAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.cumulativeAmount) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.leaderPayAmt) }}</td>
+                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.cumulativePayAmt) }}</td>
+              </tr>
+
+              <!-- 备注标题 -->
+              <tr class="print-tr print-remark-title-row">
+                <td class="print-td text-left font-semibold" colspan="8">备注：</td>
+              </tr>
+              <!-- 备注内容 -->
+              <tr class="print-tr print-remark-content-row">
+                <td class="print-td text-left print-remark-cell" colspan="8">
+                  {{ paymentDetails.interimRemark || '&nbsp;' }}
+                </td>
+              </tr>
+
+              <!-- 注明 -->
+              <tr class="print-tr print-note-row">
+                <td class="print-td text-left print-note-cell" colspan="8">
+                  注：指定支付材料明细见附表。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 5. 签字区 -->
+          <div class="print-sign-area">
+            <div class="print-sign-col">分管领导：{{ getPaymentDetailAuditUser('leader') }}</div>
+            <div class="print-sign-col">复核：{{ getPaymentDetailAuditUser('contract') }}</div>
+            <div class="print-sign-col">制表：{{ getPaymentDetailAuditUser('investment') }}</div>
+            <div class="print-sign-col">日期：{{ getPaymentDetailAuditDate(paymentDetails.interimSignDate) }}</div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
-import { PaperClipIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { PaperClipIcon, ArrowDownTrayIcon, XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
@@ -740,6 +894,27 @@ const closeDetails = () => {
   navigateTo(`/projects/${props.projectId}/work-valuation/monthly-measurement`)
 }
 
+const isPrinting = ref(false)
+const triggerPrint = async () => {
+  isPrinting.value = true
+  document.body.classList.add('is-printing')
+  await nextTick()
+  window.print()
+}
+
+const handleAfterPrint = () => {
+  isPrinting.value = false
+  document.body.classList.remove('is-printing')
+}
+
+onMounted(() => {
+  window.addEventListener('afterprint', handleAfterPrint)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('afterprint', handleAfterPrint)
+})
+
 const attachmentsDialogOpen = ref(false)
 const openAttachmentsDialog = () => {
   attachmentsDialogOpen.value = true
@@ -904,7 +1079,12 @@ const getPaymentDetailAuditDate = (value: string | number | null | undefined) =>
 }
 
 const canEditInterimAmounts = computed(() => {
-  return isCurrentApprover.value
+  return (
+    permissions.value.contractor ||
+    permissions.value.investment ||
+    permissions.value.contract ||
+    permissions.value.leader
+  )
 })
 
 // 载入聚合工程列表数据
@@ -956,8 +1136,6 @@ const saveTab2Payment = async () => {
     if (canEditInterimAmounts.value) {
       body.interimPayProgress = Number(paymentDetails.value.interimPayProgress || 0)
       body.migrantWorkerSalary = Number(paymentDetails.value.migrantWorkerSalary || 0)
-    }
-    if (permissions.value.investment || permissions.value.contractor) {
       body.interimRemark = paymentDetails.value.interimRemark
     }
     if (
@@ -1085,3 +1263,167 @@ watch(
   { immediate: true }
 )
 </script>
+
+<style scoped>
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  :global(html), :global(body) {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  :global(body.is-printing [id="__nuxt"]),
+  :global(body.is-printing [id="__layout"]) {
+    display: none !important;
+  }
+
+  :global(body.is-printing #print-section) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    display: block !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .print-sheet {
+    padding: 0;
+    background: #fff;
+    color: #000;
+    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  }
+
+  .print-container {
+    width: 100%;
+  }
+
+  .print-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 10px;
+    letter-spacing: 2px;
+  }
+
+  .print-subtitle {
+    text-align: center;
+    margin-top: 6px;
+    font-size: 11px;
+  }
+
+  .print-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 11px;
+  }
+
+  .print-meta-left {
+    width: 40%;
+    text-align: left;
+  }
+
+  .print-meta-center {
+    width: 40%;
+    text-align: center;
+  }
+
+  .print-meta-right {
+    width: 20%;
+    text-align: right;
+  }
+
+  .print-main-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 11px;
+    border: 1px solid #000;
+  }
+
+  .print-th {
+    border: 1px solid #000;
+    padding: 6px 4px;
+    text-align: center;
+    font-weight: bold;
+    background-color: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    vertical-align: middle;
+  }
+
+  .print-subtotal-row {
+    font-weight: bold;
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-total-row {
+    font-weight: bold;
+    background-color: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-actual-pay-row {
+    font-weight: bold;
+    background-color: #eff6ff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-remark-title-row .print-td {
+    border-bottom: none;
+    padding-top: 8px;
+    padding-bottom: 2px;
+  }
+
+  .print-remark-content-row .print-td {
+    border-top: none;
+    border-bottom: none;
+    padding-top: 2px;
+    padding-bottom: 8px;
+    height: 60px;
+    vertical-align: top;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .print-note-row .print-td {
+    border-top: none;
+    padding-top: 2px;
+    padding-bottom: 6px;
+    font-style: italic;
+  }
+
+  .print-sign-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    font-size: 11px;
+    padding: 0 4px;
+  }
+
+  .print-sign-col {
+    flex: 1;
+    text-align: left;
+  }
+
+  .print-sign-col:last-child {
+    text-align: right;
+  }
+}
+</style>

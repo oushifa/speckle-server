@@ -229,6 +229,25 @@
             show-required
             :disabled="isViewMode"
           />
+          <div class="col-span-1 md:col-span-2 space-y-1.5">
+            <label class="text-xs font-semibold text-foreground">关联安全文明措施费</label>
+            <FormSelectBase
+              v-model="selectedMeasureValue"
+              :items="selectOptions"
+              label="关联安全文明措施费"
+              :show-label="false"
+              :disabled="isViewMode"
+              by="id"
+              class="w-full text-xs"
+            >
+              <template #something-selected="{ value }">
+                <span class="truncate text-foreground text-xs">{{ value?.label || '不关联' }}</span>
+              </template>
+              <template #option="{ item }">
+                <span class="truncate text-xs">{{ item?.label || '不关联' }}</span>
+              </template>
+            </FormSelectBase>
+          </div>
         </div>
         <div v-if="createError" class="text-body-sm text-danger mt-2">
           {{ createError }}
@@ -456,7 +475,8 @@ import {
   LayoutTable,
   FormTextInput,
   FormButton,
-  CommonBadge
+  CommonBadge,
+  FormSelectBase
 } from '@speckle/ui-components'
 import {
   approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
@@ -735,7 +755,8 @@ const createForm = ref({
   baseDate: dayjs().format('YYYY-MM'),
   roundName: '',
   startDate: '',
-  endDate: ''
+  endDate: '',
+  safetyMeasureId: null as string | null
 })
 const previewSourceAcceptanceIds = computed(() =>
   Array.from(
@@ -833,13 +854,61 @@ const resetDialogState = () => {
     baseDate: dayjs().format('YYYY-MM'),
     roundName: '',
     startDate: dayjs().subtract(1, 'month').date(19).format('YYYY-MM-DD'),
-    endDate: dayjs().date(20).format('YYYY-MM-DD')
+    endDate: dayjs().date(20).format('YYYY-MM-DD'),
+    safetyMeasureId: null
   }
 }
+
+const availableSafetyMeasures = ref<any[]>([])
+const fetchSafetyMeasures = async () => {
+  if (!projectId.value) return
+  const apiOrigin = useApiOrigin()
+  try {
+    const res = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures`,
+      {
+        params: {
+          unoccupied: 'true'
+        }
+      }
+    )
+    availableSafetyMeasures.value = res.items || []
+  } catch (err) {
+    console.error('拉取安全文明措施费失败', err)
+  }
+}
+
+const formatMeasureLabel = (measure: any) => {
+  if (!measure?.baseDate) return ''
+  const dateStr = dayjs(Number(measure.baseDate)).format('YYYY-MM')
+  const round = measure.roundName || '1'
+  return `${dateStr} 第${round}期`
+}
+
+const selectOptions = computed(() => {
+  const list = availableSafetyMeasures.value.map((m) => ({
+    id: m.id,
+    label: formatMeasureLabel(m)
+  }))
+  return [{ id: 'none', label: '不关联' }, ...list]
+})
+
+const selectedMeasureValue = computed({
+  get: () => {
+    const id = createForm.value.safetyMeasureId
+    if (!id) return { id: 'none', label: '不关联' }
+    const found = availableSafetyMeasures.value.find((m) => m.id === id)
+    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+  },
+  set: (val: any) => {
+    createForm.value.safetyMeasureId = val?.id === 'none' ? null : val?.id
+  }
+})
 
 const openCreateDialog = () => {
   dialogMode.value = 'create'
   resetDialogState()
+  void fetchSafetyMeasures()
   createDialogOpen.value = true
 }
 
@@ -1003,7 +1072,8 @@ const submitDialog = async () => {
             endDate: endDateTs,
             roundName: createForm.value.roundName.trim(),
             measuredItems: [],
-            excludedAcceptanceIds: []
+            excludedAcceptanceIds: [],
+            safetyMeasureId: createForm.value.safetyMeasureId
           }
         }
       )
@@ -1019,7 +1089,8 @@ const submitDialog = async () => {
             endDate: endDateTs,
             roundName: createForm.value.roundName.trim(),
             measuredItems: [],
-            excludedAcceptanceIds: []
+            excludedAcceptanceIds: [],
+            safetyMeasureId: createForm.value.safetyMeasureId
           }
         }
       )

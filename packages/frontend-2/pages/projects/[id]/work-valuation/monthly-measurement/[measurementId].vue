@@ -361,6 +361,24 @@
               show-label
               show-required
             />
+            <div class="col-span-1 md:col-span-2 space-y-1.5">
+              <label class="text-xs font-semibold text-foreground">关联安全文明措施费</label>
+              <FormSelectBase
+                v-model="selectedMeasureValue"
+                :items="selectOptions"
+                label="关联安全文明措施费"
+                :show-label="false"
+                by="id"
+                class="w-full text-xs"
+              >
+                <template #something-selected="{ value }">
+                  <span class="truncate text-foreground text-xs">{{ value?.label || '不关联' }}</span>
+                </template>
+                <template #option="{ item }">
+                  <span class="truncate text-xs">{{ item?.label || '不关联' }}</span>
+                </template>
+              </FormSelectBase>
+            </div>
           </div>
           <div v-if="createError" class="text-body-sm text-danger mt-2">
             {{ createError }}
@@ -427,7 +445,8 @@ import {
   FormTextArea,
   CommonBadge,
   LayoutDialog,
-  FormTextInput
+  FormTextInput,
+  FormSelectBase
 } from '@speckle/ui-components'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -855,7 +874,8 @@ const createForm = ref({
   baseDate: '',
   roundName: '',
   startDate: '',
-  endDate: ''
+  endDate: '',
+  safetyMeasureId: null as string | null
 })
 
 const isSubmitted = (item: { approveStatus?: string | null }) => {
@@ -863,6 +883,53 @@ const isSubmitted = (item: { approveStatus?: string | null }) => {
   const status = item.approveStatus.toUpperCase()
   return status !== 'START' && status !== 'RETURNED'
 }
+
+const availableSafetyMeasures = ref<any[]>([])
+const fetchSafetyMeasures = async () => {
+  if (!projectId.value) return
+  const apiOrigin = useApiOrigin()
+  try {
+    const res = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures`,
+      {
+        params: {
+          unoccupied: 'true',
+          excludeMeasurementId: measurementId.value
+        }
+      }
+    )
+    availableSafetyMeasures.value = res.items || []
+  } catch (err) {
+    console.error('拉取安全文明措施费失败', err)
+  }
+}
+
+const formatMeasureLabel = (measure: any) => {
+  if (!measure?.baseDate) return ''
+  const dateStr = dayjs(Number(measure.baseDate)).format('YYYY-MM')
+  const round = measure.roundName || '1'
+  return `${dateStr} 第${round}期`
+}
+
+const selectOptions = computed(() => {
+  const list = availableSafetyMeasures.value.map((m) => ({
+    id: m.id,
+    label: formatMeasureLabel(m)
+  }))
+  return [{ id: 'none', label: '不关联' }, ...list]
+})
+
+const selectedMeasureValue = computed({
+  get: () => {
+    const id = createForm.value.safetyMeasureId
+    if (!id) return { id: 'none', label: '不关联' }
+    const found = availableSafetyMeasures.value.find((m) => m.id === id)
+    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+  },
+  set: (val: any) => {
+    createForm.value.safetyMeasureId = val?.id === 'none' ? null : val?.id
+  }
+})
 
 const openEditDialog = () => {
   if (!item.value) return
@@ -877,8 +944,10 @@ const openEditDialog = () => {
       : '',
     endDate: item.value.endDate
       ? dayjs(Number(item.value.endDate)).format('YYYY-MM-DD')
-      : ''
+      : '',
+    safetyMeasureId: item.value.safetyMeasureId || null
   }
+  void fetchSafetyMeasures()
   createDialogOpen.value = true
 }
 
@@ -943,7 +1012,8 @@ const submitDialog = async () => {
           endDate: endDateTs,
           roundName: createForm.value.roundName.trim(),
           measuredItems: [],
-          excludedAcceptanceIds: []
+          excludedAcceptanceIds: [],
+          safetyMeasureId: createForm.value.safetyMeasureId
         }
       }
     )

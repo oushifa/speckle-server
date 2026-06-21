@@ -66,8 +66,8 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                v-model.number="paymentRequest.contractorPayAmt"
-                type="number"
+                :value="contractorState.isReached ? formatMoney(paymentRequest.contractorPayAmt) : '-'"
+                type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
@@ -122,10 +122,17 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次支付</span>
               <input
+                v-if="permissions.supervision"
                 v-model.number="paymentRequest.supervisionPayAmt"
                 type="number"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="supervisionState.isReached ? formatMoney(paymentRequest.supervisionPayAmt) : '-'"
+                type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
@@ -181,9 +188,16 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次支付</span>
               <input
+                v-if="permissions.headquarters"
                 v-model.number="paymentRequest.headquartersPayAmt"
                 type="number"
-                :disabled="!permissions.headquarters"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="headquartersState.isReached ? formatMoney(paymentRequest.headquartersPayAmt) : '-'"
+                type="text"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -238,9 +252,9 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次支付</span>
               <input
-                v-model.number="paymentRequest.investmentPayAmt"
-                type="number"
-                :disabled="!permissions.investment"
+                :value="investmentState.isReached ? formatMoney(paymentRequest.investmentPayAmt) : '-'"
+                type="text"
+                disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
             </div>
@@ -295,8 +309,8 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                v-model.number="paymentRequest.contractPayAmt"
-                type="number"
+                :value="contractState.isReached ? formatMoney(paymentRequest.contractPayAmt) : '-'"
+                type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
@@ -352,8 +366,8 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                v-model.number="paymentRequest.leaderPayAmt"
-                type="number"
+                :value="leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-'"
+                type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
               />
@@ -401,10 +415,11 @@
         class="flex justify-center items-center gap-4 pt-4 border-t border-outline-3"
       >
         <button
-          class="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors focus:outline-none shadow-sm"
-          @click="openCoverDialog"
+          class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors focus:outline-none shadow-sm"
+          @click="triggerPrint('cover')"
         >
-          验工计价封面
+          <PrinterIcon class="h-3.5 w-3.5" />
+          打印封面
         </button>
 
         <button
@@ -419,10 +434,10 @@
 
         <button
           class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors focus:outline-none shadow-sm"
-          @click="triggerPrint"
+          @click="triggerPrint('payment')"
         >
           <PrinterIcon class="h-3.5 w-3.5" />
-          打印
+          打印申请表
         </button>
 
         <!-- 底部附件按钮，点击打开弹窗 -->
@@ -506,83 +521,45 @@
 
       <LayoutDialog v-model:open="coverDialogOpen" max-width="xl">
         <template #header>验工计价封面</template>
-        <div class="max-h-[80vh] overflow-auto">
-          <div class="bg-[#d7ead3] p-6">
-            <div class="border-4 border-green-700 bg-[#d7ead3]">
-              <div class="border-b-2 border-green-700 py-6 text-center">
-                <div class="text-4xl font-semibold tracking-[0.45em] text-[#111]">
-                  验 工 月 报
+        <div class="max-h-[80vh] overflow-auto p-4 bg-[#f9fafb]">
+          <div class="print-cover-sheet">
+            <div class="print-cover-title">
+              验 工 月 报
+            </div>
+
+            <div class="print-cover-subtitle text-[#111]">
+              {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ printPeriod }}
+            </div>
+
+            <div class="print-cover-grid">
+              <div
+                v-for="party in coverParties"
+                :key="party.key"
+                class="print-cover-col"
+              >
+                <div class="print-cover-row">
+                  <div class="print-cover-label">本期计价：</div>
+                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).current) }}</div>
+                  <div class="print-cover-unit">元</div>
                 </div>
-              </div>
-
-              <div class="px-6 py-4 text-center text-sm text-[#111]">
-                <span class="font-medium">{{ coverProjectName }}</span>
-                <span class="mx-2">—</span>
-                <span class="font-medium">{{ coverContractName }}</span>
-                <span class="mx-3">
-                  {{
-                    props.item?.baseDate
-                      ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
-                      : '-'
-                  }}
-                </span>
-                <span>{{ props.item?.roundName ? `第${props.item.roundName}期` : '-' }}</span>
-              </div>
-
-              <div class="grid grid-cols-4 border-t border-green-700">
-                <div
-                  v-for="party in coverParties"
-                  :key="party.key"
-                  class="border-r border-green-700 last:border-r-0"
-                >
-                  <div class="grid grid-cols-2 text-sm">
-                    <div
-                      class="col-span-2 border-b border-green-700 px-4 py-3 text-center text-sm font-medium"
-                    >
-                      {{ party.label }}
-                    </div>
-                    <div
-                      class="border-b border-green-700 border-r border-green-700 px-3 py-4"
-                    >
-                      本期计价：
-                    </div>
-                    <div
-                      class="border-b border-green-700 px-3 py-4 text-right font-mono"
-                    >
-                      {{ formatMoney(coverAmounts.current) }} 元
-                    </div>
-                    <div
-                      class="border-b border-green-700 border-r border-green-700 px-3 py-4"
-                    >
-                      本年累计价：
-                    </div>
-                    <div
-                      class="border-b border-green-700 px-3 py-4 text-right font-mono"
-                    >
-                      {{ formatMoney(coverAmounts.yearly) }} 元
-                    </div>
-                    <div
-                      class="border-b border-green-700 border-r border-green-700 px-3 py-4"
-                    >
-                      开工累计价：
-                    </div>
-                    <div
-                      class="border-b border-green-700 px-3 py-4 text-right font-mono"
-                    >
-                      {{ formatMoney(coverAmounts.cumulative) }} 元
-                    </div>
-                    <div
-                      class="col-span-2 border-b border-green-700 px-3 py-4 text-center"
-                    >
-                      （章）
-                    </div>
-                    <div class="border-green-700 px-3 py-4">
-                      {{ party.roleLabel }}：
-                    </div>
-                    <div class="px-3 py-4 text-right">-</div>
-                    <div class="border-green-700 px-3 py-4">日期：</div>
-                    <div class="px-3 py-4 text-right font-mono">-</div>
-                  </div>
+                <div class="print-cover-row">
+                  <div class="print-cover-label">本年累计价：</div>
+                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).yearly) }}</div>
+                  <div class="print-cover-unit">元</div>
+                </div>
+                <div class="print-cover-row">
+                  <div class="print-cover-label">开工累计价：</div>
+                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).cumulative) }}</div>
+                  <div class="print-cover-unit">元</div>
+                </div>
+                <div class="print-cover-stamp">
+                  {{ party.label }}:(章)
+                </div>
+                <div class="print-cover-sign">
+                  {{ party.roleLabel }}:{{ getPartySignInfo(party.key).name }}
+                </div>
+                <div class="print-cover-date">
+                  日期:{{ getPartySignInfo(party.key).date }}
                 </div>
               </div>
             </div>
@@ -591,124 +568,162 @@
       </LayoutDialog>
     </div>
 
-    <div class="print-only">
-      <div ref="printOnlyRef" class="print-sheet">
-        <div class="print-title">工程费用支付申请表</div>
-        <div class="print-subtitle">{{ printPeriod }}</div>
+    <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
+    <Teleport to="body" v-if="isPrinting">
+      <div id="print-section" class="print-sheet">
+        <!-- 1. 验工计价封面打印样式 -->
+        <div v-if="printType === 'cover'" class="print-cover-sheet">
+          <div class="print-cover-title">
+            验 工 月 报
+          </div>
 
-        <table class="print-table print-meta-table">
-          <tr>
-            <td class="print-cell print-meta-left">
-              费用申请单位名称：{{ applicantUnitName }}
-            </td>
-            <td class="print-cell print-meta-center">标段名称：{{ tenderName }}</td>
-            <td class="print-cell print-meta-right">单位：元</td>
-          </tr>
-        </table>
+          <div class="print-cover-subtitle text-[#111]">
+            {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ printPeriod }}
+          </div>
 
-        <table class="print-table print-info-table">
-          <tr>
-            <td class="print-cell">合同编号：{{ projectContractCode }}</td>
-            <td class="print-cell">
-              上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}
-            </td>
-            <td class="print-cell">
-              合同金额：{{ formatMoney(paymentRequest.contractAmount) }}
-            </td>
-            <td class="print-cell">附件：{{ printAttachmentNames }}</td>
-          </tr>
-        </table>
+          <div class="print-cover-grid">
+            <div
+              v-for="party in coverParties"
+              :key="party.key"
+              class="print-cover-col"
+            >
+              <div class="print-cover-row">
+                <div class="print-cover-label">本期计价：</div>
+                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).current) }}</div>
+                <div class="print-cover-unit">元</div>
+              </div>
+              <div class="print-cover-row">
+                <div class="print-cover-label">本年累计价：</div>
+                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).yearly) }}</div>
+                <div class="print-cover-unit">元</div>
+              </div>
+              <div class="print-cover-row">
+                <div class="print-cover-label">开工累计价：</div>
+                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).cumulative) }}</div>
+                <div class="print-cover-unit">元</div>
+              </div>
+              <div class="print-cover-stamp">
+                {{ party.label }}:(章)
+              </div>
+              <div class="print-cover-sign">
+                {{ party.roleLabel }}:{{ getPartySignInfo(party.key).name }}
+              </div>
+              <div class="print-cover-date">
+                日期:{{ getPartySignInfo(party.key).date }}
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <table class="print-table print-main-table">
-          <tr>
-            <th class="print-head" colspan="1">费用申请单位</th>
-            <th class="print-head" colspan="5">费用审核单位</th>
-          </tr>
-          <tr>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次申请支付：{{ formatMoney(paymentRequest.contractorPayAmt) }}
-              </div>
-              <div class="print-text">
-                支付申请理由陈述：{{ paymentRequest.reqContractorOpinion || '' }}
-              </div>
-            </td>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次支付：{{ formatMoney(paymentRequest.supervisionPayAmt) }}
-              </div>
-              <div class="print-text">
-                施工监理意见：{{ paymentRequest.reqSupervisionOpinion || '' }}
-              </div>
-            </td>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次支付：{{ formatMoney(paymentRequest.headquartersPayAmt) }}
-              </div>
-              <div class="print-text">
-                现场指挥部意见：{{ paymentRequest.reqHeadquartersOpinion || '' }}
-              </div>
-            </td>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次支付：{{ formatMoney(paymentRequest.investmentPayAmt) }}
-              </div>
-              <div class="print-text">
-                投资监理意见：{{ paymentRequest.reqInvestmentOpinion || '' }}
-              </div>
-            </td>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次支付：{{ formatMoney(paymentRequest.contractPayAmt) }}
-              </div>
-              <div class="print-text">
-                计划合约部意见：{{ paymentRequest.reqContractOpinion || '' }}
-              </div>
-            </td>
-            <td class="print-body">
-              <div class="print-amount-line">
-                本次支付：{{ formatMoney(paymentRequest.leaderPayAmt) }}
-              </div>
-              <div class="print-text">
-                分管领导意见：{{ paymentRequest.reqLeaderOpinion || '' }}
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="print-footer">
-              <div class="print-sign">经办人：{{ flowInitiatorName }}</div>
-              <div class="print-sign">项目经理：{{ contractorManagerDisplay }}</div>
-              <div class="print-sign">日期：{{ contractorDateDisplay }}</div>
-            </td>
-            <td class="print-footer">
-              <div class="print-sign">经办人：{{ supervisionOperatorDisplay }}</div>
-              <div class="print-sign">总监：{{ supervisionAuditorModel }}</div>
-              <div class="print-sign">日期：{{ supervisionDateDisplay }}</div>
-            </td>
-            <td class="print-footer">
-              <div class="print-sign">经办人：{{ headquartersOperatorDisplay }}</div>
-              <div class="print-sign">现场指挥：{{ headquartersAuditorModel }}</div>
-              <div class="print-sign">日期：{{ headquartersDateDisplay }}</div>
-            </td>
-            <td class="print-footer">
-              <div class="print-sign">经办人：{{ investmentOperatorDisplay }}</div>
-              <div class="print-sign">总监：{{ investmentAuditorModel }}</div>
-              <div class="print-sign">日期：{{ investmentDateDisplay }}</div>
-            </td>
-            <td class="print-footer">
-              <div class="print-sign">经办人：{{ contractOperatorDisplay }}</div>
-              <div class="print-sign">负责人：{{ contractAuditorModel }}</div>
-              <div class="print-sign">日期：{{ contractDateDisplay }}</div>
-            </td>
-            <td class="print-footer">
-              <div class="print-sign">经办人：-</div>
-              <div class="print-sign">分管领导：{{ leaderAuditorModel }}</div>
-              <div class="print-sign">日期：{{ leaderDateDisplay }}</div>
-            </td>
-          </tr>
-        </table>
+        <!-- 2. 工程费用支付申请表打印样式 -->
+        <div v-else-if="printType === 'payment'" class="print-payment-container">
+          <div class="print-title">工程费用支付申请表</div>
+          <div class="print-subtitle">{{ printPeriod }}</div>
+
+          <table class="print-table print-meta-table">
+            <tr>
+              <td class="print-cell print-meta-left">
+                费用申请单位名称：{{ applicantUnitName }}
+              </td>
+              <td class="print-cell print-meta-center">标段名称：{{ tenderName }}</td>
+              <td class="print-cell print-meta-right">单位：元</td>
+            </tr>
+          </table>
+
+          <table class="print-table print-info-table">
+            <tr>
+              <td class="print-cell">合同编号：{{ projectContractCode }}</td>
+              <td class="print-cell">
+                上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}
+              </td>
+              <td class="print-cell">
+                合同金额：{{ formatMoney(paymentRequest.contractAmount) }}
+              </td>
+              <td class="print-cell">附件：{{ printAttachmentNames }}</td>
+            </tr>
+          </table>
+
+          <table class="print-table print-main-table">
+            <tr>
+              <th class="print-head" colspan="1" style="width: 16.66%;">费用申请单位</th>
+              <th class="print-head" colspan="5" style="width: 83.34%;">费用审核单位</th>
+            </tr>
+            <tr>
+              <td class="print-amount-cell">
+                本次申请支付：{{ contractorState.isReached ? formatMoney(paymentRequest.contractorPayAmt) : '-' }}
+              </td>
+              <td class="print-amount-cell">
+                本次支付：{{ supervisionState.isReached ? formatMoney(paymentRequest.supervisionPayAmt) : '-' }}
+              </td>
+              <td class="print-amount-cell">
+                本次支付：{{ headquartersState.isReached ? formatMoney(paymentRequest.headquartersPayAmt) : '-' }}
+              </td>
+              <td class="print-amount-cell">
+                本次支付：{{ investmentState.isReached ? formatMoney(paymentRequest.investmentPayAmt) : '-' }}
+              </td>
+              <td class="print-amount-cell">
+                本次支付：{{ contractState.isReached ? formatMoney(paymentRequest.contractPayAmt) : '-' }}
+              </td>
+              <td class="print-amount-cell">
+                本次支付：{{ leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-' }}
+              </td>
+            </tr>
+            <tr>
+              <td class="print-opinion-title">支付申请理由陈述:</td>
+              <td class="print-opinion-title">施工监理意见：</td>
+              <td class="print-opinion-title">现场指挥部意见：</td>
+              <td class="print-opinion-title">投资监理意见：</td>
+              <td class="print-opinion-title">计划合约部意见：</td>
+              <td class="print-opinion-title">分管领导意见：</td>
+            </tr>
+            <tr>
+              <td class="print-opinion-body">
+                {{ contractorState.isReached ? (paymentRequest.reqContractorOpinion || '') : '' }}
+              </td>
+              <td class="print-opinion-body">
+                {{ supervisionState.isReached ? (paymentRequest.reqSupervisionOpinion || '') : '' }}
+              </td>
+              <td class="print-opinion-body">
+                {{ headquartersState.isReached ? (paymentRequest.reqHeadquartersOpinion || '') : '' }}
+              </td>
+              <td class="print-opinion-body">
+                {{ investmentState.isReached ? (paymentRequest.reqInvestmentOpinion || '') : '' }}
+              </td>
+              <td class="print-opinion-body">
+                {{ contractState.isReached ? (paymentRequest.reqContractOpinion || '') : '' }}
+              </td>
+              <td class="print-opinion-body">
+                {{ leaderState.isReached ? (paymentRequest.reqLeaderOpinion || '') : '' }}
+              </td>
+            </tr>
+            <tr>
+              <td class="print-sign-cell">经办人：{{ flowInitiatorName }}</td>
+              <td class="print-sign-cell">经办人：{{ supervisionOperatorDisplay }}</td>
+              <td class="print-sign-cell">经办人：{{ headquartersOperatorDisplay }}</td>
+              <td class="print-sign-cell">经办人：{{ investmentOperatorDisplay }}</td>
+              <td class="print-sign-cell">经办人：{{ contractOperatorDisplay }}</td>
+              <td class="print-sign-cell">经办人：-</td>
+            </tr>
+            <tr>
+              <td class="print-sign-cell">项目经理：{{ contractorManagerDisplay }}</td>
+              <td class="print-sign-cell">总监：{{ supervisionAuditorModel }}</td>
+              <td class="print-sign-cell">现场指挥：{{ headquartersAuditorModel }}</td>
+              <td class="print-sign-cell">总监：{{ investmentAuditorModel }}</td>
+              <td class="print-sign-cell">负责人：{{ contractAuditorModel }}</td>
+              <td class="print-sign-cell">分管领导：{{ leaderAuditorModel }}</td>
+            </tr>
+            <tr>
+              <td class="print-sign-cell">日期：{{ contractorDateDisplay }}</td>
+              <td class="print-sign-cell">日期：{{ supervisionDateDisplay }}</td>
+              <td class="print-sign-cell">日期：{{ headquartersDateDisplay }}</td>
+              <td class="print-sign-cell">日期：{{ investmentDateDisplay }}</td>
+              <td class="print-sign-cell">日期：{{ contractDateDisplay }}</td>
+              <td class="print-sign-cell">日期：{{ leaderDateDisplay }}</td>
+            </tr>
+          </table>
+        </div>
       </div>
-    </div>
+    </Teleport>
     <!-- 删除附件二次确认弹窗 -->
     <CommonConfirmDialog
       v-model:open="deleteConfirmOpen"
@@ -722,7 +737,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import {
   PaperClipIcon,
   ArrowDownTrayIcon,
@@ -808,30 +823,69 @@ const openAttachmentsDialog = () => {
   attachmentsDialogOpen.value = true
 }
 
-const printOnlyRef = ref<HTMLElement | null>(null)
+const isPrinting = ref(false)
+const printType = ref<'cover' | 'payment' | null>(null)
 
-const triggerPrint = () => {
-  const source = printOnlyRef.value
-  if (!source) return
+const triggerPrint = async (type: 'cover' | 'payment') => {
+  printType.value = type
+  isPrinting.value = true
+  document.body.classList.add('is-printing')
+  await nextTick()
+  window.print()
+}
 
-  const clone = source.cloneNode(true) as HTMLElement
-  clone.id = '__print_only_clone'
-  clone.style.display = 'none'
-  document.body.appendChild(clone)
+const handleAfterPrint = () => {
+  isPrinting.value = false
+  printType.value = null
+  document.body.classList.remove('is-printing')
+}
 
-  const cleanup = () => {
-    window.removeEventListener('afterprint', cleanup)
-    clone.remove()
+onMounted(() => {
+  window.addEventListener('afterprint', handleAfterPrint)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('afterprint', handleAfterPrint)
+})
+
+const getPartyAmounts = (partyKey: string) => {
+  const sums = { current: 0, yearly: 0, cumulative: 0 }
+  for (const row of coverAggregatedItems.value) {
+    let amt = 0
+    if (partyKey === 'contractor') {
+      amt = Number(row.contractorAmount || 0)
+    } else if (partyKey === 'supervision') {
+      amt = Number(row.supervisionAmount || 0)
+    } else if (partyKey === 'headquarters') {
+      amt = Number(row.headquartersAmount || 0)
+    } else if (partyKey === 'investment') {
+      amt = Number(row.investmentAmount || 0)
+    }
+
+    const historyCumulative = Number(row.cumulativeAmount || 0) - Number(row.investmentAmount || 0)
+    const historyYearly = Number(row.yearlyAmount || 0) - Number(row.investmentAmount || 0)
+
+    sums.current += amt
+    sums.yearly += historyYearly + amt
+    sums.cumulative += historyCumulative + amt
   }
-  window.addEventListener('afterprint', cleanup)
+  return sums
+}
 
-  nextTick().then(() => {
-    clone.style.display = ''
-    requestAnimationFrame(() => {
-      window.print()
-      setTimeout(cleanup, 1000)
-    })
-  })
+const getPartySignInfo = (partyKey: string) => {
+  if (partyKey === 'contractor') {
+    return { name: contractorManagerDisplay.value, date: contractorDateDisplay.value }
+  }
+  if (partyKey === 'supervision') {
+    return { name: supervisionAuditorModel.value, date: supervisionDateDisplay.value }
+  }
+  if (partyKey === 'headquarters') {
+    return { name: headquartersAuditorModel.value, date: headquartersDateDisplay.value }
+  }
+  if (partyKey === 'investment') {
+    return { name: investmentAuditorModel.value, date: investmentDateDisplay.value }
+  }
+  return { name: '', date: '' }
 }
 
 const coverDialogOpen = ref(false)
@@ -1154,6 +1208,13 @@ const leaderDateDisplay = computed(() =>
   getCardDateDisplayValue('leader', paymentRequest.value.reqLeaderDate)
 )
 
+const contractorState = computed(() => getCardSignerState('contractor'))
+const supervisionState = computed(() => getCardSignerState('supervisionApprover'))
+const headquartersState = computed(() => getCardSignerState('headquartersApprover'))
+const investmentState = computed(() => getCardSignerState('investmentApprover'))
+const contractState = computed(() => getCardSignerState('contractApprover'))
+const leaderState = computed(() => getCardSignerState('leader'))
+
 // 载入 Tab 3 数据
 const loadTab3Data = async () => {
   if (!props.item?.id || !props.projectId) return
@@ -1308,112 +1369,277 @@ watch(
   display: none;
 }
 
+/* 验工计价封面样式 (同时在屏幕预览及打印生效) */
+.print-cover-sheet {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #15803d;
+  background-color: #fff;
+  padding: 30px;
+  font-family: SimSun, 'Songti SC', STSong, sans-serif;
+  color: #000;
+}
+
+.print-cover-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 0.45em;
+  padding: 20px 0;
+  border-bottom: 1px solid #15803d;
+  color: #111;
+}
+
+.print-cover-subtitle {
+  text-align: center;
+  font-size: 13px;
+  padding: 12px 0;
+  color: #111;
+  font-weight: 500;
+}
+
+.print-cover-grid {
+  display: flex;
+  border-top: 1px solid #15803d;
+  background-color: #fff;
+}
+
+.print-cover-col {
+  flex: 1;
+  width: 25%;
+  border-right: 1px solid #15803d;
+  display: flex;
+  flex-direction: column;
+}
+
+.print-cover-col:last-child {
+  border-right: none;
+}
+
+.print-cover-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 40px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-bottom: 1px solid #15803d;
+}
+
+.print-cover-label {
+  width: 80px;
+  text-align: left;
+}
+
+.print-cover-val {
+  flex-grow: 1;
+  text-align: right;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+}
+
+.print-cover-unit {
+  width: 24px;
+  text-align: right;
+}
+
+.print-cover-stamp {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border-bottom: 1px solid #15803d;
+}
+
+.print-cover-sign {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+  border-bottom: 1px solid #15803d;
+}
+
+.print-cover-date {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
 @media print {
   @page {
     size: A4 landscape;
     margin: 12mm;
   }
+
+  :global(html), :global(body) {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   :global(html, body) {
     padding: 0;
     margin: 0;
     color: #000;
-    font-family: 'SimSun', 'Songti SC', 'STSong', 'PingFang SC', 'Microsoft YaHei',
-      Arial, sans-serif;
+    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
   }
-  :global(body > *:not(#__print_only_clone)) {
+
+  :global(body.is-printing [id="__nuxt"]),
+  :global(body.is-printing [id="__layout"]),
+  :global(body.is-printing .no-print) {
     display: none !important;
   }
-  :global(body > #__print_only_clone) {
+
+  :global(body.is-printing #print-section) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
     display: block !important;
-    width: 100%;
+    background-color: white !important;
+    color: black !important;
   }
 
   .print-hidden {
     display: none !important;
   }
+
   .print-only {
     display: block !important;
   }
+
   .print-sheet {
     padding: 0;
     background: #fff;
     color: #000;
   }
+
+  /* 强制打印背景色和边框颜色 */
+  .print-cover-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 费用支付申请表打印布局样式 */
+  .print-payment-container {
+    width: 100%;
+  }
+
   .print-title {
     text-align: center;
     font-size: 18px;
-    font-weight: 400;
+    font-weight: bold;
     margin-top: 10px;
+    color: #000;
   }
+
   .print-subtitle {
     text-align: center;
-    margin-top: 12px;
-    font-size: 13px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #000;
   }
+
   .print-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
     margin-top: 8px;
-    font-size: 12px;
+    font-size: 11px;
+    color: #000;
   }
+
   .print-meta-table {
-    margin-top: 16px;
+    margin-top: 12px;
   }
+
   .print-meta-left {
     width: 40%;
   }
+
   .print-meta-center {
     width: 40%;
     text-align: center;
   }
+
   .print-meta-right {
     width: 20%;
     text-align: right;
   }
-  .print-cell,
-  .print-head,
-  .print-subhead,
-  .print-body,
-  .print-footer {
-    border: 1px solid #000;
-    vertical-align: top;
+
+  .print-cell {
+    padding: 6px 8px;
+    border: none;
   }
+
   .print-meta-table .print-cell,
   .print-info-table .print-cell {
     border: none;
   }
-  .print-cell {
-    padding: 8px 10px;
+
+  .print-info-table {
+    border: 1px solid #000;
   }
+
+  .print-info-table .print-cell {
+    border-right: 1px solid #000;
+  }
+
+  .print-info-table .print-cell:last-child {
+    border-right: none;
+  }
+
+  .print-main-table {
+    border: 1px solid #000;
+    margin-top: 12px;
+  }
+
   .print-head {
-    padding: 8px 10px;
+    border: 1px solid #000;
+    padding: 6px;
     text-align: center;
-    font-weight: 400;
+    font-weight: bold;
   }
-  .print-subhead {
-    padding: 6px 10px;
-    text-align: center;
-    font-weight: 400;
+
+  .print-amount-cell {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    height: 32px;
+    vertical-align: middle;
   }
-  .print-body {
-    padding: 8px 10px;
-    height: 230px;
+
+  .print-opinion-title {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    height: 28px;
+    vertical-align: middle;
   }
-  .print-footer {
-    padding: 8px 10px;
-    height: 80px;
-  }
-  .print-amount-line {
-    font-weight: 400;
-    margin-bottom: 6px;
-  }
-  .print-text {
-    white-space: pre-wrap;
+
+  .print-opinion-body {
+    border: 1px solid #000;
+    padding: 8px;
+    height: 220px;
+    vertical-align: top;
+    font-size: 11px;
     line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
-  .print-sign {
-    line-height: 1.6;
+
+  .print-sign-cell {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    font-size: 11px;
+    height: 28px;
+    vertical-align: middle;
   }
 }
 </style>

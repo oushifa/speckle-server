@@ -3396,6 +3396,7 @@ export type Project = {
   /** Get a single automation by id. Error will be thrown if automation is not found or inaccessible. */
   automation: Automation;
   automations: AutomationCollection;
+  bidSection?: Maybe<Scalars['String']['output']>;
   blob?: Maybe<BlobMetadata>;
   /** Get the metadata collection of blobs stored for this stream. */
   blobs?: Maybe<BlobMetadataCollection>;
@@ -3409,6 +3410,7 @@ export type Project = {
   constructionUnitName?: Maybe<Scalars['String']['output']>;
   contractCode?: Maybe<Scalars['String']['output']>;
   contractName?: Maybe<Scalars['String']['output']>;
+  contractPrice?: Maybe<Scalars['Float']['output']>;
   contractor?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   dashboardTokens: DashboardTokenCollection;
@@ -3453,6 +3455,7 @@ export type Project = {
   pendingImportedModels: Array<FileUpload>;
   permissions: ProjectPermissionChecks;
   progress?: Maybe<Scalars['Int']['output']>;
+  projectGuid?: Maybe<Scalars['String']['output']>;
   projectNumber?: Maybe<Scalars['String']['output']>;
   qualityAcceptanceForms: QualityAcceptanceFormCollection;
   responsible?: Maybe<Scalars['String']['output']>;
@@ -3903,15 +3906,18 @@ export type ProjectCommentsUpdatedMessageType = typeof ProjectCommentsUpdatedMes
 export type ProjectCreateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
+  bidSection?: InputMaybe<Scalars['String']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
   contractCode?: InputMaybe<Scalars['String']['input']>;
   contractName?: InputMaybe<Scalars['String']['input']>;
+  contractPrice?: InputMaybe<Scalars['Float']['input']>;
   contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   employer?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['BigInt']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   progress?: InputMaybe<Scalars['Int']['input']>;
+  projectGuid?: InputMaybe<Scalars['String']['input']>;
   projectNumber?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
@@ -4301,9 +4307,11 @@ export type ProjectTriggeredAutomationsStatusUpdatedMessageType = typeof Project
 export type ProjectUpdateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
+  bidSection?: InputMaybe<Scalars['String']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
   contractCode?: InputMaybe<Scalars['String']['input']>;
   contractName?: InputMaybe<Scalars['String']['input']>;
+  contractPrice?: InputMaybe<Scalars['Float']['input']>;
   contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   employer?: InputMaybe<Scalars['String']['input']>;
@@ -4311,6 +4319,7 @@ export type ProjectUpdateInput = {
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   progress?: InputMaybe<Scalars['Int']['input']>;
+  projectGuid?: InputMaybe<Scalars['String']['input']>;
   projectNumber?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
@@ -9869,6 +9878,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   allowPublicComments?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   automation?: Resolver<ResolversTypes['Automation'], ParentType, ContextType, RequireFields<ProjectAutomationArgs, 'id'>>;
   automations?: Resolver<ResolversTypes['AutomationCollection'], ParentType, ContextType, Partial<ProjectAutomationsArgs>>;
+  bidSection?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   blob?: Resolver<Maybe<ResolversTypes['BlobMetadata']>, ParentType, ContextType, RequireFields<ProjectBlobArgs, 'id'>>;
   blobs?: Resolver<Maybe<ResolversTypes['BlobMetadataCollection']>, ParentType, ContextType, RequireFields<ProjectBlobsArgs, 'cursor' | 'limit' | 'query'>>;
   boqItems?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType, Partial<ProjectBoqItemsArgs>>;
@@ -9879,6 +9889,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   constructionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   contractCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   contractName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractPrice?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   contractor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   dashboardTokens?: Resolver<ResolversTypes['DashboardTokenCollection'], ParentType, ContextType, Partial<ProjectDashboardTokensArgs>>;
@@ -9908,6 +9919,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   pendingImportedModels?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ProjectPendingImportedModelsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ProjectPermissionChecks'], ParentType, ContextType>;
   progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  projectGuid?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projectNumber?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   qualityAcceptanceForms?: Resolver<ResolversTypes['QualityAcceptanceFormCollection'], ParentType, ContextType, Partial<ProjectQualityAcceptanceFormsArgs>>;
   responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

@@ -132,6 +132,7 @@ type BuildPreviewDeps = {
     baseDate: number
     startDate?: number | null
     endDate?: number | null
+    currentMeasurementId?: string | null
   }) => Promise<QualityAcceptanceFormRecord[]>
   getProjectBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
   getQualityAcceptanceFormsByIds: (params: { ids: string[] }) => Promise<QualityAcceptanceFormRecord[]>
@@ -146,13 +147,15 @@ export const buildMonthlyMeasurementPreviewFactory =
     endDate?: number | null
     excludedAcceptanceIds?: string[]
     pinnedAcceptanceIds?: string[]
+    currentMeasurementId?: string | null
   }) => {
     const [allAcceptanceForms, pinnedForms, boqItems] = await Promise.all([
       deps.getQualityAcceptanceFormsBeforeBaseDate({
         projectId: params.projectId,
         baseDate: params.baseDate,
         startDate: params.startDate,
-        endDate: params.endDate
+        endDate: params.endDate,
+        currentMeasurementId: params.currentMeasurementId
       }),
       params.pinnedAcceptanceIds?.length
         ? deps.getQualityAcceptanceFormsByIds({ ids: params.pinnedAcceptanceIds })
@@ -336,6 +339,7 @@ type CreateMeasurementDeps = {
     startDate?: number | null
     endDate?: number | null
     excludedAcceptanceIds?: string[]
+    currentMeasurementId?: string | null
   }) => Promise<{ baseDate: number; items: MonthlyMeasurementPreviewItem[] }>
   createMeasurement: (
     payload: MonthlyMeasurementRecord
@@ -359,6 +363,7 @@ export const createMonthlyMeasurementFromPreviewFactory =
       remark?: string
     }>
     excludedAcceptanceIds?: string[]
+    safetyMeasureId?: string | null
   }) => {
     const preview = await deps.buildPreview({
       projectId: params.projectId,
@@ -412,6 +417,19 @@ export const createMonthlyMeasurementFromPreviewFactory =
       (params.measuredItems || []).map((item) => [item.boqItemId, item])
     )
 
+    // 2. 获取安全文明措施费明细项，用于工程量覆盖
+    const safetyMap = new Map<string, number>()
+    if (params.safetyMeasureId) {
+      const safetyItems = await deps.db('safety_measure_items')
+        .where('safetyMeasureId', params.safetyMeasureId)
+        .andWhere('isSummaryRow', false)
+        .select('boqItemId', 'contractDeptQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+      for (const s of safetyItems) {
+        const qty = Number(s.contractDeptQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
+        safetyMap.set(s.boqItemId, qty)
+      }
+    }
+
     const now = new Date()
     const measurement = await deps.createMeasurement({
       id: cryptoRandomString({ length: 10 }),
@@ -435,6 +453,11 @@ export const createMonthlyMeasurementFromPreviewFactory =
           ? row.measuredQtyDefault
           : Number(custom.measuredQty)
       const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
+
+      // 如果属于安全文明措施费包含的清单项，则各角色本月完成数使用安全文明措施的 contractDeptQty
+      const hasSafetyQty = !row.isSummaryRow && safetyMap.has(row.boqItemId)
+      const sQty = hasSafetyQty ? (safetyMap.get(row.boqItemId) ?? 0) : finalQty
+
       return {
         id: cryptoRandomString({ length: 10 }),
         measurementId: measurement.id,
@@ -449,11 +472,11 @@ export const createMonthlyMeasurementFromPreviewFactory =
         price: row.price,
         pendingTotalQty: row.pendingTotalQty,
         approvedCumulativeQty: row.approvedCumulativeQty,
-        measuredQty: finalQty,
-        contractorQty: finalQty,
-        supervisionQty: finalQty,
-        headquartersQty: finalQty,
-        investmentQty: finalQty,
+        measuredQty: finalQty, // 辅助验工量依然使用质量验收工程量
+        contractorQty: sQty,
+        supervisionQty: sQty,
+        headquartersQty: sQty,
+        investmentQty: sQty,
         contractorPayAmt: 0,
         investmentPayAmt: 0,
         contractPayAmt: 0,
@@ -469,6 +492,19 @@ export const createMonthlyMeasurementFromPreviewFactory =
     })
 
     await deps.insertMeasurementItems(items)
+
+    // 3. 占用质量验收单
+    const allSourceAcceptanceIds = Array.from(
+      new Set(items.flatMap((it) => it.sourceAcceptanceIds || []).filter(Boolean))
+    )
+    if (allSourceAcceptanceIds.length > 0) {
+      await deps.db('quality_acceptance_forms')
+        .whereIn('id', allSourceAcceptanceIds)
+        .update({
+          occupiedMeasurementId: measurement.id,
+          updatedAt: new Date()
+        })
+    }
 
     return {
       measurement,

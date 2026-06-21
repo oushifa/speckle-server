@@ -348,6 +348,31 @@
       </FormButton>
 
       <FormButton
+        color="outline"
+        class="border-primary text-primary"
+        @click="handlePrintSummary"
+      >
+        打印汇总表
+      </FormButton>
+
+      <FormButton
+        color="outline"
+        class="border-primary text-primary"
+        @click="openPrintDetailDialog"
+      >
+        打印明细
+      </FormButton>
+
+      <FormButton
+        v-if="isCurrentApprover"
+        color="outline"
+        class="border-primary text-primary"
+        @click="openSafetyMeasureDialog"
+      >
+        安全文明措施关联
+      </FormButton>
+
+      <FormButton
         v-if="isCurrentApprover"
         color="primary"
         :loading="acceptanceSaving"
@@ -480,16 +505,400 @@
       :loading="deletingAttachment"
       @confirm="executeDeleteAttachment"
     />
+
+    <!-- 安全文明措施关联弹窗 -->
+    <LayoutDialog
+      v-model:open="safetyMeasureDialogOpen"
+      max-width="md"
+      :prevent-close-on-click-outside="safetyMeasureConfirmDialogOpen"
+    >
+      <template #header>安全文明措施关联</template>
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-foreground">选择已审核通过的安全文明措施费</label>
+          <FormSelectBase
+            v-model="selectedMeasureValue"
+            :items="selectOptions"
+            label="关联安全文明措施费"
+            :show-label="false"
+            name="safety-measure"
+            by="id"
+            class="w-full text-xs"
+          >
+            <template #something-selected="{ value }">
+              <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
+            </template>
+            <template #option="{ item }">
+              <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
+            </template>
+          </FormSelectBase>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <FormButton color="outline" size="sm" @click="safetyMeasureDialogOpen = false">
+            取消
+          </FormButton>
+          <FormButton color="primary" size="sm" :loading="safetyMeasureSaving" @click="handleAssociateSafetyMeasure">
+            确认
+          </FormButton>
+        </div>
+      </div>
+    </LayoutDialog>
+
+    <!-- 确认关联/解绑二次确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="safetyMeasureConfirmDialogOpen"
+      :title="safetyMeasureConfirmDialogTitle"
+      :text="safetyMeasureConfirmDialogText"
+      confirm-text="确认"
+      :loading="safetyMeasureSaving"
+      @confirm="executeAssociateSafetyMeasure"
+    />
+
+    <!-- 打印明细章节选择弹窗 -->
+    <LayoutDialog
+      v-model:open="printDetailDialogOpen"
+      max-width="md"
+    >
+      <template #header>选择打印明细章节</template>
+      <div class="space-y-4 p-2 text-xs">
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-foreground">选择要打印的聚合章节（可多选）</label>
+          <div class="max-h-[220px] overflow-y-auto border border-outline-3 rounded p-2.5 space-y-2.5 bg-foundation">
+            <div
+              v-for="group in acceptanceGroups"
+              :key="group.groupKey"
+              class="flex items-center gap-2 px-1 py-0.5 hover:bg-highlight-1/10 rounded cursor-pointer select-none"
+              @click="toggleGroupSelection(group.groupKey)"
+            >
+              <input
+                type="checkbox"
+                :checked="selectedPrintGroupKeys.includes(group.groupKey)"
+                class="rounded border-outline-3 text-primary focus:ring-primary h-3.5 w-3.5 pointer-events-none"
+                readOnly
+              />
+              <span class="text-foreground text-xs font-medium">{{ group.groupBoqCode }} {{ group.groupBoqName }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <FormButton color="outline" size="sm" @click="printDetailDialogOpen = false">
+            取消
+          </FormButton>
+          <FormButton color="primary" size="sm" :disabled="!selectedPrintGroupKeys.length" @click="executePrintDetail">
+            确认打印
+          </FormButton>
+        </div>
+      </div>
+    </LayoutDialog>
+
+    <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
+    <Teleport to="body" v-if="isPrinting">
+      <div id="print-section" class="text-black bg-white p-6 font-sans">
+      <!-- 1. 打印汇总表 -->
+      <div v-if="printType === 'summary'" class="space-y-6">
+        <div class="text-center space-y-2 relative">
+          <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 汇 总 表</h1>
+          <h2 class="text-sm font-medium">
+            {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;&nbsp;&nbsp;&nbsp;{{ item?.roundName ? '第' + item.roundName + '期' : '第1期' }}
+          </h2>
+          <div class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold">
+            <div>承包人(盖章)：{{ item?.unit || '上海公路桥梁（集团）有限公司' }}</div>
+            <div>合同编号：{{ projectContractCode }}</div>
+            <div>单位：元</div>
+          </div>
+        </div>
+
+        <table class="print-table w-full text-[11px] text-left border-collapse border border-black">
+          <thead>
+            <tr class="font-bold text-center border-b border-black">
+              <th rowspan="2" class="w-10 border-r border-black">序号</th>
+              <th rowspan="2" class="w-16 border-r border-black">清单章节</th>
+              <th rowspan="2" class="border-r border-black text-left pl-3 w-56">内容名称</th>
+              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">合同价</th>
+              <th colspan="4" class="border-b border-black border-r border-black text-center">本期完成工作量</th>
+              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">本年完成工作量</th>
+              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">累计完成工作量</th>
+              <th rowspan="2" class="border-r border-black text-right pr-3 w-20">合同累计完成比例%</th>
+              <th rowspan="2" class="w-20">备注</th>
+            </tr>
+            <tr class="border-b border-black font-bold">
+              <th class="border-r border-black text-right pr-3 w-24">施工单位</th>
+              <th class="border-r border-black text-right pr-3 w-24">施工监理</th>
+              <th class="border-r border-black text-right pr-3 w-24">现场指挥部</th>
+              <th class="border-r border-black text-right pr-3 w-24">投资监理</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="group in acceptanceGroups" :key="group.groupKey">
+              <tr v-for="row in group.rows" :key="row.boqItemId" class="border-b border-black">
+                <td class="text-center border-r border-black">{{ row.displayIndex }}</td>
+                <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
+                <td class="text-left pl-3 border-r border-black">{{ row.boqName }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractorAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.supervisionAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.headquartersAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.investmentAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.yearlyAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.cumulativeAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ row.cumulativeRate }}%</td>
+                <td class="text-center">{{ row.remark || '-' }}</td>
+              </tr>
+              <tr class="font-bold border-b border-black bg-gray-50">
+                <td class="text-center border-r border-black"></td>
+                <td class="text-center border-r border-black"></td>
+                <td class="text-left pl-3 border-r border-black">{{ group.groupBoqName }} 小计</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.contractAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.contractorAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.supervisionAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.headquartersAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.investmentAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.yearlyAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.cumulativeAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ group.subtotal.cumulativeRate }}%</td>
+                <td class="text-center"></td>
+              </tr>
+            </template>
+            <tr class="font-bold border-b border-black bg-gray-100">
+              <td class="text-center border-r border-black"></td>
+              <td class="text-center border-r border-black"></td>
+              <td class="text-left pl-3 border-r border-black">总价</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractorAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.supervisionAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.headquartersAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.investmentAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.yearlyAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.cumulativeAmount) }}</td>
+              <td class="text-right pr-3 font-mono border-r border-black">{{ totalSums.cumulativeRate }}%</td>
+              <td class="text-center"></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 四方盖章意见 -->
+        <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">施工监理意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.supervisionOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('施工监理经办人') || formatDate(acceptanceDetails.supervisionDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">现场指挥部意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.headquartersOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('现场指挥部经办人') || formatDate(acceptanceDetails.headquartersDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">投资监理意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.investmentOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('投资监理经办人') || formatDate(acceptanceDetails.investmentDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">计划合约部意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('合约管理部经办人') || formatDate(acceptanceDetails.ownerDate) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 打印明细表 -->
+      <div v-if="printType === 'detail'" class="space-y-6">
+        <div class="text-center space-y-2 relative">
+          <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 月 报</h1>
+          <h2 class="text-sm font-medium">
+            {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;&nbsp;&nbsp;&nbsp;{{ item?.roundName ? '第' + item.roundName + '期' : '第1期' }}
+          </h2>
+          <div class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold">
+            <div>承包人(盖章)：{{ item?.unit || '上海公路桥梁（集团）有限公司' }}</div>
+            <div>合同编号：{{ projectContractCode }}</div>
+            <div>单位：元</div>
+          </div>
+        </div>
+
+        <table class="print-table w-full text-[10px] text-left border-collapse border border-black">
+          <thead>
+            <tr class="font-bold text-center border-b border-black">
+              <th rowspan="3" class="w-20 border-r border-black">清单编号</th>
+              <th rowspan="3" class="w-56 text-left pl-3 border-r border-black">项目名称</th>
+              <th rowspan="3" class="w-10 border-r border-black">单位</th>
+              <th colspan="3" class="border-r border-black">合同量</th>
+              <th colspan="3" class="border-r border-black">复核量</th>
+              <th colspan="8" class="border-r border-black">本月完成数</th>
+              <th colspan="2" class="border-r border-black">本年完成工程量</th>
+              <th colspan="3" class="border-r border-black">累计完成数</th>
+              <th rowspan="3" class="w-20">备注</th>
+            </tr>
+            <tr class="font-bold border-b border-black">
+              <th rowspan="2" class="w-16 border-r border-black">单价</th>
+              <th rowspan="2" class="w-16 border-r border-black">数量</th>
+              <th rowspan="2" class="w-20 border-r border-black">合同价</th>
+              <th rowspan="2" class="w-16 border-r border-black">单价</th>
+              <th rowspan="2" class="w-16 border-r border-black">数量</th>
+              <th rowspan="2" class="w-20 border-r border-black">合价</th>
+              <th colspan="2" class="border-r border-black">施工单位</th>
+              <th colspan="2" class="border-r border-black">施工监理</th>
+              <th colspan="2" class="border-r border-black">现场指挥部</th>
+              <th colspan="2" class="border-r border-black">投资监理</th>
+              <th rowspan="2" class="w-16 border-r border-black">数量</th>
+              <th rowspan="2" class="w-20 border-r border-black">金额 (元)</th>
+              <th rowspan="2" class="w-16 border-r border-black">数量</th>
+              <th rowspan="2" class="w-20 border-r border-black">累计完成工作量</th>
+              <th rowspan="2" class="border-r border-black">合同累计完成比例%</th>
+            </tr>
+            <tr class="font-bold border-b border-black">
+              <th class="w-16 border-r border-black">数量</th>
+              <th class="w-20 border-r border-black">金额 (元)</th>
+              <th class="w-16 border-r border-black">数量</th>
+              <th class="w-20 border-r border-black">金额 (元)</th>
+              <th class="w-16 border-r border-black">数量</th>
+              <th class="w-20 border-r border-black">金额 (元)</th>
+              <th class="w-16 border-r border-black">数量</th>
+              <th class="w-20 border-r border-black">金额 (元)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in printDetailRows.filter(r => !selectedPrintGroupKeys.includes(r.boqItemId))" :key="row.boqItemId" class="border-b border-black" :class="{ 'font-medium bg-gray-50': row.isSummaryRow }">
+              <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
+              <td class="text-left border-r border-black pl-1">
+                <div :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }">
+                  {{ row.boqName }}
+                </div>
+              </td>
+              <td class="text-center border-r border-black">{{ row.uom || '-' }}</td>
+              
+              <!-- 合同量 -->
+              <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}</td>
+              
+              <!-- 复核量 -->
+              <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}</td>
+              
+              <!-- 本月完成数 -->
+              <!-- 施工单位 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.contractorQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.contractorQty || 0) * (row.price || 0)) }}</td>
+              <!-- 施工监理 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.supervisionQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.supervisionQty || 0) * (row.price || 0)) }}</td>
+              <!-- 现场指挥部 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.headquartersQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.headquartersQty || 0) * (row.price || 0)) }}</td>
+              <!-- 投资监理 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(row.investmentQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.investmentQty || 0) * (row.price || 0)) }}</td>
+              
+              <!-- 本年完成工程量 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * (row.price || 0)) }}</td>
+              
+              <!-- 累计完成数 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(row) }}%</td>
+              
+              <td class="text-center">{{ row.remark || '-' }}</td>
+            </tr>
+            <!-- 合计行 -->
+            <tr v-if="printDetailRoot" class="font-bold border-b border-black bg-gray-100">
+              <td class="text-center border-r border-black">合计</td>
+              <td class="text-left border-r border-black pl-3">{{ printDetailRoot.boqName }}</td>
+              <td class="text-center border-r border-black">-</td>
+              <!-- 合同量 -->
+              <td class="text-right border-r border-black">-</td>
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.boqAmount !== undefined && printDetailRoot.boqAmount !== null ? printDetailRoot.boqAmount : (printDetailRoot.pendingTotalQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 复核量 -->
+              <td class="text-right border-r border-black">-</td>
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.boqAmount !== undefined && printDetailRoot.boqAmount !== null ? printDetailRoot.boqAmount : (printDetailRoot.pendingTotalQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 本月完成数 -->
+              <!-- 施工单位 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.contractorQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.contractorQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 施工监理 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.supervisionQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.supervisionQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 现场指挥部 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.headquartersQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.headquartersQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 投资监理 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.investmentQty) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.investmentQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 本年完成工程量 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.yearlyCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(((printDetailRoot.yearlyCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) * (printDetailRoot.price || 0)) }}</td>
+              <!-- 累计完成数 -->
+              <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.lastCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(((printDetailRoot.lastCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(printDetailRoot) }}%</td>
+              <td class="text-center">-</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 四方盖章意见 -->
+        <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">施工监理意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.supervisionOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('施工监理经办人') || formatDate(acceptanceDetails.supervisionDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">现场指挥部意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.headquartersOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('现场指挥部经办人') || formatDate(acceptanceDetails.headquartersDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">投资监理意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.investmentOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('投资监理经办人') || formatDate(acceptanceDetails.investmentDate) }}</div>
+            </div>
+          </div>
+          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
+            <div class="font-bold">计划合约部意见：</div>
+            <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
+            <div class="text-[10px]">
+              <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('合约管理部经办人') || formatDate(acceptanceDetails.ownerDate) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { PaperClipIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
-import { FormButton, LayoutDialog } from '@speckle/ui-components'
+import { FormButton, LayoutDialog, FormSelectBase } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
 import {
@@ -1101,6 +1510,117 @@ const formatQty = (value: number | null | undefined) => {
   return value.toFixed(2)
 }
 
+// 安全文明措施关联相关变量与方法
+const safetyMeasureDialogOpen = ref(false)
+const safetyMeasureConfirmDialogOpen = ref(false)
+const availableSafetyMeasures = ref<any[]>([])
+const selectedSafetyMeasureId = ref<string | null>(null)
+const safetyMeasureSaving = ref(false)
+const safetyMeasureConfirmDialogTitle = ref('')
+const safetyMeasureConfirmDialogText = ref('')
+
+const selectOptions = computed(() => {
+  const list = availableSafetyMeasures.value.map((m) => ({
+    id: m.id,
+    label: formatMeasureLabel(m)
+  }))
+  return [{ id: 'none', label: '不关联' }, ...list]
+})
+
+const selectedMeasureValue = computed({
+  get: () => {
+    const id = selectedSafetyMeasureId.value
+    if (!id) return { id: 'none', label: '不关联' }
+    const found = availableSafetyMeasures.value.find((m) => m.id === id)
+    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+  },
+  set: (val: any) => {
+    selectedSafetyMeasureId.value = val?.id === 'none' ? null : val?.id
+  }
+})
+
+const openSafetyMeasureDialog = async () => {
+  if (!props.projectId || !props.item?.id) return
+  selectedSafetyMeasureId.value = (props.item as any).safetyMeasureId || null
+  safetyMeasureDialogOpen.value = true
+
+  const apiOrigin = useApiOrigin()
+  try {
+    const res = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/safety-measures`,
+      {
+        params: {
+          unoccupied: 'true',
+          excludeMeasurementId: props.item.id
+        }
+      }
+    )
+    availableSafetyMeasures.value = res.items || []
+  } catch (err) {
+    console.error('拉取安全文明措施费失败', err)
+  }
+}
+
+const formatMeasureLabel = (measure: any) => {
+  if (!measure?.baseDate) return ''
+  const dateStr = dayjs(Number(measure.baseDate)).format('YYYY-MM')
+  const round = measure.roundName || '1'
+  return `${dateStr} 第${round}期`
+}
+
+const handleAssociateSafetyMeasure = () => {
+  const currentId = (props.item as any).safetyMeasureId || null
+  const nextId = selectedSafetyMeasureId.value
+
+  if (currentId === nextId) {
+    safetyMeasureDialogOpen.value = false
+    return
+  }
+
+  if (nextId) {
+    safetyMeasureConfirmDialogTitle.value = '确认关联安全文明措施费'
+    safetyMeasureConfirmDialogText.value = '关联安全文明措施费将覆盖本月度验工中对应的清单项工程量数据，是否确认？'
+  } else {
+    safetyMeasureConfirmDialogTitle.value = '确认取消关联安全文明措施费'
+    safetyMeasureConfirmDialogText.value = '取消关联将还原清单项为默认 of 质量验收工程量，是否确认？'
+  }
+  safetyMeasureConfirmDialogOpen.value = true
+}
+
+const executeAssociateSafetyMeasure = async () => {
+  if (!props.projectId || !props.item?.id) return
+  safetyMeasureSaving.value = true
+  const apiOrigin = useApiOrigin()
+  try {
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/associate-safety-measure`,
+      {
+        method: 'POST',
+        body: {
+          safetyMeasureId: selectedSafetyMeasureId.value
+        }
+      }
+    )
+    triggerNotification({
+      title: '操作成功',
+      description: '关联安全文明措施费已更新',
+      type: ToastNotificationType.Success
+    })
+    safetyMeasureConfirmDialogOpen.value = false
+    safetyMeasureDialogOpen.value = false
+    emit('refetch')
+    await loadAggregatedItems()
+  } catch (err: any) {
+    triggerNotification({
+      title: '操作失败',
+      description: err.data?.error || '操作失败',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    safetyMeasureSaving.value = false
+  }
+}
+
 watch(
   () => props.item?.id,
   () => {
@@ -1111,6 +1631,195 @@ watch(
   },
   { immediate: true }
 )
+
+// -------------------------------------------------------------
+// 打印相关变量及方法
+// -------------------------------------------------------------
+const printDetailDialogOpen = ref(false)
+const selectedPrintGroupKeys = ref<string[]>([])
+const printType = ref<'summary' | 'detail' | null>(null)
+const printDetailRows = ref<any[]>([])
+const printDetailRoot = ref<any | null>(null)
+const isPrinting = ref(false)
+
+const toggleGroupSelection = (key: string) => {
+  const index = selectedPrintGroupKeys.value.indexOf(key)
+  if (index > -1) {
+    selectedPrintGroupKeys.value.splice(index, 1)
+  } else {
+    selectedPrintGroupKeys.value.push(key)
+  }
+}
+
+const handlePrintSummary = async () => {
+  printType.value = 'summary'
+  isPrinting.value = true
+  document.body.classList.add('is-printing')
+  await nextTick()
+  window.print()
+}
+
+const openPrintDetailDialog = () => {
+  if (acceptanceGroups.value.length > 0) {
+    selectedPrintGroupKeys.value = [acceptanceGroups.value[0].groupKey]
+  } else {
+    selectedPrintGroupKeys.value = []
+  }
+  printDetailDialogOpen.value = true
+}
+
+const executePrintDetail = async () => {
+  if (!props.item?.id || !props.projectId || !selectedPrintGroupKeys.value.length) return
+
+  try {
+    const list = await $fetch<any[]>(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/detail-items`
+    )
+
+    const allSubtreeIds = new Set<string>()
+    selectedPrintGroupKeys.value.forEach((rootId) => {
+      const subtreeSet = getSubtreeItemIds(rootId, list)
+      subtreeSet.forEach((id) => allSubtreeIds.add(id))
+    })
+
+    const filtered = list.filter((row) => allSubtreeIds.has(row.boqItemId))
+
+    // 对该子树自底向上重算汇总
+    const byId = new Map<string, any>()
+    const depthMap = new Map<number, any[]>()
+    filtered.forEach((row) => {
+      row.contractorQty = row.contractorQty || 0
+      row.supervisionQty = row.supervisionQty || 0
+      row.headquartersQty = row.headquartersQty || 0
+      row.investmentQty = row.investmentQty || 0
+      row.measuredQtyDefault = row.measuredQtyDefault || 0
+      row.lastCumulativeQty = row.lastCumulativeQty || 0
+      row.yearlyCumulativeQty = row.yearlyCumulativeQty || 0
+      row.pendingTotalQty = row.pendingTotalQty || 0
+
+      if (row.isSummaryRow) {
+        row.contractorQty = 0
+        row.supervisionQty = 0
+        row.headquartersQty = 0
+        row.investmentQty = 0
+        row.measuredQtyDefault = 0
+        row.lastCumulativeQty = 0
+        row.yearlyCumulativeQty = 0
+        row.pendingTotalQty = 0
+      }
+      byId.set(row.boqItemId, row)
+      const d = Number(row.boqDepth || 0)
+      if (!depthMap.has(d)) depthMap.set(d, [])
+      depthMap.get(d)!.push(row)
+    })
+
+    const depths = Array.from(depthMap.keys()).sort((a, b) => b - a)
+    depths.forEach((depth) => {
+      const rows = depthMap.get(depth) || []
+      rows.forEach((row) => {
+        if (!row.boqParentId) return
+        const parent = byId.get(row.boqParentId)
+        if (!parent || !parent.isSummaryRow) return
+        parent.contractorQty = (parent.contractorQty || 0) + (row.contractorQty || 0)
+        parent.supervisionQty = (parent.supervisionQty || 0) + (row.supervisionQty || 0)
+        parent.headquartersQty = (parent.headquartersQty || 0) + (row.headquartersQty || 0)
+        parent.investmentQty = (parent.investmentQty || 0) + (row.investmentQty || 0)
+        parent.measuredQtyDefault = (parent.measuredQtyDefault || 0) + (row.measuredQtyDefault || 0)
+        parent.lastCumulativeQty = (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
+        parent.yearlyCumulativeQty = (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
+        parent.pendingTotalQty = (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
+      })
+    })
+
+    // 汇总这几个勾选的根节点的数据，生成虚拟“合计”行对象
+    const sumRoot = {
+      boqItemId: 'virtual-sum',
+      boqCode: '合计',
+      boqName: '选中章节合计',
+      uom: '',
+      price: 0,
+      pendingTotalQty: 0,
+      boqAmount: 0,
+      contractorQty: 0,
+      supervisionQty: 0,
+      headquartersQty: 0,
+      investmentQty: 0,
+      measuredQtyDefault: 0,
+      lastCumulativeQty: 0,
+      yearlyCumulativeQty: 0,
+    }
+
+    selectedPrintGroupKeys.value.forEach((rootId) => {
+      const rootRow = byId.get(rootId)
+      if (rootRow) {
+        sumRoot.pendingTotalQty += (rootRow.pendingTotalQty || 0)
+        sumRoot.boqAmount += (rootRow.boqAmount !== undefined && rootRow.boqAmount !== null ? rootRow.boqAmount : (rootRow.pendingTotalQty || 0) * (rootRow.price || 0))
+        sumRoot.contractorQty += (rootRow.contractorQty || 0)
+        sumRoot.supervisionQty += (rootRow.supervisionQty || 0)
+        sumRoot.headquartersQty += (rootRow.headquartersQty || 0)
+        sumRoot.investmentQty += (rootRow.investmentQty || 0)
+        sumRoot.measuredQtyDefault += (rootRow.measuredQtyDefault || 0)
+        sumRoot.lastCumulativeQty += (rootRow.lastCumulativeQty || 0)
+        sumRoot.yearlyCumulativeQty += (rootRow.yearlyCumulativeQty || 0)
+      }
+    })
+
+    printDetailRows.value = filtered
+    printDetailRoot.value = sumRoot
+    printType.value = 'detail'
+    printDetailDialogOpen.value = false
+
+    isPrinting.value = true
+    document.body.classList.add('is-printing')
+    await nextTick()
+    window.print()
+  } catch (err) {
+    triggerNotification({
+      title: '加载明细失败',
+      description: '无法拉取清单明细，请重试',
+      type: ToastNotificationType.Danger
+    })
+  }
+}
+
+const getSubtreeItemIds = (rootId: string, allItems: any[]): Set<string> => {
+  const childMap = new Map<string, string[]>()
+  allItems.forEach((item) => {
+    if (item.boqParentId) {
+      if (!childMap.has(item.boqParentId)) childMap.set(item.boqParentId, [])
+      childMap.get(item.boqParentId)!.push(item.boqItemId)
+    }
+  })
+  const subtreeIds = new Set<string>()
+  const traverse = (id: string) => {
+    subtreeIds.add(id)
+    const children = childMap.get(id) || []
+    children.forEach((cId) => traverse(cId))
+  }
+  traverse(rootId)
+  return subtreeIds
+}
+
+const getCumulativeRate = (row: any) => {
+  const contractQty = row.pendingTotalQty || 0
+  if (contractQty <= 0) return '0.00'
+  const cumulativeQty = (row.lastCumulativeQty || 0) + (row.investmentQty || 0)
+  return ((cumulativeQty / contractQty) * 100).toFixed(2)
+}
+
+const handleAfterPrint = () => {
+  isPrinting.value = false
+  printType.value = null
+  document.body.classList.remove('is-printing')
+}
+
+onMounted(() => {
+  window.addEventListener('afterprint', handleAfterPrint)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('afterprint', handleAfterPrint)
+})
 </script>
 
 <style scoped>
@@ -1129,6 +1838,79 @@ watch(
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* 正常情况下隐藏打印专区 */
+#print-section {
+  display: none;
+}
+
+@media print {
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* 当处于打印状态时，隐藏 Nuxt 的整个视图树，只保留 teleported 的打印容器 */
+  body.is-printing #__nuxt,
+  body.is-printing #__layout,
+  body.is-printing .no-print {
+    display: none !important;
+  }
+  
+  /* 让传送在 body 下的打印区可见 */
+  body.is-printing #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    display: block !important;
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  /* 细黑实线表格 */
+  .print-table {
+    border: 1px solid #000 !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    color: #000 !important;
+  }
+  .print-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .print-table th, .print-table td {
+    border: 1px solid #000 !important;
+    padding: 3px 4px !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    color: #000 !important;
+  }
+  .print-table th {
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    text-align: center !important;
+    font-weight: bold !important;
+  }
+  /* 四方盖章网格排版 */
+  .print-opinions {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .print-opinions > div {
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+    background-color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
 </style>

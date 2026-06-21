@@ -85,6 +85,41 @@ const FORCED_MONTHLY_MEASUREMENT_HOOKS = {
   ]
 } as const
 
+const FORCED_SAFETY_MEASUREMENT_HOOKS = {
+  onInstancePending: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceApproved: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceRejected: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ],
+  onInstanceCanceled: [
+    {
+      type: 'updateResourceFields',
+      fields: {
+        approveStatus: '$STATUS'
+      }
+    }
+  ]
+} as const
+
 type FlowStepSnapshot = {
   definitionStepId: string | null
   name: string
@@ -197,17 +232,26 @@ const toHookActions = (value: unknown): FlowHookAction[] => {
 const resolveDefinitionEffectConfig = (params: {
   effectConfig: Record<string, unknown> | null
   templateId?: string | null
+  resourceId?: string | null
 }) => {
-  if (params.templateId !== MONTHLY_MEASUREMENT_TEMPLATE_ID) {
+  const isMonthlyMeasurement = params.templateId === MONTHLY_MEASUREMENT_TEMPLATE_ID || 
+    (params.resourceId && params.resourceId.startsWith('monthly_measurements:'))
+  const isSafetyMeasure = params.resourceId && params.resourceId.startsWith('safety_measures:')
+
+  if (!isMonthlyMeasurement && !isSafetyMeasure) {
     return params.effectConfig
   }
+
   const next = { ...(params.effectConfig || {}) } as Record<string, unknown>
   const existingHooks =
     next.hooks && typeof next.hooks === 'object'
       ? (next.hooks as Record<string, unknown>)
       : {}
   const mergedHooks = { ...existingHooks } as Record<string, unknown>
-  for (const [event, actions] of Object.entries(FORCED_MONTHLY_MEASUREMENT_HOOKS)) {
+
+  const forcedHooks = isMonthlyMeasurement ? FORCED_MONTHLY_MEASUREMENT_HOOKS : FORCED_SAFETY_MEASUREMENT_HOOKS
+
+  for (const [event, actions] of Object.entries(forcedHooks)) {
     mergedHooks[event] = toHookActions(mergedHooks[event]).length
       ? mergedHooks[event]
       : actions
@@ -361,7 +405,8 @@ const executeDefinitionHooks = async (params: {
 }) => {
   const effectiveConfig = resolveDefinitionEffectConfig({
     effectConfig: params.effectConfig,
-    templateId: params.templateId || null
+    templateId: params.templateId || null,
+    resourceId: params.instance.resourceId
   })
   const hooksObject = (effectiveConfig?.hooks || null) as Record<string, unknown> | null
   if (!hooksObject) return
