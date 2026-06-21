@@ -2059,9 +2059,11 @@ const formatMoney = (val: any) => {
 }
 
 const formatQty = (val: any) => {
-  if (val == null) return '-'
-  if (Number.isInteger(val)) return `${val}`
-  return val.toFixed(2)
+  if (val === null || val === undefined || val === '') return '-'
+  const num = Number(val)
+  if (isNaN(num)) return '-'
+  if (Number.isInteger(num)) return `${num}`
+  return num.toFixed(2)
 }
 
 const formatDate = (date: any) => {
@@ -2079,6 +2081,7 @@ const getStatusColor = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: 'bg-warning-lighter text-warning-darker',
     PENDING: 'bg-primary-muted text-primary',
+    IN_REVIEW: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
     CANCELED: 'bg-highlight-3 text-foreground-2'
@@ -2090,6 +2093,7 @@ const getStatusText = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: '草稿',
     PENDING: '审批中',
+    IN_REVIEW: '审批中',
     APPROVED: '审核通过',
     REJECTED: '已驳回',
     CANCELED: '已取消'

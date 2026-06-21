@@ -1499,9 +1499,12 @@ const getCurrentFlowStepName = (instance: FlowInstanceNode) => {
   return byIndex?.name || '-'
 }
 
-const formatQty = (value: number) => {
-  if (Number.isInteger(value)) return `${value}`
-  return value.toFixed(2)
+const formatQty = (value: any) => {
+  if (value === null || value === undefined || value === '') return '-'
+  const num = Number(value)
+  if (isNaN(num)) return '-'
+  if (Number.isInteger(num)) return `${num}`
+  return num.toFixed(2)
 }
 
 const formatPrice = (value: number | null, isSummaryRow: boolean) => {

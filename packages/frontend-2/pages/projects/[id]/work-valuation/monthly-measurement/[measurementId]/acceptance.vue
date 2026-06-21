@@ -565,18 +565,18 @@
           <label class="text-xs font-semibold text-foreground">选择要打印的聚合章节（可多选）</label>
           <div class="max-h-[220px] overflow-y-auto border border-outline-3 rounded p-2.5 space-y-2.5 bg-foundation">
             <div
-              v-for="group in acceptanceGroups"
-              :key="group.groupKey"
+              v-for="item in aggregatedItems"
+              :key="item.boqItemId"
               class="flex items-center gap-2 px-1 py-0.5 hover:bg-highlight-1/10 rounded cursor-pointer select-none"
-              @click="toggleGroupSelection(group.groupKey)"
+              @click="toggleGroupSelection(item.boqItemId)"
             >
               <input
                 type="checkbox"
-                :checked="selectedPrintGroupKeys.includes(group.groupKey)"
+                :checked="selectedPrintGroupKeys.includes(item.boqItemId)"
                 class="rounded border-outline-3 text-primary focus:ring-primary h-3.5 w-3.5 pointer-events-none"
                 readOnly
               />
-              <span class="text-foreground text-xs font-medium">{{ group.groupBoqCode }} {{ group.groupBoqName }}</span>
+              <span class="text-foreground text-xs font-medium">{{ item.boqCode }} {{ item.boqName }}</span>
             </div>
           </div>
         </div>
@@ -769,7 +769,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in printDetailRows.filter(r => !selectedPrintGroupKeys.includes(r.boqItemId))" :key="row.boqItemId" class="border-b border-black" :class="{ 'font-medium bg-gray-50': row.isSummaryRow }">
+            <tr v-for="row in printDetailRows" :key="row.boqItemId" class="border-b border-black" :class="{ 'font-medium bg-gray-50': row.isSummaryRow }">
               <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
               <td class="text-left border-r border-black pl-1">
                 <div :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }">
@@ -1504,10 +1504,12 @@ const formatDateMonth = (value: any) => {
   return dayjs(String(value)).format('YYYY年MM月')
 }
 
-const formatQty = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return '-'
-  if (Number.isInteger(value)) return `${value}`
-  return value.toFixed(2)
+const formatQty = (value: any) => {
+  if (value === null || value === undefined || value === '') return '-'
+  const num = Number(value)
+  if (isNaN(num)) return '-'
+  if (Number.isInteger(num)) return `${num}`
+  return num.toFixed(2)
 }
 
 // 安全文明措施关联相关变量与方法
@@ -1660,8 +1662,8 @@ const handlePrintSummary = async () => {
 }
 
 const openPrintDetailDialog = () => {
-  if (acceptanceGroups.value.length > 0) {
-    selectedPrintGroupKeys.value = [acceptanceGroups.value[0].groupKey]
+  if (aggregatedItems.value.length > 0) {
+    selectedPrintGroupKeys.value = [aggregatedItems.value[0].boqItemId]
   } else {
     selectedPrintGroupKeys.value = []
   }
@@ -1769,6 +1771,9 @@ const executePrintDetail = async () => {
     printType.value = 'detail'
     printDetailDialogOpen.value = false
 
+    // 延迟 300ms，等待弹窗淡出过渡动画完全执行完毕
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
     isPrinting.value = true
     document.body.classList.add('is-printing')
     await nextTick()
@@ -1852,10 +1857,8 @@ onUnmounted(() => {
     overflow: visible !important;
   }
   
-  /* 当处于打印状态时，隐藏 Nuxt 的整个视图树，只保留 teleported 的打印容器 */
-  body.is-printing #__nuxt,
-  body.is-printing #__layout,
-  body.is-printing .no-print {
+  /* 当处于打印状态时，隐藏 body 下除了打印区以外的所有直接子节点（包括 #__nuxt、弹窗遮罩及 Portal 节点） */
+  body.is-printing > :not(#print-section) {
     display: none !important;
   }
   

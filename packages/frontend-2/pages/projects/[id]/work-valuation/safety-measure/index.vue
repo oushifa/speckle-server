@@ -584,6 +584,7 @@ const getStatusColor = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: 'bg-warning-lighter text-warning-darker',
     PENDING: 'bg-primary-muted text-primary',
+    IN_REVIEW: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
     CANCELED: 'bg-highlight-3 text-foreground-2'
@@ -595,6 +596,7 @@ const getStatusText = (status: string | null | undefined) => {
   const map: Record<string, string> = {
     START: '草稿',
     PENDING: '审核中',
+    IN_REVIEW: '审核中',
     APPROVED: '审核通过',
     REJECTED: '已驳回',
     CANCELED: '已取消'
