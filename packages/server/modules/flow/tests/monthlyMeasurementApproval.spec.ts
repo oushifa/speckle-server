@@ -153,8 +153,10 @@ describe('MONTHLY_MEASUREMENT Approval Integration Tests', () => {
     expect(items[0]).to.have.property('boqItemId', 'boq-001')
     expect(items[0]).to.have.property('boqCode', 'B001')
     expect(items[0]).to.have.property('boqName', 'Concrete Base')
-    expect(items[0]).to.have.property('measuredQty', 15)
-    expect(items[0]).to.have.property('price', 500)
+    expect(items[0]).to.have.property('measuredQty')
+    expect(Number(items[0].measuredQty)).to.equal(15)
+    expect(items[0]).to.have.property('price')
+    expect(Number(items[0].price)).to.equal(500)
   })
 
   it('should block monthly measurement update mutation when status is IN_REVIEW', async () => {

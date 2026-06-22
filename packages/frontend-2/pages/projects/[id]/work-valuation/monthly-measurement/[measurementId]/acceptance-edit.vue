@@ -1,7 +1,7 @@
 <template>
-  <div class="space-y-6 relative bg-foundation w-full max-w-full overflow-hidden">
-    <div class="rounded-lg bg-foundation">
-      <div class="flex items-center mb-4">
+  <div class="flex flex-col h-full relative bg-foundation w-full max-w-full overflow-hidden p-1">
+    <div class="flex flex-col h-full rounded-lg bg-foundation min-h-0">
+      <div class="flex-shrink-0 flex items-center mb-4">
         <button
           class="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
           @click="closeTreeEdit"
@@ -12,7 +12,7 @@
       </div>
 
       <!-- 25列三层表头树形清单表格 -->
-      <div class="overflow-x-auto max-h-[550px] rounded border border-outline-3">
+      <div class="flex-grow min-h-0 overflow-auto rounded border border-outline-3">
         <table class="w-full text-xs text-left min-w-[2200px] border-collapse">
           <thead
             class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 text-center z-10"
@@ -428,7 +428,7 @@
       </div>
 
       <!-- 右下角取消和保存操作区 -->
-      <div v-if="!isReadOnly" class="flex justify-end items-center gap-2 mt-4">
+      <div v-if="!isReadOnly" class="flex-shrink-0 flex justify-end items-center gap-2 mt-4">
         <FormButton color="outline" @click="closeTreeEdit">取消</FormButton>
         <FormButton
           v-if="isCurrentApprover"

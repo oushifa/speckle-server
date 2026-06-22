@@ -70,6 +70,11 @@ export const projectDashboardItemFragment = graphql(`
     contractPrice
     constructionUnitName
     supervisionUnitName
+    businessUnit
+    businessUnitName
+    companyId
+    companyName
+    projectPackageItemguid
     id
     ...ProjectDashboardItemNoModels
     ...ProjectCardImportFileArea_Project
@@ -170,6 +175,11 @@ export const projectUpdatableMetadataFragment = graphql(`
     contractPrice
     constructionUnitName
     supervisionUnitName
+    businessUnit
+    businessUnitName
+    companyId
+    companyName
+    projectPackageItemguid
     visibility
     allowPublicComments
     permissions {

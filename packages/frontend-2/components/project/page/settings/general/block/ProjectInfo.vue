@@ -121,6 +121,56 @@
         class="mb-2"
         :disabled="!canUpdate.authorized"
       />
+      <FormTextInput
+        v-model="localBusinessUnit"
+        name="businessUnit"
+        label="预算系统事业部编码"
+        placeholder="例如: 1"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localBusinessUnitName"
+        name="businessUnitName"
+        label="预算系统事业部名称"
+        placeholder="例如: 一事业部（公投）"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localCompanyId"
+        name="companyId"
+        label="预算系统公司ID"
+        placeholder="例如: 39"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localCompanyName"
+        name="companyName"
+        label="预算系统公司名称"
+        placeholder="例如: 上海公路投资建设发展有限公司"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
+      <FormTextInput
+        v-model="localProjectPackageItemguid"
+        name="projectPackageItemguid"
+        label="预算系统包件GUID"
+        placeholder="例如: 37321b13320d4155ba6e0168f8cd558f"
+        show-label
+        color="foundation"
+        class="mb-2"
+        :disabled="!canUpdate.authorized"
+      />
       <template #bottom-buttons>
         <FormButton color="subtle" :disabled="!hasChanges" @click="resetLocalState">
           取消
@@ -172,6 +222,11 @@ graphql(`
     contractPrice
     constructionUnitName
     supervisionUnitName
+    businessUnit
+    businessUnitName
+    companyId
+    companyName
+    projectPackageItemguid
     permissions {
       canUpdate {
         ...FullPermissionCheckResult
@@ -200,6 +255,11 @@ const localSupervisionUnit = ref(props.project.supervisionUnit ?? '')
 const localProjectGuid = ref(props.project.projectGuid ?? '')
 const localBidSection = ref(props.project.bidSection ?? '')
 const localContractPrice = ref(props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '')
+const localBusinessUnit = ref(props.project.businessUnit ?? '')
+const localBusinessUnitName = ref(props.project.businessUnitName ?? '')
+const localCompanyId = ref(props.project.companyId ?? '')
+const localCompanyName = ref(props.project.companyName ?? '')
+const localProjectPackageItemguid = ref(props.project.projectPackageItemguid ?? '')
 const showConfirmDialog = ref(false)
 
 const canUpdate = computed(() => props.project.permissions.canUpdate)
@@ -216,7 +276,12 @@ const hasChanges = computed(() => {
     localSupervisionUnit.value !== (props.project.supervisionUnit ?? '') ||
     localProjectGuid.value !== (props.project.projectGuid ?? '') ||
     localBidSection.value !== (props.project.bidSection ?? '') ||
-    localContractPrice.value !== (props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '')
+    localContractPrice.value !== (props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '') ||
+    localBusinessUnit.value !== (props.project.businessUnit ?? '') ||
+    localBusinessUnitName.value !== (props.project.businessUnitName ?? '') ||
+    localCompanyId.value !== (props.project.companyId ?? '') ||
+    localCompanyName.value !== (props.project.companyName ?? '') ||
+    localProjectPackageItemguid.value !== (props.project.projectPackageItemguid ?? '')
   )
 })
 
@@ -234,6 +299,11 @@ const emitUpdate = () => {
     projectGuid: localProjectGuid.value,
     bidSection: localBidSection.value,
     contractPrice: localContractPrice.value !== '' ? Number(localContractPrice.value) : null,
+    businessUnit: localBusinessUnit.value,
+    businessUnitName: localBusinessUnitName.value,
+    companyId: localCompanyId.value,
+    companyName: localCompanyName.value,
+    projectPackageItemguid: localProjectPackageItemguid.value,
     onComplete: handleRedirection
   })
 }
@@ -260,6 +330,11 @@ const resetLocalState = () => {
   localProjectGuid.value = props.project.projectGuid ?? ''
   localBidSection.value = props.project.bidSection ?? ''
   localContractPrice.value = props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : ''
+  localBusinessUnit.value = props.project.businessUnit ?? ''
+  localBusinessUnitName.value = props.project.businessUnitName ?? ''
+  localCompanyId.value = props.project.companyId ?? ''
+  localCompanyName.value = props.project.companyName ?? ''
+  localProjectPackageItemguid.value = props.project.projectPackageItemguid ?? ''
   showConfirmDialog.value = false
 }
 
@@ -319,6 +394,21 @@ watch(
     }
     if (newProject.contractPrice !== oldProject.contractPrice) {
       localContractPrice.value = newProject.contractPrice !== null && newProject.contractPrice !== undefined ? String(newProject.contractPrice) : ''
+    }
+    if (newProject.businessUnit !== oldProject.businessUnit) {
+      localBusinessUnit.value = newProject.businessUnit ?? ''
+    }
+    if (newProject.businessUnitName !== oldProject.businessUnitName) {
+      localBusinessUnitName.value = newProject.businessUnitName ?? ''
+    }
+    if (newProject.companyId !== oldProject.companyId) {
+      localCompanyId.value = newProject.companyId ?? ''
+    }
+    if (newProject.companyName !== oldProject.companyName) {
+      localCompanyName.value = newProject.companyName ?? ''
+    }
+    if (newProject.projectPackageItemguid !== oldProject.projectPackageItemguid) {
+      localProjectPackageItemguid.value = newProject.projectPackageItemguid ?? ''
     }
   },
   { deep: true }

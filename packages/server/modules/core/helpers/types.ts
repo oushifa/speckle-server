@@ -80,6 +80,11 @@ export type StreamRecord = {
   projectGuid?: Nullable<string>
   bidSection?: Nullable<string>
   contractPrice?: Nullable<number>
+  businessUnit?: Nullable<string>
+  businessUnitName?: Nullable<string>
+  companyId?: Nullable<string>
+  companyName?: Nullable<string>
+  projectPackageItemguid?: Nullable<string>
   description: Nullable<string>
   clonedFrom: Nullable<string>
   createdAt: Date

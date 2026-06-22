@@ -100,7 +100,7 @@
               <EyeIcon class="h-4 w-4" />
             </NuxtLink>
             <NuxtLink
-              v-if="item.approveStatus === 'START'"
+              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
               :to="`/projects/${projectId}/work-valuation/safety-measure/${item.id}?mode=edit`"
               class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
               title="编辑"
@@ -108,7 +108,7 @@
               <PencilSquareIcon class="h-4 w-4" />
             </NuxtLink>
             <button
-              v-if="item.approveStatus === 'START'"
+              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
               class="rounded p-1 text-success transition-colors hover:text-success-darker"
               title="送审"
               @click="triggerSubmitItem(item)"
@@ -116,7 +116,7 @@
               <PaperAirplaneIcon class="h-4 w-4" />
             </button>
             <button
-              v-if="item.approveStatus === 'START'"
+              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
               class="rounded p-1 text-danger transition-colors hover:text-danger-darker"
               title="删除"
               @click="deleteItem(item)"

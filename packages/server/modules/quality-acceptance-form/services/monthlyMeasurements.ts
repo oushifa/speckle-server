@@ -418,15 +418,19 @@ export const createMonthlyMeasurementFromPreviewFactory =
     )
 
     // 2. 获取安全文明措施费明细项，用于工程量覆盖
-    const safetyMap = new Map<string, number>()
+    const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
     if (params.safetyMeasureId) {
       const safetyItems = await deps.db('safety_measure_items')
         .where('safetyMeasureId', params.safetyMeasureId)
         .andWhere('isSummaryRow', false)
-        .select('boqItemId', 'contractDeptQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+        .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
       for (const s of safetyItems) {
-        const qty = Number(s.contractDeptQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
-        safetyMap.set(s.boqItemId, qty)
+        safetyMap.set(s.boqItemId, {
+          contractorQty: Number(s.contractorQty) || 0,
+          supervisionQty: Number(s.supervisionQty) || 0,
+          headquartersQty: Number(s.headquartersQty) || 0,
+          investmentQty: Number(s.engineeringQty) || 0
+        })
       }
     }
 
@@ -454,9 +458,8 @@ export const createMonthlyMeasurementFromPreviewFactory =
           : Number(custom.measuredQty)
       const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
 
-      // 如果属于安全文明措施费包含的清单项，则各角色本月完成数使用安全文明措施的 contractDeptQty
-      const hasSafetyQty = !row.isSummaryRow && safetyMap.has(row.boqItemId)
-      const sQty = hasSafetyQty ? (safetyMap.get(row.boqItemId) ?? 0) : finalQty
+      // 如果属于安全文明措施费包含的清单项，则各角色本月完成数使用安全文明措施的对应字段
+      const safetyVals = !row.isSummaryRow ? safetyMap.get(row.boqItemId) : null
 
       return {
         id: cryptoRandomString({ length: 10 }),
@@ -473,10 +476,10 @@ export const createMonthlyMeasurementFromPreviewFactory =
         pendingTotalQty: row.pendingTotalQty,
         approvedCumulativeQty: row.approvedCumulativeQty,
         measuredQty: finalQty, // 辅助验工量依然使用质量验收工程量
-        contractorQty: sQty,
-        supervisionQty: sQty,
-        headquartersQty: sQty,
-        investmentQty: sQty,
+        contractorQty: safetyVals ? safetyVals.contractorQty : finalQty,
+        supervisionQty: safetyVals ? safetyVals.supervisionQty : finalQty,
+        headquartersQty: safetyVals ? safetyVals.headquartersQty : finalQty,
+        investmentQty: safetyVals ? safetyVals.investmentQty : finalQty,
         contractorPayAmt: 0,
         investmentPayAmt: 0,
         contractPayAmt: 0,

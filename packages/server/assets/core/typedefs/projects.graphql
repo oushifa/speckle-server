@@ -51,6 +51,11 @@ input ProjectUpdateInput {
   projectGuid: String
   bidSection: String
   contractPrice: Float
+  businessUnit: String
+  businessUnitName: String
+  companyId: String
+  companyName: String
+  projectPackageItemguid: String
 }
 
 """
@@ -78,6 +83,11 @@ input ProjectCreateInput {
   projectGuid: String
   bidSection: String
   contractPrice: Float
+  businessUnit: String
+  businessUnitName: String
+  companyId: String
+  companyName: String
+  projectPackageItemguid: String
 }
 
 input ProjectUpdateRoleInput {
@@ -233,6 +243,11 @@ type Project {
   contractPrice: Float
   constructionUnitName: String
   supervisionUnitName: String
+  businessUnit: String
+  businessUnitName: String
+  companyId: String
+  companyName: String
+  projectPackageItemguid: String
   description: String
   visibility: ProjectVisibility!
   """

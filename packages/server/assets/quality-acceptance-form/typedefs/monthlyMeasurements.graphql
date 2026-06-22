@@ -28,6 +28,12 @@ type MonthlyMeasurement {
   creator: LimitedUser
   creatorId: ID
   items: [MonthlyMeasurementItem!]!
+  syncStatusSettlement: String
+  syncStatusPaymentDetail: String
+  syncStatusPaymentPool: String
+  syncErrorSettlement: String
+  syncErrorPaymentDetail: String
+  syncErrorPaymentPool: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }

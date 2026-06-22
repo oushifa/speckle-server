@@ -997,13 +997,14 @@ const flowInitiatorName = computed(() => {
 
 const flowInitiatorDate = computed(() => {
   const startedAction = props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')
-  if (startedAction?.createdAt) {
-    return dayjs(Number(startedAction.createdAt)).format('YYYY-MM-DD')
+  const dateVal = startedAction?.createdAt || props.item?.createdAt
+  if (!dateVal) return '-'
+  const ts = Number(dateVal)
+  if (!Number.isNaN(ts) && ts > 0) {
+    return dayjs(ts).format('YYYY-MM-DD')
   }
-  if (props.item?.createdAt) {
-    return dayjs(Number(props.item.createdAt)).format('YYYY-MM-DD')
-  }
-  return '-'
+  const parsed = dayjs(String(dateVal))
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '-'
 })
 
 // 数据缓存
@@ -1325,7 +1326,12 @@ const loadTab1Data = async () => {
     // 初始化日期选择器格式，将大整数/字符串转化为 YYYY-MM-DD
     const formatDateForInput = (d: any) => {
       if (!d) return ''
-      return dayjs(Number(d)).isValid() ? dayjs(Number(d)).format('YYYY-MM-DD') : ''
+      const ts = Number(d)
+      if (!Number.isNaN(ts) && ts > 0) {
+        return dayjs(ts).isValid() ? dayjs(ts).format('YYYY-MM-DD') : ''
+      }
+      const parsed = dayjs(String(d))
+      return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
     }
 
     acceptanceDetails.value = {

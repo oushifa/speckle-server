@@ -342,6 +342,51 @@
           show-label
           clearable
         />
+        <FormTextInput
+          v-model="editForm.businessUnit"
+          name="editBusinessUnit"
+          label="事业部编码"
+          placeholder="请输入事业部编码"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.businessUnitName"
+          name="editBusinessUnitName"
+          label="事业部名称"
+          placeholder="请输入事业部名称"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.companyId"
+          name="editCompanyId"
+          label="公司ID"
+          placeholder="请输入公司ID"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.companyName"
+          name="editCompanyName"
+          label="公司名称"
+          placeholder="请输入公司名称"
+          color="foundation"
+          show-label
+          show-optional
+        />
+        <FormTextInput
+          v-model="editForm.projectPackageItemguid"
+          name="editProjectPackageItemguid"
+          label="预算系统包件GUID"
+          placeholder="请输入预算系统包件GUID"
+          color="foundation"
+          show-label
+          show-optional
+        />
       </div>
     </LayoutDialog>
     <LayoutDialog
@@ -435,7 +480,12 @@ const editForm = ref({
   supervisionUnit: '',
   projectGuid: '',
   bidSection: '',
-  contractPrice: ''
+  contractPrice: '',
+  businessUnit: '',
+  businessUnitName: '',
+  companyId: '',
+  companyName: '',
+  projectPackageItemguid: ''
 })
 const originalDescription = ref('')
 
@@ -555,7 +605,12 @@ const setEditFormValues = () => {
     supervisionUnit: String(props.project.supervisionUnit || ''),
     projectGuid: String(props.project.projectGuid || ''),
     bidSection: String(props.project.bidSection || ''),
-    contractPrice: props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : ''
+    contractPrice: props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '',
+    businessUnit: String(props.project.businessUnit || ''),
+    businessUnitName: String(props.project.businessUnitName || ''),
+    companyId: String(props.project.companyId || ''),
+    companyName: String(props.project.companyName || ''),
+    projectPackageItemguid: String(props.project.projectPackageItemguid || '')
   }
 }
 
@@ -594,6 +649,11 @@ const onSaveProjectInfo = async () => {
     const currentProjectGuid = String(props.project.projectGuid || '')
     const currentBidSection = String(props.project.bidSection || '')
     const currentContractPrice = props.project.contractPrice !== null && props.project.contractPrice !== undefined ? Number(props.project.contractPrice) : null
+    const currentBusinessUnit = String(props.project.businessUnit || '')
+    const currentBusinessUnitName = String(props.project.businessUnitName || '')
+    const currentCompanyId = String(props.project.companyId || '')
+    const currentCompanyName = String(props.project.companyName || '')
+    const currentProjectPackageItemguid = String(props.project.projectPackageItemguid || '')
     const currentProgress = toNumberValue(props.project.progress)
     const nextProgress = toNumberValue(editForm.value.progress)
     const currentStartDate = toDatetimeLocal(props.project.startDate)
@@ -610,6 +670,11 @@ const onSaveProjectInfo = async () => {
     const nextProjectGuid = editForm.value.projectGuid.trim()
     const nextBidSection = editForm.value.bidSection.trim()
     const nextContractPrice = editForm.value.contractPrice !== '' ? Number(editForm.value.contractPrice) : null
+    const nextBusinessUnit = editForm.value.businessUnit.trim()
+    const nextBusinessUnitName = editForm.value.businessUnitName.trim()
+    const nextCompanyId = editForm.value.companyId.trim()
+    const nextCompanyName = editForm.value.companyName.trim()
+    const nextProjectPackageItemguid = editForm.value.projectPackageItemguid.trim()
 
     if (trimmedName && trimmedName !== props.project.name) {
       updatePayload.name = trimmedName
@@ -664,6 +729,21 @@ const onSaveProjectInfo = async () => {
     }
     if (nextContractPrice !== currentContractPrice) {
       updatePayload.contractPrice = nextContractPrice
+    }
+    if (nextBusinessUnit !== currentBusinessUnit) {
+      updatePayload.businessUnit = nextBusinessUnit
+    }
+    if (nextBusinessUnitName !== currentBusinessUnitName) {
+      updatePayload.businessUnitName = nextBusinessUnitName
+    }
+    if (nextCompanyId !== currentCompanyId) {
+      updatePayload.companyId = nextCompanyId
+    }
+    if (nextCompanyName !== currentCompanyName) {
+      updatePayload.companyName = nextCompanyName
+    }
+    if (nextProjectPackageItemguid !== currentProjectPackageItemguid) {
+      updatePayload.projectPackageItemguid = nextProjectPackageItemguid
     }
 
     if (Object.keys(updatePayload).length) {

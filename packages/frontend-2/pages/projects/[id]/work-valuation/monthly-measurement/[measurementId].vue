@@ -74,7 +74,10 @@
           </div>
 
           <!-- 子页面视图 -->
-          <div class="flex-grow min-w-0 overflow-y-auto">
+          <div
+            class="flex-grow min-w-0"
+            :class="isEditMode ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'"
+          >
             <NuxtPage
               :item="item"
               :project-id="projectId"

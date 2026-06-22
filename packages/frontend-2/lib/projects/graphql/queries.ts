@@ -440,6 +440,12 @@ export const projectMonthlyMeasurementsQuery = graphql(`
           baseDate
           approveStatus
           flowInstanceId
+          syncStatusSettlement
+          syncStatusPaymentDetail
+          syncStatusPaymentPool
+          syncErrorSettlement
+          syncErrorPaymentDetail
+          syncErrorPaymentPool
           items {
             id
             boqItemId
@@ -490,6 +496,12 @@ export const projectMonthlyMeasurementByIdQuery = graphql(`
         baseDate
         approveStatus
         flowInstanceId
+        syncStatusSettlement
+        syncStatusPaymentDetail
+        syncStatusPaymentPool
+        syncErrorSettlement
+        syncErrorPaymentDetail
+        syncErrorPaymentPool
         items {
           id
           boqItemId

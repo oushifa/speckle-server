@@ -47,6 +47,11 @@ import {
   updateQualityAcceptanceApproveStatusByIdsFactory,
   getMonthlyMeasurementByProjectCodeFactory
 } from '../repositories/monthlyMeasurements'
+import {
+  syncSettlementInfoToBudget,
+  syncIntermediatePaymentInfoToBudget,
+  syncPaymentPoolToBudget
+} from '../services/budgetSync'
 
 import {
   buildMonthlyMeasurementPreviewFactory,
@@ -180,6 +185,31 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
     contractPayAmt: progressInYuan || round2(contractPayAmtSum),
     leaderPayAmt: progressInYuan || round2(leaderPayAmtSum)
   }
+}
+
+const getLeaderPayAmtSum = async (projectDb: any, measurementId: string): Promise<number> => {
+  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(measurementId)
+  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(measurementId)
+  const extraPayItems = Array.isArray(paymentDetails?.extraPayItems)
+    ? paymentDetails.extraPayItems
+    : []
+
+  let sum = 0
+  for (const item of items) {
+    if (!item.isSummaryRow) {
+      const price = Number(item.price || 0)
+      const investmentQty = Number(item.investmentQty || 0)
+      const amt = preciseMul(investmentQty, price)
+      sum = preciseAdd(sum, amt)
+    }
+  }
+
+  for (const extra of extraPayItems) {
+    const leaderAmt = Number(extra.leaderPayAmt || 0)
+    sum = preciseAdd(sum, leaderAmt)
+  }
+
+  return sum
 }
 
 export const qualityAcceptanceRouterFactory = (): Router => {
@@ -620,6 +650,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         countMonthlyMeasurementsFactory({ db: projectDb })({ projectId, search })
       ])
 
+      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const projectContractCode = project?.contractCode || ''
+
       const itemsWithDetails = await Promise.all(
         data.items.map(async (item) => {
           // 1. 获取创建人信息
@@ -634,16 +667,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             }
           }
 
-          // 2. 计算验工总额 (非汇总行投资监理核定量的 price * investmentQty 之和)
-          const [{ total }] = await projectDb('monthly_measurement_items')
-            .where('measurementId', item.id)
-            .andWhere('isSummaryRow', false)
-            .select(
-              projectDb.raw(
-                'SUM(COALESCE("investmentQty", 0) * COALESCE("price", 0)) as total'
-              )
-            )
-          const totalAmount = Number(total || 0)
+          // 2. 计算验工总额 (中间支付单中分管领导列的合计值)
+          const totalAmount = await getLeaderPayAmtSum(projectDb, item.id)
 
           // 获取绑定信息
           const binding = await db('approval_flow_bindings')
@@ -701,6 +726,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
           return {
             ...item,
+            contractCode: projectContractCode,
             approveStatus: actualApproveStatus,
             flowInstanceId: actualFlowInstanceId,
             creator: creatorUser,
@@ -729,6 +755,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (!measurement || measurement.project_id !== projectId) {
         return res.status(404).json({ error: '月度验工不存在' })
       }
+
+      // 查询项目合同编号与计算验工总额
+      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const projectContractCode = project?.contractCode || ''
+      const totalAmount = await getLeaderPayAmtSum(projectDb, id)
 
       // 查询审批绑定
       const binding = await db('approval_flow_bindings')
@@ -812,6 +843,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       return res.status(200).json({
         ...measurement,
+        contractCode: projectContractCode,
+        totalAmount,
         approveStatus: actualApproveStatus,
         flowInstanceId: actualFlowInstanceId,
         creator: creatorUser,
@@ -933,6 +966,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         safetyMeasureId: body.safetyMeasureId || null
       })
 
+      // 获取当前项目合同编号
+      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const projectContractCode = project?.contractCode || ''
+
       // 存入新加字段 roundName, startDate, endDate, contractCode, safetyMeasureId
       await projectDb('monthly_measurements')
         .where('id', created.measurement.id)
@@ -940,7 +977,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           roundName: roundName || null,
           startDate: startDate ? String(startDate) : null,
           endDate: endDate ? String(endDate) : null,
-          contractCode: '',
+          contractCode: projectContractCode,
           safetyMeasureId: body.safetyMeasureId || null
         })
 
@@ -969,7 +1006,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         roundName: roundName || null,
         startDate: startDate ? String(startDate) : null,
         endDate: endDate ? String(endDate) : null,
-        contractCode: '',
+        contractCode: projectContractCode,
         safetyMeasureId: body.safetyMeasureId || null
       })
     }
@@ -1049,16 +1086,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
 
         // 获取安全文明措施费非汇总清单项数据
-        const safetyMap = new Map<string, number>()
+        const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
         const currentSafetyMeasureId = body.safetyMeasureId || null
         if (currentSafetyMeasureId) {
           const safetyItems = await projectDb('safety_measure_items')
             .where('safetyMeasureId', currentSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+            .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
           for (const s of safetyItems) {
-            const qty = Number(s.contractDeptQty) || Number(s.engineeringQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
-            safetyMap.set(s.boqItemId, qty)
+            safetyMap.set(s.boqItemId, {
+              contractorQty: Number(s.contractorQty) || 0,
+              supervisionQty: Number(s.supervisionQty) || 0,
+              headquartersQty: Number(s.headquartersQty) || 0,
+              investmentQty: Number(s.engineeringQty) || 0
+            })
           }
         }
 
@@ -1110,8 +1151,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
 
           // 覆盖各角色工程量为安全文明措施量（若存在）
-          const hasSafetyQty = !row.isSummaryRow && safetyMap.has(row.boqItemId)
-          const sQty = hasSafetyQty ? (safetyMap.get(row.boqItemId) ?? 0) : finalQty
+          const safetyVals = !row.isSummaryRow ? safetyMap.get(row.boqItemId) : null
 
           return {
             id: cryptoRandomString({ length: 10 }),
@@ -1128,10 +1168,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             pendingTotalQty: row.pendingTotalQty,
             approvedCumulativeQty: row.approvedCumulativeQty,
             measuredQty: finalQty,
-            contractorQty: sQty,
-            supervisionQty: sQty,
-            headquartersQty: sQty,
-            investmentQty: sQty,
+            contractorQty: safetyVals ? safetyVals.contractorQty : finalQty,
+            supervisionQty: safetyVals ? safetyVals.supervisionQty : finalQty,
+            headquartersQty: safetyVals ? safetyVals.headquartersQty : finalQty,
+            investmentQty: safetyVals ? safetyVals.investmentQty : finalQty,
             contractorPayAmt: 0,
             investmentPayAmt: 0,
             contractPayAmt: 0,
@@ -1352,15 +1392,19 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .orderBy('sortIndex', 'asc')
 
         // 3. 如果有关联新措施费，拉取对应的 Qty
-        const safetyMap = new Map<string, number>()
+        const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
         if (targetSafetyMeasureId) {
           const safetyItems = await trx('safety_measure_items')
             .where('safetyMeasureId', targetSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+            .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
           for (const s of safetyItems) {
-            const qty = Number(s.contractDeptQty) || Number(s.engineeringQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
-            safetyMap.set(s.boqItemId, qty)
+            safetyMap.set(s.boqItemId, {
+              contractorQty: Number(s.contractorQty) || 0,
+              supervisionQty: Number(s.supervisionQty) || 0,
+              headquartersQty: Number(s.headquartersQty) || 0,
+              investmentQty: Number(s.engineeringQty) || 0
+            })
           }
         }
 
@@ -1368,17 +1412,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const itemsToUpdate = items.map((item: any) => {
           if (item.isSummaryRow) return null
           
-          let sQty = item.measuredQty || 0 // 默认值（还原为质量验收累计工程量）
-          if (targetSafetyMeasureId && safetyMap.has(item.boqItemId)) {
-            sQty = safetyMap.get(item.boqItemId) ?? 0 // 如果安全文明有数据，覆盖为安全文明量
-          }
+          const defaultQty = item.measuredQty || 0 // 默认值（还原为质量验收累计工程量）
+          const safetyVals = targetSafetyMeasureId ? safetyMap.get(item.boqItemId) : null
 
           return {
             boqItemId: item.boqItemId,
-            contractorQty: sQty,
-            supervisionQty: sQty,
-            headquartersQty: sQty,
-            investmentQty: sQty
+            contractorQty: safetyVals ? safetyVals.contractorQty : defaultQty,
+            supervisionQty: safetyVals ? safetyVals.supervisionQty : defaultQty,
+            headquartersQty: safetyVals ? safetyVals.headquartersQty : defaultQty,
+            investmentQty: safetyVals ? safetyVals.investmentQty : defaultQty
           }
         }).filter(Boolean) as Array<any>
 
@@ -2399,6 +2441,91 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     }
   )
 
+  // 12.2 同步数据到预算系统接口
+  app.post(
+    '/api/v1/projects/:projectId/monthly-measurements/:id/sync',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const { type } = req.body || {}
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const allowedTypes = ['settlement', 'paymentDetail', 'paymentPool']
+      if (!allowedTypes.includes(type)) {
+        return res.status(400).json({ error: '无效的同步类型参数' })
+      }
+
+      // 获取当前单据
+      const measurement = await projectDb('monthly_measurements').where('id', id).first()
+      if (!measurement) {
+        return res.status(404).json({ error: '月度验工不存在' })
+      }
+
+      // 1. 设置 LOADING 状态
+      const statusField =
+        type === 'settlement'
+          ? 'syncStatusSettlement'
+          : type === 'paymentDetail'
+          ? 'syncStatusPaymentDetail'
+          : 'syncStatusPaymentPool'
+      const errorField =
+        type === 'settlement'
+          ? 'syncErrorSettlement'
+          : type === 'paymentDetail'
+          ? 'syncErrorPaymentDetail'
+          : 'syncErrorPaymentPool'
+
+      await projectDb('monthly_measurements').where('id', id).update({
+        [statusField]: 'LOADING',
+        [errorField]: null,
+        updatedAt: new Date()
+      })
+
+      try {
+        let result
+        if (type === 'settlement') {
+          result = await syncSettlementInfoToBudget({
+            projectId,
+            measurementId: id,
+            db,
+            projectDb
+          })
+        } else if (type === 'paymentDetail') {
+          result = await syncIntermediatePaymentInfoToBudget({
+            projectId,
+            measurementId: id,
+            db,
+            projectDb
+          })
+        } else {
+          result = await syncPaymentPoolToBudget({
+            projectId,
+            measurementId: id,
+            db,
+            projectDb
+          })
+        }
+
+        // 2. 同步成功，设置 SUCCESS 状态
+        await projectDb('monthly_measurements').where('id', id).update({
+          [statusField]: 'SUCCESS',
+          updatedAt: new Date()
+        })
+
+        return res.status(200).json(result)
+      } catch (err: any) {
+        console.error(`Sync to budget system failed for ${type}:`, err)
+        // 3. 同步失败，设置 ERROR 状态并记录错误日志
+        await projectDb('monthly_measurements').where('id', id).update({
+          [statusField]: 'ERROR',
+          [errorField]: err.message || '同步失败',
+          updatedAt: new Date()
+        })
+        return res.status(400).json({ error: err.message || '同步失败' })
+      }
+    }
+  )
+
   // -------------------------------------------------------------
   // 安全文明措施费 (Safety Measures) REST APIs
   // -------------------------------------------------------------
@@ -3292,12 +3419,24 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           if (currentRole === 'contractor') {
             updateFields.contractorQty = Number(it.contractorQty || 0)
             updateFields.contractorAmount = preciseMul(updateFields.contractorQty, price)
+            updateFields.supervisionQty = updateFields.contractorQty
+            updateFields.supervisionAmount = updateFields.contractorAmount
+            updateFields.headquartersQty = updateFields.contractorQty
+            updateFields.headquartersAmount = updateFields.contractorAmount
+            updateFields.engineeringQty = updateFields.contractorQty
+            updateFields.engineeringAmount = updateFields.contractorAmount
           } else if (currentRole === 'supervision' || currentRole === 'supervision_approver') {
             updateFields.supervisionQty = Number(it.supervisionQty || 0)
             updateFields.supervisionAmount = preciseMul(updateFields.supervisionQty, price)
+            updateFields.headquartersQty = updateFields.supervisionQty
+            updateFields.headquartersAmount = updateFields.supervisionAmount
+            updateFields.engineeringQty = updateFields.supervisionQty
+            updateFields.engineeringAmount = updateFields.supervisionAmount
           } else if (currentRole === 'headquarters' || currentRole === 'headquarters_approver') {
             updateFields.headquartersQty = Number(it.headquartersQty || 0)
             updateFields.headquartersAmount = preciseMul(updateFields.headquartersQty, price)
+            updateFields.engineeringQty = updateFields.headquartersQty
+            updateFields.engineeringAmount = updateFields.headquartersAmount
           } else if (currentRole === 'engineering' || currentRole === 'engineering_approver') {
             updateFields.engineeringQty = Number(it.engineeringQty || 0)
             updateFields.engineeringAmount = preciseMul(updateFields.engineeringQty, price)
@@ -3385,8 +3524,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
 
-      const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
-      if (!isDraft) {
+      const binding = await db('approval_flow_bindings')
+        .where('subjectKey', `safety_measures:${id}`)
+        .select('status')
+        .first()
+
+      const currentStatus = binding ? binding.status : (measure.approveStatus || 'START')
+      if (currentStatus !== 'START' && currentStatus !== 'RETURNED') {
         return res.status(400).json({ error: '送审后单据不可删除' })
       }
 
@@ -3395,6 +3539,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         await trx('safety_measure_details').where({ safetyMeasureId: id }).delete()
         await trx('safety_measures').where({ id }).delete()
       })
+
+      if (binding) {
+        await db('approval_flow_bindings').where('subjectKey', `safety_measures:${id}`).delete()
+      }
 
       return res.status(200).json({ success: true })
     }
@@ -3414,9 +3562,37 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
 
-      const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
-      if (!isDraft) {
+      const binding = await db('approval_flow_bindings')
+        .where('subjectKey', `safety_measures:${id}`)
+        .select('id', 'status')
+        .first()
+
+      const currentStatus = binding ? binding.status : (measure.approveStatus || 'START')
+      if (currentStatus === 'IN_REVIEW' || currentStatus === 'APPROVED') {
         return res.status(400).json({ error: '已送审，请勿重复操作' })
+      }
+
+      if (currentStatus === 'RETURNED' && binding) {
+        const resubmitApprovalBinding = resubmitApprovalBindingFactory({ db })
+        const result = await resubmitApprovalBinding({
+          bindingId: binding.id,
+          formData: {
+            formTable: 'safety_measures',
+            formId: id,
+            projectId
+          },
+          comment: (req.body.remark as string)?.trim() || '重新送审安全文明措施费',
+          actorUserId: userId
+        })
+
+        // 更新主表 flowInstanceId 与状态
+        await projectDb('safety_measures').where('id', id).update({
+          flowInstanceId: result.currentInstanceId,
+          approveStatus: 'PENDING',
+          updatedAt: new Date()
+        })
+
+        return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
       }
 
       // 获取启用的安全文明措施费工作流配置

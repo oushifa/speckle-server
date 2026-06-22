@@ -238,7 +238,7 @@
                       step="any"
                       :disabled="!permissions.contractor"
                       class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                      @input="scheduleRecalculate"
+                      @input="onQtyInput(row, 'contractor')"
                     />
                     <span
                       v-else
@@ -262,7 +262,7 @@
                       step="any"
                       :disabled="!permissions.supervision"
                       class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                      @input="scheduleRecalculate"
+                      @input="onQtyInput(row, 'supervision')"
                     />
                     <span
                       v-else
@@ -286,7 +286,7 @@
                       step="any"
                       :disabled="!permissions.headquarters"
                       class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                      @input="scheduleRecalculate"
+                      @input="onQtyInput(row, 'headquarters')"
                     />
                     <span
                       v-else
@@ -310,7 +310,7 @@
                       step="any"
                       :disabled="!permissions.engineering"
                       class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                      @input="scheduleRecalculate"
+                      @input="onQtyInput(row, 'engineering')"
                     />
                     <span
                       v-else
@@ -627,10 +627,25 @@
             </span>
           </FormButton>
 
-          <FormButton color="outline" @click="triggerPrint">
+          <FormButton
+            color="outline"
+            class="border-primary text-primary"
+            @click="handlePrintCover"
+          >
             <span class="flex items-center gap-1">
-              <PrinterIcon class="h-4 w-4 text-foreground-2" />
-              打印
+              <PrinterIcon class="h-4 w-4" />
+              打印封面
+            </span>
+          </FormButton>
+
+          <FormButton
+            color="outline"
+            class="border-primary text-primary"
+            @click="handlePrintDetail"
+          >
+            <span class="flex items-center gap-1">
+              <PrinterIcon class="h-4 w-4" />
+              打印明细表
             </span>
           </FormButton>
 
@@ -1139,6 +1154,18 @@
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
+          <FormButton
+            color="primary"
+            size="sm"
+            @click="
+              () => {
+                coverDialogOpen = false
+                handlePrintCover()
+              }
+            "
+          >
+            打印封面
+          </FormButton>
           <FormButton color="outline" size="sm" @click="coverDialogOpen = false">
             关闭
           </FormButton>
@@ -1179,11 +1206,156 @@
         />
       </div>
     </LayoutDialog>
+
+    <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
+    <Teleport to="body" v-if="isPrinting">
+      <div id="print-section" class="text-black bg-white p-6 font-sans">
+        
+        <!-- 1. 打印封面 (支付申请表) -->
+        <div v-if="printType === 'cover'" class="space-y-6">
+          <div class="text-center space-y-2 relative">
+            <h1 class="text-2xl font-bold tracking-wider">安全防护、文明施工措施费用支付申请表</h1>
+          </div>
+          
+          <div class="flex justify-between items-center text-xs px-1 pt-4 font-semibold">
+            <div>工程名称：{{ contractName }}</div>
+            <div>编号：{{ measureCode || '-' }}</div>
+          </div>
+          
+          <div class="text-xs font-semibold pt-2 text-left">
+            致：{{ supervisionUnitName }} (监理单位)
+          </div>
+          
+          <div class="text-xs leading-relaxed text-left indent-8 pt-4 pb-8 whitespace-pre-line border-b border-black">
+            我单位已按照安全防护、文明施工措施费用使用计划，完成了安全防护、文明施工措施，按照施工合同规定，建设单位应在____年____月____日支付该措施费用共计人民币 <span class="underline font-bold px-2">{{ amountToChinese(totalSums.contractorAmount) }}</span> 整（小写：<span class="underline font-bold px-2">{{ formatMoney(totalSums.contractorAmount) }}</span> 元），请予以审核。
+
+            附：安全防护、文明施工措施专项资金投入使用清单
+          </div>
+
+          <div class="flex justify-between items-start text-xs pt-4">
+            <div class="space-y-2">
+              <div>施工单位：{{ unit || '-' }}</div>
+              <div>项目经理：{{ creatorName || '施柳盛' }}</div>
+            </div>
+            <div class="text-right flex flex-col justify-end h-12">
+              <div>日期：{{ flowInitiatorDate !== '-' ? dayjs(flowInitiatorDate).format('YYYY年MM月DD日') : '______年___月___日' }}</div>
+            </div>
+          </div>
+
+          <!-- 监理审查及审核意见表格 (样式高度还原 Excel) -->
+          <table class="w-full border-collapse border border-black text-xs mt-8">
+            <tbody>
+              <tr>
+                <td class="border border-black p-4 w-full h-44 valign-top relative">
+                  <div class="font-bold mb-2">审查意见：</div>
+                  <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
+                    {{ details.supervisionOpinion || '同意。' }}
+                  </div>
+                  <div class="absolute bottom-3 right-6 text-right space-y-1">
+                    <div class="flex justify-end gap-6">
+                      <span>安全监理人员：{{ details.supervisionAuditor || '___________________' }}</span>
+                      <span>专业工程师：{{ details.supervisionApproveAuditor || '___________________' }}</span>
+                    </div>
+                    <div>日期：{{ details.supervisionDate ? dayjs(details.supervisionDate).format('YYYY年MM月DD日') : '______年___月___日' }}</div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black p-4 w-full h-44 valign-top relative">
+                  <div class="font-bold mb-2">审核意见：</div>
+                  <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
+                    {{ details.supervisionOpinion || '同意。' }}
+                  </div>
+                  <div class="absolute bottom-3 right-6 text-right space-y-1">
+                    <div class="flex justify-end gap-6">
+                      <span>项目监理机构：{{ supervisionUnitName }}</span>
+                      <span>总监理工程师：{{ details.supervisionApproveAuditor || '___________________' }}</span>
+                    </div>
+                    <div>日期：{{ details.supervisionApproveDate ? dayjs(details.supervisionApproveDate).format('YYYY年MM月DD日') : (details.supervisionDate ? dayjs(details.supervisionDate).format('YYYY年MM月DD日') : '______年___月___日') }}</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2. 打印明细表 -->
+        <div v-if="printType === 'detail'" class="space-y-6">
+          <div class="text-center space-y-2 relative">
+            <h1 class="text-2xl font-bold tracking-wider">{{ contractName }}安全防护、文明施工措施费用使用明细单</h1>
+            <div class="flex justify-between items-center text-xs px-1 pt-4 font-semibold">
+              <div>{{ baseDateStr ? baseDateStr.split('-')[0] + '年' + baseDateStr.split('-')[1] + '月' : '______年___月' }}&nbsp;&nbsp;&nbsp;&nbsp;{{ roundName ? '第' + roundName + '期' : '第1期' }}</div>
+              <div>单位：元</div>
+            </div>
+          </div>
+
+          <table class="print-table w-full text-[10px] text-left border-collapse border border-black">
+            <thead>
+              <tr class="font-bold text-center border-b border-black">
+                <th rowspan="3" class="w-10 border-r border-black">序号</th>
+                <th rowspan="3" class="w-20 border-r border-black">编码</th>
+                <th rowspan="3" class="border-r border-black text-left pl-3 w-56">项目名称</th>
+                <th rowspan="3" class="border-r border-black text-right pr-3 w-28">合同金额（元）</th>
+                <th colspan="2" class="border-b border-black border-r border-black text-center">本期完工</th>
+                <th colspan="2" class="border-b border-black border-r border-black text-center">累计完成</th>
+                <th colspan="2" class="border-b border-black border-r border-black text-center">剩余</th>
+                <th rowspan="3" class="w-20">备注</th>
+              </tr>
+              <tr class="font-bold border-b border-black text-center">
+                <th class="border-r border-black text-right pr-3 w-28">施工单位上报</th>
+                <th class="border-r border-black text-right pr-3 w-28">监理单位审核</th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-20">数量</th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-24">金额</th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-20">数量</th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-24">剩余金额</th>
+              </tr>
+              <tr class="font-bold border-b border-black text-center">
+                <th class="border-r border-black text-right pr-3">金额</th>
+                <th class="border-r border-black text-right pr-3">金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in treeRows" :key="row.boqItemId" class="border-b border-black" :class="{ 'font-medium bg-gray-50': row.isSummaryRow }">
+                <td class="text-center border-r border-black">{{ getRowIndex(row) }}</td>
+                <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
+                <td class="text-left border-r border-black pl-1">
+                  <div :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }">
+                    {{ row.boqName }}
+                  </div>
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractorAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.supervisionAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatQty(row.cumulativeQty) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.cumulativeAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatQty(row.remainingQty) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.remainingAmount) }}</td>
+                <td class="text-center">{{ row.remark || '-' }}</td>
+              </tr>
+              <!-- 总价合计行 -->
+              <tr class="font-bold border-b border-black bg-gray-100">
+                <td class="text-center border-r border-black"></td>
+                <td class="text-center border-r border-black"></td>
+                <td class="text-left pl-3 border-r border-black">总价</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractorAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.supervisionAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatQty(totalSums.cumulativeQty) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.cumulativeAmount) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatQty(totalSums.remainingQty) }}</td>
+                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.remainingAmount) }}</td>
+                <td class="text-center">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
 import { preciseAdd, preciseMul } from '~~/lib/common/helpers/preciseMath'
 import { Portal } from 'portal-vue'
 import dayjs from 'dayjs'
@@ -1258,6 +1430,9 @@ const { result: projectResult } = useQuery(
         name
         contractName
         contractCode
+        supervisionUnitName
+        employer
+        contractor
       }
     }
   `,
@@ -1274,6 +1449,11 @@ const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
   if (code && code.trim().length) return code
   return '-'
+})
+const supervisionUnitName = computed(() => {
+  const name = projectResult.value?.project?.supervisionUnitName
+  if (name && name.trim().length) return name
+  return '上海市合流工程监理有限公司/上海斯美科汇建设工程咨询有限公司(联合体)(监理单位)'
 })
 
 const apiOrigin = useApiOrigin()
@@ -1361,7 +1541,10 @@ const permissions = computed(() => {
   const currentUserId = userId.value
   if (!currentUserId) return result
 
-  const isDraft = !approveStatus.value || approveStatus.value === 'START'
+  const isDraft =
+    !approveStatus.value ||
+    approveStatus.value === 'START' ||
+    approveStatus.value === 'RETURNED'
   if (isDraft) {
     if (creatorId.value === currentUserId) {
       result.contractor = true
@@ -1622,6 +1805,21 @@ const scheduleRecalculate = () => {
   })
 }
 
+const onQtyInput = (row: any, dept: 'contractor' | 'supervision' | 'headquarters' | 'engineering') => {
+  const val = row[`${dept}Qty`]
+  if (dept === 'contractor') {
+    row.supervisionQty = val
+    row.headquartersQty = val
+    row.engineeringQty = val
+  } else if (dept === 'supervision') {
+    row.headquartersQty = val
+    row.engineeringQty = val
+  } else if (dept === 'headquarters') {
+    row.engineeringQty = val
+  }
+  scheduleRecalculate()
+}
+
 // 自底向上小计重新计算
 const recalculateTreeRows = () => {
   if (!treeRows.value.length) return
@@ -1837,6 +2035,11 @@ const loadData = async () => {
 
 onMounted(() => {
   loadData()
+  window.addEventListener('afterprint', handleAfterPrint)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('afterprint', handleAfterPrint)
 })
 
 // 保存所有修改（包括数量和意见）
@@ -2272,4 +2475,158 @@ const rejectDialogButtons = computed((): LayoutDialogButton[] => [
     }
   }
 ])
+
+// 打印相关的状态和方法
+const flowInitiatorName = computed(() => {
+  return (
+    flowInstance.value?.actions?.find((a: any) => a.action === 'STARTED')?.actor?.name ||
+    creatorName.value ||
+    ''
+  )
+})
+
+const flowInitiatorDate = computed(() => {
+  const startedAction = flowInstance.value?.actions?.find((a: any) => a.action === 'STARTED')
+  const dateVal = startedAction?.createdAt
+  if (!dateVal) return '-'
+  const ts = Number(dateVal)
+  if (!Number.isNaN(ts) && ts > 0) {
+    return dayjs(ts).format('YYYY-MM-DD')
+  }
+  const parsed = dayjs(String(dateVal))
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '-'
+})
+
+const isPrinting = ref(false)
+const printType = ref<'cover' | 'detail' | null>(null)
+
+const handlePrintCover = async () => {
+  printType.value = 'cover'
+  isPrinting.value = true
+  document.body.classList.add('is-printing')
+  await nextTick()
+  window.print()
+}
+
+const handlePrintDetail = async () => {
+  printType.value = 'detail'
+  isPrinting.value = true
+  document.body.classList.add('is-printing')
+  await nextTick()
+  window.print()
+}
+
+const handleAfterPrint = () => {
+  isPrinting.value = false
+  printType.value = null
+  document.body.classList.remove('is-printing')
+}
+
+// 金额转中文大写
+const amountToChinese = (n: any): string => {
+  const num = Number(n)
+  if (isNaN(num) || num < 0) return ''
+  const fraction = ['角', '分']
+  const digit = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+  const unit = [
+    ['元', '万', '亿'],
+    ['', '拾', '佰', '仟']
+  ]
+  let s = ''
+  
+  // 处理小数部分 (保留两位小数)
+  const decimal = (Math.round(num * 100) % 100).toString().padStart(2, '0')
+  let fractionStr = ''
+  if (decimal !== '00') {
+    const j = parseInt(decimal[0])
+    const f = parseInt(decimal[1])
+    if (j > 0) fractionStr += digit[j] + fraction[0]
+    if (f > 0) fractionStr += digit[f] + fraction[1]
+  }
+  
+  // 处理整数部分
+  let integer = Math.floor(num)
+  for (let i = 0; i < unit[0].length && integer > 0; i++) {
+    let p = ''
+    for (let j = 0; j < unit[1].length && integer > 0; j++) {
+      p = digit[integer % 10] + unit[1][j] + p
+      integer = Math.floor(integer / 10)
+    }
+    s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s
+  }
+  
+  s = s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零')
+  
+  if (!s || s === '元') {
+    s = '零元'
+  }
+  if (!fractionStr) {
+    s += '整'
+  } else {
+    s += fractionStr
+  }
+  
+  return s
+}
 </script>
+
+<style>
+/* 正常情况下隐藏打印专区 */
+#print-section {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 10mm 15mm;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* 当处于打印状态时，隐藏 body 下除了打印区以外的所有直接子节点 */
+  body.is-printing > :not(#print-section) {
+    display: none !important;
+  }
+  
+  /* 让传送在 body 下的打印区可见 */
+  body.is-printing #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    display: block !important;
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  /* 细黑实线表格 */
+  .print-table {
+    border: 1px solid #000 !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    color: #000 !important;
+  }
+  .print-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .print-table th, .print-table td {
+    border: 1px solid #000 !important;
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    color: #000 !important;
+  }
+  .print-table th {
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    text-align: center !important;
+    font-weight: bold !important;
+  }
+}
+</style>

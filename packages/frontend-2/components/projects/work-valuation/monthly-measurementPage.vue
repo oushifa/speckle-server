@@ -35,12 +35,69 @@
           empty-message="暂无月度验工"
         >
           <template #code="{ item }">
-            <button
-              class="text-sm font-medium text-primary hover:underline font-mono"
-              @click="viewItem(item)"
-            >
-              {{ item.code }}
-            </button>
+            <div class="flex flex-col space-y-1 items-start">
+              <button
+                class="text-sm font-medium text-primary hover:underline font-mono text-left"
+                @click="viewItem(item)"
+              >
+                {{ item.code }}
+              </button>
+              <div v-if="item.approveStatus === 'APPROVED'" class="flex items-center space-x-1">
+                <!-- 计价结果状态 -->
+                <span
+                  class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
+                  :class="{
+                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement,
+                    'bg-primary-muted text-primary border-primary': item.syncStatusSettlement === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success': item.syncStatusSettlement === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusSettlement === 'ERROR'
+                  }"
+                  v-tippy="getSyncIndicatorTooltip(item, 'settlement')"
+                >
+                  <ArrowPathIcon v-if="item.syncStatusSettlement === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
+                  <CloudIcon v-else-if="item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement" class="h-2.5 w-2.5" />
+                  <CheckIcon v-else-if="item.syncStatusSettlement === 'SUCCESS'" class="h-2.5 w-2.5" />
+                  <ExclamationTriangleIcon v-else-if="item.syncStatusSettlement === 'ERROR'" class="h-2.5 w-2.5" />
+                  <span>计价</span>
+                </span>
+
+                <!-- 中间支付单状态 -->
+                <span
+                  class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
+                  :class="{
+                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail,
+                    'bg-primary-muted text-primary border-primary': item.syncStatusPaymentDetail === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success': item.syncStatusPaymentDetail === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusPaymentDetail === 'ERROR'
+                  }"
+                  v-tippy="getSyncIndicatorTooltip(item, 'paymentDetail')"
+                >
+                  <ArrowPathIcon v-if="item.syncStatusPaymentDetail === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
+                  <CloudIcon v-else-if="item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail" class="h-2.5 w-2.5" />
+                  <CheckIcon v-else-if="item.syncStatusPaymentDetail === 'SUCCESS'" class="h-2.5 w-2.5" />
+                  <ExclamationTriangleIcon v-else-if="item.syncStatusPaymentDetail === 'ERROR'" class="h-2.5 w-2.5" />
+                  <span>支付单</span>
+                </span>
+
+                <!-- 待支付申报池状态 -->
+                <span
+                  class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
+                  :class="{
+                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool,
+                    'bg-primary-muted text-primary border-primary': item.syncStatusPaymentPool === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success': item.syncStatusPaymentPool === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusPaymentPool === 'ERROR'
+                  }"
+                  v-tippy="getSyncIndicatorTooltip(item, 'paymentPool')"
+                >
+                  <ArrowPathIcon v-if="item.syncStatusPaymentPool === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
+                  <CloudIcon v-else-if="item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool" class="h-2.5 w-2.5" />
+                  <CheckIcon v-else-if="item.syncStatusPaymentPool === 'SUCCESS'" class="h-2.5 w-2.5" />
+                  <ExclamationTriangleIcon v-else-if="item.syncStatusPaymentPool === 'ERROR'" class="h-2.5 w-2.5" />
+                  <span>申报池</span>
+                </span>
+              </div>
+            </div>
           </template>
           <template #contractCode="{ item }">
             <span class="text-sm text-foreground">{{ item.contractCode || '-' }}</span>
@@ -138,6 +195,16 @@
               >
                 <TrashIcon class="h-4 w-4" />
               </button>
+              <!-- 触发同步按钮 -->
+              <button
+                v-if="item.approveStatus === 'APPROVED'"
+                class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
+                v-tippy="getSyncButtonTooltip(item)"
+                :disabled="isSyncButtonDisabled(item)"
+                @click="triggerSyncItem(item)"
+              >
+                <CloudArrowUpIcon class="h-4 w-4" />
+              </button>
             </div>
           </template>
         </LayoutTable>
@@ -234,6 +301,7 @@
             <FormSelectBase
               v-model="selectedMeasureValue"
               :items="selectOptions"
+              name="safety-measure-select"
               label="关联安全文明措施费"
               :show-label="false"
               :disabled="isViewMode"
@@ -241,10 +309,10 @@
               class="w-full text-xs"
             >
               <template #something-selected="{ value }">
-                <span class="truncate text-foreground text-xs">{{ value?.label || '不关联' }}</span>
+                <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
               </template>
               <template #option="{ item }">
-                <span class="truncate text-xs">{{ item?.label || '不关联' }}</span>
+                <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
               </template>
             </FormSelectBase>
           </div>
@@ -450,6 +518,16 @@
       :loading="actionLoadingId === submitTargetItem?.id"
       @confirm="confirmSubmitItem"
     />
+
+    <!-- 同步数据确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="syncConfirmOpen"
+      title="确认同步数据"
+      :text="getSyncConfirmText(syncTargetItem)"
+      confirm-text="确认同步"
+      :loading="syncLoadingId === syncTargetItem?.id"
+      @confirm="confirmSyncItem"
+    />
   </div>
 </template>
 
@@ -466,7 +544,12 @@ import {
   PaperAirplaneIcon,
   PencilSquareIcon,
   TrashIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CloudArrowUpIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  CloudIcon,
+  CheckIcon
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -709,6 +792,9 @@ const goNextPage = () => {
 const { triggerNotification } = useGlobalToast()
 const deleteConfirmOpen = ref(false)
 const itemToDelete = ref<any>(null)
+const syncConfirmOpen = ref(false)
+const syncTargetItem = ref<any>(null)
+const syncLoadingId = ref<string | null>(null)
 
 const createDialogOpen = ref(false)
 const createError = ref('')
@@ -1193,6 +1279,181 @@ const confirmSubmitItem = async () => {
   } finally {
     actionLoadingId.value = null
     resetSubmitState()
+  }
+}
+
+const isSyncButtonDisabled = (item: any) => {
+  if (!item) return true
+  const statuses = [
+    item.syncStatusSettlement,
+    item.syncStatusPaymentDetail,
+    item.syncStatusPaymentPool
+  ]
+  if (statuses.includes('LOADING')) return true
+  const allSuccess = statuses.every((s) => s === 'SUCCESS')
+  if (allSuccess) return true
+  return false
+}
+
+const getSyncButtonTooltip = (item: any) => {
+  if (!item) return ''
+  const statuses = [
+    item.syncStatusSettlement,
+    item.syncStatusPaymentDetail,
+    item.syncStatusPaymentPool
+  ]
+  if (statuses.includes('LOADING')) {
+    return '数据正在同步中...'
+  }
+  const allSuccess = statuses.every((s) => s === 'SUCCESS')
+  if (allSuccess) {
+    return '已全部同步成功'
+  }
+  
+  const needsSync: string[] = []
+  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
+    needsSync.push('计价结果')
+  }
+  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
+    needsSync.push('中间支付单')
+  }
+  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
+    needsSync.push('待支付申报池')
+  }
+  return `点击同步未成功的数据: ${needsSync.join('、')}`
+}
+
+const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail' | 'paymentPool') => {
+  if (!item) return ''
+  const statusField =
+    type === 'settlement'
+      ? 'syncStatusSettlement'
+      : type === 'paymentDetail'
+      ? 'syncStatusPaymentDetail'
+      : 'syncStatusPaymentPool'
+  const errorField =
+    type === 'settlement'
+      ? 'syncErrorSettlement'
+      : type === 'paymentDetail'
+      ? 'syncErrorPaymentDetail'
+      : 'syncErrorPaymentPool'
+  
+  const status = item[statusField]
+  const error = item[errorField]
+
+  const typeName =
+    type === 'settlement'
+      ? '计价结果'
+      : type === 'paymentDetail'
+      ? '中间支付单'
+      : '待支付申报池'
+
+  if (status === 'LOADING') {
+    return `${typeName}: 正在同步...`
+  }
+  if (status === 'SUCCESS') {
+    return `${typeName}: 同步成功`
+  }
+  if (status === 'ERROR') {
+    return `${typeName}: 同步失败 (${error || '未知错误'})`
+  }
+  return `${typeName}: 未同步`
+}
+
+const getSyncConfirmText = (item: any) => {
+  if (!item) return ''
+  const needsSync: string[] = []
+  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
+    needsSync.push('计价结果')
+  }
+  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
+    needsSync.push('中间支付单')
+  }
+  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
+    needsSync.push('待支付申报池')
+  }
+  return `确认要将该月度验工未同步的【${needsSync.join('、')}】数据同步至全面预算管理系统吗？`
+}
+
+const triggerSyncItem = (item: any) => {
+  if (item.approveStatus !== 'APPROVED') return
+  syncTargetItem.value = item
+  syncConfirmOpen.value = true
+}
+
+const confirmSyncItem = async () => {
+  if (!syncTargetItem.value || !projectId.value) return
+  const item = syncTargetItem.value
+  
+  const typesToSync: ('settlement' | 'paymentDetail' | 'paymentPool')[] = []
+  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
+    typesToSync.push('settlement')
+  }
+  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
+    typesToSync.push('paymentDetail')
+  }
+  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
+    typesToSync.push('paymentPool')
+  }
+
+  if (typesToSync.length === 0) {
+    syncConfirmOpen.value = false
+    syncTargetItem.value = null
+    return
+  }
+
+  syncLoadingId.value = item.id
+  const apiOrigin = useApiOrigin()
+
+  try {
+    const promises = typesToSync.map(async (type) => {
+      try {
+        const res = await $fetch<any>(
+          `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${item.id}/sync`,
+          {
+            method: 'POST',
+            body: { type }
+          }
+        )
+        return { type, success: true, res }
+      } catch (e: any) {
+        return { type, success: false, error: e.data?.error || e.message || '同步失败' }
+      }
+    })
+
+    const results = await Promise.all(promises)
+    const failures = results.filter((r) => !r.success)
+
+    if (failures.length === 0) {
+      triggerNotification({
+        title: '同步完成',
+        description: '所有未同步及失败的数据均已同步成功。',
+        type: ToastNotificationType.Success
+      })
+    } else {
+      const failedNames = failures.map((f) => {
+        if (f.type === 'settlement') return '计价结果'
+        if (f.type === 'paymentDetail') return '中间支付单'
+        return '待支付申报池'
+      }).join('、')
+      
+      triggerNotification({
+        title: '部分同步失败',
+        description: `${failedNames} 同步失败，其余已成功同步。`,
+        type: ToastNotificationType.Danger
+      })
+    }
+    await refetchMonthly()
+  } catch (e: any) {
+    triggerNotification({
+      title: '同步异常',
+      description: e.message || '同步处理发生异常',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    syncLoadingId.value = null
+    syncConfirmOpen.value = false
+    syncTargetItem.value = null
   }
 }
 

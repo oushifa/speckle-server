@@ -2629,6 +2629,12 @@ export type MonthlyMeasurement = {
   id: Scalars['ID']['output'];
   items: Array<MonthlyMeasurementItem>;
   projectId: Scalars['ID']['output'];
+  syncErrorPaymentDetail?: Maybe<Scalars['String']['output']>;
+  syncErrorPaymentPool?: Maybe<Scalars['String']['output']>;
+  syncErrorSettlement?: Maybe<Scalars['String']['output']>;
+  syncStatusPaymentDetail?: Maybe<Scalars['String']['output']>;
+  syncStatusPaymentPool?: Maybe<Scalars['String']['output']>;
+  syncStatusSettlement?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -3402,10 +3408,14 @@ export type Project = {
   blobs?: Maybe<BlobMetadataCollection>;
   boqItems: Array<BoqItem>;
   boqSelectorOptions: BoqItemCollection;
+  businessUnit?: Maybe<Scalars['String']['output']>;
+  businessUnitName?: Maybe<Scalars['String']['output']>;
   /** Get specific project comment/thread by ID */
   comment?: Maybe<Comment>;
   /** All comment threads in this project */
   commentThreads: ProjectCommentCollection;
+  companyId?: Maybe<Scalars['String']['output']>;
+  companyName?: Maybe<Scalars['String']['output']>;
   constructionUnit?: Maybe<Scalars['String']['output']>;
   constructionUnitName?: Maybe<Scalars['String']['output']>;
   contractCode?: Maybe<Scalars['String']['output']>;
@@ -3457,6 +3467,7 @@ export type Project = {
   progress?: Maybe<Scalars['Int']['output']>;
   projectGuid?: Maybe<Scalars['String']['output']>;
   projectNumber?: Maybe<Scalars['String']['output']>;
+  projectPackageItemguid?: Maybe<Scalars['String']['output']>;
   qualityAcceptanceForms: QualityAcceptanceFormCollection;
   responsible?: Maybe<Scalars['String']['output']>;
   /** Active user's role for this project. `null` if request is not authenticated, or the project is not explicitly shared with you. */
@@ -3907,6 +3918,10 @@ export type ProjectCreateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   bidSection?: InputMaybe<Scalars['String']['input']>;
+  businessUnit?: InputMaybe<Scalars['String']['input']>;
+  businessUnitName?: InputMaybe<Scalars['String']['input']>;
+  companyId?: InputMaybe<Scalars['String']['input']>;
+  companyName?: InputMaybe<Scalars['String']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
   contractCode?: InputMaybe<Scalars['String']['input']>;
   contractName?: InputMaybe<Scalars['String']['input']>;
@@ -3919,6 +3934,7 @@ export type ProjectCreateInput = {
   progress?: InputMaybe<Scalars['Int']['input']>;
   projectGuid?: InputMaybe<Scalars['String']['input']>;
   projectNumber?: InputMaybe<Scalars['String']['input']>;
+  projectPackageItemguid?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
@@ -4308,6 +4324,10 @@ export type ProjectUpdateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
   bidSection?: InputMaybe<Scalars['String']['input']>;
+  businessUnit?: InputMaybe<Scalars['String']['input']>;
+  businessUnitName?: InputMaybe<Scalars['String']['input']>;
+  companyId?: InputMaybe<Scalars['String']['input']>;
+  companyName?: InputMaybe<Scalars['String']['input']>;
   constructionUnit?: InputMaybe<Scalars['String']['input']>;
   contractCode?: InputMaybe<Scalars['String']['input']>;
   contractName?: InputMaybe<Scalars['String']['input']>;
@@ -4321,6 +4341,7 @@ export type ProjectUpdateInput = {
   progress?: InputMaybe<Scalars['Int']['input']>;
   projectGuid?: InputMaybe<Scalars['String']['input']>;
   projectNumber?: InputMaybe<Scalars['String']['input']>;
+  projectPackageItemguid?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
@@ -9654,6 +9675,12 @@ export type MonthlyMeasurementResolvers<ContextType = GraphQLContext, ParentType
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['MonthlyMeasurementItem']>, ParentType, ContextType>;
   projectId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  syncErrorPaymentDetail?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncErrorPaymentPool?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncErrorSettlement?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusPaymentDetail?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusPaymentPool?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusSettlement?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -9883,8 +9910,12 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   blobs?: Resolver<Maybe<ResolversTypes['BlobMetadataCollection']>, ParentType, ContextType, RequireFields<ProjectBlobsArgs, 'cursor' | 'limit' | 'query'>>;
   boqItems?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType, Partial<ProjectBoqItemsArgs>>;
   boqSelectorOptions?: Resolver<ResolversTypes['BoqItemCollection'], ParentType, ContextType, RequireFields<ProjectBoqSelectorOptionsArgs, 'input'>>;
+  businessUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  businessUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<ProjectCommentArgs, 'id'>>;
   commentThreads?: Resolver<ResolversTypes['ProjectCommentCollection'], ParentType, ContextType, Partial<ProjectCommentThreadsArgs>>;
+  companyId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  companyName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   constructionUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   constructionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   contractCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -9921,6 +9952,7 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   projectGuid?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projectNumber?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projectPackageItemguid?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   qualityAcceptanceForms?: Resolver<ResolversTypes['QualityAcceptanceFormCollection'], ParentType, ContextType, Partial<ProjectQualityAcceptanceFormsArgs>>;
   responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

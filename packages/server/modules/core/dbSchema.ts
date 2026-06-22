@@ -299,7 +299,12 @@ export const Streams = buildTableHelper(
     'workspaceId',
     'regionKey',
     'visibility',
-    'usage'
+    'usage',
+    'businessUnit',
+    'businessUnitName',
+    'companyId',
+    'companyName',
+    'projectPackageItemguid'
   ],
   StreamsMeta
 )

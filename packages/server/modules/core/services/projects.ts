@@ -54,7 +54,12 @@ export const createNewProjectFactory =
     supervisionUnit,
     projectGuid,
     bidSection,
-    contractPrice
+    contractPrice,
+    businessUnit,
+    businessUnitName,
+    companyId,
+    companyName,
+    projectPackageItemguid
   }) => {
     visibility =
       visibility ||
@@ -79,6 +84,11 @@ export const createNewProjectFactory =
       projectGuid: projectGuid || null,
       bidSection: bidSection || null,
       contractPrice: contractPrice || null,
+      businessUnit: businessUnit || null,
+      businessUnitName: businessUnitName || null,
+      companyId: companyId || null,
+      companyName: companyName || null,
+      projectPackageItemguid: projectPackageItemguid || null,
       name: name || generateProjectName(),
       description: description || '',
       visibility: mapGqlToDbProjectVisibility(visibility),

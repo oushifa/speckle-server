@@ -86,6 +86,11 @@ export type ProjectCreateArgs = {
   projectGuid?: MaybeNullOrUndefined<string>
   bidSection?: MaybeNullOrUndefined<string>
   contractPrice?: MaybeNullOrUndefined<number>
+  businessUnit?: MaybeNullOrUndefined<string>
+  businessUnitName?: MaybeNullOrUndefined<string>
+  companyId?: MaybeNullOrUndefined<string>
+  companyName?: MaybeNullOrUndefined<string>
+  projectPackageItemguid?: MaybeNullOrUndefined<string>
 }
 
 export type CreateProject = (params: ProjectCreateArgs) => Promise<Project>
