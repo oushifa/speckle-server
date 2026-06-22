@@ -14,11 +14,12 @@ import { waitForRegionUser } from '@/test/speckle-helpers/regions'
 import { createTestUser, type BasicTestUser } from '@/test/authHelper'
 import cryptoRandomString from 'crypto-random-string'
 
-const createRandomUser = async (): Promise<BasicTestUser> => {
+const createRandomUser = async (role?: any): Promise<BasicTestUser> => {
   const userDetails = {
     name: cryptoRandomString({ length: 10 }),
     email: `${cryptoRandomString({ length: 10, type: 'url-safe' })}@example.org`,
-    password: cryptoRandomString({ length: 12 })
+    password: cryptoRandomString({ length: 12 }),
+    role
   }
   return createTestUser(userDetails)
 }
@@ -39,7 +40,7 @@ describe('Main Materials REST API @main-materials-rest', () => {
 
   before(async () => {
     ;({ app } = await beforeEachContext())
-    user = await createRandomUser()
+    user = await createRandomUser('server:admin')
     await waitForRegionUser(user.id)
     
     ;({ token } = await createToken({

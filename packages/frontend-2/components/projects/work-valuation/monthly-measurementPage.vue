@@ -1132,6 +1132,38 @@ const confirmSubmitItem = async () => {
   actionLoadingId.value = submitTargetItem.value.id
   const apiOrigin = useApiOrigin()
   try {
+    // 获取最新的验收和支付申请详情数据以进行强校验
+    const [acceptanceData, paymentRequestData] = await Promise.all([
+      $fetch<any>(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/acceptance`
+      ).catch(() => null),
+      $fetch<any>(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/payment-requests`
+      ).catch(() => null)
+    ])
+
+    if (!paymentRequestData?.reqContractorOpinion?.trim()) {
+      triggerNotification({
+        title: '校验失败',
+        description: '支付申请理由陈述在送审时为必填，请先填写并保存工程费用支付申请单中的该项！',
+        type: ToastNotificationType.Danger
+      })
+      actionLoadingId.value = null
+      submitConfirmOpen.value = false
+      return
+    }
+
+    if (!paymentRequestData?.contractorPayAmt || Number(paymentRequestData.contractorPayAmt) <= 0) {
+      triggerNotification({
+        title: '校验失败',
+        description: '本次申请支付金额在送审时为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+        type: ToastNotificationType.Danger
+      })
+      actionLoadingId.value = null
+      submitConfirmOpen.value = false
+      return
+    }
+
     const activeFlow = await loadActiveSubmitFlow()
     if (!activeFlow) {
       throw new Error('未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用')

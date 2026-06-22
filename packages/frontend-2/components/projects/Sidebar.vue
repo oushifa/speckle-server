@@ -270,6 +270,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  v-if="isAdmin"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -321,6 +322,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  v-if="isAdmin"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -372,6 +374,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  v-if="isAdmin"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -461,7 +464,7 @@ const dashboardSidebarQuery = graphql(`
   }
 `)
 
-const { isLoggedIn } = useActiveUser()
+const { isLoggedIn, isAdmin } = useActiveUser()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const route = useRoute()
 const activeWorkspaceSlug = useActiveWorkspaceSlug()

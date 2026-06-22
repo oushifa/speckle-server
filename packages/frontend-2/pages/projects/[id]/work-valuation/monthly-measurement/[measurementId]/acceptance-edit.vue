@@ -277,7 +277,7 @@
               </td>
               <!-- 合同价 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.contractAmount) }}
               </td>
 
               <!-- 6. 复核量 -->
@@ -294,7 +294,7 @@
               </td>
               <!-- 合价 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.contractAmount) }}
               </td>
 
               <!-- 7. 本月完成数 -->
@@ -320,7 +320,7 @@
               </td>
               <!-- 施工单位金额 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney((row.contractorQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.contractorAmount) }}
               </td>
 
               <!-- 施工监理数量 -->
@@ -340,7 +340,7 @@
               </td>
               <!-- 施工监理金额 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney((row.supervisionQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.supervisionAmount) }}
               </td>
 
               <!-- 现场指挥部数量 -->
@@ -360,7 +360,7 @@
               </td>
               <!-- 现场指挥部金额 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney((row.headquartersQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.headquartersAmount) }}
               </td>
 
               <!-- 投资监理数量 -->
@@ -385,7 +385,7 @@
               <td
                 class="px-2 py-2 text-right border-r border-outline-3 font-mono text-primary font-semibold pr-3"
               >
-                {{ formatMoney((row.investmentQty || 0) * (row.price || 0)) }}
+                {{ formatMoney(row.investmentAmount) }}
               </td>
 
               <!-- 8. 本年完成工程量 -->
@@ -397,12 +397,7 @@
               </td>
               <!-- 工作量 -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{
-                  formatMoney(
-                    ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) *
-                      (row.price || 0)
-                  )
-                }}
+                {{ formatMoney(row.yearlyAmount) }}
               </td>
 
               <!-- 9. 累计完成数 -->
@@ -414,12 +409,7 @@
               <td
                 class="px-2 py-2 text-right border-r border-outline-3 font-mono text-success-darker pr-3"
               >
-                {{
-                  formatMoney(
-                    ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) *
-                      (row.price || 0)
-                  )
-                }}
+                {{ formatMoney(row.cumulativeAmount) }}
               </td>
               <!-- 合同累计完成比例% -->
               <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
@@ -718,6 +708,25 @@ const recalculateTreeRows = () => {
       row.lastCumulativeQty = 0
       row.yearlyCumulativeQty = 0
       row.pendingTotalQty = 0
+
+      // 汇总行金额初始化
+      row.contractAmount = 0
+      row.contractorAmount = 0
+      row.supervisionAmount = 0
+      row.headquartersAmount = 0
+      row.investmentAmount = 0
+      row.yearlyAmount = 0
+      row.cumulativeAmount = 0
+    } else {
+      // 明细行金额初始化
+      const price = Number(row.price || 0)
+      row.contractAmount = row.boqAmount !== undefined && row.boqAmount !== null ? Number(row.boqAmount) : (row.pendingTotalQty || 0) * price
+      row.contractorAmount = (row.contractorQty || 0) * price
+      row.supervisionAmount = (row.supervisionQty || 0) * price
+      row.headquartersAmount = (row.headquartersQty || 0) * price
+      row.investmentAmount = (row.investmentQty || 0) * price
+      row.yearlyAmount = ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
+      row.cumulativeAmount = ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
     }
   })
 
@@ -737,6 +746,15 @@ const recalculateTreeRows = () => {
       parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty || 0, row.lastCumulativeQty || 0)
       parent.yearlyCumulativeQty = preciseAdd(parent.yearlyCumulativeQty || 0, row.yearlyCumulativeQty || 0)
       parent.pendingTotalQty = preciseAdd(parent.pendingTotalQty || 0, row.pendingTotalQty || 0)
+
+      // 累加金额
+      parent.contractAmount = preciseAdd(parent.contractAmount || 0, row.contractAmount || 0)
+      parent.contractorAmount = preciseAdd(parent.contractorAmount || 0, row.contractorAmount || 0)
+      parent.supervisionAmount = preciseAdd(parent.supervisionAmount || 0, row.supervisionAmount || 0)
+      parent.headquartersAmount = preciseAdd(parent.headquartersAmount || 0, row.headquartersAmount || 0)
+      parent.investmentAmount = preciseAdd(parent.investmentAmount || 0, row.investmentAmount || 0)
+      parent.yearlyAmount = preciseAdd(parent.yearlyAmount || 0, row.yearlyAmount || 0)
+      parent.cumulativeAmount = preciseAdd(parent.cumulativeAmount || 0, row.cumulativeAmount || 0)
     })
   })
 }

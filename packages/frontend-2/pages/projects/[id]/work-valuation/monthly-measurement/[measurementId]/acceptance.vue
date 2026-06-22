@@ -212,6 +212,17 @@
               </td>
               <td class="px-2 py-2.5 text-center" />
             </tr>
+            <!-- 项目负责人、统计员等附加说明行 -->
+            <tr class="bg-foundation-2 text-foreground-2 text-center border-t border-outline-3">
+              <td colspan="12" class="px-2 py-2 text-left pl-3 font-semibold text-xs">
+                <div class="flex justify-between items-center w-full max-w-[800px]">
+                  <span>项目负责人：施柳盛</span>
+                  <span>统计员：{{ flowInitiatorName || '-' }}</span>
+                  <span>联系电话：13788903651</span>
+                  <span>填报日期：{{ flowInitiatorDate || '-' }}</span>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -223,7 +234,10 @@
           <div
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
-            <span class="text-xs font-semibold text-foreground-2">施工监理意见</span>
+            <span class="text-xs font-semibold text-foreground-2">
+              <span v-if="currentStepName === '施工监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+              施工监理意见
+            </span>
             <textarea
               v-model="acceptanceDetails.supervisionOpinion"
               placeholder="审核意见..."
@@ -250,7 +264,10 @@
           <div
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
-            <span class="text-xs font-semibold text-foreground-2">现场指挥部意见</span>
+            <span class="text-xs font-semibold text-foreground-2">
+              <span v-if="currentStepName === '现场指挥'" class="text-red-500 mr-0.5 font-bold">*</span>
+              现场指挥部意见
+            </span>
             <textarea
               v-model="acceptanceDetails.headquartersOpinion"
               placeholder="审核意见..."
@@ -277,7 +294,10 @@
           <div
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
-            <span class="text-xs font-semibold text-foreground-2">投资监理意见</span>
+            <span class="text-xs font-semibold text-foreground-2">
+              <span v-if="currentStepName === '投资监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+              投资监理意见
+            </span>
             <textarea
               v-model="acceptanceDetails.investmentOpinion"
               placeholder="审核意见..."
@@ -300,15 +320,18 @@
             </div>
           </div>
 
-          <!-- 业主单位意见 -->
+          <!-- 合约部管理意见 -->
           <div
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
-            <span class="text-xs font-semibold text-foreground-2">业主单位意见</span>
+            <span class="text-xs font-semibold text-foreground-2">
+              <span v-if="currentStepName === '合约管理部负责人'" class="text-red-500 mr-0.5 font-bold">*</span>
+              合约部管理意见
+            </span>
             <textarea
               v-model="acceptanceDetails.ownerOpinion"
               placeholder="审核意见..."
-              :disabled="!permissions.owner"
+              :disabled="!permissions.contract"
               class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
             />
             <div class="grid grid-cols-2 gap-2">
@@ -673,6 +696,17 @@
               <td class="text-right pr-3 font-mono border-r border-black">{{ totalSums.cumulativeRate }}%</td>
               <td class="text-center"></td>
             </tr>
+            <!-- 新增一行项目负责人等附加说明 -->
+            <tr class="border-b border-black font-semibold bg-white text-black">
+              <td colspan="12" class="px-2 py-2.5 text-left pl-3 text-xs">
+                <div class="flex justify-between items-center w-full">
+                  <span>项目负责人：施柳盛</span>
+                  <span>统计员：{{ flowInitiatorName || '-' }}</span>
+                  <span>联系电话：13788903651</span>
+                  <span>填报日期：{{ flowInitiatorDate || '-' }}</span>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
 
@@ -703,7 +737,7 @@
             </div>
           </div>
           <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">计划合约部意见：</div>
+            <div class="font-bold">合约部管理意见：</div>
             <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
             <div class="text-[10px]">
               <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
@@ -781,34 +815,34 @@
               <!-- 合同量 -->
               <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
               
               <!-- 复核量 -->
               <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.boqAmount !== undefined && row.boqAmount !== null ? row.boqAmount : (row.pendingTotalQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
               
               <!-- 本月完成数 -->
               <!-- 施工单位 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.contractorQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.contractorQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractorAmount) }}</td>
               <!-- 施工监理 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.supervisionQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.supervisionQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.supervisionAmount) }}</td>
               <!-- 现场指挥部 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.headquartersQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.headquartersQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.headquartersAmount) }}</td>
               <!-- 投资监理 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(row.investmentQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((row.investmentQty || 0) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.investmentAmount) }}</td>
               
               <!-- 本年完成工程量 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.yearlyAmount) }}</td>
               
               <!-- 累计完成数 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * (row.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(row.cumulativeAmount) }}</td>
               <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(row) }}%</td>
               
               <td class="text-center">{{ row.remark || '-' }}</td>
@@ -821,30 +855,30 @@
               <!-- 合同量 -->
               <td class="text-right border-r border-black">-</td>
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.boqAmount !== undefined && printDetailRoot.boqAmount !== null ? printDetailRoot.boqAmount : (printDetailRoot.pendingTotalQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractAmount) }}</td>
               <!-- 复核量 -->
               <td class="text-right border-r border-black">-</td>
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.boqAmount !== undefined && printDetailRoot.boqAmount !== null ? printDetailRoot.boqAmount : (printDetailRoot.pendingTotalQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractAmount) }}</td>
               <!-- 本月完成数 -->
               <!-- 施工单位 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.contractorQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.contractorQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractorAmount) }}</td>
               <!-- 施工监理 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.supervisionQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.supervisionQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.supervisionAmount) }}</td>
               <!-- 现场指挥部 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.headquartersQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.headquartersQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.headquartersAmount) }}</td>
               <!-- 投资监理 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.investmentQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney((printDetailRoot.investmentQty || 0) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.investmentAmount) }}</td>
               <!-- 本年完成工程量 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.yearlyCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(((printDetailRoot.yearlyCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.yearlyAmount) }}</td>
               <!-- 累计完成数 -->
               <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.lastCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(((printDetailRoot.lastCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) * (printDetailRoot.price || 0)) }}</td>
+              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(printDetailRoot.cumulativeAmount) }}</td>
               <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(printDetailRoot) }}%</td>
               <td class="text-center">-</td>
             </tr>
@@ -878,7 +912,7 @@
             </div>
           </div>
           <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">计划合约部意见：</div>
+            <div class="font-bold">合约部管理意见：</div>
             <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
             <div class="text-[10px]">
               <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
@@ -918,6 +952,11 @@ type MonthlyMeasurementNode = {
   currentStepApprovers?: string[] | null
   unit?: string | null
   roundName?: string | null
+  flowInitiator?: {
+    id: string
+    name: string
+  } | null
+  createdAt?: string | number | null
   creator?: {
     id: string
     name: string
@@ -939,6 +978,33 @@ const { download: downloadBlobWithAuth } = useFileDownload()
 const deleteConfirmOpen = ref(false)
 const deleteTargetIdx = ref<number | null>(null)
 const deletingAttachment = ref(false)
+
+const currentStepName = computed(() => {
+  if (!props.flowInstance) return ''
+  const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+  return pendingStep ? (pendingStep.name || '').trim() : ''
+})
+
+const flowInitiatorName = computed(() => {
+  return (
+    props.item?.flowInitiator?.name ||
+    props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')?.actor
+      ?.name ||
+    props.item?.creator?.name ||
+    ''
+  )
+})
+
+const flowInitiatorDate = computed(() => {
+  const startedAction = props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')
+  if (startedAction?.createdAt) {
+    return dayjs(Number(startedAction.createdAt)).format('YYYY-MM-DD')
+  }
+  if (props.item?.createdAt) {
+    return dayjs(Number(props.item.createdAt)).format('YYYY-MM-DD')
+  }
+  return '-'
+})
 
 // 数据缓存
 const aggregatedItems = ref<any[]>([])
@@ -1708,6 +1774,25 @@ const executePrintDetail = async () => {
         row.lastCumulativeQty = 0
         row.yearlyCumulativeQty = 0
         row.pendingTotalQty = 0
+
+        // 汇总行金额初始化
+        row.contractAmount = 0
+        row.contractorAmount = 0
+        row.supervisionAmount = 0
+        row.headquartersAmount = 0
+        row.investmentAmount = 0
+        row.yearlyAmount = 0
+        row.cumulativeAmount = 0
+      } else {
+        // 明明细行金额初始化
+        const price = Number(row.price || 0)
+        row.contractAmount = row.boqAmount !== undefined && row.boqAmount !== null ? Number(row.boqAmount) : (row.pendingTotalQty || 0) * price
+        row.contractorAmount = (row.contractorQty || 0) * price
+        row.supervisionAmount = (row.supervisionQty || 0) * price
+        row.headquartersAmount = (row.headquartersQty || 0) * price
+        row.investmentAmount = (row.investmentQty || 0) * price
+        row.yearlyAmount = ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
+        row.cumulativeAmount = ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
       }
       byId.set(row.boqItemId, row)
       const d = Number(row.boqDepth || 0)
@@ -1730,6 +1815,15 @@ const executePrintDetail = async () => {
         parent.lastCumulativeQty = (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
         parent.yearlyCumulativeQty = (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
         parent.pendingTotalQty = (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
+
+        // 累加金额
+        parent.contractAmount = (parent.contractAmount || 0) + (row.contractAmount || 0)
+        parent.contractorAmount = (parent.contractorAmount || 0) + (row.contractorAmount || 0)
+        parent.supervisionAmount = (parent.supervisionAmount || 0) + (row.supervisionAmount || 0)
+        parent.headquartersAmount = (parent.headquartersAmount || 0) + (row.headquartersAmount || 0)
+        parent.investmentAmount = (parent.investmentAmount || 0) + (row.investmentAmount || 0)
+        parent.yearlyAmount = (parent.yearlyAmount || 0) + (row.yearlyAmount || 0)
+        parent.cumulativeAmount = (parent.cumulativeAmount || 0) + (row.cumulativeAmount || 0)
       })
     })
 
@@ -1749,6 +1843,13 @@ const executePrintDetail = async () => {
       measuredQtyDefault: 0,
       lastCumulativeQty: 0,
       yearlyCumulativeQty: 0,
+      contractAmount: 0,
+      contractorAmount: 0,
+      supervisionAmount: 0,
+      headquartersAmount: 0,
+      investmentAmount: 0,
+      yearlyAmount: 0,
+      cumulativeAmount: 0
     }
 
     selectedPrintGroupKeys.value.forEach((rootId) => {
@@ -1763,6 +1864,14 @@ const executePrintDetail = async () => {
         sumRoot.measuredQtyDefault += (rootRow.measuredQtyDefault || 0)
         sumRoot.lastCumulativeQty += (rootRow.lastCumulativeQty || 0)
         sumRoot.yearlyCumulativeQty += (rootRow.yearlyCumulativeQty || 0)
+
+        sumRoot.contractAmount += (rootRow.contractAmount || 0)
+        sumRoot.contractorAmount += (rootRow.contractorAmount || 0)
+        sumRoot.supervisionAmount += (rootRow.supervisionAmount || 0)
+        sumRoot.headquartersAmount += (rootRow.headquartersAmount || 0)
+        sumRoot.investmentAmount += (rootRow.investmentAmount || 0)
+        sumRoot.yearlyAmount += (rootRow.yearlyAmount || 0)
+        sumRoot.cumulativeAmount += (rootRow.cumulativeAmount || 0)
       }
     })
 

@@ -66,7 +66,18 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                :value="contractorState.isReached ? formatMoney(paymentRequest.contractorPayAmt) : '-'"
+                v-if="permissions.contractor"
+                v-model.number="paymentRequest.contractorPayAmt"
+                type="number"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="
+                  contractorState.isReached
+                    ? formatMoney(paymentRequest.contractorPayAmt)
+                    : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -122,7 +133,7 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
                 v-if="permissions.supervision"
                 v-model.number="paymentRequest.supervisionPayAmt"
@@ -131,7 +142,11 @@
               />
               <input
                 v-else
-                :value="supervisionState.isReached ? formatMoney(paymentRequest.supervisionPayAmt) : '-'"
+                :value="
+                  supervisionState.isReached
+                    ? formatMoney(paymentRequest.supervisionPayAmt)
+                    : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -139,6 +154,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
+                <span v-if="currentStepName === '施工监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
                 施工监理意见
               </span>
               <textarea
@@ -186,7 +202,7 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
                 v-if="permissions.headquarters"
                 v-model.number="paymentRequest.headquartersPayAmt"
@@ -195,7 +211,11 @@
               />
               <input
                 v-else
-                :value="headquartersState.isReached ? formatMoney(paymentRequest.headquartersPayAmt) : '-'"
+                :value="
+                  headquartersState.isReached
+                    ? formatMoney(paymentRequest.headquartersPayAmt)
+                    : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -203,6 +223,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
+                <span v-if="currentStepName === '现场指挥'" class="text-red-500 mr-0.5 font-bold">*</span>
                 现场指挥部意见
               </span>
               <textarea
@@ -250,9 +271,20 @@
         >
           <div class="space-y-2.5">
             <div class="space-y-1">
-              <span class="text-[10px] text-foreground-2 block">本次支付</span>
+              <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                :value="investmentState.isReached ? formatMoney(paymentRequest.investmentPayAmt) : '-'"
+                v-if="permissions.investment"
+                v-model.number="paymentRequest.investmentPayAmt"
+                type="number"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="
+                  investmentState.isReached
+                    ? formatMoney(paymentRequest.investmentPayAmt)
+                    : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -260,6 +292,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
+                <span v-if="currentStepName === '投资监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
                 投资监理意见
               </span>
               <textarea
@@ -309,7 +342,18 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                :value="contractState.isReached ? formatMoney(paymentRequest.contractPayAmt) : '-'"
+                v-if="permissions.contract"
+                v-model.number="paymentRequest.contractPayAmt"
+                type="number"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="
+                  contractState.isReached
+                    ? formatMoney(paymentRequest.contractPayAmt)
+                    : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -317,6 +361,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
+                <span v-if="currentStepName === '合约管理部负责人'" class="text-red-500 mr-0.5 font-bold">*</span>
                 合约管理部意见
               </span>
               <textarea
@@ -366,7 +411,16 @@
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 block">本次申请支付</span>
               <input
-                :value="leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-'"
+                v-if="permissions.leader"
+                v-model.number="paymentRequest.leaderPayAmt"
+                type="number"
+                class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary"
+              />
+              <input
+                v-else
+                :value="
+                  leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-'
+                "
                 type="text"
                 disabled
                 class="w-full text-center bg-foundation border border-outline-3 rounded text-xs py-1 font-mono focus:outline-none focus:border-primary disabled:opacity-60"
@@ -374,6 +428,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
+                <span v-if="currentStepName === '分管领导'" class="text-red-500 mr-0.5 font-bold">*</span>
                 分管领导意见
               </span>
               <textarea
@@ -496,7 +551,13 @@
               <div class="flex gap-2 flex-shrink-0">
                 <button
                   class="text-primary hover:underline font-medium"
-                  @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
+                  @click="
+                    downloadBlobWithAuth({
+                      blobId: attachment.blobId,
+                      fileName: attachment.name || attachment.blobId,
+                      projectId: props.projectId
+                    })
+                  "
                 >
                   下载
                 </button>
@@ -523,12 +584,12 @@
         <template #header>验工计价封面</template>
         <div class="max-h-[80vh] overflow-auto p-4 bg-[#f9fafb]">
           <div class="print-cover-sheet">
-            <div class="print-cover-title">
-              验 工 月 报
-            </div>
+            <div class="print-cover-title">验 工 月 报</div>
 
             <div class="print-cover-subtitle text-[#111]">
-              {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ printPeriod }}
+              {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              {{ printPeriod }}
             </div>
 
             <div class="print-cover-grid">
@@ -539,22 +600,26 @@
               >
                 <div class="print-cover-row">
                   <div class="print-cover-label">本期计价：</div>
-                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).current) }}</div>
+                  <div class="print-cover-val">
+                    {{ formatMoney(getPartyAmounts(party.key).current) }}
+                  </div>
                   <div class="print-cover-unit">元</div>
                 </div>
                 <div class="print-cover-row">
                   <div class="print-cover-label">本年累计价：</div>
-                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).yearly) }}</div>
+                  <div class="print-cover-val">
+                    {{ formatMoney(getPartyAmounts(party.key).yearly) }}
+                  </div>
                   <div class="print-cover-unit">元</div>
                 </div>
                 <div class="print-cover-row">
                   <div class="print-cover-label">开工累计价：</div>
-                  <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).cumulative) }}</div>
+                  <div class="print-cover-val">
+                    {{ formatMoney(getPartyAmounts(party.key).cumulative) }}
+                  </div>
                   <div class="print-cover-unit">元</div>
                 </div>
-                <div class="print-cover-stamp">
-                  {{ party.label }}:(章)
-                </div>
+                <div class="print-cover-stamp">{{ party.label }}:(章)</div>
                 <div class="print-cover-sign">
                   {{ party.roleLabel }}:{{ getPartySignInfo(party.key).name }}
                 </div>
@@ -569,42 +634,42 @@
     </div>
 
     <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
-    <Teleport to="body" v-if="isPrinting">
+    <Teleport v-if="isPrinting" to="body">
       <div id="print-section" class="print-sheet">
         <!-- 1. 验工计价封面打印样式 -->
         <div v-if="printType === 'cover'" class="print-cover-sheet">
-          <div class="print-cover-title">
-            验 工 月 报
-          </div>
+          <div class="print-cover-title">验 工 月 报</div>
 
           <div class="print-cover-subtitle text-[#111]">
-            {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ printPeriod }}
+            {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            {{ printPeriod }}
           </div>
 
           <div class="print-cover-grid">
-            <div
-              v-for="party in coverParties"
-              :key="party.key"
-              class="print-cover-col"
-            >
+            <div v-for="party in coverParties" :key="party.key" class="print-cover-col">
               <div class="print-cover-row">
                 <div class="print-cover-label">本期计价：</div>
-                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).current) }}</div>
+                <div class="print-cover-val">
+                  {{ formatMoney(getPartyAmounts(party.key).current) }}
+                </div>
                 <div class="print-cover-unit">元</div>
               </div>
               <div class="print-cover-row">
                 <div class="print-cover-label">本年累计价：</div>
-                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).yearly) }}</div>
+                <div class="print-cover-val">
+                  {{ formatMoney(getPartyAmounts(party.key).yearly) }}
+                </div>
                 <div class="print-cover-unit">元</div>
               </div>
               <div class="print-cover-row">
                 <div class="print-cover-label">开工累计价：</div>
-                <div class="print-cover-val">{{ formatMoney(getPartyAmounts(party.key).cumulative) }}</div>
+                <div class="print-cover-val">
+                  {{ formatMoney(getPartyAmounts(party.key).cumulative) }}
+                </div>
                 <div class="print-cover-unit">元</div>
               </div>
-              <div class="print-cover-stamp">
-                {{ party.label }}:(章)
-              </div>
+              <div class="print-cover-stamp">{{ party.label }}:(章)</div>
               <div class="print-cover-sign">
                 {{ party.roleLabel }}:{{ getPartySignInfo(party.key).name }}
               </div>
@@ -645,27 +710,49 @@
 
           <table class="print-table print-main-table">
             <tr>
-              <th class="print-head" colspan="1" style="width: 16.66%;">费用申请单位</th>
-              <th class="print-head" colspan="5" style="width: 83.34%;">费用审核单位</th>
+              <th class="print-head" colspan="1" style="width: 16.66%">费用申请单位</th>
+              <th class="print-head" colspan="5" style="width: 83.34%">费用审核单位</th>
             </tr>
             <tr>
               <td class="print-amount-cell">
-                本次申请支付：{{ contractorState.isReached ? formatMoney(paymentRequest.contractorPayAmt) : '-' }}
+                本次申请支付：{{
+                  contractorState.isReached
+                    ? formatMoney(paymentRequest.contractorPayAmt)
+                    : '-'
+                }}
               </td>
               <td class="print-amount-cell">
-                本次支付：{{ supervisionState.isReached ? formatMoney(paymentRequest.supervisionPayAmt) : '-' }}
+                本次申请支付：{{
+                  supervisionState.isReached
+                    ? formatMoney(paymentRequest.supervisionPayAmt)
+                    : '-'
+                }}
               </td>
               <td class="print-amount-cell">
-                本次支付：{{ headquartersState.isReached ? formatMoney(paymentRequest.headquartersPayAmt) : '-' }}
+                本次申请支付：{{
+                  headquartersState.isReached
+                    ? formatMoney(paymentRequest.headquartersPayAmt)
+                    : '-'
+                }}
               </td>
               <td class="print-amount-cell">
-                本次支付：{{ investmentState.isReached ? formatMoney(paymentRequest.investmentPayAmt) : '-' }}
+                本次申请支付：{{
+                  investmentState.isReached
+                    ? formatMoney(paymentRequest.investmentPayAmt)
+                    : '-'
+                }}
               </td>
               <td class="print-amount-cell">
-                本次支付：{{ contractState.isReached ? formatMoney(paymentRequest.contractPayAmt) : '-' }}
+                本次申请支付：{{
+                  contractState.isReached
+                    ? formatMoney(paymentRequest.contractPayAmt)
+                    : '-'
+                }}
               </td>
               <td class="print-amount-cell">
-                本次支付：{{ leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-' }}
+                本次申请支付：{{
+                  leaderState.isReached ? formatMoney(paymentRequest.leaderPayAmt) : '-'
+                }}
               </td>
             </tr>
             <tr>
@@ -678,22 +765,40 @@
             </tr>
             <tr>
               <td class="print-opinion-body">
-                {{ contractorState.isReached ? (paymentRequest.reqContractorOpinion || '') : '' }}
+                {{
+                  contractorState.isReached
+                    ? paymentRequest.reqContractorOpinion || ''
+                    : ''
+                }}
               </td>
               <td class="print-opinion-body">
-                {{ supervisionState.isReached ? (paymentRequest.reqSupervisionOpinion || '') : '' }}
+                {{
+                  supervisionState.isReached
+                    ? paymentRequest.reqSupervisionOpinion || ''
+                    : ''
+                }}
               </td>
               <td class="print-opinion-body">
-                {{ headquartersState.isReached ? (paymentRequest.reqHeadquartersOpinion || '') : '' }}
+                {{
+                  headquartersState.isReached
+                    ? paymentRequest.reqHeadquartersOpinion || ''
+                    : ''
+                }}
               </td>
               <td class="print-opinion-body">
-                {{ investmentState.isReached ? (paymentRequest.reqInvestmentOpinion || '') : '' }}
+                {{
+                  investmentState.isReached
+                    ? paymentRequest.reqInvestmentOpinion || ''
+                    : ''
+                }}
               </td>
               <td class="print-opinion-body">
-                {{ contractState.isReached ? (paymentRequest.reqContractOpinion || '') : '' }}
+                {{
+                  contractState.isReached ? paymentRequest.reqContractOpinion || '' : ''
+                }}
               </td>
               <td class="print-opinion-body">
-                {{ leaderState.isReached ? (paymentRequest.reqLeaderOpinion || '') : '' }}
+                {{ leaderState.isReached ? paymentRequest.reqLeaderOpinion || '' : '' }}
               </td>
             </tr>
             <tr>
@@ -848,6 +953,12 @@ onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
 })
 
+const currentStepName = computed(() => {
+  if (!props.flowInstance) return ''
+  const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+  return pendingStep ? (pendingStep.name || '').trim() : ''
+})
+
 const getPartyAmounts = (partyKey: string) => {
   const sums = { current: 0, yearly: 0, cumulative: 0 }
   for (const row of coverAggregatedItems.value) {
@@ -862,8 +973,10 @@ const getPartyAmounts = (partyKey: string) => {
       amt = Number(row.investmentAmount || 0)
     }
 
-    const historyCumulative = Number(row.cumulativeAmount || 0) - Number(row.investmentAmount || 0)
-    const historyYearly = Number(row.yearlyAmount || 0) - Number(row.investmentAmount || 0)
+    const historyCumulative =
+      Number(row.cumulativeAmount || 0) - Number(row.investmentAmount || 0)
+    const historyYearly =
+      Number(row.yearlyAmount || 0) - Number(row.investmentAmount || 0)
 
     sums.current += amt
     sums.yearly += historyYearly + amt
@@ -1018,21 +1131,38 @@ const permissions = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
       const approverIds = pendingStep.approverIds || []
-      
+
       if (approverIds.includes(currentUserId)) {
         const isStep = (names: string[]) => names.includes(stepName)
 
         if (isStep(['施工单位'])) result.contractor = true
-        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])) result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])) result.headquarters = true
-        if (isStep(['投资监理经办人', '投资监理总监', '投资监理'])) result.investment = true
-        if (isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])) result.contract = true
+        if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
+          result.supervision = true
+        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+          result.headquarters = true
+        if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
+          result.investment = true
+        if (
+          isStep([
+            '合约管理部经办人',
+            '合约管理部负责人',
+            '计划合同部',
+            '合约部',
+            '合约管理部'
+          ])
+        )
+          result.contract = true
         if (isStep(['分管领导'])) result.leader = true
-        if (isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])) result.owner = true
+        if (
+          isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+        )
+          result.owner = true
       }
     }
   }
@@ -1052,7 +1182,9 @@ const isCurrentApprover = computed(() => {
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find((s: any) => s.status === 'PENDING')
+    const pendingStep = props.flowInstance.steps?.find(
+      (s: any) => s.status === 'PENDING'
+    )
     if (pendingStep) {
       const approverIds = pendingStep.approverIds || []
       return approverIds.includes(currentUserId)
@@ -1074,13 +1206,20 @@ const getStepUserDisplay = (stepName: string) => {
     }
     if (step.status === 'APPROVED' || step.status === 'REJECTED') {
       const action = actions.find(
-        (a: any) => a.stepId === step.id && (a.action === 'APPROVED' || a.action === 'STEP_APPROVED' || a.action === 'REJECTED')
+        (a: any) =>
+          a.stepId === step.id &&
+          (a.action === 'APPROVED' ||
+            a.action === 'STEP_APPROVED' ||
+            a.action === 'REJECTED')
       )
       if (action && action.actor?.name) {
         return action.actor.name
       }
       if (step.approvers && step.approvers.length > 0) {
-        return step.approvers.map((u: any) => u.name).filter(Boolean).join('、')
+        return step.approvers
+          .map((u: any) => u.name)
+          .filter(Boolean)
+          .join('、')
       }
     }
   }
@@ -1088,7 +1227,12 @@ const getStepUserDisplay = (stepName: string) => {
 }
 
 const flowInitiatorName = computed(() => {
-  return props.item?.flowInitiator?.name || props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')?.actor?.name || ''
+  return (
+    props.item?.flowInitiator?.name ||
+    props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')?.actor
+      ?.name ||
+    ''
+  )
 })
 
 const contractorManagerDisplay = computed(() => {
@@ -1166,7 +1310,8 @@ const getCardDateDisplayValue = (
   if (props.flowInstance?.steps) {
     const stepNames = paymentRequestAuditStepMap[key] as readonly string[]
     const matchedStep = props.flowInstance.steps.find(
-      (s: any) => stepNames.includes(s.name) && (s.status === 'APPROVED' || s.completedAt)
+      (s: any) =>
+        stepNames.includes(s.name) && (s.status === 'APPROVED' || s.completedAt)
     )
     if (matchedStep?.completedAt) {
       return formatDate(matchedStep.completedAt)
@@ -1476,7 +1621,8 @@ watch(
     margin: 12mm;
   }
 
-  :global(html), :global(body) {
+  :global(html),
+  :global(body) {
     height: auto !important;
     overflow: visible !important;
   }
@@ -1485,11 +1631,12 @@ watch(
     padding: 0;
     margin: 0;
     color: #000;
-    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial,
+      sans-serif;
   }
 
-  :global(body.is-printing [id="__nuxt"]),
-  :global(body.is-printing [id="__layout"]),
+  :global(body.is-printing [id='__nuxt']),
+  :global(body.is-printing [id='__layout']),
   :global(body.is-printing .no-print) {
     display: none !important;
   }

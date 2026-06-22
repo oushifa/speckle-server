@@ -1,4 +1,8 @@
 <template>
   <ProjectsArchiveArchivesPage />
 </template>
-<script></script>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['admin']
+})
+</script>

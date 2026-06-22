@@ -21,6 +21,10 @@
 import { useRoute } from 'vue-router'
 import { Portal } from 'portal-vue'
 
+definePageMeta({
+  middleware: ['admin']
+})
+
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 </script>

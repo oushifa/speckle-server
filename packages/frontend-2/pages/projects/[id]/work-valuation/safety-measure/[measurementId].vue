@@ -592,13 +592,13 @@
           class="bg-foundation border border-outline-3 rounded-lg p-3 flex justify-center items-center gap-4 flex-shrink-0 shadow-sm mt-4"
         >
           <FormButton color="outline" @click="attachmentsDialogOpen = true">
-            <PaperClipIcon class="h-4.5 w-4.5 mr-1 text-foreground-2" />
+            <PaperClipIcon class="h-4 w-4 mr-1 text-foreground-2" />
             附件 ({{ details.attachments?.length || 0 }})
           </FormButton>
 
           <FormButton color="outline" @click="coverDialogOpen = true">
             <span class="flex items-center gap-1">
-              <DocumentTextIcon class="h-4.5 w-4.5 text-foreground-2" />
+              <DocumentTextIcon class="h-4 w-4 text-foreground-2" />
               封面
             </span>
           </FormButton>
@@ -629,7 +629,7 @@
 
           <FormButton color="outline" @click="triggerPrint">
             <span class="flex items-center gap-1">
-              <PrinterIcon class="h-4.5 w-4.5 text-foreground-2" />
+              <PrinterIcon class="h-4 w-4 text-foreground-2" />
               打印
             </span>
           </FormButton>
@@ -895,13 +895,14 @@
             class="flex justify-between items-center p-2 rounded bg-foundation-2 border border-outline-3 text-xs"
           >
             <div class="flex items-center gap-1.5 min-w-0 pr-3">
-              <PaperClipIcon class="h-4.5 w-4.5 text-foreground-2 flex-shrink-0" />
+              <PaperClipIcon class="h-4 w-4 text-foreground-2 flex-shrink-0" />
               <span class="truncate" :title="attachment.name">
                 {{ attachment.name || attachment.blobId }}
               </span>
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <a
+                v-if="attachment.blobId"
                 :href="getBlobDownloadUrl(attachment.blobId)"
                 target="_blank"
                 class="text-primary hover:underline font-medium"
@@ -1172,7 +1173,7 @@
           v-model="reviewComment"
           name="reject-comment"
           label="驳回意见"
-          placeholder="请输入驳回意见（选填）"
+          placeholder="请输入驳回意见（必填）"
           :rows="3"
           class="text-xs"
         />
@@ -1664,10 +1665,11 @@ const recalculateTreeRows = () => {
 
       row.lastCumulativeAmount = preciseMul(row.lastCumulativeQty || 0, price)
 
-      row.yearlyQty = preciseAdd(row.yearlyCumulativeQty || 0, row.engineeringQty || 0)
+      const currentQty = Number(row.contractDeptQty) || Number(row.engineeringQty) || Number(row.headquartersQty) || Number(row.supervisionQty) || Number(row.contractorQty) || 0
+      row.yearlyQty = preciseAdd(row.yearlyCumulativeQty || 0, currentQty)
       row.yearlyAmount = preciseMul(row.yearlyQty, price)
 
-      row.cumulativeQty = preciseAdd(row.lastCumulativeQty || 0, row.engineeringQty || 0)
+      row.cumulativeQty = preciseAdd(row.lastCumulativeQty || 0, currentQty)
       row.cumulativeAmount = preciseMul(row.cumulativeQty, price)
 
       row.remainingQty = preciseAdd(row.contractQty || 0, -row.cumulativeQty)
@@ -1956,6 +1958,14 @@ const executeApprove = async () => {
 
 const executeReject = async () => {
   if (!flowInstance.value) return
+  if (!reviewComment.value.trim()) {
+    triggerNotification({
+      title: '操作失败',
+      description: '驳回意见不能为空',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
   const saved = await saveAllData(true)
   if (!saved) return
 
@@ -1966,7 +1976,7 @@ const executeReject = async () => {
       variables: {
         input: {
           instanceId: flowInstance.value.id,
-          comment: reviewComment.value.trim() || '',
+          comment: reviewComment.value.trim(),
           rollbackToStep:
             selectedRollbackStep.value !== null ? Number(selectedRollbackStep.value) : 0
         }
@@ -2084,6 +2094,7 @@ const getStatusColor = (status: string | null | undefined) => {
     IN_REVIEW: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
+    RETURNED: 'bg-warning-lighter text-warning-darker',
     CANCELED: 'bg-highlight-3 text-foreground-2'
   }
   return map[(status || '').toUpperCase()] || 'bg-foundation-3 text-foreground-2'
@@ -2096,6 +2107,7 @@ const getStatusText = (status: string | null | undefined) => {
     IN_REVIEW: '审批中',
     APPROVED: '审核通过',
     REJECTED: '已驳回',
+    RETURNED: '已退回',
     CANCELED: '已取消'
   }
   return map[(status || '').toUpperCase()] || '草稿'
@@ -2106,6 +2118,7 @@ const formatFlowStatusLabel = (status?: string | null) => {
     PENDING: '审批中',
     APPROVED: '已通过',
     REJECTED: '已驳回',
+    RETURNED: '已退回',
     CANCELED: '已取消',
     CANCELLED: '已取消'
   }
@@ -2186,9 +2199,16 @@ const handleFileUpload = async (event: Event) => {
         method: 'POST',
         body: formData
       })
-      const list = details.value.attachments || []
-      list.push({ blobId: res.blobId, name: file.name })
-      details.value.attachments = [...list]
+      const uploadResults = res?.uploadResults || []
+      const result = uploadResults.find((r: any) => r.formKey === 'file')
+      const blobId = result?.blobId
+      if (blobId) {
+        const list = details.value.attachments || []
+        list.push({ blobId, name: file.name })
+        details.value.attachments = [...list]
+      } else {
+        throw new Error('未获取到文件标识')
+      }
     }
     await saveAllData(true)
   } catch (err) {

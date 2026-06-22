@@ -366,16 +366,17 @@
               <FormSelectBase
                 v-model="selectedMeasureValue"
                 :items="selectOptions"
+                name="safety-measure-select"
                 label="关联安全文明措施费"
                 :show-label="false"
                 by="id"
                 class="w-full text-xs"
               >
                 <template #something-selected="{ value }">
-                  <span class="truncate text-foreground text-xs">{{ value?.label || '不关联' }}</span>
+                  <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
                 </template>
                 <template #option="{ item }">
-                  <span class="truncate text-xs">{{ item?.label || '不关联' }}</span>
+                  <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
                 </template>
               </FormSelectBase>
             </div>
@@ -415,7 +416,7 @@
             v-model="reviewComment"
             name="reject-comment"
             label="驳回意见"
-            placeholder="请输入驳回意见（选填）"
+            placeholder="请输入驳回意见（必填）"
             :rows="3"
             class="text-xs"
           />
@@ -569,7 +570,179 @@ const handleConfirm = async () => {
 // 审批操作执行方法
 const executeApprove = async () => {
   if (!flowInstance.value) return
+  
+  // 校验逻辑：根据当前节点，判断意见字段是否必填
+  const pendingStep = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
+  const stepName = pendingStep ? (pendingStep.name || '').trim() : ''
+  
   mutating.value = true
+  try {
+    // 获取最新的验收和支付申请详情数据
+    const [acceptanceData, paymentRequestData] = await Promise.all([
+      $fetch<any>(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}/acceptance`
+      ).catch(() => null),
+      $fetch<any>(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}/payment-requests`
+      ).catch(() => null)
+    ])
+
+    if (stepName === '开始' || stepName === '施工单位') {
+      if (!paymentRequestData?.reqContractorOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '支付申请理由陈述在开始节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.contractorPayAmt || Number(paymentRequestData.contractorPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在开始节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    } else if (stepName === '施工监理总监') {
+      if (!acceptanceData?.supervisionOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '施工监理意见在施工监理总监节点为必填，请先填写并保存月度验工中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.reqSupervisionOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '施工监理意见在施工监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.supervisionPayAmt || Number(paymentRequestData.supervisionPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在施工监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    } else if (stepName === '现场指挥') {
+      if (!acceptanceData?.headquartersOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '现场指挥部意见在现场指挥节点为必填，请先填写并保存月度验工中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.reqHeadquartersOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '现场指挥部意见在现场指挥节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.headquartersPayAmt || Number(paymentRequestData.headquartersPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在现场指挥节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    } else if (stepName === '投资监理总监') {
+      if (!acceptanceData?.investmentOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '投资监理意见在投资监理总监节点为必填，请先填写并保存月度验工中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.reqInvestmentOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '投资监理意见在投资监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.investmentPayAmt || Number(paymentRequestData.investmentPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在投资监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    } else if (stepName === '合约管理部负责人') {
+      if (!acceptanceData?.ownerOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '合约部管理意见在合约管理部负责人节点为必填，请先填写并保存月度验工中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.reqContractOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '合约管理部意见在合约管理部负责人节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.contractPayAmt || Number(paymentRequestData.contractPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在合约管理部负责人节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    } else if (stepName === '分管领导') {
+      if (!paymentRequestData?.reqLeaderOpinion?.trim()) {
+        triggerNotification({
+          title: '校验失败',
+          description: '分管领导意见在分管领导节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+      if (!paymentRequestData?.leaderPayAmt || Number(paymentRequestData.leaderPayAmt) <= 0) {
+        triggerNotification({
+          title: '校验失败',
+          description: '本次申请支付金额在分管领导节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          type: ToastNotificationType.Danger
+        })
+        mutating.value = false
+        return
+      }
+    }
+  } catch (err) {
+    console.error('获取意见详情数据校验失败', err)
+  }
+
+  // 校验通过，开始执行突变
   try {
     await apollo.mutate({
       mutation: approveFlowMutation,
@@ -601,6 +774,14 @@ const executeApprove = async () => {
 
 const executeReject = async () => {
   if (!flowInstance.value) return
+  if (!reviewComment.value.trim()) {
+    triggerNotification({
+      title: '操作失败',
+      description: '驳回意见不能为空',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
   mutating.value = true
   try {
     await apollo.mutate({
@@ -608,7 +789,7 @@ const executeReject = async () => {
       variables: {
         input: {
           instanceId: flowInstance.value.id,
-          comment: reviewComment.value.trim() || '',
+          comment: reviewComment.value.trim(),
           // 若未指定退回步骤，默认传 0 退回到起点（发起人）
           rollbackToStep:
             selectedRollbackStep.value !== null ? Number(selectedRollbackStep.value) : 0
@@ -701,6 +882,7 @@ const getStatusColor = (status: string | null | undefined) => {
     PENDING: 'bg-primary-muted text-primary',
     APPROVED: 'bg-success-lighter text-success-darker',
     REJECTED: 'bg-danger-lighter text-danger-darker',
+    RETURNED: 'bg-warning-lighter text-warning-darker',
     CANCELED: 'bg-highlight-3 text-foreground-2'
   }
   return map[(status || '').toUpperCase()] || 'bg-foundation-3 text-foreground-2'
@@ -711,6 +893,7 @@ const formatFlowStatusLabel = (status?: string | null) => {
     PENDING: '审批中',
     APPROVED: '已通过',
     REJECTED: '已驳回',
+    RETURNED: '已退回',
     CANCELED: '已取消',
     CANCELLED: '已取消'
   }

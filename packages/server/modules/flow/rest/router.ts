@@ -23,7 +23,8 @@ import {
 import {
   createApprovalFlowDefinitionWithStepsFactory
 } from '@/modules/flow/services/approvalFlows'
-import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
+import { BadRequestError, UnauthorizedError, ForbiddenError } from '@/modules/shared/errors'
+import { Roles } from '@speckle/shared'
 import { normalizeCategory, ApprovalFlowCategory } from '@/modules/flow/helpers/category'
 
 const bindingIdParamsSchema = z.object({
@@ -103,6 +104,13 @@ const requireAuthenticatedUser = (req: Request) => {
   }
 
   return req.context.userId
+}
+
+const requireServerAdmin = (req: Request) => {
+  requireAuthenticatedUser(req)
+  if (req.context.role !== Roles.Server.Admin) {
+    throw new ForbiddenError('Only server:admin is allowed to access this resource')
+  }
 }
 
 export const flowRouterFactory = (): Router => {
@@ -340,7 +348,7 @@ export const flowRouterFactory = (): Router => {
   app.get(
     '/api/projects/:projectId/approval-definitions',
     async (req, res) => {
-      requireAuthenticatedUser(req)
+      requireServerAdmin(req)
       const { projectId } = req.params
 
       const definitions = await db('approval_flow_definitions')
@@ -399,7 +407,8 @@ export const flowRouterFactory = (): Router => {
   app.post(
     '/api/projects/:projectId/approval-definitions',
     async (req, res) => {
-      const actorUserId = requireAuthenticatedUser(req)
+      requireServerAdmin(req)
+      const actorUserId = req.context.userId!
       const { projectId } = req.params
       const body = req.body
 
@@ -466,7 +475,7 @@ export const flowRouterFactory = (): Router => {
   app.get(
     '/api/approval-categories',
     async (req, res) => {
-      requireAuthenticatedUser(req)
+      requireServerAdmin(req)
       const list = Object.values(ApprovalFlowCategory).map(c => ({
         id: c.id,
         name: c.name
@@ -540,7 +549,7 @@ export const flowRouterFactory = (): Router => {
   app.post(
     '/api/projects/:projectId/approval-definitions/:id/toggle-active',
     async (req, res) => {
-      requireAuthenticatedUser(req)
+      requireServerAdmin(req)
       const { id } = req.params
       const { isActive } = req.body
 
@@ -557,7 +566,7 @@ export const flowRouterFactory = (): Router => {
   app.delete(
     '/api/projects/:projectId/approval-definitions/:id',
     async (req, res) => {
-      requireAuthenticatedUser(req)
+      requireServerAdmin(req)
       const { id } = req.params
       
       await db('approval_flow_definition_steps').where('definitionId', id).del()

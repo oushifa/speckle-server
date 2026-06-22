@@ -123,6 +123,8 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
     : []
 
   let contractorPayAmtSum = 0
+  let supervisionPayAmtSum = 0
+  let headquartersPayAmtSum = 0
   let investmentPayAmtSum = 0
   let contractPayAmtSum = 0
   let leaderPayAmtSum = 0
@@ -131,14 +133,20 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
     if (!item.isSummaryRow) {
       const price = Number(item.price || 0)
       const contractorQty = Number(item.contractorQty || 0)
+      const supervisionQty = Number(item.supervisionQty || 0)
+      const headquartersQty = Number(item.headquartersQty || 0)
       const investmentQty = Number(item.investmentQty || 0)
       
       const contractorAmt = contractorQty * price
+      const supervisionAmt = supervisionQty * price
+      const headquartersAmt = headquartersQty * price
       const investmentAmt = investmentQty * price
       const contractAmt = investmentAmt
       const leaderAmt = investmentAmt
 
       contractorPayAmtSum += contractorAmt
+      supervisionPayAmtSum += supervisionAmt
+      headquartersPayAmtSum += headquartersAmt
       investmentPayAmtSum += investmentAmt
       contractPayAmtSum += contractAmt
       leaderPayAmtSum += leaderAmt
@@ -159,11 +167,18 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
 
   const round2 = (num: number) => Math.round(num * 100) / 100
 
+  // 默认优先引用中间支付单的应支付进度款(万元)，并折算为元
+  const progressInYuan = paymentDetails?.interimPayProgress
+    ? round2(Number(paymentDetails.interimPayProgress) * 10000)
+    : 0
+
   return {
-    contractorPayAmt: round2(contractorPayAmtSum),
-    investmentPayAmt: round2(investmentPayAmtSum),
-    contractPayAmt: round2(contractPayAmtSum),
-    leaderPayAmt: round2(leaderPayAmtSum)
+    contractorPayAmt: progressInYuan || round2(contractorPayAmtSum),
+    supervisionPayAmt: progressInYuan || round2(supervisionPayAmtSum),
+    headquartersPayAmt: progressInYuan || round2(headquartersPayAmtSum),
+    investmentPayAmt: progressInYuan || round2(investmentPayAmtSum),
+    contractPayAmt: progressInYuan || round2(contractPayAmtSum),
+    leaderPayAmt: progressInYuan || round2(leaderPayAmtSum)
   }
 }
 
@@ -556,7 +571,14 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (requiredRole === 'leader' && isStep(['分管领导'])) return true
       if (
         requiredRole === 'owner' &&
-        isStep(['合约管理部负责人', '分管领导', '计划合同部', '合约部', '合约管理部'])
+        isStep([
+          '合约管理部经办人',
+          '合约管理部负责人',
+          '计划合同部',
+          '合约部',
+          '合约管理部',
+          '分管领导'
+        ])
       )
         return true
 
@@ -1033,9 +1055,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const safetyItems = await projectDb('safety_measure_items')
             .where('safetyMeasureId', currentSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractDeptQty')
+            .select('boqItemId', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
           for (const s of safetyItems) {
-            safetyMap.set(s.boqItemId, Number(s.contractDeptQty || 0))
+            const qty = Number(s.contractDeptQty) || Number(s.engineeringQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
+            safetyMap.set(s.boqItemId, qty)
           }
         }
 
@@ -1334,9 +1357,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const safetyItems = await trx('safety_measure_items')
             .where('safetyMeasureId', targetSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractDeptQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+            .select('boqItemId', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
           for (const s of safetyItems) {
-            const qty = Number(s.contractDeptQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
+            const qty = Number(s.contractDeptQty) || Number(s.engineeringQty) || Number(s.headquartersQty) || Number(s.supervisionQty) || Number(s.contractorQty) || 0
             safetyMap.set(s.boqItemId, qty)
           }
         }
@@ -1736,12 +1759,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
 
+      const getFinalAmt = (detailsVal: any, defaultVal: number) => {
+        if (detailsVal === null || detailsVal === undefined || Number(detailsVal) === 0) {
+          return defaultVal
+        }
+        return Number(detailsVal)
+      }
+
       return res.status(200).json(
         details
           ? {
               ...details,
               requestAttachments,
-              ...calculatedAmts
+              contractorPayAmt: getFinalAmt(details.contractorPayAmt, calculatedAmts.contractorPayAmt),
+              supervisionPayAmt: getFinalAmt(details.supervisionPayAmt, calculatedAmts.supervisionPayAmt),
+              headquartersPayAmt: getFinalAmt(details.headquartersPayAmt, calculatedAmts.headquartersPayAmt),
+              investmentPayAmt: getFinalAmt(details.investmentPayAmt, calculatedAmts.investmentPayAmt),
+              contractPayAmt: getFinalAmt(details.contractPayAmt, calculatedAmts.contractPayAmt),
+              leaderPayAmt: getFinalAmt(details.leaderPayAmt, calculatedAmts.leaderPayAmt),
+              contractAmount,
+              lastCumulativePayment
             }
           : {
               measurementId: id,
@@ -1749,8 +1786,6 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               lastCumulativePayment,
               contractAmount,
               ...calculatedAmts,
-              supervisionPayAmt: 0,
-              headquartersPayAmt: 0,
               reqContractorOpinion: '',
               reqContractorAuditor: '',
               reqSupervisionOpinion: '',
@@ -1768,7 +1803,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     }
   )
  
-  app.patch(
+    app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/payment-requests',
     authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
@@ -1798,6 +1833,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const changedRoles = new Set<'contractor' | 'supervision' | 'headquarters' | 'investment' | 'contract' | 'leader'>()
       for (const role of roles) {
         const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
+        const payAmtKey = `${role}PayAmt`
  
         let hasChange = false
         if (opinionKey in body) {
@@ -1808,14 +1844,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           }
         }
  
-        if (role === 'supervision' || role === 'headquarters') {
-          const payAmtKey = `${role}PayAmt`
-          if (payAmtKey in body) {
-            const bodyAmt = Number(body[payAmtKey] || 0)
-            const dbAmt = Number((existing as any)?.[payAmtKey] || 0)
-            if (bodyAmt !== dbAmt) {
-              hasChange = true
-            }
+        if (payAmtKey in body) {
+          const bodyAmt = Number(body[payAmtKey] || 0)
+          const dbAmt = Number((existing as any)?.[payAmtKey] || 0)
+          if (bodyAmt !== dbAmt) {
+            hasChange = true
           }
         }
  
@@ -1846,30 +1879,22 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         for (const role of changedRoles) {
           const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
           const dateKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Date`
+          const payAmtKey = `${role}PayAmt`
  
           if (opinionKey in body) fieldsToSave[opinionKey] = body[opinionKey]
           fieldsToSave[dateKey] = new Date()
  
-          if (role === 'supervision' || role === 'headquarters') {
-            const payAmtKey = `${role}PayAmt`
-            if (payAmtKey in body) {
-              fieldsToSave[payAmtKey] = Number(body[payAmtKey] || 0)
-            }
+          if (payAmtKey in body) {
+            fieldsToSave[payAmtKey] = Number(body[payAmtKey] || 0)
           }
         }
       }
- 
-      const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
-      fieldsToSave.contractorPayAmt = calculatedAmts.contractorPayAmt
-      fieldsToSave.investmentPayAmt = calculatedAmts.investmentPayAmt
-      fieldsToSave.contractPayAmt = calculatedAmts.contractPayAmt
-      fieldsToSave.leaderPayAmt = calculatedAmts.leaderPayAmt
  
       const updated = await upsertMonthlyPaymentRequestsFactory({ db: projectDb })(
         id,
         fieldsToSave
       )
-
+ 
       let requestAttachments: Array<{ blobId: string; name: string }> = []
       if (updated && Array.isArray(updated.requestAttachments) && updated.requestAttachments.length > 0) {
         const blobIds = updated.requestAttachments
@@ -1882,13 +1907,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           return { blobId: bid, name: b ? b.fileName : bid }
         })
       }
+ 
+      const latestAmts = await calculatePaymentRequestAmounts(projectDb, id)
+      const getFinalAmt = (detailsVal: any, defaultVal: number) => {
+        if (detailsVal === null || detailsVal === undefined || Number(detailsVal) === 0) {
+          return defaultVal
+        }
+        return Number(detailsVal)
+      }
 
       return res.status(200).json(
         updated
           ? {
               ...updated,
               requestAttachments,
-              ...calculatedAmts
+              contractorPayAmt: getFinalAmt(updated.contractorPayAmt, latestAmts.contractorPayAmt),
+              supervisionPayAmt: getFinalAmt(updated.supervisionPayAmt, latestAmts.supervisionPayAmt),
+              headquartersPayAmt: getFinalAmt(updated.headquartersPayAmt, latestAmts.headquartersPayAmt),
+              investmentPayAmt: getFinalAmt(updated.investmentPayAmt, latestAmts.investmentPayAmt),
+              contractPayAmt: getFinalAmt(updated.contractPayAmt, latestAmts.contractPayAmt),
+              leaderPayAmt: getFinalAmt(updated.leaderPayAmt, latestAmts.leaderPayAmt)
             }
           : null
       )
@@ -2194,7 +2232,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       for (const item of currentItems) {
-        if (!item.boqParentId) {
+        if (!item.boqParentId || !itemMap.has(item.boqParentId)) {
           calculateAmounts(item.boqItemId)
         }
       }
@@ -2532,6 +2570,28 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const hasMore = items.length > limit
       const trimmed = hasMore ? items.slice(0, limit) : items
 
+      const allMeasures = await projectDb('safety_measures')
+        .where('project_id', projectId)
+        .select('id', 'baseDate', 'approveStatus', 'code')
+
+      const measureTotalAmountMap = new Map<string, number>()
+      for (const m of allMeasures) {
+        measureTotalAmountMap.set(m.id, 0)
+      }
+
+      if (allMeasures.length > 0) {
+        const allItems = await projectDb('safety_measure_items')
+          .whereIn('safetyMeasureId', allMeasures.map((m) => m.id))
+          .andWhere('isSummaryRow', false)
+          .select('safetyMeasureId', 'contractDeptAmount', 'engineeringAmount', 'headquartersAmount', 'supervisionAmount', 'contractorAmount')
+
+        for (const it of allItems) {
+          const amt = Number(it.contractDeptAmount) || Number(it.engineeringAmount) || Number(it.headquartersAmount) || Number(it.supervisionAmount) || Number(it.contractorAmount) || 0
+          const currentSum = measureTotalAmountMap.get(it.safetyMeasureId) || 0
+          measureTotalAmountMap.set(it.safetyMeasureId, currentSum + amt)
+        }
+      }
+
       // 计算本单本期金额以及累计金额
       const itemsWithDetails = await Promise.all(
         trimmed.map(async (item) => {
@@ -2546,24 +2606,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             }
           }
 
-          // 本期金额：统计非汇总行 contractDeptAmount 的总和
-          const [{ total }] = await projectDb('safety_measure_items')
-            .where('safetyMeasureId', item.id)
-            .andWhere('isSummaryRow', false)
-            .select(projectDb.raw('SUM(COALESCE("contractDeptAmount", 0)) as total'))
-          const totalAmount = Number(total || 0)
+          // 本期金额：直接从 Map 中读取
+          const totalAmount = measureTotalAmountMap.get(item.id) || 0
 
-          // 累计金额：统计本项目所有已审批通过的单据金额之和
-          const [{ cumulative }] = await projectDb('safety_measure_items')
-            .whereIn('safetyMeasureId', function () {
-              this.select('id')
-                .from('safety_measures')
-                .where('project_id', projectId)
-                .andWhere('approveStatus', 'APPROVED')
-            })
-            .andWhere('isSummaryRow', false)
-            .select(projectDb.raw('SUM(COALESCE("contractDeptAmount", 0)) as total'))
-          const cumulativeAmount = Number(cumulative || 0)
+          // 累计金额：统计所有满足条件的已审批通过单据金额之和
+          let cumulativeAmount = 0
+          for (const m of allMeasures) {
+            const isApproved = (m.approveStatus === 'APPROVED' || m.id === item.id) && (
+              Number(m.baseDate) < Number(item.baseDate) ||
+              (Number(m.baseDate) === Number(item.baseDate) && m.code <= item.code)
+            )
+            if (isApproved) {
+              cumulativeAmount += measureTotalAmountMap.get(m.id) || 0
+            }
+          }
 
           // 获取当前步骤负责人
           let currentStepApprovers: string[] = []
@@ -2732,11 +2788,16 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       // 获取历史已审批通过的单据以计算本年和累计数据
       const measureYear = dayjs(Number(measure.baseDate)).format('YYYY')
 
-      // 除了本期外，所有 APPROVED 单据
+      // 过滤出本期之前已审批通过的单据（除了本期自己），防止未来单据污染历史累计
       const approvedMeasures = await projectDb('safety_measures')
         .where('project_id', projectId)
         .andWhere('approveStatus', 'APPROVED')
         .andWhereNot('id', id)
+        .andWhere(function () {
+          this.where('baseDate', '<', measure.baseDate).orWhere(function () {
+            this.where('baseDate', '=', measure.baseDate).andWhere('code', '<', measure.code)
+          })
+        })
         .select('id', 'baseDate')
 
       const approvedMeasureIds = approvedMeasures.map((m) => m.id)
@@ -2750,12 +2811,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const histories = await projectDb('safety_measure_items')
           .whereIn('safetyMeasureId', approvedMeasureIds)
           .andWhere('isSummaryRow', false)
-          .select('boqItemId')
-          .sum('contractDeptQty as qty')
-          .sum('contractDeptAmount as amt')
-          .groupBy('boqItemId')
+          .select('boqItemId', 'price', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
         histories.forEach((h: any) => {
-          lastCumulativeMap.set(h.boqItemId, { qty: Number(h.qty || 0), amt: Number(h.amt || 0) })
+          const qty = Number(h.contractDeptQty) || Number(h.engineeringQty) || Number(h.headquartersQty) || Number(h.supervisionQty) || Number(h.contractorQty) || 0
+          const price = Number(h.price || 0)
+          const amt = preciseMul(qty, price)
+
+          const existing = lastCumulativeMap.get(h.boqItemId) || { qty: 0, amt: 0 }
+          lastCumulativeMap.set(h.boqItemId, {
+            qty: preciseAdd(existing.qty, qty),
+            amt: preciseAdd(existing.amt, amt)
+          })
         })
       }
 
@@ -2765,12 +2831,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const histories = await projectDb('safety_measure_items')
           .whereIn('safetyMeasureId', yearlyApprovedIds)
           .andWhere('isSummaryRow', false)
-          .select('boqItemId')
-          .sum('contractDeptQty as qty')
-          .sum('contractDeptAmount as amt')
-          .groupBy('boqItemId')
+          .select('boqItemId', 'price', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
         histories.forEach((h: any) => {
-          yearlyCumulativeMap.set(h.boqItemId, { qty: Number(h.qty || 0), amt: Number(h.amt || 0) })
+          const qty = Number(h.contractDeptQty) || Number(h.engineeringQty) || Number(h.headquartersQty) || Number(h.supervisionQty) || Number(h.contractorQty) || 0
+          const price = Number(h.price || 0)
+          const amt = preciseMul(qty, price)
+
+          const existing = yearlyCumulativeMap.get(h.boqItemId) || { qty: 0, amt: 0 }
+          yearlyCumulativeMap.set(h.boqItemId, {
+            qty: preciseAdd(existing.qty, qty),
+            amt: preciseAdd(existing.amt, amt)
+          })
         })
       }
 
@@ -2800,14 +2871,14 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           lastCumulativeQty = history.qty
           lastCumulativeAmount = history.amt
 
-          const contractDeptQty = Number(item.contractDeptQty || 0)
-          cumulativeQty = preciseAdd(lastCumulativeQty, contractDeptQty)
-          cumulativeAmount = preciseAdd(lastCumulativeAmount, preciseMul(contractDeptQty, price))
+          const currentQty = Number(item.contractDeptQty) || Number(item.engineeringQty) || Number(item.headquartersQty) || Number(item.supervisionQty) || Number(item.contractorQty) || 0
+          cumulativeQty = preciseAdd(lastCumulativeQty, currentQty)
+          cumulativeAmount = preciseAdd(lastCumulativeAmount, preciseMul(currentQty, price))
 
           yearlyCumulativeQty = yearlyHist.qty
           yearlyCumulativeAmount = yearlyHist.amt
-          yearlyQty = preciseAdd(yearlyCumulativeQty, contractDeptQty)
-          yearlyAmount = preciseAdd(yearlyCumulativeAmount, preciseMul(contractDeptQty, price))
+          yearlyQty = preciseAdd(yearlyCumulativeQty, currentQty)
+          yearlyAmount = preciseAdd(yearlyCumulativeAmount, preciseMul(currentQty, price))
 
           const contractAmount = Number(item.contractAmount || 0)
           cumulativeRate = contractAmount > 0 ? (cumulativeAmount / contractAmount) * 100 : 0

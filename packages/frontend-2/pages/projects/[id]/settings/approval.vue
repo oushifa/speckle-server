@@ -427,6 +427,10 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { Portal } from 'portal-vue'
+
+definePageMeta({
+  middleware: ['admin']
+})
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import dayjs from 'dayjs'

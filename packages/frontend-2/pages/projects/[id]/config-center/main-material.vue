@@ -212,6 +212,10 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Portal } from 'portal-vue'
+
+definePageMeta({
+  middleware: ['admin']
+})
 import {
   MagnifyingGlassIcon,
   PlusIcon,

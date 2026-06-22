@@ -351,7 +351,9 @@ const syncBindingStatusFromInstance = async (params: {
   if (!binding) throw new NotFoundError('Approval binding not found')
 
   const nextStatus =
-    instance.status === ApprovalFlowInstanceStatus.Returned
+    instance.status === ApprovalFlowInstanceStatus.Returned ||
+    (instance.status === ApprovalFlowInstanceStatus.Pending &&
+      instance.currentStep === START_STEP_INDEX)
       ? 'RETURNED'
       : instance.status === ApprovalFlowInstanceStatus.Approved
       ? 'APPROVED'
