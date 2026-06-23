@@ -4,6 +4,7 @@ import sanitizeHtml from 'sanitize-html'
 import type { ResolvedTargetData } from '@/modules/serverinvites/helpers/core'
 import { resolveTarget, buildUserTarget } from '@/modules/serverinvites/helpers/core'
 import type { UserWithOptionalRole } from '@/modules/core/repositories/users'
+import { ProjectInviteResourceType } from '@/modules/serverinvites/domain/constants'
 import type {
   FindInvite,
   FindUserByTarget,
@@ -166,7 +167,10 @@ export const createAndSendInviteFactory =
     )
 
     const autoAccept = finalPrimaryResource.autoAccept
-    if (autoAccept && targetUser?.id) {
+    const autoAcceptExistingProjectUser =
+      finalPrimaryResource.resourceType === ProjectInviteResourceType && !!targetUser?.id
+
+    if ((autoAccept || autoAcceptExistingProjectUser) && targetUser?.id) {
       await finalizeInvite({
         finalizerUserId: targetUser.id,
         finalizerResourceAccessLimits: inviterResourceAccessLimits,

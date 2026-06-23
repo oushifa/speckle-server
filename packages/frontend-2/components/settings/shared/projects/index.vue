@@ -73,7 +73,7 @@
 
       <template #contributors="{ item }">
         <div v-if="isProject(item)">
-          <UserAvatarGroup :users="item.team.map((t) => t.user)" :max-count="3" />
+          <UserAvatarGroup :users="mergedProjectMemberUsers(item)" :max-count="3" />
         </div>
       </template>
 
@@ -102,6 +102,51 @@
       :project="projectToModify"
     />
 
+    <LayoutDialog
+      v-if="projectToEditMembers"
+      v-model:open="showEditMembersDialog"
+      max-width="md"
+      :buttons="editMembersDialogButtons"
+    >
+      <template #header>编辑项目成员</template>
+      <div class="grid gap-4">
+        <div>
+          <p class="text-body-xs text-foreground font-medium">
+            {{ projectToEditMembers.name }}
+          </p>
+          <p class="text-body-2xs text-foreground-2 mt-1">
+            选择用户后会直接授予该项目权限，无需对方接受邀请。
+          </p>
+        </div>
+
+        <div class="grid gap-2">
+          <div class="text-body-2xs text-foreground-2">
+            当前成员 {{ currentProjectMemberUsers.length }} 人
+          </div>
+          <UserAvatarGroup :users="currentProjectMemberUsers" :max-count="8" />
+        </div>
+
+        <FormSelectUsers
+          v-model="selectedUsersToAdd"
+          :users="availableUsersToAdd"
+          multiple
+          search
+          label="选择用户"
+          show-label
+          selector-placeholder="请选择用户"
+          search-placeholder="搜索用户"
+          :disabled="loadingUsers || addingProjectMembers"
+        />
+
+        <p
+          v-if="!loadingUsers && !availableUsersToAdd.length"
+          class="text-body-2xs text-foreground-2"
+        >
+          没有可添加的用户。
+        </p>
+      </div>
+    </LayoutDialog>
+
     <ProjectsAdd
       v-model:open="openNewProject"
       :workspace="workspace"
@@ -113,9 +158,11 @@
 <script setup lang="ts">
 import { HorizontalDirection } from '~~/lib/common/composables/window'
 import type {
+  FormUsersSelectItemFragment,
   SettingsSharedProjects_ProjectFragment,
   ProjectsDeleteDialog_ProjectFragment,
-  SettingsSharedProjects_WorkspaceFragment
+  SettingsSharedProjects_WorkspaceFragment,
+  AdminPanelUsersListQuery
 } from '~~/lib/common/generated/gql/graphql'
 import {
   MagnifyingGlassIcon,
@@ -123,13 +170,21 @@ import {
   XMarkIcon
 } from '@heroicons/vue/24/outline'
 import { isProject } from '~~/lib/server-management/helpers/utils'
-import { useDebouncedTextInput, type LayoutMenuItem } from '@speckle/ui-components'
+import {
+  useDebouncedTextInput,
+  type LayoutMenuItem,
+  type LayoutDialogButton
+} from '@speckle/ui-components'
 import { graphql } from '~/lib/common/generated/gql'
 import { useRouter } from 'vue-router'
 import { projectRoute, useNavigateToProject } from '~/lib/common/helpers/route'
 import { useCanCreatePersonalProject } from '~/lib/projects/composables/permissions'
+import { useInviteUserToProject } from '~~/lib/projects/composables/projectManagement'
 import { useCanCreateWorkspaceProject } from '~/lib/workspaces/composables/projects/permissions'
-import type { MaybeNullOrUndefined } from '@speckle/shared'
+import { getUsersQuery } from '~~/lib/server-management/graphql/queries'
+import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useQuery } from '@vue/apollo-composable'
+import { type MaybeNullOrUndefined, Roles } from '@speckle/shared'
 
 graphql(`
   fragment SettingsSharedProjects_Project on Project {
@@ -183,6 +238,7 @@ const props = defineProps<{
 const { formattedFullDate, formattedDateOnly } = useDateFormatters()
 const navigateToProject = useNavigateToProject()
 const { activeUser } = useActiveUser()
+const { triggerNotification } = useGlobalToast()
 const canCreatePersonal = useCanCreatePersonalProject({
   activeUser: computed(() => activeUser.value)
 })
@@ -210,14 +266,47 @@ const search = defineModel<string>('search')
 const { on, bind } = useDebouncedTextInput({ model: search })
 const router = useRouter()
 const menuId = useId()
+const inviteUsersToProject = useInviteUserToProject()
 
 const projectToModify = ref<ProjectsDeleteDialog_ProjectFragment | null>(null)
 const showProjectDeleteDialog = ref(false)
 const openNewProject = ref(false)
+const showEditMembersDialog = ref(false)
+const projectToEditMembers = ref<SettingsSharedProjects_ProjectFragment | null>(null)
+const selectedUsersToAdd = ref<FormUsersSelectItemFragment[]>([])
+const addingProjectMembers = ref(false)
+const addedProjectMembers = ref<Record<string, FormUsersSelectItemFragment[]>>({})
+
+const { result: usersResult, loading: loadingUsers } = useQuery(
+  getUsersQuery,
+  () => ({
+    limit: 500,
+    cursor: null,
+    query: null
+  }),
+  () => ({
+    enabled: showEditMembersDialog.value
+  })
+)
+
+const allUsers = computed((): FormUsersSelectItemFragment[] => {
+  const items = usersResult.value?.admin.userList.items || []
+  return items.map((user: AdminPanelUsersListQuery['admin']['userList']['items'][number]) => ({
+    id: user.id,
+    name: user.name,
+    avatar: user.avatar
+  }))
+})
 
 const openProjectDeleteDialog = (item: ProjectsDeleteDialog_ProjectFragment) => {
   projectToModify.value = item
   showProjectDeleteDialog.value = true
+}
+
+const openEditMembersDialog = (project: SettingsSharedProjects_ProjectFragment) => {
+  projectToEditMembers.value = project
+  selectedUsersToAdd.value = []
+  showEditMembersDialog.value = true
 }
 
 const handleProjectClick = (id: string) => {
@@ -229,6 +318,98 @@ enum ActionTypes {
   EditMembers = 'edit-members',
   DeleteProject = 'delete-project'
 }
+
+const mergedProjectMemberUsers = (
+  project: SettingsSharedProjects_ProjectFragment
+): FormUsersSelectItemFragment[] => {
+  const existingUsers = project.team.map((member) => member.user)
+  const optimisticUsers = addedProjectMembers.value[project.id] || []
+
+  return [...existingUsers, ...optimisticUsers].reduce<FormUsersSelectItemFragment[]>(
+    (acc, user) => {
+      if (!acc.some((item) => item.id === user.id)) acc.push(user)
+      return acc
+    },
+    []
+  )
+}
+
+const currentProjectMemberUsers = computed(() => {
+  if (!projectToEditMembers.value) return []
+  return mergedProjectMemberUsers(projectToEditMembers.value)
+})
+
+const availableUsersToAdd = computed(() => {
+  const existingIds = new Set(currentProjectMemberUsers.value.map((user) => user.id))
+  return allUsers.value.filter((user) => !existingIds.has(user.id))
+})
+
+const addMembersToProject = async () => {
+  if (!projectToEditMembers.value || !selectedUsersToAdd.value.length) {
+    showEditMembersDialog.value = false
+    return
+  }
+
+  addingProjectMembers.value = true
+
+  try {
+    await inviteUsersToProject(
+      projectToEditMembers.value.id,
+      selectedUsersToAdd.value.map((user) => ({
+        userId: user.id,
+        role: Roles.Stream.Reviewer
+      })),
+      { hideToasts: true }
+    )
+
+    addedProjectMembers.value = {
+      ...addedProjectMembers.value,
+      [projectToEditMembers.value.id]: [
+        ...(addedProjectMembers.value[projectToEditMembers.value.id] || []),
+        ...selectedUsersToAdd.value
+      ].reduce<FormUsersSelectItemFragment[]>((acc, user) => {
+        if (!acc.some((item) => item.id === user.id)) acc.push(user)
+        return acc
+      }, [])
+    }
+
+    triggerNotification({
+      type: ToastNotificationType.Success,
+      title:
+        selectedUsersToAdd.value.length === 1
+          ? '项目成员已添加'
+          : `已添加 ${selectedUsersToAdd.value.length} 个项目成员`
+    })
+
+    showEditMembersDialog.value = false
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '添加项目成员失败',
+      description: error instanceof Error ? error.message : undefined
+    })
+  } finally {
+    addingProjectMembers.value = false
+  }
+}
+
+const editMembersDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      showEditMembersDialog.value = false
+    }
+  },
+  {
+    text: '添加成员',
+    props: { color: 'primary' },
+    disabled: !selectedUsersToAdd.value.length || addingProjectMembers.value,
+    onClick: () => {
+      void addMembersToProject()
+    }
+  }
+])
 
 const showActionsMenu = ref<Record<string, boolean>>({})
 
@@ -269,7 +450,7 @@ const onActionChosen = (
   project: ProjectsDeleteDialog_ProjectFragment
 ) => {
   if (actionItem.id === ActionTypes.EditMembers) {
-    router.push(projectRoute(project.id, 'collaborators'))
+    openEditMembersDialog(project as SettingsSharedProjects_ProjectFragment)
   } else if (actionItem.id === ActionTypes.ViewProject) {
     handleProjectClick(project.id)
   } else if (actionItem.id === ActionTypes.DeleteProject) {
@@ -284,4 +465,11 @@ const toggleMenu = (itemId: string) => {
 const onProjectCreated = (project: { id: string }) => {
   navigateToProject({ id: project.id })
 }
+
+watch(showEditMembersDialog, (isOpen) => {
+  if (!isOpen) {
+    projectToEditMembers.value = null
+    selectedUsersToAdd.value = []
+  }
+})
 </script>

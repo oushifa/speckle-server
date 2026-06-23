@@ -962,8 +962,10 @@ const getCurrentFlowStepName = (instance: any) => {
 
 const formatDate = (date?: string | number | null) => {
   if (!date) return '-'
-  return dayjs(Number(date)).isValid()
-    ? dayjs(Number(date)).format('YYYY-MM-DD HH:mm:ss')
+  const num = Number(date)
+  const parsed = Number.isNaN(num) ? date : num
+  return dayjs(parsed).isValid()
+    ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss')
     : '-'
 }
 

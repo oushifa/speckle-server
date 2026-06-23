@@ -115,12 +115,26 @@ export const projectRoute = (
     | 'acc'
     | 'dashboards'
 ) => {
-  let res = `/projects/${id}`
-  if (tab && tab !== 'models') {
-    res += `/${tab}`
-  }
+  const baseRoute = `/projects/${id}`
 
-  return res
+  if (!tab || tab === 'models') return baseRoute
+
+  switch (tab) {
+    case 'discussions':
+      return `${baseRoute}/workbench/discussions`
+    case 'automations':
+      return `${baseRoute}/workbench/automations`
+    case 'collaborators':
+      return `${baseRoute}/workbench/collaborators`
+    case 'dashboards':
+      return `${baseRoute}/workbench/dashboards`
+    case 'settings':
+      return `${baseRoute}/settings`
+    case 'acc':
+      return `${baseRoute}/acc`
+    default:
+      return baseRoute
+  }
 }
 export const projectAutomationRoute = (projectId: string, automationId: string) => {
   return `${projectRoute(projectId, 'automations')}/${automationId}`

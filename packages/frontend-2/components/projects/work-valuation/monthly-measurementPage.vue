@@ -1820,8 +1820,12 @@ const formatDate = (value: number) => {
   return dayjs(value).format('YYYY-MM-DD')
 }
 
-const formatDateTime = (value?: string | null) => {
+const formatDateTime = (value?: string | number | null) => {
   if (!value) return '-'
-  return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+  const num = Number(value)
+  const parsed = Number.isNaN(num) ? value : num
+  return dayjs(parsed).isValid()
+    ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss')
+    : '-'
 }
 </script>

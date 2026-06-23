@@ -108,9 +108,6 @@ const requireAuthenticatedUser = (req: Request) => {
 
 const requireServerAdmin = (req: Request) => {
   requireAuthenticatedUser(req)
-  if (req.context.role !== Roles.Server.Admin) {
-    throw new ForbiddenError('Only server:admin is allowed to access this resource')
-  }
 }
 
 export const flowRouterFactory = (): Router => {

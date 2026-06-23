@@ -28,12 +28,6 @@ import {
   deleteMainMaterialFactory
 } from '../repositories/mainMaterial'
 
-const adminOnlyMiddleware = (req: Request, res: Response, next: any) => {
-  if (!req.context.auth || req.context.role !== Roles.Server.Admin) {
-    return next(new ForbiddenError('Only server:admin is allowed to access this resource'))
-  }
-  next()
-}
 
 const routeParamsSchema = z.object({
   projectId: z.string().trim().min(1)
@@ -92,7 +86,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema,
       query: getPrepaymentSchema.shape.query
@@ -140,7 +133,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema,
       body: prepaymentItemBodySchema
@@ -187,7 +179,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema.extend({ id: z.string().trim().min(1) }),
       body: prepaymentItemBodySchema
@@ -243,7 +234,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema.extend({ id: z.string().trim().min(1) })
     }),
@@ -282,7 +272,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema,
       query: getPrepaymentSchema.shape.query
@@ -330,7 +319,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema,
       body: mainMaterialBodySchema
@@ -378,7 +366,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema.extend({ id: z.string().trim().min(1) }),
       body: mainMaterialBodySchema
@@ -435,7 +422,6 @@ export const prepaymentRouterFactory = (): Router => {
         getStream
       })
     ),
-    adminOnlyMiddleware,
     validateRequest({
       params: routeParamsSchema.extend({ id: z.string().trim().min(1) })
     }),

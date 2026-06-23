@@ -19,59 +19,43 @@
       </div>
     </div>
     <div v-if="expanded" class="grid gap-3">
-      <FormTextInput
-        name="search"
-        color="foundation"
-        full-width
-        show-clear
-        :custom-icon="MagnifyingGlassIcon"
-        placeholder="Search members..."
-        v-bind="bind"
-        v-on="on"
-      />
       <div>
         <CommonLoadingIcon v-if="loading" class="mx-auto my-4" />
         <div v-else-if="members.length === 0">
           <p class="text-body-xs text-foreground-2">
-            {{
-              !!search
-                ? 'No members found'
-                : 'All workspace members are already part of this project'
-            }}
+            All workspace members are already part of this project
           </p>
         </div>
-        <div v-else class="grid gap-1">
-          <div
-            v-for="member in membersToShow"
-            :key="member.user.id"
-            class="flex justify-between items-center gap-2"
-          >
-            <div class="flex gap-2 items-center">
-              <UserAvatar :user="member.user" />
-              <p class="truncate text-body-xs">
-                {{ member.user.name }}
-              </p>
-            </div>
+        <div v-else class="grid gap-3">
+          <FormSelectUsers
+            v-model="selectedUsers"
+            :users="selectableUsers"
+            multiple
+            search
+            label="Add workspace members"
+            show-label
+            selector-placeholder="Select workspace members"
+            search-placeholder="Search members..."
+            :disabled="!canEdit || submitting"
+          />
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-body-2xs text-foreground-2">
+              {{
+                selectedUsers.length
+                  ? `Selected ${selectedUsers.length} workspace member${selectedUsers.length > 1 ? 's' : ''}`
+                  : 'Select one or more workspace members to add them to the project'
+              }}
+            </p>
             <FormButton
               v-if="canEdit"
               color="outline"
               size="sm"
-              @click="
-                onAddClick(member.user.id, member.user.workspaceRole, member.user.name)
-              "
+              :disabled="!selectedUsers.length || submitting"
+              @click="onAddClick"
             >
               Add to project
             </FormButton>
           </div>
-          <FormButton
-            v-if="showLoadAllButton"
-            color="subtle"
-            size="sm"
-            full-width
-            @click="showAllMembers = true"
-          >
-            Show all ({{ members.length }})
-          </FormButton>
         </div>
       </div>
     </div>
@@ -84,11 +68,10 @@ import {
   accessSelectItems
 } from '~~/lib/projects/helpers/components'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
-import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { useDebouncedTextInput } from '@speckle/ui-components'
 import { graphql } from '~~/lib/common/generated/gql'
 import { useQuery } from '@vue/apollo-composable'
 import { type MaybeNullOrUndefined, Roles } from '@speckle/shared'
+import type { FormUsersSelectItemFragment } from '~~/lib/common/generated/gql/graphql'
 import { useInviteUserToProject } from '~~/lib/projects/composables/projectManagement'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { SupportedProjectVisibility } from '~~/lib/projects/helpers/visibility'
@@ -125,17 +108,14 @@ const props = defineProps<{
 const { triggerNotification } = useGlobalToast()
 const createInvite = useInviteUserToProject()
 const route = useRoute()
-const search = ref('')
-const { on, bind } = useDebouncedTextInput({ model: search })
 const projectId = computed(() => route.params.id as string)
 const expanded = ref(false)
+const submitting = ref(false)
+const selectedUsers = ref<FormUsersSelectItemFragment[]>([])
 const { result, loading, refetch } = useQuery(
   invitableCollaboratorsQuery,
   () => ({
     projectId: projectId.value,
-    filter: {
-      search: search.value
-    },
     limit: 500,
     workspaceId: props.workspaceId
   }),
@@ -159,44 +139,65 @@ const members = computed(() => {
   )
 })
 
-const membersToShow = computed(() => {
-  return showAllMembers.value || !!search.value
-    ? members.value
-    : members.value.slice(0, 15)
+const selectableUsers = computed((): FormUsersSelectItemFragment[] => {
+  return members.value.map((member) => ({
+    id: member.user.id,
+    name: member.user.name,
+    avatar: null
+  }))
 })
 
-const showLoadAllButton = computed(() => {
-  return !showAllMembers.value && members.value.length > 15 && !search.value
+const membersByUserId = computed(() => {
+  return members.value.reduce(
+    (acc, member) => {
+      acc[member.user.id] = member
+      return acc
+    },
+    {} as Record<string, (typeof members.value)[number]>
+  )
 })
 
 const toggleExpanded = () => {
   expanded.value = !expanded.value
 }
 
-const onAddClick = async (
-  userId: string,
-  workspaceRole: MaybeNullOrUndefined<string>,
-  userName: string
-) => {
-  await createInvite(
-    projectId.value,
-    [
-      {
-        role: Roles.Stream.Reviewer,
-        userId,
-        workspaceRole
-      }
-    ],
-    {
+const onAddClick = async () => {
+  if (!selectedUsers.value.length) return
+
+  const inputs = selectedUsers.value.map((user) => ({
+    role: Roles.Stream.Reviewer,
+    userId: user.id,
+    workspaceRole: membersByUserId.value[user.id]?.user.workspaceRole as
+      | MaybeNullOrUndefined<string>
+      | undefined
+  }))
+
+  submitting.value = true
+
+  try {
+    await createInvite(projectId.value, inputs, {
       hideToasts: true
-    }
-  )
+    })
 
-  triggerNotification({
-    type: ToastNotificationType.Success,
-    title: `${userName} added as a project member`
-  })
+    triggerNotification({
+      type: ToastNotificationType.Success,
+      title:
+        selectedUsers.value.length === 1
+          ? `${selectedUsers.value[0].name} added as a project member`
+          : `${selectedUsers.value.length} users added as project members`
+    })
 
-  refetch()
+    selectedUsers.value = []
+    showAllMembers.value = false
+    await refetch()
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: 'Failed to add project members',
+      description: error instanceof Error ? error.message : undefined
+    })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
