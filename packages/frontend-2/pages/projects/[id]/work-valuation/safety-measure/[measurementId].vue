@@ -1351,7 +1351,7 @@
           <div
             class="flex justify-between items-center text-xs px-1 pt-4 font-semibold"
           >
-            <div>工程名称：{{ contractName }}</div>
+            <div>工程名称：{{ projectName }}</div>
             <div>编号：{{ measureCode || '-' }}</div>
           </div>
 
@@ -1381,7 +1381,7 @@
                   <div class="flex w-full justify-end items-start text-xs pt-8">
                     <div class="flex flex-col justify-end h-12 gap-2">
                       <div>施工单位：{{ unit || '-' }}</div>
-                      <div>项目经理：{{ creatorName }}</div>
+                      <div>项目经理：{{ contractorReviewApproverDisplay }}</div>
                       <div>
                         日期：{{
                           flowInitiatorDate !== '-'
@@ -1444,7 +1444,7 @@
         <div v-if="printType === 'detail'" class="space-y-6">
           <div class="text-center space-y-2 relative">
             <h1 class="text-2xl font-bold tracking-wider">
-              {{ contractName }}安全防护、文明施工措施费用使用明细单
+              {{ projectName }}安全防护、文明施工措施费用使用明细单
             </h1>
             <div
               class="flex justify-between items-center text-xs px-1 pt-4 font-semibold"
@@ -1718,6 +1718,9 @@ const contractName = computed(() => {
   const contract = projectResult.value?.project?.contractName
   if (contract && contract.trim().length) return contract
   return projectResult.value?.project?.name || '项目合同'
+})
+const projectName = computed(() => {
+  return projectResult.value?.project?.name || contractName.value
 })
 const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
@@ -2861,6 +2864,10 @@ const supervisionReviewApproverDisplay = computed(() => {
     details.value.supervisionApproveAuditor ||
     ''
   )
+})
+
+const contractorReviewApproverDisplay = computed(() => {
+  return getFlowStepApproverDisplay(['施工单位审核人']) || creatorName.value || ''
 })
 
 const isPrinting = ref(false)
