@@ -1629,7 +1629,7 @@ watch(
 
 @media print {
   @page {
-    size: A4 portrait;
+    size: A4;
     margin: 12mm;
   }
 
