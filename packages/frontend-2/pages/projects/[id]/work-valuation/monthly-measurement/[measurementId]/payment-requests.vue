@@ -1052,9 +1052,11 @@ const coverProjectName = computed(
   () => coverProjectResult.value?.project?.name || '项目'
 )
 const coverContractName = computed(() => {
+  const bidSection = coverProjectResult.value?.project?.bidSection
+  if (bidSection && bidSection.trim().length) return bidSection
   const contract = coverProjectResult.value?.project?.contractName
   if (contract && contract.trim().length) return contract
-  return '合同'
+  return '标段'
 })
 const projectContractCode = computed(() => {
   const code = coverProjectResult.value?.project?.contractCode
@@ -1627,7 +1629,7 @@ watch(
 
 @media print {
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 12mm;
   }
 

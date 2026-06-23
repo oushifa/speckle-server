@@ -1476,7 +1476,7 @@ const projectContractCode = computed(() => {
   return '-'
 })
 const projectContractor = computed(() => {
-  return projectResult.value?.project?.contractor || item.value?.unit || ''
+  return projectResult.value?.project?.contractor || props.item?.unit || ''
 })
 
 const totalSums = computed(() => {
@@ -2359,7 +2359,7 @@ onUnmounted(() => {
 
 /* 打印页面及页边距设置，以及页脚生成 */
 @page {
-  size: A4 landscape; /* 横向打印 */
+  size: A4 portrait; /* 横向打印 */
   margin: 15mm 15mm 20mm 15mm; /* 给底部页脚留出足够的外边距 */
 }
 

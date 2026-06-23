@@ -297,7 +297,7 @@
             >
               {{
                 formatMoney(
-                  Number(row.item.leaderPayAmt || 0)
+                  getExtraCumulativePay(row.item)
                 )
               }}
             </td>
@@ -648,7 +648,7 @@
                   <td class="print-td text-center font-mono">-</td>
                   <td class="print-td text-center font-mono">-</td>
                   <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativePay(row.item)) }}</td>
                 </tr>
               </template>
 
@@ -856,6 +856,13 @@ const chapterRowCount = computed(() => aggregatedItems.value.length)
 const chapterSumIndex = computed(() => chapterRowCount.value + 1)
 const chapterSums = computed(() => sumPaymentRows(aggregatedItems.value))
 
+const getExtraCumulativePay = (item: any) => {
+  const lastCumulativePay = Number(
+    item?.lastCumulativePay ?? item?.lastCumulativePayment ?? item?.historyPay ?? 0
+  )
+  return preciseAdd(lastCumulativePay, Number(item?.leaderPayAmt || 0))
+}
+
 const totalSums = computed(() => {
   const sums = { ...chapterSums.value }
   for (const extra of extraPayItems.value) {
@@ -863,7 +870,7 @@ const totalSums = computed(() => {
     sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(extra.investmentPayAmt || 0))
     sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(extra.contractPayAmt || 0))
     sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(extra.leaderPayAmt || 0))
-    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, Number(extra.leaderPayAmt || 0))
+    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, getExtraCumulativePay(extra))
   }
 
   return sums
@@ -1271,7 +1278,7 @@ watch(
 <style scoped>
 @media print {
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 10mm;
   }
 
