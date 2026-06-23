@@ -685,15 +685,11 @@
           <div class="print-title">工程费用支付申请表</div>
           <div class="print-subtitle">{{ printPeriod }}</div>
 
-          <table class="print-table print-meta-table">
-            <tr>
-              <td class="print-cell print-meta-left">
-                费用申请单位名称：{{ applicantUnitName }}
-              </td>
-              <td class="print-cell print-meta-center">标段名称：{{ tenderName }}</td>
-              <td class="print-cell print-meta-right">单位：元</td>
-            </tr>
-          </table>
+          <div class="flex justify-between items-center py-3 text-xs">
+            <span>费用申请单位名称：{{ applicantUnitName }}</span>
+            <span>标段名称：{{ tenderName }}</span>
+            <span>单位：元</span>
+          </div>
 
           <table class="print-table print-info-table">
             <tr>
@@ -928,11 +924,37 @@ const openAttachmentsDialog = () => {
   attachmentsDialogOpen.value = true
 }
 
+const PRINT_PAGE_STYLE_ID = 'monthly-measurement-print-page-style'
+
+const applyPrintPageStyle = () => {
+  if (typeof document === 'undefined') return
+
+  let styleEl = document.getElementById(PRINT_PAGE_STYLE_ID) as HTMLStyleElement | null
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = PRINT_PAGE_STYLE_ID
+    document.head.appendChild(styleEl)
+  }
+
+  styleEl.textContent = `
+    @page {
+      size: A4 landscape;
+      margin: 12mm;
+    }
+  `
+}
+
+const clearPrintPageStyle = () => {
+  if (typeof document === 'undefined') return
+  document.getElementById(PRINT_PAGE_STYLE_ID)?.remove()
+}
+
 const isPrinting = ref(false)
 const printType = ref<'cover' | 'payment' | null>(null)
 
 const triggerPrint = async (type: 'cover' | 'payment') => {
   printType.value = type
+  applyPrintPageStyle()
   isPrinting.value = true
   document.body.classList.add('is-printing')
   await nextTick()
@@ -943,6 +965,7 @@ const handleAfterPrint = () => {
   isPrinting.value = false
   printType.value = null
   document.body.classList.remove('is-printing')
+  clearPrintPageStyle()
 }
 
 onMounted(() => {
@@ -951,6 +974,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
+  clearPrintPageStyle()
 })
 
 const currentStepName = computed(() => {
@@ -1628,11 +1652,6 @@ watch(
 }
 
 @media print {
-  @page {
-    size: A4;
-    margin: 12mm;
-  }
-
   :global(html),
   :global(body) {
     height: auto !important;

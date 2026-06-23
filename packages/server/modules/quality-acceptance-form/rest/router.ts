@@ -212,6 +212,22 @@ const getLeaderPayAmtSum = async (projectDb: any, measurementId: string): Promis
   return sum
 }
 
+const getEffectiveExtraPayAmt = (item: {
+  leaderPayAmt?: number | null
+  contractPayAmt?: number | null
+  investmentPayAmt?: number | null
+  contractorPayAmt?: number | null
+}) => {
+  const candidates = [
+    Number(item.leaderPayAmt || 0),
+    Number(item.contractPayAmt || 0),
+    Number(item.investmentPayAmt || 0),
+    Number(item.contractorPayAmt || 0)
+  ]
+  const firstNonZero = candidates.find((value) => value !== 0)
+  return firstNonZero ?? 0
+}
+
 export const qualityAcceptanceRouterFactory = (): Router => {
   const app = Router()
   const getStream = getStreamFactory({ db })
@@ -1564,6 +1580,30 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const { projectId, id } = req.params
       const projectDb = await getProjectDbClient({ projectId })
       const details = await getMonthlyPaymentDetailsFactory({ db: projectDb })(id)
+      const approvedExtraPayDetails = await projectDb('monthly_payment_details')
+        .join(
+          'monthly_measurements',
+          'monthly_payment_details.measurementId',
+          'monthly_measurements.id'
+        )
+        .where('monthly_measurements.project_id', projectId)
+        .andWhere('monthly_measurements.approveStatus', 'APPROVED')
+        .andWhere('monthly_measurements.id', '!=', id)
+        .select('monthly_payment_details.extraPayItems')
+
+      const extraPayHistoryMap = new Map<string, number>()
+      for (const record of approvedExtraPayDetails) {
+        const items = Array.isArray(record.extraPayItems) ? record.extraPayItems : []
+        for (const item of items) {
+          const itemId = item?.prepaymentItemId ?? item?.id
+          if (typeof itemId !== 'string' || !itemId.trim().length) continue
+          const historyPay = getEffectiveExtraPayAmt(item)
+          extraPayHistoryMap.set(
+            itemId,
+            preciseAdd(extraPayHistoryMap.get(itemId) || 0, historyPay)
+          )
+        }
+      }
 
       let paymentAttachments: Array<{ blobId: string; name: string }> = []
       if (details && Array.isArray(details.paymentAttachments) && details.paymentAttachments.length > 0) {
@@ -1584,7 +1624,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               ...details,
               paymentAttachments,
               extraPayItems: Array.isArray(details.extraPayItems)
-                ? details.extraPayItems
+                ? details.extraPayItems.map((item: any) => {
+                    const historyPay = extraPayHistoryMap.get(item.prepaymentItemId) || 0
+                    const currentPay = getEffectiveExtraPayAmt(item)
+                    const cumulativeAmount = preciseAdd(
+                      historyPay,
+                      currentPay
+                    )
+                    return {
+                      ...item,
+                      historyPay,
+                      lastCumulativePay: historyPay,
+                      cumulativeAmount
+                    }
+                  })
                 : []
             }
           : {
@@ -4289,4 +4342,3 @@ const getPropertyValue = (raw: any, aliases: string[]): string | null => {
 
   return null
 }
-

@@ -135,12 +135,7 @@
               <td
                 class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
               >
-                {{
-                  formatMoney(
-                    Number(row.lastCumulativePay || 0) +
-                      Number(getDerivedPay(row).leaderPayAmt || 0)
-                  )
-                }}
+                {{ formatMoney(row.cumulativeAmount) }}
               </td>
             </tr>
 
@@ -254,7 +249,7 @@
             <td
               class="px-2 py-2 border-r border-outline-3 text-center text-foreground-2 font-mono"
             >
-              -
+              {{ formatMoney(getExtraCumulativeAmount(row.item)) }}
             </td>
             <td class="px-2 py-1 border-r border-outline-3 w-28">
               <input
@@ -295,11 +290,7 @@
             <td
               class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
             >
-              {{
-                formatMoney(
-                  getExtraCumulativePay(row.item)
-                )
-              }}
+              {{ formatMoney(getExtraCumulativeAmount(row.item)) }}
             </td>
           </tr>
 
@@ -605,14 +596,7 @@
                   <td class="print-td text-right font-mono">{{ formatMoney(row.investmentAmount) }}</td>
                   <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
                   <td class="print-td text-right font-mono">{{ formatMoney(getDerivedPay(row).leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-mono">
-                    {{
-                      formatMoney(
-                        Number(row.lastCumulativePay || 0) +
-                          Number(getDerivedPay(row).leaderPayAmt || 0)
-                      )
-                    }}
-                  </td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
                 </tr>
                 <!-- 小计 -->
                 <tr class="print-tr print-subtotal-row">
@@ -646,9 +630,9 @@
                   <td class="print-td text-left truncate-cell">{{ row.item.name || '-' }}</td>
                   <td class="print-td text-center font-mono">-</td>
                   <td class="print-td text-center font-mono">-</td>
-                  <td class="print-td text-center font-mono">-</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativeAmount(row.item)) }}</td>
                   <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativePay(row.item)) }}</td>
+                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativeAmount(row.item)) }}</td>
                 </tr>
               </template>
 
@@ -805,10 +789,7 @@ const sumPaymentRows = (rows: any[]) => {
     sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(pay.investmentPayAmt || 0))
     sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(pay.contractPayAmt || 0))
     sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(pay.leaderPayAmt || 0))
-    sums.cumulativePayAmt = preciseAdd(
-      sums.cumulativePayAmt,
-      preciseAdd(Number(row.lastCumulativePay || 0), Number(pay.leaderPayAmt || 0))
-    )
+    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, Number(row.cumulativeAmount || 0))
   })
   return sums
 }
@@ -856,21 +837,37 @@ const chapterRowCount = computed(() => aggregatedItems.value.length)
 const chapterSumIndex = computed(() => chapterRowCount.value + 1)
 const chapterSums = computed(() => sumPaymentRows(aggregatedItems.value))
 
-const getExtraCumulativePay = (item: any) => {
+const getEffectiveExtraPayAmount = (item: any) => {
+  const candidates = [
+    Number(item?.leaderPayAmt || 0),
+    Number(item?.contractPayAmt || 0),
+    Number(item?.investmentPayAmt || 0),
+    Number(item?.contractorPayAmt || 0)
+  ]
+  const firstNonZero = candidates.find((value) => value !== 0)
+  return firstNonZero ?? 0
+}
+
+const getExtraCumulativeAmount = (item: any) => {
+  if (item?.cumulativeAmount !== undefined && item?.cumulativeAmount !== null) {
+    return Number(item.cumulativeAmount || 0)
+  }
   const lastCumulativePay = Number(
     item?.lastCumulativePay ?? item?.lastCumulativePayment ?? item?.historyPay ?? 0
   )
-  return preciseAdd(lastCumulativePay, Number(item?.leaderPayAmt || 0))
+  return preciseAdd(lastCumulativePay, getEffectiveExtraPayAmount(item))
 }
 
 const totalSums = computed(() => {
   const sums = { ...chapterSums.value }
   for (const extra of extraPayItems.value) {
+    const extraCumulativeAmount = getExtraCumulativeAmount(extra)
+    sums.cumulativeAmount = preciseAdd(sums.cumulativeAmount, extraCumulativeAmount)
     sums.contractorPayAmt = preciseAdd(sums.contractorPayAmt, Number(extra.contractorPayAmt || 0))
     sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(extra.investmentPayAmt || 0))
     sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(extra.contractPayAmt || 0))
     sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(extra.leaderPayAmt || 0))
-    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, getExtraCumulativePay(extra))
+    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, extraCumulativeAmount)
   }
 
   return sums
@@ -905,8 +902,34 @@ const closeDetails = () => {
   navigateTo(`/projects/${props.projectId}/work-valuation/monthly-measurement`)
 }
 
+const PRINT_PAGE_STYLE_ID = 'monthly-measurement-print-page-style'
+
+const applyPrintPageStyle = () => {
+  if (typeof document === 'undefined') return
+
+  let styleEl = document.getElementById(PRINT_PAGE_STYLE_ID) as HTMLStyleElement | null
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = PRINT_PAGE_STYLE_ID
+    document.head.appendChild(styleEl)
+  }
+
+  styleEl.textContent = `
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+  `
+}
+
+const clearPrintPageStyle = () => {
+  if (typeof document === 'undefined') return
+  document.getElementById(PRINT_PAGE_STYLE_ID)?.remove()
+}
+
 const isPrinting = ref(false)
 const triggerPrint = async () => {
+  applyPrintPageStyle()
   isPrinting.value = true
   document.body.classList.add('is-printing')
   await nextTick()
@@ -916,6 +939,7 @@ const triggerPrint = async () => {
 const handleAfterPrint = () => {
   isPrinting.value = false
   document.body.classList.remove('is-printing')
+  clearPrintPageStyle()
 }
 
 onMounted(() => {
@@ -924,6 +948,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
+  clearPrintPageStyle()
 })
 
 const attachmentsDialogOpen = ref(false)
@@ -1277,11 +1302,6 @@ watch(
 
 <style scoped>
 @media print {
-  @page {
-    size: A4;
-    margin: 10mm;
-  }
-
   :global(html), :global(body) {
     height: auto !important;
     overflow: visible !important;
