@@ -123,15 +123,7 @@
         show-optional
         :rules="[isStringOfLength({ maxLength: 256 })]"
       />
-      <FormTextInput
-        name="projectGuid"
-        label="项目GUID"
-        placeholder="请输入项目GUID"
-        color="foundation"
-        show-label
-        show-optional
-        :rules="[isStringOfLength({ maxLength: 256 })]"
-      />
+
       <FormTextInput
         name="bidSection"
         label="标段"
@@ -164,6 +156,51 @@
         label="监理单位"
         show-label
         clearable
+      />
+      <FormTextInput
+        name="businessUnit"
+        label="预算系统事业部编码"
+        placeholder="请输入预算系统事业部编码"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="businessUnitName"
+        label="预算系统事业部名称"
+        placeholder="请输入预算系统事业部名称"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="companyId"
+        label="预算系统公司ID"
+        placeholder="请输入预算系统公司ID"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="companyName"
+        label="预算系统公司名称"
+        placeholder="请输入预算系统公司名称"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
+      />
+      <FormTextInput
+        name="projectPackageItemguid"
+        label="预算系统包件GUID"
+        placeholder="请输入预算系统包件GUID"
+        color="foundation"
+        show-label
+        show-optional
+        :rules="[isStringOfLength({ maxLength: 256 })]"
       />
       <!-- <div>
         <h3 class="label mb-2">访问权限</h3>
@@ -215,9 +252,13 @@ type FormValues = {
   contractor?: string
   constructionUnit?: string
   supervisionUnit?: string
-  projectGuid?: string
   bidSection?: string
   contractPrice?: string | number
+  businessUnit?: string
+  businessUnitName?: string
+  companyId?: string
+  companyName?: string
+  projectPackageItemguid?: string
 }
 
 const props = defineProps<{
@@ -286,12 +327,16 @@ const onSubmit = handleSubmit(async (values) => {
         const trimmedContractor = values.contractor?.trim() || ''
         const trimmedConstructionUnit = selectedConstructionUnit.value || ''
         const trimmedSupervisionUnit = selectedSupervisionUnit.value || ''
-        const trimmedProjectGuid = values.projectGuid?.trim() || ''
         const trimmedBidSection = values.bidSection?.trim() || ''
         const nextContractPrice = toNumberValue(values.contractPrice)
         const nextProgress = toNumberValue(values.progress)
         const nextStartDate = toTimestamp(values.start_date)
         const nextEndDate = toTimestamp(values.end_date)
+        const trimmedBusinessUnit = values.businessUnit?.trim() || ''
+        const trimmedBusinessUnitName = values.businessUnitName?.trim() || ''
+        const trimmedCompanyId = values.companyId?.trim() || ''
+        const trimmedCompanyName = values.companyName?.trim() || ''
+        const trimmedProjectPackageItemguid = values.projectPackageItemguid?.trim() || ''
 
         if (nextProgress !== '') {
           updatePayload.progress = nextProgress
@@ -323,9 +368,6 @@ const onSubmit = handleSubmit(async (values) => {
         if (trimmedContractor) {
           updatePayload.contractor = trimmedContractor
         }
-        if (trimmedProjectGuid) {
-          updatePayload.projectGuid = trimmedProjectGuid
-        }
         if (trimmedBidSection) {
           updatePayload.bidSection = trimmedBidSection
         }
@@ -337,6 +379,21 @@ const onSubmit = handleSubmit(async (values) => {
         }
         if (trimmedSupervisionUnit) {
           updatePayload.supervisionUnit = trimmedSupervisionUnit
+        }
+        if (trimmedBusinessUnit) {
+          updatePayload.businessUnit = trimmedBusinessUnit
+        }
+        if (trimmedBusinessUnitName) {
+          updatePayload.businessUnitName = trimmedBusinessUnitName
+        }
+        if (trimmedCompanyId) {
+          updatePayload.companyId = trimmedCompanyId
+        }
+        if (trimmedCompanyName) {
+          updatePayload.companyName = trimmedCompanyName
+        }
+        if (trimmedProjectPackageItemguid) {
+          updatePayload.projectPackageItemguid = trimmedProjectPackageItemguid
         }
 
         if (Object.keys(updatePayload).length) {

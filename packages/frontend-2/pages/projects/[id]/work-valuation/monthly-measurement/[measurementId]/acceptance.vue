@@ -17,7 +17,7 @@
           <div>
             承建单位（盖章）：
             <span class="font-medium text-foreground">
-              {{ item?.unit || '上海建工集团股份有限公司' }}
+              {{ projectContractor || '上海建工集团股份有限公司' }}
             </span>
           </div>
           <div class="flex items-center space-x-3">
@@ -213,7 +213,9 @@
               <td class="px-2 py-2.5 text-center" />
             </tr>
             <!-- 项目负责人、统计员等附加说明行 -->
-            <tr class="bg-foundation-2 text-foreground-2 text-center border-t border-outline-3">
+            <tr
+              class="bg-foundation-2 text-foreground-2 text-center border-t border-outline-3"
+            >
               <td colspan="12" class="px-2 py-2 text-left pl-3 font-semibold text-xs">
                 <div class="flex justify-between items-center w-full max-w-[800px]">
                   <span>项目负责人：施柳盛</span>
@@ -235,7 +237,12 @@
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
             <span class="text-xs font-semibold text-foreground-2">
-              <span v-if="currentStepName === '施工监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+              <span
+                v-if="currentStepName === '施工监理总监'"
+                class="text-red-500 mr-0.5 font-bold"
+              >
+                *
+              </span>
               施工监理意见
             </span>
             <textarea
@@ -265,7 +272,12 @@
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
             <span class="text-xs font-semibold text-foreground-2">
-              <span v-if="currentStepName === '现场指挥'" class="text-red-500 mr-0.5 font-bold">*</span>
+              <span
+                v-if="currentStepName === '现场指挥'"
+                class="text-red-500 mr-0.5 font-bold"
+              >
+                *
+              </span>
               现场指挥部意见
             </span>
             <textarea
@@ -295,7 +307,12 @@
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
             <span class="text-xs font-semibold text-foreground-2">
-              <span v-if="currentStepName === '投资监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+              <span
+                v-if="currentStepName === '投资监理总监'"
+                class="text-red-500 mr-0.5 font-bold"
+              >
+                *
+              </span>
               投资监理意见
             </span>
             <textarea
@@ -325,7 +342,12 @@
             class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
           >
             <span class="text-xs font-semibold text-foreground-2">
-              <span v-if="currentStepName === '合约管理部负责人'" class="text-red-500 mr-0.5 font-bold">*</span>
+              <span
+                v-if="currentStepName === '合约管理部负责人'"
+                class="text-red-500 mr-0.5 font-bold"
+              >
+                *
+              </span>
               合约部管理意见
             </span>
             <textarea
@@ -471,7 +493,13 @@
             <div class="flex gap-2 flex-shrink-0">
               <button
                 class="text-primary hover:underline font-medium"
-                @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
+                @click="
+                  downloadBlobWithAuth({
+                    blobId: attachment.blobId,
+                    fileName: attachment.name || attachment.blobId,
+                    projectId: props.projectId
+                  })
+                "
               >
                 下载
               </button>
@@ -538,7 +566,9 @@
       <template #header>安全文明措施关联</template>
       <div class="space-y-4">
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-foreground">选择已审核通过的安全文明措施费</label>
+          <label class="text-xs font-semibold text-foreground">
+            选择已审核通过的安全文明措施费
+          </label>
           <FormSelectBase
             v-model="selectedMeasureValue"
             :items="selectOptions"
@@ -549,18 +579,31 @@
             class="w-full text-xs"
           >
             <template #something-selected="{ value }">
-              <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
+              <span class="truncate text-foreground text-xs">
+                {{ (value as any)?.label || '不关联' }}
+              </span>
             </template>
             <template #option="{ item }">
-              <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
+              <span class="truncate text-xs">
+                {{ (item as any)?.label || '不关联' }}
+              </span>
             </template>
           </FormSelectBase>
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <FormButton color="outline" size="sm" @click="safetyMeasureDialogOpen = false">
+          <FormButton
+            color="outline"
+            size="sm"
+            @click="safetyMeasureDialogOpen = false"
+          >
             取消
           </FormButton>
-          <FormButton color="primary" size="sm" :loading="safetyMeasureSaving" @click="handleAssociateSafetyMeasure">
+          <FormButton
+            color="primary"
+            size="sm"
+            :loading="safetyMeasureSaving"
+            @click="handleAssociateSafetyMeasure"
+          >
             确认
           </FormButton>
         </div>
@@ -578,15 +621,16 @@
     />
 
     <!-- 打印明细章节选择弹窗 -->
-    <LayoutDialog
-      v-model:open="printDetailDialogOpen"
-      max-width="md"
-    >
+    <LayoutDialog v-model:open="printDetailDialogOpen" max-width="md">
       <template #header>选择打印明细章节</template>
       <div class="space-y-4 p-2 text-xs">
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-foreground">选择要打印的聚合章节（可多选）</label>
-          <div class="max-h-[220px] overflow-y-auto border border-outline-3 rounded p-2.5 space-y-2.5 bg-foundation">
+          <label class="text-xs font-semibold text-foreground">
+            选择要打印的聚合章节（可多选）
+          </label>
+          <div
+            class="max-h-[220px] overflow-y-auto border border-outline-3 rounded p-2.5 space-y-2.5 bg-foundation"
+          >
             <div
               v-for="item in aggregatedItems"
               :key="item.boqItemId"
@@ -599,7 +643,9 @@
                 class="rounded border-outline-3 text-primary focus:ring-primary h-3.5 w-3.5 pointer-events-none"
                 readOnly
               />
-              <span class="text-foreground text-xs font-medium">{{ item.boqCode }} {{ item.boqName }}</span>
+              <span class="text-foreground text-xs font-medium">
+                {{ item.boqCode }} {{ item.boqName }}
+              </span>
             </div>
           </div>
         </div>
@@ -607,7 +653,12 @@
           <FormButton color="outline" size="sm" @click="printDetailDialogOpen = false">
             取消
           </FormButton>
-          <FormButton color="primary" size="sm" :disabled="!selectedPrintGroupKeys.length" @click="executePrintDetail">
+          <FormButton
+            color="primary"
+            size="sm"
+            :disabled="!selectedPrintGroupKeys.length"
+            @click="executePrintDetail"
+          >
             确认打印
           </FormButton>
         </div>
@@ -615,313 +666,624 @@
     </LayoutDialog>
 
     <!-- 打印专属内容区域 (使用 Teleport 传送至 body 根节点，以彻底解决预览空白问题) -->
-    <Teleport to="body" v-if="isPrinting">
+    <Teleport v-if="isPrinting" to="body">
       <div id="print-section" class="text-black bg-white p-6 font-sans">
-      <!-- 1. 打印汇总表 -->
-      <div v-if="printType === 'summary'" class="space-y-6">
-        <div class="text-center space-y-2 relative">
-          <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 汇 总 表</h1>
-          <h2 class="text-sm font-medium">
-            {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;&nbsp;&nbsp;&nbsp;{{ item?.roundName ? '第' + item.roundName + '期' : '第1期' }}
-          </h2>
-          <div class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold">
-            <div>承包人(盖章)：{{ item?.unit || '上海公路桥梁（集团）有限公司' }}</div>
-            <div>合同编号：{{ projectContractCode }}</div>
-            <div>单位：元</div>
+        <!-- 1. 打印汇总表 -->
+        <div v-if="printType === 'summary'" class="space-y-6">
+          <div class="text-center space-y-2 relative">
+            <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 汇 总 表</h1>
+            <h2 class="text-sm font-medium">
+              {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                formatDateMonth(item?.baseDate)
+              }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                item?.roundName ? '第' + item.roundName + '期' : '第1期'
+              }}
+            </h2>
+            <div
+              class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold"
+            >
+              <div>
+                承包人(盖章)：{{ projectContractor || '上海公路桥梁（集团）有限公司' }}
+              </div>
+              <div>合同编号：{{ projectContractCode }}</div>
+              <div>单位：元</div>
+            </div>
           </div>
-        </div>
 
-        <table class="print-table w-full text-[11px] text-left border-collapse border border-black">
-          <thead>
-            <tr class="font-bold text-center border-b border-black">
-              <th rowspan="2" class="w-10 border-r border-black">序号</th>
-              <th rowspan="2" class="w-16 border-r border-black">清单章节</th>
-              <th rowspan="2" class="border-r border-black text-left pl-3 w-56">内容名称</th>
-              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">合同价</th>
-              <th colspan="4" class="border-b border-black border-r border-black text-center">本期完成工作量</th>
-              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">本年完成工作量</th>
-              <th rowspan="2" class="border-r border-black text-right pr-3 w-28">累计完成工作量</th>
-              <th rowspan="2" class="border-r border-black text-right pr-3 w-20">合同累计完成比例%</th>
-              <th rowspan="2" class="w-20">备注</th>
-            </tr>
-            <tr class="border-b border-black font-bold">
-              <th class="border-r border-black text-right pr-3 w-24">施工单位</th>
-              <th class="border-r border-black text-right pr-3 w-24">施工监理</th>
-              <th class="border-r border-black text-right pr-3 w-24">现场指挥部</th>
-              <th class="border-r border-black text-right pr-3 w-24">投资监理</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="group in acceptanceGroups" :key="group.groupKey">
-              <tr v-for="row in group.rows" :key="row.boqItemId" class="border-b border-black">
-                <td class="text-center border-r border-black">{{ row.displayIndex }}</td>
-                <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
-                <td class="text-left pl-3 border-r border-black">{{ row.boqName }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.contractorAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.supervisionAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.headquartersAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.investmentAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.yearlyAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(row.cumulativeAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ row.cumulativeRate }}%</td>
-                <td class="text-center">{{ row.remark || '-' }}</td>
+          <table
+            class="print-table w-full text-[11px] text-left border-collapse border border-black"
+          >
+            <thead>
+              <tr class="font-bold text-center border-b border-black">
+                <th rowspan="2" class="w-10 border-r border-black">序号</th>
+                <th rowspan="2" class="w-16 border-r border-black">清单章节</th>
+                <th rowspan="2" class="border-r border-black text-left pl-3 w-56">
+                  内容名称
+                </th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-28">
+                  合同价
+                </th>
+                <th
+                  colspan="4"
+                  class="border-b border-black border-r border-black text-center"
+                >
+                  本期完成工作量
+                </th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-28">
+                  本年完成工作量
+                </th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-28">
+                  累计完成工作量
+                </th>
+                <th rowspan="2" class="border-r border-black text-right pr-3 w-20">
+                  合同累计完成比例%
+                </th>
+                <th rowspan="2" class="w-20">备注</th>
               </tr>
-              <tr class="font-bold border-b border-black bg-gray-50">
+              <tr class="border-b border-black font-bold">
+                <th class="border-r border-black text-right pr-3 w-24">施工单位</th>
+                <th class="border-r border-black text-right pr-3 w-24">施工监理</th>
+                <th class="border-r border-black text-right pr-3 w-24">现场指挥部</th>
+                <th class="border-r border-black text-right pr-3 w-24">投资监理</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="group in acceptanceGroups" :key="group.groupKey">
+                <tr
+                  v-for="row in group.rows"
+                  :key="row.boqItemId"
+                  class="border-b border-black"
+                >
+                  <td class="text-center border-r border-black">
+                    {{ row.displayIndex }}
+                  </td>
+                  <td class="text-center font-mono border-r border-black">
+                    {{ row.boqCode }}
+                  </td>
+                  <td class="text-left pl-3 border-r border-black">
+                    {{ row.boqName }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.contractAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.contractorAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.supervisionAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.headquartersAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.investmentAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.yearlyAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(row.cumulativeAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ row.cumulativeRate }}%
+                  </td>
+                  <td class="text-center">{{ row.remark || '-' }}</td>
+                </tr>
+                <tr class="font-bold border-b border-black bg-gray-50">
+                  <td class="text-center border-r border-black"></td>
+                  <td class="text-center border-r border-black"></td>
+                  <td class="text-left pl-3 border-r border-black">
+                    {{ group.groupBoqName }} 小计
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.contractAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.contractorAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.supervisionAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.headquartersAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.investmentAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.yearlyAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ formatMoney(group.subtotal.cumulativeAmount) }}
+                  </td>
+                  <td class="text-right pr-3 font-mono border-r border-black">
+                    {{ group.subtotal.cumulativeRate }}%
+                  </td>
+                  <td class="text-center"></td>
+                </tr>
+              </template>
+              <tr class="font-bold border-b border-black bg-gray-100">
                 <td class="text-center border-r border-black"></td>
                 <td class="text-center border-r border-black"></td>
-                <td class="text-left pl-3 border-r border-black">{{ group.groupBoqName }} 小计</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.contractAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.contractorAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.supervisionAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.headquartersAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.investmentAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.yearlyAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(group.subtotal.cumulativeAmount) }}</td>
-                <td class="text-right pr-3 font-mono border-r border-black">{{ group.subtotal.cumulativeRate }}%</td>
+                <td class="text-left pl-3 border-r border-black">总价</td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.contractAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.contractorAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.supervisionAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.headquartersAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.investmentAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.yearlyAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ formatMoney(totalSums.cumulativeAmount) }}
+                </td>
+                <td class="text-right pr-3 font-mono border-r border-black">
+                  {{ totalSums.cumulativeRate }}%
+                </td>
                 <td class="text-center"></td>
               </tr>
-            </template>
-            <tr class="font-bold border-b border-black bg-gray-100">
-              <td class="text-center border-r border-black"></td>
-              <td class="text-center border-r border-black"></td>
-              <td class="text-left pl-3 border-r border-black">总价</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.contractorAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.supervisionAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.headquartersAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.investmentAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.yearlyAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ formatMoney(totalSums.cumulativeAmount) }}</td>
-              <td class="text-right pr-3 font-mono border-r border-black">{{ totalSums.cumulativeRate }}%</td>
-              <td class="text-center"></td>
-            </tr>
-            <!-- 新增一行项目负责人等附加说明 -->
-            <tr class="border-b border-black font-semibold bg-white text-black">
-              <td colspan="12" class="px-2 py-2.5 text-left pl-3 text-xs">
-                <div class="flex justify-between items-center w-full">
-                  <span>项目负责人：施柳盛</span>
-                  <span>统计员：{{ flowInitiatorName || '-' }}</span>
-                  <span>联系电话：13788903651</span>
-                  <span>填报日期：{{ flowInitiatorDate || '-' }}</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <!-- 新增一行项目负责人等附加说明 -->
+              <tr class="border-b border-black font-semibold bg-white text-black">
+                <td colspan="12" class="px-2 py-2.5 text-left pl-3 text-xs">
+                  <div class="flex justify-between items-center w-full">
+                    <span>项目负责人：施柳盛</span>
+                    <span>统计员：{{ flowInitiatorName || '-' }}</span>
+                    <span>联系电话：13788903651</span>
+                    <span>填报日期：{{ flowInitiatorDate || '-' }}</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-        <!-- 四方盖章意见 -->
-        <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">施工监理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.supervisionOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('施工监理经办人') || formatDate(acceptanceDetails.supervisionDate) }}</div>
+          <!-- 四方盖章意见 -->
+          <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">施工监理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.supervisionOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('施工监理经办人') ||
+                    formatDate(acceptanceDetails.supervisionDate)
+                  }}
+                </div>
+              </div>
+            </div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">现场指挥部意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.headquartersOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('现场指挥部经办人') ||
+                    formatDate(acceptanceDetails.headquartersDate)
+                  }}
+                </div>
+              </div>
+            </div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">投资监理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.investmentOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('投资监理经办人') ||
+                    formatDate(acceptanceDetails.investmentDate)
+                  }}
+                </div>
+              </div>
+            </div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">合约部管理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.ownerOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('合约管理部经办人') ||
+                    formatDate(acceptanceDetails.ownerDate)
+                  }}
+                </div>
+              </div>
             </div>
           </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">现场指挥部意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.headquartersOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('现场指挥部经办人') || formatDate(acceptanceDetails.headquartersDate) }}</div>
+        </div>
+
+        <!-- 2. 打印明细表 -->
+        <div v-if="printType === 'detail'" class="space-y-6">
+          <!-- 大标题和元数据，放在 table 外部，只在第一页显示一次 -->
+          <div
+            class="text-center pb-4 text-black"
+            style="padding-bottom: 16px; background-color: white"
+          >
+            <h1
+              class="text-2xl font-bold tracking-wider text-black"
+              style="margin-bottom: 8px; color: black !important"
+            >
+              验 工 计 价 月 报
+            </h1>
+            <h2
+              class="text-sm font-medium text-black"
+              style="margin-bottom: 12px; color: black !important"
+            >
+              {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                formatDateMonth(item?.baseDate)
+              }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                item?.roundName ? '第' + item.roundName + '期' : '第1期'
+              }}
+            </h2>
+            <div
+              class="border-b border-black pb-1.5 pt-2 text-xs font-semibold text-black"
+              style="display: table; width: 100%; border-bottom: 1px solid #000"
+            >
+              <div
+                style="
+                  display: table-cell;
+                  width: 40%;
+                  text-align: left;
+                  color: black;
+                "
+              >
+                承包人(盖章)：{{ projectContractor }}
+              </div>
+              <div
+                style="
+                  display: table-cell;
+                  width: 40%;
+                  text-align: center;
+                  color: black;
+                "
+              >
+                合同编号：{{ projectContractCode }}
+              </div>
+              <div
+                style="
+                  display: table-cell;
+                  width: 20%;
+                  text-align: right;
+                  color: black;
+                "
+              >
+                单位：元
+              </div>
             </div>
           </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">投资监理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.investmentOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('投资监理经办人') || formatDate(acceptanceDetails.investmentDate) }}</div>
+
+          <table
+            class="print-table w-full text-[10px] text-left border-collapse border border-black"
+          >
+            <thead>
+              <tr class="font-bold text-center border-b border-black">
+                <th rowspan="3" class="w-20 border-r border-black">清单编号</th>
+                <th rowspan="3" class="w-56 text-left pl-3 border-r border-black">
+                  项目名称
+                </th>
+                <th rowspan="3" class="w-10 border-r border-black">单位</th>
+                <th colspan="3" class="border-r border-black">合同量</th>
+                <th colspan="3" class="border-r border-black">复核量</th>
+                <th colspan="8" class="border-r border-black">本月完成数</th>
+                <th colspan="2" class="border-r border-black">本年完成工程量</th>
+                <th colspan="3" class="border-r border-black">累计完成数</th>
+                <th rowspan="3" class="w-20">备注</th>
+              </tr>
+              <tr class="font-bold border-b border-black">
+                <th rowspan="2" class="w-16 border-r border-black">单价</th>
+                <th rowspan="2" class="w-16 border-r border-black">数量</th>
+                <th rowspan="2" class="w-20 border-r border-black">合同价</th>
+                <th rowspan="2" class="w-16 border-r border-black">单价</th>
+                <th rowspan="2" class="w-16 border-r border-black">数量</th>
+                <th rowspan="2" class="w-20 border-r border-black">合价</th>
+                <th colspan="2" class="border-r border-black">施工单位</th>
+                <th colspan="2" class="border-r border-black">施工监理</th>
+                <th colspan="2" class="border-r border-black">现场指挥部</th>
+                <th colspan="2" class="border-r border-black">投资监理</th>
+                <th rowspan="2" class="w-16 border-r border-black">数量</th>
+                <th rowspan="2" class="w-20 border-r border-black">金额 (元)</th>
+                <th rowspan="2" class="w-16 border-r border-black">数量</th>
+                <th rowspan="2" class="w-20 border-r border-black">累计完成工作量</th>
+                <th rowspan="2" class="border-r border-black">合同累计完成比例%</th>
+              </tr>
+              <tr class="font-bold border-b border-black">
+                <th class="w-16 border-r border-black">数量</th>
+                <th class="w-20 border-r border-black">金额 (元)</th>
+                <th class="w-16 border-r border-black">数量</th>
+                <th class="w-20 border-r border-black">金额 (元)</th>
+                <th class="w-16 border-r border-black">数量</th>
+                <th class="w-20 border-r border-black">金额 (元)</th>
+                <th class="w-16 border-r border-black">数量</th>
+                <th class="w-20 border-r border-black">金额 (元)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in printDetailRows"
+                :key="row.boqItemId"
+                class="border-b border-black"
+                :class="{ 'font-medium bg-gray-50': row.isSummaryRow }"
+              >
+                <td class="text-center font-mono border-r border-black">
+                  {{ row.boqCode }}
+                </td>
+                <td class="text-left border-r border-black pl-1">
+                  <div
+                    :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }"
+                  >
+                    {{ row.boqName }}
+                  </div>
+                </td>
+                <td class="text-center border-r border-black">{{ row.uom || '-' }}</td>
+
+                <!-- 合同量 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.pendingTotalQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.contractAmount) }}
+                </td>
+
+                <!-- 复核量 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.pendingTotalQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.contractAmount) }}
+                </td>
+
+                <!-- 本月完成数 -->
+                <!-- 施工单位 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.contractorQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.contractorAmount) }}
+                </td>
+                <!-- 施工监理 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.supervisionQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.supervisionAmount) }}
+                </td>
+                <!-- 现场指挥部 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.headquartersQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.headquartersAmount) }}
+                </td>
+                <!-- 投资监理 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(row.investmentQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.investmentAmount) }}
+                </td>
+
+                <!-- 本年完成工程量 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{
+                    formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0))
+                  }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(row.yearlyAmount) }}
+                </td>
+
+                <!-- 累计完成数 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{
+                    formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0))
+                  }}
+                </td>
+                <td
+                  class="text-right font-mono border-r border-black text-success-darker"
+                >
+                  {{ formatMoney(row.cumulativeAmount) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ getCumulativeRate(row) }}%
+                </td>
+
+                <td class="text-center">{{ row.remark || '-' }}</td>
+              </tr>
+              <!-- 合计行 -->
+              <tr
+                v-if="printDetailRoot"
+                class="font-bold border-b border-black bg-gray-100"
+              >
+                <td class="text-center border-r border-black">合计</td>
+                <td class="text-left border-r border-black pl-3">
+                  {{ printDetailRoot.boqName }}
+                </td>
+                <td class="text-center border-r border-black">-</td>
+                <!-- 合同量 -->
+                <td class="text-right border-r border-black">-</td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.pendingTotalQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.contractAmount) }}
+                </td>
+                <!-- 复核量 -->
+                <td class="text-right border-r border-black">-</td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.pendingTotalQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.contractAmount) }}
+                </td>
+                <!-- 本月完成数 -->
+                <!-- 施工单位 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.contractorQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.contractorAmount) }}
+                </td>
+                <!-- 施工监理 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.supervisionQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.supervisionAmount) }}
+                </td>
+                <!-- 现场指挥部 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.headquartersQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.headquartersAmount) }}
+                </td>
+                <!-- 投资监理 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatQty(printDetailRoot.investmentQty) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.investmentAmount) }}
+                </td>
+                <!-- 本年完成工程量 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{
+                    formatQty(
+                      (printDetailRoot.yearlyCumulativeQty || 0) +
+                        (printDetailRoot.investmentQty || 0)
+                    )
+                  }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ formatMoney(printDetailRoot.yearlyAmount) }}
+                </td>
+                <!-- 累计完成数 -->
+                <td class="text-right font-mono border-r border-black">
+                  {{
+                    formatQty(
+                      (printDetailRoot.lastCumulativeQty || 0) +
+                        (printDetailRoot.investmentQty || 0)
+                    )
+                  }}
+                </td>
+                <td
+                  class="text-right font-mono border-r border-black text-success-darker"
+                >
+                  {{ formatMoney(printDetailRoot.cumulativeAmount) }}
+                </td>
+                <td class="text-right font-mono border-r border-black">
+                  {{ getCumulativeRate(printDetailRoot) }}%
+                </td>
+                <td class="text-center">-</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 四方盖章意见 -->
+          <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">施工监理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.supervisionOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('施工监理经办人') ||
+                    formatDate(acceptanceDetails.supervisionDate)
+                  }}
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">合约部管理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('合约管理部经办人') || formatDate(acceptanceDetails.ownerDate) }}</div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">现场指挥部意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.headquartersOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('现场指挥部经办人') ||
+                    formatDate(acceptanceDetails.headquartersDate)
+                  }}
+                </div>
+              </div>
+            </div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">投资监理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.investmentOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('投资监理经办人') ||
+                    formatDate(acceptanceDetails.investmentDate)
+                  }}
+                </div>
+              </div>
+            </div>
+            <div
+              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+            >
+              <div class="font-bold">合约部管理意见：</div>
+              <div class="italic flex-grow">
+                {{ acceptanceDetails.ownerOpinion || '' }}
+              </div>
+              <div class="text-[10px]">
+                <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+                <div>
+                  日&nbsp;&nbsp;期：{{
+                    getAcceptanceOperatorDate('合约管理部经办人') ||
+                    formatDate(acceptanceDetails.ownerDate)
+                  }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- 2. 打印明细表 -->
-      <div v-if="printType === 'detail'" class="space-y-6">
-        <div class="text-center space-y-2 relative">
-          <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 月 报</h1>
-          <h2 class="text-sm font-medium">
-            {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{ formatDateMonth(item?.baseDate) }}&nbsp;&nbsp;&nbsp;&nbsp;{{ item?.roundName ? '第' + item.roundName + '期' : '第1期' }}
-          </h2>
-          <div class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold">
-            <div>承包人(盖章)：{{ item?.unit || '上海公路桥梁（集团）有限公司' }}</div>
-            <div>合同编号：{{ projectContractCode }}</div>
-            <div>单位：元</div>
-          </div>
-        </div>
-
-        <table class="print-table w-full text-[10px] text-left border-collapse border border-black">
-          <thead>
-            <tr class="font-bold text-center border-b border-black">
-              <th rowspan="3" class="w-20 border-r border-black">清单编号</th>
-              <th rowspan="3" class="w-56 text-left pl-3 border-r border-black">项目名称</th>
-              <th rowspan="3" class="w-10 border-r border-black">单位</th>
-              <th colspan="3" class="border-r border-black">合同量</th>
-              <th colspan="3" class="border-r border-black">复核量</th>
-              <th colspan="8" class="border-r border-black">本月完成数</th>
-              <th colspan="2" class="border-r border-black">本年完成工程量</th>
-              <th colspan="3" class="border-r border-black">累计完成数</th>
-              <th rowspan="3" class="w-20">备注</th>
-            </tr>
-            <tr class="font-bold border-b border-black">
-              <th rowspan="2" class="w-16 border-r border-black">单价</th>
-              <th rowspan="2" class="w-16 border-r border-black">数量</th>
-              <th rowspan="2" class="w-20 border-r border-black">合同价</th>
-              <th rowspan="2" class="w-16 border-r border-black">单价</th>
-              <th rowspan="2" class="w-16 border-r border-black">数量</th>
-              <th rowspan="2" class="w-20 border-r border-black">合价</th>
-              <th colspan="2" class="border-r border-black">施工单位</th>
-              <th colspan="2" class="border-r border-black">施工监理</th>
-              <th colspan="2" class="border-r border-black">现场指挥部</th>
-              <th colspan="2" class="border-r border-black">投资监理</th>
-              <th rowspan="2" class="w-16 border-r border-black">数量</th>
-              <th rowspan="2" class="w-20 border-r border-black">金额 (元)</th>
-              <th rowspan="2" class="w-16 border-r border-black">数量</th>
-              <th rowspan="2" class="w-20 border-r border-black">累计完成工作量</th>
-              <th rowspan="2" class="border-r border-black">合同累计完成比例%</th>
-            </tr>
-            <tr class="font-bold border-b border-black">
-              <th class="w-16 border-r border-black">数量</th>
-              <th class="w-20 border-r border-black">金额 (元)</th>
-              <th class="w-16 border-r border-black">数量</th>
-              <th class="w-20 border-r border-black">金额 (元)</th>
-              <th class="w-16 border-r border-black">数量</th>
-              <th class="w-20 border-r border-black">金额 (元)</th>
-              <th class="w-16 border-r border-black">数量</th>
-              <th class="w-20 border-r border-black">金额 (元)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in printDetailRows" :key="row.boqItemId" class="border-b border-black" :class="{ 'font-medium bg-gray-50': row.isSummaryRow }">
-              <td class="text-center font-mono border-r border-black">{{ row.boqCode }}</td>
-              <td class="text-left border-r border-black pl-1">
-                <div :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }">
-                  {{ row.boqName }}
-                </div>
-              </td>
-              <td class="text-center border-r border-black">{{ row.uom || '-' }}</td>
-              
-              <!-- 合同量 -->
-              <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
-              
-              <!-- 复核量 -->
-              <td class="text-right font-mono border-r border-black">{{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractAmount) }}</td>
-              
-              <!-- 本月完成数 -->
-              <!-- 施工单位 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.contractorQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.contractorAmount) }}</td>
-              <!-- 施工监理 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.supervisionQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.supervisionAmount) }}</td>
-              <!-- 现场指挥部 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.headquartersQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.headquartersAmount) }}</td>
-              <!-- 投资监理 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(row.investmentQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.investmentAmount) }}</td>
-              
-              <!-- 本年完成工程量 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(row.yearlyAmount) }}</td>
-              
-              <!-- 累计完成数 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(row.cumulativeAmount) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(row) }}%</td>
-              
-              <td class="text-center">{{ row.remark || '-' }}</td>
-            </tr>
-            <!-- 合计行 -->
-            <tr v-if="printDetailRoot" class="font-bold border-b border-black bg-gray-100">
-              <td class="text-center border-r border-black">合计</td>
-              <td class="text-left border-r border-black pl-3">{{ printDetailRoot.boqName }}</td>
-              <td class="text-center border-r border-black">-</td>
-              <!-- 合同量 -->
-              <td class="text-right border-r border-black">-</td>
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractAmount) }}</td>
-              <!-- 复核量 -->
-              <td class="text-right border-r border-black">-</td>
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.pendingTotalQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractAmount) }}</td>
-              <!-- 本月完成数 -->
-              <!-- 施工单位 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.contractorQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.contractorAmount) }}</td>
-              <!-- 施工监理 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.supervisionQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.supervisionAmount) }}</td>
-              <!-- 现场指挥部 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.headquartersQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.headquartersAmount) }}</td>
-              <!-- 投资监理 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty(printDetailRoot.investmentQty) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.investmentAmount) }}</td>
-              <!-- 本年完成工程量 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.yearlyCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ formatMoney(printDetailRoot.yearlyAmount) }}</td>
-              <!-- 累计完成数 -->
-              <td class="text-right font-mono border-r border-black">{{ formatQty((printDetailRoot.lastCumulativeQty || 0) + (printDetailRoot.investmentQty || 0)) }}</td>
-              <td class="text-right font-mono border-r border-black text-success-darker">{{ formatMoney(printDetailRoot.cumulativeAmount) }}</td>
-              <td class="text-right font-mono border-r border-black">{{ getCumulativeRate(printDetailRoot) }}%</td>
-              <td class="text-center">-</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- 四方盖章意见 -->
-        <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">施工监理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.supervisionOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('施工监理经办人') || formatDate(acceptanceDetails.supervisionDate) }}</div>
-            </div>
-          </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">现场指挥部意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.headquartersOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('现场指挥部经办人') || formatDate(acceptanceDetails.headquartersDate) }}</div>
-            </div>
-          </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">投资监理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.investmentOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('投资监理经办人') || formatDate(acceptanceDetails.investmentDate) }}</div>
-            </div>
-          </div>
-          <div class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36">
-            <div class="font-bold">合约部管理意见：</div>
-            <div class="italic flex-grow">{{ acceptanceDetails.ownerOpinion || '' }}</div>
-            <div class="text-[10px]">
-              <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
-              <div>日&nbsp;&nbsp;期：{{ getAcceptanceOperatorDate('合约管理部经办人') || formatDate(acceptanceDetails.ownerDate) }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     </Teleport>
   </div>
 </template>
@@ -996,7 +1358,9 @@ const flowInitiatorName = computed(() => {
 })
 
 const flowInitiatorDate = computed(() => {
-  const startedAction = props.flowInstance?.actions?.find((a: any) => a.action === 'STARTED')
+  const startedAction = props.flowInstance?.actions?.find(
+    (a: any) => a.action === 'STARTED'
+  )
   const dateVal = startedAction?.createdAt || props.item?.createdAt
   if (!dateVal) return '-'
   const ts = Number(dateVal)
@@ -1093,6 +1457,7 @@ const { result: projectResult } = useQuery(
         name
         contractName
         contractCode
+        contractor
       }
     }
   `,
@@ -1109,6 +1474,9 @@ const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
   if (code && code.trim().length) return code
   return '-'
+})
+const projectContractor = computed(() => {
+  return projectResult.value?.project?.contractor || item.value?.unit || ''
 })
 
 const totalSums = computed(() => {
@@ -1606,7 +1974,9 @@ const selectedMeasureValue = computed({
     const id = selectedSafetyMeasureId.value
     if (!id) return { id: 'none', label: '不关联' }
     const found = availableSafetyMeasures.value.find((m) => m.id === id)
-    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+    return found
+      ? { id: found.id, label: formatMeasureLabel(found) }
+      : { id: 'none', label: '不关联' }
   },
   set: (val: any) => {
     selectedSafetyMeasureId.value = val?.id === 'none' ? null : val?.id
@@ -1653,10 +2023,12 @@ const handleAssociateSafetyMeasure = () => {
 
   if (nextId) {
     safetyMeasureConfirmDialogTitle.value = '确认关联安全文明措施费'
-    safetyMeasureConfirmDialogText.value = '关联安全文明措施费将覆盖本月度验工中对应的清单项工程量数据，是否确认？'
+    safetyMeasureConfirmDialogText.value =
+      '关联安全文明措施费将覆盖本月度验工中对应的清单项工程量数据，是否确认？'
   } else {
     safetyMeasureConfirmDialogTitle.value = '确认取消关联安全文明措施费'
-    safetyMeasureConfirmDialogText.value = '取消关联将还原清单项为默认 of 质量验收工程量，是否确认？'
+    safetyMeasureConfirmDialogText.value =
+      '取消关联将还原清单项为默认 of 质量验收工程量，是否确认？'
   }
   safetyMeasureConfirmDialogOpen.value = true
 }
@@ -1743,7 +2115,8 @@ const openPrintDetailDialog = () => {
 }
 
 const executePrintDetail = async () => {
-  if (!props.item?.id || !props.projectId || !selectedPrintGroupKeys.value.length) return
+  if (!props.item?.id || !props.projectId || !selectedPrintGroupKeys.value.length)
+    return
 
   try {
     const list = await $fetch<any[]>(
@@ -1792,13 +2165,18 @@ const executePrintDetail = async () => {
       } else {
         // 明明细行金额初始化
         const price = Number(row.price || 0)
-        row.contractAmount = row.boqAmount !== undefined && row.boqAmount !== null ? Number(row.boqAmount) : (row.pendingTotalQty || 0) * price
+        row.contractAmount =
+          row.boqAmount !== undefined && row.boqAmount !== null
+            ? Number(row.boqAmount)
+            : (row.pendingTotalQty || 0) * price
         row.contractorAmount = (row.contractorQty || 0) * price
         row.supervisionAmount = (row.supervisionQty || 0) * price
         row.headquartersAmount = (row.headquartersQty || 0) * price
         row.investmentAmount = (row.investmentQty || 0) * price
-        row.yearlyAmount = ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
-        row.cumulativeAmount = ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
+        row.yearlyAmount =
+          ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
+        row.cumulativeAmount =
+          ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
       }
       byId.set(row.boqItemId, row)
       const d = Number(row.boqDepth || 0)
@@ -1815,21 +2193,31 @@ const executePrintDetail = async () => {
         if (!parent || !parent.isSummaryRow) return
         parent.contractorQty = (parent.contractorQty || 0) + (row.contractorQty || 0)
         parent.supervisionQty = (parent.supervisionQty || 0) + (row.supervisionQty || 0)
-        parent.headquartersQty = (parent.headquartersQty || 0) + (row.headquartersQty || 0)
+        parent.headquartersQty =
+          (parent.headquartersQty || 0) + (row.headquartersQty || 0)
         parent.investmentQty = (parent.investmentQty || 0) + (row.investmentQty || 0)
-        parent.measuredQtyDefault = (parent.measuredQtyDefault || 0) + (row.measuredQtyDefault || 0)
-        parent.lastCumulativeQty = (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
-        parent.yearlyCumulativeQty = (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
-        parent.pendingTotalQty = (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
+        parent.measuredQtyDefault =
+          (parent.measuredQtyDefault || 0) + (row.measuredQtyDefault || 0)
+        parent.lastCumulativeQty =
+          (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
+        parent.yearlyCumulativeQty =
+          (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
+        parent.pendingTotalQty =
+          (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
 
         // 累加金额
         parent.contractAmount = (parent.contractAmount || 0) + (row.contractAmount || 0)
-        parent.contractorAmount = (parent.contractorAmount || 0) + (row.contractorAmount || 0)
-        parent.supervisionAmount = (parent.supervisionAmount || 0) + (row.supervisionAmount || 0)
-        parent.headquartersAmount = (parent.headquartersAmount || 0) + (row.headquartersAmount || 0)
-        parent.investmentAmount = (parent.investmentAmount || 0) + (row.investmentAmount || 0)
+        parent.contractorAmount =
+          (parent.contractorAmount || 0) + (row.contractorAmount || 0)
+        parent.supervisionAmount =
+          (parent.supervisionAmount || 0) + (row.supervisionAmount || 0)
+        parent.headquartersAmount =
+          (parent.headquartersAmount || 0) + (row.headquartersAmount || 0)
+        parent.investmentAmount =
+          (parent.investmentAmount || 0) + (row.investmentAmount || 0)
         parent.yearlyAmount = (parent.yearlyAmount || 0) + (row.yearlyAmount || 0)
-        parent.cumulativeAmount = (parent.cumulativeAmount || 0) + (row.cumulativeAmount || 0)
+        parent.cumulativeAmount =
+          (parent.cumulativeAmount || 0) + (row.cumulativeAmount || 0)
       })
     })
 
@@ -1861,23 +2249,26 @@ const executePrintDetail = async () => {
     selectedPrintGroupKeys.value.forEach((rootId) => {
       const rootRow = byId.get(rootId)
       if (rootRow) {
-        sumRoot.pendingTotalQty += (rootRow.pendingTotalQty || 0)
-        sumRoot.boqAmount += (rootRow.boqAmount !== undefined && rootRow.boqAmount !== null ? rootRow.boqAmount : (rootRow.pendingTotalQty || 0) * (rootRow.price || 0))
-        sumRoot.contractorQty += (rootRow.contractorQty || 0)
-        sumRoot.supervisionQty += (rootRow.supervisionQty || 0)
-        sumRoot.headquartersQty += (rootRow.headquartersQty || 0)
-        sumRoot.investmentQty += (rootRow.investmentQty || 0)
-        sumRoot.measuredQtyDefault += (rootRow.measuredQtyDefault || 0)
-        sumRoot.lastCumulativeQty += (rootRow.lastCumulativeQty || 0)
-        sumRoot.yearlyCumulativeQty += (rootRow.yearlyCumulativeQty || 0)
+        sumRoot.pendingTotalQty += rootRow.pendingTotalQty || 0
+        sumRoot.boqAmount +=
+          rootRow.boqAmount !== undefined && rootRow.boqAmount !== null
+            ? rootRow.boqAmount
+            : (rootRow.pendingTotalQty || 0) * (rootRow.price || 0)
+        sumRoot.contractorQty += rootRow.contractorQty || 0
+        sumRoot.supervisionQty += rootRow.supervisionQty || 0
+        sumRoot.headquartersQty += rootRow.headquartersQty || 0
+        sumRoot.investmentQty += rootRow.investmentQty || 0
+        sumRoot.measuredQtyDefault += rootRow.measuredQtyDefault || 0
+        sumRoot.lastCumulativeQty += rootRow.lastCumulativeQty || 0
+        sumRoot.yearlyCumulativeQty += rootRow.yearlyCumulativeQty || 0
 
-        sumRoot.contractAmount += (rootRow.contractAmount || 0)
-        sumRoot.contractorAmount += (rootRow.contractorAmount || 0)
-        sumRoot.supervisionAmount += (rootRow.supervisionAmount || 0)
-        sumRoot.headquartersAmount += (rootRow.headquartersAmount || 0)
-        sumRoot.investmentAmount += (rootRow.investmentAmount || 0)
-        sumRoot.yearlyAmount += (rootRow.yearlyAmount || 0)
-        sumRoot.cumulativeAmount += (rootRow.cumulativeAmount || 0)
+        sumRoot.contractAmount += rootRow.contractAmount || 0
+        sumRoot.contractorAmount += rootRow.contractorAmount || 0
+        sumRoot.supervisionAmount += rootRow.supervisionAmount || 0
+        sumRoot.headquartersAmount += rootRow.headquartersAmount || 0
+        sumRoot.investmentAmount += rootRow.investmentAmount || 0
+        sumRoot.yearlyAmount += rootRow.yearlyAmount || 0
+        sumRoot.cumulativeAmount += rootRow.cumulativeAmount || 0
       }
     })
 
@@ -1966,41 +2357,90 @@ onUnmounted(() => {
   display: none;
 }
 
+/* 打印页面及页边距设置，以及页脚生成 */
+@page {
+  size: A4 landscape; /* 横向打印 */
+  margin: 15mm 15mm 20mm 15mm; /* 给底部页脚留出足够的外边距 */
+}
+
+@page {
+  @bottom-center {
+    content: '第 ' counter(page) ' 页，共 ' counter(pages) ' 页';
+    font-size: 10px;
+    font-family: sans-serif;
+    color: #000;
+  }
+}
+
 @media print {
-  html, body {
+  html,
+  body {
     height: auto !important;
     overflow: visible !important;
   }
-  
+
+  /* 移除明细表打印大标题行的单元格边框与背景 */
+  .print-table thead tr.print-header-title-row th {
+    border: none !important;
+    background-color: transparent !important;
+    padding: 0 0 10px 0 !important;
+  }
+
   /* 当处于打印状态时，隐藏 body 下除了打印区以外的所有直接子节点（包括 #__nuxt、弹窗遮罩及 Portal 节点） */
   body.is-printing > :not(#print-section) {
     display: none !important;
   }
-  
-  /* 让传送在 body 下的打印区可见 */
-  body.is-printing #print-section {
-    position: absolute;
-    left: 0;
-    top: 0;
+
+  /* 让传送在 body 下的打印区可见，并清除所有脱流属性，让 long table 自然换页 */
+  body.is-printing #print-section,
+  body.is-printing #print-section > div {
+    position: static !important;
     width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
     display: block !important;
     background-color: white !important;
     color: black !important;
   }
-  
-  /* 细黑实线表格 */
+
+  /* 细黑实线表格：改为 separate + border-spacing: 0 以彻底修复 Chromium border-collapse 重复thead失效的 Bug */
   .print-table {
-    border: 1px solid #000 !important;
-    border-collapse: collapse !important;
+    display: table !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-top: 1px solid #000 !important;
+    border-left: 1px solid #000 !important;
     width: 100% !important;
     color: #000 !important;
   }
+  .print-table thead {
+    display: table-header-group !important;
+  }
+  .print-table thead tr.print-header-title-row {
+    display: table-row !important;
+  }
+  /* 移除大标题单元格可能残存的任何单元格边框线 */
+  .print-table thead tr.print-header-title-row th {
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
   .print-table tr {
+    display: table-row !important;
+  }
+  .print-table tbody tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  .print-table th, .print-table td {
-    border: 1px solid #000 !important;
+  /* 通过只设右边和底边，配合 separate 完美模拟 1px 细黑实线 */
+  .print-table th,
+  .print-table td {
+    border-top: none !important;
+    border-left: none !important;
+    border-bottom: 1px solid #000 !important;
+    border-right: 1px solid #000 !important;
     padding: 3px 4px !important;
     font-size: 9px !important;
     line-height: 1.15 !important;

@@ -1039,6 +1039,7 @@ const { result: coverProjectResult } = useQuery(
         employer
         contractor
         responsible
+        bidSection
       }
     }
   `,
@@ -1070,8 +1071,10 @@ const route = useRoute()
 const isReadOnly = computed(() => route.query.mode !== 'edit')
 
 const tenderName = computed(() => {
-  const value = coverProjectResult.value?.project?.contractName
+  const value = coverProjectResult.value?.project?.bidSection
   if (value && value.trim().length) return value
+  const fallback = coverProjectResult.value?.project?.contractName
+  if (fallback && fallback.trim().length) return fallback
   return coverProjectResult.value?.project?.name || '标段'
 })
 
@@ -1378,25 +1381,40 @@ const saveTab3Request = async () => {
   if (!props.item?.id || !props.projectId) return
   requestSaving.value = true
   try {
+    const body: Record<string, any> = {
+      requestAttachments: paymentRequest.value.requestAttachments
+    }
+
+    if (permissions.value.contractor) {
+      body.contractorPayAmt = Number(paymentRequest.value.contractorPayAmt || 0)
+      body.reqContractorOpinion = paymentRequest.value.reqContractorOpinion
+    }
+    if (permissions.value.supervision) {
+      body.supervisionPayAmt = Number(paymentRequest.value.supervisionPayAmt || 0)
+      body.reqSupervisionOpinion = paymentRequest.value.reqSupervisionOpinion
+    }
+    if (permissions.value.headquarters) {
+      body.headquartersPayAmt = Number(paymentRequest.value.headquartersPayAmt || 0)
+      body.reqHeadquartersOpinion = paymentRequest.value.reqHeadquartersOpinion
+    }
+    if (permissions.value.investment) {
+      body.investmentPayAmt = Number(paymentRequest.value.investmentPayAmt || 0)
+      body.reqInvestmentOpinion = paymentRequest.value.reqInvestmentOpinion
+    }
+    if (permissions.value.contract) {
+      body.contractPayAmt = Number(paymentRequest.value.contractPayAmt || 0)
+      body.reqContractOpinion = paymentRequest.value.reqContractOpinion
+    }
+    if (permissions.value.leader) {
+      body.leaderPayAmt = Number(paymentRequest.value.leaderPayAmt || 0)
+      body.reqLeaderOpinion = paymentRequest.value.reqLeaderOpinion
+    }
+
     await $fetch(
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/payment-requests`,
       {
         method: 'PATCH',
-        body: {
-          contractorPayAmt: Number(paymentRequest.value.contractorPayAmt || 0),
-          supervisionPayAmt: Number(paymentRequest.value.supervisionPayAmt || 0),
-          headquartersPayAmt: Number(paymentRequest.value.headquartersPayAmt || 0),
-          investmentPayAmt: Number(paymentRequest.value.investmentPayAmt || 0),
-          contractPayAmt: Number(paymentRequest.value.contractPayAmt || 0),
-          leaderPayAmt: Number(paymentRequest.value.leaderPayAmt || 0),
-          reqContractorOpinion: paymentRequest.value.reqContractorOpinion,
-          reqSupervisionOpinion: paymentRequest.value.reqSupervisionOpinion,
-          reqHeadquartersOpinion: paymentRequest.value.reqHeadquartersOpinion,
-          reqInvestmentOpinion: paymentRequest.value.reqInvestmentOpinion,
-          reqContractOpinion: paymentRequest.value.reqContractOpinion,
-          reqLeaderOpinion: paymentRequest.value.reqLeaderOpinion,
-          requestAttachments: paymentRequest.value.requestAttachments
-        }
+        body
       }
     )
     await loadTab3Data()
@@ -1518,7 +1536,6 @@ watch(
 .print-cover-sheet {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid #15803d;
   background-color: #fff;
   padding: 30px;
   font-family: SimSun, 'Songti SC', STSong, sans-serif;
@@ -1531,7 +1548,6 @@ watch(
   font-weight: bold;
   letter-spacing: 0.45em;
   padding: 20px 0;
-  border-bottom: 1px solid #15803d;
   color: #111;
 }
 
@@ -1545,20 +1561,14 @@ watch(
 
 .print-cover-grid {
   display: flex;
-  border-top: 1px solid #15803d;
   background-color: #fff;
 }
 
 .print-cover-col {
   flex: 1;
   width: 25%;
-  border-right: 1px solid #15803d;
   display: flex;
   flex-direction: column;
-}
-
-.print-cover-col:last-child {
-  border-right: none;
 }
 
 .print-cover-row {
@@ -1568,7 +1578,6 @@ watch(
   height: 40px;
   padding: 0 8px;
   font-size: 11px;
-  border-bottom: 1px solid #15803d;
 }
 
 .print-cover-label {
@@ -1581,6 +1590,9 @@ watch(
   text-align: right;
   font-family: 'Courier New', Courier, monospace;
   font-weight: bold;
+  border-bottom: 1px solid #000;
+  margin-right: 4px;
+  padding-bottom: 2px;
 }
 
 .print-cover-unit {
@@ -1595,7 +1607,6 @@ watch(
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
-  border-bottom: 1px solid #15803d;
 }
 
 .print-cover-sign {
@@ -1604,7 +1615,6 @@ watch(
   align-items: center;
   padding: 0 10px;
   font-size: 11px;
-  border-bottom: 1px solid #15803d;
 }
 
 .print-cover-date {

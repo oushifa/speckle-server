@@ -178,11 +178,11 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
     : 0
 
   return {
-    contractorPayAmt: progressInYuan || round2(contractorPayAmtSum),
-    supervisionPayAmt: progressInYuan || round2(supervisionPayAmtSum),
-    headquartersPayAmt: progressInYuan || round2(headquartersPayAmtSum),
-    investmentPayAmt: progressInYuan || round2(investmentPayAmtSum),
-    contractPayAmt: progressInYuan || round2(contractPayAmtSum),
+    contractorPayAmt: round2(contractorPayAmtSum),
+    supervisionPayAmt: round2(supervisionPayAmtSum),
+    headquartersPayAmt: round2(headquartersPayAmtSum),
+    investmentPayAmt: round2(investmentPayAmtSum),
+    contractPayAmt: round2(contractPayAmtSum),
     leaderPayAmt: progressInYuan || round2(leaderPayAmtSum)
   }
 }
@@ -1761,12 +1761,27 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       let lastCumulativePayment = 0
 
       if (measurement) {
-        const summary = await getOrRecalculateProjectCostSummaryFactory({
-          db: projectDb
-        })({
-          projectId
-        })
-        contractAmount = Number(summary.totalContractAmount || 0)
+        const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(id)
+        const boqItems = await projectDb('boq_items')
+          .where('projectId', projectId)
+          .select('id', 'amount')
+        const boqAmountMap = new Map<string, number | null>()
+        for (const boq of boqItems) {
+          boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+        }
+
+        for (const item of items) {
+          if (!item.isSummaryRow) {
+            const price = Number(item.price || 0)
+            const boqAmt = boqAmountMap.get(item.boqItemId)
+            if (boqAmt !== undefined && boqAmt !== null) {
+              contractAmount += boqAmt
+            } else {
+              contractAmount += Number(item.pendingTotalQty || 0) * price
+            }
+          }
+        }
+        contractAmount = Math.round(contractAmount * 100) / 100
 
         // 历史已付款：所有历史已审批通过的月度支付单的进度款之和
         const approvedPayments = await projectDb('monthly_payment_details')
@@ -1801,7 +1816,27 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
 
+      const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(id)
+      let latestSourceTime = new Date(measurement?.updatedAt || 0).getTime()
+      if (paymentDetails) {
+        const pdTime = new Date(paymentDetails.updatedAt).getTime()
+        if (pdTime > latestSourceTime) {
+          latestSourceTime = pdTime
+        }
+      }
+
+      let shouldForceCalc = false
+      if (details) {
+        const prTime = new Date(details.updatedAt).getTime()
+        if (latestSourceTime > prTime) {
+          shouldForceCalc = true
+        }
+      }
+
       const getFinalAmt = (detailsVal: any, defaultVal: number) => {
+        if (shouldForceCalc) {
+          return defaultVal
+        }
         if (detailsVal === null || detailsVal === undefined || Number(detailsVal) === 0) {
           return defaultVal
         }
@@ -4254,3 +4289,4 @@ const getPropertyValue = (raw: any, aliases: string[]): string | null => {
 
   return null
 }
+

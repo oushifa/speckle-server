@@ -299,15 +299,7 @@
           show-label
           show-optional
         />
-        <FormTextInput
-          v-model="editForm.projectGuid"
-          name="editProjectGuid"
-          label="项目GUID"
-          placeholder="请输入项目GUID"
-          color="foundation"
-          show-label
-          show-optional
-        />
+
         <FormTextInput
           v-model="editForm.bidSection"
           name="editBidSection"
@@ -478,7 +470,6 @@ const editForm = ref({
   contractor: '',
   constructionUnit: '',
   supervisionUnit: '',
-  projectGuid: '',
   bidSection: '',
   contractPrice: '',
   businessUnit: '',
@@ -603,7 +594,6 @@ const setEditFormValues = () => {
     contractor: String(props.project.contractor || ''),
     constructionUnit: String(props.project.constructionUnit || ''),
     supervisionUnit: String(props.project.supervisionUnit || ''),
-    projectGuid: String(props.project.projectGuid || ''),
     bidSection: String(props.project.bidSection || ''),
     contractPrice: props.project.contractPrice !== null && props.project.contractPrice !== undefined ? String(props.project.contractPrice) : '',
     businessUnit: String(props.project.businessUnit || ''),
@@ -646,7 +636,6 @@ const onSaveProjectInfo = async () => {
     const currentContractor = String(props.project.contractor || '')
     const currentConstructionUnit = String(props.project.constructionUnit || '')
     const currentSupervisionUnit = String(props.project.supervisionUnit || '')
-    const currentProjectGuid = String(props.project.projectGuid || '')
     const currentBidSection = String(props.project.bidSection || '')
     const currentContractPrice = props.project.contractPrice !== null && props.project.contractPrice !== undefined ? Number(props.project.contractPrice) : null
     const currentBusinessUnit = String(props.project.businessUnit || '')
@@ -667,7 +656,6 @@ const onSaveProjectInfo = async () => {
     const nextContractor = editForm.value.contractor.trim()
     const nextConstructionUnit = editForm.value.constructionUnit.trim()
     const nextSupervisionUnit = editForm.value.supervisionUnit.trim()
-    const nextProjectGuid = editForm.value.projectGuid.trim()
     const nextBidSection = editForm.value.bidSection.trim()
     const nextContractPrice = editForm.value.contractPrice !== '' ? Number(editForm.value.contractPrice) : null
     const nextBusinessUnit = editForm.value.businessUnit.trim()
@@ -720,9 +708,6 @@ const onSaveProjectInfo = async () => {
     }
     if (nextSupervisionUnit !== currentSupervisionUnit) {
       updatePayload.supervisionUnit = nextSupervisionUnit
-    }
-    if (nextProjectGuid !== currentProjectGuid) {
-      updatePayload.projectGuid = nextProjectGuid
     }
     if (nextBidSection !== currentBidSection) {
       updatePayload.bidSection = nextBidSection

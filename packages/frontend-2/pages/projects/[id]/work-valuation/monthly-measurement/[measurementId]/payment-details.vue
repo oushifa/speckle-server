@@ -17,7 +17,7 @@
       <div
         class="flex justify-between items-center text-[10px] text-foreground-2 px-1 pt-1.5 border-t border-outline-3 border-dashed mt-2"
       >
-        <span>承包人（签章）：{{ getPaymentDetailAuditUser('contractor') }}</span>
+        <span>承包人（签章）：{{ projectContractor }}</span>
         <span>合同编号：{{ projectContractCode }}</span>
         <span>单位：元</span>
       </div>
@@ -571,7 +571,7 @@
           <table class="print-meta-table">
             <tr>
               <td class="print-meta-left">
-                承包人（签章）：{{ getPaymentDetailAuditUser('contractor') }}
+                承包人（签章）：{{ projectContractor }}
               </td>
               <td class="print-meta-center">
                 合同编号：{{ projectContractCode }}
@@ -751,6 +751,7 @@ const { result: projectResult } = useQuery(
         id
         name
         contractCode
+        contractor
       }
     }
   `,
@@ -765,6 +766,9 @@ const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
   if (code && code.trim().length) return code
   return '-'
+})
+const projectContractor = computed(() => {
+  return projectResult.value?.project?.contractor || ''
 })
 
 // 数据缓存
