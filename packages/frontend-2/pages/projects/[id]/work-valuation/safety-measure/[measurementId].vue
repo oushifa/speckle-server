@@ -1402,14 +1402,10 @@
                   <div class="flex justify-end space-y-1">
                     <div class="flex flex-col gap-6">
                       <span>
-                        安全监理人员：{{
-                          details.supervisionAuditor || '___________________'
-                        }}
+                        安全监理人员：___________________
                       </span>
                       <span>
-                        专业工程师：{{
-                          details.supervisionApproveAuditor || '___________________'
-                        }}
+                        专业工程师：___________________
                       </span>
                       <span>日期：______年___月___日</span>
                     </div>
