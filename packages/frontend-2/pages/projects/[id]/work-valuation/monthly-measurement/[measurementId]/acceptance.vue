@@ -2087,39 +2087,6 @@ const printType = ref<'summary' | 'detail' | null>(null)
 const printDetailRows = ref<any[]>([])
 const printDetailRoot = ref<any | null>(null)
 const isPrinting = ref(false)
-const PRINT_PAGE_STYLE_ID = 'monthly-measurement-print-page-style'
-
-const applyPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-
-  let styleEl = document.getElementById(PRINT_PAGE_STYLE_ID) as HTMLStyleElement | null
-  if (!styleEl) {
-    styleEl = document.createElement('style')
-    styleEl.id = PRINT_PAGE_STYLE_ID
-    document.head.appendChild(styleEl)
-  }
-
-  styleEl.textContent = `
-    @page {
-      size: A4 portrait;
-      margin: 15mm 15mm 20mm 15mm;
-    }
-
-    @page {
-      @bottom-center {
-        content: '第 ' counter(page) ' 页，共 ' counter(pages) ' 页';
-        font-size: 10px;
-        font-family: sans-serif;
-        color: #000;
-      }
-    }
-  `
-}
-
-const clearPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-  document.getElementById(PRINT_PAGE_STYLE_ID)?.remove()
-}
 
 const toggleGroupSelection = (key: string) => {
   const index = selectedPrintGroupKeys.value.indexOf(key)
@@ -2132,7 +2099,6 @@ const toggleGroupSelection = (key: string) => {
 
 const handlePrintSummary = async () => {
   printType.value = 'summary'
-  applyPrintPageStyle()
   isPrinting.value = true
   document.body.classList.add('is-printing')
   await nextTick()
@@ -2314,7 +2280,6 @@ const executePrintDetail = async () => {
     // 延迟 300ms，等待弹窗淡出过渡动画完全执行完毕
     await new Promise((resolve) => setTimeout(resolve, 300))
 
-    applyPrintPageStyle()
     isPrinting.value = true
     document.body.classList.add('is-printing')
     await nextTick()
@@ -2357,7 +2322,6 @@ const handleAfterPrint = () => {
   isPrinting.value = false
   printType.value = null
   document.body.classList.remove('is-printing')
-  clearPrintPageStyle()
 }
 
 onMounted(() => {
@@ -2366,7 +2330,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
-  clearPrintPageStyle()
 })
 </script>
 
@@ -2392,6 +2355,21 @@ onUnmounted(() => {
 /* 正常情况下隐藏打印专区 */
 #print-section {
   display: none;
+}
+
+/* 打印页面及页边距设置，以及页脚生成 */
+@page {
+  size: A4; /* 横向打印 */
+  margin: 15mm 15mm 20mm 15mm; /* 给底部页脚留出足够的外边距 */
+}
+
+@page {
+  @bottom-center {
+    content: '第 ' counter(page) ' 页，共 ' counter(pages) ' 页';
+    font-size: 10px;
+    font-family: sans-serif;
+    color: #000;
+  }
 }
 
 @media print {

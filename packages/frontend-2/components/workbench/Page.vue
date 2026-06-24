@@ -745,7 +745,7 @@ const formatUpdateTime = (dateString?: string | null) => {
 }
 
 const getCurrentTodoStep = (instance: FlowListItem) => {
-  const byStatus = instance.steps.find((step) => step.status === 'WAITING') || null
+  const byStatus = instance.steps.find((step) => step.status === 'PENDING') || null
   if (byStatus) return byStatus
   const byIndex = instance.steps.find((step) => step.stepIndex === instance.currentStep)
   return byIndex || null

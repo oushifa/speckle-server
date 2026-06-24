@@ -902,34 +902,8 @@ const closeDetails = () => {
   navigateTo(`/projects/${props.projectId}/work-valuation/monthly-measurement`)
 }
 
-const PRINT_PAGE_STYLE_ID = 'monthly-measurement-print-page-style'
-
-const applyPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-
-  let styleEl = document.getElementById(PRINT_PAGE_STYLE_ID) as HTMLStyleElement | null
-  if (!styleEl) {
-    styleEl = document.createElement('style')
-    styleEl.id = PRINT_PAGE_STYLE_ID
-    document.head.appendChild(styleEl)
-  }
-
-  styleEl.textContent = `
-    @page {
-      size: A4 landscape;
-      margin: 10mm;
-    }
-  `
-}
-
-const clearPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-  document.getElementById(PRINT_PAGE_STYLE_ID)?.remove()
-}
-
 const isPrinting = ref(false)
 const triggerPrint = async () => {
-  applyPrintPageStyle()
   isPrinting.value = true
   document.body.classList.add('is-printing')
   await nextTick()
@@ -939,7 +913,6 @@ const triggerPrint = async () => {
 const handleAfterPrint = () => {
   isPrinting.value = false
   document.body.classList.remove('is-printing')
-  clearPrintPageStyle()
 }
 
 onMounted(() => {
@@ -948,7 +921,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
-  clearPrintPageStyle()
 })
 
 const attachmentsDialogOpen = ref(false)
@@ -1302,6 +1274,11 @@ watch(
 
 <style scoped>
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
   :global(html), :global(body) {
     height: auto !important;
     overflow: visible !important;

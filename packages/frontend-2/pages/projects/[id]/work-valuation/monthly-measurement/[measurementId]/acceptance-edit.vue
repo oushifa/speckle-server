@@ -658,10 +658,16 @@ const toggleExpand = (row: any) => {
   row.isExpanded = !row.isExpanded
 }
 
+const toSafeNumber = (value: any) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
 const getCumulativeRate = (row: any) => {
-  const contractQty = row.pendingTotalQty || 0
+  const contractQty = toSafeNumber(row.pendingTotalQty)
   if (contractQty <= 0) return '0.00'
-  const cumulativeQty = (row.lastCumulativeQty || 0) + (row.investmentQty || 0)
+  const cumulativeQty =
+    toSafeNumber(row.lastCumulativeQty) + toSafeNumber(row.investmentQty)
   return ((cumulativeQty / contractQty) * 100).toFixed(2)
 }
 
@@ -719,14 +725,26 @@ const recalculateTreeRows = () => {
       row.cumulativeAmount = 0
     } else {
       // 明细行金额初始化
-      const price = Number(row.price || 0)
-      row.contractAmount = row.boqAmount !== undefined && row.boqAmount !== null ? Number(row.boqAmount) : (row.pendingTotalQty || 0) * price
-      row.contractorAmount = (row.contractorQty || 0) * price
-      row.supervisionAmount = (row.supervisionQty || 0) * price
-      row.headquartersAmount = (row.headquartersQty || 0) * price
-      row.investmentAmount = (row.investmentQty || 0) * price
-      row.yearlyAmount = ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
-      row.cumulativeAmount = ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
+      const price = toSafeNumber(row.price)
+      const pendingTotalQty = toSafeNumber(row.pendingTotalQty)
+      const contractorQty = toSafeNumber(row.contractorQty)
+      const supervisionQty = toSafeNumber(row.supervisionQty)
+      const headquartersQty = toSafeNumber(row.headquartersQty)
+      const investmentQty = toSafeNumber(row.investmentQty)
+      const yearlyCumulativeQty = toSafeNumber(row.yearlyCumulativeQty)
+      const lastCumulativeQty = toSafeNumber(row.lastCumulativeQty)
+      const boqAmount = toSafeNumber(row.boqAmount)
+
+      row.contractAmount =
+        row.boqAmount !== undefined && row.boqAmount !== null
+          ? boqAmount
+          : pendingTotalQty * price
+      row.contractorAmount = contractorQty * price
+      row.supervisionAmount = supervisionQty * price
+      row.headquartersAmount = headquartersQty * price
+      row.investmentAmount = investmentQty * price
+      row.yearlyAmount = (yearlyCumulativeQty + investmentQty) * price
+      row.cumulativeAmount = (lastCumulativeQty + investmentQty) * price
     }
   })
 
@@ -876,6 +894,7 @@ const moneyFormatter = new Intl.NumberFormat('zh-CN', {
 
 const formatMoney = (value: number | null | undefined) => {
   if (value === null || value === undefined) return '-'
+  if (!Number.isFinite(Number(value))) return '-'
   return moneyFormatter.format(value)
 }
 

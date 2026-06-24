@@ -97,7 +97,7 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -106,8 +106,8 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">施工</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-nowrap">施工</span>
               <input
                 type="text"
                 :value="contractorManagerDisplay"
@@ -115,7 +115,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="contractorDateDisplay"
@@ -166,7 +166,7 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -175,8 +175,8 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">总监</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-nowrap">总监</span>
               <input
                 type="text"
                 :value="supervisionAuditorModel"
@@ -184,7 +184,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="supervisionDateDisplay"
@@ -235,7 +235,7 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -244,8 +244,8 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">现场指挥</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-nowrap">现场指挥</span>
               <input
                 type="text"
                 :value="headquartersAuditorModel"
@@ -253,7 +253,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center text-[10px] font-semibold"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="headquartersDateDisplay"
@@ -304,7 +304,7 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -313,8 +313,8 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">总监</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-nowrap">总监</span>
               <input
                 type="text"
                 :value="investmentAuditorModel"
@@ -322,7 +322,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="investmentDateDisplay"
@@ -373,7 +373,7 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -382,8 +382,8 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10">负责人</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-nowrap">负责人</span>
               <input
                 type="text"
                 :value="contractAuditorModel"
@@ -391,7 +391,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="contractDateDisplay"
@@ -443,8 +443,8 @@
             <div class="flex items-center gap-1.5 text-xs text-foreground-2">
               <span class="shrink-0 w-10">&nbsp;</span>
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
-              <span class="shrink-0 w-10 text-[10px]">分管领导</span>
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+              <span class="shrink-0 w-10 text-[10px] text-nowrap">分管领导</span>
               <input
                 type="text"
                 :value="leaderAuditorModel"
@@ -452,7 +452,7 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center text-[11px]"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2">
+            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="leaderDateDisplay"
@@ -924,37 +924,11 @@ const openAttachmentsDialog = () => {
   attachmentsDialogOpen.value = true
 }
 
-const PRINT_PAGE_STYLE_ID = 'monthly-measurement-print-page-style'
-
-const applyPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-
-  let styleEl = document.getElementById(PRINT_PAGE_STYLE_ID) as HTMLStyleElement | null
-  if (!styleEl) {
-    styleEl = document.createElement('style')
-    styleEl.id = PRINT_PAGE_STYLE_ID
-    document.head.appendChild(styleEl)
-  }
-
-  styleEl.textContent = `
-    @page {
-      size: A4 landscape;
-      margin: 12mm;
-    }
-  `
-}
-
-const clearPrintPageStyle = () => {
-  if (typeof document === 'undefined') return
-  document.getElementById(PRINT_PAGE_STYLE_ID)?.remove()
-}
-
 const isPrinting = ref(false)
 const printType = ref<'cover' | 'payment' | null>(null)
 
 const triggerPrint = async (type: 'cover' | 'payment') => {
   printType.value = type
-  applyPrintPageStyle()
   isPrinting.value = true
   document.body.classList.add('is-printing')
   await nextTick()
@@ -965,7 +939,6 @@ const handleAfterPrint = () => {
   isPrinting.value = false
   printType.value = null
   document.body.classList.remove('is-printing')
-  clearPrintPageStyle()
 }
 
 onMounted(() => {
@@ -974,7 +947,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('afterprint', handleAfterPrint)
-  clearPrintPageStyle()
 })
 
 const currentStepName = computed(() => {
@@ -1652,6 +1624,11 @@ watch(
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
   :global(html),
   :global(body) {
     height: auto !important;
