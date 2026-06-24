@@ -657,6 +657,26 @@
             </label>
           </div>
         </div>
+        <div
+          class="flex items-center justify-between gap-3 rounded border border-outline-3 bg-foundation px-3 py-2"
+        >
+          <div class="space-y-0.5">
+            <div class="text-xs font-semibold text-foreground">打印范围</div>
+            <div class="text-[11px] text-foreground-2">
+              {{
+                printOnlyFilledItems
+                  ? '已填清单：仅打印本月有填报数据的清单'
+                  : '所有清单：打印所选章节下全部清单'
+              }}
+            </div>
+          </div>
+          <FormSwitch
+            v-model="printOnlyFilledItems"
+            name="printOnlyFilledItems"
+            :label="printOnlyFilledItems ? '已填清单' : '所有清单'"
+            class="shrink-0"
+          />
+        </div>
         <div class="flex justify-end gap-2 pt-2">
           <FormButton color="outline" size="sm" @click="printDetailDialogOpen = false">
             取消
@@ -2097,6 +2117,7 @@ watch(
 // -------------------------------------------------------------
 const printDetailDialogOpen = ref(false)
 const selectedPrintGroupKeys = ref<string[]>([])
+const printOnlyFilledItems = ref(true)
 const printType = ref<'summary' | 'detail' | null>(null)
 const printDetailRows = ref<any[]>([])
 const printDetailRoot = ref<any | null>(null)
@@ -2124,6 +2145,66 @@ const toggleAllGroupSelection = () => {
   }
 
   selectedPrintGroupKeys.value = aggregatedItems.value.map((item) => item.boqItemId)
+}
+
+const hasFilledPrintDetailData = (row: {
+  isSummaryRow?: boolean
+  contractorQty?: unknown
+  supervisionQty?: unknown
+  headquartersQty?: unknown
+  investmentQty?: unknown
+  measuredQtyDefault?: unknown
+}) => {
+  if (row.isSummaryRow) return false
+
+  return [
+    row.contractorQty,
+    row.supervisionQty,
+    row.headquartersQty,
+    row.investmentQty,
+    row.measuredQtyDefault
+  ].some((value) => toSafeNumber(value) !== 0)
+}
+
+const getPrintableDetailItemIds = (
+  selectedRootIds: string[],
+  allItems: {
+    boqItemId: string
+    boqParentId?: string | null
+    isSummaryRow?: boolean
+    contractorQty?: unknown
+    supervisionQty?: unknown
+    headquartersQty?: unknown
+    investmentQty?: unknown
+    measuredQtyDefault?: unknown
+  }[],
+  onlyFilledItems: boolean
+) => {
+  const selectedSubtreeIds = new Set<string>()
+  selectedRootIds.forEach((rootId) => {
+    const subtreeSet = getSubtreeItemIds(rootId, allItems)
+    subtreeSet.forEach((id) => selectedSubtreeIds.add(id))
+  })
+
+  if (!onlyFilledItems) return selectedSubtreeIds
+
+  const parentMap = new Map<string, string | null>()
+  allItems.forEach((item) => {
+    parentMap.set(item.boqItemId, item.boqParentId || null)
+  })
+
+  const printableIds = new Set<string>()
+  allItems.forEach((item) => {
+    if (!selectedSubtreeIds.has(item.boqItemId) || !hasFilledPrintDetailData(item)) return
+
+    let currentId: string | null = item.boqItemId
+    while (currentId && selectedSubtreeIds.has(currentId)) {
+      printableIds.add(currentId)
+      currentId = parentMap.get(currentId) || null
+    }
+  })
+
+  return printableIds
 }
 
 const getDefaultPrintGroupKeys = (allItems: any[]) => {
@@ -2196,13 +2277,12 @@ const executePrintDetail = async () => {
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/detail-items`
     )
 
-    const allSubtreeIds = new Set<string>()
-    selectedPrintGroupKeys.value.forEach((rootId) => {
-      const subtreeSet = getSubtreeItemIds(rootId, list)
-      subtreeSet.forEach((id) => allSubtreeIds.add(id))
-    })
-
-    const filtered = list.filter((row) => allSubtreeIds.has(row.boqItemId))
+    const printableItemIds = getPrintableDetailItemIds(
+      selectedPrintGroupKeys.value,
+      list,
+      printOnlyFilledItems.value
+    )
+    const filtered = list.filter((row) => printableItemIds.has(row.boqItemId))
 
     // 对该子树自底向上重算汇总
     const byId = new Map<string, any>()
@@ -2501,6 +2581,13 @@ onUnmounted(() => {
     border-left: none !important;
     border-right: none !important;
     border-bottom: none !important;
+  }
+  /* 行级边框会和单元格边框叠加，导致部分横线打印更粗 */
+  .print-table thead,
+  .print-table tbody,
+  .print-table tfoot,
+  .print-table tr {
+    border: none !important;
   }
   .print-table tr {
     display: table-row !important;

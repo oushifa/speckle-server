@@ -40,13 +40,13 @@
               rowspan="2"
               class="px-2 py-2.5 border-r border-blue-400 text-center w-20 align-middle"
             >
-              章节
+              分类编码
             </th>
             <th
               rowspan="2"
               class="px-2 py-2.5 border-r border-blue-400 text-left pl-3 w-48 align-middle"
             >
-              项目名称
+              分类工程名称
             </th>
             <th
               rowspan="2"
@@ -91,92 +91,52 @@
           </tr>
         </thead>
         <tbody>
-          <template v-for="group in chapterGroups" :key="group.groupKey">
-            <tr
-              v-for="row in group.rows"
-              :key="row.boqItemId"
-              class="border-b border-outline-3 bg-foundation hover:bg-highlight-1/5 transition-colors text-[11px]"
+          <tr
+            v-for="row in displayRows"
+            :key="row.boqItemId"
+            class="border-b border-outline-3 bg-foundation hover:bg-highlight-1/5 transition-colors text-[11px]"
+          >
+            <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+              {{ row.displayIndex }}
+            </td>
+            <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
+              {{ row.boqCode }}
+            </td>
+            <td
+              class="px-2 py-2 border-r border-outline-3 pl-3 truncate max-w-[200px]"
+              :title="row.boqName"
             >
-              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
-                {{ row.displayIndex }}
-              </td>
-              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
-                {{ row.boqCode }}
-              </td>
-              <td
-                class="px-2 py-2 border-r border-outline-3 pl-3 truncate max-w-[200px]"
-                :title="row.boqName"
-              >
-                {{ row.boqName }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.contractAmount) }}
-              </td>
-              <td
-                class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3 font-medium"
-              >
-                {{ formatMoney(row.investmentAmount) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.cumulativeAmount) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(getDerivedPay(row).contractorPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(getDerivedPay(row).investmentPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(getDerivedPay(row).contractPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(getDerivedPay(row).leaderPayAmt) }}
-              </td>
-              <td
-                class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
-              >
-                {{ formatMoney(row.cumulativeAmount) }}
-              </td>
-            </tr>
-
-            <tr
-              class="border-b border-outline-3 bg-highlight-1/10 font-semibold text-[11px]"
+              {{ row.boqName }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(row.contractAmount) }}
+            </td>
+            <td
+              class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3 font-medium"
             >
-              <td
-                class="px-2 py-2 text-center border-r border-outline-3 font-mono"
-              ></td>
-              <td class="px-2 py-2 text-center border-r border-outline-3 font-mono">
-                -
-              </td>
-              <td class="px-2 py-2 border-r border-outline-3 pl-3 text-left">
-                {{ group.groupBoqName }} 小计
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.contractAmount) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.investmentAmount) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.cumulativeAmount) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.contractorPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.investmentPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.contractPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(group.subtotal.leaderPayAmt) }}
-              </td>
-              <td class="px-2 py-2 text-right font-mono pr-3">
-                {{ formatMoney(group.subtotal.cumulativePayAmt) }}
-              </td>
-            </tr>
-          </template>
+              {{ formatMoney(row.investmentAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(row.cumulativeAmount) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(getDerivedPay(row).contractorPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(getDerivedPay(row).investmentPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(getDerivedPay(row).contractPayAmt) }}
+            </td>
+            <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
+              {{ formatMoney(getDerivedPay(row).leaderPayAmt) }}
+            </td>
+            <td
+              class="px-2 py-2 text-right font-mono pr-3 font-semibold text-foreground-2"
+            >
+              {{ formatMoney(row.cumulativeAmount) }}
+            </td>
+          </tr>
 
           <tr
             class="border-b border-outline-3 bg-highlight-1/5 font-semibold text-[11px]"
@@ -576,8 +536,8 @@
             <thead>
               <tr>
                 <th class="print-th w-[6%]">序号</th>
-                <th class="print-th w-[10%]">章号</th>
-                <th class="print-th w-[24%]">项目名称</th>
+                <th class="print-th w-[10%]">分类编码</th>
+                <th class="print-th w-[24%]">分类工程名称</th>
                 <th class="print-th w-[12%]">合同价</th>
                 <th class="print-th w-[12%]">本期完成工作量</th>
                 <th class="print-th w-[12%]">累计完成工作量</th>
@@ -586,30 +546,17 @@
               </tr>
             </thead>
             <tbody>
-              <!-- 循环渲染章节数据 -->
-              <template v-for="group in chapterGroups" :key="group.groupKey">
-                <tr v-for="row in group.rows" :key="row.boqItemId" class="print-tr">
-                  <td class="print-td text-center font-mono">{{ row.displayIndex }}</td>
-                  <td class="print-td text-center font-mono">{{ row.boqCode }}</td>
-                  <td class="print-td text-left truncate-cell" :title="row.boqName">{{ row.boqName }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.contractAmount) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.investmentAmount) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(getDerivedPay(row).leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
-                </tr>
-                <!-- 小计 -->
-                <tr class="print-tr print-subtotal-row">
-                  <td class="print-td text-center"></td>
-                  <td class="print-td text-center">-</td>
-                  <td class="print-td text-left font-semibold">{{ group.groupBoqName }} 小计</td>
-                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.contractAmount) }}</td>
-                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.investmentAmount) }}</td>
-                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.cumulativeAmount) }}</td>
-                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-semibold font-mono">{{ formatMoney(group.subtotal.cumulativePayAmt) }}</td>
-                </tr>
-              </template>
+              <!-- 循环渲染分类工程聚合数据 -->
+              <tr v-for="row in displayRows" :key="row.boqItemId" class="print-tr">
+                <td class="print-td text-center font-mono">{{ row.displayIndex }}</td>
+                <td class="print-td text-center font-mono">{{ row.boqCode }}</td>
+                <td class="print-td text-left truncate-cell" :title="row.boqName">{{ row.boqName }}</td>
+                <td class="print-td text-right font-mono">{{ formatMoney(row.contractAmount) }}</td>
+                <td class="print-td text-right font-mono">{{ formatMoney(row.investmentAmount) }}</td>
+                <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
+                <td class="print-td text-right font-mono">{{ formatMoney(getDerivedPay(row).leaderPayAmt) }}</td>
+                <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
+              </tr>
 
               <!-- 合计 -->
               <tr class="print-tr print-total-row">
@@ -689,10 +636,6 @@ import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
 import { LayoutDialog } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
-import {
-  getMonthlyMeasurementAuditDisplayStatus,
-  getMonthlyMeasurementPermissions
-} from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 
@@ -800,42 +743,10 @@ const sumPaymentRows = (rows: any[]) => {
   return sums
 }
 
-const chapterGroups = computed(() => {
-  const groups = new Map<
-    string,
-    {
-      groupKey: string
-      groupBoqCode: string
-      groupBoqName: string
-      rows: any[]
-      subtotal: ReturnType<typeof sumPaymentRows>
-    }
-  >()
-
-  let displayIndex = 1
-  for (const row of aggregatedItems.value) {
-    const groupKey = row.groupBoqItemId || row.boqParentId || row.boqItemId
-    const groupBoqCode = row.groupBoqCode || row.boqCode || '-'
-    const groupBoqName = row.groupBoqName || row.boqName || '未分类'
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, {
-        groupKey,
-        groupBoqCode,
-        groupBoqName,
-        rows: [],
-        subtotal: sumPaymentRows([])
-      })
-    }
-    groups.get(groupKey)!.rows.push({
-      ...row,
-      displayIndex
-    })
-    displayIndex += 1
-  }
-
-  return Array.from(groups.values()).map((group) => ({
-    ...group,
-    subtotal: sumPaymentRows(group.rows)
+const displayRows = computed(() => {
+  return aggregatedItems.value.map((row, index) => ({
+    ...row,
+    displayIndex: index + 1
   }))
 })
 
@@ -1106,7 +1017,7 @@ const loadAggregatedItems = async () => {
   if (!props.item?.id || !props.projectId) return
   try {
     const items = await $fetch<any[]>(
-      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/aggregated-items?level=section`
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/aggregated-items`
     )
     aggregatedItems.value = items
   } catch {
@@ -1244,10 +1155,6 @@ const executeDeleteAttachment = async () => {
 // -------------------------------------------------------------
 // 通用辅助方法
 // -------------------------------------------------------------
-const getBlobDownloadUrl = (blobId: string) => {
-  return `${apiOrigin}/api/stream/${props.projectId}/blob/${blobId}`
-}
-
 const formatMoney = (value: number | null | undefined) => {
   if (value === null || value === undefined || !Number.isFinite(value)) return '0.00'
   return value.toLocaleString('zh-CN', {

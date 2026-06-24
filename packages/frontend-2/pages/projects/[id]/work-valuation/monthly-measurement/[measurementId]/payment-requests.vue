@@ -901,7 +901,43 @@ const deleteTargetIdx = ref<number | null>(null)
 const deletingAttachment = ref(false)
 
 // Tab 3 数据
-const paymentRequest = ref<any>({
+type PaymentRequestAttachment = {
+  blobId: string
+  name?: string
+}
+
+type PaymentRequestState = {
+  measurementId: string
+  requestAttachments: PaymentRequestAttachment[]
+  lastCumulativePayment: number
+  contractAmount: number
+  contractorPayAmt: number
+  supervisionPayAmt: number
+  headquartersPayAmt: number
+  investmentPayAmt: number
+  contractPayAmt: number
+  leaderPayAmt: number
+  reqContractorOpinion: string
+  reqContractorAuditor: string
+  reqContractorDate?: string | number
+  reqSupervisionOpinion: string
+  reqSupervisionAuditor: string
+  reqSupervisionDate?: string | number
+  reqHeadquartersOpinion: string
+  reqHeadquartersAuditor: string
+  reqHeadquartersDate?: string | number
+  reqInvestmentOpinion: string
+  reqInvestmentAuditor: string
+  reqInvestmentDate?: string | number
+  reqContractOpinion: string
+  reqContractAuditor: string
+  reqContractDate?: string | number
+  reqLeaderOpinion: string
+  reqLeaderAuditor: string
+  reqLeaderDate?: string | number
+}
+
+const createDefaultPaymentRequest = (): PaymentRequestState => ({
   measurementId: '',
   requestAttachments: [],
   lastCumulativePayment: 0,
@@ -914,17 +950,33 @@ const paymentRequest = ref<any>({
   leaderPayAmt: 0,
   reqContractorOpinion: '',
   reqContractorAuditor: '',
+  reqContractorDate: undefined,
   reqSupervisionOpinion: '',
   reqSupervisionAuditor: '',
+  reqSupervisionDate: undefined,
   reqHeadquartersOpinion: '',
   reqHeadquartersAuditor: '',
+  reqHeadquartersDate: undefined,
   reqInvestmentOpinion: '',
   reqInvestmentAuditor: '',
+  reqInvestmentDate: undefined,
   reqContractOpinion: '',
   reqContractAuditor: '',
+  reqContractDate: undefined,
   reqLeaderOpinion: '',
-  reqLeaderAuditor: ''
+  reqLeaderAuditor: '',
+  reqLeaderDate: undefined
 })
+
+const normalizePaymentRequest = (
+  data?: Partial<PaymentRequestState> | null
+): PaymentRequestState => ({
+  ...createDefaultPaymentRequest(),
+  ...(data || {}),
+  requestAttachments: data?.requestAttachments || []
+})
+
+const paymentRequest = ref<PaymentRequestState>(createDefaultPaymentRequest())
 const requestSaving = ref(false)
 
 const attachmentsDialogOpen = ref(false)
@@ -1360,13 +1412,10 @@ const leaderState = computed(() => getCardSignerState('leader'))
 const loadTab3Data = async () => {
   if (!props.item?.id || !props.projectId) return
   try {
-    const data = await $fetch<any>(
+    const data = await $fetch<Partial<PaymentRequestState>>(
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/payment-requests`
     )
-    paymentRequest.value = {
-      ...data,
-      requestAttachments: data.requestAttachments || []
-    }
+    paymentRequest.value = normalizePaymentRequest(data)
   } catch {}
 }
 
@@ -1403,14 +1452,14 @@ const saveTab3Request = async () => {
       body.reqLeaderOpinion = paymentRequest.value.reqLeaderOpinion
     }
 
-    await $fetch(
+    const updated = await $fetch<Partial<PaymentRequestState>>(
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/payment-requests`,
       {
         method: 'PATCH',
         body
       }
     )
-    await loadTab3Data()
+    paymentRequest.value = normalizePaymentRequest(updated)
     emit('refetch')
     triggerNotification({
       title: '保存成功',
