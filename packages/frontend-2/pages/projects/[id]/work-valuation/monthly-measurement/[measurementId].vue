@@ -577,6 +577,12 @@ const executeApprove = async () => {
   // 校验逻辑：根据当前节点，判断意见字段是否必填
   const pendingStep = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
   const stepName = pendingStep ? (pendingStep.name || '').trim() : ''
+  const isHeadquartersApprovalStep = [
+    '现场指挥',
+    '现场指挥部审核人',
+    '现场指挥部',
+    '指挥部'
+  ].includes(stepName)
   
   mutating.value = true
   try {
@@ -637,7 +643,7 @@ const executeApprove = async () => {
         mutating.value = false
         return
       }
-    } else if (stepName === '现场指挥') {
+    } else if (isHeadquartersApprovalStep) {
       if (!acceptanceData?.headquartersOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',

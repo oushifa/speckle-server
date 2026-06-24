@@ -273,7 +273,7 @@
           >
             <span class="text-xs font-semibold text-foreground-2">
               <span
-                v-if="currentStepName === '现场指挥'"
+                v-if="isHeadquartersApprovalStep"
                 class="text-red-500 mr-0.5 font-bold"
               >
                 *
@@ -1365,6 +1365,17 @@ const currentStepName = computed(() => {
   return pendingStep ? (pendingStep.name || '').trim() : ''
 })
 
+const headquartersApprovalStepNames = [
+  '现场指挥',
+  '现场指挥部审核人',
+  '现场指挥部',
+  '指挥部'
+] as const
+
+const isHeadquartersApprovalStep = computed(() =>
+  headquartersApprovalStepNames.includes(currentStepName.value as (typeof headquartersApprovalStepNames)[number])
+)
+
 const flowInitiatorName = computed(() => {
   return (
     props.item?.flowInitiator?.name ||
@@ -1567,7 +1578,15 @@ const permissions = computed(() => {
         if (isStep(['施工单位'])) result.contractor = true
         if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
           result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+        if (
+          isStep([
+            '现场指挥部经办人',
+            '现场指挥部审核人',
+            '现场指挥',
+            '现场指挥部',
+            '指挥部'
+          ])
+        )
           result.headquarters = true
         if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
           result.investment = true
@@ -1619,7 +1638,7 @@ const isCurrentApprover = computed(() => {
 
 const acceptanceAuditStepMap = {
   supervision: ['施工监理经办人', '施工监理总监'],
-  headquarters: ['现场指挥部经办人', '现场指挥'],
+  headquarters: ['现场指挥部经办人', '现场指挥', '现场指挥部审核人'],
   investment: ['投资监理经办人', '投资监理总监'],
   owner: ['合约管理部经办人', '合约管理部负责人', '分管领导']
 } as const
@@ -1735,6 +1754,18 @@ const loadTab1Data = async () => {
 
 const saveTab1Acceptance = async () => {
   if (!props.item?.id || !props.projectId) return
+  if (
+    permissions.value.headquarters &&
+    isHeadquartersApprovalStep.value &&
+    !acceptanceDetails.value.headquartersOpinion.trim()
+  ) {
+    triggerNotification({
+      title: '校验失败',
+      description: '处于现场指挥部审核节点时，现场指挥部意见为必填',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
   acceptanceSaving.value = true
 
   try {

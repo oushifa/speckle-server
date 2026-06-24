@@ -223,7 +223,7 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="currentStepName === '现场指挥'" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span v-if="isHeadquartersApprovalStep" class="text-red-500 mr-0.5 font-bold">*</span>
                 现场指挥部意见
               </span>
               <textarea
@@ -1015,6 +1015,17 @@ const currentStepName = computed(() => {
   return pendingStep ? (pendingStep.name || '').trim() : ''
 })
 
+const headquartersApprovalStepNames = [
+  '现场指挥',
+  '现场指挥部审核人',
+  '现场指挥部',
+  '指挥部'
+] as const
+
+const isHeadquartersApprovalStep = computed(() =>
+  headquartersApprovalStepNames.includes(currentStepName.value as (typeof headquartersApprovalStepNames)[number])
+)
+
 const getPartyAmounts = (partyKey: string) => {
   const sums = { current: 0, yearly: 0, cumulative: 0 }
   for (const row of coverAggregatedItems.value) {
@@ -1192,7 +1203,15 @@ const permissions = computed(() => {
         if (isStep(['施工单位'])) result.contractor = true
         if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
           result.supervision = true
-        if (isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部']))
+        if (
+          isStep([
+            '现场指挥部经办人',
+            '现场指挥部审核人',
+            '现场指挥',
+            '现场指挥部',
+            '指挥部'
+          ])
+        )
           result.headquarters = true
         if (isStep(['投资监理经办人', '投资监理总监', '投资监理']))
           result.investment = true
@@ -1328,7 +1347,7 @@ const paymentRequestAuditStepMap = {
   supervisionOperator: ['施工监理经办人'],
   supervisionApprover: ['施工监理总监'],
   headquartersOperator: ['现场指挥部经办人'],
-  headquartersApprover: ['现场指挥'],
+  headquartersApprover: ['现场指挥', '现场指挥部审核人'],
   investmentOperator: ['投资监理经办人'],
   investmentApprover: ['投资监理总监'],
   contractOperator: ['合约管理部经办人'],
@@ -1421,6 +1440,18 @@ const loadTab3Data = async () => {
 
 const saveTab3Request = async () => {
   if (!props.item?.id || !props.projectId) return
+  if (
+    permissions.value.headquarters &&
+    isHeadquartersApprovalStep.value &&
+    !paymentRequest.value.reqHeadquartersOpinion.trim()
+  ) {
+    triggerNotification({
+      title: '校验失败',
+      description: '处于现场指挥部审核节点时，现场指挥部意见为必填',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
   requestSaving.value = true
   try {
     const body: Record<string, any> = {

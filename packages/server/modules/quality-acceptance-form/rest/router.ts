@@ -602,7 +602,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return true
       if (
         requiredRole === 'headquarters' &&
-        isStep(['现场指挥部经办人', '现场指挥', '现场指挥部', '指挥部'])
+        isStep(['现场指挥部经办人', '现场指挥部审核人', '现场指挥', '现场指挥部', '指挥部'])
       )
         return true
       if (
@@ -1870,28 +1870,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const calculatedAmts = await calculatePaymentRequestAmounts(projectDb, id)
 
-      const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(id)
-      let latestSourceTime = new Date(measurement?.updatedAt || 0).getTime()
-      if (paymentDetails) {
-        const pdTime = new Date(paymentDetails.updatedAt).getTime()
-        if (pdTime > latestSourceTime) {
-          latestSourceTime = pdTime
-        }
-      }
-
-      let shouldForceCalc = false
-      if (details) {
-        const prTime = new Date(details.updatedAt).getTime()
-        if (latestSourceTime > prTime) {
-          shouldForceCalc = true
-        }
-      }
-
       const getFinalAmt = (detailsVal: any, defaultVal: number) => {
-        if (shouldForceCalc) {
-          return defaultVal
-        }
-        if (detailsVal === null || detailsVal === undefined || Number(detailsVal) === 0) {
+        if (detailsVal === null || detailsVal === undefined) {
           return defaultVal
         }
         return Number(detailsVal)
@@ -2041,7 +2021,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
  
       const latestAmts = await calculatePaymentRequestAmounts(projectDb, id)
       const getFinalAmt = (detailsVal: any, defaultVal: number) => {
-        if (detailsVal === null || detailsVal === undefined || Number(detailsVal) === 0) {
+        if (detailsVal === null || detailsVal === undefined) {
           return defaultVal
         }
         return Number(detailsVal)
