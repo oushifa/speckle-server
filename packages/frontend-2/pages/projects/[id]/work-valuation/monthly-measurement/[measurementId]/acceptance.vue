@@ -625,28 +625,36 @@
       <template #header>选择打印明细章节</template>
       <div class="space-y-4 p-2 text-xs">
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-foreground">
-            选择要打印的聚合章节（可多选）
-          </label>
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-xs font-semibold text-foreground">
+              选择要打印的聚合章节（可多选）
+            </div>
+            <button
+              type="button"
+              class="text-xs text-primary font-medium hover:underline"
+              @click="toggleAllGroupSelection"
+            >
+              {{ isAllPrintGroupsSelected ? '取消全选' : '全选' }}
+            </button>
+          </div>
           <div
             class="max-h-[220px] overflow-y-auto border border-outline-3 rounded p-2.5 space-y-2.5 bg-foundation"
           >
-            <div
+            <label
               v-for="item in aggregatedItems"
               :key="item.boqItemId"
               class="flex items-center gap-2 px-1 py-0.5 hover:bg-highlight-1/10 rounded cursor-pointer select-none"
-              @click="toggleGroupSelection(item.boqItemId)"
             >
               <input
                 type="checkbox"
                 :checked="selectedPrintGroupKeys.includes(item.boqItemId)"
-                class="rounded border-outline-3 text-primary focus:ring-primary h-3.5 w-3.5 pointer-events-none"
-                readOnly
+                class="rounded border-outline-3 text-primary focus:ring-primary h-3.5 w-3.5"
+                @change="toggleGroupSelection(item.boqItemId)"
               />
               <span class="text-foreground text-xs font-medium">
                 {{ item.boqCode }} {{ item.boqName }}
               </span>
-            </div>
+            </label>
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
@@ -669,8 +677,8 @@
     <Teleport v-if="isPrinting" to="body">
       <div id="print-section" class="text-black bg-white p-6 font-sans">
         <!-- 1. 打印汇总表 -->
-        <div v-if="printType === 'summary'" class="space-y-6">
-          <div class="text-center space-y-2 relative">
+        <div v-if="printType === 'summary'">
+          <div class="text-center relative">
             <h1 class="text-2xl font-bold tracking-wider">验 工 计 价 汇 总 表</h1>
             <h2 class="text-sm font-medium">
               {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{
@@ -680,7 +688,7 @@
               }}
             </h2>
             <div
-              class="flex justify-between items-center text-xs px-1 pt-2 border-b border-black pb-1.5 font-semibold"
+              class="flex justify-between items-center text-xs px-1 pt-2 border-black pb-1 font-semibold"
             >
               <div>
                 承包人(盖章)：{{ projectContractor || '上海公路桥梁（集团）有限公司' }}
@@ -847,9 +855,9 @@
           </table>
 
           <!-- 四方盖章意见 -->
-          <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
+          <div class="grid w-full grid-cols-4 print-opinions">
             <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+              class="border-l border-b border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
             >
               <div class="font-bold">施工监理意见：</div>
               <div class="italic flex-grow">
@@ -866,7 +874,7 @@
               </div>
             </div>
             <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+              class="border-l border-b border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
             >
               <div class="font-bold">现场指挥部意见：</div>
               <div class="italic flex-grow">
@@ -883,7 +891,7 @@
               </div>
             </div>
             <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+              class="border-l border-b border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
             >
               <div class="font-bold">投资监理意见：</div>
               <div class="italic flex-grow">
@@ -900,7 +908,7 @@
               </div>
             </div>
             <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
+              class="border-l border-b border-r border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
             >
               <div class="font-bold">合约部管理意见：</div>
               <div class="italic flex-grow">
@@ -920,7 +928,7 @@
         </div>
 
         <!-- 2. 打印明细表 -->
-        <div v-if="printType === 'detail'" class="space-y-6">
+        <div v-if="printType === 'detail'">
           <!-- 大标题和元数据，放在 table 外部，只在第一页显示一次 -->
           <div
             class="text-center pb-4 text-black"
@@ -943,8 +951,8 @@
               }}
             </h2>
             <div
-              class="border-b border-black pb-1.5 pt-2 text-xs font-semibold text-black"
-              style="display: table; width: 100%; border-bottom: 1px solid #000"
+              class="border-black pb-1.5 pt-2 text-xs font-semibold text-black"
+              style="display: table; width: 100%"
             >
               <div
                 style="
@@ -1036,7 +1044,7 @@
                 </td>
                 <td class="text-left border-r border-black pl-1">
                   <div
-                    :style="{ paddingLeft: Math.max(0, row.boqDepth - 1) * 8 + 'px' }"
+                    :style="{ paddingLeft: Math.max(0, 4 - row.boqDepth) * 8 + 'px' }"
                   >
                     {{ row.boqName }}
                   </div>
@@ -1097,9 +1105,7 @@
 
                 <!-- 本年完成工程量 -->
                 <td class="text-right font-mono border-r border-black">
-                  {{
-                    formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0))
-                  }}
+                  {{ formatQty(getYearlyCompletedQty(row)) }}
                 </td>
                 <td class="text-right font-mono border-r border-black">
                   {{ formatMoney(row.yearlyAmount) }}
@@ -1107,9 +1113,7 @@
 
                 <!-- 累计完成数 -->
                 <td class="text-right font-mono border-r border-black">
-                  {{
-                    formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0))
-                  }}
+                  {{ formatQty(getCumulativeCompletedQty(row)) }}
                 </td>
                 <td
                   class="text-right font-mono border-r border-black text-success-darker"
@@ -1179,24 +1183,14 @@
                 </td>
                 <!-- 本年完成工程量 -->
                 <td class="text-right font-mono border-r border-black">
-                  {{
-                    formatQty(
-                      (printDetailRoot.yearlyCumulativeQty || 0) +
-                        (printDetailRoot.investmentQty || 0)
-                    )
-                  }}
+                  {{ formatQty(getYearlyCompletedQty(printDetailRoot)) }}
                 </td>
                 <td class="text-right font-mono border-r border-black">
                   {{ formatMoney(printDetailRoot.yearlyAmount) }}
                 </td>
                 <!-- 累计完成数 -->
                 <td class="text-right font-mono border-r border-black">
-                  {{
-                    formatQty(
-                      (printDetailRoot.lastCumulativeQty || 0) +
-                        (printDetailRoot.investmentQty || 0)
-                    )
-                  }}
+                  {{ formatQty(getCumulativeCompletedQty(printDetailRoot)) }}
                 </td>
                 <td
                   class="text-right font-mono border-r border-black text-success-darker"
@@ -1208,80 +1202,84 @@
                 </td>
                 <td class="text-center">-</td>
               </tr>
+              <tr>
+                <td colspan="23" class="print-opinions-cell !p-0">
+                  <!-- 四方盖章意见 -->
+                  <div class="grid w-full grid-cols-4 print-opinions">
+                  <div
+                    class="border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                  >
+                    <div class="font-bold">施工监理意见：</div>
+                    <div class="italic flex-grow">
+                      {{ acceptanceDetails.supervisionOpinion || '' }}
+                    </div>
+                    <div class="text-[10px]">
+                      <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+                      <div>
+                        日&nbsp;&nbsp;期：{{
+                          getAcceptanceOperatorDate('施工监理经办人') ||
+                          formatDate(acceptanceDetails.supervisionDate)
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                  >
+                    <div class="font-bold">现场指挥部意见：</div>
+                    <div class="italic flex-grow">
+                      {{ acceptanceDetails.headquartersOpinion || '' }}
+                    </div>
+                    <div class="text-[10px]">
+                      <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+                      <div>
+                        日&nbsp;&nbsp;期：{{
+                          getAcceptanceOperatorDate('现场指挥部经办人') ||
+                          formatDate(acceptanceDetails.headquartersDate)
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                  >
+                    <div class="font-bold">投资监理意见：</div>
+                    <div class="italic flex-grow">
+                      {{ acceptanceDetails.investmentOpinion || '' }}
+                    </div>
+                    <div class="text-[10px]">
+                      <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+                      <div>
+                        日&nbsp;&nbsp;期：{{
+                          getAcceptanceOperatorDate('投资监理经办人') ||
+                          formatDate(acceptanceDetails.investmentDate)
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                  >
+                    <div class="font-bold">合约部管理意见：</div>
+                    <div class="italic flex-grow">
+                      {{ acceptanceDetails.ownerOpinion || '' }}
+                    </div>
+                    <div class="text-[10px]">
+                      <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+                      <div>
+                        日&nbsp;&nbsp;期：{{
+                          getAcceptanceOperatorDate('合约管理部经办人') ||
+                          formatDate(acceptanceDetails.ownerDate)
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
 
-          <!-- 四方盖章意见 -->
-          <div class="grid grid-cols-4 gap-4 mt-8 print-opinions">
-            <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
-            >
-              <div class="font-bold">施工监理意见：</div>
-              <div class="italic flex-grow">
-                {{ acceptanceDetails.supervisionOpinion || '' }}
-              </div>
-              <div class="text-[10px]">
-                <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
-                <div>
-                  日&nbsp;&nbsp;期：{{
-                    getAcceptanceOperatorDate('施工监理经办人') ||
-                    formatDate(acceptanceDetails.supervisionDate)
-                  }}
-                </div>
-              </div>
-            </div>
-            <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
-            >
-              <div class="font-bold">现场指挥部意见：</div>
-              <div class="italic flex-grow">
-                {{ acceptanceDetails.headquartersOpinion || '' }}
-              </div>
-              <div class="text-[10px]">
-                <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
-                <div>
-                  日&nbsp;&nbsp;期：{{
-                    getAcceptanceOperatorDate('现场指挥部经办人') ||
-                    formatDate(acceptanceDetails.headquartersDate)
-                  }}
-                </div>
-              </div>
-            </div>
-            <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
-            >
-              <div class="font-bold">投资监理意见：</div>
-              <div class="italic flex-grow">
-                {{ acceptanceDetails.investmentOpinion || '' }}
-              </div>
-              <div class="text-[10px]">
-                <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
-                <div>
-                  日&nbsp;&nbsp;期：{{
-                    getAcceptanceOperatorDate('投资监理经办人') ||
-                    formatDate(acceptanceDetails.investmentDate)
-                  }}
-                </div>
-              </div>
-            </div>
-            <div
-              class="border border-black p-3 rounded space-y-2 text-xs flex flex-col justify-between h-36"
-            >
-              <div class="font-bold">合约部管理意见：</div>
-              <div class="italic flex-grow">
-                {{ acceptanceDetails.ownerOpinion || '' }}
-              </div>
-              <div class="text-[10px]">
-                <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
-                <div>
-                  日&nbsp;&nbsp;期：{{
-                    getAcceptanceOperatorDate('合约管理部经办人') ||
-                    formatDate(acceptanceDetails.ownerDate)
-                  }}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </Teleport>
@@ -1952,6 +1950,22 @@ const formatQty = (value: any) => {
   return num.toFixed(2)
 }
 
+const toSafeNumber = (value: any) => {
+  if (value === null || value === undefined || value === '') return 0
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+const getYearlyCompletedQty = (row: any) => {
+  if (!row) return 0
+  return toSafeNumber(row.yearlyCumulativeQty) + toSafeNumber(row.investmentQty)
+}
+
+const getCumulativeCompletedQty = (row: any) => {
+  if (!row) return 0
+  return toSafeNumber(row.lastCumulativeQty) + toSafeNumber(row.investmentQty)
+}
+
 // 安全文明措施关联相关变量与方法
 const safetyMeasureDialogOpen = ref(false)
 const safetyMeasureConfirmDialogOpen = ref(false)
@@ -2088,6 +2102,12 @@ const printDetailRows = ref<any[]>([])
 const printDetailRoot = ref<any | null>(null)
 const isPrinting = ref(false)
 
+const isAllPrintGroupsSelected = computed(
+  () =>
+    aggregatedItems.value.length > 0 &&
+    selectedPrintGroupKeys.value.length === aggregatedItems.value.length
+)
+
 const toggleGroupSelection = (key: string) => {
   const index = selectedPrintGroupKeys.value.indexOf(key)
   if (index > -1) {
@@ -2095,6 +2115,43 @@ const toggleGroupSelection = (key: string) => {
   } else {
     selectedPrintGroupKeys.value.push(key)
   }
+}
+
+const toggleAllGroupSelection = () => {
+  if (isAllPrintGroupsSelected.value) {
+    selectedPrintGroupKeys.value = []
+    return
+  }
+
+  selectedPrintGroupKeys.value = aggregatedItems.value.map((item) => item.boqItemId)
+}
+
+const getDefaultPrintGroupKeys = (allItems: any[]) => {
+  const rootIds = new Set(aggregatedItems.value.map((item) => item.boqItemId))
+  const parentMap = new Map<string, string | null>()
+
+  allItems.forEach((item) => {
+    parentMap.set(item.boqItemId, item.boqParentId || null)
+  })
+
+  const selectedRootIds = new Set<string>()
+
+  allItems.forEach((item) => {
+    if (item.isSummaryRow || toSafeNumber(item.contractorQty) === 0) return
+
+    let currentId: string | null = item.boqItemId
+    while (currentId) {
+      if (rootIds.has(currentId)) {
+        selectedRootIds.add(currentId)
+        return
+      }
+      currentId = parentMap.get(currentId) || null
+    }
+  })
+
+  return aggregatedItems.value
+    .map((item) => item.boqItemId)
+    .filter((id) => selectedRootIds.has(id))
 }
 
 const handlePrintSummary = async () => {
@@ -2105,9 +2162,25 @@ const handlePrintSummary = async () => {
   window.print()
 }
 
-const openPrintDetailDialog = () => {
+const openPrintDetailDialog = async () => {
+  if (!props.item?.id || !props.projectId) {
+    selectedPrintGroupKeys.value = []
+    printDetailDialogOpen.value = true
+    return
+  }
+
+  const measurementId = props.item.id
+  const projectId = props.projectId
+
   if (aggregatedItems.value.length > 0) {
-    selectedPrintGroupKeys.value = [aggregatedItems.value[0].boqItemId]
+    try {
+      const list = await $fetch<any[]>(
+        `${apiOrigin}/api/v1/projects/${projectId}/monthly-measurements/${measurementId}/detail-items`
+      )
+      selectedPrintGroupKeys.value = getDefaultPrintGroupKeys(list)
+    } catch {
+      selectedPrintGroupKeys.value = []
+    }
   } else {
     selectedPrintGroupKeys.value = []
   }
@@ -2135,14 +2208,14 @@ const executePrintDetail = async () => {
     const byId = new Map<string, any>()
     const depthMap = new Map<number, any[]>()
     filtered.forEach((row) => {
-      row.contractorQty = row.contractorQty || 0
-      row.supervisionQty = row.supervisionQty || 0
-      row.headquartersQty = row.headquartersQty || 0
-      row.investmentQty = row.investmentQty || 0
-      row.measuredQtyDefault = row.measuredQtyDefault || 0
-      row.lastCumulativeQty = row.lastCumulativeQty || 0
-      row.yearlyCumulativeQty = row.yearlyCumulativeQty || 0
-      row.pendingTotalQty = row.pendingTotalQty || 0
+      row.contractorQty = toSafeNumber(row.contractorQty)
+      row.supervisionQty = toSafeNumber(row.supervisionQty)
+      row.headquartersQty = toSafeNumber(row.headquartersQty)
+      row.investmentQty = toSafeNumber(row.investmentQty)
+      row.measuredQtyDefault = toSafeNumber(row.measuredQtyDefault)
+      row.lastCumulativeQty = toSafeNumber(row.lastCumulativeQty)
+      row.yearlyCumulativeQty = toSafeNumber(row.yearlyCumulativeQty)
+      row.pendingTotalQty = toSafeNumber(row.pendingTotalQty)
 
       if (row.isSummaryRow) {
         row.contractorQty = 0
@@ -2164,19 +2237,17 @@ const executePrintDetail = async () => {
         row.cumulativeAmount = 0
       } else {
         // 明明细行金额初始化
-        const price = Number(row.price || 0)
+        const price = toSafeNumber(row.price)
         row.contractAmount =
           row.boqAmount !== undefined && row.boqAmount !== null
-            ? Number(row.boqAmount)
-            : (row.pendingTotalQty || 0) * price
-        row.contractorAmount = (row.contractorQty || 0) * price
-        row.supervisionAmount = (row.supervisionQty || 0) * price
-        row.headquartersAmount = (row.headquartersQty || 0) * price
-        row.investmentAmount = (row.investmentQty || 0) * price
-        row.yearlyAmount =
-          ((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0)) * price
-        row.cumulativeAmount =
-          ((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) * price
+            ? toSafeNumber(row.boqAmount)
+            : toSafeNumber(row.pendingTotalQty) * price
+        row.contractorAmount = toSafeNumber(row.contractorQty) * price
+        row.supervisionAmount = toSafeNumber(row.supervisionQty) * price
+        row.headquartersAmount = toSafeNumber(row.headquartersQty) * price
+        row.investmentAmount = toSafeNumber(row.investmentQty) * price
+        row.yearlyAmount = getYearlyCompletedQty(row) * price
+        row.cumulativeAmount = getCumulativeCompletedQty(row) * price
       }
       byId.set(row.boqItemId, row)
       const d = Number(row.boqDepth || 0)
@@ -2191,33 +2262,38 @@ const executePrintDetail = async () => {
         if (!row.boqParentId) return
         const parent = byId.get(row.boqParentId)
         if (!parent || !parent.isSummaryRow) return
-        parent.contractorQty = (parent.contractorQty || 0) + (row.contractorQty || 0)
-        parent.supervisionQty = (parent.supervisionQty || 0) + (row.supervisionQty || 0)
+        parent.contractorQty =
+          toSafeNumber(parent.contractorQty) + toSafeNumber(row.contractorQty)
+        parent.supervisionQty =
+          toSafeNumber(parent.supervisionQty) + toSafeNumber(row.supervisionQty)
         parent.headquartersQty =
-          (parent.headquartersQty || 0) + (row.headquartersQty || 0)
-        parent.investmentQty = (parent.investmentQty || 0) + (row.investmentQty || 0)
+          toSafeNumber(parent.headquartersQty) + toSafeNumber(row.headquartersQty)
+        parent.investmentQty =
+          toSafeNumber(parent.investmentQty) + toSafeNumber(row.investmentQty)
         parent.measuredQtyDefault =
-          (parent.measuredQtyDefault || 0) + (row.measuredQtyDefault || 0)
+          toSafeNumber(parent.measuredQtyDefault) + toSafeNumber(row.measuredQtyDefault)
         parent.lastCumulativeQty =
-          (parent.lastCumulativeQty || 0) + (row.lastCumulativeQty || 0)
+          toSafeNumber(parent.lastCumulativeQty) + toSafeNumber(row.lastCumulativeQty)
         parent.yearlyCumulativeQty =
-          (parent.yearlyCumulativeQty || 0) + (row.yearlyCumulativeQty || 0)
+          toSafeNumber(parent.yearlyCumulativeQty) + toSafeNumber(row.yearlyCumulativeQty)
         parent.pendingTotalQty =
-          (parent.pendingTotalQty || 0) + (row.pendingTotalQty || 0)
+          toSafeNumber(parent.pendingTotalQty) + toSafeNumber(row.pendingTotalQty)
 
         // 累加金额
-        parent.contractAmount = (parent.contractAmount || 0) + (row.contractAmount || 0)
+        parent.contractAmount =
+          toSafeNumber(parent.contractAmount) + toSafeNumber(row.contractAmount)
         parent.contractorAmount =
-          (parent.contractorAmount || 0) + (row.contractorAmount || 0)
+          toSafeNumber(parent.contractorAmount) + toSafeNumber(row.contractorAmount)
         parent.supervisionAmount =
-          (parent.supervisionAmount || 0) + (row.supervisionAmount || 0)
+          toSafeNumber(parent.supervisionAmount) + toSafeNumber(row.supervisionAmount)
         parent.headquartersAmount =
-          (parent.headquartersAmount || 0) + (row.headquartersAmount || 0)
+          toSafeNumber(parent.headquartersAmount) + toSafeNumber(row.headquartersAmount)
         parent.investmentAmount =
-          (parent.investmentAmount || 0) + (row.investmentAmount || 0)
-        parent.yearlyAmount = (parent.yearlyAmount || 0) + (row.yearlyAmount || 0)
+          toSafeNumber(parent.investmentAmount) + toSafeNumber(row.investmentAmount)
+        parent.yearlyAmount =
+          toSafeNumber(parent.yearlyAmount) + toSafeNumber(row.yearlyAmount)
         parent.cumulativeAmount =
-          (parent.cumulativeAmount || 0) + (row.cumulativeAmount || 0)
+          toSafeNumber(parent.cumulativeAmount) + toSafeNumber(row.cumulativeAmount)
       })
     })
 
@@ -2249,26 +2325,26 @@ const executePrintDetail = async () => {
     selectedPrintGroupKeys.value.forEach((rootId) => {
       const rootRow = byId.get(rootId)
       if (rootRow) {
-        sumRoot.pendingTotalQty += rootRow.pendingTotalQty || 0
+        sumRoot.pendingTotalQty += toSafeNumber(rootRow.pendingTotalQty)
         sumRoot.boqAmount +=
           rootRow.boqAmount !== undefined && rootRow.boqAmount !== null
-            ? rootRow.boqAmount
-            : (rootRow.pendingTotalQty || 0) * (rootRow.price || 0)
-        sumRoot.contractorQty += rootRow.contractorQty || 0
-        sumRoot.supervisionQty += rootRow.supervisionQty || 0
-        sumRoot.headquartersQty += rootRow.headquartersQty || 0
-        sumRoot.investmentQty += rootRow.investmentQty || 0
-        sumRoot.measuredQtyDefault += rootRow.measuredQtyDefault || 0
-        sumRoot.lastCumulativeQty += rootRow.lastCumulativeQty || 0
-        sumRoot.yearlyCumulativeQty += rootRow.yearlyCumulativeQty || 0
+            ? toSafeNumber(rootRow.boqAmount)
+            : toSafeNumber(rootRow.pendingTotalQty) * toSafeNumber(rootRow.price)
+        sumRoot.contractorQty += toSafeNumber(rootRow.contractorQty)
+        sumRoot.supervisionQty += toSafeNumber(rootRow.supervisionQty)
+        sumRoot.headquartersQty += toSafeNumber(rootRow.headquartersQty)
+        sumRoot.investmentQty += toSafeNumber(rootRow.investmentQty)
+        sumRoot.measuredQtyDefault += toSafeNumber(rootRow.measuredQtyDefault)
+        sumRoot.lastCumulativeQty += toSafeNumber(rootRow.lastCumulativeQty)
+        sumRoot.yearlyCumulativeQty += toSafeNumber(rootRow.yearlyCumulativeQty)
 
-        sumRoot.contractAmount += rootRow.contractAmount || 0
-        sumRoot.contractorAmount += rootRow.contractorAmount || 0
-        sumRoot.supervisionAmount += rootRow.supervisionAmount || 0
-        sumRoot.headquartersAmount += rootRow.headquartersAmount || 0
-        sumRoot.investmentAmount += rootRow.investmentAmount || 0
-        sumRoot.yearlyAmount += rootRow.yearlyAmount || 0
-        sumRoot.cumulativeAmount += rootRow.cumulativeAmount || 0
+        sumRoot.contractAmount += toSafeNumber(rootRow.contractAmount)
+        sumRoot.contractorAmount += toSafeNumber(rootRow.contractorAmount)
+        sumRoot.supervisionAmount += toSafeNumber(rootRow.supervisionAmount)
+        sumRoot.headquartersAmount += toSafeNumber(rootRow.headquartersAmount)
+        sumRoot.investmentAmount += toSafeNumber(rootRow.investmentAmount)
+        sumRoot.yearlyAmount += toSafeNumber(rootRow.yearlyAmount)
+        sumRoot.cumulativeAmount += toSafeNumber(rootRow.cumulativeAmount)
       }
     })
 
@@ -2312,9 +2388,9 @@ const getSubtreeItemIds = (rootId: string, allItems: any[]): Set<string> => {
 }
 
 const getCumulativeRate = (row: any) => {
-  const contractQty = row.pendingTotalQty || 0
+  const contractQty = toSafeNumber(row?.pendingTotalQty)
   if (contractQty <= 0) return '0.00'
-  const cumulativeQty = (row.lastCumulativeQty || 0) + (row.investmentQty || 0)
+  const cumulativeQty = getCumulativeCompletedQty(row)
   return ((cumulativeQty / contractQty) * 100).toFixed(2)
 }
 
@@ -2359,7 +2435,6 @@ onUnmounted(() => {
 
 /* 打印页面及页边距设置，以及页脚生成 */
 @page {
-  size: A4; /* 横向打印 */
   margin: 15mm 15mm 20mm 15mm; /* 给底部页脚留出足够的外边距 */
 }
 
@@ -2453,11 +2528,14 @@ onUnmounted(() => {
     text-align: center !important;
     font-weight: bold !important;
   }
+  .print-table td.print-opinions-cell {
+    padding: 0 !important;
+  }
   /* 四方盖章网格排版 */
   .print-opinions {
     display: grid !important;
+    width: 100% !important;
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 12px !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }

@@ -14,6 +14,8 @@ import { waitForRegionUser } from '@/test/speckle-helpers/regions'
 import { createTestWorkspace } from '@/modules/workspaces/tests/helpers/creation'
 import { createTestUser, type BasicTestUser } from '@/test/authHelper'
 import cryptoRandomString from 'crypto-random-string'
+import * as XLSX from 'xlsx'
+import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 
 const createRandomUser = async (): Promise<BasicTestUser> => {
   const userDetails = {
@@ -41,6 +43,17 @@ const binaryParser = (res: any, callback: any) => {
   })
   res.on('end', () => {
     callback(null, Buffer.from(data, 'binary'))
+  })
+}
+
+const createBoqExcelBuffer = (rows: Array<Array<string | number>>) => {
+  const workbook = XLSX.utils.book_new()
+  const worksheet = XLSX.utils.aoa_to_sheet(rows)
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'BOQ')
+
+  return XLSX.write(workbook, {
+    type: 'buffer',
+    bookType: 'xlsx'
   })
 }
 
@@ -92,6 +105,30 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
     expect(response.status).to.equal(200)
     expect(response.body.success).to.be.true
     expect(response.body.createdCount).to.be.greaterThan(0)
+  })
+
+  it('Imports BOQ Excel when amount header uses 合同价（元）', async () => {
+    const excelBuffer = createBoqExcelBuffer([
+      ['清单编码', '清单名称', '类型', '上级编码', '计量单位', '工程量', '综合单价（元）', '合同价（元）'],
+      ['C99', '测试单位工程', '单位工程', '', '', '', '', ''],
+      ['C9901', '测试分类工程', '分类工程', 'C99', '', '', '', 2468.5]
+    ])
+
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/boq/import-excel`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', excelBuffer, 'boq-contract-amount.xlsx')
+
+    expect(response.status).to.equal(200)
+    expect(response.body.success).to.be.true
+
+    const projectDb = await getProjectDbClient({ projectId })
+    const importedItem = await projectDb('boq_items')
+      .where({ projectId, code: 'C9901' })
+      .first()
+
+    expect(importedItem).to.exist
+    expect(importedItem.amount).to.equal('2468.5')
   })
 
   it('Exports BOQ Excel successfully', async () => {

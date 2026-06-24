@@ -50,7 +50,8 @@ import {
 import {
   syncSettlementInfoToBudget,
   syncIntermediatePaymentInfoToBudget,
-  syncPaymentPoolToBudget
+  syncPaymentPoolToBudget,
+  getBudgetSyncPreview
 } from '../services/budgetSync'
 
 import {
@@ -2530,6 +2531,41 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   )
 
   // 12.2 同步数据到预算系统接口
+  app.post(
+    '/api/v1/projects/:projectId/monthly-measurements/:id/sync-preview',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const { type } = req.body || {}
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const allowedTypes = ['settlement', 'paymentDetail', 'paymentPool']
+      if (!allowedTypes.includes(type)) {
+        return res.status(400).json({ error: '无效的同步类型参数' })
+      }
+
+      try {
+        const preview = await getBudgetSyncPreview({
+          type,
+          projectId,
+          measurementId: id,
+          db,
+          projectDb
+        })
+
+        return res.status(200).json({
+          type,
+          method: 'POST',
+          url: preview.url,
+          body: preview.requestBody
+        })
+      } catch (err: any) {
+        return res.status(400).json({ error: err.message || '生成同步预览失败' })
+      }
+    }
+  )
+
+  // 12.3 同步数据到预算系统接口
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/sync',
     authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),

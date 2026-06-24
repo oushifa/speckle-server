@@ -587,8 +587,7 @@
             <div class="print-cover-title">验 工 月 报</div>
 
             <div class="print-cover-subtitle text-[#111]">
-              {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-              {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              {{ coverContractName }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
               {{ printPeriod }}
             </div>
 
@@ -641,8 +640,7 @@
           <div class="print-cover-title">验 工 月 报</div>
 
           <div class="print-cover-subtitle text-[#111]">
-            {{ coverProjectName }} 工程 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            {{ coverContractName }} 标段 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            {{ coverContractName }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
             {{ printPeriod }}
           </div>
 
@@ -687,11 +685,11 @@
 
           <div class="flex justify-between items-center py-3 text-xs">
             <span>费用申请单位名称：{{ applicantUnitName }}</span>
-            <span>标段名称：{{ tenderName }}</span>
+            <span>{{ coverContractName }}</span>
             <span>单位：元</span>
           </div>
 
-          <table class="print-table print-info-table">
+          <!-- <table class="print-table print-info-table">
             <tr>
               <td class="print-cell">合同编号：{{ projectContractCode }}</td>
               <td class="print-cell">
@@ -702,9 +700,19 @@
               </td>
               <td class="print-cell">附件：{{ printAttachmentNames }}</td>
             </tr>
-          </table>
+          </table> -->
 
           <table class="print-table print-main-table">
+            <tr>
+              <td class="print-cell">合同编号：{{ projectContractCode }}</td>
+              <td class="print-cell">
+                上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}
+              </td>
+              <td class="print-cell">
+                合同金额：{{ formatMoney(paymentRequest.contractAmount) }}
+              </td>
+              <td class="print-cell">附件：{{ printAttachmentNames }}</td>
+            </tr>
             <tr>
               <th class="print-head" colspan="1" style="width: 16.66%">费用申请单位</th>
               <th class="print-head" colspan="5" style="width: 83.34%">费用审核单位</th>
@@ -1044,15 +1052,10 @@ const { result: coverProjectResult } = useQuery(
   })
 )
 
-const coverProjectName = computed(
-  () => coverProjectResult.value?.project?.name || '项目'
-)
 const coverContractName = computed(() => {
-  const bidSection = coverProjectResult.value?.project?.bidSection
-  if (bidSection && bidSection.trim().length) return bidSection
   const contract = coverProjectResult.value?.project?.contractName
   if (contract && contract.trim().length) return contract
-  return '标段'
+  return coverProjectResult.value?.project?.name || '项目合同'
 })
 const projectContractCode = computed(() => {
   const code = coverProjectResult.value?.project?.contractCode
@@ -1067,14 +1070,6 @@ const applicantUnitName = computed(() => {
 })
 const route = useRoute()
 const isReadOnly = computed(() => route.query.mode !== 'edit')
-
-const tenderName = computed(() => {
-  const value = coverProjectResult.value?.project?.bidSection
-  if (value && value.trim().length) return value
-  const fallback = coverProjectResult.value?.project?.contractName
-  if (fallback && fallback.trim().length) return fallback
-  return coverProjectResult.value?.project?.name || '标段'
-})
 
 const projectManagerName = computed(() => {
   const value = coverProjectResult.value?.project?.responsible
@@ -1625,7 +1620,6 @@ watch(
 
 @media print {
   @page {
-    size: A4;
     margin: 12mm;
   }
 

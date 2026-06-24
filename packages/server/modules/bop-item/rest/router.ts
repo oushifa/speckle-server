@@ -327,7 +327,7 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
   const unitIndex = findHeaderIndex(['计量单位', '单位'])
   const quantityIndex = findHeaderIndex(['工程量'])
   const priceIndex = findHeaderIndex(['综合单价（元）', '综合单价', '单价'])
-  const amountIndex = findHeaderIndex(['合价', '合价（元）'])
+  const amountIndex = findHeaderIndex(['合价', '合价（元）', '合同价', '合同价（元）'])
 
   if (codeIndex < 0 || nameIndex < 0 || typeIndex < 0) {
     throw new Error('模板缺少必要列：清单编码、清单名称、类型')

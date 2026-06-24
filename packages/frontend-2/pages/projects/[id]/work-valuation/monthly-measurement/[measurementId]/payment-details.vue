@@ -549,7 +549,7 @@
 
           <!-- 2. 副标题 -->
           <div class="print-subtitle">
-            {{ projectName }} &nbsp;&nbsp;&nbsp;&nbsp;
+            {{ contractName }} &nbsp;&nbsp;&nbsp;&nbsp;
             {{
               props.item?.baseDate
                 ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
@@ -734,6 +734,7 @@ const { result: projectResult } = useQuery(
       project(id: $id) {
         id
         name
+        contractName
         contractCode
         contractor
       }
@@ -745,6 +746,11 @@ const { result: projectResult } = useQuery(
 )
 const projectName = computed(() => {
   return projectResult.value?.project?.name || ''
+})
+const contractName = computed(() => {
+  const contract = projectResult.value?.project?.contractName
+  if (contract && contract.trim().length) return contract
+  return projectResult.value?.project?.name || '项目合同'
 })
 const projectContractCode = computed(() => {
   const code = projectResult.value?.project?.contractCode
@@ -1275,7 +1281,6 @@ watch(
 <style scoped>
 @media print {
   @page {
-    size: A4;
     margin: 10mm;
   }
 

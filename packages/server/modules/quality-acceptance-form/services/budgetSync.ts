@@ -60,60 +60,62 @@ const getBaseSyncData = async (params: {
   return { project, measurement, paymentDetails, paymentRequests }
 }
 
-// ==========================================
-// 【接口 1】同步验工计价结果接口 (Push_SettlementInfo)
-// ==========================================
-export const syncSettlementInfoToBudget = async (params: {
+export type BudgetSyncType = 'settlement' | 'paymentDetail' | 'paymentPool'
+
+type BudgetSyncPreview = {
+  url: string
+  requestBody: Record<string, unknown>
+}
+
+const buildSettlementInfoSyncPreview = async (params: {
   projectId: string
   measurementId: string
   db: Knex
   projectDb: Knex
-}) => {
-  const { projectId, measurementId, db, projectDb } = params
-  const { project, measurement, paymentDetails, paymentRequests } = await getBaseSyncData(params)
-  const { cleanBaseUrl, token, pushHeaders } = getApiConfig()
+}): Promise<BudgetSyncPreview> => {
+  const { project, measurement, paymentDetails, paymentRequests } =
+    await getBaseSyncData(params)
+  const { cleanBaseUrl, token } = getApiConfig()
 
-  // 1. 计算 confirmedPrice
-  const confirmedPrice = project.contractPrice !== null && project.contractPrice !== undefined
-    ? Number(project.contractPrice).toFixed(4)
-    : '0.0000'
+  const confirmedPrice =
+    project.contractPrice !== null && project.contractPrice !== undefined
+      ? Number(project.contractPrice).toFixed(4)
+      : '0.0000'
 
-  // 2. 计算 settlementTotalAmount
-  const [{ total }] = await projectDb('monthly_measurement_items')
-    .where('measurementId', measurementId)
+  const [{ total }] = await params.projectDb('monthly_measurement_items')
+    .where('measurementId', params.measurementId)
     .andWhere('isSummaryRow', false)
     .select(
-      projectDb.raw(
+      params.projectDb.raw(
         'SUM(COALESCE("investmentQty", 0) * COALESCE("price", 0)) as total'
       )
     )
   const settlementTotalAmount = Number(total || 0).toFixed(2)
 
-  // 3. 计算农民工工资
-  const ruralLaborsSalary = paymentDetails?.migrantWorkerSalary !== null && paymentDetails?.migrantWorkerSalary !== undefined
-    ? Number(paymentDetails.migrantWorkerSalary).toFixed(4)
-    : '0.0000'
+  const ruralLaborsSalary =
+    paymentDetails?.migrantWorkerSalary !== null &&
+    paymentDetails?.migrantWorkerSalary !== undefined
+      ? Number(paymentDetails.migrantWorkerSalary).toFixed(4)
+      : '0.0000'
 
-  // 4. 解析基准年月
   const baseDateTs = Number(measurement.baseDate)
   const year = dayjs(baseDateTs).format('YYYY')
   const month = dayjs(baseDateTs).format('MM')
 
-  // 5. 拼装 settlementKeyContent 字段
   const settlementKeyContentObj = {
     auditreportId: measurement.id,
-    budgetContent: project.contractName || '',
+    budgetContent: project.bidSection || '',
     businessUnit: project.businessUnit || '',
     businessUnitName: project.businessUnitName || '',
     companyID: project.companyId || '',
-    companyName: project.companyName || '',
+    companyName: project.employer || '',
     confirmedPrice,
     contractNo: project.contractCode || '',
     financialSupervisionComment: paymentRequests?.reqInvestmentOpinion || '',
     financialSupervisionUnit: project.supervisionUnit || '',
     month,
     paytToCompany: project.contractor || '',
-    projectGuid: project.projectGuid || '',
+    projectGuid: project.projectNumber || '',
     projectName: project.name || '',
     projectPackageItemguid: project.projectPackageItemguid || '',
     ruralLaborsSalary,
@@ -122,54 +124,29 @@ export const syncSettlementInfoToBudget = async (params: {
     year
   }
 
-  const url = `${cleanBaseUrl}/api/ToPaymentPool/Push_SettlementInfo`
-  const requestBody = {
-    token,
-    settlementKeyContent: settlementKeyContentObj
-  }
-  console.log('[DEBUG] 开始同步计价结果:')
-  console.log(`[DEBUG] 请求URL: ${url}`)
-  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(requestBody, null, 2)}`)
-
-  try {
-    const response = await axios.post(url, requestBody, pushHeaders)
-    const resData = response.data
-    console.log('[DEBUG] 计价结果同步返回数据:', JSON.stringify(resData, null, 2))
-
-    const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
-    if (!isSuccess) {
-      throw new Error(resData?.messages || resData?.message || '验工计价接口返回失败状态')
+  return {
+    url: `${cleanBaseUrl}/api/ToPaymentPool/Push_SettlementInfo`,
+    requestBody: {
+      token,
+      settlementKeyContent: settlementKeyContentObj
     }
-    return { success: true, message: resData?.messages || resData?.message || '计价结果同步成功' }
-  } catch (error: any) {
-    console.error('[DEBUG] 同步至 Push_SettlementInfo 接口发生异常:')
-    if (error.response) {
-      console.error('[DEBUG] 异常Response状态:', error.response.status)
-      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
-      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
-    } else {
-      console.error('[DEBUG] 异常信息:', error.message)
-    }
-    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
-    throw new Error(`同步计价结果失败: ${errorMsg}`)
   }
 }
 
-// ==========================================
-// 【接口 2】同步中间支付单信息接口 (Push_IntermediatePayementInfo)
-// ==========================================
-export const syncIntermediatePaymentInfoToBudget = async (params: {
+const buildIntermediatePaymentSyncPreview = async (params: {
   projectId: string
   measurementId: string
   db: Knex
   projectDb: Knex
-}) => {
-  const { projectId, measurementId, db, projectDb } = params
-  const { project, measurement, paymentDetails, paymentRequests } = await getBaseSyncData(params)
-  const { cleanBaseUrl, token, pushHeaders } = getApiConfig()
+}): Promise<BudgetSyncPreview> => {
+  const { projectId, measurementId, projectDb } = params
+  const { project, measurement, paymentDetails, paymentRequests } =
+    await getBaseSyncData(params)
+  const { cleanBaseUrl, token } = getApiConfig()
 
-  // 1. 获取明细项以自底向上聚合章节金额
-  const currentItems = await projectDb('monthly_measurement_items').where({ measurementId })
+  const currentItems = await projectDb('monthly_measurement_items').where({
+    measurementId
+  })
 
   const boqItems = await projectDb('boq_items')
     .where('projectId', projectId)
@@ -288,7 +265,6 @@ export const syncIntermediatePaymentInfoToBudget = async (params: {
     }
   })
 
-  // 2. 构建 paymentDetail
   const paymentDetailRows: any[] = []
   let totalContract = 0
   let totalThisMoney = 0
@@ -348,7 +324,6 @@ export const syncIntermediatePaymentInfoToBudget = async (params: {
     })
   })
 
-  // 3. 计算本期、历史与累计支付金额 (元、万元)
   const thisPaymentInYuan = Number(paymentDetails?.interimPayProgress || 0) * 10000
   const lastCumulativePaymentInYuan = Number(paymentRequests?.lastCumulativePayment || 0)
   const accuPaymentInYuan = lastCumulativePaymentInYuan + thisPaymentInYuan
@@ -359,69 +334,40 @@ export const syncIntermediatePaymentInfoToBudget = async (params: {
 
   const paymentDetailJson = JSON.stringify(paymentDetailRows)
 
-  // 4. 拼装请求 body
-  const intermediatePaymentBody = {
-    accuPayment: accuPaymentInYuan.toFixed(2),
-    auditreportId: measurement.id,
-    ctProjectId: project.projectGuid || project.id,
-    guid: project.projectPackageItemguid || '',
-    paymentDetail: paymentDetailJson, // 保持为 stringify 后的 JSON 字符串，匹配对方 C# 强类型 String 属性
-    planToPayLabor: Number(paymentDetails?.migrantWorkerSalary || 0).toFixed(4),
-    planToPayTotal: Number(paymentDetails?.interimPayProgress || 0).toFixed(4),
-    projectCode: project.projectNumber || '',
-    projectName: project.name || '',
-    projectPackageItemName: project.contractName || '',
-    remark: paymentDetails?.interimRemark || '',
-    semipaymentId: measurement.id,
-    thisPayment: thisPaymentInYuan.toFixed(2),
-    token,
-    yearPlanTotalFinance: `${year}${month}`,
-    yearPlanTotalWork: '0'
-  }
-
-  const url = `${cleanBaseUrl}/api/Push_IntermediatePayementInfo`
-  console.log('[DEBUG] 开始同步中间支付单:')
-  console.log(`[DEBUG] 请求URL: ${url}`)
-  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(intermediatePaymentBody, null, 2)}`)
-
-  try {
-    const response = await axios.post(url, intermediatePaymentBody, pushHeaders)
-    const resData = response.data
-    console.log('[DEBUG] 中间支付单同步返回数据:', JSON.stringify(resData, null, 2))
-
-    const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
-    if (!isSuccess) {
-      throw new Error(resData?.messages || resData?.message || '中间支付单接口返回失败状态')
+  return {
+    url: `${cleanBaseUrl}/api/Push_IntermediatePayementInfo`,
+    requestBody: {
+      accuPayment: accuPaymentInYuan.toFixed(2),
+      auditreportId: measurement.id,
+      ctProjectId: project.projectGuid || project.id,
+      guid: project.projectPackageItemguid || '',
+      paymentDetail: paymentDetailJson,
+      planToPayLabor: Number(paymentDetails?.migrantWorkerSalary || 0).toFixed(4),
+      planToPayTotal: Number(paymentDetails?.interimPayProgress || 0).toFixed(4),
+      projectCode: project.projectNumber || '',
+      projectName: project.name || '',
+      projectPackageItemName: project.contractName || '',
+      remark: paymentDetails?.interimRemark || '',
+      semipaymentId: measurement.id,
+      thisPayment: thisPaymentInYuan.toFixed(2),
+      token,
+      yearPlanTotalFinance: `${year}${month}`,
+      yearPlanTotalWork: '0'
     }
-    return { success: true, message: resData?.messages || resData?.message || '中间支付单同步成功' }
-  } catch (error: any) {
-    console.error('[DEBUG] 同步至 Push_IntermediatePayementInfo 接口发生异常:')
-    if (error.response) {
-      console.error('[DEBUG] 异常Response状态:', error.response.status)
-      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
-      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
-    } else {
-      console.error('[DEBUG] 异常信息:', error.message)
-    }
-    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
-    throw new Error(`同步中间支付单失败: ${errorMsg}`)
   }
 }
 
-// ==========================================
-// 【接口 3】同步待支付申报池接口 (PushToPaymentPool)
-// ==========================================
-export const syncPaymentPoolToBudget = async (params: {
+const buildPaymentPoolSyncPreview = async (params: {
   projectId: string
   measurementId: string
   db: Knex
   projectDb: Knex
-}) => {
-  const { projectId, measurementId, db, projectDb } = params
-  const { project, measurement, paymentDetails, paymentRequests } = await getBaseSyncData(params)
-  const { cleanBaseUrl, token, pushHeaders } = getApiConfig()
+}): Promise<BudgetSyncPreview> => {
+  const { measurementId, projectDb } = params
+  const { project, measurement, paymentDetails, paymentRequests } =
+    await getBaseSyncData(params)
+  const { cleanBaseUrl, token } = getApiConfig()
 
-  // 1. 获取本期验工总额 (结算总工作量)
   const [{ total }] = await projectDb('monthly_measurement_items')
     .where('measurementId', measurementId)
     .andWhere('isSummaryRow', false)
@@ -432,7 +378,6 @@ export const syncPaymentPoolToBudget = async (params: {
     )
   const settlementTotalAmount = Number(total || 0).toFixed(2)
 
-  // 2. 计算本期与累计支付
   const thisPaymentInYuan = Number(paymentDetails?.interimPayProgress || 0) * 10000
   const lastCumulativePaymentInYuan = Number(paymentRequests?.lastCumulativePayment || 0)
   const accuPaymentInYuan = lastCumulativePaymentInYuan + thisPaymentInYuan
@@ -441,7 +386,6 @@ export const syncPaymentPoolToBudget = async (params: {
   const year = dayjs(baseDateTs).format('YYYY')
   const month = dayjs(baseDateTs).format('MM')
 
-  // 3. 拼装 toPaymentPoolModel 字段
   const toPaymentPoolModel = {
     Category: 'Construction',
     ProjectName: project.name || '',
@@ -506,18 +450,126 @@ export const syncPaymentPoolToBudget = async (params: {
     BusinessUnitName: project.businessUnitName || ''
   }
 
-  const paymentPoolBody = {
-    token,
-    toPaymentPoolModel
+  return {
+    url: `${cleanBaseUrl}/api/ToPaymentPool/PushToPaymentPool`,
+    requestBody: {
+      token,
+      toPaymentPoolModel
+    }
   }
+}
 
-  const url = `${cleanBaseUrl}/api/ToPaymentPool/PushToPaymentPool`
-  console.log('[DEBUG] 开始同步待支付申报池:')
+export const getBudgetSyncPreview = async (params: {
+  type: BudgetSyncType
+  projectId: string
+  measurementId: string
+  db: Knex
+  projectDb: Knex
+}) => {
+  if (params.type === 'settlement') {
+    return buildSettlementInfoSyncPreview(params)
+  }
+  if (params.type === 'paymentDetail') {
+    return buildIntermediatePaymentSyncPreview(params)
+  }
+  return buildPaymentPoolSyncPreview(params)
+}
+
+// ==========================================
+// 【接口 1】同步验工计价结果接口 (Push_SettlementInfo)
+// ==========================================
+export const syncSettlementInfoToBudget = async (params: {
+  projectId: string
+  measurementId: string
+  db: Knex
+  projectDb: Knex
+}) => {
+  const { pushHeaders } = getApiConfig()
+  const { url, requestBody } = await buildSettlementInfoSyncPreview(params)
+  console.log('[DEBUG] 开始同步计价结果:')
   console.log(`[DEBUG] 请求URL: ${url}`)
-  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(paymentPoolBody, null, 2)}`)
+  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(requestBody, null, 2)}`)
 
   try {
-    const response = await axios.post(url, paymentPoolBody, pushHeaders)
+    const response = await axios.post(url, requestBody, pushHeaders)
+    const resData = response.data
+    console.log('[DEBUG] 计价结果同步返回数据:', JSON.stringify(resData, null, 2))
+
+    const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
+    if (!isSuccess) {
+      throw new Error(resData?.messages || resData?.message || '验工计价接口返回失败状态')
+    }
+    return { success: true, message: resData?.messages || resData?.message || '计价结果同步成功' }
+  } catch (error: any) {
+    console.error('[DEBUG] 同步至 Push_SettlementInfo 接口发生异常:')
+    if (error.response) {
+      console.error('[DEBUG] 异常Response状态:', error.response.status)
+      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
+      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
+    } else {
+      console.error('[DEBUG] 异常信息:', error.message)
+    }
+    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
+    throw new Error(`同步计价结果失败: ${errorMsg}`)
+  }
+}
+
+// ==========================================
+// 【接口 2】同步中间支付单信息接口 (Push_IntermediatePayementInfo)
+// ==========================================
+export const syncIntermediatePaymentInfoToBudget = async (params: {
+  projectId: string
+  measurementId: string
+  db: Knex
+  projectDb: Knex
+}) => {
+  const { pushHeaders } = getApiConfig()
+  const { url, requestBody } = await buildIntermediatePaymentSyncPreview(params)
+  console.log('[DEBUG] 开始同步中间支付单:')
+  console.log(`[DEBUG] 请求URL: ${url}`)
+  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(requestBody, null, 2)}`)
+
+  try {
+    const response = await axios.post(url, requestBody, pushHeaders)
+    const resData = response.data
+    console.log('[DEBUG] 中间支付单同步返回数据:', JSON.stringify(resData, null, 2))
+
+    const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
+    if (!isSuccess) {
+      throw new Error(resData?.messages || resData?.message || '中间支付单接口返回失败状态')
+    }
+    return { success: true, message: resData?.messages || resData?.message || '中间支付单同步成功' }
+  } catch (error: any) {
+    console.error('[DEBUG] 同步至 Push_IntermediatePayementInfo 接口发生异常:')
+    if (error.response) {
+      console.error('[DEBUG] 异常Response状态:', error.response.status)
+      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
+      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
+    } else {
+      console.error('[DEBUG] 异常信息:', error.message)
+    }
+    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
+    throw new Error(`同步中间支付单失败: ${errorMsg}`)
+  }
+}
+
+// ==========================================
+// 【接口 3】同步待支付申报池接口 (PushToPaymentPool)
+// ==========================================
+export const syncPaymentPoolToBudget = async (params: {
+  projectId: string
+  measurementId: string
+  db: Knex
+  projectDb: Knex
+}) => {
+  const { pushHeaders } = getApiConfig()
+  const { url, requestBody } = await buildPaymentPoolSyncPreview(params)
+  console.log('[DEBUG] 开始同步待支付申报池:')
+  console.log(`[DEBUG] 请求URL: ${url}`)
+  console.log(`[DEBUG] 请求Body:\n${JSON.stringify(requestBody, null, 2)}`)
+
+  try {
+    const response = await axios.post(url, requestBody, pushHeaders)
     const resData = response.data
     console.log('[DEBUG] 待支付申报池同步返回数据:', JSON.stringify(resData, null, 2))
 

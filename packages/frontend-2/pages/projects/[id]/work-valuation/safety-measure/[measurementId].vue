@@ -1382,13 +1382,7 @@
                     <div class="flex flex-col justify-end h-12 gap-2">
                       <div>施工单位：{{ unit || '-' }}</div>
                       <div>项目经理：{{ contractorReviewApproverDisplay }}</div>
-                      <div>
-                        日期：{{
-                          flowInitiatorDate !== '-'
-                            ? dayjs(flowInitiatorDate).format('YYYY年MM月DD日')
-                            : ''
-                        }}
-                      </div>
+                      <div>日期：{{ contractorReviewDateDisplay }}</div>
                     </div>
                   </div>
                 </td>
@@ -1426,8 +1420,7 @@
                           supervisionReviewApproverDisplay || '___________________'
                         }}
                       </span>
-                      <span>
-                      日期：______年___月___日</span>
+                      <span>日期：{{ supervisionReviewDateDisplay }}</span>
                     </div>
                   </div>
                 </td>
@@ -2800,28 +2793,22 @@ const rejectDialogButtons = computed((): LayoutDialogButton[] => [
 ])
 
 // 打印相关的状态和方法
-const flowInitiatorName = computed(() => {
-  return (
-    flowInstance.value?.actions?.find((a: any) => a.action === 'STARTED')?.actor
-      ?.name ||
-    creatorName.value ||
-    ''
+const getFlowStepApprovedDateDisplay = (stepNames: readonly string[]) => {
+  const steps = flowInstance.value?.steps || []
+  const normalizedNames = stepNames.map((name) => name.trim())
+  const matchedStep = steps.find(
+    (step: any) =>
+      normalizedNames.includes(step.name?.trim()) &&
+      (step.status === 'APPROVED' || step.completedAt)
   )
-})
 
-const flowInitiatorDate = computed(() => {
-  const startedAction = flowInstance.value?.actions?.find(
-    (a: any) => a.action === 'STARTED'
-  )
-  const dateVal = startedAction?.createdAt
-  if (!dateVal) return '-'
-  const ts = Number(dateVal)
-  if (!Number.isNaN(ts) && ts > 0) {
-    return dayjs(ts).format('YYYY-MM-DD')
-  }
-  const parsed = dayjs(String(dateVal))
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '-'
-})
+  if (!matchedStep?.completedAt) return '______年___月___日'
+
+  const parsed = dayjs(matchedStep.completedAt)
+  return parsed.isValid()
+    ? parsed.format('YYYY年MM月DD日')
+    : '______年___月___日'
+}
 
 const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
   const steps = flowInstance.value?.steps || []
@@ -2862,8 +2849,20 @@ const supervisionReviewApproverDisplay = computed(() => {
   )
 })
 
+const supervisionReviewDateDisplay = computed(() => {
+  return getFlowStepApprovedDateDisplay([
+    '监理单位审核人',
+    '监理单位审核',
+    '施工监理总监'
+  ])
+})
+
 const contractorReviewApproverDisplay = computed(() => {
   return getFlowStepApproverDisplay(['施工单位审核人']) || creatorName.value || ''
+})
+
+const contractorReviewDateDisplay = computed(() => {
+  return getFlowStepApprovedDateDisplay(['施工单位审核人'])
 })
 
 const isPrinting = ref(false)
@@ -2947,7 +2946,6 @@ const amountToChinese = (n: any): string => {
 
 @media print {
   @page {
-    size: auto;
     margin: 10mm 15mm;
   }
 

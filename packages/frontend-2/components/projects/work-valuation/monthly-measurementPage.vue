@@ -198,6 +198,15 @@
               <!-- 触发同步按钮 -->
               <button
                 v-if="item.approveStatus === 'APPROVED'"
+                class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                :title="getSyncDebugButtonTooltip(item)"
+                :disabled="isSyncDebugButtonDisabled(item)"
+                @click="debugSyncItem(item)"
+              >
+                <BugAntIcon class="h-4 w-4" />
+              </button>
+              <button
+                v-if="item.approveStatus === 'APPROVED'"
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
                 v-tippy="getSyncButtonTooltip(item)"
                 :disabled="isSyncButtonDisabled(item)"
@@ -545,6 +554,7 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ChevronRightIcon,
+  BugAntIcon,
   CloudArrowUpIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -795,6 +805,7 @@ const itemToDelete = ref<any>(null)
 const syncConfirmOpen = ref(false)
 const syncTargetItem = ref<any>(null)
 const syncLoadingId = ref<string | null>(null)
+const syncDebugLoadingId = ref<string | null>(null)
 
 const createDialogOpen = ref(false)
 const createError = ref('')
@@ -1323,6 +1334,27 @@ const getSyncButtonTooltip = (item: any) => {
   return `点击同步未成功的数据: ${needsSync.join('、')}`
 }
 
+const getSyncDebugButtonTooltip = (item: any) => {
+  if (syncDebugLoadingId.value === item?.id) {
+    return '正在生成同步 body...'
+  }
+
+  const statuses = [
+    item?.syncStatusSettlement,
+    item?.syncStatusPaymentDetail,
+    item?.syncStatusPaymentPool
+  ]
+  if (statuses.includes('LOADING')) {
+    return '数据正在同步中...'
+  }
+
+  const typesToSync = getSyncTypesToSync(item)
+  if (typesToSync.length === 0) {
+    return '当前没有待同步的数据 body'
+  }
+  return `调试同步 body: ${typesToSync.map(getSyncTypeLabel).join('、')}`
+}
+
 const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail' | 'paymentPool') => {
   if (!item) return ''
   const statusField =
@@ -1381,20 +1413,118 @@ const triggerSyncItem = (item: any) => {
   syncConfirmOpen.value = true
 }
 
+type SyncType = 'settlement' | 'paymentDetail' | 'paymentPool'
+
+const getSyncTypeLabel = (type: SyncType) => {
+  if (type === 'settlement') return '计价结果'
+  if (type === 'paymentDetail') return '中间支付单'
+  return '待支付申报池'
+}
+
+const isSyncDebugButtonDisabled = (item: any) => {
+  if (!item) return true
+  const statuses = [
+    item.syncStatusSettlement,
+    item.syncStatusPaymentDetail,
+    item.syncStatusPaymentPool
+  ]
+  if (statuses.includes('LOADING')) return true
+  if (syncDebugLoadingId.value === item.id) return true
+  return false
+}
+
+const getSyncTypesToSync = (item: any): SyncType[] => {
+  if (!item) return []
+
+  const typesToSync: SyncType[] = []
+  if (
+    item.syncStatusSettlement === 'NONE' ||
+    !item.syncStatusSettlement ||
+    item.syncStatusSettlement === 'ERROR'
+  ) {
+    typesToSync.push('settlement')
+  }
+  if (
+    item.syncStatusPaymentDetail === 'NONE' ||
+    !item.syncStatusPaymentDetail ||
+    item.syncStatusPaymentDetail === 'ERROR'
+  ) {
+    typesToSync.push('paymentDetail')
+  }
+  if (
+    item.syncStatusPaymentPool === 'NONE' ||
+    !item.syncStatusPaymentPool ||
+    item.syncStatusPaymentPool === 'ERROR'
+  ) {
+    typesToSync.push('paymentPool')
+  }
+
+  return typesToSync
+}
+
+const debugSyncItem = (item: any) => {
+  if (!item || !projectId.value) return
+
+  const typesToSync = getSyncTypesToSync(item)
+  if (typesToSync.length === 0) {
+    triggerNotification({
+      title: '没有待调试的数据',
+      description: '当前没有需要同步的 body',
+      type: ToastNotificationType.Success
+    })
+    return
+  }
+
+  syncDebugLoadingId.value = item.id
+  const apiOrigin = useApiOrigin()
+
+  Promise.all(
+    typesToSync.map(async (type) => {
+      const preview = await $fetch<any>(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${item.id}/sync-preview`,
+        {
+          method: 'POST',
+          body: { type }
+        }
+      )
+
+      return {
+        type,
+        typeLabel: getSyncTypeLabel(type),
+        ...preview
+      }
+    })
+  )
+    .then((requests) => {
+      // eslint-disable-next-line no-console
+      console.info('[MonthlyMeasurement Sync Debug]', {
+        measurementId: item.id,
+        requests
+      })
+
+      triggerNotification({
+        title: '同步 body 已输出',
+        description: `已在控制台输出 ${requests.length} 个完整同步 body`,
+        type: ToastNotificationType.Success
+      })
+    })
+    .catch((e: any) => {
+      triggerNotification({
+        title: '生成同步 body 失败',
+        description: e.data?.error || e.message || '生成同步 body 失败',
+        type: ToastNotificationType.Danger
+      })
+    })
+    .finally(() => {
+      syncDebugLoadingId.value = null
+    })
+}
+
 const confirmSyncItem = async () => {
   if (!syncTargetItem.value || !projectId.value) return
   const item = syncTargetItem.value
   
-  const typesToSync: ('settlement' | 'paymentDetail' | 'paymentPool')[] = []
-  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
-    typesToSync.push('settlement')
-  }
-  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
-    typesToSync.push('paymentDetail')
-  }
-  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
-    typesToSync.push('paymentPool')
-  }
+  const typesToSync = getSyncTypesToSync(item)
 
   if (typesToSync.length === 0) {
     syncConfirmOpen.value = false
