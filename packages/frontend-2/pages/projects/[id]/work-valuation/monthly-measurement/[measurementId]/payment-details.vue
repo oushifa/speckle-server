@@ -341,7 +341,7 @@
 
       <!-- 底部签字、日期和控制按钮区 -->
       <div
-        class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 pt-2.5"
+        class="flex flex-col lg:flex-row justify-start items-stretch lg:items-center gap-4 pt-2.5"
       >
         <!-- 签字项与制表日期 -->
         <div class="flex flex-wrap items-center gap-3.5 text-xs text-foreground-2">
@@ -380,7 +380,7 @@
         </div>
 
         <!-- 按钮组 -->
-        <div class="flex items-center justify-end gap-2.5 shrink-0">
+        <div class="flex items-center justify-start gap-2.5 shrink-0">
           <!-- 附件按钮，打开清爽弹出层 -->
           <button
             class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-3 text-xs font-semibold rounded hover:bg-foundation-2 bg-foundation text-foreground-2 transition-colors focus:outline-none"

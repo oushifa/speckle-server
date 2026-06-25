@@ -377,7 +377,7 @@
 
     <!-- 底部固定浮动操作栏 -->
     <div
-      class="sticky bottom-0 bg-foundation border-t border-outline-3 p-3 flex justify-end items-center gap-3 z-30 shadow-md"
+      class="sticky bottom-0 bg-foundation border-t border-outline-3 p-3 flex justify-start items-center gap-3 z-30 shadow-md"
     >
       <FormButton
         color="outline"

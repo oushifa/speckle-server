@@ -704,14 +704,21 @@
 
           <table class="print-table print-main-table">
             <tr>
-              <td class="print-cell">合同编号：{{ projectContractCode }}</td>
-              <td class="print-cell">
+              <td colspan="6" class="print-cell !p-0">
+                <div class="grid grid-cols-4">
+                  <div class="border-r border-black p-2">合同编号：{{ projectContractCode }}</div>
+                  <div class="border-r border-black p-2">上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}</div>
+                  <div class="border-r border-black p-2">合同金额：{{ formatMoney(paymentRequest.contractAmount) }}</div>
+                  <div class="p-2">附件：{{ printAttachmentNames }}</div>
+                </div>
+              </td>
+              <!-- <td class="print-cell">
                 上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}
               </td>
               <td class="print-cell">
                 合同金额：{{ formatMoney(paymentRequest.contractAmount) }}
               </td>
-              <td class="print-cell">附件：{{ printAttachmentNames }}</td>
+              <td class="print-cell">附件：{{ printAttachmentNames }}</td> -->
             </tr>
             <tr>
               <th class="print-head" colspan="1" style="width: 16.66%">费用申请单位</th>
