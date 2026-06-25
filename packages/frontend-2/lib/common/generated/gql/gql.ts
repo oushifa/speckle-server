@@ -605,6 +605,8 @@ type Documents = {
     "\n  fragment ProjectPageAutomationPage_Automation on Automation {\n    id\n    permissions {\n      canUpdate {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...ProjectPageAutomationHeader_Automation\n    ...ProjectPageAutomationFunctions_Automation\n    ...ProjectPageAutomationRuns_Automation\n  }\n": typeof types.ProjectPageAutomationPage_AutomationFragmentDoc,
     "\n  fragment ProjectPageAutomationPage_Project on Project {\n    id\n    workspaceId\n    ...ProjectPageAutomationHeader_Project\n  }\n": typeof types.ProjectPageAutomationPage_ProjectFragmentDoc,
     "\n  fragment ProjectPageSettingsTab_Project on Project {\n    id\n    name\n    permissions {\n      canReadWebhooks {\n        ...FullPermissionCheckResult\n      }\n      canReadEmbedTokens {\n        ...FullPermissionCheckResult\n      }\n      canReadAccIntegrationSettings {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n": typeof types.ProjectPageSettingsTab_ProjectFragmentDoc,
+    "\n  mutation FlowReactivate($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.FlowReactivateDocument,
+    "\n  query ProjectTeamForAdminFlow($id: String!) {\n    project(id: $id) {\n      id\n      team {\n        role\n        user {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.ProjectTeamForAdminFlowDocument,
     "\n    query ProjectNameForMonthlyMeasurement($id: String!) {\n      project(id: $id) {\n        id\n        name\n      }\n    }\n  ": typeof types.ProjectNameForMonthlyMeasurementDocument,
     "\n    query ProjectNameForAcceptance($id: String!) {\n      project(id: $id) {\n        id\n        name\n        contractName\n        contractCode\n        contractor\n      }\n    }\n  ": typeof types.ProjectNameForAcceptanceDocument,
     "\n    query ProjectContractCodeForPaymentDetails($id: String!) {\n      project(id: $id) {\n        id\n        name\n        contractName\n        contractCode\n        contractor\n      }\n    }\n  ": typeof types.ProjectContractCodeForPaymentDetailsDocument,
@@ -1214,6 +1216,8 @@ const documents: Documents = {
     "\n  fragment ProjectPageAutomationPage_Automation on Automation {\n    id\n    permissions {\n      canUpdate {\n        ...FullPermissionCheckResult\n      }\n    }\n    ...ProjectPageAutomationHeader_Automation\n    ...ProjectPageAutomationFunctions_Automation\n    ...ProjectPageAutomationRuns_Automation\n  }\n": types.ProjectPageAutomationPage_AutomationFragmentDoc,
     "\n  fragment ProjectPageAutomationPage_Project on Project {\n    id\n    workspaceId\n    ...ProjectPageAutomationHeader_Project\n  }\n": types.ProjectPageAutomationPage_ProjectFragmentDoc,
     "\n  fragment ProjectPageSettingsTab_Project on Project {\n    id\n    name\n    permissions {\n      canReadWebhooks {\n        ...FullPermissionCheckResult\n      }\n      canReadEmbedTokens {\n        ...FullPermissionCheckResult\n      }\n      canReadAccIntegrationSettings {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n": types.ProjectPageSettingsTab_ProjectFragmentDoc,
+    "\n  mutation FlowReactivate($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.FlowReactivateDocument,
+    "\n  query ProjectTeamForAdminFlow($id: String!) {\n    project(id: $id) {\n      id\n      team {\n        role\n        user {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.ProjectTeamForAdminFlowDocument,
     "\n    query ProjectNameForMonthlyMeasurement($id: String!) {\n      project(id: $id) {\n        id\n        name\n      }\n    }\n  ": types.ProjectNameForMonthlyMeasurementDocument,
     "\n    query ProjectNameForAcceptance($id: String!) {\n      project(id: $id) {\n        id\n        name\n        contractName\n        contractCode\n        contractor\n      }\n    }\n  ": types.ProjectNameForAcceptanceDocument,
     "\n    query ProjectContractCodeForPaymentDetails($id: String!) {\n      project(id: $id) {\n        id\n        name\n        contractName\n        contractCode\n        contractor\n      }\n    }\n  ": types.ProjectContractCodeForPaymentDetailsDocument,
@@ -3610,6 +3614,14 @@ export function graphql(source: "\n  fragment ProjectPageAutomationPage_Project 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment ProjectPageSettingsTab_Project on Project {\n    id\n    name\n    permissions {\n      canReadWebhooks {\n        ...FullPermissionCheckResult\n      }\n      canReadEmbedTokens {\n        ...FullPermissionCheckResult\n      }\n      canReadAccIntegrationSettings {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n"): (typeof documents)["\n  fragment ProjectPageSettingsTab_Project on Project {\n    id\n    name\n    permissions {\n      canReadWebhooks {\n        ...FullPermissionCheckResult\n      }\n      canReadEmbedTokens {\n        ...FullPermissionCheckResult\n      }\n      canReadAccIntegrationSettings {\n        ...FullPermissionCheckResult\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation FlowReactivate($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation FlowReactivate($input: ReactivateApprovalFlowInput!) {\n    approvalMutations {\n      reactivate(input: $input) {\n        id\n        status\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProjectTeamForAdminFlow($id: String!) {\n    project(id: $id) {\n      id\n      team {\n        role\n        user {\n          id\n          name\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectTeamForAdminFlow($id: String!) {\n    project(id: $id) {\n      id\n      team {\n        role\n        user {\n          id\n          name\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -63,7 +63,8 @@ export const ApprovalFlowActionType = {
   Canceled: 'CANCELED',
   TimeoutRejected: 'TIMEOUT_REJECTED',
   Reactivated: 'REACTIVATED',
-  ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED'
+  ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED',
+  TransferredAssignee: 'TRANSFERRED_ASSIGNEE'
 } as const
 
 export const ApprovalFlowStepStatus = {

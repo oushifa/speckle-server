@@ -31,13 +31,33 @@
         </NuxtLink>
         <h1 class="text-heading-lg text-foreground font-bold">{{ projectName }}</h1>
         <FormButton
-          v-if="!isReadOnly && item && !isSubmitted(item)"
+          v-if="!isReadOnly && !isAdminOperationMode && item && !isSubmitted(item)"
           size="sm"
           color="outline"
           class="ml-2"
           @click="openEditDialog"
         >
           修改基本信息
+        </FormButton>
+        <FormButton
+          v-if="isServerAdmin"
+          size="sm"
+          :color="isAdminOperationMode ? 'primary' : 'outline'"
+          class="ml-2"
+          @click="toggleAdminOperationMode"
+        >
+          {{ isAdminOperationMode ? '退出管理员模式' : '进入管理员模式' }}
+        </FormButton>
+        <FormButton
+          v-if="isAdminOperationMode && item"
+          size="sm"
+          color="outline"
+          class="ml-2 border-danger text-danger"
+          :disabled="!canAdminDelete || deletingMeasurement"
+          :title="adminDeleteDisabledReason || undefined"
+          @click="openAdminDeleteConfirm"
+        >
+          管理员删除
         </FormButton>
       </div>
     </div>
@@ -48,6 +68,12 @@
     </div>
 
     <template v-else-if="item">
+      <div
+        v-if="isAdminOperationMode"
+        class="mb-3 rounded-lg border border-warning bg-warning/10 px-4 py-3 text-sm text-foreground"
+      >
+        当前处于管理员操作模式，常规编辑和审批操作已隐藏，仅保留管理员专属动作。
+      </div>
       <div class="flex-grow min-h-0 w-full relative">
         <!-- 左侧主体内容：页签与子页面视图 -->
         <div class="h-full flex flex-col overflow-hidden pr-0">
@@ -99,7 +125,9 @@
           <div
             class="p-3 border-b border-outline-3 flex items-center justify-between flex-shrink-0 bg-foundation-2 h-[48px]"
           >
-            <span class="text-sm font-bold text-foreground">审批流程</span>
+            <span class="text-sm font-bold text-foreground">
+              {{ isAdminOperationMode ? '管理员流程干预' : '审批流程' }}
+            </span>
             <button
               class="p-1 hover:bg-highlight-1 rounded text-foreground-2 flex items-center justify-center transition-colors"
               title="收起面板"
@@ -145,6 +173,63 @@
                     .filter(Boolean)
                     .join(', ') || '所有人'
                 }}
+              </div>
+            </div>
+
+            <div
+              v-if="isAdminOperationMode && flowInstance"
+              class="bg-warning/10 border border-warning/30 rounded-lg p-3 space-y-3"
+            >
+              <div class="text-xs font-semibold text-foreground">管理员流程干预</div>
+              <div class="text-[11px] text-foreground-2">
+                所有干预动作都要求填写原因，并会记录到审批日志。
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <FormButton
+                  v-if="canAdminForceOperatePending"
+                  color="primary"
+                  size="sm"
+                  :disabled="mutating"
+                  @click="openAdminFlowDialog('approve')"
+                >
+                  强制通过
+                </FormButton>
+                <FormButton
+                  v-if="canAdminForceOperatePending"
+                  color="outline"
+                  size="sm"
+                  :disabled="mutating || !previousStepOptions.length"
+                  @click="openAdminFlowDialog('reject-step')"
+                >
+                  驳回到指定节点
+                </FormButton>
+                <FormButton
+                  v-if="canAdminForceOperatePending"
+                  color="outline"
+                  size="sm"
+                  :disabled="mutating"
+                  @click="openAdminFlowDialog('cancel')"
+                >
+                  强制取消
+                </FormButton>
+                <FormButton
+                  v-if="canAdminForceOperatePending"
+                  color="outline"
+                  size="sm"
+                  :disabled="mutating || !projectTeamCandidates.length"
+                  @click="openAdminFlowDialog('transfer')"
+                >
+                  转交待办
+                </FormButton>
+                <FormButton
+                  v-if="canAdminReactivate"
+                  color="outline"
+                  size="sm"
+                  :disabled="mutating || !reactivateStepOptions.length"
+                  @click="openAdminFlowDialog('reactivate')"
+                >
+                  重新激活
+                </FormButton>
               </div>
             </div>
 
@@ -271,7 +356,8 @@
                       action.action === 'TIMEOUT_REJECTED'
                         ? 'bg-danger'
                         : '',
-                      action.action === 'CANCELED' ? 'bg-foreground-2' : ''
+                      action.action === 'CANCELED' ? 'bg-foreground-2' : '',
+                      action.action === 'TRANSFERRED_ASSIGNEE' ? 'bg-primary' : ''
                     ]"
                   />
                   <div class="font-medium text-foreground">
@@ -308,7 +394,7 @@
             class="text-[10px] font-bold tracking-widest"
             style="writing-mode: vertical-rl"
           >
-            审批流程
+            {{ isAdminOperationMode ? '管理员流程' : '审批流程' }}
           </span>
         </button>
       </div>
@@ -321,6 +407,15 @@
         :confirm-text="confirmDialogConfirmText"
         :loading="mutating"
         @confirm="handleConfirm"
+      />
+
+      <CommonConfirmDialog
+        v-model:open="deleteConfirmOpen"
+        :title="adminDeleteConfirmTitle"
+        :text="adminDeleteConfirmText"
+        confirm-text="确认删除"
+        :loading="deletingMeasurement"
+        @confirm="executeAdminDelete"
       />
 
       <LayoutDialog
@@ -399,10 +494,11 @@
         <template #header>驳回审批</template>
         <div class="space-y-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-foreground">
+            <label for="monthly-measurement-reject-step" class="text-xs font-semibold text-foreground">
               选择退回目标节点
             </label>
             <select
+              id="monthly-measurement-reject-step"
               v-model="selectedRollbackStep"
               class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
             >
@@ -421,6 +517,59 @@
             label="驳回意见"
             placeholder="请输入驳回意见（必填）"
             :rows="3"
+            class="text-xs"
+          />
+        </div>
+      </LayoutDialog>
+
+      <LayoutDialog
+        v-model:open="adminFlowDialogOpen"
+        max-width="md"
+        :buttons="adminFlowDialogButtons"
+      >
+        <template #header>{{ adminFlowDialogTitle }}</template>
+        <div class="space-y-4">
+          <div
+            v-if="
+              adminFlowOperation === 'reject-step' || adminFlowOperation === 'reactivate'
+            "
+            class="space-y-1.5"
+          >
+            <label for="monthly-measurement-admin-target-step" class="text-xs font-semibold text-foreground">目标节点</label>
+            <select
+              id="monthly-measurement-admin-target-step"
+              v-model="adminSelectedStep"
+              class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
+            >
+              <option
+                v-for="step in adminFlowOperation === 'reactivate'
+                  ? reactivateStepOptions
+                  : previousStepOptions"
+                :key="step.id"
+                :value="step.stepIndex"
+              >
+                Step {{ step.stepIndex }} · {{ step.name }}
+              </option>
+            </select>
+          </div>
+          <div v-if="adminFlowOperation === 'transfer'" class="space-y-1.5">
+            <label for="monthly-measurement-admin-target-user" class="text-xs font-semibold text-foreground">目标处理人</label>
+            <select
+              id="monthly-measurement-admin-target-user"
+              v-model="adminSelectedAssigneeId"
+              class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
+            >
+              <option v-for="user in projectTeamCandidates" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </option>
+            </select>
+          </div>
+          <FormTextArea
+            v-model="adminFlowComment"
+            name="admin-flow-comment"
+            label="操作原因"
+            placeholder="请输入管理员干预原因（必填）"
+            :rows="4"
             class="text-xs"
           />
         </div>
@@ -491,6 +640,40 @@ const cancelFlowMutation = gql`
   }
 `
 
+const reactivateFlowMutation = gql`
+  mutation FlowReactivate($input: ReactivateApprovalFlowInput!) {
+    approvalMutations {
+      reactivate(input: $input) {
+        id
+        status
+      }
+    }
+  }
+`
+
+const transferAssigneeMutation = gql`
+  mutation FlowTransferAssignee($input: TransferApprovalFlowAssigneeInput!) {
+    approvalMutations {
+      transferAssignee(input: $input)
+    }
+  }
+`
+
+const projectTeamForAdminFlowQuery = gql`
+  query ProjectTeamForAdminFlow($id: String!) {
+    project(id: $id) {
+      id
+      team {
+        role
+        user {
+          id
+          name
+        }
+      }
+    }
+  }
+`
+
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 const measurementId = computed(() => route.params.measurementId as string)
@@ -506,8 +689,12 @@ const isSidebarExpanded = ref(true)
 const reviewComment = ref('')
 const mutating = ref(false)
 const apollo = useApolloClient().client
-const { userId } = useActiveUser()
+const { userId, isAdmin: isServerAdmin } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+
+const isAdminOperationMode = computed(
+  () => isServerAdmin.value && route.query.adminMode === '1'
+)
 
 const flowInstanceId = computed(() => item.value?.flowInstanceId || '')
 
@@ -522,9 +709,16 @@ const { result: flowResult, refetch: refetchFlow } = useQuery(
 )
 
 const flowInstance = computed(() => flowResult.value?.approvalFlowInstance || null)
+const { result: projectTeamResult } = useQuery(
+  projectTeamForAdminFlowQuery,
+  () => ({
+    id: projectId.value
+  })
+)
 
 // 权限校验计算属性
 const isTodoUser = computed(() => {
+  if (isAdminOperationMode.value) return false
   if (flowInstance.value?.status !== 'PENDING') return false
   const step = flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING')
   if (!step) return false
@@ -540,8 +734,97 @@ const isStartStep = computed(() => {
 })
 
 const isCreator = computed(() => {
+  if (isAdminOperationMode.value) return false
   return flowInstance.value?.createdBy === userId.value
 })
+
+type AdminFlowOperation =
+  | 'approve'
+  | 'reject-step'
+  | 'cancel'
+  | 'reactivate'
+  | 'transfer'
+
+const adminFlowDialogOpen = ref(false)
+const adminFlowOperation = ref<AdminFlowOperation | null>(null)
+const adminFlowComment = ref('')
+const adminSelectedStep = ref<number | null>(null)
+const adminSelectedAssigneeId = ref('')
+
+const pendingStep = computed(() =>
+  flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING') || null
+)
+
+const previousStepOptions = computed(() => {
+  const currentPendingStep = pendingStep.value
+  if (!flowInstance.value?.steps || !currentPendingStep) return []
+  return flowInstance.value.steps.filter((s: any) => s.stepIndex < currentPendingStep.stepIndex)
+})
+
+const reactivateStepOptions = computed(() => {
+  const steps = flowInstance.value?.steps || []
+  return steps.filter((s: any) => s.stepIndex === 0 || s.status === 'APPROVED')
+})
+
+const projectTeamCandidates = computed(() => {
+  const team = projectTeamResult.value?.project?.team || []
+  const map = new Map<string, { id: string; name: string }>()
+  for (const member of team) {
+    const id = member?.user?.id
+    const name = member?.user?.name
+    if (!id || !name) continue
+    map.set(id, { id, name })
+  }
+  const currentApprovers = pendingStep.value?.approvers || []
+  for (const user of currentApprovers) {
+    const id = user?.id
+    const name = user?.name
+    if (!id || !name) continue
+    map.set(id, { id, name })
+  }
+  return Array.from(map.values())
+})
+
+const canAdminForceOperatePending = computed(
+  () => isAdminOperationMode.value && flowInstance.value?.status === 'PENDING'
+)
+
+const canAdminReactivate = computed(() => {
+  if (!isAdminOperationMode.value || !flowInstance.value) return false
+  return ['APPROVED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(flowInstance.value.status)
+})
+
+const adminFlowDialogTitle = computed(() => {
+  const map: Record<AdminFlowOperation, string> = {
+    approve: '管理员强制通过',
+    'reject-step': '管理员驳回到指定节点',
+    cancel: '管理员强制取消流程',
+    reactivate: '管理员重新激活流程',
+    transfer: '管理员转交待办'
+  }
+  return adminFlowOperation.value ? map[adminFlowOperation.value] : '管理员流程操作'
+})
+
+const adminFlowDialogButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      adminFlowDialogOpen.value = false
+    }
+  },
+  {
+    text: '确认执行',
+    props: {
+      color: 'primary',
+      loading: mutating.value
+    },
+    disabled: mutating.value,
+    onClick: () => {
+      executeAdminFlowOperation().catch(() => undefined)
+    }
+  }
+])
 
 // 统一确认弹窗状态
 const confirmDialogOpen = ref(false)
@@ -932,7 +1215,8 @@ const formatFlowActionLabel = (action?: string | null) => {
     CANCELED: '流程取消',
     REACTIVATED: '流程激活',
     RESET_TO_UNSUBMITTED: '重置未送审',
-    TIMEOUT_REJECTED: '超时驳回'
+    TIMEOUT_REJECTED: '超时驳回',
+    TRANSFERRED_ASSIGNEE: '转交待办'
   }
   if (!action) return '-'
   return map[action] || action
@@ -1055,7 +1339,64 @@ const isTabActive = (tabId: string) => {
 
 const isEditMode = computed(() => route.path.includes('/acceptance-edit'))
 
-const isReadOnly = computed(() => route.query.mode !== 'edit')
+const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+
+const normalizeApprovalStatus = (status?: string | null) => {
+  return String(status || 'START').trim().toUpperCase()
+}
+
+const currentDeleteStatus = computed(() =>
+  normalizeApprovalStatus(flowInstance.value?.status || item.value?.approveStatus)
+)
+
+const canAdminDelete = computed(() => {
+  if (!isServerAdmin.value || !item.value) return false
+  return [
+    'START',
+    'RETURNED',
+    'REJECTED',
+    'CANCELED',
+    'CANCELLED',
+    'PENDING',
+    'IN_REVIEW'
+  ].includes(currentDeleteStatus.value)
+})
+
+const adminDeleteDisabledReason = computed(() => {
+  if (!isServerAdmin.value || !item.value || canAdminDelete.value) return ''
+  return '已审核通过单据暂不支持管理员删除'
+})
+
+const adminDeleteConfirmTitle = computed(() => {
+  if (['PENDING', 'IN_REVIEW'].includes(currentDeleteStatus.value)) {
+    return '确认强制取消流程并删除'
+  }
+  return '确认删除月度验工'
+})
+
+const adminDeleteConfirmText = computed(() => {
+  if (['PENDING', 'IN_REVIEW'].includes(currentDeleteStatus.value)) {
+    return '当前单据处于审批流程中，删除时会一并清理审批绑定和占用关系，且操作不可撤销，是否继续？'
+  }
+  return '确认删除该月度验工单据吗？此操作不可撤销。'
+})
+
+const deleteConfirmOpen = ref(false)
+const deletingMeasurement = ref(false)
+
+const buildQueryWithAdminMode = (enabled: boolean) => {
+  const query = { ...route.query } as Record<string, string>
+  if (enabled) query.adminMode = '1'
+  else delete query.adminMode
+  return query
+}
+
+const toggleAdminOperationMode = async () => {
+  await navigateTo({
+    path: route.path,
+    query: buildQueryWithAdminMode(!isAdminOperationMode.value)
+  })
+}
 
 // 基础信息编辑相关变量
 const createDialogOpen = ref(false)
@@ -1076,6 +1417,182 @@ const isSubmitted = (item: { approveStatus?: string | null }) => {
   if (!item.approveStatus) return false
   const status = item.approveStatus.toUpperCase()
   return status !== 'START' && status !== 'RETURNED'
+}
+
+const openAdminDeleteConfirm = () => {
+  if (!canAdminDelete.value || deletingMeasurement.value) return
+  deleteConfirmOpen.value = true
+}
+
+const openAdminFlowDialog = (operation: AdminFlowOperation) => {
+  adminFlowOperation.value = operation
+  adminFlowComment.value = ''
+  adminSelectedAssigneeId.value = ''
+  if (operation === 'reject-step') {
+    adminSelectedStep.value =
+      previousStepOptions.value.length > 0 ? previousStepOptions.value[0].stepIndex : 0
+  } else if (operation === 'reactivate') {
+    adminSelectedStep.value =
+      reactivateStepOptions.value.length > 0 ? reactivateStepOptions.value[0].stepIndex : 0
+  } else {
+    adminSelectedStep.value = null
+  }
+  if (operation === 'transfer') {
+    adminSelectedAssigneeId.value = projectTeamCandidates.value[0]?.id || ''
+  }
+  adminFlowDialogOpen.value = true
+}
+
+const resetAdminFlowDialog = () => {
+  adminFlowDialogOpen.value = false
+  adminFlowOperation.value = null
+  adminFlowComment.value = ''
+  adminSelectedStep.value = null
+  adminSelectedAssigneeId.value = ''
+}
+
+const executeAdminFlowOperation = async () => {
+  if (!flowInstance.value || !adminFlowOperation.value) return
+  const comment = adminFlowComment.value.trim()
+  if (!comment) {
+    triggerNotification({
+      title: '操作失败',
+      description: '管理员流程操作原因不能为空',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
+
+  if (
+    (adminFlowOperation.value === 'reject-step' || adminFlowOperation.value === 'reactivate') &&
+    adminSelectedStep.value === null
+  ) {
+    triggerNotification({
+      title: '操作失败',
+      description: '请选择目标节点',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
+
+  if (adminFlowOperation.value === 'transfer' && !adminSelectedAssigneeId.value) {
+    triggerNotification({
+      title: '操作失败',
+      description: '请选择目标处理人',
+      type: ToastNotificationType.Danger
+    })
+    return
+  }
+
+  mutating.value = true
+  try {
+    if (adminFlowOperation.value === 'approve') {
+      await apollo.mutate({
+        mutation: approveFlowMutation,
+        variables: {
+          input: {
+            instanceId: flowInstance.value.id,
+            comment,
+            forceByAdmin: true
+          }
+        }
+      })
+    } else if (adminFlowOperation.value === 'reject-step') {
+      await apollo.mutate({
+        mutation: rejectFlowMutation,
+        variables: {
+          input: {
+            instanceId: flowInstance.value.id,
+            comment,
+            rollbackToStep: Number(adminSelectedStep.value ?? 0),
+            forceByAdmin: true
+          }
+        }
+      })
+    } else if (adminFlowOperation.value === 'cancel') {
+      await apollo.mutate({
+        mutation: cancelFlowMutation,
+        variables: {
+          input: {
+            instanceId: flowInstance.value.id,
+            comment,
+            forceByAdmin: true
+          }
+        }
+      })
+    } else if (adminFlowOperation.value === 'reactivate') {
+      await apollo.mutate({
+        mutation: reactivateFlowMutation,
+        variables: {
+          input: {
+            instanceId: flowInstance.value.id,
+            targetStep: Number(adminSelectedStep.value ?? 0),
+            comment
+          }
+        }
+      })
+    } else if (adminFlowOperation.value === 'transfer') {
+      await apollo.mutate({
+        mutation: transferAssigneeMutation,
+        variables: {
+          input: {
+            instanceIds: [flowInstance.value.id],
+            assigneeId: adminSelectedAssigneeId.value,
+            comment
+          }
+        }
+      })
+    }
+
+    const successMap: Record<AdminFlowOperation, string> = {
+      approve: '已完成管理员强制通过。',
+      'reject-step': '已驳回到指定节点。',
+      cancel: '已完成管理员强制取消。',
+      reactivate: '已重新激活流程。',
+      transfer: '已完成待办转交。'
+    }
+    triggerNotification({
+      title: '操作成功',
+      description: successMap[adminFlowOperation.value],
+      type: ToastNotificationType.Success
+    })
+    resetAdminFlowDialog()
+    await loadBaseMeasurement()
+    await refetchFlow()
+  } catch (err: any) {
+    triggerNotification({
+      title: '操作失败',
+      description: err.message || err || '未知错误',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    mutating.value = false
+  }
+}
+
+const executeAdminDelete = async () => {
+  if (!item.value || !canAdminDelete.value) return
+  deletingMeasurement.value = true
+  try {
+    await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}`, {
+      method: 'DELETE'
+    })
+    deleteConfirmOpen.value = false
+    triggerNotification({
+      title: '删除成功',
+      description: '月度验工单据已成功删除。',
+      type: ToastNotificationType.Success
+    })
+    await navigateTo(`/projects/${projectId.value}/work-valuation/monthly-measurement`)
+  } catch (err: any) {
+    triggerNotification({
+      title: '删除失败',
+      description: err.data?.error || err.message || '删除失败，请重试。',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    deletingMeasurement.value = false
+  }
 }
 
 const availableSafetyMeasures = ref<any[]>([])

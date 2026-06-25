@@ -198,15 +198,6 @@
               <!-- 触发同步按钮 -->
               <button
                 v-if="item.approveStatus === 'APPROVED'"
-                class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                :title="getSyncDebugButtonTooltip(item)"
-                :disabled="isSyncDebugButtonDisabled(item)"
-                @click="debugSyncItem(item)"
-              >
-                <BugAntIcon class="h-4 w-4" />
-              </button>
-              <button
-                v-if="item.approveStatus === 'APPROVED'"
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
                 v-tippy="getSyncButtonTooltip(item)"
                 :disabled="isSyncButtonDisabled(item)"

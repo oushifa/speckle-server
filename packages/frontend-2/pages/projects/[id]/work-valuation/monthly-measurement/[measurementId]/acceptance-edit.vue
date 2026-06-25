@@ -512,7 +512,8 @@ const buildTreeIndex = (rows: any[]) => {
   hasChildrenSet.value = children
 }
 
-const isReadOnly = computed(() => route.query.mode !== 'edit')
+const isAdminOperationMode = computed(() => route.query.adminMode === '1')
+const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
 
 const permissions = computed(() => {
   const result = {
@@ -581,7 +582,7 @@ const permissions = computed(() => {
 })
 
 const isCurrentApprover = computed(() => {
-  if (isReadOnly.value) return false
+  if (isReadOnly.value || isAdminOperationMode.value) return false
   const isDraft = !props.item?.approveStatus || props.item?.approveStatus === 'START'
   const currentUserId = userId.value
   if (!currentUserId) return false

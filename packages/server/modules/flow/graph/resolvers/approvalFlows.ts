@@ -1,6 +1,7 @@
 import { db } from '@/db/knex'
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import {
+  ApprovalFlowActionType,
   ApprovalFlowInstanceStatus,
   ApprovalFlowStepStatus,
   countApprovalFlowInstancesFactory,
@@ -13,6 +14,7 @@ import {
   getApprovalFlowInstancesFactory,
   getApprovalFlowInstanceStepsFactory,
   getApprovalFlowStatsFactory,
+  insertApprovalFlowActionFactory,
   setApprovalFlowDefinitionActiveStateFactory,
   updateApprovalFlowInstanceStepFactory
 } from '@/modules/flow/repositories/approvalFlows'
@@ -546,6 +548,10 @@ export default {
         userId,
         comment: args.input.comment.trim()
       })
+      await syncBindingStatusFromInstanceFactory({ db })({
+        instanceId: args.input.instanceId,
+        updater: userId
+      })
       await publishApprovalFlowTodoCountUpdated()
       return instance
     },
@@ -560,6 +566,10 @@ export default {
         instanceId: args.input.instanceId,
         userId,
         comment: args.input.comment.trim()
+      })
+      await syncBindingStatusFromInstanceFactory({ db })({
+        instanceId: args.input.instanceId,
+        updater: userId
       })
       await publishApprovalFlowTodoCountUpdated()
       return instance
@@ -581,7 +591,7 @@ export default {
       },
       ctx: GraphQLContext
     ) {
-      ensureUserId(ctx)
+      const userId = ensureUserId(ctx)
       await throwForNotHavingServerRole(ctx, Roles.Server.Admin)
 
       const uniqueInstanceIds = Array.from(
@@ -590,23 +600,46 @@ export default {
       if (!uniqueInstanceIds.length) return 0
 
       let transferredCount = 0
-      for (const instanceId of uniqueInstanceIds) {
-        const instance = await getApprovalFlowInstanceByIdFactory({ db })({
-          id: instanceId
-        })
-        if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending)
-          continue
+      await db.transaction(async (trx) => {
+        const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
+        const getCurrentStep = getApprovalFlowCurrentStepFactory({ db: trx })
+        const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
+        const insertAction = insertApprovalFlowActionFactory({ db: trx })
 
-        const currentStep = await getApprovalFlowCurrentStepFactory({ db })(instanceId)
-        if (!currentStep || currentStep.status !== ApprovalFlowStepStatus.Pending)
-          continue
+        for (const instanceId of uniqueInstanceIds) {
+          const instance = await getInstanceById({ id: instanceId })
+          if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending) continue
 
-        await updateApprovalFlowInstanceStepFactory({ db })({
-          stepId: currentStep.id,
-          approverIds: [args.input.assigneeId]
-        })
-        transferredCount++
-      }
+          const currentStep = await getCurrentStep(instanceId)
+          if (!currentStep || currentStep.status !== ApprovalFlowStepStatus.Pending) continue
+
+          const previousApproverIds = currentStep.approverIds || []
+          const nextApproverIds = [args.input.assigneeId]
+          const isUnchanged =
+            previousApproverIds.length === nextApproverIds.length &&
+            previousApproverIds.every((id, index) => id === nextApproverIds[index])
+          if (isUnchanged) continue
+
+          await updateStep({
+            stepId: currentStep.id,
+            approverIds: nextApproverIds
+          })
+          await insertAction({
+            instanceId,
+            stepId: currentStep.id,
+            action: ApprovalFlowActionType.TransferredAssignee,
+            actorId: userId,
+            fromStatus: instance.status,
+            toStatus: instance.status,
+            comment: args.input.comment?.trim() || null,
+            metadata: {
+              fromApproverIds: previousApproverIds,
+              toApproverIds: nextApproverIds
+            }
+          })
+          transferredCount++
+        }
+      })
 
       if (transferredCount > 0) await publishApprovalFlowTodoCountUpdated()
       return transferredCount

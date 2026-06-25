@@ -21,7 +21,8 @@ import {
 } from '@/modules/shared/authz'
 import { createBusboy } from '@/modules/blobstorage/rest/busboy'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
-import { ensureError } from '@speckle/shared'
+import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
+import { ensureError, Roles } from '@speckle/shared'
 import cryptoRandomString from 'crypto-random-string'
 
 import {
@@ -63,14 +64,72 @@ import {
   startApprovalFlowFactory,
   updateApprovalFlowStatusFactory
 } from '@/modules/flow/services/approvalFlows'
-import { getActiveApprovalFlowByCategoryFactory } from '@/modules/flow/repositories/approvalFlows'
+import {
+  ApprovalFlowInstanceStatus,
+  getActiveApprovalFlowByCategoryFactory
+} from '@/modules/flow/repositories/approvalFlows'
 import {
   resubmitApprovalBindingFactory,
   submitApprovalBindingFactory
 } from '@/modules/flow/services/approvalBindings'
+import {
+  ApprovalFlowSubscriptions,
+  publish
+} from '@/modules/shared/utils/subscriptions'
 
 const thirdPartyTokenHeader = 'x-file-conversion-token'
 const serviceCreator = 'quality-acceptance-import-service'
+
+const hasServerAdminOverride = (req: Request) =>
+  adminOverrideEnabled() && req.context.role === Roles.Server.Admin
+
+const normalizeApprovalStatus = (status: string | null | undefined) =>
+  String(status || 'START').trim().toUpperCase()
+
+const isRegularDeleteAllowedStatus = (status: string | null | undefined) => {
+  const normalized = normalizeApprovalStatus(status)
+  return ['START', 'RETURNED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(normalized)
+}
+
+const isAdminDeleteAllowedStatus = (status: string | null | undefined) => {
+  const normalized = normalizeApprovalStatus(status)
+  return (
+    isRegularDeleteAllowedStatus(normalized) ||
+    normalized === 'PENDING' ||
+    normalized === 'IN_REVIEW'
+  )
+}
+
+const publishApprovalFlowTodoCountUpdated = async () => {
+  await publish(ApprovalFlowSubscriptions.ApprovalFlowTodoCountUpdated, {
+    approvalFlowTodoCountUpdated: {
+      pendingForMeCount: 0
+    }
+  })
+}
+
+const cancelPendingApprovalFlowBeforeDelete = async (params: {
+  instanceId?: string | null
+  userId: string
+}) => {
+  if (!params.instanceId) return false
+
+  const instance = await db('approval_flow_instances')
+    .where('id', params.instanceId)
+    .select('id', 'status')
+    .first()
+  if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending) return false
+
+  await updateApprovalFlowStatusFactory({ db })({
+    instanceId: params.instanceId,
+    userId: params.userId,
+    targetStatus: ApprovalFlowInstanceStatus.Canceled,
+    comment: '表单已删除，系统自动取消审批流程',
+    forceByAdmin: true
+  })
+
+  return true
+}
 
 const routeParamsSchema = z.object({
   projectId: z.string().trim().min(1)
@@ -1343,6 +1402,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
+      const isAdminOverride = hasServerAdminOverride(req)
+      const userId = req.context.userId!
       const projectDb = await getProjectDbClient({ projectId })
       const measurement = await getMonthlyMeasurementByIdFactory({ db: projectDb })(id)
       if (!measurement) {
@@ -1350,12 +1411,22 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
       const binding = await db('approval_flow_bindings')
         .where('subjectKey', `monthly_measurements:${id}`)
-        .select('status')
+        .select('status', 'currentInstanceId')
         .first()
       const currentStatus = binding ? binding.status : (measurement.approveStatus || 'START')
-      if (currentStatus !== 'START' && currentStatus !== 'RETURNED') {
-        throw new BadRequestError('送审后不可删除')
+      if (
+        (!isAdminOverride && !isRegularDeleteAllowedStatus(currentStatus)) ||
+        (isAdminOverride && !isAdminDeleteAllowedStatus(currentStatus))
+      ) {
+        throw new BadRequestError(
+          isAdminOverride ? '已审核通过单据暂不支持管理员删除' : '送审后不可删除'
+        )
       }
+
+      const didCancelPendingFlow = await cancelPendingApprovalFlowBeforeDelete({
+        instanceId: binding?.currentInstanceId || measurement.flowInstanceId,
+        userId
+      })
 
       await projectDb.transaction(async (trx) => {
         // 释放占用的质量验收单
@@ -1365,6 +1436,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         await deleteMonthlyMeasurementByIdFactory({ db: trx })(id)
       })
+
+      if (binding) {
+        await db('approval_flow_bindings').where('subjectKey', `monthly_measurements:${id}`).delete()
+      }
+      if (didCancelPendingFlow) {
+        await publishApprovalFlowTodoCountUpdated()
+      }
 
       return res.status(200).json({ success: true })
     }
@@ -3621,6 +3699,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
+      const isAdminOverride = hasServerAdminOverride(req)
+      const userId = req.context.userId!
       const projectDb = await getProjectDbClient({ projectId })
 
       const measure = await projectDb('safety_measures').where('id', id).first()
@@ -3634,9 +3714,29 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .first()
 
       const currentStatus = binding ? binding.status : (measure.approveStatus || 'START')
-      if (currentStatus !== 'START' && currentStatus !== 'RETURNED') {
-        return res.status(400).json({ error: '送审后单据不可删除' })
+      if (
+        (!isAdminOverride && !isRegularDeleteAllowedStatus(currentStatus)) ||
+        (isAdminOverride && !isAdminDeleteAllowedStatus(currentStatus))
+      ) {
+        return res.status(400).json({
+          error: isAdminOverride ? '已审核通过单据暂不支持管理员删除' : '送审后单据不可删除'
+        })
       }
+
+      const linkedMeasurement = await projectDb('monthly_measurements')
+        .where('safetyMeasureId', id)
+        .select('id', 'code')
+        .first()
+      if (linkedMeasurement) {
+        return res.status(400).json({
+          error: '该安全文明措施费已被月度验工关联，请先解除关联后再删除'
+        })
+      }
+
+      const didCancelPendingFlow = await cancelPendingApprovalFlowBeforeDelete({
+        instanceId: binding?.currentInstanceId || measure.flowInstanceId,
+        userId
+      })
 
       await projectDb.transaction(async (trx) => {
         await trx('safety_measure_items').where({ safetyMeasureId: id }).delete()
@@ -3646,6 +3746,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       if (binding) {
         await db('approval_flow_bindings').where('subjectKey', `safety_measures:${id}`).delete()
+      }
+      if (didCancelPendingFlow) {
+        await publishApprovalFlowTodoCountUpdated()
       }
 
       return res.status(200).json({ success: true })

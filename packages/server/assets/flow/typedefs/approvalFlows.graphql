@@ -19,6 +19,7 @@ enum ApprovalFlowActionType {
   TIMEOUT_REJECTED
   REACTIVATED
   RESET_TO_UNSUBMITTED
+  TRANSFERRED_ASSIGNEE
 }
 
 enum ApprovalFlowStepStatus {
