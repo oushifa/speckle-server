@@ -29,6 +29,7 @@ export type QualityAcceptanceForm = {
   BIM: BimElementEntry[] | null
   timeZone: string
   approveStatus: string | null
+  occupiedMeasurementId?: string | null
   createdAt: number
   updatedAt: number
 }

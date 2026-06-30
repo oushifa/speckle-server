@@ -195,7 +195,16 @@
               >
                 <TrashIcon class="h-4 w-4" />
               </button>
-              <!-- 触发同步按钮 -->
+              <!-- 触发同步按钮 -->              
+               <button
+                v-if="item.approveStatus === 'APPROVED'"
+                class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                :title="getSyncDebugButtonTooltip(item)"
+                :disabled="isSyncDebugButtonDisabled(item)"
+                @click="debugSyncItem(item)"
+              >
+                <BugAntIcon class="h-4 w-4" />
+              </button>
               <button
                 v-if="item.approveStatus === 'APPROVED'"
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
@@ -296,8 +305,30 @@
             show-required
             :disabled="isViewMode"
           />
+          <div class="space-y-1.5">
+            <div class="text-xs font-semibold text-foreground">支付节点</div>
+            <FormSelectBase
+              v-model="selectedPaymentPhaseValue"
+              :items="paymentPhaseOptions"
+              name="monthly-measurement-payment-phase"
+              label="支付节点"
+              :show-label="false"
+              :disabled="isViewMode"
+              by="id"
+              class="w-full text-xs"
+            >
+              <template #something-selected="{ value }">
+                <span class="truncate text-foreground text-xs">{{
+                  (value as any)?.label || '请选择支付节点'
+                }}</span>
+              </template>
+              <template #option="{ item }">
+                <span class="truncate text-xs">{{ (item as any)?.label }}</span>
+              </template>
+            </FormSelectBase>
+          </div>
           <div class="col-span-1 md:col-span-2 space-y-1.5">
-            <label class="text-xs font-semibold text-foreground">关联安全文明措施费</label>
+            <div class="text-xs font-semibold text-foreground">关联安全文明措施费</div>
             <FormSelectBase
               v-model="selectedMeasureValue"
               :items="selectOptions"
@@ -315,6 +346,18 @@
                 <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
               </template>
             </FormSelectBase>
+          </div>
+          <div class="col-span-1 md:col-span-2">
+            <FormTextArea
+              v-model="createForm.detailedDescription"
+              name="monthly-measurement-detailed-description"
+              label="具体业务事项"
+              show-label
+              show-required
+              placeholder="请输入具体业务事项"
+              :rows="4"
+              :disabled="isViewMode"
+            />
           </div>
         </div>
         <div v-if="createError" class="text-body-sm text-danger mt-2">
@@ -560,7 +603,8 @@ import {
   FormTextInput,
   FormButton,
   CommonBadge,
-  FormSelectBase
+  FormSelectBase,
+  FormTextArea
 } from '@speckle/ui-components'
 import {
   approvalFlowInstanceDetailsForMonthlyMeasurementQuery,
@@ -837,6 +881,15 @@ type AcceptanceFormLite = {
 
 const saveLoading = ref(false)
 
+const paymentPhaseOptions = [
+  { id: '预付款', label: '预付款' },
+  { id: '进度款', label: '进度款' },
+  { id: '尾款', label: '尾款' },
+  { id: '验收款', label: '验收款' },
+  { id: '审价款', label: '审价款' },
+  { id: '退回质保金', label: '退回质保金' }
+]
+
 const createForm = ref({
   unit: '',
   code: '',
@@ -844,6 +897,8 @@ const createForm = ref({
   roundName: '',
   startDate: '',
   endDate: '',
+  paymentPhase: '',
+  detailedDescription: '',
   safetyMeasureId: null as string | null
 })
 const previewSourceAcceptanceIds = computed(() =>
@@ -943,6 +998,8 @@ const resetDialogState = () => {
     roundName: '',
     startDate: dayjs().subtract(1, 'month').date(19).format('YYYY-MM-DD'),
     endDate: dayjs().date(20).format('YYYY-MM-DD'),
+    paymentPhase: '进度款',
+    detailedDescription: '',
     safetyMeasureId: null
   }
 }
@@ -990,6 +1047,18 @@ const selectedMeasureValue = computed({
   },
   set: (val: any) => {
     createForm.value.safetyMeasureId = val?.id === 'none' ? null : val?.id
+  }
+})
+
+const selectedPaymentPhaseValue = computed({
+  get: () => {
+    const found = paymentPhaseOptions.find(
+      (option) => option.id === createForm.value.paymentPhase
+    )
+    return found || paymentPhaseOptions[1]
+  },
+  set: (val: { id?: string } | null) => {
+    createForm.value.paymentPhase = val?.id || ''
   }
 })
 
@@ -1136,6 +1205,14 @@ const submitDialog = async () => {
     createError.value = '计量时间段不能为空'
     return
   }
+  if (!createForm.value.paymentPhase.trim()) {
+    createError.value = '支付节点不能为空'
+    return
+  }
+  if (!createForm.value.detailedDescription.trim()) {
+    createError.value = '具体业务事项不能为空'
+    return
+  }
 
   createError.value = ''
   const apiOrigin = useApiOrigin()
@@ -1159,6 +1236,8 @@ const submitDialog = async () => {
             startDate: startDateTs,
             endDate: endDateTs,
             roundName: createForm.value.roundName.trim(),
+            paymentPhase: createForm.value.paymentPhase.trim(),
+            detailedDescription: createForm.value.detailedDescription.trim(),
             measuredItems: [],
             excludedAcceptanceIds: [],
             safetyMeasureId: createForm.value.safetyMeasureId
@@ -1176,6 +1255,8 @@ const submitDialog = async () => {
             startDate: startDateTs,
             endDate: endDateTs,
             roundName: createForm.value.roundName.trim(),
+            paymentPhase: createForm.value.paymentPhase.trim(),
+            detailedDescription: createForm.value.detailedDescription.trim(),
             measuredItems: [],
             excludedAcceptanceIds: [],
             safetyMeasureId: createForm.value.safetyMeasureId
@@ -1292,8 +1373,7 @@ const isSyncButtonDisabled = (item: any) => {
     item.syncStatusPaymentPool
   ]
   if (statuses.includes('LOADING')) return true
-  const allSuccess = statuses.every((s) => s === 'SUCCESS')
-  if (allSuccess) return true
+  if (syncLoadingId.value === item.id) return true
   return false
 }
 
@@ -1307,22 +1387,12 @@ const getSyncButtonTooltip = (item: any) => {
   if (statuses.includes('LOADING')) {
     return '数据正在同步中...'
   }
-  const allSuccess = statuses.every((s) => s === 'SUCCESS')
-  if (allSuccess) {
-    return '已全部同步成功'
+
+  const typesToSync = getSyncTypesToSync(item)
+  if (typesToSync.length === 0) {
+    return '当前没有可同步的数据'
   }
-  
-  const needsSync: string[] = []
-  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
-    needsSync.push('计价结果')
-  }
-  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
-    needsSync.push('中间支付单')
-  }
-  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
-    needsSync.push('待支付申报池')
-  }
-  return `点击同步未成功的数据: ${needsSync.join('、')}`
+  return `点击同步数据: ${typesToSync.map(getSyncTypeLabel).join('、')}`
 }
 
 const getSyncDebugButtonTooltip = (item: any) => {
@@ -1339,11 +1409,11 @@ const getSyncDebugButtonTooltip = (item: any) => {
     return '数据正在同步中...'
   }
 
-  const typesToSync = getSyncTypesToSync(item)
-  if (typesToSync.length === 0) {
+  const typesToDebug = getSyncTypesToDebug(item)
+  if (typesToDebug.length === 0) {
     return '当前没有待同步的数据 body'
   }
-  return `调试同步 body: ${typesToSync.map(getSyncTypeLabel).join('、')}`
+  return `调试同步 body: ${typesToDebug.map(getSyncTypeLabel).join('、')}`
 }
 
 const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail' | 'paymentPool') => {
@@ -1385,17 +1455,8 @@ const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail'
 
 const getSyncConfirmText = (item: any) => {
   if (!item) return ''
-  const needsSync: string[] = []
-  if (item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement || item.syncStatusSettlement === 'ERROR') {
-    needsSync.push('计价结果')
-  }
-  if (item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail || item.syncStatusPaymentDetail === 'ERROR') {
-    needsSync.push('中间支付单')
-  }
-  if (item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool || item.syncStatusPaymentPool === 'ERROR') {
-    needsSync.push('待支付申报池')
-  }
-  return `确认要将该月度验工未同步的【${needsSync.join('、')}】数据同步至全面预算管理系统吗？`
+  const typesToSync = getSyncTypesToSync(item)
+  return `确认要将该月度验工的【${typesToSync.map(getSyncTypeLabel).join('、')}】数据同步至全面预算管理系统吗？`
 }
 
 const triggerSyncItem = (item: any) => {
@@ -1424,29 +1485,34 @@ const isSyncDebugButtonDisabled = (item: any) => {
   return false
 }
 
+const getSyncTypesToDebug = (item: any): SyncType[] => {
+  if (!item) return []
+
+  const typesToDebug: SyncType[] = []
+  if (item.syncStatusSettlement && item.syncStatusSettlement !== 'LOADING') {
+    typesToDebug.push('settlement')
+  }
+  if (item.syncStatusPaymentDetail && item.syncStatusPaymentDetail !== 'LOADING') {
+    typesToDebug.push('paymentDetail')
+  }
+  if (item.syncStatusPaymentPool && item.syncStatusPaymentPool !== 'LOADING') {
+    typesToDebug.push('paymentPool')
+  }
+
+  return typesToDebug
+}
+
 const getSyncTypesToSync = (item: any): SyncType[] => {
   if (!item) return []
 
   const typesToSync: SyncType[] = []
-  if (
-    item.syncStatusSettlement === 'NONE' ||
-    !item.syncStatusSettlement ||
-    item.syncStatusSettlement === 'ERROR'
-  ) {
+  if (item.syncStatusSettlement !== 'LOADING') {
     typesToSync.push('settlement')
   }
-  if (
-    item.syncStatusPaymentDetail === 'NONE' ||
-    !item.syncStatusPaymentDetail ||
-    item.syncStatusPaymentDetail === 'ERROR'
-  ) {
+  if (item.syncStatusPaymentDetail !== 'LOADING') {
     typesToSync.push('paymentDetail')
   }
-  if (
-    item.syncStatusPaymentPool === 'NONE' ||
-    !item.syncStatusPaymentPool ||
-    item.syncStatusPaymentPool === 'ERROR'
-  ) {
+  if (item.syncStatusPaymentPool !== 'LOADING') {
     typesToSync.push('paymentPool')
   }
 
@@ -1456,8 +1522,8 @@ const getSyncTypesToSync = (item: any): SyncType[] => {
 const debugSyncItem = (item: any) => {
   if (!item || !projectId.value) return
 
-  const typesToSync = getSyncTypesToSync(item)
-  if (typesToSync.length === 0) {
+  const typesToDebug = getSyncTypesToDebug(item)
+  if (typesToDebug.length === 0) {
     triggerNotification({
       title: '没有待调试的数据',
       description: '当前没有需要同步的 body',
@@ -1470,7 +1536,7 @@ const debugSyncItem = (item: any) => {
   const apiOrigin = useApiOrigin()
 
   Promise.all(
-    typesToSync.map(async (type) => {
+    typesToDebug.map(async (type) => {
       const preview = await $fetch<any>(
         `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${item.id}/sync-preview`,
         {
@@ -1548,7 +1614,7 @@ const confirmSyncItem = async () => {
     if (failures.length === 0) {
       triggerNotification({
         title: '同步完成',
-        description: '所有未同步及失败的数据均已同步成功。',
+        description: '所选数据已同步完成。',
         type: ToastNotificationType.Success
       })
     } else {

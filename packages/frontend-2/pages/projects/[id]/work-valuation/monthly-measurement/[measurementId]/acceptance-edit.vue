@@ -195,14 +195,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="row in visibleTreeRows"
-              :key="row.boqItemId"
-              class="border-b border-outline-3 hover:bg-highlight-1/20 transition-colors text-[11px]"
-              :class="
-                row.isSummaryRow ? 'bg-highlight-1/5 font-medium' : 'bg-foundation'
-              "
-            >
+            <template v-for="row in visibleTreeRows" :key="row.boqItemId">
+              <tr
+                class="border-b border-outline-3 hover:bg-highlight-1/20 transition-colors text-[11px]"
+                :class="
+                  row.isSummaryRow
+                    ? 'bg-highlight-1/5 font-medium'
+                    : (row.sourceAcceptanceIds && row.sourceAcceptanceIds.length > 0)
+                      ? 'bg-primary-lighter/10 dark:bg-primary-darker/5'
+                      : 'bg-foundation'
+                "
+              >
               <!-- 1. 清单编号 -->
               <td class="px-2 py-2 truncate font-mono border-r border-outline-3">
                 {{ row.boqCode }}
@@ -249,7 +252,53 @@
                     </svg>
                   </button>
                   <span v-else class="w-4 inline-block flex-shrink-0"></span>
+
+                  <!-- 折叠展开关联质量验收的按钮 -->
+                  <button
+                    v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
+                    class="mr-1.5 hover:bg-highlight-1/30 rounded p-0.5 transition-colors focus:outline-none flex-shrink-0"
+                    title="查看关联的质量验收"
+                    @click.stop="toggleExpandAcceptance(row.boqItemId)"
+                  >
+                    <svg
+                      v-if="expandedAcceptanceIds.has(row.boqItemId)"
+                      class="h-3 w-3 text-primary"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3.5"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                    <svg
+                      v-else
+                      class="h-3 w-3 text-primary"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="3.5"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+
                   <span class="truncate" :title="row.boqName">{{ row.boqName }}</span>
+
+                  <!-- 关联质量验收的 Badge -->
+                  <span
+                    v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
+                    class="ml-1.5 px-1 py-0.2 rounded bg-primary-lighter text-primary-darker text-[9px] scale-90 origin-left"
+                  >
+                    验收:{{ row.sourceAcceptanceIds.length }}
+                  </span>
                 </div>
               </td>
 
@@ -423,7 +472,67 @@
                 {{ row.remark || '-' }}
               </td>
             </tr>
-          </tbody>
+
+            <!-- 展开展示的关联质量验收列表子行 -->
+            <tr
+              v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0 && expandedAcceptanceIds.has(row.boqItemId)"
+              :key="`acceptance-details-${row.boqItemId}`"
+              class="bg-info-lighter/5 border-b border-outline-3 text-[11px]"
+            >
+              <td colspan="23" class="px-8 py-3 bg-foundation-2">
+                <div class="rounded-md border border-outline-3 bg-foundation overflow-hidden max-w-4xl shadow-sm text-left">
+                  <div class="px-3 py-2 bg-foundation-2 font-medium text-foreground-2 border-b border-outline-3 flex items-center justify-between">
+                    <span>关联的质量验收单列表</span>
+                    <span class="text-xs text-foreground-3">
+                      共 {{ row.sourceAcceptances?.length || 0 }} 个验收单
+                    </span>
+                  </div>
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-foundation-3 text-foreground-2 border-b border-outline-3 font-semibold text-[10px]">
+                        <th class="px-3 py-1.5 w-44">验收编号</th>
+                        <th class="px-3 py-1.5">验收名称</th>
+                        <th class="px-3 py-1.5 w-24 text-right pr-4">工程量</th>
+                        <th class="px-3 py-1.5 w-24">查验人</th>
+                        <th class="px-3 py-1.5 w-32">查验日期</th>
+                        <th class="px-3 py-1.5 w-20 text-center">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="form in row.sourceAcceptances"
+                        :key="form.id"
+                        class="border-b border-outline-3 hover:bg-highlight-1/10 transition-colors last:border-0"
+                      >
+                        <td class="px-3 py-1.5 font-mono text-[10px]">{{ form.code || '-' }}</td>
+                        <td class="px-3 py-1.5 text-[10px]">{{ form.name || '-' }}</td>
+                        <td class="px-3 py-1.5 text-right font-mono pr-4 text-[10px]">{{ formatQty(form.workVolume) }}</td>
+                        <td class="px-3 py-1.5 text-[10px]">{{ form.inspectorName || '-' }}</td>
+                        <td class="px-3 py-1.5 text-[10px]">{{ formatTimestamp(form.actualFinishDate) }}</td>
+                        <td class="px-3 py-1.5 text-center">
+                          <button
+                            v-if="!isReadOnly && isCurrentApprover"
+                            class="text-danger hover:text-danger-darker font-medium transition-colors cursor-pointer text-[10px] bg-transparent border-0 px-1 py-0.5 rounded hover:bg-danger-lighter"
+                            title="解除关联"
+                            @click.stop="confirmRemoveAcceptance(row, form)"
+                          >
+                            删除
+                          </button>
+                          <span v-else class="text-foreground-3">-</span>
+                        </td>
+                      </tr>
+                      <tr v-if="!row.sourceAcceptances?.length">
+                        <td colspan="6" class="px-3 py-4 text-center text-foreground-3">
+                          暂无关联的质量验收单数据
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
         </table>
       </div>
 
@@ -441,10 +550,20 @@
       </div>
     </div>
   </div>
+
+  <!-- 解除质量验收关联确认弹窗 -->
+  <CommonConfirmDialog
+    v-model:open="removeAcceptanceConfirmOpen"
+    title="确认解除质量验收关联"
+    :text="`确定要解除该质量验收单 '${acceptanceToRemove?.form?.code || acceptanceToRemove?.form?.name || ''}' 与当前清单项的关联吗？解除后将重新计算该清单项的辅助验工量。`"
+    confirm-text="确认解除"
+    @confirm="submitRemoveAcceptance"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, shallowRef, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import { ChevronLeftIcon } from '@heroicons/vue/24/outline'
 import { FormButton } from '@speckle/ui-components'
@@ -884,9 +1003,60 @@ const saveTreeItems = async () => {
   }
 }
 
+
 onMounted(() => {
   void loadTreeData()
 })
+
+const expandedAcceptanceIds = ref<Set<string>>(new Set())
+const toggleExpandAcceptance = (boqItemId: string) => {
+  if (expandedAcceptanceIds.value.has(boqItemId)) {
+    expandedAcceptanceIds.value.delete(boqItemId)
+  } else {
+    expandedAcceptanceIds.value.add(boqItemId)
+  }
+}
+
+const formatTimestamp = (val: any) => {
+  if (!val) return '-'
+  const num = Number(val)
+  if (isNaN(num)) return val
+  return dayjs(num).format('YYYY-MM-DD')
+}
+
+const removeAcceptanceConfirmOpen = ref(false)
+const acceptanceToRemove = ref<{ row: any; form: any } | null>(null)
+
+const confirmRemoveAcceptance = (row: any, form: any) => {
+  acceptanceToRemove.value = { row, form }
+  removeAcceptanceConfirmOpen.value = true
+}
+
+const submitRemoveAcceptance = async () => {
+  if (!acceptanceToRemove.value || !props.projectId || !props.item?.id) return
+  const { row, form } = acceptanceToRemove.value
+  try {
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/quality-acceptance/${form.id}`,
+      { method: 'DELETE' }
+    )
+    triggerNotification({
+      title: '解除关联成功',
+      description: `质量验收单 '${form.code || form.name}' 已成功解除关联！`,
+      type: ToastNotificationType.Success
+    })
+    await loadTreeData()
+  } catch (err: any) {
+    triggerNotification({
+      title: '解除关联失败',
+      description: err.data?.error || '解除关联操作失败',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    removeAcceptanceConfirmOpen.value = false
+    acceptanceToRemove.value = null
+  }
+}
 
 const moneyFormatter = new Intl.NumberFormat('zh-CN', {
   minimumFractionDigits: 2,

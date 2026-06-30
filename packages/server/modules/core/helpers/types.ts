@@ -192,6 +192,7 @@ export type QualityAcceptanceFormRecord = {
   }>>
   timeZone?: Nullable<string>
   approveStatus?: Nullable<string>
+  occupiedMeasurementId?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }
@@ -209,6 +210,8 @@ export type MonthlyMeasurementRecord = {
   startDate?: Nullable<string>
   endDate?: Nullable<string>
   contractCode?: Nullable<string>
+  paymentPhase?: Nullable<string>
+  detailedDescription?: Nullable<string>
   safetyMeasureId?: Nullable<string>
   createdAt: Date
   updatedAt: Date

@@ -152,6 +152,7 @@ const applyFilters = () => {
   if (!state) return
 
   const bimIds = normalizedFilterBims.value
+  const appIds = normalizedFilterApplicationIds.value
   isApplyingFilters.value = true
   try {
     const objects: SpeckleObject[] = []
@@ -165,6 +166,19 @@ const applyFilters = () => {
       bimIds.forEach((bimId) => {
         if (!bimId) return
         const nodes = typedTree.findBimNodeId(bimId) || []
+        nodes?.forEach((node) => {
+          if (!node.model?.raw?.id) return
+          objects.push(node.model.raw)
+          objectIds.push(node.model.raw.id)
+        })
+      })
+
+      appIds.forEach((appId) => {
+        if (!appId) return
+        let nodes = typedTree.findApplicationId?.(appId) || []
+        if (!nodes.length) {
+          nodes = typedTree.findId(appId) || []
+        }
         nodes?.forEach((node) => {
           if (!node.model?.raw?.id) return
           objects.push(node.model.raw)

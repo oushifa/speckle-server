@@ -262,6 +262,9 @@ export const importQualityAcceptanceFormsFactory =
             projectId: params.projectId
           })
           if (existing) {
+            if (existing.occupiedMeasurementId) {
+              throw new BadRequestError(`该质量验收单(ID: ${existing.id})已被月度验工关联，不可通过导入修改`)
+            }
             isUpdate = true
             recordId = existing.id
           }

@@ -77,6 +77,15 @@ const buildSettlementInfoSyncPreview = async (params: {
     await getBaseSyncData(params)
   const { cleanBaseUrl, token } = getApiConfig()
 
+  const constructionUnitName = project.constructionUnit
+    ? (
+        await params.db('departments')
+          .where({ id: project.constructionUnit })
+          .select('name')
+          .first()
+      )?.name || ''
+    : ''
+
   const confirmedPrice =
     project.contractPrice !== null && project.contractPrice !== undefined
       ? Number(project.contractPrice).toFixed(4)
@@ -110,12 +119,13 @@ const buildSettlementInfoSyncPreview = async (params: {
     companyID: project.companyId || '',
     companyName: project.employer || '',
     confirmedPrice,
+    contractName: project.contractName || '',
     contractNo: project.contractCode || '',
     financialSupervisionComment: paymentRequests?.reqInvestmentOpinion || '',
-    financialSupervisionUnit: project.supervisionUnit || '',
+    financialSupervisionUnit: constructionUnitName,
     month,
     paytToCompany: project.contractor || '',
-    projectGuid: project.projectNumber || '',
+    CTProjectId: project.projectPackageItemguid || '',
     projectName: project.name || '',
     projectPackageItemguid: project.projectPackageItemguid || '',
     ruralLaborsSalary,
@@ -339,7 +349,7 @@ const buildIntermediatePaymentSyncPreview = async (params: {
     requestBody: {
       accuPayment: accuPaymentInYuan.toFixed(2),
       auditreportId: measurement.id,
-      ctProjectId: project.projectGuid || project.id,
+      ctProjectId: project.projectPackageItemguid || '',
       guid: project.projectPackageItemguid || '',
       paymentDetail: paymentDetailJson,
       planToPayLabor: Number(paymentDetails?.migrantWorkerSalary || 0).toFixed(4),
@@ -363,10 +373,19 @@ const buildPaymentPoolSyncPreview = async (params: {
   db: Knex
   projectDb: Knex
 }): Promise<BudgetSyncPreview> => {
-  const { measurementId, projectDb } = params
+  const { measurementId, projectDb, db } = params
   const { project, measurement, paymentDetails, paymentRequests } =
     await getBaseSyncData(params)
   const { cleanBaseUrl, token } = getApiConfig()
+
+  const constructionUnitName = project.constructionUnit
+    ? (
+        await db('departments')
+          .where({ id: project.constructionUnit })
+          .select('name')
+          .first()
+      )?.name || ''
+    : ''
 
   const [{ total }] = await projectDb('monthly_measurement_items')
     .where('measurementId', measurementId)
@@ -389,19 +408,19 @@ const buildPaymentPoolSyncPreview = async (params: {
   const toPaymentPoolModel = {
     Category: 'Construction',
     ProjectName: project.name || '',
-    CTProjectID: project.projectGuid || project.id,
+    CTProjectID: project.projectPackageItemguid || '',
     ProjectPackageItemGuid: project.projectPackageItemguid || '',
     ProjectPackageItemName: project.contractName || '',
     BudgetCategory: '工程款',
     BudgetContent: '建筑工程投资',
-    PaymentPhase: '进度款',
+    PaymentPhase: measurement.paymentPhase || '进度款',
     ContractID: project.id,
     ContractNo: project.contractCode || '',
     ContractName: project.contractName || '',
     ContractPrice: Number(project.contractPrice || 0),
     ContractPaymentTotalIncludeCurrent: accuPaymentInYuan,
     ContractPaymentTotalExcludeCurrent: lastCumulativePaymentInYuan,
-    ContractWorkloadTotalIncludeCurrent: null,
+    ContractWorkloadTotalIncludeCurrent: accuPaymentInYuan,
     ContractWorkloadTotalExcludeCurrent: null,
     HighlightPartName: '',
     HighlightPartPrice: 0.0,
@@ -432,11 +451,12 @@ const buildPaymentPoolSyncPreview = async (params: {
     ProphaseLineMigrationAmount: 0.0,
     ProphaseConstructionAmount: 0.0,
     OtherAmount: 0.0,
-    DetailedDescription: `${year}年${month}月验工计价`,
+    DetailedDescription:
+      measurement.detailedDescription || `${year}年${month}月验工计价`,
     GuaranteeLetterValidTo: '',
     PayToCompany: project.contractor || '',
     FinancialSupervisionComment: paymentRequests?.reqInvestmentOpinion || '',
-    FinancialSupervisionCompany: project.supervisionUnit || '',
+    FinancialSupervisionCompany: constructionUnitName,
     ReceiverBankNameRuralLabor: '',
     ReceiverAccountNameRuralLabor: '',
     ReceiverAccountNumberRuralLabor: '',

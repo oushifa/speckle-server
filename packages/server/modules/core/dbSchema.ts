@@ -715,6 +715,7 @@ export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms
   'BIM',
   'timeZone',
   'approveStatus',
+  'occupiedMeasurementId',
   'createdAt',
   'updatedAt'
 ])
@@ -732,6 +733,8 @@ export const MonthlyMeasurements = buildTableHelper('monthly_measurements', [
   'startDate',
   'endDate',
   'contractCode',
+  'paymentPhase',
+  'detailedDescription',
   'createdAt',
   'updatedAt'
 ])

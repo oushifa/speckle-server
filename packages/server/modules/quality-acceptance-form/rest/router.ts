@@ -1808,6 +1808,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           for (const { key } of keys) {
             if (key in patch) next[key] = Number(patch[key] || 0)
           }
+
+          // 填充顺序关系是：施工单位 =》投资监理 =〉合约管理部 =》分管领导
+          // 实现前一级填写保存时，后级的数据与前级的数据一致。后级填写不改变前级。
+          if (requiredRole === 'contractor') {
+            next.investmentPayAmt = next.contractorPayAmt
+            next.contractPayAmt = next.contractorPayAmt
+            next.leaderPayAmt = next.contractorPayAmt
+          } else if (requiredRole === 'investment') {
+            next.contractPayAmt = next.investmentPayAmt
+            next.leaderPayAmt = next.investmentPayAmt
+          } else if (requiredRole === 'contract') {
+            next.leaderPayAmt = next.contractPayAmt
+          }
+
           updatedMap.set(itemId, next)
         }
 
@@ -2138,47 +2152,32 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return res.status(404).json({ error: '月度验工不存在' })
       }
 
-      const currentYear = dayjs(Number(measurement.baseDate)).year()
-      const measurementStartDate = measurement.startDate
-        ? Number(measurement.startDate)
-        : null
-      const measurementEndDate = measurement.endDate
-        ? Number(measurement.endDate)
-        : null
+      const allAcceptanceIds = Array.from(
+        new Set(items.flatMap((item: any) => item.sourceAcceptanceIds || []).filter(Boolean))
+      )
 
-      const livePendingMap = new Map<
-        string,
-        { measuredQtyDefault: number; sourceAcceptanceIds: string[] }
-      >()
-      if (measurementStartDate || measurementEndDate) {
-        const pendingForms = await getQualityAcceptanceFormsBeforeBaseDateFactory({
-          db: projectDb
-        })({
-          projectId,
-          baseDate: Number(measurement.baseDate),
-          startDate: measurementStartDate,
-          endDate: measurementEndDate
-        })
-        const boqItemIds = new Set(items.map((item) => item.boqItemId))
-        const boqIdByCode = new Map(
-          items
-            .map((item) => [item.boqCode?.trim(), item.boqItemId] as const)
-            .filter((entry): entry is [string, string] => Boolean(entry[0]))
-        )
-        for (const form of pendingForms) {
-          const resolvedBoqItemId =
-            form.boqItemId && boqItemIds.has(form.boqItemId)
-              ? form.boqItemId
-              : boqIdByCode.get(form.code?.trim() || '')
-          if (!resolvedBoqItemId) continue
-          const current = livePendingMap.get(resolvedBoqItemId) || {
-            measuredQtyDefault: 0,
-            sourceAcceptanceIds: []
-          }
-          current.measuredQtyDefault += Number(form.workVolume || 0)
-          current.sourceAcceptanceIds.push(form.id)
-          livePendingMap.set(resolvedBoqItemId, current)
-        }
+      let acceptances: any[] = []
+      if (allAcceptanceIds.length > 0) {
+        acceptances = await projectDb('quality_acceptance_forms')
+          .whereIn('id', allAcceptanceIds)
+          .select('id', 'name', 'code', 'actualFinishDate', 'workVolume', 'inspector')
+      }
+
+      const userIds = Array.from(new Set(acceptances.map((a: any) => a.inspector).filter(Boolean)))
+      let users: any[] = []
+      if (userIds.length > 0) {
+        users = await db('users').whereIn('id', userIds).select('id', 'name')
+      }
+      const userMap = new Map<string, string>(users.map((u: any) => [u.id, u.name]))
+
+      const acceptancesWithInspectorName = acceptances.map((a: any) => ({
+        ...a,
+        inspectorName: userMap.get(a.inspector) || a.inspector || ''
+      }))
+
+      const acceptanceMap = new Map<string, any>()
+      for (const a of acceptancesWithInspectorName) {
+        acceptanceMap.set(a.id, a)
       }
 
       // 获取 boq_items 上配置的合价 amount
@@ -2190,18 +2189,22 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
       }
 
-      const payload = items.map((item) => ({
-        ...item,
-        measuredQtyDefault: item.isSummaryRow
-          ? 0
-          : livePendingMap.get(item.boqItemId)?.measuredQtyDefault || 0,
-        sourceAcceptanceIds: item.isSummaryRow
-          ? item.sourceAcceptanceIds
-          : livePendingMap.get(item.boqItemId)?.sourceAcceptanceIds || [],
-        lastCumulativeQty: item.lastCumulativeQty || 0,
-        yearlyCumulativeQty: item.yearlyCumulativeQty || 0,
-        boqAmount: boqAmountMap.get(item.boqItemId) ?? null
-      }))
+      const payload = items.map((item: any) => {
+        const itemAcceptanceIds = Array.isArray(item.sourceAcceptanceIds) ? item.sourceAcceptanceIds : []
+        const itemAcceptances = itemAcceptanceIds
+          .map((id: string) => acceptanceMap.get(id))
+          .filter(Boolean)
+
+        return {
+          ...item,
+          measuredQtyDefault: item.isSummaryRow ? 0 : Number(item.measuredQty || 0),
+          sourceAcceptanceIds: itemAcceptanceIds,
+          sourceAcceptances: item.isSummaryRow ? [] : itemAcceptances,
+          lastCumulativeQty: item.lastCumulativeQty || 0,
+          yearlyCumulativeQty: item.yearlyCumulativeQty || 0,
+          boqAmount: boqAmountMap.get(item.boqItemId) ?? null
+        }
+      })
 
       return res.status(200).json(payload)
     }
@@ -2291,6 +2294,104 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     }
   )
 
+  // 10.1 解除月度验工与质量验收的关联接口 (开始节点删除质量验收)
+  app.delete(
+    '/api/v1/projects/:projectId/monthly-measurements/:id/quality-acceptance/:acceptanceId',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id, acceptanceId } = req.params
+      const userId = req.context.userId!
+      const projectDb = await getProjectDbClient({ projectId })
+
+      // 1. 获取并校验月度验工是否存在
+      const measurement = await getMonthlyMeasurementByIdFactory({ db: projectDb })(id)
+      if (!measurement) {
+        return res.status(404).json({ error: '月度验工不存在' })
+      }
+
+      // 2. 校验流程节点：只有处于 START（草稿/开始）状态才可以删除
+      const binding = await db('approval_flow_bindings')
+        .where('subjectKey', `monthly_measurements:${id}`)
+        .select('status')
+        .first()
+      const currentStatus = binding ? binding.status : (measurement.approveStatus || 'START')
+      if (currentStatus !== 'START') {
+        throw new BadRequestError('仅在月度验工开始（草稿）节点支持删除关联的质量验收')
+      }
+
+      // 3. 校验当前用户是否有 contractor（草稿期修改）权限
+      await checkWritePermission(projectDb, id, userId, 'contractor')
+
+      // 4. 获取要解除的质量验收表单并确认已被当前验工单占用
+      const form = await projectDb('quality_acceptance_forms')
+        .where('id', acceptanceId)
+        .first()
+      if (!form) {
+        return res.status(404).json({ error: '质量验收不存在' })
+      }
+      if (form.occupiedMeasurementId !== id) {
+        throw new BadRequestError('该质量验收未被此月度验工单关联')
+      }
+
+      const boqItemId = form.boqItemId
+      if (!boqItemId) {
+        throw new BadRequestError('该质量验收未关联 BOQ 清单项')
+      }
+
+      // 5. 查找月度验工对应的明细行记录
+      const mmItem = await projectDb('monthly_measurement_items')
+        .where({ measurementId: id, boqItemId })
+        .first()
+      if (!mmItem) {
+        throw new BadRequestError('未找到对应的月度验工明细记录')
+      }
+
+      // 6. 从关联列表中剔除，重新计算辅助验工量
+      const oldIds = Array.isArray(mmItem.sourceAcceptanceIds) ? mmItem.sourceAcceptanceIds : []
+      const newIds = oldIds.filter((x: string) => x !== acceptanceId)
+
+      let newMeasuredQty = 0
+      if (newIds.length > 0) {
+        const remainingForms = await projectDb('quality_acceptance_forms')
+          .whereIn('id', newIds)
+          .select('workVolume')
+        newMeasuredQty = remainingForms.reduce((acc: number, f: any) => acc + Number(f.workVolume || 0), 0)
+      }
+
+      // 7. 在事务中执行解除关联并重新保存明细项数据
+      await projectDb.transaction(async (trx) => {
+        // 释放该质量验收单的占用，重置 occupiedMeasurementId 和 approveStatus
+        await trx('quality_acceptance_forms')
+          .where('id', acceptanceId)
+          .update({
+            occupiedMeasurementId: null,
+            approveStatus: null,
+            updatedAt: new Date()
+          })
+
+        // 更新明细项数据（重算 measuredQty 并且同步将各角色完成数重置为 measuredQty）
+        await trx('monthly_measurement_items')
+          .where({ id: mmItem.id })
+          .update({
+            sourceAcceptanceIds: newIds,
+            measuredQty: newMeasuredQty,
+            contractorQty: newMeasuredQty,
+            supervisionQty: newMeasuredQty,
+            headquartersQty: newMeasuredQty,
+            investmentQty: newMeasuredQty,
+            updatedAt: new Date()
+          })
+
+        // 更新主表更新时间以触发详情刷新
+        await trx('monthly_measurements')
+          .where('id', id)
+          .update({ updatedAt: new Date() })
+      })
+
+      return res.status(200).json({ success: true })
+    }
+  )
+
   // 11. 分类工程金额聚合查询接口
   app.get(
     '/api/v1/projects/:projectId/monthly-measurements/:id/aggregated-items',
@@ -2342,6 +2443,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           historyCumulative: number
           historyYearly: number
           historyPay: number
+          sourceAcceptanceIds: Set<string>
         }
       >()
 
@@ -2360,7 +2462,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           leaderPayAmt: 0,
           historyCumulative: 0,
           historyYearly: 0,
-          historyPay: 0
+          historyPay: 0,
+          sourceAcceptanceIds: new Set<string>(
+            Array.isArray(item.sourceAcceptanceIds) ? item.sourceAcceptanceIds : []
+          )
         })
       }
 
@@ -2416,6 +2521,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             node.historyCumulative += child.historyCumulative
             node.historyYearly += child.historyYearly
             node.historyPay += child.historyPay
+            if (child.sourceAcceptanceIds) {
+              for (const id of child.sourceAcceptanceIds) {
+                node.sourceAcceptanceIds.add(id)
+              }
+            }
           }
         }
       }
@@ -2481,6 +2591,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           yearlyAmount: round2(yearlyAmount),
           cumulativeRate,
           lastCumulativePay: round2(sums.historyPay),
+          sourceAcceptanceIds: Array.from(sums.sourceAcceptanceIds),
           remark: item.remark
         }
       })

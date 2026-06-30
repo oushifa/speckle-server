@@ -108,7 +108,9 @@ const resolvers = {
       })
       const blobsById = keyBy(blobs, (blob) => blob.id)
       return blobIds.map((blobId) => blobsById[blobId] || null).filter(isNonNullable)
-    }
+    },
+    occupiedMeasurementId: (parent: { occupiedMeasurementId?: string | null }) =>
+      parent.occupiedMeasurementId || null
   },
   Project: {
     qualityAcceptanceForms: async (
@@ -283,6 +285,13 @@ const resolvers = {
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
+      const existingForm = await projectDb(QUALITY_ACCEPTANCE_FORM_TABLE)
+        .where('id', args.input.id)
+        .first()
+      if (existingForm?.occupiedMeasurementId) {
+        throw new BadRequestError('该质量验收单已被月度验工关联，不可修改')
+      }
+
       const updated = await updateQualityAcceptanceFormFactory({ db: projectDb })(
         args.input.id,
         {
@@ -327,6 +336,13 @@ const resolvers = {
       }
 
       const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
+      const existingForm = await projectDb(QUALITY_ACCEPTANCE_FORM_TABLE)
+        .where('id', args.input.id)
+        .first()
+      if (existingForm?.occupiedMeasurementId) {
+        throw new BadRequestError('该质量验收单已被月度验工关联，不可删除')
+      }
+
       const deleted = await deleteQualityAcceptanceFormFactory({ db: projectDb })(
         args.input.id
       )

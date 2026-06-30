@@ -33,6 +33,7 @@ type QualityAcceptanceForm {
   BIMelement: [String!] @deprecated(reason: "Use BIM instead")
   timeZone: String
   approveStatus: String
+  occupiedMeasurementId: ID
   createdAt: DateTime!
   updatedAt: DateTime!
 }

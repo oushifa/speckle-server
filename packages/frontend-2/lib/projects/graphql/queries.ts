@@ -413,6 +413,7 @@ export const projectQualityAcceptanceFormsQuery = gql`
           BIMelement
           timeZone
           approveStatus
+          occupiedMeasurementId
           createdAt
           updatedAt
         }

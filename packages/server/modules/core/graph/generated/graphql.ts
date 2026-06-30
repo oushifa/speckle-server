@@ -493,7 +493,8 @@ export const ApprovalFlowActionType = {
   ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED',
   Started: 'STARTED',
   StepApproved: 'STEP_APPROVED',
-  TimeoutRejected: 'TIMEOUT_REJECTED'
+  TimeoutRejected: 'TIMEOUT_REJECTED',
+  TransferredAssignee: 'TRANSFERRED_ASSIGNEE'
 } as const;
 
 export type ApprovalFlowActionType = typeof ApprovalFlowActionType[keyof typeof ApprovalFlowActionType];
@@ -4432,6 +4433,7 @@ export type QualityAcceptanceForm = {
   inspector?: Maybe<LimitedUser>;
   inspectorId?: Maybe<Scalars['ID']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  occupiedMeasurementId?: Maybe<Scalars['ID']['output']>;
   projectId?: Maybe<Scalars['ID']['output']>;
   timeZone?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
@@ -10222,6 +10224,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   inspector?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   inspectorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  occupiedMeasurementId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   projectId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

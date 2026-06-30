@@ -30,7 +30,7 @@
       </div>
 
       <!-- 经典深蓝色双层表头表格 -->
-      <div class="border border-outline-3 rounded-lg overflow-auto shadow-sm">
+      <div class="border border-outline-3 rounded-lg overflow-auto shadow-sm !mt-1">
         <table class="w-full text-[11px] text-left min-w-[1050px] border-collapse">
           <thead class="bg-[#0f4c9c] text-white text-center sticky top-0 z-10">
             <tr class="border-b border-blue-800">
@@ -708,7 +708,7 @@
               }}
             </h2>
             <div
-              class="flex justify-between items-center text-xs px-1 pt-2 border-black pb-1 font-semibold"
+              class="flex justify-between items-center text-xs px-1 pt-2 border-black pb-1 font-semibold mb-1"
             >
               <div>
                 承包人(盖章)：{{ projectContractor || '上海公路桥梁（集团）有限公司' }}
@@ -949,68 +949,72 @@
 
         <!-- 2. 打印明细表 -->
         <div v-if="printType === 'detail'">
-          <!-- 大标题和元数据，放在 table 外部，只在第一页显示一次 -->
-          <div
-            class="text-center pb-4 text-black"
-            style="padding-bottom: 16px; background-color: white"
-          >
-            <h1
-              class="text-2xl font-bold tracking-wider text-black"
-              style="margin-bottom: 8px; color: black !important"
-            >
-              验 工 计 价 月 报
-            </h1>
-            <h2
-              class="text-sm font-medium text-black"
-              style="margin-bottom: 12px; color: black !important"
-            >
-              {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{
-                formatDateMonth(item?.baseDate)
-              }}&nbsp;&nbsp;&nbsp;&nbsp;{{
-                item?.roundName ? '第' + item.roundName + '期' : '第1期'
-              }}
-            </h2>
-            <div
-              class="border-black pb-1.5 pt-2 text-xs font-semibold text-black"
-              style="display: table; width: 100%"
-            >
-              <div
-                style="
-                  display: table-cell;
-                  width: 40%;
-                  text-align: left;
-                  color: black;
-                "
-              >
-                承包人(盖章)：{{ projectContractor }}
-              </div>
-              <div
-                style="
-                  display: table-cell;
-                  width: 40%;
-                  text-align: center;
-                  color: black;
-                "
-              >
-                合同编号：{{ projectContractCode }}
-              </div>
-              <div
-                style="
-                  display: table-cell;
-                  width: 20%;
-                  text-align: right;
-                  color: black;
-                "
-              >
-                单位：元
-              </div>
-            </div>
-          </div>
-
           <table
-            class="print-table w-full text-[10px] text-left border-collapse border border-black"
+            class="print-table print-detail-table w-full text-[10px] text-left border-collapse border-black"
           >
             <thead>
+              <!-- 主标题和元数据，放入 thead 中以便打印多页时在每页重复渲染 -->
+              <tr class="print-header-title-row">
+                <th colspan="23">
+                  <div class="text-center text-black" style="background-color: white">
+                    <!-- 主标题 -->
+                    <h1
+                      class="text-2xl font-bold tracking-wider text-black"
+                      style="color: black !important"
+                    >
+                      验 工 计 价 月 报
+                    </h1>
+                    <!-- 副标题 -->
+                    <h2
+                      class="text-sm font-medium text-black"
+                      style="margin-bottom: 12px; color: black !important"
+                    >
+                      {{ contractName }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                        formatDateMonth(item?.baseDate)
+                      }}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                        item?.roundName ? '第' + item.roundName + '期' : '第1期'
+                      }}
+                    </h2>
+                    <!-- 元数据行 -->
+                    <div
+                      class="border-black pb-1.5 pt-2 text-xs font-semibold text-black"
+                      style="display: table; width: 100%"
+                    >
+                      <div
+                        style="
+                          display: table-cell;
+                          width: 40%;
+                          text-align: left;
+                          color: black;
+                        "
+                      >
+                        承包人(盖章)：{{ projectContractor }}
+                      </div>
+                      <div
+                        style="
+                          display: table-cell;
+                          width: 40%;
+                          text-align: center;
+                          color: black;
+                        "
+                      >
+                        合同编号：{{ projectContractCode }}
+                      </div>
+                      <div
+                        style="
+                          display: table-cell;
+                          width: 20%;
+                          text-align: right;
+                          color: black;
+                        "
+                      >
+                        单位：元
+                      </div>
+                    </div>
+                  </div>
+                </th>
+              </tr>
+              <!-- 表头 -->
               <tr class="font-bold text-center border-b border-black">
                 <th rowspan="3" class="w-20 border-r border-black">清单编号</th>
                 <th rowspan="3" class="w-56 text-left pl-3 border-r border-black">
@@ -1494,6 +1498,9 @@ const { result: projectResult } = useQuery(
     id: props.projectId
   })
 )
+const projectName = computed(() => {
+  return projectResult.value?.project?.name || ''
+})
 const contractName = computed(() => {
   const contract = projectResult.value?.project?.contractName
   if (contract && contract.trim().length) return contract
@@ -2570,7 +2577,27 @@ onUnmounted(() => {
   .print-table thead tr.print-header-title-row th {
     border: none !important;
     background-color: transparent !important;
-    padding: 0 0 10px 0 !important;
+    padding: 0 0 0 0 !important;
+  }
+
+  /* 特殊处理包含大标题的明细表边框，使其从真实表头开始有边框，而大标题无边框 */
+  /* 使用高特异性选择器组合限制，防止被后面定义的普通 .print-table 覆盖 */
+  .print-table.print-detail-table {
+    border: none !important;
+  }
+  .print-table.print-detail-table thead tr.print-header-title-row th {
+    border: none !important;
+    background-color: transparent !important;
+    padding: 0 0 2px 0 !important;
+  }
+  .print-table.print-detail-table thead tr:nth-child(2) th {
+    border-top: 1px solid #000 !important;
+  }
+  .print-table.print-detail-table thead tr:nth-child(2) th:first-child {
+    border-left: 1px solid #000 !important;
+  }
+  .print-table.print-detail-table tbody tr td:first-child {
+    border-left: 1px solid #000 !important;
   }
 
   /* 当处于打印状态时，隐藏 body 下除了打印区以外的所有直接子节点（包括 #__nuxt、弹窗遮罩及 Portal 节点） */
@@ -2609,10 +2636,6 @@ onUnmounted(() => {
   /* 移除大标题单元格可能残存的任何单元格边框线 */
   .print-table thead tr.print-header-title-row th {
     border: none !important;
-    border-top: none !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-bottom: none !important;
   }
   /* 行级边框会和单元格边框叠加，导致部分横线打印更粗 */
   .print-table thead,

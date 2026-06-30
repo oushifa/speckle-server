@@ -109,9 +109,9 @@
           <template #approveStatus="{ item }">
             <span
               class="rounded px-2 py-1 text-sm text-foreground"
-              :class="getStatusColor(item.approveStatus)"
+              :class="getStatusColor(item)"
             >
-              {{ getStatusText(item.approveStatus) }}
+              {{ getStatusText(item) }}
             </span>
           </template>
           <template #attachments="{ item }">
@@ -562,6 +562,7 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
           : null,
         timeZone: item.timeZone || '',
         approveStatus: item.approveStatus || null,
+        occupiedMeasurementId: item.occupiedMeasurementId || null,
         createdAt: new Date(item.createdAt).getTime(),
         updatedAt: new Date(item.updatedAt).getTime()
       }
@@ -776,11 +777,11 @@ const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined =>
   ]
 })
 
-const canEditItem = (item: AcceptanceRow) => !item.approveStatus
+const canEditItem = (item: AcceptanceRow) => !item.approveStatus && !item.occupiedMeasurementId
 
 const canDeleteItem = (item: AcceptanceRow) => {
   const status = (item.approveStatus || '').toUpperCase()
-  return status === 'REJECTED' || status === 'CANCELED' || !status
+  return (status === 'REJECTED' || status === 'CANCELED' || !status) && !item.occupiedMeasurementId
 }
 
 const selectedAssociationModelIds = computed(() => {
@@ -936,7 +937,11 @@ const handleImportFileChange = async (event: Event) => {
   }
 }
 
-const getStatusColor = (status: string | null | undefined) => {
+const getStatusColor = (item: AcceptanceRow) => {
+  if (!item.occupiedMeasurementId) {
+    return 'bg-outline-3 text-foreground-3'
+  }
+  const status = item.approveStatus
   switch (status) {
     case 'START':
       return 'bg-warning-lighter text-warning-darker'
@@ -949,25 +954,33 @@ const getStatusColor = (status: string | null | undefined) => {
     case 'CANCELED':
       return 'bg-gray-400 text-white'
     case null:
-      return 'bg-outline-3 text-foreground'
+    case undefined:
+    case '':
+      return 'bg-warning-lighter text-warning-darker'
     default:
       return 'bg-gray-500 text-white'
   }
 }
 
-const getStatusText = (status: string | null | undefined) => {
+const getStatusText = (item: AcceptanceRow) => {
+  if (!item.occupiedMeasurementId) {
+    return '-'
+  }
+  const status = item.approveStatus
   switch (status) {
     case 'START':
-      return '待查验'
+      return '未查验'
     case 'PENDING':
-      return '正在查验'
+      return '查验中'
     case 'APPROVED':
       return '已查验'
     case 'REJECTED':
-      return '已拒绝'
+      return '未查验'
     case 'CANCELED':
       return '已取消'
     case null:
+    case undefined:
+    case '':
       return '未查验'
     default:
       return '-'

@@ -459,8 +459,29 @@
               show-label
               show-required
             />
+            <div class="space-y-1.5">
+              <div class="text-xs font-semibold text-foreground">支付节点</div>
+              <FormSelectBase
+                v-model="selectedPaymentPhaseValue"
+                :items="paymentPhaseOptions"
+                name="monthly-measurement-payment-phase"
+                label="支付节点"
+                :show-label="false"
+                by="id"
+                class="w-full text-xs"
+              >
+                <template #something-selected="{ value }">
+                  <span class="truncate text-foreground text-xs">{{
+                    (value as any)?.label || '请选择支付节点'
+                  }}</span>
+                </template>
+                <template #option="{ item }">
+                  <span class="truncate text-xs">{{ (item as any)?.label }}</span>
+                </template>
+              </FormSelectBase>
+            </div>
             <div class="col-span-1 md:col-span-2 space-y-1.5">
-              <label class="text-xs font-semibold text-foreground">关联安全文明措施费</label>
+              <div class="text-xs font-semibold text-foreground">关联安全文明措施费</div>
               <FormSelectBase
                 v-model="selectedMeasureValue"
                 :items="selectOptions"
@@ -477,6 +498,17 @@
                   <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
                 </template>
               </FormSelectBase>
+            </div>
+            <div class="col-span-1 md:col-span-2">
+              <FormTextArea
+                v-model="createForm.detailedDescription"
+                name="monthly-measurement-detailed-description"
+                label="具体业务事项"
+                show-label
+                show-required
+                placeholder="请输入具体业务事项"
+                :rows="4"
+              />
             </div>
           </div>
           <div v-if="createError" class="text-body-sm text-danger mt-2">
@@ -1410,8 +1442,19 @@ const createForm = ref({
   roundName: '',
   startDate: '',
   endDate: '',
+  paymentPhase: '进度款',
+  detailedDescription: '',
   safetyMeasureId: null as string | null
 })
+
+const paymentPhaseOptions = [
+  { id: '预付款', label: '预付款' },
+  { id: '进度款', label: '进度款' },
+  { id: '尾款', label: '尾款' },
+  { id: '验收款', label: '验收款' },
+  { id: '审价款', label: '审价款' },
+  { id: '退回质保金', label: '退回质保金' }
+]
 
 const isSubmitted = (item: { approveStatus?: string | null }) => {
   if (!item.approveStatus) return false
@@ -1642,6 +1685,18 @@ const selectedMeasureValue = computed({
   }
 })
 
+const selectedPaymentPhaseValue = computed({
+  get: () => {
+    const found = paymentPhaseOptions.find(
+      (option) => option.id === createForm.value.paymentPhase
+    )
+    return found || paymentPhaseOptions[1]
+  },
+  set: (val: { id?: string } | null) => {
+    createForm.value.paymentPhase = val?.id || ''
+  }
+})
+
 const openEditDialog = () => {
   if (!item.value) return
   createError.value = ''
@@ -1656,6 +1711,8 @@ const openEditDialog = () => {
     endDate: item.value.endDate
       ? dayjs(Number(item.value.endDate)).format('YYYY-MM-DD')
       : '',
+    paymentPhase: item.value.paymentPhase || '进度款',
+    detailedDescription: item.value.detailedDescription || '',
     safetyMeasureId: item.value.safetyMeasureId || null
   }
   void fetchSafetyMeasures()
@@ -1701,6 +1758,14 @@ const submitDialog = async () => {
     createError.value = '计量时间段不能为空'
     return
   }
+  if (!createForm.value.paymentPhase.trim()) {
+    createError.value = '支付节点不能为空'
+    return
+  }
+  if (!createForm.value.detailedDescription.trim()) {
+    createError.value = '具体业务事项不能为空'
+    return
+  }
 
   createError.value = ''
   const baseDateTs = dayjs(createForm.value.baseDate, 'YYYY-MM')
@@ -1722,6 +1787,8 @@ const submitDialog = async () => {
           startDate: startDateTs,
           endDate: endDateTs,
           roundName: createForm.value.roundName.trim(),
+          paymentPhase: createForm.value.paymentPhase.trim(),
+          detailedDescription: createForm.value.detailedDescription.trim(),
           measuredItems: [],
           excludedAcceptanceIds: [],
           safetyMeasureId: createForm.value.safetyMeasureId
