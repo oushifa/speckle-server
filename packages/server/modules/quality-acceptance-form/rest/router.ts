@@ -232,18 +232,13 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
 
   const round2 = (num: number) => Math.round(num * 100) / 100
 
-  // 默认优先引用中间支付单的应支付进度款(万元)，并折算为元
-  const progressInYuan = paymentDetails?.interimPayProgress
-    ? round2(Number(paymentDetails.interimPayProgress) * 10000)
-    : 0
-
   return {
     contractorPayAmt: round2(contractorPayAmtSum),
     supervisionPayAmt: round2(supervisionPayAmtSum),
     headquartersPayAmt: round2(headquartersPayAmtSum),
     investmentPayAmt: round2(investmentPayAmtSum),
     contractPayAmt: round2(contractPayAmtSum),
-    leaderPayAmt: progressInYuan || round2(leaderPayAmtSum)
+    leaderPayAmt: round2(leaderPayAmtSum)
   }
 }
 
