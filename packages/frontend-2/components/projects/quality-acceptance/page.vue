@@ -472,17 +472,39 @@ const associatedModelDrawerOpen = ref(false)
 const selectedAssociationItem = ref<AcceptanceRow | null>(null)
 const pageCursors = ref<Record<number, string | null>>({ 1: null })
 const currentCursor = computed(() => pageCursors.value[currentPage.value] || null)
-const { result: formsResult, refetch: formsRefetch } = useQuery(
-  projectQualityAcceptanceFormsQuery as DocumentNode,
-  () => ({
-    projectId: projectId.value,
-    search: debouncedSearchQuery.value || null,
-    cursor: currentCursor.value,
-    limit: pageSize.value
-  }),
-  {
-    enabled: computed(() => !!projectId.value)
+const formsResult = ref<any>(null)
+const formsLoading = ref(false)
+
+const loadFormsData = async () => {
+  if (!projectId.value) return
+  formsLoading.value = true
+  try {
+    const data = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/quality-acceptance/forms`,
+      {
+        params: {
+          search: debouncedSearchQuery.value || undefined,
+          cursor: currentCursor.value || undefined,
+          limit: pageSize.value
+        }
+      }
+    )
+    formsResult.value = data
+  } catch (err) {
+    console.error('Failed to load quality acceptance forms via REST:', err)
+  } finally {
+    formsLoading.value = false
   }
+}
+
+const formsRefetch = loadFormsData
+
+watch(
+  [projectId, debouncedSearchQuery, currentCursor, pageSize],
+  () => {
+    void loadFormsData()
+  },
+  { immediate: true }
 )
 const { mutate: createFormMutate, loading: createFormLoading } = useMutation(
   createQualityAcceptanceFormMutation
@@ -502,13 +524,13 @@ type QualityAcceptanceFormNode = NonNullable<
 >
 
 const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
-  (formsResult.value?.project?.qualityAcceptanceForms.items || [])
+  (formsResult.value?.items || [])
     .filter(
       (
-        item: QualityAcceptanceFormNode | null | undefined
-      ): item is QualityAcceptanceFormNode => !!item
+        item: any
+      ): item is any => !!item
     )
-    .map((item: QualityAcceptanceFormNode) => {
+    .map((item: any) => {
       const bimRaw = (
         item as unknown as {
           BIM?: Array<{
@@ -569,14 +591,14 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
     })
 )
 const totalCount = computed(
-  () => formsResult.value?.project?.qualityAcceptanceForms.totalCount || 0
+  () => formsResult.value?.totalCount || 0
 )
 const nextCursor = computed(
-  () => formsResult.value?.project?.qualityAcceptanceForms.cursor || null
+  () => formsResult.value?.cursor || null
 )
 const inspectorNameMap = computed(() => {
   const map = new Map<string, string>()
-  for (const item of formsResult.value?.project?.qualityAcceptanceForms.items || []) {
+  for (const item of formsResult.value?.items || []) {
     if (!item) continue
     map.set(item.id, item.inspector?.name || '-')
   }

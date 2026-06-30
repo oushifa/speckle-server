@@ -30,6 +30,10 @@ export class WorldTree {
   private bimNodesMap: {
     [subtreeId: number]: { [bimId: string]: { [id: string]: TreeNode } }
   } = {}
+  private componentCodesTree: {
+    [subtreeId: number]: { [componentCode: string]: { [id: string]: TreeNode } }
+  } = {}
+  private spaceCodes: { [subtreeId: number]: string } = {}
   private readonly supressWarnings = true
   public static readonly ROOT_ID = 'ROOT'
   private subtreeId: number = 0
@@ -104,6 +108,12 @@ export class WorldTree {
     node.model.subtreeId = subtreeId
     this.nodeMaps[subtreeId] = new NodeMap(node)
     this.applicationNodeMaps[subtreeId] = {}
+
+    const spaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
+    if (spaceCode && spaceCode.trim()) {
+      this.setSpaceCode(subtreeId, spaceCode.trim())
+    }
+
     this.registerApplicationNode(node)
     this._root.addChild(node)
   }
@@ -120,6 +130,16 @@ export class WorldTree {
       if (this.bimNodesMap[subtreeId]) {
         this.registerBimNode(node)
       }
+
+      const spaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode'])
+      if (spaceCode && spaceCode.trim()) {
+        this.setSpaceCode(subtreeId, spaceCode.trim())
+      }
+
+      if (this.componentCodesTree[subtreeId]) {
+        this.registerComponentCodeNode(node)
+      }
+
       parent.addChild(node)
     }
   }
@@ -130,6 +150,9 @@ export class WorldTree {
     this.unregisterApplicationNode(node)
     if (subtreeId !== undefined && this.bimNodesMap[subtreeId]) {
       this.unregisterBimNode(node)
+    }
+    if (subtreeId !== undefined && this.componentCodesTree[subtreeId]) {
+      this.unregisterComponentCodeNode(node)
     }
     this.nodeMaps[node.model.subtreeId]?.removeNode(node)
     node.drop()
@@ -264,6 +287,8 @@ export class WorldTree {
         delete this.nodeMaps[currentSubtreeId]
         delete this.applicationNodeMaps[currentSubtreeId]
         delete this.bimNodesMap[currentSubtreeId]
+        delete this.componentCodesTree[currentSubtreeId]
+        delete this.spaceCodes[currentSubtreeId]
         // Potentially true?
         this.removeNode(subtreeNode[0], false)
       }
@@ -282,6 +307,12 @@ export class WorldTree {
     })
     Object.keys(this.bimNodesMap).forEach((key) => {
       delete this.bimNodesMap[parseInt(key, 10)]
+    })
+    Object.keys(this.componentCodesTree).forEach((key) => {
+      delete this.componentCodesTree[parseInt(key, 10)]
+    })
+    Object.keys(this.spaceCodes).forEach((key) => {
+      delete this.spaceCodes[parseInt(key, 10)]
     })
 
     this._root.drop()
@@ -401,7 +432,109 @@ export class WorldTree {
     }
   }
 
-  private isProjectInfoNode(node: TreeNode): boolean {
+  public getSpaceCode(subtreeId: number): string | null {
+    return this.spaceCodes[subtreeId] || null
+  }
+
+  public setSpaceCode(subtreeId: number, spaceCode: string) {
+    this.spaceCodes[subtreeId] = spaceCode
+  }
+
+  public getComponentCode(node: TreeNode): string | null {
+    const subtreeId = node.model.subtreeId
+    if (subtreeId === undefined) return null
+
+    const classificationCode = this.getPropertyValue(node.model.raw, ['分类对象代码', 'classificationobjectcode']) || ''
+    const spaceCode = this.getPropertyValue(node.model.raw, ['空间代码', 'spacecode']) || this.getSpaceCode(subtreeId) || ''
+    const sectionItemCode = this.getPropertyValue(node.model.raw, ['分部分项代码', 'sectionitemcode']) || ''
+    const serialNum = this.getPropertyValue(node.model.raw, ['序号码', '序号', 'serialnumber']) || ''
+
+    if (!classificationCode && !spaceCode && !sectionItemCode && !serialNum) {
+      return null
+    }
+
+    return `${classificationCode}${spaceCode}${sectionItemCode}${serialNum}`
+  }
+
+  public getComponentCodesTree(subtreeId: number): { [componentCode: string]: { [id: string]: TreeNode } } {
+    if (!this.componentCodesTree[subtreeId]) {
+      this.buildComponentCodesTree(subtreeId)
+    }
+    return this.componentCodesTree[subtreeId] || {}
+  }
+
+  private buildComponentCodesTree(subtreeId: number) {
+    const allSubtreeNodes = this.nodeMaps[subtreeId]?.allNodes || []
+    const map: { [componentCode: string]: { [id: string]: TreeNode } } = {}
+
+    for (const node of allSubtreeNodes) {
+      const code = this.getComponentCode(node)
+      if (code && code.trim()) {
+        const cleanCode = code.trim()
+        if (!map[cleanCode]) {
+          map[cleanCode] = {}
+        }
+        map[cleanCode][node.model.id] = node
+      }
+    }
+
+    this.componentCodesTree[subtreeId] = map
+  }
+
+  private registerComponentCodeNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    if (!subtreeId || !this.componentCodesTree[subtreeId]) return
+
+    const code = this.getComponentCode(node)
+    if (code && code.trim()) {
+      const cleanCode = code.trim()
+      if (!this.componentCodesTree[subtreeId][cleanCode]) {
+        this.componentCodesTree[subtreeId][cleanCode] = {}
+      }
+      this.componentCodesTree[subtreeId][cleanCode][node.model.id] = node
+    }
+  }
+
+  private unregisterComponentCodeNode(node: TreeNode) {
+    const subtreeId = node.model.subtreeId
+    if (!subtreeId || !this.componentCodesTree[subtreeId]) return
+
+    const code = this.getComponentCode(node)
+    if (code && code.trim()) {
+      const cleanCode = code.trim()
+      const map = this.componentCodesTree[subtreeId][cleanCode]
+      if (map) {
+        delete map[node.model.id]
+        if (Object.keys(map).length === 0) {
+          delete this.componentCodesTree[subtreeId][cleanCode]
+        }
+      }
+    }
+  }
+
+  public findComponentCodeNodeId(
+    componentCode: string,
+    subtreeId?: number
+  ): TreeNode[] | null {
+    if (!componentCode) return null
+    const key = String(componentCode)
+
+    if (subtreeId) {
+      const map = this.getComponentCodesTree(subtreeId)?.[key]
+      return map ? Object.values(map) : null
+    }
+
+    const nodes: TreeNode[] = []
+    for (const k in this.nodeMaps) {
+      const subId = parseInt(k, 10)
+      const map = this.getComponentCodesTree(subId)?.[key]
+      if (map) nodes.push(...Object.values(map))
+    }
+
+    return nodes.length ? nodes : null
+  }
+
+  public isProjectInfoNode(node: TreeNode): boolean {
     const raw = node.model.raw
     if (!raw) return false
 

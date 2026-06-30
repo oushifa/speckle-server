@@ -13,7 +13,15 @@ import {
   recalculateProjectCostSummaryFactory,
   getOrRecalculateProjectCostSummaryFactory
 } from '@/modules/project-statistics/services/projectCostSummaries'
-import { importQualityAcceptanceFormsFactory } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
+import {
+  importQualityAcceptanceFormsFactory,
+  normalizeBIM
+} from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
+import {
+  getQualityAcceptanceFormsFactory,
+  countQualityAcceptanceFormsFactory
+} from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
+import { getBlobsFactory } from '@/modules/blobstorage/repositories'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
 import {
   streamWritePermissionsPipelineFactory,
@@ -327,6 +335,81 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         failedCount: result.failedCount,
         createdItems: result.createdItems,
         failedRows: result.failedRows
+      })
+    }
+  )
+
+  // 1.1 查询质量验收单列表接口 (REST API, 避开 GraphQL 缓存)
+  app.get(
+    '/api/v1/projects/:projectId/quality-acceptance/forms',
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId } = req.params
+      const search = req.query.search ? String(req.query.search).trim() : null
+      const cursor = req.query.cursor ? String(req.query.cursor).trim() : null
+      const limit = req.query.limit ? Number(req.query.limit) : 25
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      // 1. 批量查询基础 items 和总数
+      const [formsData, totalCount] = await Promise.all([
+        getQualityAcceptanceFormsFactory({ db: projectDb })({
+          projectId,
+          search,
+          cursor,
+          limit
+        }),
+        countQualityAcceptanceFormsFactory({ db: projectDb })({
+          projectId,
+          search
+        })
+      ])
+
+      const items = formsData.items
+
+      // 2. 批量加载用户信息 (inspector & creator)
+      const userIds = Array.from(new Set(
+        items.flatMap((item: any) => [item.inspector, item.creator]).filter(Boolean)
+      ))
+      let users: any[] = []
+      if (userIds.length > 0) {
+        users = await db('users').whereIn('id', userIds).select('id', 'name')
+      }
+      const userMap = new Map<string, any>(users.map((u: any) => [u.id, u]))
+
+      // 3. 批量加载附件信息
+      const allBlobIds = Array.from(new Set(
+        items.flatMap((item: any) => item.attachments || []).filter(Boolean)
+      ))
+      let blobs: any[] = []
+      if (allBlobIds.length > 0) {
+        blobs = await getBlobsFactory({ db: projectDb })({
+          blobIds: allBlobIds,
+          streamId: projectId
+        })
+      }
+      const blobMap = new Map<string, any>(blobs.map((b: any) => [b.id, b]))
+
+      // 4. 拼装 payload
+      const payloadItems = items.map((item: any) => {
+        const itemAttachments = (item.attachments || [])
+          .map((bid: string) => blobMap.get(bid))
+          .filter(Boolean)
+
+        return {
+          ...item,
+          projectId: item.project_id,
+          inspector: userMap.get(item.inspector) || null,
+          creator: userMap.get(item.creator) || null,
+          attachments: itemAttachments,
+          BIM: normalizeBIM(item.BIM, item.BIMelement)
+        }
+      })
+
+      return res.status(200).json({
+        totalCount,
+        cursor: formsData.cursor,
+        items: payloadItems
       })
     }
   )

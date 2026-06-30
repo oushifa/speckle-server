@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { onKeyStroke, useBreakpoints, useEventListener } from '@vueuse/core'
 import type { CSSProperties } from 'vue'
-import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
+import { useInjectedViewerState, useInjectedViewer } from '~~/lib/viewer/composables/setup'
 import { getTargetObjectIds } from '~~/lib/object-sidebar/helpers'
 import { containsAll } from '~~/lib/common/helpers/utils'
 import { useSelectionUtilities } from '~~/lib/viewer/composables/ui'
@@ -144,6 +144,16 @@ const {
   urlHashState: { focusedThreadId }
 } = useInjectedViewerState()
 const { objects, clearSelection } = useSelectionUtilities()
+const viewer = useInjectedViewer()
+const worldTree = computed(() => viewer.metadata.worldTree.value)
+
+const firstSelectedNode = computed(() => {
+  if (!objects.value.length || !worldTree.value) return null
+  const selectedId = objects.value[0].id
+  if (!selectedId) return null
+  const nodes = worldTree.value.findId(selectedId)
+  return nodes && nodes.length ? nodes[0] : null
+})
 const { hideObjects, showObjects, isolateObjects, unIsolateObjects } =
   useFilterUtilities()
 
@@ -348,6 +358,34 @@ const quickCardFieldsWithValues = computed(() => {
         label: field.label,
         value: otherDimensionFieldValue.value
       }
+    }
+
+    if (field.label === '空间代码') {
+      const val = findFieldValue(field.aliases)
+      if (val !== '-') return { label: field.label, value: val }
+
+      const node = firstSelectedNode.value
+      if (node && node.model.subtreeId !== undefined) {
+        const spaceCode = worldTree.value?.getSpaceCode(node.model.subtreeId)
+        if (spaceCode) {
+          return { label: field.label, value: spaceCode }
+        }
+      }
+      return { label: field.label, value: '-' }
+    }
+
+    if (field.label === '构件编码') {
+      const val = findFieldValue(field.aliases)
+      if (val !== '-') return { label: field.label, value: val }
+
+      const node = firstSelectedNode.value
+      if (node) {
+        const compCode = worldTree.value?.getComponentCode(node)
+        if (compCode) {
+          return { label: field.label, value: compCode }
+        }
+      }
+      return { label: field.label, value: '-' }
     }
 
     return {
