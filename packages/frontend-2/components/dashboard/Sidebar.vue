@@ -29,7 +29,7 @@
         <div
           class="layout-sidebar-bg absolute left-0 w-full h-screen bg-no-repeat bottom-0 bg-[rgb(26,40,70)] z-[99] text-red-400 pointer-events-none"
         ></div>
-        <LayoutSidebar class="border-outline-3 px-2 pt-3 pb-2">
+        <LayoutSidebar class="project-sidebar border-outline-3 px-2 pt-3 pb-2">
           <LayoutSidebarMenu>
             <LayoutSidebarMenuGroup
               v-if="isWorkspacesEnabled && isLoggedIn"
@@ -208,6 +208,54 @@
                 </NuxtLink> -->
               </LayoutSidebarMenuGroup>
 
+              <LayoutSidebarMenuGroup
+                v-if="isAdmin"
+                :class="[
+                  'project-sidebar-group-wrapper',
+                  (isActive('/permission/roles') || isActive('/permission/users')) &&
+                    'project-sidebar-group-wrapper-active'
+                ]"
+                title="权限管理"
+                collapsible
+                :no-hover="true"
+                title-class="project-sidebar-group-title text-white/80"
+                arrow-class="project-sidebar-group-arrow text-white/80"
+              >
+                <template #title-icon>
+                  <IconSettings class="size-4 text-white" />
+                </template>
+                <NuxtLink
+                  to="/permission/roles"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'py-2',
+                      isActive('/permission/roles') &&
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ]"
+                    extra-padding
+                    label="角色配置"
+                  ></LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+                <NuxtLink
+                  to="/permission/users"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'py-2',
+                      isActive('/permission/users') &&
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ]"
+                    extra-padding
+                    label="用户列表"
+                  ></LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+              </LayoutSidebarMenuGroup>
+
               <!-- <LayoutSidebarMenuGroup title="资源" collapsible>
                 <LayoutSidebarMenuGroupItem
                   v-if="isWorkspacesEnabled"
@@ -340,7 +388,7 @@ const sidebarPermissionsQuery = graphql(`
   }
 `)
 
-const { isLoggedIn } = useActiveUser()
+const { isLoggedIn, isAdmin } = useActiveUser()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const isDashboardsEnabled = useIsDashboardsModuleEnabled()
 const route = useRoute()
@@ -416,5 +464,86 @@ const isActive = (...routes: string[]): boolean => {
 .layout-sidebar-bg {
   background: url('~~/assets/images/layout/side_bg.png');
   background-size: 100% 100%;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button) {
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > svg:first-child) {
+  order: 3;
+  margin-left: auto;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > div:nth-child(2)) {
+  order: 1;
+  width: 1.5rem;
+  flex-shrink: 0;
+  justify-content: center;
+  margin-left: 0;
+  margin-right: 0.25rem;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div > button > div:nth-child(3)) {
+  order: 2;
+  justify-content: flex-start;
+}
+
+.project-sidebar :deep(.flex.flex-col.group > div) {
+  height: auto;
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper > div) {
+  border-left: 4px solid transparent;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper > div:hover) {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper-active > div) {
+  background: rgb(255 255 255 / 0.1);
+  border-left-color: rgb(96 165 250);
+}
+
+.project-sidebar :deep(.project-sidebar-group-wrapper-active > div:hover) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.project-sidebar :deep(.project-sidebar-top-item) {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.project-sidebar :deep(.project-sidebar-top-item > div) {
+  gap: 0.25rem;
+}
+
+.project-sidebar :deep(.project-sidebar-top-item > div > div:first-child) {
+  width: 1.5rem;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.project-sidebar :deep(.project-sidebar-group-title),
+.project-sidebar :deep(.project-sidebar-top-item > div > span),
+.project-sidebar :deep(.flex.flex-col.group > div > button h6) {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+.project-sidebar :deep(.project-sidebar-group-arrow) {
+  height: 1rem;
+  width: 1rem;
 }
 </style>

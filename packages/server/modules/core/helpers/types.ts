@@ -20,6 +20,7 @@ export type UserRecord = {
    */
   passwordDigest?: Nullable<string>
   ip: Nullable<string>
+  phone?: Nullable<string>
 }
 
 /**

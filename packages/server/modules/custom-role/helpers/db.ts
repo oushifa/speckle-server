@@ -5,6 +5,9 @@ export const CustomRoles = buildTableHelper('custom_roles', [
   'name',
   'menuPerms',
   'modelPerms',
+  'dataPerm',
+  'specialties',
+  'sections',
   'status',
   'createdAt',
   'updatedAt'
@@ -14,9 +17,6 @@ export const CustomRoleUsers = buildTableHelper('custom_role_users', [
   'id',
   'roleId',
   'userId',
-  'menuPerms',
-  'modelPerms',
-  'isCustomized',
   'createdAt',
   'updatedAt'
 ])

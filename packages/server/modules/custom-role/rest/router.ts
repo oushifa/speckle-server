@@ -13,10 +13,9 @@ import {
   listCustomRoleUsersFactory,
   listExistingUserIdsFactory,
   removeCustomRoleUserFactory,
-  syncRoleDefaultsToNonCustomizedUsersFactory,
   updateCustomRoleDefaultPermsFactory,
   updateCustomRoleNameFactory,
-  updateCustomRoleUserPermsFactory
+  updateUserRolesFactory
 } from '@/modules/custom-role/repositories/customRoles'
 
 const permissionArray = z
@@ -36,7 +35,10 @@ const roleIdAndUserIdParam = z.object({
 const createRoleBody = z.object({
   name: z.string().min(1).max(128),
   menuPerms: permissionArray,
-  modelPerms: permissionArray
+  modelPerms: permissionArray,
+  dataPerm: z.enum(['all', 'dept', 'project', 'self']).default('self'),
+  specialties: permissionArray.optional(),
+  sections: permissionArray.optional()
 })
 
 const patchRoleBody = z.object({
@@ -46,16 +48,17 @@ const patchRoleBody = z.object({
 const updateDefaultPermsBody = z.object({
   menuPerms: permissionArray,
   modelPerms: permissionArray,
-  syncNonCustomizedUsers: z.boolean().optional().default(true)
+  dataPerm: z.enum(['all', 'dept', 'project', 'self']).default('self'),
+  specialties: permissionArray.optional(),
+  sections: permissionArray.optional()
 })
 
 const addUsersBody = z.object({
   userIds: z.array(z.string().min(1)).min(1)
 })
 
-const updateUserPermsBody = z.object({
-  menuPerms: permissionArray,
-  modelPerms: permissionArray
+const updateUserRolesBody = z.object({
+  roleIds: z.array(z.string())
 })
 
 const listCustomRoles = listCustomRolesFactory({ db })
@@ -66,15 +69,11 @@ const deleteCustomRole = deleteCustomRoleFactory({ db })
 const listCustomRoleUsers = listCustomRoleUsersFactory({ db })
 const listExistingUserIds = listExistingUserIdsFactory({ db })
 const addUsersToRole = addUsersToRoleFactory({ db })
-const updateCustomRoleUserPerms = updateCustomRoleUserPermsFactory({ db })
 const removeCustomRoleUser = removeCustomRoleUserFactory({ db })
 const getEffectivePermissionByUserId = getEffectivePermissionByUserIdFactory({ db })
-
-// Admin users are signalled via `isAdmin: true` in the response; the caller
-// (each frontend app) is responsible for bypassing permission checks when
-// `isAdmin` is true, so this server-side factory stays agnostic of any
-// particular system's menu/model permission names.
 const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+const updateCustomRoleDefaultPerms = updateCustomRoleDefaultPermsFactory({ db })
+const updateUserRoles = updateUserRolesFactory({ db })
 
 const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.context.auth || !req.context.userId) {
@@ -107,7 +106,10 @@ export const customRoleRouterFactory = (): Router => {
         const role = await createCustomRole({
           name: req.body.name,
           menuPerms: req.body.menuPerms || [],
-          modelPerms: req.body.modelPerms || []
+          modelPerms: req.body.modelPerms || [],
+          dataPerm: (req.body.dataPerm || 'self') as 'all' | 'dept' | 'project' | 'self',
+          specialties: req.body.specialties || [],
+          sections: req.body.sections || []
         })
         return res.status(201).send(role)
       } catch (error) {
@@ -153,34 +155,17 @@ export const customRoleRouterFactory = (): Router => {
     '/api/v1/custom-roles/:roleId/default-permissions',
     validateRequest({ params: roleIdParam, body: updateDefaultPermsBody }),
     async (req, res) => {
-      const updated = await db.transaction(async (trx) => {
-        const updateRoleDefaults = updateCustomRoleDefaultPermsFactory({ db: trx })
-        const syncUsers = syncRoleDefaultsToNonCustomizedUsersFactory({ db: trx })
-
-        const role = await updateRoleDefaults({
-          roleId: req.params.roleId,
-          menuPerms: req.body.menuPerms || [],
-          modelPerms: req.body.modelPerms || []
-        })
-        if (!role) return null
-
-        let syncedUserCount = 0
-        if (req.body.syncNonCustomizedUsers) {
-          syncedUserCount = await syncUsers({
-            roleId: req.params.roleId,
-            menuPerms: req.body.menuPerms || [],
-            modelPerms: req.body.modelPerms || []
-          })
-        }
-
-        return {
-          role,
-          syncedUserCount
-        }
+      const role = await updateCustomRoleDefaultPerms({
+        roleId: req.params.roleId,
+        menuPerms: req.body.menuPerms || [],
+        modelPerms: req.body.modelPerms || [],
+        dataPerm: (req.body.dataPerm || 'self') as 'all' | 'dept' | 'project' | 'self',
+        specialties: req.body.specialties || [],
+        sections: req.body.sections || []
       })
 
-      if (!updated) return res.status(404).send({ error: 'Role not found.' })
-      return res.status(200).send(updated)
+      if (!role) return res.status(404).send({ error: 'Role not found.' })
+      return res.status(200).send(role)
     }
   )
 
@@ -210,30 +195,13 @@ export const customRoleRouterFactory = (): Router => {
 
       const addedCount = await addUsersToRole({
         roleId: role.id,
-        userIds: existingUserIds,
-        menuPerms: role.menuPerms,
-        modelPerms: role.modelPerms
+        userIds: existingUserIds
       })
 
       return res.status(200).send({
         addedCount,
         skippedUserIds
       })
-    }
-  )
-
-  app.patch(
-    '/api/v1/custom-roles/:roleId/users/:userId/permissions',
-    validateRequest({ params: roleIdAndUserIdParam, body: updateUserPermsBody }),
-    async (req, res) => {
-      const ok = await updateCustomRoleUserPerms({
-        roleId: req.params.roleId,
-        userId: req.params.userId,
-        menuPerms: req.body.menuPerms || [],
-        modelPerms: req.body.modelPerms || []
-      })
-      if (!ok) return res.status(404).send({ error: 'Role user not found.' })
-      return res.status(200).send({ ok: true })
     }
   )
 
@@ -269,6 +237,23 @@ export const customRoleRouterFactory = (): Router => {
       })
       if (!item) return res.status(404).send({ error: 'User permissions not found.' })
       return res.status(200).send(item)
+    }
+  )
+
+  app.put(
+    '/api/v1/custom-roles/users/:userId/roles',
+    validateRequest({
+      params: z.object({
+        userId: z.string().min(1)
+      }),
+      body: updateUserRolesBody
+    }),
+    async (req, res) => {
+      await updateUserRoles({
+        userId: req.params.userId,
+        roleIds: req.body.roleIds
+      })
+      return res.status(200).send({ ok: true })
     }
   )
 

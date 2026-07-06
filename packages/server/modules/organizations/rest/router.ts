@@ -3,6 +3,9 @@ import { db } from '@/db/knex'
 import { Roles } from '@/modules/core/helpers/mainConstants'
 import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import { searchUsersFactory, getUserFactory } from '@/modules/core/repositories/users'
+import cryptoRandomString from 'crypto-random-string'
+import { v4 as uuidv4 } from 'uuid'
+import bcrypt from 'bcrypt'
 import {
   createDepartmentFactory,
   deleteDepartmentFactory,
@@ -216,17 +219,256 @@ export const organizationsRouterFactory = (): Router => {
   router.get('/api/v1/organizations/users/search', corsMiddleware, requireAuth, async (req, res) => {
     try {
       const q = (req.query.q as string) || ''
-      const results = await searchUsers(q, 20, undefined)
+      const results = await searchUsers(q, 100, undefined) // 提高检索上限便于列表加载
+      const userIds = results.users.map((u: any) => u.id)
+
+      let rawUsers: any[] = []
+      if (userIds.length > 0) {
+        rawUsers = await db('users')
+          .leftJoin('user_emails', 'users.id', 'user_emails.userId')
+          .whereIn('users.id', userIds)
+          .select({
+            id: 'users.id',
+            phone: 'users.phone',
+            email: 'user_emails.email'
+          })
+      }
+      const rawUserMap = new Map<string, any>()
+      for (const ru of rawUsers) {
+        if (!rawUserMap.has(ru.id) || (ru.email && !rawUserMap.get(ru.id).email)) {
+          rawUserMap.set(ru.id, ru)
+        }
+      }
+
+      let userDepts: Array<{ userId: string; departmentId: string; departmentName: string }> = []
+      if (userIds.length > 0) {
+        userDepts = await db('department_members')
+          .join('departments', 'department_members.departmentId', 'departments.id')
+          .whereIn('department_members.userId', userIds)
+          .select({
+            userId: 'department_members.userId',
+            departmentId: 'department_members.departmentId',
+            departmentName: 'departments.name'
+          })
+      }
+      const deptMap = new Map<string, { id: string; name: string }>()
+      for (const ud of userDepts) {
+        deptMap.set(ud.userId, { id: ud.departmentId, name: ud.departmentName })
+      }
+
+      let userAcls: Array<{ userId: string; role: string }> = []
+      if (userIds.length > 0) {
+        userAcls = await db('server_acl').whereIn('userId', userIds).select('userId', 'role')
+      }
+      const aclMap = new Map<string, string>()
+      for (const acl of userAcls) {
+        aclMap.set(acl.userId, acl.role)
+      }
+
       return res.status(200).json({
-        data: results.users.map((u: any) => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          avatar: u.avatar
-        }))
+        data: results.users.map((u: any) => {
+          const raw = rawUserMap.get(u.id) || {}
+          return {
+            id: u.id,
+            name: u.name,
+            email: raw.email || u.email || '',
+            avatar: u.avatar,
+            phone: raw.phone || '',
+            department: deptMap.get(u.id) || null,
+            role: aclMap.get(u.id) || 'server:user',
+            createdAt: u.createdAt
+          }
+        })
       })
     } catch (err: any) {
       return res.status(500).json({ error: err.message || 'Failed to search users.' })
+    }
+  })
+
+  // 9. 创建新用户 (限管理员)
+  router.post('/api/v1/organizations/users', corsMiddleware, requireAdmin, async (req, res) => {
+    try {
+      const { name, email, phone, departmentId, role } = req.body
+      if (!name || !email) {
+        return res.status(400).json({ error: 'Name and email are required.' })
+      }
+      const normalizedEmail = email.trim().toLowerCase()
+      // 检查邮箱是否已存在
+      const existing = await db('user_emails').where('email', normalizedEmail).first()
+      if (existing) {
+        return res.status(400).json({ error: 'Email address already exists.' })
+      }
+
+      const userId = cryptoRandomString({ length: 10 })
+      const suuid = uuidv4()
+      const passwordDigest = await bcrypt.hash('Srj@6666', 10) // 默认密码
+      const now = new Date()
+
+      await db.transaction(async (trx) => {
+        // 1. 插入 users 表
+        await trx('users').insert({
+          id: userId,
+          suuid,
+          createdAt: now,
+          name: name.trim(),
+          email: normalizedEmail,
+          phone: phone ? phone.trim() : null,
+          passwordDigest,
+          verified: true
+        })
+
+        // 2. 插入 user_emails 表
+        await trx('user_emails').insert({
+          id: cryptoRandomString({ length: 10 }),
+          userId,
+          email: normalizedEmail,
+          verified: true,
+          createdAt: now
+        })
+
+        // 3. 插入 server_acl 表
+        await trx('server_acl').insert({
+          userId,
+          role: role || 'server:user'
+        })
+
+        // 4. 插入 department_members 表 (如果提供了部门 ID)
+        if (departmentId) {
+          await trx('department_members').insert({
+            departmentId,
+            userId,
+            title: '普通职员',
+            createdAt: now,
+            updatedAt: now
+          })
+        }
+      })
+
+      return res.status(201).json({ id: userId, name, email, phone, role })
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to create user.' })
+    }
+  })
+
+  // 10. 编辑用户基本信息与角色/部门 (限管理员)
+  router.put('/api/v1/organizations/users/:userId', corsMiddleware, requireAdmin, async (req, res) => {
+    try {
+      const userId = req.params.userId
+      const { email, phone, departmentId, role, status } = req.body
+
+      // 检查用户是否存在
+      const user = await db('users').where('id', userId).first()
+      if (!user) {
+        return res.status(404).json({ error: 'User not found.' })
+      }
+
+      await db.transaction(async (trx) => {
+        const now = new Date()
+        
+        // 1. 更新基本字段
+        const updateData: any = {}
+        if (phone !== undefined) updateData.phone = phone ? phone.trim() : null
+        if (email !== undefined) updateData.email = email.trim().toLowerCase()
+        
+        if (Object.keys(updateData).length > 0) {
+          await trx('users').where('id', userId).update(updateData)
+        }
+
+        // 如果邮箱有变更，同步更新 user_emails 表
+        if (email !== undefined) {
+          const normalizedEmail = email.trim().toLowerCase()
+          const emailRec = await trx('user_emails').where('userId', userId).first()
+          if (emailRec) {
+            await trx('user_emails').where('userId', userId).update({ email: normalizedEmail })
+          } else {
+            await trx('user_emails').insert({
+              id: cryptoRandomString({ length: 10 }),
+              userId,
+              email: normalizedEmail,
+              verified: true,
+              createdAt: now
+            })
+          }
+        }
+
+        // 2. 更新状态和角色
+        if (status === 'inactive') {
+          await trx('server_acl').where('userId', userId).update({ role: 'server:archived-user' })
+        } else if (role) {
+          await trx('server_acl').where('userId', userId).update({ role })
+        } else if (status === 'active') {
+          // 若启用且无显式角色传入，确保其移出归档状态
+          const currentAcl = await trx('server_acl').where('userId', userId).first()
+          if (currentAcl && currentAcl.role === 'server:archived-user') {
+            await trx('server_acl').where('userId', userId).update({ role: 'server:user' })
+          }
+        }
+
+        // 3. 更新行政部门关联
+        if (departmentId !== undefined) {
+          // 删除旧部门关联
+          await trx('department_members').where('userId', userId).del()
+          if (departmentId) {
+            await trx('department_members').insert({
+              departmentId,
+              userId,
+              title: '普通职员',
+              createdAt: now,
+              updatedAt: now
+            })
+          }
+        }
+      })
+
+      return res.status(200).json({ success: true })
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to update user.' })
+    }
+  })
+
+  // 11. 删除用户 (限管理员)
+  router.delete('/api/v1/organizations/users/:userId', corsMiddleware, requireAdmin, async (req, res) => {
+    try {
+      const userId = req.params.userId
+      const user = await db('users').where('id', userId).first()
+      if (!user) {
+        return res.status(404).json({ error: 'User not found.' })
+      }
+
+      await db.transaction(async (trx) => {
+        // 删除相关的 ACL、邮箱和部门记录
+        await trx('server_acl').where('userId', userId).del()
+        await trx('user_emails').where('userId', userId).del()
+        await trx('department_members').where('userId', userId).del()
+        await trx('custom_role_users').where('userId', userId).del()
+        // 最后删除主用户表记录
+        await trx('users').where('id', userId).del()
+      })
+
+      return res.status(200).json({ success: true })
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to delete user.' })
+    }
+  })
+
+  // 12. 批量授权角色 (限管理员)
+  router.post('/api/v1/organizations/users/batch-auth', corsMiddleware, requireAdmin, async (req, res) => {
+    try {
+      const { userIds, role } = req.body
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: 'userIds array is required and must not be empty.' })
+      }
+      if (!role) {
+        return res.status(400).json({ error: 'Role is required.' })
+      }
+
+      await db.transaction(async (trx) => {
+        await trx('server_acl').whereIn('userId', userIds).update({ role })
+      })
+
+      return res.status(200).json({ success: true })
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Failed to batch authorize users.' })
     }
   })
 

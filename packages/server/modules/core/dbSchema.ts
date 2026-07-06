@@ -365,7 +365,8 @@ export const Users = buildTableHelper(
     'avatar',
     'profiles',
     'passwordDigest',
-    'ip'
+    'ip',
+    'phone'
   ],
   UsersMeta
 )

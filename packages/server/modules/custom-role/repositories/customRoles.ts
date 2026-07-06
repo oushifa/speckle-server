@@ -33,6 +33,9 @@ export const listCustomRolesFactory =
         CustomRoles.col.name,
         CustomRoles.col.menuPerms,
         CustomRoles.col.modelPerms,
+        CustomRoles.col.dataPerm,
+        CustomRoles.col.specialties,
+        CustomRoles.col.sections,
         CustomRoles.col.status,
         CustomRoles.col.createdAt,
         CustomRoles.col.updatedAt
@@ -42,7 +45,9 @@ export const listCustomRolesFactory =
     return rows.map((row) => ({
       ...row,
       menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms)
+      modelPerms: parsePerms(row.modelPerms),
+      specialties: parsePerms(row.specialties),
+      sections: parsePerms(row.sections)
     }))
   }
 
@@ -59,7 +64,9 @@ export const getCustomRoleFactory =
     return {
       ...row,
       menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms)
+      modelPerms: parsePerms(row.modelPerms),
+      specialties: parsePerms(row.specialties),
+      sections: parsePerms(row.sections)
     }
   }
 
@@ -69,6 +76,9 @@ export const createCustomRoleFactory =
     name: string
     menuPerms: PermissionId[]
     modelPerms: PermissionId[]
+    dataPerm: 'all' | 'dept' | 'project' | 'self'
+    specialties?: string[]
+    sections?: string[]
   }): Promise<CustomRole> => {
     const now = new Date()
     const record: CustomRole = {
@@ -76,6 +86,9 @@ export const createCustomRoleFactory =
       name: params.name.trim(),
       menuPerms: params.menuPerms,
       modelPerms: params.modelPerms,
+      dataPerm: params.dataPerm,
+      specialties: params.specialties || [],
+      sections: params.sections || [],
       status: 'active',
       createdAt: now,
       updatedAt: now
@@ -83,7 +96,9 @@ export const createCustomRoleFactory =
     await tables.customRoles(db).insert({
       ...record,
       menuPerms: toJsonb(db, record.menuPerms),
-      modelPerms: toJsonb(db, record.modelPerms)
+      modelPerms: toJsonb(db, record.modelPerms),
+      specialties: toJsonb(db, record.specialties),
+      sections: toJsonb(db, record.sections)
     })
     return record
   }
@@ -125,6 +140,9 @@ export const updateCustomRoleDefaultPermsFactory =
     roleId: string
     menuPerms: PermissionId[]
     modelPerms: PermissionId[]
+    dataPerm: 'all' | 'dept' | 'project' | 'self'
+    specialties?: string[]
+    sections?: string[]
   }): Promise<CustomRole | null> => {
     const updated = await tables
       .customRoles(db)
@@ -132,6 +150,9 @@ export const updateCustomRoleDefaultPermsFactory =
       .update({
         [CustomRoles.withoutTablePrefix.col.menuPerms]: toJsonb(db, params.menuPerms),
         [CustomRoles.withoutTablePrefix.col.modelPerms]: toJsonb(db, params.modelPerms),
+        [CustomRoles.withoutTablePrefix.col.dataPerm]: params.dataPerm,
+        [CustomRoles.withoutTablePrefix.col.specialties]: toJsonb(db, params.specialties || []),
+        [CustomRoles.withoutTablePrefix.col.sections]: toJsonb(db, params.sections || []),
         [CustomRoles.withoutTablePrefix.col.updatedAt]: new Date()
       })
       .returning<CustomRole[]>('*')
@@ -141,28 +162,10 @@ export const updateCustomRoleDefaultPermsFactory =
     return {
       ...row,
       menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms)
+      modelPerms: parsePerms(row.modelPerms),
+      specialties: parsePerms(row.specialties),
+      sections: parsePerms(row.sections)
     }
-  }
-
-export const syncRoleDefaultsToNonCustomizedUsersFactory =
-  ({ db }: { db: Knex }) =>
-  async (params: {
-    roleId: string
-    menuPerms: PermissionId[]
-    modelPerms: PermissionId[]
-  }): Promise<number> => {
-    return await tables
-      .customRoleUsers(db)
-      .where({
-        [CustomRoleUsers.col.roleId]: params.roleId,
-        [CustomRoleUsers.col.isCustomized]: false
-      })
-      .update({
-        [CustomRoleUsers.withoutTablePrefix.col.menuPerms]: toJsonb(db, params.menuPerms),
-        [CustomRoleUsers.withoutTablePrefix.col.modelPerms]: toJsonb(db, params.modelPerms),
-        [CustomRoleUsers.withoutTablePrefix.col.updatedAt]: new Date()
-      })
   }
 
 export const listCustomRoleUsersFactory =
@@ -179,9 +182,6 @@ export const listCustomRoleUsersFactory =
           roleId: string
           userId: string
           userName: string
-          menuPerms: unknown
-          modelPerms: unknown
-          isCustomized: boolean
           createdAt: Date
           updatedAt: Date
         }>
@@ -190,18 +190,11 @@ export const listCustomRoleUsersFactory =
         CustomRoleUsers.col.roleId,
         CustomRoleUsers.col.userId,
         Users.colAs('name', 'userName'),
-        CustomRoleUsers.col.menuPerms,
-        CustomRoleUsers.col.modelPerms,
-        CustomRoleUsers.col.isCustomized,
         CustomRoleUsers.col.createdAt,
         CustomRoleUsers.col.updatedAt
       ])
 
-    return rows.map((row) => ({
-      ...row,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms)
-    }))
+    return rows
   }
 
 export const listExistingUserIdsFactory =
@@ -219,8 +212,6 @@ export const addUsersToRoleFactory =
   async (params: {
     roleId: string
     userIds: string[]
-    menuPerms: PermissionId[]
-    modelPerms: PermissionId[]
   }): Promise<number> => {
     const now = new Date()
     const uniqueUserIds = Array.from(new Set(params.userIds.filter(Boolean)))
@@ -230,48 +221,19 @@ export const addUsersToRoleFactory =
       id: cryptoRandomString({ length: 10 }),
       roleId: params.roleId,
       userId,
-      menuPerms: toJsonb(db, params.menuPerms),
-      modelPerms: toJsonb(db, params.modelPerms),
-      isCustomized: false,
       createdAt: now,
       updatedAt: now
     }))
 
     await db(CustomRoleUsers.name)
       .insert(rows)
-      .onConflict(CustomRoleUsers.withoutTablePrefix.col.userId)
-      .merge({
-        roleId: params.roleId,
-        menuPerms: toJsonb(db, params.menuPerms),
-        modelPerms: toJsonb(db, params.modelPerms),
-        isCustomized: false,
-        updatedAt: now
-      })
+      .onConflict([
+        CustomRoleUsers.withoutTablePrefix.col.roleId,
+        CustomRoleUsers.withoutTablePrefix.col.userId
+      ])
+      .ignore()
 
     return rows.length
-  }
-
-export const updateCustomRoleUserPermsFactory =
-  ({ db }: { db: Knex }) =>
-  async (params: {
-    roleId: string
-    userId: string
-    menuPerms: PermissionId[]
-    modelPerms: PermissionId[]
-  }): Promise<boolean> => {
-    const updated = await tables
-      .customRoleUsers(db)
-      .where({
-        [CustomRoleUsers.col.roleId]: params.roleId,
-        [CustomRoleUsers.col.userId]: params.userId
-      })
-      .update({
-        [CustomRoleUsers.withoutTablePrefix.col.menuPerms]: toJsonb(db, params.menuPerms),
-        [CustomRoleUsers.withoutTablePrefix.col.modelPerms]: toJsonb(db, params.modelPerms),
-        [CustomRoleUsers.withoutTablePrefix.col.isCustomized]: true,
-        [CustomRoleUsers.withoutTablePrefix.col.updatedAt]: new Date()
-      })
-    return updated > 0
   }
 
 export const removeCustomRoleUserFactory =
@@ -290,7 +252,7 @@ export const removeCustomRoleUserFactory =
 export const getEffectivePermissionByUserIdFactory =
   ({ db }: { db: Knex }) =>
   async (params: { userId: string }): Promise<EffectivePermission | null> => {
-    const row = await tables
+    const rows = await tables
       .customRoleUsers(db)
       .join(CustomRoles.name, CustomRoleUsers.col.roleId, CustomRoles.col.id)
       .where(CustomRoleUsers.col.userId, params.userId)
@@ -301,37 +263,42 @@ export const getEffectivePermissionByUserIdFactory =
           roleName: string
           menuPerms: unknown
           modelPerms: unknown
-          isCustomized: boolean
-          updatedAt: Date
+          dataPerm: string
         }>
       >([
         CustomRoleUsers.col.userId,
         CustomRoleUsers.col.roleId,
         CustomRoles.colAs('name', 'roleName'),
-        CustomRoleUsers.col.menuPerms,
-        CustomRoleUsers.col.modelPerms,
-        CustomRoleUsers.col.isCustomized,
-        CustomRoleUsers.col.updatedAt
+        CustomRoles.col.menuPerms,
+        CustomRoles.col.modelPerms,
+        CustomRoles.col.dataPerm
       ])
-      .orderBy(CustomRoleUsers.col.updatedAt, 'desc')
-      .first()
 
-    if (!row) return null
+    if (!rows.length) return null
+
+    // Merge logic
+    const menuPermsSet = new Set<string>()
+    const modelPermsSet = new Set<string>()
+    const dataPermsSet = new Set<string>()
+
+    for (const r of rows) {
+      parsePerms(r.menuPerms).forEach((p) => menuPermsSet.add(p))
+      parsePerms(r.modelPerms).forEach((p) => modelPermsSet.add(p))
+      if (r.dataPerm) dataPermsSet.add(r.dataPerm)
+    }
+
+    const dataPerms = dataPermsSet.has('all') ? ['all'] : Array.from(dataPermsSet)
+
     return {
-      userId: row.userId,
-      roleId: row.roleId,
-      roleName: row.roleName,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms),
-      isCustomized: row.isCustomized
+      userId: params.userId,
+      roleId: rows[0].roleId,
+      roleName: rows[0].roleName,
+      menuPerms: Array.from(menuPermsSet),
+      modelPerms: Array.from(modelPermsSet),
+      dataPerms
     }
   }
 
-// NOTE: this factory is intentionally agnostic of any downstream system's
-// concrete menu/model permission set. Admin users are flagged via `isAdmin`
-// and the caller (e.g. each frontend app) is responsible for bypassing
-// permission checks when `isAdmin` is true. This keeps speckle-server as a
-// generic authZ provider reusable across multiple systems.
 export const getMyEffectivePermissionFactory =
   ({ db }: { db: Knex }) =>
   async (params: { userId: string }): Promise<MyEffectivePermission> => {
@@ -348,12 +315,12 @@ export const getMyEffectivePermissionFactory =
         roleName: null,
         menuPerms: [],
         modelPerms: [],
-        isCustomized: false,
+        dataPerms: ['all'],
         isAdmin: true
       }
     }
 
-    const row = await tables
+    const rows = await tables
       .customRoleUsers(db)
       .join(CustomRoles.name, CustomRoleUsers.col.roleId, CustomRoles.col.id)
       .where(CustomRoleUsers.col.userId, params.userId)
@@ -364,40 +331,72 @@ export const getMyEffectivePermissionFactory =
           roleName: string
           menuPerms: unknown
           modelPerms: unknown
-          isCustomized: boolean
-          updatedAt: Date
+          dataPerm: string
         }>
       >([
         CustomRoleUsers.col.userId,
         CustomRoleUsers.col.roleId,
         CustomRoles.colAs('name', 'roleName'),
-        CustomRoleUsers.col.menuPerms,
-        CustomRoleUsers.col.modelPerms,
-        CustomRoleUsers.col.isCustomized,
-        CustomRoleUsers.col.updatedAt
+        CustomRoles.col.menuPerms,
+        CustomRoles.col.modelPerms,
+        CustomRoles.col.dataPerm
       ])
-      .orderBy(CustomRoleUsers.col.updatedAt, 'desc')
-      .first()
 
-    if (!row) {
+    if (!rows.length) {
       return {
         userId: params.userId,
         roleId: null,
         roleName: null,
         menuPerms: [],
         modelPerms: [],
-        isCustomized: false,
+        dataPerms: [],
         isAdmin: false
       }
     }
 
+    const menuPermsSet = new Set<string>()
+    const modelPermsSet = new Set<string>()
+    const dataPermsSet = new Set<string>()
+
+    for (const r of rows) {
+      parsePerms(r.menuPerms).forEach((p) => menuPermsSet.add(p))
+      parsePerms(r.modelPerms).forEach((p) => modelPermsSet.add(p))
+      if (r.dataPerm) dataPermsSet.add(r.dataPerm)
+    }
+
+    const dataPerms = dataPermsSet.has('all') ? ['all'] : Array.from(dataPermsSet)
+
     return {
-      userId: row.userId,
-      roleId: row.roleId,
-      roleName: row.roleName,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms),
-      isCustomized: row.isCustomized,
+      userId: params.userId,
+      roleId: rows[0].roleId,
+      roleName: rows[0].roleName,
+      menuPerms: Array.from(menuPermsSet),
+      modelPerms: Array.from(modelPermsSet),
+      dataPerms,
       isAdmin: false
     }
+  }
+
+export const updateUserRolesFactory =
+  ({ db }: { db: Knex }) =>
+  async (params: { userId: string; roleIds: string[] }): Promise<void> => {
+    const now = new Date()
+    await db.transaction(async (trx) => {
+      // Delete existing relations
+      await trx(CustomRoleUsers.name)
+        .where({ [CustomRoleUsers.col.userId]: params.userId })
+        .del()
+
+      // Insert new relations
+      if (params.roleIds.length > 0) {
+        const rows = params.roleIds.map((roleId) => ({
+          id: cryptoRandomString({ length: 10 }),
+          roleId,
+          userId: params.userId,
+          createdAt: now,
+          updatedAt: now
+        }))
+        await trx(CustomRoleUsers.name).insert(rows)
+      }
+    })
   }

@@ -5,6 +5,9 @@ export type CustomRole = {
   name: string
   menuPerms: PermissionId[]
   modelPerms: PermissionId[]
+  dataPerm: 'all' | 'dept' | 'project' | 'self'
+  specialties?: string[]
+  sections?: string[]
   status: 'active' | 'disabled'
   createdAt: Date
   updatedAt: Date
@@ -14,9 +17,6 @@ export type CustomRoleUser = {
   id: string
   roleId: string
   userId: string
-  menuPerms: PermissionId[]
-  modelPerms: PermissionId[]
-  isCustomized: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -27,11 +27,11 @@ export type CustomRoleUserItem = CustomRoleUser & {
 
 export type EffectivePermission = {
   userId: string
-  roleId: string
-  roleName: string
+  roleId: string | null
+  roleName: string | null
   menuPerms: PermissionId[]
   modelPerms: PermissionId[]
-  isCustomized: boolean
+  dataPerms: string[]
 }
 
 export type MyEffectivePermission = {
@@ -40,6 +40,6 @@ export type MyEffectivePermission = {
   roleName: string | null
   menuPerms: PermissionId[]
   modelPerms: PermissionId[]
-  isCustomized: boolean
+  dataPerms: string[]
   isAdmin: boolean
 }
