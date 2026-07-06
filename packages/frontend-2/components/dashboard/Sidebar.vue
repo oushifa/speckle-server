@@ -41,7 +41,7 @@
             <div class="flex flex-col gap-y-2 lg:gap-y-4">
               <LayoutSidebarMenuGroup>
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-dashboard')"
                   to="/workbench"
                   @click="isOpenMobile = false"
                 >
@@ -61,7 +61,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-projects')"
                   :to="projectsLink"
                   @click="isOpenMobile = false"
                 >
@@ -101,7 +101,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-progress')"
                   to="/progress"
                   @click="isOpenMobile = false"
                 >
@@ -121,7 +121,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-quality')"
                   to="/quality-acceptance"
                   @click="isOpenMobile = false"
                 >
@@ -142,7 +142,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-cost')"
                   to="/work-valuation"
                   @click="isOpenMobile = false"
                 >
@@ -163,7 +163,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('ent-archive')"
                   to="/archives"
                   @click="isOpenMobile = false"
                 >
@@ -209,7 +209,7 @@
               </LayoutSidebarMenuGroup>
 
               <LayoutSidebarMenuGroup
-                v-if="isAdmin"
+                v-if="hasMenuPerm('ent-permission')"
                 :class="[
                   'project-sidebar-group-wrapper',
                   (isActive('/permission/roles') || isActive('/permission/users')) &&
@@ -363,6 +363,8 @@ import { graphql } from '~/lib/common/generated/gql'
 import { useQuery } from '@vue/apollo-composable'
 import dayjs from 'dayjs'
 import { useActiveUserMeta } from '~/lib/user/composables/meta'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
+import { onMounted, watch } from 'vue'
 
 const dashboardSidebarQuery = graphql(`
   query DashboardSidebar {
@@ -388,7 +390,7 @@ const sidebarPermissionsQuery = graphql(`
   }
 `)
 
-const { isLoggedIn, isAdmin } = useActiveUser()
+const { isLoggedIn, isAdmin, userId } = useActiveUser()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const isDashboardsEnabled = useIsDashboardsModuleEnabled()
 const route = useRoute()
@@ -458,6 +460,14 @@ const _openExplainerVideoDialog = () => {
 const isActive = (...routes: string[]): boolean => {
   return routes.some((routeTo) => route.path === routeTo)
 }
+
+const { initializePermissions, hasMenuPerm } = useCustomPermissions()
+onMounted(async () => {
+  await initializePermissions()
+})
+watch([isLoggedIn, userId], async () => {
+  await initializePermissions(true)
+})
 </script>
 
 <style scoped>

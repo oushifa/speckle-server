@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express'
 import { validateRequest } from 'zod-express'
 import { z } from 'zod'
 import { db } from '@/db/knex'
+import { requirePermission } from '@/modules/shared/middleware'
 import {
   addUsersToRoleFactory,
   createCustomRoleFactory,
@@ -100,6 +101,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.post(
     '/api/v1/custom-roles',
+    requirePermission('permission-management:edit'),
     validateRequest({ body: createRoleBody }),
     async (req, res) => {
       try {
@@ -123,6 +125,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/custom-roles/:roleId',
+    requirePermission('permission-management:edit'),
     validateRequest({ params: roleIdParam, body: patchRoleBody }),
     async (req, res) => {
       try {
@@ -143,6 +146,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.delete(
     '/api/v1/custom-roles/:roleId',
+    requirePermission('permission-management:edit'),
     validateRequest({ params: roleIdParam }),
     async (req, res) => {
       const removed = await deleteCustomRole({ roleId: req.params.roleId })
@@ -153,6 +157,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/custom-roles/:roleId/default-permissions',
+    requirePermission('permission-management:edit'),
     validateRequest({ params: roleIdParam, body: updateDefaultPermsBody }),
     async (req, res) => {
       const role = await updateCustomRoleDefaultPerms({
@@ -182,6 +187,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.post(
     '/api/v1/custom-roles/:roleId/users',
+    requirePermission('permission-management:edit'),
     validateRequest({ params: roleIdParam, body: addUsersBody }),
     async (req, res) => {
       const role = await getCustomRole({ roleId: req.params.roleId })
@@ -207,6 +213,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.delete(
     '/api/v1/custom-roles/:roleId/users/:userId',
+    requirePermission('permission-management:edit'),
     validateRequest({ params: roleIdAndUserIdParam }),
     async (req, res) => {
       const removed = await removeCustomRoleUser({
@@ -242,6 +249,7 @@ export const customRoleRouterFactory = (): Router => {
 
   app.put(
     '/api/v1/custom-roles/users/:userId/roles',
+    requirePermission('permission-management:edit'),
     validateRequest({
       params: z.object({
         userId: z.string().min(1)

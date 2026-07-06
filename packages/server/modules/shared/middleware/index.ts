@@ -40,6 +40,7 @@ import { getUserRoleFactory } from '@/modules/core/repositories/users'
 import { UserInputError } from '@/modules/core/errors/userinput'
 import compression from 'compression'
 import { moduleAuthLoaders } from '@/modules/index'
+import { getMyEffectivePermissionFactory } from '@/modules/custom-role/repositories/customRoles'
 
 export const authMiddlewareCreator = (
   steps: AuthPipelineFunction[]
@@ -330,3 +331,30 @@ export const setContentSecurityPolicyHeaderMiddleware: RequestHandler = (
   res.setHeader('Content-Security-Policy', "frame-ancestors 'none'")
   next()
 }
+
+// 统一鉴权控制中间件 (实现方案对接)
+const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+export const requirePermission = (permissionCode: string): RequestHandler => {
+  return async (req, res, next) => {
+    if (!req.context || !req.context.auth || !req.context.userId) {
+      return res.status(401).json({ error: 'Unauthorized: User is not authenticated' })
+    }
+
+    try {
+      const perm = await getMyEffectivePermission({ userId: req.context.userId })
+      if (perm.isAdmin) {
+        return next()
+      }
+
+      if (perm.modelPerms.includes(permissionCode)) {
+        return next()
+      }
+
+      return res.status(403).json({ error: `Forbidden: Missing required permission [${permissionCode}]` })
+    } catch (err) {
+      req.log.error(err, 'Check custom role permission failed')
+      return res.status(500).json({ error: 'Internal server check permission error' })
+    }
+  }
+}
+
