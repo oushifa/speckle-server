@@ -38,9 +38,15 @@
                 >
                   快捷卡片
                 </div>
-                <div class="simple-scrollbar overflow-y-auto max-h-[50dvh] py-1 pr-2">
+
+                <!-- 单个构件时平铺展示 -->
+                <div
+                  v-if="objects.length <= 1"
+                  class="simple-scrollbar overflow-y-auto max-h-[50dvh] py-1 pr-2"
+                >
                   <div
-                    v-for="field in quickCardFieldsWithValues"
+                    v-if="objects.length === 1"
+                    v-for="field in getQuickCardFieldsForObject(objects[0])"
                     :key="field.label"
                     class="grid grid-cols-3 w-full pl-2 h-5 items-center"
                   >
@@ -55,6 +61,61 @@
                       :title="field.value"
                     >
                       <span class="truncate">{{ field.value }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="py-4 text-center text-body-xs text-foreground-2">
+                    无选中构件
+                  </div>
+                </div>
+
+                <!-- 多个构件时折叠面板列表展示 -->
+                <div
+                  v-else
+                  class="simple-scrollbar overflow-y-auto max-h-[50dvh] p-2 space-y-1.5"
+                >
+                  <div
+                    v-for="(obj, index) in objects"
+                    :key="obj.id || index"
+                    class="border border-outline-3 rounded overflow-hidden bg-foundation-2"
+                  >
+                    <!-- 折叠头部 -->
+                    <button
+                      type="button"
+                      class="w-full flex items-center justify-between px-2 py-1.5 bg-foundation hover:bg-outline-3 text-left transition-colors"
+                      @click="toggleObjectExpand(obj.id)"
+                    >
+                      <span class="text-body-3xs font-semibold text-foreground truncate">
+                        {{ getObjectName(obj) }}
+                      </span>
+                      <ChevronRight
+                        :class="`w-3.5 h-3.5 shrink-0 text-foreground-2 transition-transform duration-200 ${
+                          expandedObjectIds.has(obj.id) ? 'rotate-90' : ''
+                        }`"
+                      />
+                    </button>
+                    <!-- 折叠展开的属性内容 -->
+                    <div
+                      v-if="expandedObjectIds.has(obj.id)"
+                      class="p-1.5 space-y-0.5 bg-foundation border-t border-outline-3"
+                    >
+                      <div
+                        v-for="field in getQuickCardFieldsForObject(obj)"
+                        :key="field.label"
+                        class="grid grid-cols-3 w-full pl-1 h-5 items-center"
+                      >
+                        <div
+                          class="col-span-1 truncate text-body-3xs mr-1 font-medium text-foreground-2"
+                          :title="field.label"
+                        >
+                          {{ field.label }}
+                        </div>
+                        <div
+                          class="col-span-2 pl-1 truncate text-body-3xs flex gap-1 items-center text-foreground"
+                          :title="field.value"
+                        >
+                          <span class="truncate">{{ field.value }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -128,8 +189,10 @@ import { useIsSmallerOrEqualThanBreakpoint } from '~~/composables/browser'
 import { modelRoute } from '~/lib/common/helpers/route'
 import { TailwindBreakpoints } from '~~/lib/common/helpers/tailwind'
 import type { LayoutMenuItem } from '~~/lib/layout/helpers/components'
-import { Ellipsis } from 'lucide-vue-next'
+import { Ellipsis, ChevronRight } from 'lucide-vue-next'
 import { useEmbed } from '~/lib/viewer/composables/setup/embed'
+import type { QualityAcceptanceForm } from '~/components/projects/quality-acceptance/types'
+import type { SpeckleObject } from '~~/lib/viewer/helpers/sceneExplorer'
 
 enum ActionTypes {
   OpenInNewTab = 'open-in-new-tab'
@@ -147,13 +210,62 @@ const { objects, clearSelection } = useSelectionUtilities()
 const viewer = useInjectedViewer()
 const worldTree = computed(() => viewer.metadata.worldTree.value)
 
-const firstSelectedNode = computed(() => {
-  if (!objects.value.length || !worldTree.value) return null
-  const selectedId = objects.value[0].id
-  if (!selectedId) return null
-  const nodes = worldTree.value.findId(selectedId)
-  return nodes && nodes.length ? nodes[0] : null
-})
+// 注入质量验收表单
+const { apiOrigin } = useRuntimeConfig().public
+const qualityAcceptanceForms = ref<QualityAcceptanceForm[]>([])
+const fetchQualityAcceptanceForms = async () => {
+  if (!projectId.value) return
+  try {
+    const data = await $fetch<any>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/quality-acceptance/forms`,
+      {
+        params: {
+          limit: 1000
+        }
+      }
+    )
+    if (data && data.items) {
+      qualityAcceptanceForms.value = data.items
+    }
+  } catch (err) {
+    console.error('Failed to fetch quality acceptance forms in sidebar:', err)
+  }
+}
+
+watch(
+  () => projectId.value,
+  (newId) => {
+    if (newId) {
+      fetchQualityAcceptanceForms()
+    }
+  },
+  { immediate: true }
+)
+
+provide('qualityAcceptanceForms', qualityAcceptanceForms)
+
+// 快捷卡片展开收起机制
+const expandedObjectIds = ref<Set<string>>(new Set())
+
+const toggleObjectExpand = (id: string) => {
+  if (expandedObjectIds.value.has(id)) {
+    expandedObjectIds.value.delete(id)
+  } else {
+    expandedObjectIds.value.add(id)
+  }
+}
+
+watch(
+  () => objects.value,
+  (newObjects) => {
+    expandedObjectIds.value.clear()
+    if (newObjects.length > 0 && newObjects[0].id) {
+      expandedObjectIds.value.add(newObjects[0].id)
+    }
+  },
+  { immediate: true, deep: true }
+)
+
 const { hideObjects, showObjects, isolateObjects, unIsolateObjects } =
   useFilterUtilities()
 
@@ -297,74 +409,81 @@ const flattenObjectEntries = (
   return entries
 }
 
-const firstSelectedObjectEntries = computed(() => {
-  if (!objects.value.length) return [] as FlattenedEntry[]
-  return flattenObjectEntries(objects.value[0])
-})
-
-const findFieldValue = (aliases: string[]) => {
-  const normalizedAliases = aliases.map(normalizedText)
-
-  const exactMatch = firstSelectedObjectEntries.value.find((entry) => {
-    const keyNorm = normalizedText(entry.key)
-    const pathNorm = normalizedText(entry.path)
-    return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
-  })
-  if (exactMatch) return formatDisplayValue(exactMatch.value, exactMatch.units)
-
-  const fuzzyMatch = firstSelectedObjectEntries.value.find((entry) => {
-    const keyNorm = normalizedText(entry.key)
-    const pathNorm = normalizedText(entry.path)
-    return normalizedAliases.some(
-      (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
-    )
-  })
-  if (fuzzyMatch) return formatDisplayValue(fuzzyMatch.value, fuzzyMatch.units)
-
-  return '-'
+const getObjectName = (obj: SpeckleObject) => {
+  const entries = flattenObjectEntries(obj)
+  const nameEntry = entries.find(
+    (entry) =>
+      normalizedText(entry.key) === 'name' || normalizedText(entry.key) === '名称'
+  )
+  if (nameEntry && nameEntry.value) return String(nameEntry.value)
+  return obj.name || obj.speckle_type || '未命名构件'
 }
 
-const otherDimensionFieldValue = computed(() => {
-  const matched = firstSelectedObjectEntries.value.filter((entry) => {
-    const keyNorm = normalizedText(entry.key)
-    const pathNorm = normalizedText(entry.path)
-    return (
-      keyNorm.includes('宽度') ||
-      keyNorm.includes('高度') ||
-      keyNorm.includes('直径') ||
-      keyNorm.includes('半径') ||
-      pathNorm.includes('宽度') ||
-      pathNorm.includes('高度') ||
-      pathNorm.includes('直径') ||
-      pathNorm.includes('半径') ||
-      keyNorm === 'b' ||
-      keyNorm === 'h' ||
-      pathNorm.endsWith('.b') ||
-      pathNorm.endsWith('.h')
-    )
-  })
+const getQuickCardFieldsForObject = (obj: SpeckleObject) => {
+  const entries = flattenObjectEntries(obj)
 
-  if (!matched.length) return '-'
-  return matched
-    .slice(0, 5)
-    .map((entry) => `${entry.key}: ${formatDisplayValue(entry.value, entry.units)}`)
-    .join('；')
-})
+  const findVal = (aliases: string[]) => {
+    const normalizedAliases = aliases.map(normalizedText)
+    const exactMatch = entries.find((entry) => {
+      const keyNorm = normalizedText(entry.key)
+      const pathNorm = normalizedText(entry.path)
+      return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
+    })
+    if (exactMatch) return formatDisplayValue(exactMatch.value, exactMatch.units)
 
-const quickCardFieldsWithValues = computed(() => {
+    const fuzzyMatch = entries.find((entry) => {
+      const keyNorm = normalizedText(entry.key)
+      const pathNorm = normalizedText(entry.path)
+      return normalizedAliases.some(
+        (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
+      )
+    })
+    if (fuzzyMatch) return formatDisplayValue(fuzzyMatch.value, fuzzyMatch.units)
+    return '-'
+  }
+
+  const otherDimVal = () => {
+    const matched = entries.filter((entry) => {
+      const keyNorm = normalizedText(entry.key)
+      const pathNorm = normalizedText(entry.path)
+      return (
+        keyNorm.includes('宽度') ||
+        keyNorm.includes('高度') ||
+        keyNorm.includes('直径') ||
+        keyNorm.includes('半径') ||
+        pathNorm.includes('宽度') ||
+        pathNorm.includes('高度') ||
+        pathNorm.includes('直径') ||
+        pathNorm.includes('半径') ||
+        keyNorm === 'b' ||
+        keyNorm === 'h' ||
+        pathNorm.endsWith('.b') ||
+        pathNorm.endsWith('.h')
+      )
+    })
+    if (!matched.length) return '-'
+    return matched
+      .slice(0, 5)
+      .map((entry) => `${entry.key}: ${formatDisplayValue(entry.value, entry.units)}`)
+      .join('；')
+  }
+
+  const node = (() => {
+    if (!worldTree.value || !obj.id) return null
+    const nodes = worldTree.value.findId(obj.id)
+    return nodes && nodes.length ? nodes[0] : null
+  })()
+
   return quickCardFields.map((field) => {
     if (field.label === '其他尺寸参数') {
       return {
         label: field.label,
-        value: otherDimensionFieldValue.value
+        value: otherDimVal()
       }
     }
-
     if (field.label === '空间代码') {
-      const val = findFieldValue(field.aliases)
-      if (val !== '-') return { label: field.label, value: val }
-
-      const node = firstSelectedNode.value
+      const val = findVal(field.aliases)
+      if (val !== '-' && val !== '') return { label: field.label, value: val }
       if (node && node.model.subtreeId !== undefined) {
         const spaceCode = worldTree.value?.getSpaceCode(node.model.subtreeId)
         if (spaceCode) {
@@ -373,12 +492,9 @@ const quickCardFieldsWithValues = computed(() => {
       }
       return { label: field.label, value: '-' }
     }
-
     if (field.label === '构件编码') {
-      const val = findFieldValue(field.aliases)
-      if (val !== '-') return { label: field.label, value: val }
-
-      const node = firstSelectedNode.value
+      const val = findVal(field.aliases)
+      if (val !== '-' && val !== '') return { label: field.label, value: val }
       if (node) {
         const compCode = worldTree.value?.getComponentCode(node)
         if (compCode) {
@@ -387,13 +503,12 @@ const quickCardFieldsWithValues = computed(() => {
       }
       return { label: field.label, value: '-' }
     }
-
     return {
       label: field.label,
-      value: findFieldValue(field.aliases)
+      value: findVal(field.aliases)
     }
   })
-})
+}
 
 const objectsUniqueByAppId = computed(() => {
   if (!diff.enabled.value) return objects.value

@@ -125,7 +125,10 @@ export const blobStorageRouterFactory = (): Router => {
   )
 
   app.get(
-    '/api/stream/:streamId/blob/:blobId',
+    [
+      '/api/stream/:streamId/blob/:blobId',
+      '/api/stream/:streamId/blob/:blobId/:fileName'
+    ],
     cors(),
     allowCrossOriginResourceAccessMiddelware(),
     async (req, res, next) => {

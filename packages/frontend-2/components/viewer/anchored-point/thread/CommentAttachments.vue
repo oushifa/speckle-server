@@ -14,33 +14,20 @@
       </button>
     </div>
 
-    <LayoutDialog v-model:open="dialogOpen" max-width="lg" :buttons="dialogButtons">
+    <LayoutDialog v-model:open="dialogOpen" max-width="xl" fullscreen="all" :buttons="dialogButtons">
       <template #header>
         {{ dialogAttachment ? dialogAttachment.fileName : 'Attachment' }}
       </template>
-      <template v-if="dialogAttachment">
-        <div class="flex flex-col space-y-2">
-          <div class="flex justify-center text-foreground text-body-xs py-4">
-            <span
-              v-if="dialogAttachmentError"
-              class="inline-flex space-x-2 items-center"
-            >
-              加载附件预览失败
-            </span>
-            <template
-              v-else-if="isImage(dialogAttachment) && dialogAttachmentObjectUrl"
-            >
-              <img :src="dialogAttachmentObjectUrl" alt="附件预览" />
-            </template>
-            <template v-else>
-              <span class="inline-flex space-x-4 items-center">
-                <TriangleAlert class="w-6 h-6" />
-                <span>
-                  该文件是用户上传的，未进行安全扫描。请在下载前检查文件类型。
-                </span>
-              </span>
-            </template>
-          </div>
+      <template #default>
+        <div v-if="dialogAttachment" class="w-full h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+          <CommonFilePreview
+            :blob-id="dialogAttachment.id"
+            :project-id="projectId"
+            :file-name="dialogAttachment.fileName"
+            :file-type="dialogAttachment.fileType"
+            :file-size="dialogAttachment.fileSize"
+            class="w-full flex-1 h-full"
+          />
         </div>
       </template>
     </LayoutDialog>
@@ -56,7 +43,7 @@ import { prettyFileSize } from '~~/lib/core/helpers/file'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import type { LayoutDialogButton } from '@speckle/ui-components'
-import { Download, Paperclip, TriangleAlert } from 'lucide-vue-next'
+import { Download, Paperclip } from 'lucide-vue-next'
 
 type AttachmentFile = NonNullable<
   Get<ThreadCommentAttachmentFragment, 'text.attachments[0]'>
@@ -80,25 +67,11 @@ const props = defineProps<{
   projectId: string
 }>()
 
-const { getBlobUrl, download } = useFileDownload()
+const { download } = useFileDownload()
 const { triggerNotification } = useGlobalToast()
 
 const dialogOpen = ref(false)
 const dialogAttachment = ref(null as Nullable<AttachmentFile>)
-const dialogAttachmentError = ref(null as Nullable<Error>)
-const dialogAttachmentObjectUrl = ref(null as Nullable<string>)
-
-const isImage = (attachment: AttachmentFile) => {
-  switch (attachment.fileType) {
-    case 'jpg':
-    case 'jpeg':
-    case 'png':
-    case 'gif':
-      return true
-    default:
-      return false
-  }
-}
 
 const onAttachmentClick = (attachment: AttachmentFile) => {
   dialogAttachment.value = attachment
@@ -139,26 +112,5 @@ const dialogButtons = computed((): Optional<LayoutDialogButton[]> => {
   }
 
   return [button]
-})
-
-watch(dialogOpen, (newIsOpen) => {
-  if (!newIsOpen) {
-    dialogAttachmentError.value = null
-
-    if (dialogAttachmentObjectUrl.value) {
-      URL.revokeObjectURL(dialogAttachmentObjectUrl.value)
-      dialogAttachmentObjectUrl.value = null
-    }
-  } else if (dialogAttachment.value) {
-    if (isImage(dialogAttachment.value)) {
-      getBlobUrl({ blobId: dialogAttachment.value.id, projectId: props.projectId })
-        .then((url) => {
-          dialogAttachmentObjectUrl.value = url
-        })
-        .catch((err) => {
-          dialogAttachmentError.value = ensureError(err)
-        })
-    }
-  }
 })
 </script>

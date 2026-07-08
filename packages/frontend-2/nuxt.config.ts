@@ -87,7 +87,8 @@ export default defineNuxtConfig({
       dashboardsOrigin: '',
       parallelMiddlewares: true,
       disableViewerActivityBroadcasting: false,
-      FF_SAVED_VIEWS_ENABLED: true
+      FF_SAVED_VIEWS_ENABLED: true,
+      kkFileViewUrl: ''
     }
   },
 

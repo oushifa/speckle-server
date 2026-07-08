@@ -251,7 +251,8 @@
     />
     <LayoutDialog
       v-model:open="attachmentsDialogOpen"
-      max-width="lg"
+      max-width="xl"
+      fullscreen="all"
       :buttons="attachmentDialogButtons"
     >
       <template #header>
@@ -270,7 +271,7 @@
         </div>
       </template>
       <template v-else-if="previewAttachmentList.length">
-        <div class="flex flex-col gap-y-3">
+        <div class="flex flex-col gap-y-3 h-full">
           <div class="flex flex-col gap-y-1 pt-1">
             <button
               v-for="attachment in previewAttachmentList"
@@ -287,34 +288,16 @@
               </span>
             </button>
           </div>
-          <div class="flex justify-center text-foreground text-body-xs py-4">
-            <span
-              v-if="previewAttachmentError"
-              class="inline-flex space-x-2 items-center"
-            >
-              加载附件预览失败
-            </span>
-            <template
-              v-else-if="
-                selectedPreviewAttachment &&
-                isImageAttachment(selectedPreviewAttachment) &&
-                selectedPreviewAttachmentObjectUrl
-              "
-            >
-              <img
-                crossorigin="anonymous"
-                :src="selectedPreviewAttachmentObjectUrl"
-                alt="附件预览"
-              />
-            </template>
-            <template v-else>
-              <span class="inline-flex space-x-4 items-center">
-                <TriangleAlert class="w-6 h-6" />
-                <span>
-                  该文件是用户上传的，未进行安全扫描。请在下载前检查文件类型。
-                </span>
-              </span>
-            </template>
+          <div class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+            <CommonFilePreview
+              v-if="selectedPreviewAttachment"
+              :blob-id="selectedPreviewAttachment.id"
+              :project-id="projectId"
+              :file-name="selectedPreviewAttachment.fileName"
+              :file-type="selectedPreviewAttachment.fileType"
+              :file-size="selectedPreviewAttachment.fileSize"
+              class="w-full flex-1 h-full"
+            />
           </div>
         </div>
       </template>
@@ -366,7 +349,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { ensureError } from '@speckle/shared'
 import type { Nullable } from '@speckle/shared'
 import type { LayoutDialogButton } from '@speckle/ui-components'
-import { Download, Paperclip, TriangleAlert } from 'lucide-vue-next'
+import { Download, Paperclip } from 'lucide-vue-next'
 import type { DocumentNode } from 'graphql'
 import type {
   QualityAcceptanceAttachment,

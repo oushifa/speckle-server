@@ -35,6 +35,38 @@
       </button>
     </div>
     <div v-if="unfold" class="space-y-1 pl-0 py-1 pr-2">
+      <!-- 关联质量验收附件 -->
+      <div
+        v-if="root && associatedAttachments.length"
+        class="mb-3 mx-2 p-2 bg-foundation border border-outline-3 rounded-lg text-body-3xs"
+      >
+        <div class="flex items-center gap-1 text-body-3xs font-semibold text-foreground mb-2">
+          <Paperclip class="h-3 w-3 text-primary shrink-0" />
+          <span>关联质量验收附件 ({{ associatedAttachments.length }})</span>
+        </div>
+        <div class="space-y-1.5 max-h-48 overflow-y-auto simple-scrollbar">
+          <div
+            v-for="(item, index) in associatedAttachments"
+            :key="index"
+            class="flex items-center justify-between gap-2"
+          >
+            <div class="flex items-center gap-1 min-w-0 flex-grow">
+              <span class="text-foreground-2 shrink-0">[{{ item.formName }}]</span>
+              <button
+                type="button"
+                class="text-primary hover:underline truncate text-left"
+                :title="item.attachment.fileName"
+                @click="openPreview(item.attachment)"
+              >
+                {{ item.attachment.fileName }}
+              </button>
+            </div>
+            <span class="text-foreground-3 shrink-0">
+              {{ item.attachment.fileSize ? prettyFileSize(item.attachment.fileSize) : '' }}
+            </span>
+          </div>
+        </div>
+      </div>
       <!-- key value pair display -->
       <ViewerSelectionKeyValuePair
         v-for="(kvp, index) in [
@@ -97,21 +129,53 @@
     <div v-if="isModifiedQuery.modified && isModifiedQuery.pair && root" class="mt-2">
       <ViewerSelectionObject :object="isModifiedQuery.pair" :modified-sibling="true" />
     </div>
+
+    <!-- 附件预览 Dialog -->
+    <LayoutDialog
+      v-model:open="attachmentsDialogOpen"
+      max-width="xl"
+      fullscreen="all"
+      :buttons="attachmentDialogButtons"
+    >
+      <template #header>
+        {{ selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览' }}
+      </template>
+      <template v-if="selectedPreviewAttachment">
+        <div class="w-full h-[60dvh] flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+          <CommonFilePreview
+            :blob-id="selectedPreviewAttachment.id"
+            :project-id="projectId"
+            :file-name="selectedPreviewAttachment.fileName"
+            :file-type="selectedPreviewAttachment.fileType"
+            :file-size="selectedPreviewAttachment.fileSize"
+            class="w-full flex-1 h-full"
+          />
+        </div>
+      </template>
+    </LayoutDialog>
   </div>
 </template>
 <script setup lang="ts">
+import { inject, type Ref } from 'vue'
 import type { SpeckleObject } from '~~/lib/viewer/helpers/sceneExplorer'
 import { getHeaderAndSubheaderForSpeckleObject } from '~~/lib/object-sidebar/helpers'
 import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
 import { useHighlightedObjectsUtilities } from '~/lib/viewer/composables/ui'
 import type { KeyValuePair } from '~/components/viewer/selection/types'
 import { REVIT_PROPERTY_NAME_ZH_MAP } from '~/lib/viewer/helpers/filters/constants'
+import type { QualityAcceptanceForm, QualityAcceptanceAttachment } from '~/components/projects/quality-acceptance/types'
+import { useFileDownload } from '~/lib/core/composables/fileUpload'
+import { prettyFileSize } from '~/lib/core/helpers/file'
+import { Paperclip, Download } from 'lucide-vue-next'
 
 const {
+  projectId,
   ui: {
     diff: { result, enabled: diffEnabled }
   }
 } = useInjectedViewerState()
+
+const qualityAcceptanceForms = inject<Ref<QualityAcceptanceForm[]>>('qualityAcceptanceForms', ref([]))
 
 const props = withDefaults(
   defineProps<{
@@ -337,4 +401,65 @@ watch(
     unfold.value = newVal
   }
 )
+
+const associatedForms = computed(() => {
+  if (!props.root || !props.object?.applicationId || !qualityAcceptanceForms.value.length) {
+    return []
+  }
+  const appId = props.object.applicationId
+  return qualityAcceptanceForms.value.filter((form) => {
+    return form.BIM?.some((bim) => bim.applicationIds?.includes(appId))
+  })
+})
+
+const associatedAttachments = computed(() => {
+  const list: { formName: string; attachment: QualityAcceptanceAttachment }[] = []
+  for (const form of associatedForms.value) {
+    if (form.attachments && form.attachments.length) {
+      for (const att of form.attachments) {
+        list.push({
+          formName: form.name,
+          attachment: att
+        })
+      }
+    }
+  }
+  return list
+})
+
+const attachmentsDialogOpen = ref(false)
+const selectedPreviewAttachment = ref<QualityAcceptanceAttachment | null>(null)
+const { download } = useFileDownload()
+
+const openPreview = (attachment: QualityAcceptanceAttachment) => {
+  selectedPreviewAttachment.value = attachment
+  attachmentsDialogOpen.value = true
+}
+
+const attachmentDialogButtons = computed(() => {
+  if (!selectedPreviewAttachment.value) return undefined
+  return [
+    {
+      text: selectedPreviewAttachment.value.fileSize
+        ? prettyFileSize(selectedPreviewAttachment.value.fileSize)
+        : '下载',
+      props: {
+        iconLeft: Download,
+        color: 'outline' as const
+      },
+      onClick: async () => {
+        if (!selectedPreviewAttachment.value || !projectId.value) return
+        try {
+          await download({
+            blobId: selectedPreviewAttachment.value.id,
+            fileName: selectedPreviewAttachment.value.fileName,
+            projectId: projectId.value
+          })
+        } catch (err) {
+          console.error('Failed to download attachment:', err)
+        }
+      }
+    }
+  ]
+})
 </script>
