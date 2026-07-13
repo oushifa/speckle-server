@@ -30,7 +30,7 @@
         <div class="flex items-center gap-2.5 shrink-0 self-end md:self-auto">
           <!-- 批量授权按钮 -->
           <FormButton
-            v-if="selectedIds.length > 0"
+            v-if="selectedIds.length > 0 && hasFunctionalPerm('ent-permission:create')"
             size="sm"
             color="outline"
             class="h-9 gap-1.5 shadow-sm"
@@ -53,6 +53,7 @@
 
           <!-- 新增用户按钮 -->
           <FormButton
+            v-if="hasFunctionalPerm('ent-permission:create')"
             size="sm"
             color="primary"
             class="h-9 gap-1.5 shadow-md shadow-indigo-600/10"
@@ -264,6 +265,7 @@
               <td class="text-center pr-3">
                 <div class="flex items-center justify-center gap-1.5 select-none">
                   <FormButton
+                    v-if="hasFunctionalPerm('ent-permission:edit')"
                     size="sm"
                     color="outline"
                     class="hover:border-indigo-500/50 hover:text-indigo-600 p-1 h-7 w-7 flex items-center justify-center"
@@ -273,6 +275,7 @@
                     <PencilIcon class="h-3.5 w-3.5" />
                   </FormButton>
                   <FormButton
+                    v-if="hasFunctionalPerm('ent-permission:delete')"
                     size="sm"
                     color="outline"
                     class="hover:border-red-500/50 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 p-1 h-7 w-7 flex items-center justify-center"
@@ -596,6 +599,7 @@ import {
   LayoutDialog,
   ToastNotificationType
 } from '@speckle/ui-components'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import {
   UsersIcon,
   PlusIcon,
@@ -614,6 +618,7 @@ useHead({
 // 状态声明
 const apiOrigin = useApiOrigin()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const searchQuery = ref('')
 const filterRole = ref('all')

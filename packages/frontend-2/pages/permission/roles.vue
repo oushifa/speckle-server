@@ -55,6 +55,7 @@
           <div class="p-3 flex items-center justify-between flex-shrink-0" style="border-bottom: 1px solid var(--border); background-color: var(--muted)">
             <h3 class="text-xs font-semibold" style="color: var(--foreground)">角色列表</h3>
             <button
+              v-if="hasFunctionalPerm('ent-permission:create')"
               class="h-7 px-2.5 rounded text-[11px] font-bold inline-flex items-center gap-1 transition-all"
               style="background-color: var(--primary); color: var(--primary-foreground)"
               @click="openAddRoleModal"
@@ -122,6 +123,7 @@
               <!-- 操作按键 -->
               <div class="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
                 <button
+                  v-if="hasFunctionalPerm('ent-permission:edit')"
                   class="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-all text-foreground-3 hover:text-foreground"
                   title="修改名称"
                   @click.stop="openRenameModal(role)"
@@ -129,6 +131,7 @@
                   <PencilIcon class="h-3 w-3" />
                 </button>
                 <button
+                  v-if="hasFunctionalPerm('ent-permission:delete')"
                   class="p-0.5 hover:bg-red-500/15 rounded transition-all text-foreground-3 hover:text-red-500"
                   title="删除角色"
                   @click.stop="triggerDeleteRole(role)"
@@ -182,6 +185,7 @@
               </div>
 
               <button
+                v-if="hasFunctionalPerm('ent-permission:edit')"
                 class="h-7.5 px-3.5 rounded text-xs font-bold transition-all shrink-0"
                 style="background-color: var(--primary); color: var(--primary-foreground)"
                 :disabled="savingPerms"
@@ -547,6 +551,7 @@
                     成员列表
                   </h3>
                   <button
+                    v-if="hasFunctionalPerm('ent-permission:create')"
                     class="h-7 px-3 rounded text-[11px] font-semibold transition-all shrink-0"
                     style="background-color: var(--primary); color: var(--primary-foreground)"
                     @click="openAddUserModal"
@@ -589,6 +594,7 @@
                       </div>
                     </div>
                     <button
+                      v-if="hasFunctionalPerm('ent-permission:delete')"
                       class="p-1 hover:bg-red-500/10 rounded text-foreground-3 hover:text-red-500 transition-all shrink-0"
                       title="移除成员"
                       @click="triggerRemoveUser(usr)"
@@ -698,6 +704,7 @@ import {
   LayoutDialog,
   ToastNotificationType
 } from '@speckle/ui-components'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import {
   PlusIcon,
   QueueListIcon,
@@ -762,16 +769,16 @@ const projectMenuTree = [
     id: 'quality-mg',
     label: '质量验收',
     children: [
-      { id: 'quality-check', label: '质量检查' },
-      { id: 'quality-report', label: '质量整改' }
+      { id: 'quality-check', label: '质量检查' }
     ]
   },
   {
     id: 'valuation-mg',
-    label: '验收计价',
+    label: '验工计价',
     children: [
       { id: 'bill-management', label: '清单管理' },
-      { id: 'monthly-valuation', label: '月度验工' }
+      { id: 'monthly-valuation', label: '月度验工' },
+      { id: 'safety-civilization', label: '安全文明措施费' }
     ]
   },
   {
@@ -830,8 +837,7 @@ const gridCols = computed(() => {
 const dataPermissionOptions = [
   { value: 'all', label: '全部数据', desc: '允许查看本系统下该项目所属的全部数据信息。' },
   { value: 'dept', label: '本部门数据', desc: '根据项目内部门行政归属，仅可见所在部门及下属数据。' },
-  { value: 'project', label: '本人所在项目数据', desc: '仅可见当前所加入并参建的相关工程项目的数据。' },
-  { value: 'self', label: '本人数据', desc: '最高安全性，仅允许可见其作为创建人或归属主体的数据。' }
+  { value: 'project', label: '本人所在项目数据', desc: '仅可见当前所加入并参建的相关工程项目的数据。' }
 ] as const
 
 // 根据 domain 切换动态展现配置 Tab (项目级展示数据和扩展，企业级只显示菜单/功能)
@@ -885,6 +891,7 @@ const searchQuery = ref('')
 const rolesList = ref<any[]>([])
 const selectedRoleId = ref<string | null>(null)
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const isInitializing = ref(false)
 const hasChanges = ref(false)
@@ -921,7 +928,7 @@ const selectedApprovers = ref<any[]>([])
 
 const tempMenuPerms = ref<string[]>([])
 const tempModelPerms = ref<string[]>([])
-const tempDataPerm = ref<'all' | 'dept' | 'project' | 'self'>('self')
+const tempDataPerm = ref<'all' | 'dept' | 'project'>('project')
 
 const savingPerms = ref(false)
 const loadingUsers = ref(false)
@@ -1072,7 +1079,7 @@ watch(selectedRole, (newVal) => {
     isInitializing.value = true
     tempMenuPerms.value = [...(newVal.menuPerms || [])]
     tempModelPerms.value = [...(newVal.modelPerms || [])]
-    tempDataPerm.value = newVal.dataPerm || 'self'
+    tempDataPerm.value = newVal.dataPerm || 'project'
     
     nextTick(() => {
       hasChanges.value = false
@@ -1086,7 +1093,7 @@ watch(selectedRole, (newVal) => {
     isInitializing.value = true
     tempMenuPerms.value = []
     tempModelPerms.value = []
-    tempDataPerm.value = 'self'
+    tempDataPerm.value = 'project'
     roleUsers.value = []
     
     nextTick(() => {
@@ -1205,7 +1212,7 @@ const submitCreateRole = async () => {
         name,
         menuPerms: [],
         modelPerms: [],
-        dataPerm: 'self'
+        dataPerm: 'project'
       }
     })
     addRoleModalOpen.value = false

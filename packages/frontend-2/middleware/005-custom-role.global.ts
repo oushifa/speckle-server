@@ -1,4 +1,5 @@
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
+import { useGlobalToast, ToastNotificationType } from '~~/lib/common/composables/toast'
 
 // 定义企业级一级路由页面与菜单 ID 的对应关系
 const ROUTE_MENU_MAPPING: Record<string, string> = {
@@ -32,6 +33,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // 5. 安全路由守卫拦截
   if (!hasMenuPerm(requiredMenuId)) {
+    const { triggerNotification } = useGlobalToast()
+    triggerNotification({
+      type: ToastNotificationType.Warning,
+      title: '访问受限',
+      description: '您没有该页面的访问权限，已自动跳转。'
+    })
+
     // 降级回退机制：默认回退到系统最安全、对自定义角色无要求的个人设置页
     let fallbackPath = '/settings/user/profile'
     

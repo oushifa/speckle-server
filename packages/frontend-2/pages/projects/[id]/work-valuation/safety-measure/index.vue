@@ -28,7 +28,12 @@
             </div>
           </template>
         </FormTextInput>
-        <FormButton :icon-left="PlusIcon" color="primary" @click="openCreateDialog">
+        <FormButton
+          v-if="hasFunctionalPerm('safety-civilization:create')"
+          :icon-left="PlusIcon"
+          color="primary"
+          @click="openCreateDialog"
+        >
           新增
         </FormButton>
       </div>
@@ -100,7 +105,7 @@
               <EyeIcon class="h-4 w-4" />
             </NuxtLink>
             <NuxtLink
-              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
+              v-if="hasFunctionalPerm('safety-civilization:edit') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
               :to="`/projects/${projectId}/work-valuation/safety-measure/${item.id}?mode=edit`"
               class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
               title="编辑"
@@ -108,7 +113,7 @@
               <PencilSquareIcon class="h-4 w-4" />
             </NuxtLink>
             <button
-              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
+              v-if="hasFunctionalPerm('safety-civilization:publish') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
               class="rounded p-1 text-success transition-colors hover:text-success-darker"
               title="送审"
               @click="triggerSubmitItem(item)"
@@ -116,7 +121,7 @@
               <PaperAirplaneIcon class="h-4 w-4" />
             </button>
             <button
-              v-if="item.approveStatus === 'START' || item.approveStatus === 'RETURNED'"
+              v-if="hasFunctionalPerm('safety-civilization:delete') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
               class="rounded p-1 text-danger transition-colors hover:text-danger-darker"
               title="删除"
               @click="deleteItem(item)"
@@ -300,12 +305,14 @@ import {
 } from '@speckle/ui-components'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 
 const apiOrigin = useApiOrigin()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')

@@ -943,5 +943,111 @@ export const externalRouterFactory = (): Router => {
     }
   )
 
+  // 6. 根据构件编码查询质量验收信息
+  app.post(
+    '/api/v1/external/projects/:projectId/quality-acceptance/by-component-codes',
+    requireExternalToken,
+    async (req, res) => {
+      const { projectId } = req.params
+      const project = await getStream({ streamId: projectId })
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' })
+      }
+
+      const { componentCodes } = req.body
+      if (!componentCodes || !Array.isArray(componentCodes)) {
+        return res.status(400).json({
+          error: 'Invalid request: componentCodes is required and must be an array.'
+        })
+      }
+
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const forms = await projectDb('quality_acceptance_forms')
+        .where('project_id', projectId)
+
+      const allAppIds = new Set<string>()
+      forms.forEach((form) => {
+        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
+        bim.forEach((entry: any) => {
+          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
+        })
+      })
+
+      const bimCodesLookup = await buildBimCodesLookup(
+        projectDb,
+        projectId,
+        Array.from(allAppIds)
+      )
+
+      const formMap = new Map<string, any[]>()
+      for (const form of forms) {
+        const attachments = (form.attachments || []).map((blobId: string) =>
+          generatePresignedDownloadUrl(req, projectId, blobId)
+        )
+
+        const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
+        const enrichedBIM = normalizedBIM.map((entry: any) => {
+          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          return {
+            ...entry,
+            bimCodes
+          }
+        })
+
+        const serializedForm = {
+          id: form.id,
+          projectId: form.project_id,
+          boqItemId: form.boqItemId,
+          name: form.name,
+          code: form.code,
+          inspectionLotNumber: form.inspectionLotNumber,
+          acceptancePart: form.acceptancePart,
+          acceptanceContent: form.acceptanceContent,
+          actualStartDate: form.actualStartDate,
+          actualFinishDate: form.actualFinishDate,
+          acceptanceTime: form.actualFinishDate || null,
+          inspectorId: form.inspector,
+          creatorId: form.creator,
+          workVolume: form.workVolume,
+          unit: form.unit,
+          BIM: enrichedBIM,
+          approveStatus: form.approveStatus,
+          attachments,
+          createdAt: form.createdAt.toISOString(),
+          updatedAt: form.updatedAt.toISOString()
+        }
+
+        const formBimCodes = new Set<string>()
+        for (const entry of enrichedBIM) {
+          for (const code of entry.bimCodes) {
+            if (code) {
+              formBimCodes.add(code)
+            }
+          }
+        }
+
+        for (const code of formBimCodes) {
+          let list = formMap.get(code)
+          if (!list) {
+            list = []
+            formMap.set(code, list)
+          }
+          list.push(serializedForm)
+        }
+      }
+
+      const results = componentCodes.map((code) => ({
+        componentCode: code,
+        forms: formMap.get(code) || []
+      }))
+
+      return res.status(200).json({
+        projectId,
+        results
+      })
+    }
+  )
+
   return app
 }

@@ -136,6 +136,29 @@ describe('External API @external', () => {
       expect(response.body.totalCount).to.be.a('number')
       expect(response.body.items).to.be.an('array')
     })
+
+    it('returns 400 when componentCodes is missing or not an array', async () => {
+      const response = await request(app)
+        .post(`/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({})
+      expect(response.status).to.equal(400)
+      expect(response.body.error).to.include('componentCodes')
+    })
+
+    it('returns quality acceptance forms by component codes', async () => {
+      const response = await request(app)
+        .post(`/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({ componentCodes: ['TEST_COMP_CODE_1', 'TEST_COMP_CODE_2'] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(projectId)
+      expect(response.body.results).to.be.an('array')
+      expect(response.body.results).to.have.lengthOf(2)
+      expect(response.body.results[0].componentCode).to.equal('TEST_COMP_CODE_1')
+      expect(response.body.results[0].forms).to.be.an('array')
+    })
   })
 
   describe('Presigned Blob Downloads', () => {
