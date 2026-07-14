@@ -16,6 +16,7 @@
           </FormButton>
 
           <div
+            v-if="hasFunctionalPerm('file-management:create')"
             v-tippy="createModelTooltip"
             class="grow inline-flex sm:grow-0 lg:hidden"
           >
@@ -103,7 +104,10 @@
           >
             在 3D 中查看全部
           </FormButton>
-          <div class="hidden lg:inline-flex shrink-0">
+          <div
+            v-if="hasFunctionalPerm('file-management:create')"
+            class="hidden lg:inline-flex shrink-0"
+          >
             <LayoutMenu
               v-if="showAccIntegration"
               v-model:open="showMenu"
@@ -161,6 +165,7 @@ import { useMixpanel } from '~~/lib/core/composables/mp'
 import { useCanCreateModel } from '~/lib/projects/composables/permissions'
 import { HorizontalDirection, FormSwitch } from '@speckle/ui-components'
 import { useAccIntegration } from '~/lib/integrations/composables/useAccIntegration'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 const emit = defineEmits<{
   (e: 'update:selected-members', val: FormUsersSelectItemFragment[]): void
@@ -222,6 +227,7 @@ const props = defineProps<{
   showOnlyApproved: boolean
 }>()
 
+const { hasFunctionalPerm } = useCustomPermissions()
 const localSearch = ref('')
 const sourceAppsLabelId = useId()
 const sourceAppsBtnId = useId()

@@ -66,6 +66,7 @@ import { modelVersionsRoute } from '~/lib/common/helpers/route'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
 import { useWorkspacePlan } from '~/lib/workspaces/composables/plan'
 import { useUpdateAccSyncItem } from '~/lib/acc/composables/useUpdateAccSyncItem'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 graphql(`
   fragment ProjectPageModelsActions on Model {
@@ -153,6 +154,7 @@ const props = defineProps<{
 const copyModelLink = useCopyModelLink()
 const { copy } = useClipboard()
 const menuId = useId()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { isLoggedIn } = useActiveUser()
 const router = useRouter()
 const mp = useMixpanel()
@@ -222,80 +224,85 @@ const downloadSourceDisabled = computed(() => {
   }
 })
 
-const actionsItems = computed<LayoutMenuItem[][]>(() => [
-  ...(isLoggedIn.value
-    ? [
-        [
-          {
-            title: '重命名...',
-            id: ActionTypes.Rename,
-            disabled: !canEdit.value.authorized,
-            disabledTooltip: canEdit.value.message || 'Insufficient permissions'
-          }
-        ]
-      ]
-    : []),
-  accSyncItem.value
-    ? [
-        {
-          title:
-            accSyncItem.value?.status === 'paused' ? 'Resume sync...' : 'Pause sync...',
-          id: ActionTypes.ToggleSyncPause,
-          disabled: !canEditAccSync.value.authorized,
-          disabledTooltip: canEditAccSync.value.message
-        },
-        {
-          title: '删除同步...',
-          id: ActionTypes.DeleteSync,
-          disabled: !canEditAccSync.value.authorized,
-          disabledTooltip: canEditAccSync.value.message
-        }
-      ]
-    : [
-        {
-          title: '查看版本',
-          id: ActionTypes.ViewVersions
-        },
-        {
-          title: '查看上传',
-          id: ActionTypes.ViewUploads
-        },
-        {
-          title: '下载源文件',
-          id: ActionTypes.DownloadSource,
-          disabled: downloadSourceDisabled.value.disabled,
-          disabledTooltip: downloadSourceDisabled.value.tooltip
-        },
-        ...(isLoggedIn.value
-          ? [
-              {
-                title: '上传新版本...',
-                id: ActionTypes.UploadVersion,
-                disabled: uploadVersionDisabled.value.disabled,
-                disabledTooltip: uploadVersionDisabled.value.tooltip
-              }
-            ]
-          : [])
-      ],
-  // [
-  //   { title: '复制链接', id: ActionTypes.Share },
-  //   { title: '复制 ID', id: ActionTypes.CopyId },
-  //   { title: '嵌入模型...', id: ActionTypes.Embed }
-  // ],
-  ...(isLoggedIn.value
-    ? [
-        [
-          {
-            title: '删除...',
-            id: ActionTypes.Delete,
-            // TODO:
-            disabled: !canDelete.value.authorized,
-            disabledTooltip: canDelete.value.message || 'Insufficient permissions'
-          }
-        ]
-      ]
-    : [])
-])
+const actionsItems = computed<LayoutMenuItem[][]>(() => {
+  const items: LayoutMenuItem[][] = []
+
+  // 1. 重命名 (Edit)
+  if (isLoggedIn.value && hasFunctionalPerm('file-management:edit')) {
+    items.push([
+      {
+        title: '重命名...',
+        id: ActionTypes.Rename,
+        disabled: !canEdit.value.authorized,
+        disabledTooltip: canEdit.value.message || 'Insufficient permissions'
+      }
+    ])
+  }
+
+  // 2. ACC 同步或普通版本管理
+  if (accSyncItem.value) {
+    items.push([
+      {
+        title:
+          accSyncItem.value?.status === 'paused' ? 'Resume sync...' : 'Pause sync...',
+        id: ActionTypes.ToggleSyncPause,
+        disabled: !canEditAccSync.value.authorized,
+        disabledTooltip: canEditAccSync.value.message
+      },
+      {
+        title: '删除同步...',
+        id: ActionTypes.DeleteSync,
+        disabled: !canEditAccSync.value.authorized,
+        disabledTooltip: canEditAccSync.value.message
+      }
+    ])
+  } else {
+    const normalGroup: LayoutMenuItem[] = [
+      {
+        title: '查看版本',
+        id: ActionTypes.ViewVersions
+      },
+      {
+        title: '查看上传',
+        id: ActionTypes.ViewUploads
+      }
+    ]
+
+    if (hasFunctionalPerm('file-management:download')) {
+      normalGroup.push({
+        title: '下载源文件',
+        id: ActionTypes.DownloadSource,
+        disabled: downloadSourceDisabled.value.disabled,
+        disabledTooltip: downloadSourceDisabled.value.tooltip
+      })
+    }
+
+    if (isLoggedIn.value && hasFunctionalPerm('file-management:upload')) {
+      normalGroup.push({
+        title: '上传新版本...',
+        id: ActionTypes.UploadVersion,
+        disabled: uploadVersionDisabled.value.disabled,
+        disabledTooltip: uploadVersionDisabled.value.tooltip
+      })
+    }
+
+    items.push(normalGroup)
+  }
+
+  // 3. 删除 (Delete)
+  if (isLoggedIn.value && hasFunctionalPerm('file-management:delete')) {
+    items.push([
+      {
+        title: '删除...',
+        id: ActionTypes.Delete,
+        disabled: !canDelete.value.authorized,
+        disabledTooltip: canDelete.value.message || 'Insufficient permissions'
+      }
+    ])
+  }
+
+  return items
+})
 
 const isRenameDialogOpen = computed({
   get: () => openDialog.value === ActionTypes.Rename,

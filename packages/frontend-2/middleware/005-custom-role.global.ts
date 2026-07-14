@@ -13,47 +13,96 @@ const ROUTE_MENU_MAPPING: Record<string, string> = {
   '/permission/users': 'ent-permission'
 }
 
+// 定义项目内各子页面路由与菜单 ID 的对应关系
+const PROJECT_SUBPATH_MENU_MAPPING: Record<string, string> = {
+  'model-list': 'file-management',
+  'workbench/discussions': 'collaborative-management',
+  'progress/schedule': 'progress-plan',
+  'progress/actual': 'actual-progress',
+  'progress/physical': 'visual-progress',
+  'quality-acceptance': 'quality-check',
+  'work-valuation/BOQ': 'bill-management',
+  'work-valuation/monthly-measurement': 'monthly-valuation',
+  'work-valuation/safety-measure': 'safety-civilization',
+  'archive/model-to-site': 'archives-list',
+  'archive/archives': 'archives-borrow'
+}
+
 export default defineNuxtRouteMiddleware(async (to) => {
   // 1. 如果是在服务端 SSR 渲染期间，跳过，在客户端初始化时再次处理
-  if (process.server) return
+  if (import.meta.server) return
 
-  // 2. 检查当前请求路径是否命中了受保护的企业级受限页面 (包括子级页面路径匹配)
+  // 2. 初始化和获取当前用户合并角色有效权限
+  const { initializePermissions, hasMenuPerm } = useCustomPermissions()
+  await initializePermissions()
+
+  // 3. 优先检查是否访问的是具体的项目内子模块页面
+  const matchProjectSubpage = to.path.match(/^\/projects\/([^/]+)\/(.+)$/)
+  if (matchProjectSubpage) {
+    const projectId = matchProjectSubpage[1]
+    const subpath = matchProjectSubpage[2]
+
+    const matchedSubpathKey = Object.keys(PROJECT_SUBPATH_MENU_MAPPING).find(
+      (key) => subpath === key || subpath.startsWith(key + '/')
+    )
+
+    if (matchedSubpathKey) {
+      const requiredMenuId = PROJECT_SUBPATH_MENU_MAPPING[matchedSubpathKey]
+
+      if (!hasMenuPerm(requiredMenuId)) {
+        const { triggerNotification } = useGlobalToast()
+        triggerNotification({
+          type: ToastNotificationType.Warning,
+          title: '访问受限',
+          description: '您没有该模块的访问权限，已自动跳转。'
+        })
+
+        // 默认退路：项目工作台，若不行则退回到项目管理大厅，再不行则个人中心
+        let fallbackPath = `/projects/${projectId}/workbench`
+        if (!hasMenuPerm('ent-projects')) {
+          fallbackPath = '/settings/user/profile'
+        }
+
+        if (to.path === fallbackPath) {
+          return
+        }
+        return navigateTo(fallbackPath)
+      }
+
+      // 已通过具体子模块权限校验，放行
+      return
+    }
+  }
+
+  // 4. 检查通用/全局的一级路由权限（例如 /projects, /workbench 等）
   const matchedPath = Object.keys(ROUTE_MENU_MAPPING).find(
     (path) => to.path === path || to.path.startsWith(path + '/')
   )
 
-  if (!matchedPath) return
+  if (matchedPath) {
+    const requiredMenuId = ROUTE_MENU_MAPPING[matchedPath]
 
-  // 3. 提取受保护页面所需的菜单权限 ID
-  const requiredMenuId = ROUTE_MENU_MAPPING[matchedPath]
+    if (!hasMenuPerm(requiredMenuId)) {
+      const { triggerNotification } = useGlobalToast()
+      triggerNotification({
+        type: ToastNotificationType.Warning,
+        title: '访问受限',
+        description: '您没有该页面的访问权限，已自动跳转。'
+      })
 
-  // 4. 初始化和获取当前用户合并角色有效权限
-  const { initializePermissions, hasMenuPerm } = useCustomPermissions()
-  await initializePermissions()
+      // 降级回退机制
+      let fallbackPath = '/settings/user/profile'
+      if (requiredMenuId !== 'ent-dashboard' && hasMenuPerm('ent-dashboard')) {
+        fallbackPath = '/workbench'
+      } else if (hasMenuPerm('ent-projects')) {
+        fallbackPath = '/projects'
+      }
 
-  // 5. 安全路由守卫拦截
-  if (!hasMenuPerm(requiredMenuId)) {
-    const { triggerNotification } = useGlobalToast()
-    triggerNotification({
-      type: ToastNotificationType.Warning,
-      title: '访问受限',
-      description: '您没有该页面的访问权限，已自动跳转。'
-    })
+      if (to.path === fallbackPath) {
+        return
+      }
 
-    // 降级回退机制：默认回退到系统最安全、对自定义角色无要求的个人设置页
-    let fallbackPath = '/settings/user/profile'
-    
-    if (requiredMenuId !== 'ent-dashboard' && hasMenuPerm('ent-dashboard')) {
-      fallbackPath = '/workbench'
-    } else if (hasMenuPerm('ent-projects')) {
-      fallbackPath = '/projects'
+      return navigateTo(fallbackPath)
     }
-
-    // 核心安全防线：若目标跳转路径已经就是退路路径，则终止跳转放行，彻底解开重定向死循环
-    if (to.path === fallbackPath) {
-      return
-    }
-
-    return navigateTo(fallbackPath)
   }
 })

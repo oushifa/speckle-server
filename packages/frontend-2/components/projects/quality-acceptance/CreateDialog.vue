@@ -106,8 +106,50 @@
         </div>
         <div class="md:col-span-2 space-y-2">
           <div class="text-body-sm font-medium">附件上传</div>
-          <div v-if="form.attachments.length" class="text-body-xs text-foreground-2">
-            当前已关联 {{ form.attachments.length }} 个附件
+          <!-- 已有关联附件列表 -->
+          <div v-if="existingAttachments.length" class="space-y-1.5 mb-2">
+            <div class="text-body-xs font-medium text-foreground-2">已有关联附件：</div>
+            <div class="grid grid-cols-1 gap-2">
+              <div
+                v-for="attachment in existingAttachments"
+                :key="attachment.id"
+                class="flex items-center justify-between p-2 rounded bg-foundation-2 border border-outline-3 text-body-xs"
+              >
+                <div class="flex items-center gap-1.5 truncate mr-2">
+                  <Paperclip class="h-4 w-4 text-foreground-3 flex-shrink-0" />
+                  <button
+                    type="button"
+                    class="truncate font-medium text-primary hover:text-primary-focus hover:underline text-left"
+                    :title="attachment.fileName"
+                    @click="() => handlePreviewAttachment(attachment)"
+                  >
+                    {{ attachment.fileName }}
+                  </button>
+                  <span class="text-foreground-3 flex-shrink-0 text-[11px]">
+                    ({{ formatAttachmentFileSize(attachment.fileSize) }})
+                  </span>
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    class="rounded p-1 text-foreground-2 transition-colors hover:text-primary"
+                    title="下载附件"
+                    @click="() => handleDownloadExistingAttachment(attachment)"
+                  >
+                    <ArrowDownTrayIcon class="h-4 w-4" />
+                  </button>
+                  <button
+                    v-if="!props.readonly"
+                    type="button"
+                    class="rounded p-1 text-foreground-2 transition-colors hover:text-danger"
+                    title="删除附件"
+                    @click="() => handleRemoveExistingAttachment(attachment.id)"
+                  >
+                    <TrashIcon class="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <FormFileUploadZone
             ref="uploadZone"
@@ -145,17 +187,49 @@
       </div>
       <div v-if="errorMessage" class="text-body-sm text-danger">{{ errorMessage }}</div>
     </div>
+    <CommonConfirmDialog
+      v-model:open="showDeleteConfirm"
+      title="确认删除附件"
+      text="确定要删除该附件吗？此操作在点击“确定”保存前不会真正修改，但保存后将无法恢复。"
+      confirm-text="删除"
+      @confirm="confirmRemoveExistingAttachment"
+    />
+    <!-- 附件预览 Dialog -->
+    <LayoutDialog
+      v-model:open="previewDialogOpen"
+      max-width="xl"
+      fullscreen="all"
+      :buttons="previewDialogButtons"
+    >
+      <template #header>
+        {{ selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览' }}
+      </template>
+      <div v-if="selectedPreviewAttachment" class="flex flex-col gap-y-3 h-[70vh] md:h-[75vh]">
+        <div class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+          <CommonFilePreview
+            :blob-id="selectedPreviewAttachment.id"
+            :project-id="props.projectId || ''"
+            :file-name="selectedPreviewAttachment.fileName"
+            :file-type="selectedPreviewAttachment.fileType"
+            :file-size="selectedPreviewAttachment.fileSize"
+            class="w-full flex-1 h-full"
+          />
+        </div>
+      </div>
+    </LayoutDialog>
   </LayoutDialog>
 </template>
 
 <script setup lang="ts">
+import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { Paperclip } from 'lucide-vue-next'
 import type { LayoutDialogButton } from '@speckle/ui-components'
-import type { QualityAcceptanceCreateInput } from './types'
+import type { QualityAcceptanceCreateInput, QualityAcceptanceAttachment } from './types'
 import BoqTreeSelect from '~/components/common/checklist/BoqTreeSelect.vue'
-import { useAttachments } from '~/lib/core/composables/fileUpload'
+import { useAttachments, useFileDownload } from '~/lib/core/composables/fileUpload'
 import { isSuccessfullyUploaded } from '~/lib/core/api/blobStorage'
 import { useServerFileUploadLimit } from '~/lib/common/composables/serverInfo'
-import { UniqueFileTypeSpecifier } from '~/lib/core/helpers/file'
+import { UniqueFileTypeSpecifier, prettyFileSize } from '~/lib/core/helpers/file'
 import { acceptedFileExtensions } from '@speckle/shared/blobs'
 import { CommonModelObjectMultiSelectDrawer } from '#components'
 
@@ -164,12 +238,14 @@ const props = withDefaults(
     projectId?: string | null
     loading?: boolean
     initialData?: QualityAcceptanceCreateInput | null
+    initialAttachments?: QualityAcceptanceAttachment[]
     readonly?: boolean
   }>(),
   {
     projectId: null,
     loading: false,
     initialData: null,
+    initialAttachments: () => [],
     readonly: false
   }
 )
@@ -246,6 +322,79 @@ const openFilePicker = () => {
   uploadZone.value?.triggerPicker()
 }
 
+// 附件管理相关状态与方法
+const existingAttachments = ref<QualityAcceptanceAttachment[]>([])
+const showDeleteConfirm = ref(false)
+const attachmentIdToDelete = ref<string | null>(null)
+
+const { download } = useFileDownload()
+
+const handleDownloadExistingAttachment = async (attachment: QualityAcceptanceAttachment) => {
+  if (!props.projectId) return
+  try {
+    await download({
+      blobId: attachment.id,
+      fileName: attachment.fileName,
+      projectId: props.projectId
+    })
+  } catch (err) {
+    console.error('Failed to download attachment:', err)
+  }
+}
+
+const formatAttachmentFileSize = (size: number | null) =>
+  size ? prettyFileSize(size) : '未知大小'
+
+const handleRemoveExistingAttachment = (id: string) => {
+  attachmentIdToDelete.value = id
+  showDeleteConfirm.value = true
+}
+
+const confirmRemoveExistingAttachment = () => {
+  if (attachmentIdToDelete.value) {
+    existingAttachments.value = existingAttachments.value.filter(
+      (a) => a.id !== attachmentIdToDelete.value
+    )
+    attachmentIdToDelete.value = null
+  }
+}
+
+// 附件预览状态与方法
+const previewDialogOpen = ref(false)
+const selectedPreviewAttachment = ref<QualityAcceptanceAttachment | null>(null)
+
+const handlePreviewAttachment = (attachment: QualityAcceptanceAttachment) => {
+  selectedPreviewAttachment.value = attachment
+  previewDialogOpen.value = true
+}
+
+const previewDialogButtons = computed((): LayoutDialogButton[] => {
+  if (!selectedPreviewAttachment.value) return []
+  return [
+    {
+      text: selectedPreviewAttachment.value.fileSize
+        ? prettyFileSize(selectedPreviewAttachment.value.fileSize)
+        : '下载',
+      props: {
+        iconLeft: ArrowDownTrayIcon,
+        color: 'outline'
+      },
+      onClick: () => {
+        if (selectedPreviewAttachment.value) {
+          void handleDownloadExistingAttachment(selectedPreviewAttachment.value)
+        }
+      }
+    },
+    {
+      text: '关闭',
+      props: { color: 'outline' },
+      onClick: () => {
+        previewDialogOpen.value = false
+      }
+    }
+  ]
+})
+
 const formatDateInput = (value: number) => {
   if (!value) return ''
   const date = new Date(value)
@@ -274,6 +423,9 @@ const resetForm = () => {
   bimProjectId.value = null
   bimModelId.value = null
   uploads.value = []
+  existingAttachments.value = []
+  selectedPreviewAttachment.value = null
+  previewDialogOpen.value = false
   errorMessage.value = ''
 }
 
@@ -290,6 +442,9 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
   bimProjectId.value = null
   bimModelId.value = data.BIM?.[0]?.modelId || null
   uploads.value = []
+  existingAttachments.value = props.initialAttachments ? [...props.initialAttachments] : []
+  selectedPreviewAttachment.value = null
+  previewDialogOpen.value = false
   errorMessage.value = ''
 }
 
@@ -329,7 +484,10 @@ const submit = () => {
     workVolume,
     actualFinishDate,
     attachments: Array.from(
-      new Set([...(form.value.attachments || []), ...blobIds.value])
+      new Set([
+        ...existingAttachments.value.map((a) => a.id),
+        ...blobIds.value
+      ])
     ),
     BIM:
       form.value.BIM && form.value.BIM[0] && form.value.BIM[0].applicationIds.length

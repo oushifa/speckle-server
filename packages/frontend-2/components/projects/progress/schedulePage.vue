@@ -6,6 +6,7 @@
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <FormButton
+          v-if="hasFunctionalPerm('progress-plan:import')"
           size="sm"
           color="primary"
           :icon-left="Upload"
@@ -15,6 +16,7 @@
           {{ isImporting ? '上传中...' : '导入 / 更新 计划' }}
         </FormButton>
         <FormButton
+          v-if="hasFunctionalPerm('progress-plan:download')"
           size="sm"
           color="outline"
           :icon-left="Download"
@@ -150,13 +152,14 @@
         <template #operation="{ item }">
           <div class="flex items-center justify-center gap-2">
             <FormButton
-              v-if="item.canEditBimAssociation"
+              v-if="item.canEditBimAssociation && hasFunctionalPerm('progress-plan:edit')"
               color="outline"
               :icon-left="Link2"
               hide-text
               @click.stop="openLinkDialog(item)"
             ></FormButton>
             <button
+              v-if="hasFunctionalPerm('progress-plan:edit')"
               type="button"
               class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-outline-3 bg-foundation text-foreground-2 transition hover:bg-primary-muted hover:text-primary"
               :class="item.milestoneType ? 'border-primary text-primary' : ''"
@@ -166,6 +169,7 @@
               <Flag class="h-4 w-4" />
             </button>
             <button
+              v-if="hasFunctionalPerm('progress-plan:edit')"
               type="button"
               class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-outline-3 bg-foundation text-foreground-2 transition hover:bg-warning-lighter hover:text-warning-darker"
               :class="
@@ -336,6 +340,7 @@ import {
   CommonModelPropsViewer
 } from '#components'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import {
   downloadLatestProgressPlanFile,
   getLatestProgressPlanFile,
@@ -467,6 +472,7 @@ const columns = [
 ]
 
 const route = useRoute()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { triggerNotification } = useGlobalToast()
 const apiOrigin = useApiOrigin()
 const { getTooltipProps } = useSmartTooltipDelay()

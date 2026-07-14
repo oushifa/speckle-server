@@ -36,6 +36,7 @@
             </template>
           </FormSelectBase>
           <FormButton
+            v-if="hasFunctionalPerm('quality-check:export')"
             color="outline"
             :icon-left="ArrowDownTrayIcon"
             class="font-normal"
@@ -54,6 +55,7 @@
             @change="handleImportFileChange"
           />
           <FormButton
+            v-if="hasFunctionalPerm('quality-check:import')"
             color="outline"
             :icon-left="ArrowUpTrayIcon"
             class="font-normal"
@@ -63,6 +65,7 @@
             {{ importingExcel ? '导入中...' : '导入Excel' }}
           </FormButton>
           <FormButton
+            v-if="hasFunctionalPerm('quality-check:create')"
             color="primary"
             :icon-left="PlusIcon"
             class="font-normal"
@@ -170,6 +173,7 @@
                 <EyeIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="hasFunctionalPerm('quality-check:edit')"
                 class="rounded p-1 transition-colors"
                 :class="
                   canEditItem(item)
@@ -183,6 +187,7 @@
                 <PencilSquareIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="hasFunctionalPerm('quality-check:delete')"
                 class="rounded p-1 transition-colors"
                 :class="
                   canDeleteItem(item)
@@ -246,6 +251,7 @@
       :project-id="projectId"
       :loading="createFormLoading || updateFormLoading"
       :initial-data="editingInitialData"
+      :initial-attachments="editingItem?.attachments || []"
       :readonly="isDialogReadonly"
       @submit="createAcceptanceItem"
     />
@@ -369,6 +375,7 @@ import type {
   UpdateQualityAcceptanceFormInput
 } from '~/lib/common/generated/gql/graphql'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
 import dayjs from 'dayjs'
@@ -379,6 +386,7 @@ type AcceptanceRow = QualityAcceptanceForm & {
 }
 
 const route = useRoute()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { apiOrigin } = useRuntimeConfig().public
 const authToken = useCookie('auth-token')
 const projectId = computed(() => {
@@ -763,7 +771,7 @@ const onAttachmentNameClick = (item: AcceptanceRow, blobId: string) => {
 }
 
 const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined => {
-  if (!selectedPreviewAttachment.value) return undefined
+  if (!selectedPreviewAttachment.value || !hasFunctionalPerm('quality-check:download')) return undefined
   return [
     {
       text: selectedPreviewAttachment.value.fileSize

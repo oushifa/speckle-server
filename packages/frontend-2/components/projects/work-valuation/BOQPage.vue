@@ -14,6 +14,7 @@
           <FormButton color="subtle" :icon-left="MagnifyingGlassIcon" hide-text />
         </div>
         <FormButton
+          v-if="hasFunctionalPerm('bill-management:export')"
           color="outline"
           :icon-left="ArrowDownTrayIcon"
           :disabled="boqItemsLoading || exportingExcel || !allItems.length"
@@ -22,6 +23,7 @@
           导出Excel
         </FormButton>
         <FormButton
+          v-if="hasFunctionalPerm('bill-management:import')"
           color="outline"
           :icon-left="ArrowUpTrayIcon"
           :disabled="rowMutationLoading || importingExcel"
@@ -30,7 +32,7 @@
           导入Excel
         </FormButton>
         <FormButton
-          v-if="!canInitializeBoq"
+          v-if="!canInitializeBoq && hasFunctionalPerm('bill-management:download')"
           color="outline"
           :icon-left="DocumentTextIcon"
           @click="handleDownloadTemplate"
@@ -38,7 +40,7 @@
           清单模板
         </FormButton>
         <FormButton
-          v-if="canInitializeBoq"
+          v-if="canInitializeBoq && hasFunctionalPerm('bill-management:create')"
           color="primary"
           :icon-left="PlusIcon"
           :disabled="createBoqItemLoading"
@@ -100,6 +102,7 @@
       <template #actions="{ item }">
         <div class="flex items-center justify-end gap-2">
           <FormButton
+            v-if="hasFunctionalPerm('bill-management:edit')"
             color="outline"
             size="sm"
             hide-text
@@ -108,6 +111,7 @@
             @click.stop="handleEditItem(item)"
           />
           <FormButton
+            v-if="hasFunctionalPerm('bill-management:delete')"
             color="outline"
             size="sm"
             hide-text
@@ -116,6 +120,8 @@
             @click.stop="handleDeleteItem(item)"
           />
           <FormButton
+            v-slot="{}"
+            v-if="hasFunctionalPerm('bill-management:create')"
             color="outline"
             size="sm"
             hide-text
@@ -260,12 +266,14 @@ import {
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { isRequired } from '~/lib/common/helpers/validation'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { useApiOrigin } from '~~/composables/env'
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 const route = useRoute()
+const { hasFunctionalPerm } = useCustomPermissions()
 const projectId = computed(() => route.params.id as string)
 const { triggerNotification } = useGlobalToast()
 const boqImportInputRef = ref<HTMLInputElement | null>(null)

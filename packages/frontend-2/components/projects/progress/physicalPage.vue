@@ -10,6 +10,7 @@
         </p>
       </div>
       <FormButton
+        v-if="hasFunctionalPerm('visual-progress:edit')"
         color="outline"
         :disabled="!projectId || isRebuildingSnapshots"
         :submit-disabled="!projectId || isRebuildingSnapshots"
@@ -273,6 +274,7 @@ import type { ProjectLatestModelsPaginationQuery } from '~~/lib/common/generated
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import type { InjectableViewerState } from '~/lib/viewer/composables/setup'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 interface FolderItem {
   id: string
@@ -367,6 +369,7 @@ const getProgressStatusMeta = (status: PhysicalProgressDisplayStatus) => {
 }
 
 const route = useRoute()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { triggerNotification } = useGlobalToast()
 const ROOT_ID = '__physical_progress_model_root__'
 const apiOrigin = useApiOrigin()

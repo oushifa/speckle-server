@@ -19,7 +19,12 @@
               </div>
             </template>
           </FormTextInput>
-          <FormButton :icon-left="PlusIcon" color="primary" @click="openCreateDialog">
+          <FormButton
+            v-if="hasFunctionalPerm('monthly-valuation:create')"
+            :icon-left="PlusIcon"
+            color="primary"
+            @click="openCreateDialog"
+          >
             新增
           </FormButton>
         </div>
@@ -172,6 +177,7 @@
                 <EyeIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="hasFunctionalPerm('monthly-valuation:publish')"
                 class="rounded p-1 text-success transition-colors hover:text-success-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="送审"
                 :disabled="isSubmitted(item)"
@@ -180,6 +186,7 @@
                 <PaperAirplaneIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="hasFunctionalPerm('monthly-valuation:edit')"
                 class="rounded p-1 text-warning transition-colors hover:text-warning-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="编辑"
                 :disabled="isSubmitted(item)"
@@ -188,6 +195,7 @@
                 <PencilSquareIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="hasFunctionalPerm('monthly-valuation:delete')"
                 class="rounded p-1 text-danger transition-colors hover:text-danger-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="删除"
                 :disabled="isSubmitted(item)"
@@ -197,7 +205,7 @@
               </button>
               <!-- 触发同步按钮 -->              
                <button
-                v-if="item.approveStatus === 'APPROVED'"
+                v-if="item.approveStatus === 'APPROVED' && hasFunctionalPerm('monthly-valuation:publish')"
                 class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 :title="getSyncDebugButtonTooltip(item)"
                 :disabled="isSyncDebugButtonDisabled(item)"
@@ -206,7 +214,7 @@
                 <BugAntIcon class="h-4 w-4" />
               </button>
               <button
-                v-if="item.approveStatus === 'APPROVED'"
+                v-if="item.approveStatus === 'APPROVED' && hasFunctionalPerm('monthly-valuation:publish')"
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
                 v-tippy="getSyncButtonTooltip(item)"
                 :disabled="isSyncButtonDisabled(item)"
@@ -598,6 +606,7 @@ import {
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import {
   LayoutTable,
   FormTextInput,
@@ -732,6 +741,7 @@ const resetFlowToUnsubmittedMutation = gql`
 
 const apollo = useApolloClient().client
 const { isAdmin } = useActiveUser()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const route = useRoute()
 const projectId = computed(() => {

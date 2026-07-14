@@ -769,7 +769,7 @@ const projectMenuTree = [
     id: 'quality-mg',
     label: '质量验收',
     children: [
-      { id: 'quality-check', label: '质量检查' }
+      { id: 'quality-check', label: '质量验收' }
     ]
   },
   {

@@ -64,6 +64,7 @@
                 </NuxtLink>
 
                 <LayoutSidebarMenuGroup
+                  v-if="hasMenuPerm('file-management') || hasMenuPerm('collaborative-management')"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive(['/model-list', '/workbench/discussions']) &&
@@ -79,7 +80,7 @@
                     <IconModelfiles class="size-4 text-white" />
                   </template>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('file-management')"
                     :to="projectBaseRoutePath + '/model-list'"
                     @click="isOpenMobile = false"
                   >
@@ -95,7 +96,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('collaborative-management')"
                     :to="projectBaseRoutePath + '/workbench/discussions'"
                     @click="isOpenMobile = false"
                   >
@@ -113,6 +114,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
+                  v-if="hasMenuPerm('progress-plan') || hasMenuPerm('actual-progress') || hasMenuPerm('visual-progress')"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -131,7 +133,7 @@
                     <IconProgress class="size-4 text-white" />
                   </template>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('progress-plan')"
                     :to="projectBaseRoutePath + '/progress/schedule'"
                     @click="isOpenMobile = false"
                   >
@@ -147,7 +149,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('actual-progress')"
                     :to="projectBaseRoutePath + '/progress/actual'"
                     @click="isOpenMobile = false"
                   >
@@ -163,7 +165,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('visual-progress')"
                     :to="projectBaseRoutePath + '/progress/physical'"
                     @click="isOpenMobile = false"
                   >
@@ -181,7 +183,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('quality-check')"
                   :to="projectBaseRoutePath + '/quality-acceptance'"
                   @click="isOpenMobile = false"
                 >
@@ -202,6 +204,7 @@
                 </NuxtLink>
 
                 <LayoutSidebarMenuGroup
+                  v-if="hasMenuPerm('bill-management') || hasMenuPerm('monthly-valuation') || hasMenuPerm('safety-civilization')"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -220,7 +223,7 @@
                     <IconCalculator class="size-4 text-white" />
                   </template>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('bill-management')"
                     :to="projectBaseRoutePath + '/work-valuation/BOQ'"
                     @click="isOpenMobile = false"
                   >
@@ -236,7 +239,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('monthly-valuation')"
                     :to="projectBaseRoutePath + '/work-valuation/monthly-measurement'"
                     @click="isOpenMobile = false"
                   >
@@ -252,7 +255,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('safety-civilization')"
                     :to="projectBaseRoutePath + '/work-valuation/safety-measure'"
                     @click="isOpenMobile = false"
                   >
@@ -270,7 +273,7 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
-                  v-if="isAdmin"
+                  v-if="hasMenuPerm('archives-list') || hasMenuPerm('archives-borrow')"
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -288,7 +291,7 @@
                     <IconFile class="size-4 text-white" />
                   </template>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('archives-list')"
                     :to="projectBaseRoutePath + '/archive/model-to-site'"
                     @click="isOpenMobile = false"
                   >
@@ -304,7 +307,7 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks"
+                    v-if="showWorkspaceLinks && hasMenuPerm('archives-borrow')"
                     :to="projectBaseRoutePath + '/archive/archives'"
                     @click="isOpenMobile = false"
                   >
@@ -447,6 +450,7 @@ import { projectsRoute, workspaceRoute } from '~/lib/common/helpers/route'
 import { useRoute } from 'vue-router'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useActiveWorkspaceSlug } from '~/lib/user/composables/activeWorkspace'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { graphql } from '~/lib/common/generated/gql'
 import { useQuery } from '@vue/apollo-composable'
 import dayjs from 'dayjs'
@@ -465,6 +469,7 @@ const dashboardSidebarQuery = graphql(`
 `)
 
 const { isLoggedIn, isAdmin } = useActiveUser()
+const { hasMenuPerm } = useCustomPermissions()
 const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const route = useRoute()
 const activeWorkspaceSlug = useActiveWorkspaceSlug()

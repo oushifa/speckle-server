@@ -41,7 +41,7 @@
             />
           </div>
         </div>
-        <FormButton v-if="canClickCreate" @click="onClickCreate">新建项目</FormButton>
+        <FormButton v-if="canCreateProject" @click="onClickCreate">新建项目</FormButton>
       </div>
     </div>
     <CommonLoadingBar :loading="showLoadingBar" class="my-2" />
@@ -54,7 +54,7 @@
 
     <ProjectsDashboardEmptyState
       v-if="showEmptyState"
-      :can-create-project="canClickCreate"
+      :can-create-project="canCreateProject"
       @create-project="onClickCreate"
     />
     <template v-else-if="projects?.items?.length">
@@ -91,6 +91,7 @@ import { MagnifyingGlassIcon, Squares2X2Icon } from '@heroicons/vue/24/outline'
 import { useUserProjectsUpdatedTracking } from '~~/lib/user/composables/projectUpdates'
 import { useMixpanel } from '~/lib/core/composables/mp'
 import { useCanCreatePersonalProject } from '~~/lib/projects/composables/permissions'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import type { ProjectsDashboardQueryQuery } from '~/lib/common/generated/gql/graphql'
 import type { Get } from 'type-fest'
 
@@ -152,8 +153,13 @@ const {
   cursor: null as Nullable<string>
 }))
 
+const { hasFunctionalPerm } = useCustomPermissions()
 const { canClickCreate } = useCanCreatePersonalProject({
   activeUser: computed(() => projectsPanelResult.value?.activeUser)
+})
+
+const canCreateProject = computed(() => {
+  return !!canClickCreate.value && hasFunctionalPerm('ent-projects:create')
 })
 
 onProjectsResult((res) => {

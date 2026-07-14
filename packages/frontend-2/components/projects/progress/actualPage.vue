@@ -15,6 +15,7 @@
           class="w-72"
         />
         <FormButton
+          v-if="hasFunctionalPerm('actual-progress:import')"
           color="outline"
           :icon-left="Upload"
           :disabled="isLoadingRecords || isImportingExcel"
@@ -23,6 +24,7 @@
           {{ isImportingExcel ? '导入中...' : '导入Excel' }}
         </FormButton>
         <FormButton
+          v-if="hasFunctionalPerm('actual-progress:export')"
           color="outline"
           :icon-left="Download"
           :disabled="isLoadingRecords"
@@ -31,6 +33,7 @@
           导出Excel
         </FormButton>
         <FormButton
+          v-if="hasFunctionalPerm('actual-progress:create')"
           color="primary"
           :icon-left="Plus"
           :disabled="isLoadingRecords"
@@ -98,6 +101,7 @@
               @click="openViewDialog(item)"
             />
             <FormButton
+              v-if="hasFunctionalPerm('actual-progress:edit')"
               size="sm"
               color="outline"
               hide-text
@@ -105,6 +109,7 @@
               @click="openEditDialog(item)"
             />
             <FormButton
+              v-if="hasFunctionalPerm('actual-progress:delete')"
               size="sm"
               color="outline"
               hide-text
@@ -558,6 +563,7 @@ import {
 } from 'lucide-vue-next'
 import { CommonModelObjectMultiModelSelectDrawer } from '#components'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import type { FormUsersSelectItemFragment } from '~/lib/common/generated/gql/graphql'
 import {
   createActualProgressRecord,
@@ -723,6 +729,7 @@ const createDefaultForm = (): ActualProgressForm => ({
 })
 
 const route = useRoute()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { triggerNotification } = useGlobalToast()
 const apiOrigin = useApiOrigin()
 
