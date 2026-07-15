@@ -2,7 +2,7 @@ import { err, ok } from 'true-myth/result'
 import { MaybeUserContext, ProjectContext } from '../../domain/context.js'
 import { AuthPolicy } from '../../domain/policies.js'
 import { Roles } from '../../../core/constants.js'
-import { ensureImplicitProjectMemberWithWriteAccessFragment } from '../../fragments/projects.js'
+import { ensureImplicitProjectMemberWithReadAccessFragment } from '../../fragments/projects.js'
 import { Loaders } from '../../domain/loaders.js'
 import {
   ProjectNoAccessError,
@@ -27,6 +27,7 @@ type PolicyLoaderKeys =
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
   | typeof Loaders.getProjectRole
+  | typeof Loaders.hasCustomPermission
 
 type PolicyArgs = ProjectContext & MaybeUserContext
 
@@ -54,21 +55,29 @@ export const canLoadPolicy: AuthPolicy<PolicyLoaderKeys, PolicyArgs, PolicyError
     if (hasAdminAccess.isOk && hasAdminAccess.value) {
       return ok()
     }
-    const ensuredWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
-      loaders
-    )({
-      userId,
-      projectId,
-      role: Roles.Stream.Contributor
-    })
-    if (ensuredWriteAccess.isErr) {
-      if (ensuredWriteAccess.error.code === 'ProjectNotEnoughPermissions')
+
+    if (userId) {
+      const hasCustomLoad = await loaders.hasCustomPermission({
+        userId,
+        permissionCode: 'file-management:download'
+      })
+      if (!hasCustomLoad) {
         return err(
           new ProjectNotEnoughPermissionsError({
             message: "Your role on this project doesn't give you permission to load."
           })
         )
-      return err(ensuredWriteAccess.error)
+      }
+    }
+
+    const ensuredReadAccess = await ensureImplicitProjectMemberWithReadAccessFragment(
+      loaders
+    )({
+      userId,
+      projectId
+    })
+    if (ensuredReadAccess.isErr) {
+      return err(ensuredReadAccess.error)
     }
 
     return ok()

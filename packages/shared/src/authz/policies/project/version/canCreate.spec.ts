@@ -31,6 +31,7 @@ describe('canCreateProjectVersionPolicy', () => {
       getWorkspace: async () => null,
       getWorkspaceSsoProvider: async () => null,
       getWorkspaceSsoSession: async () => null,
+      hasCustomPermission: async () => true,
       ...overrides
     })
 

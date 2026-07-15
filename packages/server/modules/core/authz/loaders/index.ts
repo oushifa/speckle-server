@@ -54,6 +54,20 @@ export default defineModuleLoaders(async () => {
         projectId,
         authorId: version.author
       }
+    },
+    hasCustomPermission: async ({ userId, permissionCode }: { userId: string; permissionCode: string }) => {
+      if (!userId) return false
+      try {
+        const { getMyEffectivePermissionFactory } = await import('@/modules/custom-role/repositories/customRoles')
+        const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+        const perm = await getMyEffectivePermission({ userId })
+        if (perm.isAdmin) return true
+        if (perm.roleId === null) return true // Default to true if no custom roles assigned
+        return perm.modelPerms.includes(permissionCode)
+      } catch (e) {
+        console.error('Error in hasCustomPermission loader:', e)
+        return false
+      }
     }
   }
 })

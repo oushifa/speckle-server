@@ -35,6 +35,8 @@ const buildCanPublishPolicy = (
     getWorkspaceRole: async () => null,
     getWorkspaceSsoProvider: async () => null,
     getWorkspaceSsoSession: async () => null,
+    getAdminOverrideEnabled: async () => false,
+    hasCustomPermission: async () => true,
     ...overrides
   })
 

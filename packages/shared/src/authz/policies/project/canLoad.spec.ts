@@ -34,6 +34,7 @@ const buildCanLoadPolicy = (overrides?: Partial<Parameters<typeof canLoadPolicy>
     getWorkspaceRole: async () => null,
     getWorkspaceSsoProvider: async () => null,
     getWorkspaceSsoSession: async () => null,
+    hasCustomPermission: async () => true,
     ...overrides
   })
 

@@ -80,7 +80,8 @@ export const AuthCheckContextLoaderKeys = StringEnum([
   'getModel',
   'getVersion',
   'getSavedView',
-  'getSavedViewGroup'
+  'getSavedViewGroup',
+  'hasCustomPermission'
 ])
 
 export const Loaders = AuthCheckContextLoaderKeys // shorter alias
@@ -89,6 +90,8 @@ export const Loaders = AuthCheckContextLoaderKeys // shorter alias
 export type AuthCheckContextLoaderKeys = StringEnumValues<
   typeof AuthCheckContextLoaderKeys
 >
+
+export type HasCustomPermission = (params: { userId: string; permissionCode: string }) => MaybeAsync<boolean>
 
 export type AllAuthCheckContextLoaders = AuthContextLoaderMappingDefinition<{
   getEnv: GetEnv
@@ -115,6 +118,7 @@ export type AllAuthCheckContextLoaders = AuthContextLoaderMappingDefinition<{
   getVersion: GetVersion
   getSavedView: GetSavedView
   getSavedViewGroup: GetSavedViewGroup
+  hasCustomPermission: HasCustomPermission
 }>
 
 export type AuthCheckContextLoaders<
