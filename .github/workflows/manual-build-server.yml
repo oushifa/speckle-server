@@ -27,7 +27,7 @@ on:
       RUNNER_TYPE:
         description: '执行构建的 Runner 类型'
         required: true
-        default: 'blacksmith-4vcpu-ubuntu-2404'
+        default: 'ubuntu-latest'
 
 jobs:
   docker-build-server:
