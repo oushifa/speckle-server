@@ -107,6 +107,7 @@
       v-model:open="showEditMembersDialog"
       max-width="md"
       :buttons="editMembersDialogButtons"
+      :prevent-close-on-click-outside="showConfirmRemoveDialog"
     >
       <template #header>编辑项目成员</template>
       <div class="grid gap-4">
@@ -123,7 +124,32 @@
           <div class="text-body-2xs text-foreground-2">
             当前成员 {{ currentProjectMemberUsers.length }} 人
           </div>
-          <UserAvatarGroup :users="currentProjectMemberUsers" :max-count="8" />
+          <div
+            v-if="currentProjectMemberUsers.length"
+            class="max-h-48 overflow-y-auto border border-outline-3 rounded-lg divide-y divide-outline-3 bg-foundation-2"
+          >
+            <div
+              v-for="user in currentProjectMemberUsers"
+              :key="user.id"
+              class="flex items-center justify-between p-2"
+            >
+              <div class="flex items-center gap-2">
+                <UserAvatar :user="user" size="xs" />
+                <span class="text-body-xs font-medium">{{ user.name }}</span>
+              </div>
+              <FormButton
+                color="danger"
+                size="sm"
+                hide-text
+                :icon-right="TrashIcon"
+                :disabled="removingProjectMember"
+                @click="confirmRemoveMember(user)"
+              />
+            </div>
+          </div>
+          <p v-else class="text-body-2xs text-foreground-2">
+            暂无项目成员。
+          </p>
         </div>
 
         <FormSelectUsers
@@ -152,6 +178,15 @@
       :workspace="workspace"
       @created="onProjectCreated"
     />
+
+    <!-- 二次确认弹窗：删除项目成员 -->
+    <CommonConfirmDialog
+      v-model:open="showConfirmRemoveDialog"
+      title="确认移除该成员吗？"
+      :text="`确定要将成员 '${memberToRemove?.name || ''}' 从项目 '${projectToEditMembers?.name || ''}' 中移除吗？`"
+      confirm-text="确认移除"
+      @confirm="handleConfirmRemove"
+    />
   </div>
 </template>
 
@@ -167,7 +202,8 @@ import type {
 import {
   MagnifyingGlassIcon,
   EllipsisHorizontalIcon,
-  XMarkIcon
+  XMarkIcon,
+  TrashIcon
 } from '@heroicons/vue/24/outline'
 import { isProject } from '~~/lib/server-management/helpers/utils'
 import {
@@ -179,7 +215,7 @@ import { graphql } from '~/lib/common/generated/gql'
 import { useRouter } from 'vue-router'
 import { projectRoute, useNavigateToProject } from '~/lib/common/helpers/route'
 import { useCanCreatePersonalProject } from '~/lib/projects/composables/permissions'
-import { useInviteUserToProject } from '~~/lib/projects/composables/projectManagement'
+import { useInviteUserToProject, useUpdateUserRole } from '~~/lib/projects/composables/projectManagement'
 import { useCanCreateWorkspaceProject } from '~/lib/workspaces/composables/projects/permissions'
 import { getUsersQuery } from '~~/lib/server-management/graphql/queries'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
@@ -191,6 +227,7 @@ graphql(`
     ...ProjectsDeleteDialog_Project
     id
     name
+    workspaceId
     visibility
     createdAt
     updatedAt
@@ -272,10 +309,63 @@ const projectToModify = ref<ProjectsDeleteDialog_ProjectFragment | null>(null)
 const showProjectDeleteDialog = ref(false)
 const openNewProject = ref(false)
 const showEditMembersDialog = ref(false)
-const projectToEditMembers = ref<SettingsSharedProjects_ProjectFragment | null>(null)
+const projectToEditMembersId = ref<string | null>(null)
+const projectToEditMembers = computed(() => {
+  if (!projectToEditMembersId.value || !props.projects) return null
+  return props.projects.find((p) => p.id === projectToEditMembersId.value) || null
+})
 const selectedUsersToAdd = ref<FormUsersSelectItemFragment[]>([])
 const addingProjectMembers = ref(false)
 const addedProjectMembers = ref<Record<string, FormUsersSelectItemFragment[]>>({})
+
+const updateProjectRole = useUpdateUserRole(
+  computed(() => projectToEditMembers.value || undefined)
+)
+
+const removingProjectMember = ref(false)
+const showConfirmRemoveDialog = ref(false)
+const memberToRemove = ref<FormUsersSelectItemFragment | null>(null)
+
+const confirmRemoveMember = (user: FormUsersSelectItemFragment) => {
+  memberToRemove.value = user
+  showConfirmRemoveDialog.value = true
+}
+
+const removeMember = async (userId: string) => {
+  if (!projectToEditMembers.value) return
+
+  removingProjectMember.value = true
+  try {
+    await updateProjectRole({
+      projectId: projectToEditMembers.value.id,
+      userId,
+      role: null
+    })
+
+    if (addedProjectMembers.value[projectToEditMembers.value.id]) {
+      addedProjectMembers.value[projectToEditMembers.value.id] =
+        addedProjectMembers.value[projectToEditMembers.value.id].filter(
+          (u) => u.id !== userId
+        )
+    }
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '删除项目成员失败',
+      description: error instanceof Error ? error.message : undefined
+    })
+  } finally {
+    removingProjectMember.value = false
+  }
+}
+
+const handleConfirmRemove = async () => {
+  if (!memberToRemove.value) return
+  const userId = memberToRemove.value.id
+  showConfirmRemoveDialog.value = false
+  memberToRemove.value = null
+  await removeMember(userId)
+}
 
 const { result: usersResult, loading: loadingUsers } = useQuery(
   getUsersQuery,
@@ -304,7 +394,7 @@ const openProjectDeleteDialog = (item: ProjectsDeleteDialog_ProjectFragment) => 
 }
 
 const openEditMembersDialog = (project: SettingsSharedProjects_ProjectFragment) => {
-  projectToEditMembers.value = project
+  projectToEditMembersId.value = project.id
   selectedUsersToAdd.value = []
   showEditMembersDialog.value = true
 }
@@ -468,8 +558,10 @@ const onProjectCreated = (project: { id: string }) => {
 
 watch(showEditMembersDialog, (isOpen) => {
   if (!isOpen) {
-    projectToEditMembers.value = null
+    projectToEditMembersId.value = null
     selectedUsersToAdd.value = []
+    showConfirmRemoveDialog.value = false
+    memberToRemove.value = null
   }
 })
 </script>

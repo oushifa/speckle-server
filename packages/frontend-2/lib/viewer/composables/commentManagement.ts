@@ -244,15 +244,21 @@ graphql(`
   }
 `)
 
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
+
 export function useCheckViewerCommentingAccess() {
   const {
     resources: {
       response: { project }
     }
   } = useInjectedViewerState()
+  const { hasFunctionalPerm } = useCustomPermissions()
 
   return computed(() => {
-    return project.value?.permissions.canCreateComment.authorized
+    return !!(
+      project.value?.permissions.canCreateComment.authorized &&
+      hasFunctionalPerm('collaborative-management:create')
+    )
   })
 }
 

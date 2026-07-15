@@ -3,6 +3,7 @@ import { validateRequest } from 'zod-express'
 import { z } from 'zod'
 import { db } from '@/db/knex'
 import { requirePermission } from '@/modules/shared/middleware'
+import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import {
   addUsersToRoleFactory,
   createCustomRoleFactory,
@@ -92,7 +93,9 @@ const isUniqueViolation = (error: unknown) =>
 export const customRoleRouterFactory = (): Router => {
   const app = Router()
 
-  app.use('/api/v1/custom-roles', requireAuth)
+  const corsMiddleware = corsMiddlewareFactory()
+  app.options('*', corsMiddleware)
+  app.use('/api/v1/custom-roles', corsMiddleware, requireAuth)
 
   app.get('/api/v1/custom-roles', async (_req, res) => {
     const roles = await listCustomRoles()

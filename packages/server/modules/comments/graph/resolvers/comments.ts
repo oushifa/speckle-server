@@ -101,6 +101,18 @@ import {
   getModelHomeSavedViewFactory,
   getSavedViewFactory
 } from '@/modules/viewer/repositories/dataLoaders/savedViews'
+import { getMyEffectivePermissionFactory } from '@/modules/custom-role/repositories/customRoles'
+
+const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+
+const checkCustomPermission = async (userId: string | undefined, permissionCode: string) => {
+  if (!userId) return
+  const perm = await getMyEffectivePermission({ userId })
+  if (perm.isAdmin) return
+  if (!perm.modelPerms.includes(permissionCode)) {
+    throw new ForbiddenError(`您没有该操作的权限 [${permissionCode}]`)
+  }
+}
 
 // We can use the main DB for these
 const getStream = getStreamFactory({ db })
@@ -159,6 +171,7 @@ const getAuthorizedStreamCommentFactory =
 export default {
   Query: {
     async comment(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectId = args.streamId
       const projectDb = await getProjectDbClient({ projectId })
       const getStreamComment = getAuthorizedStreamCommentFactory({
@@ -173,6 +186,7 @@ export default {
     },
 
     async comments(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectId = args.streamId
       const canReadProject = await context.authPolicies.project.canRead({
         userId: context.userId,
@@ -391,7 +405,8 @@ export default {
     }
   },
   Project: {
-    async commentThreads(parent, args) {
+    async commentThreads(parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectDb = await getProjectDbClient({ projectId: parent.id })
       const getPaginatedProjectComments = getPaginatedProjectCommentsFactory({
         resolvePaginatedProjectCommentsLatestModelResources:
@@ -416,6 +431,7 @@ export default {
       })
     },
     async comment(parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectId = parent.id
       const projectDb = await getProjectDbClient({ projectId })
       const getStreamComment = getAuthorizedStreamCommentFactory({
@@ -429,7 +445,8 @@ export default {
     }
   },
   Version: {
-    async commentThreads(parent, args) {
+    async commentThreads(parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectId = parent.streamId
       const projectDb = await getProjectDbClient({ projectId })
       const getPaginatedCommitComments = getPaginatedCommitCommentsFactory({
@@ -453,7 +470,8 @@ export default {
     }
   },
   Model: {
-    async commentThreads(parent, args) {
+    async commentThreads(parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:view')
       const projectId = parent.streamId
       const projectDb = await getProjectDbClient({ projectId })
 
@@ -539,6 +557,7 @@ export default {
       return true
     },
     async create(_parent, args, ctx) {
+      await checkCustomPermission(ctx.userId, 'collaborative-management:create')
       const projectId = args.input.projectId
       const canCreate = await ctx.authPolicies.project.comment.canCreate({
         userId: ctx.userId,
@@ -584,6 +603,7 @@ export default {
       )
     },
     async reply(_parent, args, ctx) {
+      await checkCustomPermission(ctx.userId, 'collaborative-management:create')
       const projectId = args.input.projectId
       const canCreateComment = await ctx.authPolicies.project.comment.canCreate({
         userId: ctx.userId,
@@ -628,6 +648,7 @@ export default {
       )
     },
     async edit(_parent, args, ctx) {
+      await checkCustomPermission(ctx.userId, 'collaborative-management:edit')
       const projectId = args.input.projectId
       const commentId = args.input.commentId
       const canEditComment = await ctx.authPolicies.project.comment.canEdit({
@@ -665,6 +686,7 @@ export default {
       )
     },
     async archive(_parent, args, ctx) {
+      await checkCustomPermission(ctx.userId, 'collaborative-management:delete')
       const projectId = args.input.projectId
       const commentId = args.input.commentId
       const canArchive = await ctx.authPolicies.project.comment.canArchive({
@@ -778,6 +800,7 @@ export default {
     },
 
     async commentCreate(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:create')
       const projectId = args.input.streamId
       const canCreate = await context.authPolicies.project.comment.canCreate({
         userId: context.userId,
@@ -825,6 +848,7 @@ export default {
     },
 
     async commentEdit(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:edit')
       const projectId = args.input.streamId
       const commentId = args.input.id
       const canEdit = await context.authPolicies.project.comment.canEdit({
@@ -873,6 +897,7 @@ export default {
     },
 
     async commentArchive(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:delete')
       const projectId = args.streamId
       const commentId = args.commentId
       const canArchive = await context.authPolicies.project.comment.canArchive({
@@ -908,6 +933,7 @@ export default {
     },
 
     async commentReply(_parent, args, context) {
+      await checkCustomPermission(context.userId, 'collaborative-management:create')
       const projectId = args.input.streamId
       if (!context.userId)
         throw new ForbiddenError('Only registered users can comment.')

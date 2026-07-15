@@ -392,6 +392,7 @@
 
           <!-- 打印按钮 -->
           <button
+            v-if="hasFunctionalPerm('monthly-valuation:print')"
             class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-3 text-xs font-semibold rounded hover:bg-foundation-2 bg-foundation text-foreground-2 transition-colors focus:outline-none"
             @click="triggerPrint"
           >
@@ -467,6 +468,7 @@
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <button
+                v-if="hasFunctionalPerm('monthly-valuation:download')"
                 class="text-primary hover:underline font-medium"
                 @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
               >
@@ -638,6 +640,7 @@ import { LayoutDialog } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -666,6 +669,7 @@ const apiOrigin = useApiOrigin()
 const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
 const { download: downloadBlobWithAuth } = useFileDownload()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const deleteConfirmOpen = ref(false)
 const deleteTargetIdx = ref<number | null>(null)

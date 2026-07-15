@@ -200,6 +200,7 @@ import {
 } from '~~/lib/viewer/composables/commentManagement'
 import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { getLinkToThread } from '~~/lib/viewer/helpers/comments'
 import { useDisableGlobalTextSelection } from '~~/lib/common/composables/window'
@@ -248,6 +249,7 @@ const archiveComment = useArchiveComment()
 const { triggerNotification } = useGlobalToast()
 const { projectId } = useInjectedViewerState()
 const canReply = useCheckViewerCommentingAccess()
+const { hasFunctionalPerm } = useCustomPermissions()
 const { disableTextSelection } = useDisableGlobalTextSelection()
 const markThreadViewed = useMarkThreadViewed()
 const { usersTyping } = useViewerThreadTypingTracking(threadId)
@@ -407,7 +409,7 @@ const actionsItems = computed<LayoutMenuItem[][]>(() => [
 ])
 
 const canArchiveOrUnarchive = computed(
-  () => props.modelValue.permissions.canArchive.authorized
+  () => props.modelValue.permissions.canArchive.authorized && hasFunctionalPerm('collaborative-management:delete')
 )
 
 const onActionChosen = (params: { item: LayoutMenuItem; event: MouseEvent }) => {

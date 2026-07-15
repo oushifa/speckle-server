@@ -776,6 +776,7 @@
           </FormButton>
 
           <FormButton
+            v-if="hasFunctionalPerm('safety-civilization:print')"
             color="outline"
             class="border-primary text-primary"
             @click="handlePrintCover"
@@ -787,6 +788,7 @@
           </FormButton>
 
           <FormButton
+            v-if="hasFunctionalPerm('safety-civilization:print')"
             color="outline"
             class="border-primary text-primary"
             @click="handlePrintDetail"
@@ -1134,7 +1136,7 @@
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <a
-                v-if="attachment.blobId"
+                v-if="attachment.blobId && hasFunctionalPerm('safety-civilization:download')"
                 :href="getBlobDownloadUrl(attachment.blobId)"
                 target="_blank"
                 class="text-primary hover:underline font-medium"
@@ -1788,6 +1790,7 @@ import {
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { approvalFlowInstanceDetailsForMonthlyMeasurementQuery } from '~/lib/projects/graphql/queries'
 
 // GraphQL 审批流程接口
@@ -1858,6 +1861,7 @@ const projectTeamForAdminFlowQuery = gql`
   }
 `
 
+const { hasFunctionalPerm } = useCustomPermissions()
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 const measurementId = computed(() => route.params.measurementId as string)

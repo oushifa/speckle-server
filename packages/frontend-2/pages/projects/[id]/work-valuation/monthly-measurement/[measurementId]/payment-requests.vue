@@ -470,6 +470,7 @@
         class="flex justify-center items-center gap-4 pt-4 border-t border-outline-3"
       >
         <button
+          v-if="hasFunctionalPerm('monthly-valuation:print')"
           class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors focus:outline-none shadow-sm"
           @click="triggerPrint('cover')"
         >
@@ -488,6 +489,7 @@
         </button>
 
         <button
+          v-if="hasFunctionalPerm('monthly-valuation:print')"
           class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors focus:outline-none shadow-sm"
           @click="triggerPrint('payment')"
         >
@@ -550,6 +552,7 @@
               </div>
               <div class="flex gap-2 flex-shrink-0">
                 <button
+                  v-if="hasFunctionalPerm('monthly-valuation:download')"
                   class="text-primary hover:underline font-medium"
                   @click="
                     downloadBlobWithAuth({
@@ -863,6 +866,7 @@ import {
 } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -895,6 +899,7 @@ const apiOrigin = useApiOrigin()
 const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
 const { download: downloadBlobWithAuth } = useFileDownload()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const deleteConfirmOpen = ref(false)
 const deleteTargetIdx = ref<number | null>(null)

@@ -68,6 +68,7 @@ import {
   useSetupViewerScope
 } from '~/lib/viewer/composables/setup/core'
 import { useSynchronizedCookie } from '~~/lib/common/composables/reactiveCookie'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { buildManualPromise } from '@speckle/ui-components'
 import { PassReader } from '../extensions/PassReader'
 import type {
@@ -880,6 +881,7 @@ function setupResponseResourceData(
   const globalError = useError()
   const { triggerNotification } = useGlobalToast()
   const logger = useLogger()
+  const { hasFunctionalPerm } = useCustomPermissions()
 
   const {
     projectId,
@@ -1062,8 +1064,8 @@ function setupResponseResourceData(
     }),
     () => ({
       keepPreviousResult: true,
-      // Dont need threads when in presentation mode
-      enabled: state.pageType.value !== ViewerRenderPageType.Presentation
+      // Dont need threads when in presentation mode or if user has no view permission
+      enabled: state.pageType.value !== ViewerRenderPageType.Presentation && hasFunctionalPerm('collaborative-management:view')
     })
   )
 
