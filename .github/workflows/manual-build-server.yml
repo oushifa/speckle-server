@@ -12,9 +12,9 @@ on:
         required: true
         default: 'ghcr.io'
       REGISTRY_USERNAME:
-        description: '镜像仓库用户名 (默认为触发工作流的 GitHub 用户)'
-        required: true
-        default: '${{ github.actor }}'
+        description: '镜像仓库用户名 (留空则默认为触发工作流的 GitHub 用户)'
+        required: false
+        default: ''
       IMAGE_PREFIX:
         description: '镜像命名空间前缀'
         required: true
@@ -41,7 +41,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.REGISTRY_DOMAIN }}
-          username: ${{ inputs.REGISTRY_USERNAME }}
+          username: ${{ inputs.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image tags
