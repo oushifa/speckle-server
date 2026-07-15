@@ -16,9 +16,9 @@ on:
         required: false
         default: ''
       IMAGE_PREFIX:
-        description: '镜像命名空间前缀'
-        required: true
-        default: 'ghcr.io/specklesystems'
+        description: '镜像命名空间前缀 (留空则默认为 ghcr.io/<当前仓库所有者>)'
+        required: false
+        default: ''
       PUBLISH_LATEST:
         description: '是否同时标记为 latest 标签'
         type: boolean
@@ -47,9 +47,13 @@ jobs:
       - name: Set image tags
         id: set-tags
         run: |
-          TAGS="${{ inputs.IMAGE_PREFIX }}/speckle-server:${{ inputs.IMAGE_VERSION_TAG }}"
+          PREFIX="${{ inputs.IMAGE_PREFIX }}"
+          if [[ -z "$PREFIX" ]]; then
+            PREFIX="ghcr.io/${{ github.repository_owner }}"
+          fi
+          TAGS="${PREFIX}/speckle-server:${{ inputs.IMAGE_VERSION_TAG }}"
           if [[ "${{ inputs.PUBLISH_LATEST }}" == "true" ]]; then
-            TAGS="$TAGS,${{ inputs.IMAGE_PREFIX }}/speckle-server:latest"
+            TAGS="$TAGS,${PREFIX}/speckle-server:latest"
           fi
           echo "TAGS=$TAGS" >> "$GITHUB_OUTPUT"
 
