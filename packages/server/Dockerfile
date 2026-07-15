@@ -1,109 +1,97 @@
 ARG NODE_ENV=production
 
-FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS build-stage
+############################
+# BUILD STAGE
+############################
+FROM node:22-bookworm AS build-stage
 
 WORKDIR /speckle-server
 
-# install tini
-ARG TINI_VERSION=v0.19.0
-RUN apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-     --no-install-recommends \
-     ca-certificates \
-     curl \
-    && curl -fsSL https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini -o /usr/bin/tini \
-    && chmod +x /usr/bin/tini \
-    && apt-get remove -y curl \
-    && apt-get autoremove -y \
-    && apt-get clean \
+# 基础依赖（包含 sharp 编译依赖 + OpenJDK17 JDK）
+RUN apt-get update -y && apt-get install -y \
+    ca-certificates \
+    curl \
+    git \
+    build-essential \
+    python3 \
+    pkg-config \
+    libvips-dev \
+    openjdk-17-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
-# install node packages
-COPY .yarnrc.yml .
+# tini
+ARG TINI_VERSION=v0.19.0
+RUN curl -fsSL https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini \
+    -o /usr/bin/tini \
+    && chmod +x /usr/bin/tini
+
+# Yarn 4
+RUN corepack enable && corepack prepare yarn@4.5.0 --activate
+
+# 环境变量
+ENV NODE_ENV=${NODE_ENV}
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+# ===== 依赖层 =====
+COPY .yarnrc.yml ./
 COPY .yarn ./.yarn
 COPY package.json yarn.lock ./
 
-COPY packages/frontend-2/type-augmentations/stubs ./packages/frontend-2/type-augmentations/stubs/
+COPY packages/frontend-2/type-augmentations/stubs \
+    ./packages/frontend-2/type-augmentations/stubs/
+
 COPY packages/server/package.json ./packages/server/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/objectloader/package.json ./packages/objectloader/
 
-# Consume the ARG from the global scope
-ARG NODE_ENV
-ENV NODE_ENV=${NODE_ENV}
-RUN corepack enable
-RUN PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn workspaces focus --all
+# 安装依赖
+RUN yarn install
 
-# build shared libraries
+# ===== build =====
 COPY packages/server ./packages/server/
 COPY packages/shared ./packages/shared/
 COPY packages/objectloader ./packages/objectloader/
 
 RUN yarn workspaces foreach -W run build
 
-# install only production dependencies
-# we need a clean environment, free of build dependencies
-FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS dependency-stage
+# 验证（确认 javac 存在）
+RUN java -version && javac -version && node -v && yarn -v
+
+
+############################
+# PRODUCTION STAGE
+############################
+FROM node:22-bookworm-slim AS production-stage
 
 WORKDIR /speckle-server
-COPY .yarnrc.yml .
-COPY .yarn ./.yarn
-COPY package.json yarn.lock ./
 
-COPY packages/frontend-2/type-augmentations/stubs ./packages/frontend-2/type-augmentations/stubs/
-COPY packages/server/package.json ./packages/server/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/objectloader/package.json ./packages/objectloader/
-
-WORKDIR /speckle-server/packages/server
-
-# Consume the ARG from the global scope
-ARG NODE_ENV
-ENV NODE_ENV=${NODE_ENV}
-RUN corepack enable
-RUN PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn workspaces focus --production
-
-FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS production-stage
-
-RUN apt-get update -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-     --no-install-recommends \
-     ca-certificates \
-     openjdk-17-jdk-headless \
-    && apt-get clean \
+# 运行依赖（sharp runtime + Java JDK）
+RUN apt-get update -y && apt-get install -y \
+    libvips \
+    ca-certificates \
+    openjdk-17-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --link --from=build-stage /usr/bin/tini /usr/bin/tini
+# tini
+COPY --from=build-stage /usr/bin/tini /usr/bin/tini
 
-WORKDIR /speckle-server
-COPY --link --from=build-stage /speckle-server/package.json ./package.json
-COPY --link --from=build-stage /speckle-server/packages/shared ./packages/shared
-COPY --link --from=build-stage /speckle-server/packages/objectloader ./packages/objectloader
-COPY --link --from=dependency-stage /speckle-server/node_modules ./node_modules
+# Yarn 4（运行时需要）
+RUN corepack enable && corepack prepare yarn@4.5.0 --activate
+
+# 复制完整 workspace
+COPY --from=build-stage /speckle-server /speckle-server
 
 WORKDIR /speckle-server/packages/server
-COPY --link --from=build-stage /speckle-server/packages/server/package.json ./package.json
-COPY --link --from=build-stage /speckle-server/packages/server/esmLoader.js ./esmLoader.js
-COPY --link --from=build-stage /speckle-server/packages/server/root.js ./root.js
-COPY --link --from=build-stage /speckle-server/packages/server/dist ./dist
-COPY --link --from=build-stage /speckle-server/packages/server/assets ./assets
-COPY --link --from=build-stage /speckle-server/packages/server/bin ./bin
-COPY --link --from=build-stage /speckle-server/packages/server/.venv-progress-mpp ./.venv-progress-mpp
-# Copy only if exists https://stackoverflow.com/questions/31528384/conditional-copy-add-in-dockerfile/46801962#46801962
-COPY --link --from=dependency-stage /speckle-server/packages/server/node_module[s] ./node_modules
 
-# Only for docker compose version, optimized for caching
 ARG SPECKLE_SERVER_VERSION=custom
-# Consume the NODE_ENV ARG from the global scope
 ARG NODE_ENV
+
 ENV NODE_ENV=${NODE_ENV} \
-  SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
-  FF_RHINO_FILE_IMPORTER_ENABLED=true \
-  JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
-  MPXJ_LIB_ROOT=/speckle-server/packages/server/.venv-progress-mpp/lib
-ENV SUPER_REGISTER_TOKEN=srj-super-admin-register
-ENV ADMIN_OVERRIDE_ENABLED=true
-ENV SDUI_URL=http://47.100.77.97:64483
+    SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
+    FF_RHINO_FILE_IMPORTER_ENABLED=true
 
+# 验证（确保 runtime 也有 javac）
+RUN java -version && javac -version
 
-ENTRYPOINT [ "tini", "--", "sh", "-lc", "yarn migrate latest && node --import=./esmLoader.js ./bin/www" ]
+ENTRYPOINT ["tini", "--", "sh", "-lc", "yarn cli db migrate latest && node --import=./esmLoader.js ./bin/www"]
