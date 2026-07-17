@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       IMAGE_VERSION_TAG:
-        description: '镜像版本标签 (例如: manual-latest, 2.18.0)'
+        description: '镜像版本标签 (例如: 2.18.0，默认 auto 代表当前日期时分)'
         required: true
-        default: 'manual-latest'
+        default: 'auto'
       REGISTRY_DOMAIN:
         description: '镜像仓库域名'
         required: true
@@ -51,7 +51,12 @@ jobs:
           if [[ -z "$PREFIX" ]]; then
             PREFIX="ghcr.io/${{ github.repository_owner }}"
           fi
-          CLEANED_TAG=$(echo "${{ inputs.IMAGE_VERSION_TAG }}" | sed 's/[^a-zA-Z0-9.-]/-/g')
+          INPUT_TAG="${{ inputs.IMAGE_VERSION_TAG }}"
+          if [[ "$INPUT_TAG" == "auto" || -z "$INPUT_TAG" ]]; then
+            CLEANED_TAG=$(TZ='Asia/Shanghai' date +'%Y-%m-%d-%H-%M')
+          else
+            CLEANED_TAG=$(echo "$INPUT_TAG" | sed 's/[^a-zA-Z0-9.-]/-/g')
+          fi
           TAGS="${PREFIX}/speckle-server:${CLEANED_TAG}"
           if [[ "${{ inputs.PUBLISH_LATEST }}" == "true" ]]; then
             TAGS="$TAGS,${PREFIX}/speckle-server:latest"
