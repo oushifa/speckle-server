@@ -265,6 +265,90 @@ export const organizationsRouterFactory = (): Router => {
         aclMap.set(acl.userId, acl.role)
       }
 
+      // 联查真实最后登录时间（仅限于 sys_log 登录成功的日志记录，支持按 userId 匹配，或旧数据按 target_id 忽略大小写匹配邮箱）
+      let lastLoginTimes: Array<{ user_id: string; target_id: string; last_login: Date }> = []
+      if (userIds.length > 0) {
+        const emails = rawUsers.map((ru) => ru.email).filter(Boolean)
+        const lowerEmails = emails.map((e) => e.toLowerCase())
+        lastLoginTimes = await db('sys_log')
+          .where('action', 'system.user.login')
+          .andWhere('result_status', 'success')
+          .andWhere(function () {
+            this.whereIn('user_id', userIds)
+            if (lowerEmails.length > 0) {
+              this.orWhereRaw('LOWER(target_id) IN (' + lowerEmails.map(() => '?').join(',') + ')', lowerEmails)
+            }
+          })
+          .groupBy('user_id', 'target_id')
+          .select('user_id', 'target_id')
+          .max('event_time as last_login')
+      }
+
+      const lastLoginMap = new Map<string, string>()
+      const emailToUserId = new Map<string, string>()
+      for (const ru of rawUsers) {
+        if (ru.email) {
+          emailToUserId.set(ru.email.toLowerCase(), ru.id)
+        }
+      }
+
+      for (const item of lastLoginTimes) {
+        const userId = item.user_id || (item.target_id ? emailToUserId.get(item.target_id.toLowerCase()) : null)
+        if (userId) {
+          const currentMax = lastLoginMap.get(userId)
+          const newTime = new Date(item.last_login).toISOString()
+          if (!currentMax || newTime > currentMax) {
+            lastLoginMap.set(userId, newTime)
+          }
+        }
+      }
+
+      // 联查真实项目（Stream）及项目角色
+      let userProjectRoles: Array<{ userId: string; projectName: string; role: string }> = []
+      if (userIds.length > 0) {
+        userProjectRoles = await db('stream_acl')
+          .join('streams', 'stream_acl.resourceId', 'streams.id')
+          .whereIn('stream_acl.userId', userIds)
+          .select({
+            userId: 'stream_acl.userId',
+            projectName: 'streams.name',
+            role: 'stream_acl.role'
+          })
+      }
+      const projectRolesMap = new Map<string, Array<{ projectName: string; role: string }>>()
+      for (const item of userProjectRoles) {
+        if (!projectRolesMap.has(item.userId)) {
+          projectRolesMap.set(item.userId, [])
+        }
+        projectRolesMap.get(item.userId)!.push({
+          projectName: item.projectName,
+          role: item.role
+        })
+      }
+
+      // 联查真实已分配自定义角色
+      let userCustomRoles: Array<{ userId: string; roleId: string; roleName: string }> = []
+      if (userIds.length > 0) {
+        userCustomRoles = await db('custom_role_users')
+          .join('custom_roles', 'custom_role_users.roleId', 'custom_roles.id')
+          .whereIn('custom_role_users.userId', userIds)
+          .select({
+            userId: 'custom_role_users.userId',
+            roleId: 'custom_role_users.roleId',
+            roleName: 'custom_roles.name'
+          })
+      }
+      const customRolesMap = new Map<string, Array<{ id: string; name: string }>>()
+      for (const item of userCustomRoles) {
+        if (!customRolesMap.has(item.userId)) {
+          customRolesMap.set(item.userId, [])
+        }
+        customRolesMap.get(item.userId)!.push({
+          id: item.roleId,
+          name: item.roleName
+        })
+      }
+
       return res.status(200).json({
         data: results.users.map((u: any) => {
           const raw = rawUserMap.get(u.id) || {}
@@ -276,7 +360,10 @@ export const organizationsRouterFactory = (): Router => {
             phone: raw.phone || '',
             department: deptMap.get(u.id) || null,
             role: aclMap.get(u.id) || 'server:user',
-            createdAt: u.createdAt
+            createdAt: u.createdAt,
+            lastLogin: lastLoginMap.get(u.id) || null,
+            projectRoles: projectRolesMap.get(u.id) || [],
+            customRoles: customRolesMap.get(u.id) || []
           }
         })
       })

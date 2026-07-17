@@ -21,8 +21,7 @@ const scheduledTasks: cron.ScheduledTask[] = []
 const logsModule: SpeckleModule = {
   init: async ({ app, isInitial }) => {
     moduleLogger.info('📋 Init logs module')
-    // 先取消后端api记录
-    // app.use(apiOperationLogMiddlewareFactory())
+    app.use(apiOperationLogMiddlewareFactory())
     app.use(logsRouterFactory())
 
     if (!isInitial) return

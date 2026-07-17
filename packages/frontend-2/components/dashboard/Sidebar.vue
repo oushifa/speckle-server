@@ -212,7 +212,7 @@
                 v-if="hasMenuPerm('ent-permission')"
                 :class="[
                   'project-sidebar-group-wrapper',
-                  (isActive('/permission/roles') || isActive('/permission/users')) &&
+                  (isActive('/permission/roles') || isActive('/permission/users') || isActive('/permission/logs')) &&
                     'project-sidebar-group-wrapper-active'
                 ]"
                 title="权限管理"
@@ -237,6 +237,21 @@
                     ]"
                     extra-padding
                     label="角色配置"
+                  ></LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+                <NuxtLink
+                  to="/permission/logs"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'py-2',
+                      isActive('/permission/logs') &&
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ]"
+                    extra-padding
+                    label="操作日志"
                   ></LayoutSidebarMenuGroupItem>
                 </NuxtLink>
                 <NuxtLink

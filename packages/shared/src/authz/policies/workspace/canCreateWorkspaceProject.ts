@@ -32,7 +32,8 @@ export const canCreateWorkspaceProjectPolicy: AuthPolicy<
   | 'getWorkspaceLimits'
   | 'getWorkspaceProjectCount'
   | 'getWorkspaceSsoProvider'
-  | 'getWorkspaceSsoSession',
+  | 'getWorkspaceSsoSession'
+  | 'hasCustomPermission',
   MaybeUserContext & WorkspaceContext,
   | InstanceType<typeof WorkspacesNotEnabledError>
   | InstanceType<typeof WorkspaceNoAccessError>
@@ -49,6 +50,16 @@ export const canCreateWorkspaceProjectPolicy: AuthPolicy<
   async ({ userId, workspaceId }) => {
     const ensuredWorkspacesEnabled = await ensureWorkspacesEnabledFragment(loaders)({})
     if (ensuredWorkspacesEnabled.isErr) return err(ensuredWorkspacesEnabled.error)
+
+    if (userId && loaders.hasCustomPermission) {
+      const hasCustomCreate = await loaders.hasCustomPermission({
+        userId,
+        permissionCode: 'file-management:create'
+      })
+      if (!hasCustomCreate) {
+        return err(new WorkspaceNotEnoughPermissionsError())
+      }
+    }
 
     const adminOverrideAvailable =
       'getAdminOverrideEnabled' in loaders

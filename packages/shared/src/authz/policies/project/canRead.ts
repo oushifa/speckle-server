@@ -28,7 +28,8 @@ export const canReadProjectPolicy: AuthPolicy<
   | typeof Loaders.getWorkspaceSsoProvider
   | typeof Loaders.getWorkspaceSsoSession
   | typeof Loaders.getProjectRole
-  | typeof Loaders.getAdminOverrideEnabled,
+  | typeof Loaders.getAdminOverrideEnabled
+  | typeof Loaders.hasProjectDataPermission,
   MaybeUserContext & ProjectContext,
   InstanceType<
     | typeof ProjectNotFoundError
@@ -52,6 +53,16 @@ export const canReadProjectPolicy: AuthPolicy<
       return err(isPubliclyReadable.error)
     }
     if (isPubliclyReadable.value) return ok()
+
+    // Check custom role project data permissions
+    if (userId && loaders.hasProjectDataPermission) {
+      const hasDataPermission = await loaders.hasProjectDataPermission({
+        userId,
+        projectId
+      })
+      if (hasDataPermission === true) return ok()
+      if (hasDataPermission === false) return err(new ProjectNoAccessError())
+    }
 
     // Not public. Ensure user has at least implicit membership & read access
     const hasReadAccess = await ensureImplicitProjectMemberWithReadAccessFragment(

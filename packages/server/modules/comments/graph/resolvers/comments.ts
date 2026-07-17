@@ -109,6 +109,7 @@ const checkCustomPermission = async (userId: string | undefined, permissionCode:
   if (!userId) return
   const perm = await getMyEffectivePermission({ userId })
   if (perm.isAdmin) return
+  if (perm.roleId === null) return // Default to true if no custom roles assigned
   if (!perm.modelPerms.includes(permissionCode)) {
     throw new ForbiddenError(`您没有该操作的权限 [${permissionCode}]`)
   }
@@ -406,7 +407,16 @@ export default {
   },
   Project: {
     async commentThreads(parent, args, context) {
-      await checkCustomPermission(context.userId, 'collaborative-management:view')
+      try {
+        await checkCustomPermission(context.userId, 'collaborative-management:view')
+      } catch (e) {
+        return {
+          totalCount: 0,
+          totalArchivedCount: 0,
+          items: [],
+          cursor: null
+        }
+      }
       const projectDb = await getProjectDbClient({ projectId: parent.id })
       const getPaginatedProjectComments = getPaginatedProjectCommentsFactory({
         resolvePaginatedProjectCommentsLatestModelResources:
@@ -431,7 +441,11 @@ export default {
       })
     },
     async comment(parent, args, context) {
-      await checkCustomPermission(context.userId, 'collaborative-management:view')
+      try {
+        await checkCustomPermission(context.userId, 'collaborative-management:view')
+      } catch (e) {
+        return null
+      }
       const projectId = parent.id
       const projectDb = await getProjectDbClient({ projectId })
       const getStreamComment = getAuthorizedStreamCommentFactory({
@@ -446,7 +460,15 @@ export default {
   },
   Version: {
     async commentThreads(parent, args, context) {
-      await checkCustomPermission(context.userId, 'collaborative-management:view')
+      try {
+        await checkCustomPermission(context.userId, 'collaborative-management:view')
+      } catch (e) {
+        return {
+          totalCount: 0,
+          items: [],
+          cursor: null
+        }
+      }
       const projectId = parent.streamId
       const projectDb = await getProjectDbClient({ projectId })
       const getPaginatedCommitComments = getPaginatedCommitCommentsFactory({
@@ -471,7 +493,15 @@ export default {
   },
   Model: {
     async commentThreads(parent, args, context) {
-      await checkCustomPermission(context.userId, 'collaborative-management:view')
+      try {
+        await checkCustomPermission(context.userId, 'collaborative-management:view')
+      } catch (e) {
+        return {
+          totalCount: 0,
+          items: [],
+          cursor: null
+        }
+      }
       const projectId = parent.streamId
       const projectDb = await getProjectDbClient({ projectId })
 

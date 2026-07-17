@@ -230,23 +230,24 @@
                 </div>
               </td>
 
-              <!-- 项目角色 (Speckle 核心绑定项目，此处适配 demo 规范展示) -->
+              <!-- 项目角色 -->
               <td>
-                <div class="flex flex-wrap gap-1">
-                  <!-- 模拟/显示项目绑定：由于 Speckle-Server 将项目视作 Stream，此处提供展示 -->
+                <div class="flex flex-wrap gap-1 max-w-[200px] overflow-hidden truncate">
                   <span
-                    v-for="(pr, i) in getMockProjectRoles(user)"
+                    v-for="(pr, i) in getProjectRoles(user)"
                     :key="i"
                     class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-foreground-5 text-foreground-2"
+                    :title="`${pr.projectName} (${pr.role})`"
                   >
-                    {{ pr.role }}
+                    {{ pr.projectName }}: {{ pr.role }}
                   </span>
+                  <span v-if="!getProjectRoles(user).length" class="text-foreground-3 text-[11px]">暂无项目</span>
                 </div>
               </td>
 
-              <!-- 最后登录（仿照 demo） -->
+              <!-- 最后登录 -->
               <td class="text-foreground-3 text-[11px] font-mono">
-                {{ getMockLastLogin(user) }}
+                {{ getLastLogin(user) }}
               </td>
 
               <!-- 状态 -->
@@ -700,30 +701,29 @@ const roleLabel = (role: string) => {
   }
 }
 
-// User Mock Project Roles (Adapt to demo's Project roles layout style)
-const getMockProjectRoles = (user: any) => {
-  // If user email has company domain, simulate a project manager role to match demo's aesthetic
-  if (user.role === 'server:admin') {
-    return [
-      { projectName: '南北高速公路工程', role: '项目经理' },
-      { projectName: '城市地铁3号线工程', role: '项目总工' }
-    ]
+// 真实项目角色数据获取并转换为中文
+const getProjectRoles = (user: any) => {
+  const roleLabels: Record<string, string> = {
+    'stream:owner': '所有者',
+    'stream:contributor': '贡献者',
+    'stream:reviewer': '查看者'
   }
-  const prefixAscii = user.email.charCodeAt(0) || 0
-  if (prefixAscii % 3 === 0) {
-    return [{ projectName: '南北高速公路工程', role: '商务经理' }]
-  } else if (prefixAscii % 3 === 1) {
-    return [{ projectName: '智慧园区建设项目', role: '质量工程师' }]
-  }
-  return [] // "未分配"
+  return (user.projectRoles || []).map((pr: any) => ({
+    projectName: pr.projectName,
+    role: roleLabels[pr.role] || pr.role
+  }))
 }
 
-// User Mock Last Login time (Adapt to demo's Last login layout style)
-const getMockLastLogin = (user: any) => {
-  const hash = (user.email.charCodeAt(0) || 0) + (user.email.charCodeAt(1) || 0)
-  const hour = String(hash % 24).padStart(2, '0')
-  const min = String(hash % 60).padStart(2, '0')
-  return `2026-07-06 ${hour}:${min}`
+// 真实最后登录时间格式化
+const getLastLogin = (user: any) => {
+  if (!user.lastLogin) return '—'
+  const date = new Date(user.lastLogin)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${d} ${hh}:${mm}`
 }
 
 // Custom roles assigned
@@ -767,25 +767,7 @@ const initData = async () => {
       flattenTree(deptRes.data)
     }
 
-    // 3. 构建用户自定义角色映射图
-    const tempMap: Record<string, any[]> = {}
-    await Promise.all(
-      allRoles.value.map(async (role) => {
-        try {
-          const res = await $fetch<{ items: any[] }>(`${apiOrigin}/api/v1/custom-roles/${role.id}/users`)
-          const roleUsers = res.items || []
-          roleUsers.forEach((u) => {
-            if (!tempMap[u.userId]) {
-              tempMap[u.userId] = []
-            }
-            tempMap[u.userId].push(role)
-          })
-        } catch (e) {
-          console.error(`拉取角色 ${role.name} 的成员出错:`, e)
-        }
-      })
-    )
-    userRolesMap.value = tempMap
+    // 已集成到获取用户列表的接口中联查，免去循环拉取的逻辑
   } catch (err) {
     console.error('初始化配置数据失败:', err)
   }
@@ -798,6 +780,13 @@ const fetchUsers = async () => {
     const q = searchQuery.value.trim()
     const res = await $fetch<{ data: any[] }>(`${apiOrigin}/api/v1/organizations/users/search?q=${encodeURIComponent(q)}`)
     usersList.value = res.data || []
+
+    // 自动重组自定义角色映射表，供编辑弹窗及行复显使用
+    const tempMap: Record<string, any[]> = {}
+    usersList.value.forEach((user) => {
+      tempMap[user.id] = user.customRoles || []
+    })
+    userRolesMap.value = tempMap
   } catch (err) {
     console.error('获取用户列表失败:', err)
   } finally {

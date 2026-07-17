@@ -12,7 +12,7 @@ import {
 } from '../../domain/authErrors.js'
 
 export const canCreatePersonalProjectPolicy: AuthPolicy<
-  typeof Loaders.getServerRole | typeof Loaders.getEnv,
+  typeof Loaders.getServerRole | typeof Loaders.getEnv | typeof Loaders.hasCustomPermission,
   MaybeUserContext,
   InstanceType<
     | typeof ServerNoAccessError
@@ -30,6 +30,16 @@ export const canCreatePersonalProjectPolicy: AuthPolicy<
           message: "Projects can't be created outside of workspaces"
         })
       )
+    }
+
+    if (userId && loaders.hasCustomPermission) {
+      const hasCustomCreate = await loaders.hasCustomPermission({
+        userId,
+        permissionCode: 'file-management:create'
+      })
+      if (!hasCustomCreate) {
+        return err(new ServerNotEnoughPermissionsError())
+      }
     }
 
     const ensuredServerRole = await ensureMinimumServerRoleFragment(loaders)({

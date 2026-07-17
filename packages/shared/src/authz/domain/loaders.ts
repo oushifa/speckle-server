@@ -32,6 +32,8 @@ import { GetDashboard } from './dashboards/operations.js'
 type PromiseAll<T> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => MaybeAsync<infer Return>
     ? (...args: Args) => Promise<Return>
+    : T[K] extends ((...args: infer Args) => MaybeAsync<infer Return>) | undefined
+    ? ((...args: Args) => Promise<Return>) | undefined
     : never
 }
 
@@ -81,7 +83,8 @@ export const AuthCheckContextLoaderKeys = StringEnum([
   'getVersion',
   'getSavedView',
   'getSavedViewGroup',
-  'hasCustomPermission'
+  'hasCustomPermission',
+  'hasProjectDataPermission'
 ])
 
 export const Loaders = AuthCheckContextLoaderKeys // shorter alias
@@ -92,6 +95,7 @@ export type AuthCheckContextLoaderKeys = StringEnumValues<
 >
 
 export type HasCustomPermission = (params: { userId: string; permissionCode: string }) => MaybeAsync<boolean>
+export type HasProjectDataPermission = (params: { userId: string; projectId: string }) => MaybeAsync<boolean | null>
 
 export type AllAuthCheckContextLoaders = AuthContextLoaderMappingDefinition<{
   getEnv: GetEnv
@@ -119,6 +123,7 @@ export type AllAuthCheckContextLoaders = AuthContextLoaderMappingDefinition<{
   getSavedView: GetSavedView
   getSavedViewGroup: GetSavedViewGroup
   hasCustomPermission: HasCustomPermission
+  hasProjectDataPermission?: HasProjectDataPermission
 }>
 
 export type AuthCheckContextLoaders<

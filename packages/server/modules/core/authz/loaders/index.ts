@@ -68,6 +68,45 @@ export default defineModuleLoaders(async () => {
         console.error('Error in hasCustomPermission loader:', e)
         return false
       }
+    },
+    hasProjectDataPermission: async ({ userId, projectId }: { userId: string; projectId: string }) => {
+      if (!userId) return null
+      try {
+        const { getMyEffectivePermissionFactory } = await import('@/modules/custom-role/repositories/customRoles')
+        const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+        const perm = await getMyEffectivePermission({ userId })
+        
+        if (perm.roleId === null) return null // Fallback to default check
+        
+        if (perm.isAdmin) return true
+        
+        // Check if the user has project view permission
+        if (!perm.modelPerms.includes('ent-projects:view')) return false
+        
+        // If dataPerm is 'all', they can read any project
+        if (perm.dataPerms.includes('all')) return true
+        
+        // If dataPerm is 'self', they must be the owner of the project (stream)
+        if (perm.dataPerms.includes('self')) {
+          const streamAcl = await db('stream_acl')
+            .where({ resourceId: projectId, userId, role: 'stream:owner' })
+            .first()
+          if (streamAcl) return true
+        }
+        
+        // If dataPerm is 'project' (or 'dept' as fallback), they must be a collaborator
+        if (perm.dataPerms.includes('project') || perm.dataPerms.includes('dept')) {
+          const streamAcl = await db('stream_acl')
+            .where({ resourceId: projectId, userId })
+            .first()
+          if (streamAcl) return true
+        }
+        
+        return false
+      } catch (e) {
+        console.error('Error in hasProjectDataPermission loader:', e)
+        return false
+      }
     }
   }
 })

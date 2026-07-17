@@ -45,7 +45,7 @@ type PolicyErrors = InstanceType<
 export const canPublishPolicy: AuthPolicy<PolicyLoaderKeys, PolicyArgs, PolicyErrors> =
   (loaders) =>
   async ({ userId, projectId }) => {
-    if (userId) {
+    if (userId && loaders.hasCustomPermission) {
       const hasCustomPublish = await loaders.hasCustomPermission({
         userId,
         permissionCode: 'file-management:publish'

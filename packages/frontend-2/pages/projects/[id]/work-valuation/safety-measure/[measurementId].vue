@@ -1380,6 +1380,7 @@
       <template #footer>
         <div class="flex justify-end gap-2">
           <FormButton
+            v-if="hasFunctionalPerm('safety-civilization:print')"
             color="primary"
             size="sm"
             @click="

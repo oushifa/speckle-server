@@ -56,7 +56,7 @@ export const canLoadPolicy: AuthPolicy<PolicyLoaderKeys, PolicyArgs, PolicyError
       return ok()
     }
 
-    if (userId) {
+    if (userId && loaders.hasCustomPermission) {
       const hasCustomLoad = await loaders.hasCustomPermission({
         userId,
         permissionCode: 'file-management:download'

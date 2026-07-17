@@ -30,7 +30,7 @@ export const hasScope: GraphqlDirectiveBuilder = () => {
             const context = args[2]
             const token = context.token
             const currentScopes = context.scopes
-            if (token) await validateScopes(currentScopes, requiredScope)
+            if (token) await validateScopes(currentScopes, requiredScope, context.userId)
 
             const data = await resolve.apply(this, args)
             return data
@@ -72,7 +72,7 @@ export const hasScopes: GraphqlDirectiveBuilder = () => {
             if (token)
               await Promise.all(
                 requiredScopes.map((requiredScope: string) =>
-                  validateScopes(currentScopes, requiredScope)
+                  validateScopes(currentScopes, requiredScope, context.userId)
                 )
               )
 

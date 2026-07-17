@@ -17,6 +17,7 @@ const buildSUT = (overrides?: OverridesOf<typeof canCreatePersonalProjectPolicy>
         FF_WORKSPACES_MODULE_ENABLED: 'true'
       }),
     getServerRole: async () => 'server:user',
+    hasCustomPermission: async () => true,
     ...(overrides || {})
   })
 

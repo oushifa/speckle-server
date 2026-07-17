@@ -393,6 +393,7 @@
       </FormButton>
 
       <FormButton
+        v-if="hasFunctionalPerm('monthly-valuation:print')"
         color="outline"
         class="border-primary text-primary"
         @click="handlePrintSummary"
@@ -401,6 +402,7 @@
       </FormButton>
 
       <FormButton
+        v-if="hasFunctionalPerm('monthly-valuation:print')"
         color="outline"
         class="border-primary text-primary"
         @click="openPrintDetailDialog"

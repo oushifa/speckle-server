@@ -8,7 +8,7 @@ export type ServerLoadersContext = {
 
 // Inject extra argument to all loaders, e.g. for GQL dataloaders
 export type ServerLoaders = Partial<{
-  [K in keyof AuthCheckContextLoaders]: AuthCheckContextLoaders[K] extends (
+  [K in keyof AuthCheckContextLoaders]: NonNullable<AuthCheckContextLoaders[K]> extends (
     ...args: infer A
   ) => infer R
     ? (...args: [...A, ctx: ServerLoadersContext]) => R

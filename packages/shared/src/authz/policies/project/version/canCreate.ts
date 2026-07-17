@@ -47,7 +47,7 @@ export const canCreateProjectVersionPolicy: AuthPolicy<
     })
     if (isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value) return ok()
 
-    if (userId) {
+    if (userId && loaders.hasCustomPermission) {
       const hasCustomPublish = await loaders.hasCustomPermission({
         userId,
         permissionCode: 'file-management:publish'

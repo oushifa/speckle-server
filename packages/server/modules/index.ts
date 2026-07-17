@@ -454,15 +454,17 @@ export const moduleAuthLoaders = async (params: {
       const key = entry[0] as AuthCheckContextLoaderKeys
       const loader = entry[1] as AllAuthCheckContextLoaders[typeof key]
 
-      const newLoader = wrapWithCache<any, any>({
-        resolver: loader,
-        name: `authzLoader:${key}`,
-        // since its the inmemory cache, we dont have to worry about true-myth results being
-        // serialized and deserialized as they would be with redis
-        cacheProvider: inMemoryCacheProviderFactory({ cache }),
-        ttlMs: 1 * TIME_MS.hour // (longer than any req will be),
-      })
-      acc[key] = newLoader
+      if (loader) {
+        const newLoader = wrapWithCache<any, any>({
+          resolver: loader as any,
+          name: `authzLoader:${key}`,
+          // since its the inmemory cache, we dont have to worry about true-myth results being
+          // serialized and deserialized as they would be with redis
+          cacheProvider: inMemoryCacheProviderFactory({ cache }),
+          ttlMs: 1 * TIME_MS.hour // (longer than any req will be),
+        })
+        acc[key] = newLoader
+      }
 
       return acc
     },

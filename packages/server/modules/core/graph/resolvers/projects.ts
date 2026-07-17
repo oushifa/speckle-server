@@ -567,6 +567,53 @@ const resolvers: Resolvers = {
   },
   User: {
     async projects(_parent, args, ctx) {
+      // Check custom roles/permissions
+      if (ctx.userId) {
+        const { getMyEffectivePermissionFactory } = await import(
+          '@/modules/custom-role/repositories/customRoles'
+        )
+        const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+        const perm = await getMyEffectivePermission({ userId: ctx.userId })
+        if (perm.roleId !== null) {
+          if (!perm.isAdmin && !perm.modelPerms.includes('ent-projects:view')) {
+            return {
+              totalCount: 0,
+              numberOfHidden: 0,
+              cursor: null,
+              items: []
+            }
+          }
+          if (perm.isAdmin || perm.dataPerms.includes('all')) {
+            const sortBy =
+              typeof args.sortBy === 'string' ? args.sortBy : (args.sortBy || [])[0] || null
+            const { cursor, items, totalCount } = await adminProjectList({
+              query: args.filter?.search || null,
+              orderBy: sortBy,
+              visibility: null,
+              limit: args.limit || 25,
+              cursor: args.cursor || null
+            })
+
+            return {
+              totalCount,
+              numberOfHidden: 0,
+              cursor,
+              items
+            }
+          }
+          if (
+            perm.dataPerms.includes('self') &&
+            !perm.dataPerms.includes('project') &&
+            !perm.dataPerms.includes('dept')
+          ) {
+            args.filter = {
+              ...(args.filter || {}),
+              onlyWithRoles: [Roles.Stream.Owner]
+            }
+          }
+        }
+      }
+
       // Admin override exposes all projects through the regular projects endpoint.
       if (adminOverrideEnabled() && ctx.role === Roles.Server.Admin) {
         const sortBy =

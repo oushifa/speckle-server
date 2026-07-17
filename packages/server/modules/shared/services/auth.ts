@@ -18,15 +18,43 @@ import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { WorkspaceEvents } from '@/modules/workspacesCore/domain/events'
 import type { GetWorkspaceRoleAndSeat } from '@/modules/workspacesCore/domain/operations'
 import { isNullOrUndefined, Roles } from '@speckle/shared'
-import { OperationTypeNode } from 'graphql'
+import { db } from '@/db/knex'
+import { getMyEffectivePermissionFactory } from '@/modules/custom-role/repositories/customRoles'
+
+const SCOPE_TO_PERMISSION_MAPPING: Record<string, string> = {
+  'workspace:read': 'ent-projects:view',
+  'workspace:create': 'ent-projects:create',
+  'workspace:update': 'ent-projects:edit',
+  'workspace:delete': 'ent-projects:delete'
+}
 
 /**
  * Validates the scope against a list of scopes of the current session.
  */
-export const validateScopesFactory = (): ValidateScopes => async (scopes, scope) => {
+export const validateScopesFactory = (): ValidateScopes => async (scopes, scope, userId) => {
   const errMsg = `Your auth token does not have the required scope${
     scope?.length ? ': ' + scope + '.' : '.'
   }`
+
+  if (userId) {
+    const permCode = SCOPE_TO_PERMISSION_MAPPING[scope]
+    if (permCode) {
+      try {
+        const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+        const perm = await getMyEffectivePermission({ userId })
+        
+        if (perm.roleId !== null) {
+          if (perm.isAdmin || perm.modelPerms.includes(permCode)) {
+            return
+          }
+          throw new ForbiddenError(errMsg, { info: { scope } })
+        }
+      } catch (err) {
+        if (err instanceof ForbiddenError) throw err
+        console.error('Error checking custom permission in validateScopes:', err)
+      }
+    }
+  }
 
   if (!scopes) throw new ForbiddenError(errMsg, { info: { scope } })
   if (scopes.indexOf(scope) === -1 && scopes.indexOf('*') === -1)

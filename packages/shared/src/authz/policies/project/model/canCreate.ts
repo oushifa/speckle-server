@@ -18,7 +18,7 @@ import {
 import { MaybeUserContext, ProjectContext } from '../../../domain/context.js'
 import { AuthCheckContextLoaderKeys } from '../../../domain/loaders.js'
 import { AuthPolicy } from '../../../domain/policies.js'
-import { ensureImplicitProjectMemberWithWriteAccessFragment } from '../../../fragments/projects.js'
+import { ensureImplicitProjectMemberWithWriteAccessFragment, ensureImplicitProjectMemberWithReadAccessFragment } from '../../../fragments/projects.js'
 import { checkIfAdminOverrideEnabledFragment } from '../../../fragments/server.js'
 import { ensureModelCanBeCreatedFragment } from '../../../fragments/workspaces.js'
 
@@ -35,6 +35,7 @@ type PolicyLoaderKeys =
   | typeof AuthCheckContextLoaderKeys.getWorkspaceLimits
   | typeof AuthCheckContextLoaderKeys.getWorkspaceModelCount
   | typeof AuthCheckContextLoaderKeys.getAdminOverrideEnabled
+  | typeof AuthCheckContextLoaderKeys.hasCustomPermission
 
 type PolicyArgs = MaybeUserContext & ProjectContext
 
@@ -68,15 +69,25 @@ export const canCreateModelPolicy: AuthPolicy<
     })
     if (isAdminOverrideEnabled.isOk && isAdminOverrideEnabled.value) return ok()
 
-    // Ensure general write access
-    const ensureWriteAccess = await ensureImplicitProjectMemberWithWriteAccessFragment(
+    if (userId && loaders.hasCustomPermission) {
+      const hasCustomCreate = await loaders.hasCustomPermission({
+        userId,
+        permissionCode: 'file-management:create'
+      })
+      if (!hasCustomCreate) {
+        return err(new ProjectNotEnoughPermissionsError())
+      }
+    }
+
+    // Ensure general read access instead of write access since custom permission allows creation
+    const ensureReadAccess = await ensureImplicitProjectMemberWithReadAccessFragment(
       loaders
     )({
       userId,
       projectId
     })
-    if (ensureWriteAccess.isErr) {
-      return err(ensureWriteAccess.error)
+    if (ensureReadAccess.isErr) {
+      return err(ensureReadAccess.error)
     }
 
     const project = await loaders.getProject({ projectId })
