@@ -897,11 +897,11 @@ export default class Sandbox {
       .addInput(this.sceneParams, 'hdri', {
         label: '环境光',
         options: {
-          Neutral: '中性',
-          Mild: '柔和',
-          Mild2: '柔和2',
-          Sharp: '锐化',
-          Bright: '明亮'
+          '中性': Neutral,
+          '柔和': Mild,
+          '柔和2': Mild2,
+          '锐化': Sharp,
+          '明亮': Bright
         }
       })
       .on('change', async (value) => {

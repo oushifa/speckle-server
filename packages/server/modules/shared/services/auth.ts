@@ -20,6 +20,7 @@ import type { GetWorkspaceRoleAndSeat } from '@/modules/workspacesCore/domain/op
 import { isNullOrUndefined, Roles } from '@speckle/shared'
 import { db } from '@/db/knex'
 import { getMyEffectivePermissionFactory } from '@/modules/custom-role/repositories/customRoles'
+import { OperationTypeNode } from 'graphql'
 
 const SCOPE_TO_PERMISSION_MAPPING: Record<string, string> = {
   'workspace:read': 'ent-projects:view',
