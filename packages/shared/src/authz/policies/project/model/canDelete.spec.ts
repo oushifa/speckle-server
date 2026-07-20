@@ -65,7 +65,7 @@ describe('canDeleteModelPolicy', () => {
     })
   })
 
-  it('returns error if model is reserved', async () => {
+  it('returns error if model is reserved and user is not admin', async () => {
     const sut = buildSUT({
       getModel: getModelFake({
         id: 'model-id',
@@ -86,7 +86,7 @@ describe('canDeleteModelPolicy', () => {
     })
   })
 
-  it('returns error if model is globals', async () => {
+  it('returns error if model is globals and user is not admin', async () => {
     const sut = buildSUT({
       getModel: getModelFake({
         id: 'model-id',
@@ -104,6 +104,44 @@ describe('canDeleteModelPolicy', () => {
     expect(result).toBeAuthErrorResult({
       code: ReservedModelNotDeletableError.code
     })
+  })
+
+  it('returns ok if admin user deletes reserved model (main)', async () => {
+    const sut = buildSUT({
+      getServerRole: async () => Roles.Server.Admin,
+      getModel: getModelFake({
+        id: 'model-id',
+        projectId: 'project-id',
+        name: 'main',
+        authorId: 'user-id'
+      })
+    })
+
+    const result = await sut({
+      userId: 'user-id',
+      projectId: 'project-id',
+      modelId: 'model-id'
+    })
+    expect(result).toBeAuthOKResult()
+  })
+
+  it('returns ok if admin user deletes reserved model (globals)', async () => {
+    const sut = buildSUT({
+      getServerRole: async () => Roles.Server.Admin,
+      getModel: getModelFake({
+        id: 'model-id',
+        projectId: 'project-id',
+        name: 'globals',
+        authorId: 'user-id'
+      })
+    })
+
+    const result = await sut({
+      userId: 'user-id',
+      projectId: 'project-id',
+      modelId: 'model-id'
+    })
+    expect(result).toBeAuthOKResult()
   })
 
   it('returns ok for any logged-in server user when model is deletable', async () => {

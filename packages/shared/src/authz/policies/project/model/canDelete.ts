@@ -32,16 +32,7 @@ export const canDeleteModelPolicy: AuthPolicy<
 > =
   (loaders) =>
   async ({ userId, projectId, modelId }) => {
-    // Allow model deletion for any logged-in server user.
-    const ensuredServerRole = await ensureMinimumServerRoleFragment(loaders)({
-      userId,
-      role: Roles.Server.User
-    })
-    if (ensuredServerRole.isErr) {
-      return err(ensuredServerRole.error)
-    }
-
-    // Ensure 'main'/'globals' doesn't get deleted
+    // Ensure 'main'/'globals' doesn't get deleted by non-admin users
     const model = await loaders.getModel({
       projectId,
       modelId
@@ -50,15 +41,33 @@ export const canDeleteModelPolicy: AuthPolicy<
       return err(new ModelNotFoundError())
     }
 
-    if (model.name === 'main') {
-      return err(
-        new ReservedModelNotDeletableError("The 'main' model cannot be deleted")
-      )
+    const isReservedModel =
+      model.name === 'main' || model.name === 'globals'
+
+    if (isReservedModel) {
+      // Only server admins can delete reserved models
+      const ensuredAdminRole = await ensureMinimumServerRoleFragment(loaders)({
+        userId,
+        role: Roles.Server.Admin
+      })
+      if (ensuredAdminRole.isErr) {
+        return err(
+          new ReservedModelNotDeletableError(
+            `The '${model.name}' model cannot be deleted`
+          )
+        )
+      }
+      // Admin user - allow deletion
+      return ok()
     }
-    if (model.name === 'globals') {
-      return err(
-        new ReservedModelNotDeletableError("The 'globals' model cannot be deleted")
-      )
+
+    // For non-reserved models, allow deletion for any logged-in server user
+    const ensuredServerRole = await ensureMinimumServerRoleFragment(loaders)({
+      userId,
+      role: Roles.Server.User
+    })
+    if (ensuredServerRole.isErr) {
+      return err(ensuredServerRole.error)
     }
 
     return ok()
