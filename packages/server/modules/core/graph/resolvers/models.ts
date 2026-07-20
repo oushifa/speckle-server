@@ -8,7 +8,11 @@ import {
   getPaginatedProjectModelsFactory,
   getProjectTopLevelModelsTreeFactory
 } from '@/modules/core/services/branch/retrieval'
-import { getFeatureFlags, getServerOrigin, adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
+import {
+  getFeatureFlags,
+  getServerOrigin,
+  adminOverrideEnabled
+} from '@/modules/shared/helpers/envHelper'
 import { Roles } from '@speckle/shared'
 import { last } from 'lodash-es'
 import {
@@ -51,7 +55,6 @@ import {
 } from '@/modules/core/repositories/commits'
 import { db } from '@/db/knex'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
-import { getUserFactory } from '@/modules/core/repositories/users'
 import {
   getProjectDbClient,
   getRegisteredRegionClients
@@ -337,7 +340,8 @@ export default {
         .branches.getLatestCommit.load(parent.id)
       if (!latestCommit) return null
 
-      const getApprovalFlowBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({ db })
+      const getApprovalFlowBindingBySubjectKey =
+        getApprovalFlowBindingBySubjectKeyFactory({ db })
       const subjectKey = buildApprovalBindingSubjectKey({
         subjectType: 'MODEL_VERSION',
         subjectId: latestCommit.id
@@ -494,8 +498,7 @@ export default {
         getStream,
         getBranchById: getBranchByIdFactory({ db: projectDB }),
         emitEvent: getEventBus().emit,
-        deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
-        getUser: getUserFactory({ db })
+        deleteBranchById: deleteBranchByIdFactory({ db: projectDB })
       })
       return await withOperationLogging(
         async () => await deleteBranchAndNotify(args.input, ctx.userId!),
