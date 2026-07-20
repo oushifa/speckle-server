@@ -26,6 +26,7 @@ import type {
   UpdateBranchAndNotify
 } from '@/modules/core/domain/branches/operations'
 import type { GetStream } from '@/modules/core/domain/streams/operations'
+import type { GetUser } from '@/modules/core/domain/users/operations'
 import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { ModelEvents } from '@/modules/core/domain/branches/events'
 
@@ -129,12 +130,14 @@ export const deleteBranchAndNotifyFactory =
     getBranchById: GetBranchById
     emitEvent: EventBusEmit
     deleteBranchById: DeleteBranchById
+    getUser: GetUser
   }): DeleteBranchAndNotify =>
   async (input: BranchDeleteInput | DeleteModelInput, userId: string) => {
     const streamId = isBranchDeleteInput(input) ? input.streamId : input.projectId
-    const [existingBranch, stream] = await Promise.all([
+    const [existingBranch, stream, user] = await Promise.all([
       deps.getBranchById(input.id),
-      deps.getStream({ streamId, userId })
+      deps.getStream({ streamId, userId }),
+      deps.getUser(userId, { withRole: true })
     ])
     if (!existingBranch) {
       throw new BranchUpdateError('Branch not found', { info: { ...input, userId } })
@@ -147,7 +150,12 @@ export const deleteBranchAndNotifyFactory =
         }
       )
     }
-    if (existingBranch.authorId !== userId && stream.role !== Roles.Stream.Owner) {
+    const isServerAdmin = user?.role === Roles.Server.Admin
+    if (
+      !isServerAdmin &&
+      existingBranch.authorId !== userId &&
+      stream.role !== Roles.Stream.Owner
+    ) {
       throw new BranchUpdateError(
         'Only the branch creator or stream owners are allowed to delete branches',
         {

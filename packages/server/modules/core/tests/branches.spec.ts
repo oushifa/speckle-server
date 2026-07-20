@@ -24,6 +24,7 @@ import {
   getStreamBranchCountFactory
 } from '@/modules/core/repositories/branches'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
+import { getUserFactory } from '@/modules/core/repositories/users'
 import {
   createCommitByBranchIdFactory,
   createCommitByBranchNameFactory
@@ -65,7 +66,8 @@ const deleteBranchAndNotify = deleteBranchAndNotifyFactory({
   getStream,
   getBranchById: getBranchByIdFactory({ db: knex }),
   emitEvent: getEventBus().emit,
-  deleteBranchById: deleteBranchByIdFactory({ db: knex })
+  deleteBranchById: deleteBranchByIdFactory({ db: knex }),
+  getUser: getUserFactory({ db: knex })
 })
 
 const getObject = getObjectFactory({ db: knex })

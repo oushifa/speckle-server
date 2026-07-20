@@ -163,7 +163,8 @@ const buildDeleteModel = async (params: { projectId: string }) => {
     getStream,
     getBranchById: getBranchByIdFactory({ db: projectDB }),
     emitEvent: getEventBus().emit,
-    deleteBranchById: deleteBranchByIdFactory({ db: projectDB })
+    deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
+    getUser: getUserFactory({ db })
   })
   return deleteBranchAndNotify
 }
