@@ -93,7 +93,8 @@ const deleteBranchAndNotify = deleteBranchAndNotifyFactory({
   getStream,
   getBranchById: getBranchByIdFactory({ db }),
   emitEvent: getEventBus().emit,
-  deleteBranchById: deleteBranchByIdFactory({ db })
+  deleteBranchById: deleteBranchByIdFactory({ db }),
+  getUser
 })
 
 const getObject = getObjectFactory({ db })

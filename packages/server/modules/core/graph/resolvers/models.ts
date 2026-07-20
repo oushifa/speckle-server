@@ -50,6 +50,7 @@ import {
 } from '@/modules/core/repositories/commits'
 import { db } from '@/db/knex'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
+import { getUserFactory } from '@/modules/core/repositories/users'
 import {
   getProjectDbClient,
   getRegisteredRegionClients
@@ -443,7 +444,8 @@ export default {
         getStream,
         getBranchById: getBranchByIdFactory({ db: projectDB }),
         emitEvent: getEventBus().emit,
-        deleteBranchById: deleteBranchByIdFactory({ db: projectDB })
+        deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
+        getUser: getUserFactory({ db })
       })
       return await withOperationLogging(
         async () => await deleteBranchAndNotify(args.input, ctx.userId!),

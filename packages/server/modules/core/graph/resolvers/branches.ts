@@ -15,7 +15,7 @@ import {
 } from '@/modules/core/repositories/branches'
 import { db } from '@/db/knex'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
-import { legacyGetUserFactory } from '@/modules/core/repositories/users'
+import { legacyGetUserFactory, getUserFactory } from '@/modules/core/repositories/users'
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { TokenResourceIdentifierType } from '@/modules/core/graph/generated/graphql'
 import { getPaginatedStreamBranchesFactory } from '@/modules/core/services/branch/retrieval'
@@ -179,7 +179,8 @@ export default {
         getStream,
         getBranchById: getBranchByIdFactory({ db: projectDB }),
         emitEvent: getEventBus().emit,
-        deleteBranchById: deleteBranchByIdFactory({ db: projectDB })
+        deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
+        getUser: getUserFactory({ db })
       })
       const deleted = await withOperationLogging(
         async () => await deleteBranchAndNotify(args.branch, context.userId!),
