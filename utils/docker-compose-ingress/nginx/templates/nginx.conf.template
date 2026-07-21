@@ -98,6 +98,27 @@ http {
     listen 8080;
     client_max_body_size 100m;
 
+    # Mixpanel proxy
+    location /track/ {
+      resolver 127.0.0.11 valid=30s;
+      set $upstream_mixpanel 47.100.77.97:64482;
+      proxy_pass https://$upstream_mixpanel;
+      proxy_http_version 1.1;
+      proxy_set_header Host api.mixpanel.com;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /decide/ {
+      resolver 127.0.0.11 valid=30s;
+      set $upstream_mixpanel 47.100.77.97:64482;
+      proxy_pass https://$upstream_mixpanel;
+      proxy_http_version 1.1;
+      proxy_set_header Host api.mixpanel.com;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
     location / {
       resolver 127.0.0.11 valid=30s;
       set $upstream_speckle_frontend_2 speckle-frontend-2;
