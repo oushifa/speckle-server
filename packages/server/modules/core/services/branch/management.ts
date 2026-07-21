@@ -163,7 +163,12 @@ export const deleteBranchAndNotifyFactory =
         }
       )
     }
-    if (existingBranch.name === 'main') {
+    // Only server admins or the branch creator can delete the 'main' branch
+    if (
+      existingBranch.name === 'main' &&
+      !isServerAdmin &&
+      existingBranch.authorId !== userId
+    ) {
       throw new BranchDeleteError('Cannot delete the main branch', {
         info: { ...input, userId }
       })
