@@ -252,6 +252,13 @@ export function getRvtConversionSpeckleServerOrigin() {
   return getServerOrigin()
 }
 
+export function getRvtConversionInternalS3Endpoint() {
+  return (
+    getStringFromEnv('RVT_CONVERSION_INTERNAL_S3_ENDPOINT', { unsafe: true }) ||
+    getS3PublicEndpoint()
+  )
+}
+
 /**
  *
  * @returns the private server origin, which is used for internal communication between services

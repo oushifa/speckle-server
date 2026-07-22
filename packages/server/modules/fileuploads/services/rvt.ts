@@ -1,4 +1,7 @@
-import { getSignedDownloadUrlFactory } from '@/modules/blobstorage/clients/objectStorage'
+import {
+  getObjectStorage,
+  getSignedDownloadUrlFactory
+} from '@/modules/blobstorage/clients/objectStorage'
 import { getObjectKey } from '@/modules/blobstorage/helpers/blobs'
 import type { FileUploadRecordV2 } from '@/modules/fileuploads/helpers/types'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
@@ -9,6 +12,7 @@ import {
 } from '@/modules/rvt-conversion/repositories/jobs'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
+import { getRvtConversionInternalS3Endpoint } from '@/modules/shared/helpers/envHelper'
 import type { Knex } from 'knex'
 
 const downloadUrlExpirySeconds = 24 * 60 * 60
@@ -25,8 +29,15 @@ export const dispatchRvtFileImportFactory =
   }): Promise<RvtConversionJob> => {
     const { projectId, modelId, modelName, fileUpload, userId } = params
     const projectStorage = await getProjectObjectStorage({ projectId })
+    const internalEndpoint = getRvtConversionInternalS3Endpoint()
+    const downloadStorage = internalEndpoint
+      ? getObjectStorage({
+          ...projectStorage.public.params,
+          endpoint: internalEndpoint
+        })
+      : projectStorage.public
     const getSignedDownloadUrl = getSignedDownloadUrlFactory({
-      objectStorage: projectStorage.public
+      objectStorage: downloadStorage
     })
     const objectKey = getObjectKey(projectId, fileUpload.id)
     const createJob = createRvtConversionJobFactory({ db: deps.db })
