@@ -1,4 +1,4 @@
-import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
+import { getRvtConversionSpeckleServerOrigin } from '@/modules/shared/helpers/envHelper'
 import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/jobs'
 import { getAvailableRvtWorker } from '@/modules/rvt-conversion/services/workerRegistry'
 
@@ -28,7 +28,7 @@ export const dispatchRvtConversionJob = async (
     fileId: params.job.sourceFileId,
     fileName: params.job.sourceFileName,
     sourceFileUrl: params.sourceFileUrl,
-    speckleServerUrl: getServerOrigin(),
+    speckleServerUrl: getRvtConversionSpeckleServerOrigin(),
     speckleToken: params.speckleToken,
     speckleTokenId: params.speckleTokenId,
     versionMessage: params.job.versionMessage,

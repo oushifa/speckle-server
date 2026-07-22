@@ -245,6 +245,13 @@ export function getSduiOrigin() {
   return mustGetUrlFromEnv('SDUI_URL', true).origin
 }
 
+export function getRvtConversionSpeckleServerOrigin() {
+  if (process.env['RVT_CONVERSION_SPECKLE_SERVER_URL']) {
+    return mustGetUrlFromEnv('RVT_CONVERSION_SPECKLE_SERVER_URL', true).origin
+  }
+  return getServerOrigin()
+}
+
 /**
  *
  * @returns the private server origin, which is used for internal communication between services
