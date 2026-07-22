@@ -1,8 +1,23 @@
 <template>
   <div class="flex flex-col gap-4 text-foreground">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 class="text-heading-lg mt-3">进度计划</h1>
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-2 pb-3">
+      <div class="flex items-center gap-6">
+        <h1 class="text-heading-lg">进度计划</h1>
+        <div class="flex items-center border-b border-outline-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-body-sm font-medium transition-colors border-b-2 border-primary text-primary font-semibold"
+          >
+            总进度计划
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-body-sm font-medium transition-colors border-b-2 border-transparent text-foreground-2 hover:text-foreground"
+            @click="navigateToMonthly"
+          >
+            月度计划
+          </button>
+        </div>
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <FormButton
@@ -36,7 +51,9 @@
       </div>
     </div>
 
+    <!-- Total Progress Plan View -->
     <div
+      v-if="activeProgressTab === 'total'"
       class="bg-foundation rounded-lg shadow-sm border border-outline-2 overflow-hidden"
     >
       <div
@@ -100,26 +117,26 @@
           <span class="text-body-sm">{{ item.predecessor || '-' }}</span>
         </template>
 
+        <template #volume="{ item }">
+          <span class="text-body-sm">{{ item.volume ? `${item.volume}${item.unit || ''}` : '-' }}</span>
+        </template>
+
+        <template #cumulativeVolume="{ item }">
+          <span class="text-body-sm">
+            {{ item.hasChildren ? '-' : (item.cumulativeVolume ? `${item.cumulativeVolume}${item.unit || ''}` : '-') }}
+          </span>
+        </template>
+
         <template #taskStatus="{ item }">
-          <div class="flex flex-col items-start gap-1">
-            <!-- <div
-              v-if="!item.hasChildren"
-              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
-              :class="getTaskStatusBadgeClass(item.taskStatus)"
-            >
-              {{ getTaskStatusText(item.taskStatus) }}
-            </div> -->
+          <div class="flex items-center justify-center">
+            <span v-if="item.hasChildren" class="text-body-xs text-foreground-2">-</span>
             <span
-              v-if="typeof item.completionRate === 'number'"
-              class="text-body-xs text-foreground-2"
+              v-else
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
+              :class="getCalculatedStatusBadgeClass(item)"
             >
-              完成率 {{ item.completionRate }}%
+              {{ getCalculatedStatusText(item) }}
             </span>
-            <!-- <span v-if="item.hasChildren" class="text-body-xs text-foreground-2">
-              子任务 {{ item.totalTaskCount }}，完成
-              {{ item.finishedTaskCount || 0 }}，逾期
-              {{ item.delayedTaskCount || 0 }}
-            </span> -->
           </div>
         </template>
 
@@ -151,13 +168,6 @@
 
         <template #operation="{ item }">
           <div class="flex items-center justify-center gap-2">
-            <FormButton
-              v-if="item.canEditBimAssociation && hasFunctionalPerm('progress-plan:edit')"
-              color="outline"
-              :icon-left="Link2"
-              hide-text
-              @click.stop="openLinkDialog(item)"
-            ></FormButton>
             <button
               v-if="hasFunctionalPerm('progress-plan:edit')"
               type="button"
@@ -339,6 +349,9 @@ import {
   CommonModelObjectMultiModelSelectDrawer,
   CommonModelPropsViewer
 } from '#components'
+import MonthlyPlanComponent from './monthlyPlanComponent.vue'
+import type { MonthlyRecordItem } from './AddMonthlyPlanDialog.vue'
+import type { MasterTaskOption } from './TaskSelectDialog.vue'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import {
@@ -362,6 +375,9 @@ interface ScheduleItem {
   duration: string
   startDate: string
   endDate: string
+  volume?: string
+  cumulativeVolume?: string
+  unit?: string
   milestoneType: ProgressPlanTaskMilestoneType | null
   milestoneDescription: string | null
   isCriticalTask: boolean
@@ -394,6 +410,9 @@ interface ScheduleItem {
   finishedTaskCount: number
   delayedTaskCount: number
 }
+
+const activeProgressTab = ref<'total' | 'monthly'>('total')
+const monthlyRecords = ref<MonthlyRecordItem[]>([])
 
 const milestoneTypeOptions: Array<{
   value: ProgressPlanTaskMilestoneType | null
@@ -465,13 +484,21 @@ const columns = [
   { id: 'duration', header: '工期', classes: 'col-span-1' },
   { id: 'startDate', header: '开始时间', classes: 'col-span-1' },
   { id: 'endDate', header: '完成时间', classes: 'col-span-1' },
-  { id: 'predecessor', header: '前置任务', classes: 'col-span-1' },
-  { id: 'taskStatus', header: '任务状态', classes: 'col-span-1' },
-  { id: 'status', header: '关联状态', classes: 'col-span-1' },
+  { id: 'volume', header: '工程量', classes: 'col-span-1 text-center' },
+  { id: 'cumulativeVolume', header: '累计完成量', classes: 'col-span-1 text-center' },
+  { id: 'taskStatus', header: '任务状态', classes: 'col-span-1 text-center' },
+  { id: 'status', header: '关联状态', classes: 'col-span-1 text-center' },
   { id: 'operation', header: '操作', classes: 'col-span-1 flex justify-center' }
 ]
 
 const route = useRoute()
+const router = useRouter()
+
+const navigateToMonthly = () => {
+  if (projectId.value) {
+    router.push(`/projects/${projectId.value}/progress/monthly`)
+  }
+}
 const { hasFunctionalPerm } = useCustomPermissions()
 const { triggerNotification } = useGlobalToast()
 const apiOrigin = useApiOrigin()
@@ -1058,6 +1085,79 @@ watch(associatedModelDrawerOpen, (isOpen) => {
   selectedAssociationBimIds.value = []
   selectedAssociationApplicationIds.value = []
 })
+
+const masterTaskOptions = computed<MasterTaskOption[]>(() => {
+  return items.value.map((item) => ({
+    id: item.id,
+    taskName: item.taskName,
+    level: item.level,
+    hasChildren: item.hasChildren,
+    parentId: item.parentId,
+    volume: item.volume || '1000',
+    unit: item.unit || 'm³',
+    startDate: item.startDate,
+    endDate: item.endDate
+  }))
+})
+
+const handleMonthlyRecordsSynced = (records: MonthlyRecordItem[]) => {
+  monthlyRecords.value = records
+
+  // Aggregate monthly plan actual volumes and BIM associations to total tasks
+  const cumMap = new Map<string, number>()
+  const bimLinkMap = new Map<string, Array<{ modelId: string; applicationIds: string[] }>>()
+
+  records.forEach((r) => {
+    r.tasks.forEach((t) => {
+      if (t.linkedPlanTaskId) {
+        const val = parseFloat(t.actualVolume) || parseFloat(t.plannedVolume) || 0
+        cumMap.set(t.linkedPlanTaskId, (cumMap.get(t.linkedPlanTaskId) || 0) + val)
+
+        if (t.selections && t.selections.length > 0) {
+          bimLinkMap.set(t.linkedPlanTaskId, t.selections)
+        }
+      }
+    })
+  })
+
+  // Update items in tree
+  items.value.forEach((item) => {
+    if (!item.volume) item.volume = '1000'
+    if (!item.unit) item.unit = 'm³'
+
+    const cumVal = cumMap.get(item.id)
+    if (cumVal !== undefined) {
+      item.cumulativeVolume = String(cumVal)
+    }
+
+    const syncedSelections = bimLinkMap.get(item.id)
+    if (syncedSelections && syncedSelections.length > 0) {
+      item.selections = syncedSelections
+      item.applicationIds = uniqueStrings(syncedSelections.flatMap((s) => s.applicationIds))
+      item.modelIds = uniqueStrings(syncedSelections.map((s) => s.modelId))
+    }
+  })
+}
+
+const getCalculatedStatusText = (item: ScheduleItem) => {
+  const totalVol = parseFloat(item.volume || '0')
+  const cumVol = parseFloat(item.cumulativeVolume || '0')
+  const pct = totalVol > 0 ? Math.min(Math.round((cumVol / totalVol) * 100), 100) : 0
+
+  if (pct >= 100) return `已完成 (${pct}%)`
+  if (pct > 0) return `进行中 (${pct}%)`
+  return `未开始 (0%)`
+}
+
+const getCalculatedStatusBadgeClass = (item: ScheduleItem) => {
+  const totalVol = parseFloat(item.volume || '0')
+  const cumVol = parseFloat(item.cumulativeVolume || '0')
+  const pct = totalVol > 0 ? Math.min(Math.round((cumVol / totalVol) * 100), 100) : 0
+
+  if (pct >= 100) return 'bg-success-lighter text-success-darker'
+  if (pct > 0) return 'bg-info-lighter text-info-darker'
+  return 'bg-foundation-2 text-foreground-2'
+}
 
 watch(markerDialogOpen, (isOpen) => {
   if (isOpen) return

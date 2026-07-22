@@ -119,6 +119,7 @@
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
                       '/progress/schedule',
+                      '/progress/monthly',
                       '/progress/actual',
                       '/progress/physical'
                     ]) && 'project-sidebar-group-wrapper-active'
