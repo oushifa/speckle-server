@@ -659,7 +659,7 @@ export const drawingsRouterFactory = (): Router => {
         const deleteBlob = fullyDeleteBlobFactory({
           getBlobMetadata: getBlobMetadataFactory({ db: projectDb }),
           deleteBlob: deleteBlobFactory({ db: projectDb }),
-          deleteObject: deleteObjectFactory({ storage: projectStorage.public })
+          deleteObject: deleteObjectFactory({ storage: projectStorage.private })
         })
 
         await deleteBlob({ streamId: projectId, blobId: record.blobId })
