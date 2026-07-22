@@ -25,11 +25,17 @@ import {
   getPublicMainObjectStorage,
   getSignedDownloadUrlFactory,
   getSignedUrlFactory,
-  getMainObjectStorage
+  getMainObjectStorage,
+  getObjectStorage
 } from '@/modules/blobstorage/clients/objectStorage'
 import {
+  getFileConversionInternalS3Endpoint,
   getFileSizeLimitMB,
-  getFileUploadUrlExpiryMinutes
+  getFileUploadUrlExpiryMinutes,
+  getS3AccessKey,
+  getS3BucketName,
+  getS3Region,
+  getS3SecretKey
 } from '@/modules/shared/helpers/envHelper'
 
 const listQuerySchema = z.object({
@@ -90,15 +96,95 @@ const getLatestFileConversionEventByFileId = getLatestFileConversionEventByFileI
 })
 const updateFileConversionEvent = updateFileConversionEventFactory({ db })
 
-const getSignedUrl = getSignedUrlFactory({
-  objectStorage: getPublicMainObjectStorage()
+const publicObjectStorage = getPublicMainObjectStorage()
+const internalServiceObjectStorage = (() => {
+  const endpoint = getFileConversionInternalS3Endpoint()
+  if (!endpoint) return publicObjectStorage
+
+  return getObjectStorage({
+    credentials: {
+      accessKeyId: getS3AccessKey(),
+      secretAccessKey: getS3SecretKey()
+    },
+    endpoint,
+    region: getS3Region(),
+    bucket: getS3BucketName()
+  })
+})()
+
+const getPublicSignedUrl = getSignedUrlFactory({
+  objectStorage: publicObjectStorage
 })
-const getSignedDownloadUrl = getSignedDownloadUrlFactory({
-  objectStorage: getPublicMainObjectStorage()
+const getPublicSignedDownloadUrl = getSignedDownloadUrlFactory({
+  objectStorage: publicObjectStorage
+})
+const getInternalSignedUrl = getSignedUrlFactory({
+  objectStorage: internalServiceObjectStorage
+})
+const getInternalSignedDownloadUrl = getSignedDownloadUrlFactory({
+  objectStorage: internalServiceObjectStorage
 })
 const getObjectMetadata = getBlobMetadataFromStorage({
   objectStorage: getMainObjectStorage()
 })
+
+const getDownloadUrl = async (params: {
+  objectKey: string | null
+  target?: 'public' | 'internal'
+}) => {
+  const { objectKey, target = 'public' } = params
+  if (!objectKey) return null
+
+  const signer =
+    target === 'internal' ? getInternalSignedDownloadUrl : getPublicSignedDownloadUrl
+
+  return await signer({
+    objectKey,
+    urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
+  })
+}
+
+const serializeFile = async (
+  record: FileConversionRecord | FileConversionListItem,
+  target: 'public' | 'internal' = 'public'
+) => ({
+  id: record.id,
+  fileName: record.fileName,
+  fileSize: record.fileSize,
+  sourceObjectKey: record.sourceObjectKey,
+  sourceFileUrl: await getDownloadUrl({
+    objectKey: record.sourceObjectKey,
+    target
+  }),
+  resultObjectKey: record.resultObjectKey,
+  resultFileUrl: await getDownloadUrl({
+    objectKey: record.resultObjectKey,
+    target
+  }),
+  streamId: record.streamId,
+  status: record.status,
+  isConverted: record.isConverted,
+  uploadedAt: record.uploadedAt,
+  startedAt: record.startedAt,
+  convertedAt: record.convertedAt,
+  errorMessage: record.errorMessage,
+  creator: record.creator,
+  creatorName: 'creatorName' in record ? record.creatorName : undefined,
+  updater: record.updater,
+  createdAt: record.createdAt,
+  updatedAt: record.updatedAt
+})
+
+const getObjectUploadUrl = async (params: {
+  objectKey: string
+  target?: 'public' | 'internal'
+}) => {
+  const signer = params.target === 'internal' ? getInternalSignedUrl : getPublicSignedUrl
+  return await signer({
+    objectKey: params.objectKey,
+    urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
+  })
+}
 
 const thirdPartyTokenHeader = 'x-file-conversion-token'
 
@@ -146,36 +232,6 @@ const buildObjectKey = (params: {
 
 const maxFileSizeBytes = () => getFileSizeLimitMB() * 1024 * 1024
 
-const getDownloadUrl = async (objectKey: string | null) => {
-  if (!objectKey) return null
-  return await getSignedDownloadUrl({
-    objectKey,
-    urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
-  })
-}
-
-const serializeFile = async (record: FileConversionRecord | FileConversionListItem) => ({
-  id: record.id,
-  fileName: record.fileName,
-  fileSize: record.fileSize,
-  sourceObjectKey: record.sourceObjectKey,
-  sourceFileUrl: await getDownloadUrl(record.sourceObjectKey),
-  resultObjectKey: record.resultObjectKey,
-  resultFileUrl: await getDownloadUrl(record.resultObjectKey),
-  streamId: record.streamId,
-  status: record.status,
-  isConverted: record.isConverted,
-  uploadedAt: record.uploadedAt,
-  startedAt: record.startedAt,
-  convertedAt: record.convertedAt,
-  errorMessage: record.errorMessage,
-  creator: record.creator,
-  creatorName: 'creatorName' in record ? record.creatorName : undefined,
-  updater: record.updater,
-  createdAt: record.createdAt,
-  updatedAt: record.updatedAt
-})
-
 const ensureObjectExists = async (params: { objectKey: string; expectedETag?: string }) => {
   const metadata = await getObjectMetadata({ objectKey: params.objectKey })
   if (params.expectedETag && metadata.eTag !== params.expectedETag) {
@@ -212,9 +268,9 @@ export const fileConversionRouterFactory = (): Router => {
         fileId: id,
         fileName
       })
-      const uploadUrl = await getSignedUrl({
+      const uploadUrl = await getObjectUploadUrl({
         objectKey: sourceObjectKey,
-        urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
+        target: 'public'
       })
 
       const record = await createFileConversion({
@@ -320,7 +376,7 @@ export const fileConversionRouterFactory = (): Router => {
   app.get('/api/v1/file-conversions/pending', requireServiceToken, async (_req, res) => {
     const records = await listPendingFileConversions()
     return res.status(200).send({
-      items: records.map(serializeFile)
+      items: await Promise.all(records.map((record) => serializeFile(record, 'internal')))
     })
   })
 
@@ -334,7 +390,10 @@ export const fileConversionRouterFactory = (): Router => {
         return res.status(404).send({ error: 'File conversion record not found.' })
       }
 
-      const sourceFileUrl = await getDownloadUrl(record.sourceObjectKey)
+      const sourceFileUrl = await getDownloadUrl({
+        objectKey: record.sourceObjectKey,
+        target: 'internal'
+      })
 
       return res.status(200).send({
         id: record.id,
@@ -506,11 +565,14 @@ export const fileConversionRouterFactory = (): Router => {
         fileId: record.id,
         fileName: req.body.fileName
       })
-      const uploadUrl = await getSignedUrl({
+      const uploadUrl = await getObjectUploadUrl({
         objectKey: resultObjectKey,
-        urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
+        target: 'internal'
       })
-      const resultFileUrl = await getDownloadUrl(resultObjectKey)
+      const resultFileUrl = await getDownloadUrl({
+        objectKey: resultObjectKey,
+        target: 'internal'
+      })
 
       await updateFileConversion({
         id: record.id,

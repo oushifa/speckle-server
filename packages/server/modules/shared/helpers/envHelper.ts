@@ -460,6 +460,10 @@ export function getS3PublicEndpoint() {
   return getStringFromEnv('S3_PUBLIC_ENDPOINT', { unsafe: true })
 }
 
+export function getFileConversionInternalS3Endpoint() {
+  return getStringFromEnv('FILE_CONVERSION_INTERNAL_S3_ENDPOINT', { unsafe: true })
+}
+
 export function getS3Region(aDefault: string = 'us-east-1') {
   return process.env.S3_REGION || aDefault
 }
