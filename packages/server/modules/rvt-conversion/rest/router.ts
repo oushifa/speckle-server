@@ -4,7 +4,6 @@ import { validateRequest } from 'zod-express'
 import cryptoRandomString from 'crypto-random-string'
 import { db } from '@/db/knex'
 import {
-  getObjectStorage,
   getSignedDownloadUrlFactory,
   getSignedUrlFactory,
   getBlobMetadataFromStorage
@@ -23,6 +22,7 @@ import {
   listRvtConversionJobsFactory,
   updateRvtConversionJobFactory
 } from '@/modules/rvt-conversion/repositories/jobs'
+import { getRvtConversionDownloadStorage } from '@/modules/rvt-conversion/services/storage'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
@@ -35,8 +35,7 @@ import {
 import { authorizeResolver, validateScopes } from '@/modules/shared'
 import {
   getFileSizeLimitMB,
-  getFileUploadUrlExpiryMinutes,
-  getRvtConversionInternalS3Endpoint
+  getFileUploadUrlExpiryMinutes
 } from '@/modules/shared/helpers/envHelper'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 
@@ -166,18 +165,6 @@ const buildSourceObjectKey = (params: {
 const maxFileSizeBytes = () => getFileSizeLimitMB() * 1024 * 1024
 const isNoWorkerAvailableError = (error: unknown) =>
   error instanceof Error && error.message === 'No connected RVT worker is available.'
-
-const getRvtConversionDownloadStorage = (
-  projectStorage: Awaited<ReturnType<typeof getProjectObjectStorage>>
-) => {
-  const internalEndpoint = getRvtConversionInternalS3Endpoint()
-  if (!internalEndpoint) return projectStorage.public
-
-  return getObjectStorage({
-    ...projectStorage.public.params,
-    endpoint: internalEndpoint
-  })
-}
 
 const updateFileUploadFromRvtJobFactory = (deps: {
   projectDb: Awaited<ReturnType<typeof getProjectDbClient>>

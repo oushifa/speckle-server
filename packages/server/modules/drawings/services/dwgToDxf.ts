@@ -70,14 +70,27 @@ const downloadWithRetry = async (url: string, tries: number, stage: string) => {
   throw lastErr || new Error('Download failed')
 }
 
-const readErrorBody = async (res: Response) => {
-  try {
-    const text = await res.text()
-    return text.slice(0, 2000)
-  } catch {
-    return ''
-  }
-}
+const getResponseHeaders = (res: Response) =>
+  Object.fromEntries([...res.headers.entries()].sort(([a], [b]) => a.localeCompare(b)))
+
+const formatOdaRawResponse = (params: {
+  endpoint: string
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  body: string
+}) =>
+  JSON.stringify(
+    {
+      endpoint: params.endpoint,
+      status: params.status,
+      statusText: params.statusText,
+      headers: params.headers,
+      body: params.body
+    },
+    null,
+    2
+  )
 
 const redactUrl = (url: string) => {
   try {
@@ -105,17 +118,32 @@ const convertViaLocal = async (params: {
   const form = new FormData()
   form.set('file', file)
 
-  const res = await fetch(`${params.odaBaseUrl}/convert/local`, {
+  const endpoint = `${params.odaBaseUrl}/convert/local`
+  const res = await fetch(endpoint, {
     method: 'POST',
     body: form,
     signal: AbortSignal.timeout(10 * TIME_MS.minute)
   })
+  const rawBody = await res.text()
+  const rawResponse = formatOdaRawResponse({
+    endpoint,
+    status: res.status,
+    statusText: res.statusText,
+    headers: getResponseHeaders(res),
+    body: rawBody
+  })
+  console.info('ODA convert/local raw response\n%s', rawResponse)
+
   if (!res.ok) {
-    const body = await readErrorBody(res)
-    throw new Error(`ODA convert/local failed (${res.status}): ${body || res.statusText}`)
+    throw new Error(`ODA convert/local failed.\n${rawResponse}`)
   }
 
-  const json = (await res.json()) as { url?: string; path?: string }
+  let json: { url?: string; path?: string }
+  try {
+    json = (rawBody ? JSON.parse(rawBody) : {}) as { url?: string; path?: string }
+  } catch {
+    throw new Error(`ODA convert/local returned non-JSON response.\n${rawResponse}`)
+  }
   const rawUrl = typeof json.url === 'string' ? json.url.trim() : ''
   if (rawUrl) {
     const parsed = new URL(rawUrl, params.odaBaseUrl)
@@ -131,7 +159,7 @@ const convertViaLocal = async (params: {
     return new URL(`/download/${normalizedPath}`, params.odaBaseUrl).toString()
   }
 
-  throw new Error('ODA convert/local response missing dxf url')
+  throw new Error(`ODA convert/local response missing dxf url.\n${rawResponse}`)
 }
 
 export const triggerProjectDrawingDwgToDxfConversion = async (params: {
