@@ -28,6 +28,7 @@ import {
 } from '@/modules/shared/helpers/errorHelper'
 import { throwIfResourceAccessNotAllowed } from '@/modules/core/helpers/token'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
+import { failActiveRvtConversionJobsForModelFactory } from '@/modules/rvt-conversion/repositories/jobs'
 
 export default {
   Query: {},
@@ -180,7 +181,10 @@ export default {
         getBranchById: getBranchByIdFactory({ db: projectDB }),
         emitEvent: getEventBus().emit,
         deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
-        getUser: getUserFactory({ db })
+        getUser: getUserFactory({ db }),
+        failActiveRvtConversionJobsForModel: failActiveRvtConversionJobsForModelFactory({
+          db: projectDB
+        })
       })
       const deleted = await withOperationLogging(
         async () => await deleteBranchAndNotify(args.branch, context.userId!),

@@ -167,3 +167,71 @@ export const updateRvtConversionJobFactory =
 
     return job || null
   }
+
+export const failActiveRvtConversionJobsForModelFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    modelId: string
+    errorMessage: string
+    updater: string
+  }): Promise<RvtConversionJob[]> => {
+    const now = new Date()
+
+    return await tables
+      .jobs(deps.db)
+      .where(cols.projectId, params.projectId)
+      .andWhere(cols.modelId, params.modelId)
+      .whereIn(cols.status, ActiveRvtConversionJobStatuses)
+      .update(
+        {
+          [cols.status]: 'failed',
+          [cols.errorMessage]: params.errorMessage,
+          [cols.finishedAt]: now,
+          [cols.updater]: params.updater,
+          [cols.updatedAt]: now
+        },
+        '*'
+      )
+  }
+
+export const failExpiredActiveRvtConversionJobsFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    timeoutThresholdSeconds: number
+    errorMessage: string
+    updater: string
+  }): Promise<RvtConversionJob[]> => {
+    const now = new Date()
+
+    return await tables
+      .jobs(deps.db)
+      .whereIn(cols.status, ActiveRvtConversionJobStatuses)
+      .andWhere((query) => {
+        query
+          .where(
+            cols.acknowledgedAt,
+            '<',
+            deps.db.raw(`now() - interval '${params.timeoutThresholdSeconds} seconds'`)
+          )
+          .orWhere((subQuery) => {
+            subQuery
+              .whereNull(cols.acknowledgedAt)
+              .andWhere(
+                cols.createdAt,
+                '<',
+                deps.db.raw(`now() - interval '${params.timeoutThresholdSeconds} seconds'`)
+              )
+          })
+      })
+      .update(
+        {
+          [cols.status]: 'failed',
+          [cols.errorMessage]: params.errorMessage,
+          [cols.finishedAt]: now,
+          [cols.updater]: params.updater,
+          [cols.updatedAt]: now
+        },
+        '*'
+      )
+  }

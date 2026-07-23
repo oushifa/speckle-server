@@ -282,6 +282,7 @@ export const getBranchPendingVersionsFactory =
     }
 
     const q = getPendingUploadsBaseQueryFactory(deps)(streamId, { limit })
+      .whereNull(FileUploads.col.modelId)
       .where(FileUploads.col.branchName, branchName)
       .whereIn(
         FileUploads.col.branchName,

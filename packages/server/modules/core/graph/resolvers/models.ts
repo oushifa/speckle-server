@@ -64,6 +64,7 @@ import { getThumbnailUrl } from '@/modules/viewer/helpers/savedViews'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import { throwForNotHavingServerRole } from '@/modules/shared/authz'
 import { Roles } from '@speckle/shared'
+import { failActiveRvtConversionJobsForModelFactory } from '@/modules/rvt-conversion/repositories/jobs'
 
 export default {
   User: {
@@ -445,7 +446,10 @@ export default {
         getBranchById: getBranchByIdFactory({ db: projectDB }),
         emitEvent: getEventBus().emit,
         deleteBranchById: deleteBranchByIdFactory({ db: projectDB }),
-        getUser: getUserFactory({ db })
+        getUser: getUserFactory({ db }),
+        failActiveRvtConversionJobsForModel: failActiveRvtConversionJobsForModelFactory({
+          db: projectDB
+        })
       })
       return await withOperationLogging(
         async () => await deleteBranchAndNotify(args.input, ctx.userId!),

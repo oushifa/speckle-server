@@ -29,6 +29,7 @@ import type { GetStream } from '@/modules/core/domain/streams/operations'
 import type { GetUser } from '@/modules/core/domain/users/operations'
 import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { ModelEvents } from '@/modules/core/domain/branches/events'
+import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/jobs'
 
 const isBranchCreateInput = (
   i: BranchCreateInput | CreateModelInput
@@ -131,6 +132,12 @@ export const deleteBranchAndNotifyFactory =
     emitEvent: EventBusEmit
     deleteBranchById: DeleteBranchById
     getUser: GetUser
+    failActiveRvtConversionJobsForModel?: (params: {
+      projectId: string
+      modelId: string
+      errorMessage: string
+      updater: string
+    }) => Promise<RvtConversionJob[]>
   }): DeleteBranchAndNotify =>
   async (input: BranchDeleteInput | DeleteModelInput, userId: string) => {
     const streamId = isBranchDeleteInput(input) ? input.streamId : input.projectId
@@ -176,6 +183,13 @@ export const deleteBranchAndNotifyFactory =
 
     const isDeleted = !!(await deps.deleteBranchById(existingBranch.id))
     if (isDeleted) {
+      await deps.failActiveRvtConversionJobsForModel?.({
+        projectId: streamId,
+        modelId: existingBranch.id,
+        errorMessage: 'RVT convert job invalidated because the target model was deleted',
+        updater: 'rvt-conversion-service'
+      })
+
       await deps.emitEvent({
         eventName: ModelEvents.Deleted,
         payload: {
