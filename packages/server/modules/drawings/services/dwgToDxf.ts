@@ -167,9 +167,18 @@ const convertViaLocal = async (params: {
     throw new Error(`ODA convert/local failed.\n${rawResponse}`)
   }
 
-  let json: { url?: string; url_path?: string; path?: string; error?: string | null }
+  let json: {
+    ret?: number
+    msg?: unknown
+    url?: string
+    url_path?: string
+    path?: string
+    error?: string | null
+  }
   try {
     json = (rawBody ? JSON.parse(rawBody) : {}) as {
+      ret?: number
+      msg?: unknown
       url?: string
       url_path?: string
       path?: string
@@ -179,16 +188,30 @@ const convertViaLocal = async (params: {
     throw new Error(`ODA convert/local returned non-JSON response.\n${rawResponse}`)
   }
 
-  const odaError = typeof json.error === 'string' ? json.error.trim() : ''
+  const ret = typeof json.ret === 'number' ? json.ret : null
+
+  const msgPayload =
+    json.msg && typeof json.msg === 'object'
+      ? (json.msg as { url?: string; url_path?: string; path?: string; error?: string | null })
+      : null
+  const payload = msgPayload || json
+
+  const odaError =
+    (typeof payload.error === 'string' ? payload.error.trim() : '') ||
+    (typeof json.error === 'string' ? json.error.trim() : '')
   if (odaError) {
     throw new Error(`ODA convert/local returned error: ${odaError}\n${rawResponse}`)
   }
 
+  if (ret !== null && ret !== 0) {
+    throw new Error(`ODA convert/local returned non-zero ret: ${ret}\n${rawResponse}`)
+  }
+
   const resolvedUrl = resolveOdaDownloadUrl({
     odaBaseUrl: params.odaBaseUrl,
-    url: json.url,
-    urlPath: json.url_path,
-    path: json.path
+    url: payload.url,
+    urlPath: payload.url_path,
+    path: payload.path
   })
   if (resolvedUrl) return resolvedUrl
 
