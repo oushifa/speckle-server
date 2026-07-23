@@ -106,6 +106,35 @@ const redactUrl = (url: string) => {
   }
 }
 
+const resolveOdaDownloadUrl = (params: {
+  odaBaseUrl: string
+  url?: string
+  urlPath?: string
+  path?: string
+}) => {
+  const rawUrl = typeof params.url === 'string' ? params.url.trim() : ''
+  if (rawUrl) {
+    const parsed = new URL(rawUrl, params.odaBaseUrl)
+    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)) {
+      return new URL(`${parsed.pathname}${parsed.search}`, params.odaBaseUrl).toString()
+    }
+    return parsed.toString()
+  }
+
+  const rawUrlPath = typeof params.urlPath === 'string' ? params.urlPath.trim() : ''
+  if (rawUrlPath) {
+    return new URL(rawUrlPath, params.odaBaseUrl).toString()
+  }
+
+  const rawPath = typeof params.path === 'string' ? params.path.trim() : ''
+  if (rawPath) {
+    const normalizedPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath
+    return new URL(`/download/${normalizedPath}`, params.odaBaseUrl).toString()
+  }
+
+  return null
+}
+
 const convertViaLocal = async (params: {
   odaBaseUrl: string
   fileBuffer: Buffer
@@ -138,26 +167,30 @@ const convertViaLocal = async (params: {
     throw new Error(`ODA convert/local failed.\n${rawResponse}`)
   }
 
-  let json: { url?: string; path?: string }
+  let json: { url?: string; url_path?: string; path?: string; error?: string | null }
   try {
-    json = (rawBody ? JSON.parse(rawBody) : {}) as { url?: string; path?: string }
+    json = (rawBody ? JSON.parse(rawBody) : {}) as {
+      url?: string
+      url_path?: string
+      path?: string
+      error?: string | null
+    }
   } catch {
     throw new Error(`ODA convert/local returned non-JSON response.\n${rawResponse}`)
   }
-  const rawUrl = typeof json.url === 'string' ? json.url.trim() : ''
-  if (rawUrl) {
-    const parsed = new URL(rawUrl, params.odaBaseUrl)
-    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname)) {
-      return new URL(`${parsed.pathname}${parsed.search}`, params.odaBaseUrl).toString()
-    }
-    return parsed.toString()
+
+  const odaError = typeof json.error === 'string' ? json.error.trim() : ''
+  if (odaError) {
+    throw new Error(`ODA convert/local returned error: ${odaError}\n${rawResponse}`)
   }
 
-  const rawPath = typeof json.path === 'string' ? json.path.trim() : ''
-  if (rawPath) {
-    const normalizedPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath
-    return new URL(`/download/${normalizedPath}`, params.odaBaseUrl).toString()
-  }
+  const resolvedUrl = resolveOdaDownloadUrl({
+    odaBaseUrl: params.odaBaseUrl,
+    url: json.url,
+    urlPath: json.url_path,
+    path: json.path
+  })
+  if (resolvedUrl) return resolvedUrl
 
   throw new Error(`ODA convert/local response missing dxf url.\n${rawResponse}`)
 }
