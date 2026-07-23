@@ -100,6 +100,26 @@ export const getRvtConversionJobForModelFactory =
       .andWhere(cols.modelId, params.modelId)
       .first()) || null
 
+export const listRvtConversionJobsBySourceFileFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    sourceFileId: string
+    limit?: number
+  }): Promise<RvtConversionJob[]> => {
+    const query = tables
+      .jobs(deps.db)
+      .where(cols.projectId, params.projectId)
+      .andWhere(cols.sourceFileId, params.sourceFileId)
+      .orderBy(cols.createdAt, 'desc')
+
+    if (params.limit) {
+      query.limit(params.limit)
+    }
+
+    return await query
+  }
+
 export const listRvtConversionJobsFactory =
   (deps: { db: Knex }) =>
   async (params: {

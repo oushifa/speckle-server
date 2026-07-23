@@ -242,10 +242,34 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
     })
 
     if (uploadedFileData.fileType.toLocaleLowerCase() === 'rvt') {
+      ctx.log.info(
+        {
+          projectId,
+          fileUploadId: uploadedFileData.id,
+          fileName: uploadedFileData.fileName,
+          modelId: uploadedFileData.modelId,
+          modelName: uploadedFileData.modelName,
+          userId: ctx.userId
+        },
+        'RVT CONVERT GraphQL startFileImport identified RVT upload'
+      )
+
       try {
         if (!uploadedFileData.modelId || !uploadedFileData.modelName) {
           throw new BadRequestError('RVT file import requires a target model.')
         }
+
+        ctx.log.info(
+          {
+            projectId,
+            fileUploadId: uploadedFileData.id,
+            fileName: uploadedFileData.fileName,
+            modelId: uploadedFileData.modelId,
+            modelName: uploadedFileData.modelName,
+            userId: ctx.userId
+          },
+          'RVT CONVERT GraphQL startFileImport dispatching RVT job'
+        )
 
         await dispatchRvtFileImport({
           projectId,
@@ -254,10 +278,30 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
           fileUpload: uploadedFileData,
           userId: ctx.userId
         })
+
+        ctx.log.info(
+          {
+            projectId,
+            fileUploadId: uploadedFileData.id,
+            fileName: uploadedFileData.fileName,
+            modelId: uploadedFileData.modelId,
+            modelName: uploadedFileData.modelName,
+            userId: ctx.userId
+          },
+          'RVT CONVERT GraphQL startFileImport dispatched RVT job successfully'
+        )
       } catch (error) {
         ctx.log.error(
-          { err: error, projectId, fileId: uploadedFileData.id },
-          'Failed to dispatch RVT file import'
+          {
+            err: error,
+            projectId,
+            fileUploadId: uploadedFileData.id,
+            fileName: uploadedFileData.fileName,
+            modelId: uploadedFileData.modelId,
+            modelName: uploadedFileData.modelName,
+            userId: ctx.userId
+          },
+          'RVT CONVERT GraphQL startFileImport failed to dispatch RVT job'
         )
 
         const failedFile = await updateFileUpload({
@@ -273,6 +317,17 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
         await emitFileStatusChange({
           file: failedFile
         })
+
+        ctx.log.warn(
+          {
+            projectId,
+            fileUploadId: failedFile.id,
+            fileName: failedFile.fileName,
+            convertedStatus: failedFile.convertedStatus,
+            convertedMessage: failedFile.convertedMessage
+          },
+          'RVT CONVERT GraphQL startFileImport marked upload as error after dispatch failure'
+        )
       }
     }
 
