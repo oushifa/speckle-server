@@ -432,8 +432,11 @@ export default {
       const projectDb = await getProjectDbClient({ projectId: parent.streamId })
       return await getBranchPendingVersionsFactory({ db: projectDb })(
         parent.streamId,
-        parent.name,
-        args
+        {
+          branchName: parent.name,
+          modelId: parent.id,
+          limit: args.limit
+        }
       )
     },
     async uploads(parent, args) {

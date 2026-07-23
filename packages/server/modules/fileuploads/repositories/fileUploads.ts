@@ -258,12 +258,30 @@ export const getBranchPendingVersionsFactory =
   (deps: { db: Knex }) =>
   async (
     streamId: string,
-    branchName: string,
-    options?: Partial<{ limit: number }>
+    params: {
+      branchName: string
+      modelId?: string | null
+      limit?: number
+    }
   ) => {
-    const q = getPendingUploadsBaseQueryFactory(deps)(streamId, {
-      limit: options?.limit
-    })
+    const { branchName, modelId, limit } = params
+
+    if (modelId) {
+      const uploadsByModelId = await getPendingUploadsBaseQueryFactory(deps)(streamId, {
+        limit
+      })
+        .where(FileUploads.col.modelId, modelId)
+        .whereIn(
+          FileUploads.col.branchName,
+          Branches.knex().select(Branches.col.name).where(Branches.col.streamId, streamId)
+        )
+
+      if (uploadsByModelId.length) {
+        return uploadsByModelId
+      }
+    }
+
+    const q = getPendingUploadsBaseQueryFactory(deps)(streamId, { limit })
       .where(FileUploads.col.branchName, branchName)
       .whereIn(
         FileUploads.col.branchName,
