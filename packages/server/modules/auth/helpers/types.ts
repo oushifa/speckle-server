@@ -37,6 +37,7 @@ export type AuthSessionData = {
   challenge?: string
   token?: string
   newsletterConsent?: boolean
+  frontendOrigin?: string
 
   // More specific params used in OpenID based strategies
   tokenSet?: TokenSet

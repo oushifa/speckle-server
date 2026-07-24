@@ -34,6 +34,7 @@
     "dev": "yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited run dev",
     "dev:no-server": "yarn workspaces foreach --exclude @speckle/server --parallel --interlaced --verbose --worktree --jobs unlimited run dev",
     "dev:minimal": "yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited --include '{@speckle/server,@speckle/frontend-2}' run dev",
+    "dev:minimal:hc-bim": "cross-env SERVER_ENV_FILE=.env.hc-bim yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited --include '{@speckle/server,@speckle/frontend-2}' run dev",
     "gqlgen": "yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited --include '{@speckle/server,@speckle/frontend-2}' run gqlgen",
     "dev:server": "yarn workspace @speckle/server dev",
     "dev:server:hc-bim": "cross-env SERVER_ENV_FILE=.env.hc-bim yarn workspace @speckle/server dev",

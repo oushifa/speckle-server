@@ -67,6 +67,7 @@ import { createUserFactory } from '@/modules/core/services/users/management'
 import { logger } from '@/observability/logging'
 import { getAllRegisteredDbs } from '@/modules/multiregion/utils/dbSelector'
 import { asMultiregionalOperation } from '@/modules/shared/command'
+import { resolveAppRedirectUrl } from '@/modules/auth/middleware'
 import crypto from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import cryptoRandomString from 'crypto-random-string'
@@ -323,10 +324,12 @@ export default function (app: Express) {
 
       const ac = await createAuthorizationCode({ appId, userId, challenge })
 
-      const redirectUrl = `${app.redirectUrl}?access_code=${ac}`
+      const redirectUrl = resolveAppRedirectUrl(req, app.redirectUrl)
+      redirectUrl.searchParams.set('access_code', ac)
+
       return preventRedirect
-        ? res.status(200).json({ redirectUrl })
-        : res.redirect(redirectUrl)
+        ? res.status(200).json({ redirectUrl: redirectUrl.toString() })
+        : res.redirect(redirectUrl.toString())
     } catch (err) {
       if (
         err instanceof InvalidAccessCodeRequestError ||
