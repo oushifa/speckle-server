@@ -39,7 +39,7 @@ export const resolveExplicitFrontendOriginFromRequest = (
     if (normalizedQueryOrigin) return normalizedQueryOrigin
   }
 
-  return normalizeOrigin(req.session.frontendOrigin)
+  return normalizeOrigin(req.session?.frontendOrigin)
 }
 
 export const resolveForwardedOriginFromHeaders = (
