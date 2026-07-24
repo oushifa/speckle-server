@@ -117,6 +117,32 @@ export const getPublicMainObjectStorage = (): ObjectStorage => {
   return publicMainObjectStorage
 }
 
+export const getDynamicPublicObjectStorage = (params: {
+  objectStorage: ObjectStorage
+  frontendOrigin?: string
+}): ObjectStorage => {
+  const { objectStorage, frontendOrigin } = params
+  if (!frontendOrigin) return objectStorage
+
+  try {
+    const configuredEndpoint = new URL(objectStorage.params.endpoint)
+    const resolvedFrontendOrigin = new URL(frontendOrigin)
+
+    if (configuredEndpoint.hostname === resolvedFrontendOrigin.hostname) {
+      return objectStorage
+    }
+
+    configuredEndpoint.hostname = resolvedFrontendOrigin.hostname
+
+    return getObjectStorage({
+      ...objectStorage.params,
+      endpoint: configuredEndpoint.toString()
+    })
+  } catch {
+    return objectStorage
+  }
+}
+
 export const getSignedUrlFactory = (deps: {
   objectStorage: ObjectStorage
 }): GetSignedUrl => {

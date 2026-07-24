@@ -17,7 +17,10 @@ import {
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
 import { upsertBlobFactory } from '@/modules/blobstorage/repositories'
-import { getSignedUrlFactory } from '@/modules/blobstorage/clients/objectStorage'
+import {
+  getDynamicPublicObjectStorage,
+  getSignedUrlFactory
+} from '@/modules/blobstorage/clients/objectStorage'
 import { generatePresignedUrlFactory } from '@/modules/blobstorage/services/presigned'
 import {
   getFileUploadUrlExpiryMinutes,
@@ -57,6 +60,7 @@ import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { updateFileUploadFactory } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
 
@@ -159,7 +163,10 @@ export default (app: Router) => {
 
         const generatePresignedUrl = generatePresignedUrlFactory({
           getSignedUrl: getSignedUrlFactory({
-            objectStorage: projectStorage.public
+            objectStorage: getDynamicPublicObjectStorage({
+              objectStorage: projectStorage.public,
+              frontendOrigin: resolveFrontendOriginFromRequest(req)
+            })
           }),
           upsertBlob: upsertBlobFactory({
             db: projectDb

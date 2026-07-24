@@ -14,7 +14,11 @@ import {
   listProjectDrawingsFactory
 } from '@/modules/drawings/repositories/drawings'
 import { upsertBlobFactory } from '@/modules/blobstorage/repositories'
-import { getSignedDownloadUrlFactory, getSignedUrlFactory } from '@/modules/blobstorage/clients/objectStorage'
+import {
+  getDynamicPublicObjectStorage,
+  getSignedDownloadUrlFactory,
+  getSignedUrlFactory
+} from '@/modules/blobstorage/clients/objectStorage'
 import { generatePresignedUrlFactory } from '@/modules/blobstorage/services/presigned'
 import { getBlobMetadataFactory, deleteBlobFactory } from '@/modules/blobstorage/repositories'
 import { fullyDeleteBlobFactory } from '@/modules/blobstorage/services/management'
@@ -30,6 +34,7 @@ import {
   listDrawingAnnotationsFactory,
   updateDrawingAnnotationFactory
 } from '@/modules/drawings/repositories/annotations'
+import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const routeBase = '/api/v1/projects/:projectId/drawings'
 
@@ -217,7 +222,12 @@ export const drawingsRouterFactory = (): Router => {
         ])
 
         const generatePresignedUrl = generatePresignedUrlFactory({
-          getSignedUrl: getSignedUrlFactory({ objectStorage: projectStorage.public }),
+          getSignedUrl: getSignedUrlFactory({
+            objectStorage: getDynamicPublicObjectStorage({
+              objectStorage: projectStorage.public,
+              frontendOrigin: resolveFrontendOriginFromRequest(req)
+            })
+          }),
           upsertBlob: upsertBlobFactory({ db: projectDb })
         })
 

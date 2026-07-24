@@ -21,6 +21,7 @@ import {
   updateFileConversionEventFactory
 } from '@/modules/file-conversion/repositories/fileConversionEvents'
 import {
+  getDynamicPublicObjectStorage,
   getBlobMetadataFromStorage,
   getPublicMainObjectStorage,
   getSignedDownloadUrlFactory,
@@ -37,6 +38,7 @@ import {
   getS3Region,
   getS3SecretKey
 } from '@/modules/shared/helpers/envHelper'
+import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const listQuerySchema = z.object({
   keyword: z.string().trim().optional(),
@@ -112,9 +114,6 @@ const internalServiceObjectStorage = (() => {
   })
 })()
 
-const getPublicSignedUrl = getSignedUrlFactory({
-  objectStorage: publicObjectStorage
-})
 const getPublicSignedDownloadUrl = getSignedDownloadUrlFactory({
   objectStorage: publicObjectStorage
 })
@@ -178,8 +177,17 @@ const serializeFile = async (
 const getObjectUploadUrl = async (params: {
   objectKey: string
   target?: 'public' | 'internal'
+  frontendOrigin?: string
 }) => {
-  const signer = params.target === 'internal' ? getInternalSignedUrl : getPublicSignedUrl
+  const signer =
+    params.target === 'internal'
+      ? getInternalSignedUrl
+      : getSignedUrlFactory({
+          objectStorage: getDynamicPublicObjectStorage({
+            objectStorage: publicObjectStorage,
+            frontendOrigin: params.frontendOrigin
+          })
+        })
   return await signer({
     objectKey: params.objectKey,
     urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * 60
@@ -270,7 +278,8 @@ export const fileConversionRouterFactory = (): Router => {
       })
       const uploadUrl = await getObjectUploadUrl({
         objectKey: sourceObjectKey,
-        target: 'public'
+        target: 'public',
+        frontendOrigin: resolveFrontendOriginFromRequest(req)
       })
 
       const record = await createFileConversion({

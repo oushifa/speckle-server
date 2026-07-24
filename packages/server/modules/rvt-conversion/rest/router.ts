@@ -4,6 +4,7 @@ import { validateRequest } from 'zod-express'
 import cryptoRandomString from 'crypto-random-string'
 import { db } from '@/db/knex'
 import {
+  getDynamicPublicObjectStorage,
   getSignedDownloadUrlFactory,
   getSignedUrlFactory,
   getBlobMetadataFromStorage
@@ -40,6 +41,7 @@ import {
 } from '@/modules/shared/helpers/envHelper'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import { moduleLogger } from '@/observability/logging'
+import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const DownloadUrlExpirySeconds = 24 * 60 * 60
 const sourceApplicationDefault = 'External RVT Converter'
@@ -385,7 +387,10 @@ export const rvtConversionRouterFactory = (): Router => {
       const objectKey = buildSourceObjectKey({ projectId, fileId, fileName })
       const projectStorage = await getProjectObjectStorage({ projectId })
       const getSignedUrl = getSignedUrlFactory({
-        objectStorage: projectStorage.public
+        objectStorage: getDynamicPublicObjectStorage({
+          objectStorage: projectStorage.public,
+          frontendOrigin: resolveFrontendOriginFromRequest(req)
+        })
       })
       const expiresIn = getFileUploadUrlExpiryMinutes() * 60
       const uploadUrl = await getSignedUrl({

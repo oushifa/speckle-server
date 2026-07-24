@@ -40,6 +40,7 @@ import {
   upsertBlobFactory
 } from '@/modules/blobstorage/repositories'
 import {
+  getDynamicPublicObjectStorage,
   getBlobMetadataFromStorage,
   getSignedUrlFactory
 } from '@/modules/blobstorage/clients/objectStorage'
@@ -139,7 +140,10 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
 
     const generatePresignedUrl = generatePresignedUrlFactory({
       getSignedUrl: getSignedUrlFactory({
-        objectStorage: projectStorage.public
+        objectStorage: getDynamicPublicObjectStorage({
+          objectStorage: projectStorage.public,
+          frontendOrigin: ctx.frontendOrigin
+        })
       }),
       upsertBlob: upsertBlobFactory({
         db: projectDb
