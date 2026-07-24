@@ -40,6 +40,10 @@ import { getUserRoleFactory } from '@/modules/core/repositories/users'
 import { UserInputError } from '@/modules/core/errors/userinput'
 import compression from 'compression'
 import { moduleAuthLoaders } from '@/modules/index'
+import {
+  resolveFrontendOriginFromHeaders,
+  resolveFrontendOriginFromRequest
+} from '@/modules/shared/helpers/frontendOrigin'
 
 export const authMiddlewareCreator = (
   steps: AuthPipelineFunction[]
@@ -174,8 +178,9 @@ export async function buildContext(params?: {
   token?: Nullable<string>
   authContext?: AuthContext
   cleanLoadersEarly?: boolean
+  headers?: Record<string, unknown>
 }): Promise<GraphQLContext> {
-  const { req, token, authContext, cleanLoadersEarly } = params || {}
+  const { req, token, authContext, cleanLoadersEarly, headers } = params || {}
 
   const validateToken = validateTokenFactory({
     revokeUserTokenById: revokeUserTokenByIdFactory({ db }),
@@ -210,9 +215,13 @@ export async function buildContext(params?: {
   const dataLoaders = await buildRequestLoaders(ctx, { cleanLoadersEarly })
   const authLoaders = await moduleAuthLoaders({ dataLoaders })
   const authPolicies = Authz.authPoliciesFactory(authLoaders.loaders)
+  const frontendOrigin = req
+    ? resolveFrontendOriginFromRequest(req)
+    : resolveFrontendOriginFromHeaders(headers || {})
 
   return {
     ...ctx,
+    frontendOrigin,
     loaders: dataLoaders,
     log,
     authPolicies: {

@@ -292,16 +292,18 @@ const resolvers: Resolvers = {
 
       return group
     },
-    previewUrl(parent) {
+    previewUrl(parent, _args, ctx) {
       return getPreviewUrl({
         projectId: parent.projectId,
-        viewId: parent.id
+        viewId: parent.id,
+        frontendOrigin: ctx.frontendOrigin
       })
     },
-    thumbnailUrl(parent) {
+    thumbnailUrl(parent, _args, ctx) {
       return getThumbnailUrl({
         projectId: parent.projectId,
-        viewId: parent.id
+        viewId: parent.id,
+        frontendOrigin: ctx.frontendOrigin
       })
     }
   },

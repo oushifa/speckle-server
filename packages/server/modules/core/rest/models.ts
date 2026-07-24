@@ -10,10 +10,10 @@ import {
   FileUploads
 } from '@/modules/core/dbSchema'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
-import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
 import { ensureError, Roles } from '@speckle/shared'
 import { getDepartmentUserIdsFactory } from '@/modules/organizations/services/departmentFilter'
 import { db } from '@/db/knex'
+import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 type ModelRow = {
   id: string
@@ -241,6 +241,7 @@ export default (app: Router) => {
         const offset = (currentPage - 1) * currentPageSize
         const paginatedRows = filteredRows.slice(offset, offset + currentPageSize)
         const filteredTotal = filteredRows.length
+        const frontendOrigin = resolveFrontendOriginFromRequest(req)
 
         // Map to match the frontend expectations
         const formattedModels = paginatedRows.map((m) => ({
@@ -256,7 +257,7 @@ export default (app: Router) => {
           previewUrl: m.latestCommitId
             ? new URL(
                 `/preview/${m.streamId}/commits/${m.latestCommitId}`,
-                getServerOrigin()
+                frontendOrigin
               ).toString()
             : null,
           status: null,

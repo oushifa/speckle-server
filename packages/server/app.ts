@@ -205,7 +205,7 @@ export async function buildApolloSubscriptionServer(params: {
         // for subscriptions)
         try {
           const headers = getHeaders({ connContext, connectionParams })
-          const buildCtx = await buildContext({ token })
+          const buildCtx = await buildContext({ token, headers })
           buildCtx.log.debug(
             {
               userId: buildCtx.userId,

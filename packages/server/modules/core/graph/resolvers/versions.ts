@@ -7,7 +7,6 @@ import {
   ProjectSubscriptions
 } from '@/modules/shared/utils/subscriptions'
 import {
-  getServerOrigin,
   isRateLimiterEnabled
 } from '@/modules/shared/helpers/envHelper'
 import {
@@ -115,7 +114,7 @@ export default {
           info: { streamId: parent.streamId }
         })
       const path = `/preview/${stream.id}/commits/${parent.id}`
-      return new URL(path, getServerOrigin()).toString()
+      return new URL(path, ctx.frontendOrigin).toString()
     },
     sourceApplication: async (parent) => {
       const knownSourceApp = SourceApps.find((app) =>

@@ -8,7 +8,7 @@ import {
   getPaginatedProjectModelsFactory,
   getProjectTopLevelModelsTreeFactory
 } from '@/modules/core/services/branch/retrieval'
-import { getFeatureFlags, getServerOrigin } from '@/modules/shared/helpers/envHelper'
+import { getFeatureFlags } from '@/modules/shared/helpers/envHelper'
 import { last } from 'lodash-es'
 import {
   getPaginatedBranchCommitsFactory,
@@ -231,7 +231,8 @@ export default {
         if (homeView) {
           return getThumbnailUrl({
             projectId: parent.streamId,
-            viewId: homeView.id
+            viewId: homeView.id,
+            frontendOrigin: ctx.frontendOrigin
           })
         }
       }
@@ -240,7 +241,7 @@ export default {
         .forRegion({ db: projectDB })
         .branches.getLatestCommit.load(parent.id)
       const path = `/preview/${parent.streamId}/commits/${latestCommit?.id || ''}`
-      return latestCommit ? new URL(path, getServerOrigin()).toString() : null
+      return latestCommit ? new URL(path, ctx.frontendOrigin).toString() : null
     },
     async childrenTree(parent) {
       const projectDB = await getProjectDbClient({ projectId: parent.streamId })

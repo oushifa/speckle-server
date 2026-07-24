@@ -11,18 +11,26 @@ export const thumbnailRoute =
 export const fullPreviewRoute =
   '/api/v1/projects/:projectId/saved-views/:viewId/preview'
 
-export const getThumbnailUrl = (params: { projectId: string; viewId: string }) => {
+export const getThumbnailUrl = (params: {
+  projectId: string
+  viewId: string
+  frontendOrigin?: string
+}) => {
   const route = thumbnailRoute
     .replace(':projectId', params.projectId)
     .replace(':viewId', params.viewId)
-  return new URL(route, getServerOrigin()).toString()
+  return new URL(route, params.frontendOrigin || getServerOrigin()).toString()
 }
 
-export const getPreviewUrl = (params: { projectId: string; viewId: string }) => {
+export const getPreviewUrl = (params: {
+  projectId: string
+  viewId: string
+  frontendOrigin?: string
+}) => {
   const route = fullPreviewRoute
     .replace(':projectId', params.projectId)
     .replace(':viewId', params.viewId)
-  return new URL(route, getServerOrigin()).toString()
+  return new URL(route, params.frontendOrigin || getServerOrigin()).toString()
 }
 
 export { formatResourceIdsForGroup, buildDefaultGroupId, decodeDefaultGroupId }
