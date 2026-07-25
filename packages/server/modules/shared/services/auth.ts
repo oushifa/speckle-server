@@ -121,6 +121,35 @@ export const authorizeResolverFactory =
     let streamVisibility: ProjectRecordVisibility | null = null
 
     if (role.resourceTarget === RoleResourceTargets.Streams) {
+      if (userId) {
+        try {
+          const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
+          const perm = await getMyEffectivePermission({ userId })
+          if (perm.roleId !== null) {
+            if (perm.isAdmin) return
+            if (role.name === Roles.Stream.Contributor || role.name === Roles.Stream.Owner) {
+              if (
+                perm.modelPerms.includes('file-management:publish') ||
+                perm.modelPerms.includes('file-management:create')
+              ) {
+                return
+              }
+            }
+            if (role.name === Roles.Stream.Reviewer) {
+              if (
+                perm.modelPerms.includes('file-management:view') ||
+                perm.modelPerms.includes('file-management:download') ||
+                perm.modelPerms.includes('file-management:publish')
+              ) {
+                return
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error checking custom role permission in authorizeResolver:', err)
+        }
+      }
+
       const stream = await deps.getStream({
         userId: userId || undefined,
         streamId: resourceId

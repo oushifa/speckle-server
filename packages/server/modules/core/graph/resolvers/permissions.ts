@@ -1,5 +1,9 @@
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { Authz } from '@speckle/shared'
+import { db } from '@/db/knex'
+import { getMyEffectivePermissionFactory } from '@/modules/custom-role/repositories/customRoles'
+
+const getMyEffectivePermission = getMyEffectivePermissionFactory({ db })
 
 export default {
   Project: {
@@ -25,6 +29,17 @@ export default {
   },
   ProjectPermissionChecks: {
     canCreateModel: async (parent, _args, ctx) => {
+      if (ctx.userId) {
+        try {
+          const perm = await getMyEffectivePermission({ userId: ctx.userId })
+          if (perm.roleId !== null) {
+            const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:create')
+            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有创建模型的权限。' })
+          }
+        } catch (e) {
+          console.error('Check custom permission error in canCreateModel:', e)
+        }
+      }
       const canCreateModel = await ctx.authPolicies.project.model.canCreate({
         userId: ctx.userId,
         projectId: parent.projectId
@@ -97,6 +112,17 @@ export default {
       return Authz.toGraphqlResult(canRequestRender)
     },
     canPublish: async (parent, _args, ctx) => {
+      if (ctx.userId) {
+        try {
+          const perm = await getMyEffectivePermission({ userId: ctx.userId })
+          if (perm.roleId !== null) {
+            const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
+            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有发布模型的权限。' })
+          }
+        } catch (e) {
+          console.error('Check custom permission error in canPublish:', e)
+        }
+      }
       const canPublish = await ctx.authPolicies.project.canPublish({
         projectId: parent.projectId,
         userId: ctx.userId
@@ -104,6 +130,17 @@ export default {
       return Authz.toGraphqlResult(canPublish)
     },
     canLoad: async (parent, _args, ctx) => {
+      if (ctx.userId) {
+        try {
+          const perm = await getMyEffectivePermission({ userId: ctx.userId })
+          if (perm.roleId !== null) {
+            const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:download')
+            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有加载模型的权限。' })
+          }
+        } catch (e) {
+          console.error('Check custom permission error in canLoad:', e)
+        }
+      }
       const canLoad = await ctx.authPolicies.project.canLoad({
         projectId: parent.projectId,
         userId: ctx.userId
@@ -156,6 +193,17 @@ export default {
       return Authz.toGraphqlResult(canDelete)
     },
     canCreateVersion: async (parent, _args, ctx) => {
+      if (ctx.userId) {
+        try {
+          const perm = await getMyEffectivePermission({ userId: ctx.userId })
+          if (perm.roleId !== null) {
+            const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
+            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有发布版本的权限。' })
+          }
+        } catch (e) {
+          console.error('Check custom permission error in canCreateVersion:', e)
+        }
+      }
       const canCreate = await ctx.authPolicies.project.version.canCreate({
         projectId: parent.projectId,
         userId: ctx.userId
