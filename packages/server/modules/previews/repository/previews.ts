@@ -50,11 +50,17 @@ export const getPaginatedObjectsPreviewsBaseQueryFactory =
   (params: Omit<PaginatedObjectPreviewsParams, 'limit' | 'cursor'>) => {
     const query = tables.objectPreview(deps.db).select('*')
 
-    if (params.filter?.status) {
+    if (params.filter?.statuses?.length) {
+      query.whereIn('previewStatus', params.filter.statuses)
+    } else if (params.filter?.status !== undefined) {
       query.where('previewStatus', params.filter.status)
     }
+
     if (params.filter?.maxNumberOfAttempts) {
       query.where('attempts', '<', params.filter.maxNumberOfAttempts)
+    }
+    if (params.filter?.updatedBefore) {
+      query.where('lastUpdate', '<', params.filter.updatedBefore)
     }
     return query
   }

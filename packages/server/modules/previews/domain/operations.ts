@@ -29,7 +29,9 @@ export type PaginatedObjectPreviewsParams = {
   cursor?: MaybeNullOrUndefined<string>
   filter?: MaybeNullOrUndefined<{
     status?: (typeof PreviewStatus)[keyof typeof PreviewStatus]
+    statuses?: Array<(typeof PreviewStatus)[keyof typeof PreviewStatus]>
     maxNumberOfAttempts?: number
+    updatedBefore?: Date
   }>
 }
 
@@ -96,8 +98,15 @@ export type GetObjectPreviewBufferOrFilepath = (params: {
       file: string
       error?: true
       errorCode?: string
+      previewStatus?: string
     }
-  | { type: 'buffer'; buffer: Buffer; error?: true; errorCode?: string }
+  | {
+      type: 'buffer'
+      buffer: Buffer
+      error?: true
+      errorCode?: string
+      previewStatus?: string
+    }
 >
 
 export type SendObjectPreview = (

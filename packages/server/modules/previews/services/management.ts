@@ -18,6 +18,20 @@ import { ProjectRecordVisibility } from '@/modules/core/helpers/types'
 import { fileURLToPath } from 'url'
 
 const defaultAngle = '0'
+const previewStatusHeaderValue = (status?: number) => {
+  switch (status) {
+    case PreviewStatus.PENDING:
+      return 'pending'
+    case PreviewStatus.PROCESSING:
+      return 'processing'
+    case PreviewStatus.DONE:
+      return 'done'
+    case PreviewStatus.ERROR:
+      return 'error'
+    default:
+      return undefined
+  }
+}
 
 export const getObjectPreviewBufferOrFilepathFactory =
   (deps: {
@@ -64,15 +78,47 @@ export const getObjectPreviewBufferOrFilepathFactory =
         objectId,
         priority: PreviewPriority.LOW
       })
-      if (!objPreviewQueued) return { type: 'file', file: noPreviewImage }
+      if (!objPreviewQueued)
+        return {
+          type: 'file',
+          file: noPreviewImage,
+          previewStatus: previewStatusHeaderValue(PreviewStatus.PENDING)
+        }
     }
 
-    if (
-      !previewInfo ||
-      previewInfo.previewStatus !== PreviewStatus.DONE ||
-      !previewInfo.preview
-    ) {
-      return { type: 'file', file: noPreviewImage }
+    if (!previewInfo) {
+      boundLogger.info('Preview is pending generation.')
+      return {
+        type: 'file',
+        file: noPreviewImage,
+        previewStatus: previewStatusHeaderValue(PreviewStatus.PENDING)
+      }
+    }
+
+    if (previewInfo.previewStatus === PreviewStatus.ERROR) {
+      boundLogger.warn(
+        { previewInfo },
+        'Preview is in an error state and cannot return a generated image.'
+      )
+      return {
+        type: 'file',
+        file: previewErrorImage,
+        error: true,
+        errorCode: 'PREVIEW_ERROR_STATE',
+        previewStatus: previewStatusHeaderValue(previewInfo.previewStatus)
+      }
+    }
+
+    if (previewInfo.previewStatus !== PreviewStatus.DONE || !previewInfo.preview) {
+      boundLogger.info(
+        { previewStatus: previewInfo.previewStatus },
+        'Preview is not ready yet and is returning a placeholder image.'
+      )
+      return {
+        type: 'file',
+        file: noPreviewImage,
+        previewStatus: previewStatusHeaderValue(previewInfo.previewStatus)
+      }
     }
 
     const previewImgId = previewInfo.preview[angle]
@@ -100,7 +146,11 @@ export const getObjectPreviewBufferOrFilepathFactory =
         errorCode: 'PREVIEW_NOT_FOUND'
       }
     }
-    return { type: 'buffer', buffer: previewImg }
+    return {
+      type: 'buffer',
+      buffer: previewImg,
+      previewStatus: previewStatusHeaderValue(PreviewStatus.DONE)
+    }
   }
 
 export const sendObjectPreviewFactory =
@@ -123,12 +173,18 @@ export const sendObjectPreviewFactory =
       if (previewBufferOrFile.type === 'file') {
         previewBufferOrFile = {
           type: 'buffer',
-          buffer: await deps.makeOgImage(previewBufferOrFile.file, streamName)
+          buffer: await deps.makeOgImage(previewBufferOrFile.file, streamName),
+          error: previewBufferOrFile.error,
+          errorCode: previewBufferOrFile.errorCode,
+          previewStatus: previewBufferOrFile.previewStatus
         }
       } else {
         previewBufferOrFile = {
           type: 'buffer',
-          buffer: await deps.makeOgImage(previewBufferOrFile.buffer, streamName)
+          buffer: await deps.makeOgImage(previewBufferOrFile.buffer, streamName),
+          error: previewBufferOrFile.error,
+          errorCode: previewBufferOrFile.errorCode,
+          previewStatus: previewBufferOrFile.previewStatus
         }
       }
     }
@@ -137,6 +193,9 @@ export const sendObjectPreviewFactory =
     }
     if (previewBufferOrFile.errorCode) {
       res.set('X-Preview-Error-Code', previewBufferOrFile.errorCode)
+    }
+    if (previewBufferOrFile.previewStatus) {
+      res.set('X-Preview-Status', previewBufferOrFile.previewStatus)
     }
     if (previewBufferOrFile.type === 'file') {
       // we can't cache these cause they may switch to proper buffer previews in a sec

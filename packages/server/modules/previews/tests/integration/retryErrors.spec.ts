@@ -26,6 +26,14 @@ describe('Previews services @previews', () => {
       ),
       maximumNumberOfAttempts: 2
     })
+    const stalePendingSut = getPaginatedObjectPreviewInErrorStateFactory({
+      getPaginatedObjectPreviewsPage: getPaginatedObjectPreviewsPageFactory({ db }),
+      getPaginatedObjectPreviewsTotalCount: getPaginatedObjectPreviewsTotalCountFactory(
+        { db }
+      ),
+      maximumNumberOfAttempts: 2,
+      stalePendingThresholdMs: 1
+    })
     let user: Awaited<ReturnType<typeof createTestUser>>
     let stream: Awaited<ReturnType<typeof createTestStream>>
 
@@ -148,6 +156,52 @@ describe('Previews services @previews', () => {
       expect(maxAttemptsResults.totalCount).to.equal(2)
       expect(maxAttemptsResults.items.map((item) => item.objectId)).to.not.contain(
         originalFirstItem.objectId
+      )
+    })
+
+    it('retrieves stale pending previews in addition to previews in an error state', async () => {
+      const stalePendingObjectId = cryptoRandomString({ length: 10 })
+      const freshPendingObjectId = cryptoRandomString({ length: 10 })
+      const erroredObjectId = cryptoRandomString({ length: 10 })
+
+      await Promise.all(
+        [stalePendingObjectId, freshPendingObjectId, erroredObjectId].map((objectId) =>
+          storeObjectPreview({
+            streamId: stream.id!,
+            objectId,
+            priority: PreviewPriority.MEDIUM
+          })
+        )
+      )
+
+      await updateObjectPreview({
+        objectPreview: {
+          objectId: erroredObjectId,
+          streamId: stream.id!,
+          previewStatus: PreviewStatus.ERROR
+        }
+      })
+
+      await wait(5)
+
+      await updateObjectPreview({
+        objectPreview: {
+          objectId: freshPendingObjectId,
+          streamId: stream.id!,
+          previewStatus: PreviewStatus.PENDING
+        }
+      })
+
+      const results = await stalePendingSut({
+        limit: 10,
+        cursor: null
+      })
+
+      expect(results.totalCount).to.be.greaterThanOrEqual(2)
+      expect(results.items.map((item) => item.objectId)).to.include(stalePendingObjectId)
+      expect(results.items.map((item) => item.objectId)).to.include(erroredObjectId)
+      expect(results.items.map((item) => item.objectId)).to.not.include(
+        freshPendingObjectId
       )
     })
   })

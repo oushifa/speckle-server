@@ -14,32 +14,66 @@ import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import type { GetStreamCollaborators } from '@/modules/core/domain/streams/operations'
 import type { CreateAndStoreAppToken } from '@/modules/core/domain/tokens/operations'
 import type { GetFirstAdmin } from '@/modules/core/domain/users/operations'
-import { getPreviewServiceMaxQueueBackpressure } from '@/modules/shared/helpers/envHelper'
+import {
+  getPreviewServiceMaxQueueBackpressure,
+  getPreviewServiceTimeoutMilliseconds
+} from '@/modules/shared/helpers/envHelper'
 
 export const getPaginatedObjectPreviewInErrorStateFactory =
   (deps: {
     getPaginatedObjectPreviewsPage: GetPaginatedObjectPreviewsPage
     getPaginatedObjectPreviewsTotalCount: GetPaginatedObjectPreviewsTotalCount
     maximumNumberOfAttempts?: number
+    stalePendingThresholdMs?: number
   }): GetPaginatedObjectPreviewsInErrorState =>
   async (params) => {
-    const filter = {
+    const maximumNumberOfAttempts = deps.maximumNumberOfAttempts ?? 3
+    const stalePendingThresholdMs =
+      deps.stalePendingThresholdMs ?? getPreviewServiceTimeoutMilliseconds()
+    const stalePendingUpdatedBefore = new Date(Date.now() - stalePendingThresholdMs)
+
+    const errorFilter = {
       status: PreviewStatus.ERROR,
-      maxNumberOfAttempts: deps.maximumNumberOfAttempts ?? 3 // only retry items that have errored less than 3 times
+      maxNumberOfAttempts: maximumNumberOfAttempts
     }
-    const [result, totalCount] = await Promise.all([
-      deps.getPaginatedObjectPreviewsPage({
-        ...params,
-        filter
-      }),
-      deps.getPaginatedObjectPreviewsTotalCount({
-        ...params,
-        filter
+    const stalePendingFilter = {
+      status: PreviewStatus.PENDING,
+      maxNumberOfAttempts: maximumNumberOfAttempts,
+      updatedBefore: stalePendingUpdatedBefore
+    }
+
+    const [errorResult, errorTotalCount, stalePendingResult, stalePendingTotalCount] =
+      await Promise.all([
+        deps.getPaginatedObjectPreviewsPage({
+          ...params,
+          filter: errorFilter
+        }),
+        deps.getPaginatedObjectPreviewsTotalCount({
+          ...params,
+          filter: errorFilter
+        }),
+        deps.getPaginatedObjectPreviewsPage({
+          ...params,
+          filter: stalePendingFilter
+        }),
+        deps.getPaginatedObjectPreviewsTotalCount({
+          ...params,
+          filter: stalePendingFilter
+        })
+      ])
+
+    const items = [...errorResult.items, ...stalePendingResult.items]
+      .sort((a, b) => {
+        const lastUpdateDiff = a.lastUpdate.getTime() - b.lastUpdate.getTime()
+        if (lastUpdateDiff !== 0) return lastUpdateDiff
+        return a.objectId.localeCompare(b.objectId)
       })
-    ])
+      .slice(0, params.limit)
+
     return {
-      ...result,
-      totalCount
+      items,
+      cursor: null,
+      totalCount: errorTotalCount + stalePendingTotalCount
     }
   }
 
@@ -75,7 +109,7 @@ export const retryFailedPreviewsFactory = (deps: {
       //NOTE we rely on the items returned, as this accounts for the cursor position. More errored items might have been added since the last time we checked and changed the totalCount.
       logger.info(
         { region },
-        "No object previews in an error state were found within database region '{region}'"
+        "No object previews in an error or stale pending state were found within database region '{region}'"
       )
       return false
     }
@@ -85,7 +119,7 @@ export const retryFailedPreviewsFactory = (deps: {
     if (queueLength > getPreviewServiceMaxQueueBackpressure()) {
       logger.info(
         { region, queueLength, totalErroredPreviewCount: totalCount },
-        "Backpressure detected in the preview request queue, as the queue length is already {queueLength} jobs. Found {totalErroredPreviewCount} object previews in an error state within database region '{region}', but are not retrying any on this iteration."
+        "Backpressure detected in the preview request queue, as the queue length is already {queueLength} jobs. Found {totalErroredPreviewCount} object previews in an error or stale pending state within database region '{region}', but are not retrying any on this iteration."
       )
       return false
     }
@@ -102,7 +136,7 @@ export const retryFailedPreviewsFactory = (deps: {
         attempts: objPreview.attempts,
         region
       },
-      "Found {totalErroredPreviewCount} object previews in an error state within database region '{region}'. Attempting to retry one: {projectId}.{objectId}. Previous attempts: {attempts}"
+      "Found {totalErroredPreviewCount} object previews in an error or stale pending state within database region '{region}'. Attempting to retry one: {projectId}.{objectId}. Previous attempts: {attempts}"
     )
 
     await updateObjectPreview({
