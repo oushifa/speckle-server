@@ -1,4 +1,5 @@
 import type { LimitedUserWithStreamRole } from '@/modules/core/domain/streams/types'
+import type { StreamWithOptionalRole } from '@/modules/core/domain/streams/types'
 import type { User } from '@/modules/core/domain/users/types'
 import type {
   ObjectPreviewInput,
@@ -36,6 +37,7 @@ describe('object preview @previews', () => {
       const createObjectPreview = createObjectPreviewFactory({
         serverOrigin,
         getFirstAdmin: async () => undefined,
+        getStream: async () => undefined,
         getStreamCollaborators: async () => [streamOwner],
         createAppToken: async (tokenArgs) => {
           userId = tokenArgs.userId
@@ -67,6 +69,7 @@ describe('object preview @previews', () => {
       const createObjectPreview = createObjectPreviewFactory({
         serverOrigin,
         getFirstAdmin: async () => undefined,
+        getStream: async () => undefined,
         getStreamCollaborators: async () => [streamOwner],
         createAppToken: async (tokenArgs) => {
           userId = tokenArgs.userId
@@ -114,10 +117,16 @@ describe('object preview @previews', () => {
       const previewAdmin = {
         id: cryptoRandomString({ length: 10 })
       } as User
+      const publicStream = {
+        id: cryptoRandomString({ length: 10 }),
+        visibility: 'PUBLIC',
+        role: null
+      } as unknown as StreamWithOptionalRole
 
       const createObjectPreview = createObjectPreviewFactory({
         serverOrigin,
         getFirstAdmin: async () => previewAdmin,
+        getStream: async () => publicStream,
         getStreamCollaborators: async () => [],
         createAppToken: async (tokenArgs) => {
           userId = tokenArgs.userId
@@ -140,6 +149,39 @@ describe('object preview @previews', () => {
         jobId: `${streamId}.${objectId}`,
         token: appToken
       })
+    })
+
+    it('falls back to a collaborator when the server admin lacks stream access', async () => {
+      let userId: string | undefined = undefined
+      const previewAdmin = {
+        id: cryptoRandomString({ length: 10 })
+      } as User
+      const privateStreamWithoutAccess = {
+        id: cryptoRandomString({ length: 10 }),
+        visibility: 'PRIVATE',
+        role: null
+      } as unknown as StreamWithOptionalRole
+
+      const createObjectPreview = createObjectPreviewFactory({
+        serverOrigin,
+        getFirstAdmin: async () => previewAdmin,
+        getStream: async () => privateStreamWithoutAccess,
+        getStreamCollaborators: async () => [streamOwner],
+        createAppToken: async (tokenArgs) => {
+          userId = tokenArgs.userId
+          return appToken
+        },
+        storeObjectPreview: async () => {},
+        requestObjectPreview: async () => {}
+      })
+
+      await createObjectPreview({
+        objectId: cryptoRandomString({ length: 32 }),
+        streamId: cryptoRandomString({ length: 10 }),
+        priority: 0
+      })
+
+      expect(userId).to.equal(streamOwner.id)
     })
   })
 })

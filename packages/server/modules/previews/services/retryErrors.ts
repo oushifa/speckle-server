@@ -8,16 +8,20 @@ import type {
   UpdateObjectPreview
 } from '@/modules/previews/domain/operations'
 import { PreviewStatus } from '@/modules/previews/domain/consts'
-import { Roles, Scopes, TIME_MS } from '@speckle/shared'
+import { Scopes, TIME_MS } from '@speckle/shared'
 import { DefaultAppIds } from '@/modules/auth/defaultApps'
 import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
-import type { GetStreamCollaborators } from '@/modules/core/domain/streams/operations'
+import type {
+  GetStream,
+  GetStreamCollaborators
+} from '@/modules/core/domain/streams/operations'
 import type { CreateAndStoreAppToken } from '@/modules/core/domain/tokens/operations'
 import type { GetFirstAdmin } from '@/modules/core/domain/users/operations'
 import {
   getPreviewServiceMaxQueueBackpressure,
   getPreviewServiceTimeoutMilliseconds
 } from '@/modules/shared/helpers/envHelper'
+import { getPreviewExecutionUserFactory } from '@/modules/previews/services/previewExecutionUser'
 
 export const getPaginatedObjectPreviewInErrorStateFactory =
   (deps: {
@@ -81,6 +85,7 @@ export const retryFailedPreviewsFactory = (deps: {
   getPaginatedObjectPreviewsInErrorState: GetPaginatedObjectPreviewsInErrorState
   updateObjectPreview: UpdateObjectPreview
   getFirstAdmin: GetFirstAdmin
+  getStream: GetStream
   getStreamCollaborators: GetStreamCollaborators
   serverOrigin: string
   createAppToken: CreateAndStoreAppToken
@@ -92,6 +97,7 @@ export const retryFailedPreviewsFactory = (deps: {
     getPaginatedObjectPreviewsInErrorState,
     updateObjectPreview,
     getFirstAdmin,
+    getStream,
     getStreamCollaborators,
     serverOrigin,
     createAppToken,
@@ -99,6 +105,11 @@ export const retryFailedPreviewsFactory = (deps: {
     getNumberOfJobsInQueue,
     region
   } = deps
+  const getPreviewExecutionUser = getPreviewExecutionUserFactory({
+    getFirstAdmin,
+    getStream,
+    getStreamCollaborators
+  })
   return async (params: { logger: Logger }): Promise<boolean> => {
     const { logger } = params
     const { items, totalCount } = await getPaginatedObjectPreviewsInErrorState({
@@ -147,17 +158,7 @@ export const retryFailedPreviewsFactory = (deps: {
       }
     })
 
-    const previewAdmin = await getFirstAdmin()
-    const owners = previewAdmin
-      ? []
-      : await getStreamCollaborators(streamId, Roles.Stream.Owner, {
-          limit: 1
-        })
-    const collaborators =
-      previewAdmin || owners.length > 0
-        ? []
-        : await getStreamCollaborators(streamId, undefined, { limit: 1 })
-    const userId = previewAdmin?.id || owners[0]?.id || collaborators[0]?.id
+    const userId = await getPreviewExecutionUser(streamId)
 
     if (!userId) {
       logger.warn(
@@ -167,7 +168,6 @@ export const retryFailedPreviewsFactory = (deps: {
       return false
     }
 
-    // Prefer a server admin so preview generation does not depend on project roles.
     const token = await createAppToken({
       appId: DefaultAppIds.Web,
       name: `preview-${streamId}@${objectId}`,

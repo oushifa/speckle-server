@@ -77,6 +77,7 @@ const buildCreateObjectPreviewFunction = ({
       : getServerOrigin(),
     storeObjectPreview: storeObjectPreviewFactory({ db: projectDb }),
     getFirstAdmin: getFirstAdminFactory({ db }),
+    getStream: getStreamFactory({ db }),
     getStreamCollaborators: getStreamCollaboratorsFactory({ db }),
     createAppToken: createAppTokenFactory({
       storeApiToken: storeApiTokenFactory({ db }),
