@@ -2581,6 +2581,7 @@ export type ModelMutationsUpdateArgs = {
 export type ModelPermissionChecks = {
   __typename?: 'ModelPermissionChecks';
   canCreateVersion: PermissionCheckResult;
+  canCreateIngestion: PermissionCheckResult;
   canDelete: PermissionCheckResult;
   canUpdate: PermissionCheckResult;
 };
@@ -9590,6 +9591,7 @@ export type ModelMutationsResolvers<ContextType = GraphQLContext, ParentType ext
 
 export type ModelPermissionChecksResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ModelPermissionChecks'] = ResolversParentTypes['ModelPermissionChecks']> = {
   canCreateVersion?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
+  canCreateIngestion?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

@@ -217,6 +217,26 @@ export default {
         userId: ctx.userId
       })
       return Authz.toGraphqlResult(canCreate)
+    },
+    canCreateIngestion: async (parent, _args, ctx) => {
+      if (ctx.userId) {
+        try {
+          const perm = await getMyEffectivePermission({ userId: ctx.userId })
+          if (perm.roleId !== null) {
+            const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
+            return authorized
+              ? { authorized: true, code: 'OK', message: 'OK', payload: null }
+              : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有发布版本的权限。', payload: null }
+          }
+        } catch (e) {
+          console.error('Check custom permission error in canCreateIngestion:', e)
+        }
+      }
+      const canCreate = await ctx.authPolicies.project.version.canCreate({
+        projectId: parent.projectId,
+        userId: ctx.userId
+      })
+      return Authz.toGraphqlResult(canCreate)
     }
   },
   VersionPermissionChecks: {
