@@ -11,12 +11,17 @@ import {
   getProjectFactory,
   storeProjectFactory
 } from '@/modules/core/repositories/projects'
-import { updateStreamFactory } from '@/modules/core/repositories/streams'
+import {
+  getStreamFactory,
+  grantStreamPermissionsFactory,
+  updateStreamFactory
+} from '@/modules/core/repositories/streams'
 import {
   createBranchFactory,
   getStreamBranchByNameFactory
 } from '@/modules/core/repositories/branches'
 import { createBranchAndNotifyFactory } from '@/modules/core/services/branch/management'
+import { Roles } from '@speckle/shared'
 
 export const ensureModelLibraryProjectFactory =
   ({ db }: { db: Knex }) =>
@@ -76,6 +81,37 @@ export const ensureModelLibraryProjectFactory =
     return await getProject({ projectId: MODEL_LIBRARY_PROJECT_ID })
   }
 
+export const ensureModelLibraryProjectAccessFactory =
+  ({ db }: { db: Knex }) =>
+  async (params: { userId: string }) => {
+    await ensureModelLibraryProjectFactory({ db })()
+
+    const getStream = getStreamFactory({ db })
+    const grantStreamPermissions = grantStreamPermissionsFactory({ db })
+    const project = await getStream({
+      streamId: MODEL_LIBRARY_PROJECT_ID,
+      userId: params.userId
+    })
+
+    if (
+      project?.role === Roles.Stream.Owner ||
+      project?.role === Roles.Stream.Contributor
+    ) {
+      return project
+    }
+
+    await grantStreamPermissions({
+      streamId: MODEL_LIBRARY_PROJECT_ID,
+      userId: params.userId,
+      role: Roles.Stream.Contributor
+    })
+
+    return await getStream({
+      streamId: MODEL_LIBRARY_PROJECT_ID,
+      userId: params.userId
+    })
+  }
+
 export const ensureModelLibraryModelFactory =
   ({ db, eventEmit }: { db: Knex; eventEmit: EventBusEmit }) =>
   async (params: { name: string; description?: string | null; userId: string }) => {
@@ -89,6 +125,8 @@ export const ensureModelLibraryModelFactory =
     if (!normalizedName.length) {
       throw new Error('Model name is required')
     }
+
+    await ensureModelLibraryProjectAccessFactory({ db })({ userId: params.userId })
 
     const getStreamBranchByName = getStreamBranchByNameFactory({ db })
     const existingModel = await getStreamBranchByName(

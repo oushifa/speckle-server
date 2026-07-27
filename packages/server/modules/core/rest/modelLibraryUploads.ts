@@ -11,6 +11,7 @@ import {
   MODEL_LIBRARY_PROJECT_NAME
 } from '@/modules/core/constants/modelLibrary'
 import {
+  ensureModelLibraryProjectAccessFactory,
   ensureModelLibraryModelFactory,
   ensureModelLibraryProjectFactory
 } from '@/modules/core/services/streams/modelLibrary'
@@ -88,6 +89,7 @@ const ensureServerUser = async (req: Request) => {
 export default (app: Router) => {
   const route = '/api/internal/model-library'
   const ensureModelLibraryProject = ensureModelLibraryProjectFactory({ db })
+  const ensureModelLibraryProjectAccess = ensureModelLibraryProjectAccessFactory({ db })
 
   app.options(`${route}/models/ensure`, cors(), allowCrossOriginResourceAccessMiddelware())
   app.options(`${route}/uploads/prepare`, cors(), allowCrossOriginResourceAccessMiddelware())
@@ -101,6 +103,7 @@ export default (app: Router) => {
       try {
         const userId = await ensureServerUser(req)
         await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
 
         const { name, description } = req.body || {}
         if (!name || typeof name !== 'string') {
@@ -138,6 +141,7 @@ export default (app: Router) => {
       try {
         const userId = await ensureServerUser(req)
         await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
 
         const { fileName, modelName, modelDescription } = req.body || {}
         if (!fileName || typeof fileName !== 'string') {
@@ -205,6 +209,7 @@ export default (app: Router) => {
       try {
         const userId = await ensureServerUser(req)
         await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
 
         const { etag, fileId, modelId, modelName, modelDescription } = req.body || {}
         if (!etag || typeof etag !== 'string') {
