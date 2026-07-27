@@ -55,7 +55,7 @@ describe('object preview @previews', () => {
       expect(objectPreviewInput).to.deep.equal({ objectId, streamId, priority })
       expect(userId).to.deep.equal(streamOwner.id)
       expect(objectPreviewRequest).to.deep.equal({
-        url: `${serverOrigin}/projects/${streamId}/models/${objectId}`,
+        url: `${serverOrigin}/streams/${streamId}/objects/${objectId}`,
         jobId: `${streamId}.${objectId}`,
         token: appToken
       })
@@ -92,7 +92,7 @@ describe('object preview @previews', () => {
       expect(objectPreviewInput).to.deep.equal({ objectId, streamId, priority })
       expect(userId).to.deep.equal(streamOwner.id)
       expect(objectPreviewRequest).to.deep.equal({
-        url: `${serverOrigin}/projects/${streamId}/models/${objectId}`,
+        url: `${serverOrigin}/streams/${streamId}/objects/${objectId}`,
         jobId: `${streamId}.${objectId}`,
         token: appToken
       })
@@ -136,7 +136,7 @@ describe('object preview @previews', () => {
 
       expect(userId).to.equal(previewAdmin.id)
       expect(objectPreviewRequest).to.deep.equal({
-        url: `${serverOrigin}/projects/${streamId}/models/${objectId}`,
+        url: `${serverOrigin}/streams/${streamId}/objects/${objectId}`,
         jobId: `${streamId}.${objectId}`,
         token: appToken
       })

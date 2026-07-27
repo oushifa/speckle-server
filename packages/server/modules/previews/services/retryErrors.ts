@@ -181,11 +181,7 @@ export const retryFailedPreviewsFactory = (deps: {
         }
       ]
     })
-    const url = new URL(
-      `/projects/${streamId}/models/${objectId}`,
-      serverOrigin
-    ).toString()
-
+    const url = new URL(`/streams/${streamId}/objects/${objectId}`, serverOrigin).toString()
     await requestObjectPreview({ jobId: `${streamId}.${objectId}`, token, url })
 
     return true
