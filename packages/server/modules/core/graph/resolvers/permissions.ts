@@ -34,7 +34,9 @@ export default {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:create')
-            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有创建模型的权限。' })
+            return authorized
+              ? { authorized: true, code: 'OK', message: 'OK', payload: null }
+              : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有创建模型的权限。', payload: null }
           }
         } catch (e) {
           console.error('Check custom permission error in canCreateModel:', e)
@@ -117,7 +119,9 @@ export default {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
-            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有发布模型的权限。' })
+            return authorized
+              ? { authorized: true, code: 'OK', message: 'OK', payload: null }
+              : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有发布模型的权限。', payload: null }
           }
         } catch (e) {
           console.error('Check custom permission error in canPublish:', e)
@@ -135,7 +139,9 @@ export default {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:download')
-            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有加载模型的权限。' })
+            return authorized
+              ? { authorized: true, code: 'OK', message: 'OK', payload: null }
+              : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有加载模型的权限。', payload: null }
           }
         } catch (e) {
           console.error('Check custom permission error in canLoad:', e)
@@ -198,7 +204,9 @@ export default {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
-            return Authz.toGraphqlResult({ authorized, message: authorized ? null : '您的角色没有发布版本的权限。' })
+            return authorized
+              ? { authorized: true, code: 'OK', message: 'OK', payload: null }
+              : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有发布版本的权限。', payload: null }
           }
         } catch (e) {
           console.error('Check custom permission error in canCreateVersion:', e)

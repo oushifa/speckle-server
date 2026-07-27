@@ -2234,6 +2234,7 @@ export type GetUngroupedViewGroupInput = {
 };
 
 export type ImportBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentCode?: InputMaybe<Scalars['String']['input']>;
@@ -9853,6 +9854,8 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   boqSelectorOptions?: Resolver<ResolversTypes['BoqItemCollection'], ParentType, ContextType, RequireFields<ProjectBoqSelectorOptionsArgs, 'input'>>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<ProjectCommentArgs, 'id'>>;
   commentThreads?: Resolver<ResolversTypes['ProjectCommentCollection'], ParentType, ContextType, Partial<ProjectCommentThreadsArgs>>;
+  constructionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  supervisionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   dashboardTokens?: Resolver<ResolversTypes['DashboardTokenCollection'], ParentType, ContextType, Partial<ProjectDashboardTokensArgs>>;
   dashboards?: Resolver<ResolversTypes['DashboardCollection'], ParentType, ContextType, RequireFields<ProjectDashboardsArgs, 'limit'>>;

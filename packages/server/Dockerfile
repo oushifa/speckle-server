@@ -29,6 +29,7 @@ RUN curl -fsSL https://github.com/krallin/tini/releases/download/${TINI_VERSION}
 RUN corepack enable && corepack prepare yarn@4.5.0 --activate
 
 # 环境变量
+ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
@@ -53,7 +54,7 @@ COPY packages/server ./packages/server/
 COPY packages/shared ./packages/shared/
 COPY packages/objectloader ./packages/objectloader/
 
-RUN yarn workspaces foreach -W run build
+RUN yarn workspaces foreach -A --include '{@speckle/shared,@speckle/objectloader,@speckle/server}' --parallel --topological run build
 
 # 验证（确认 javac 存在）
 RUN java -version && javac -version && node -v && yarn -v

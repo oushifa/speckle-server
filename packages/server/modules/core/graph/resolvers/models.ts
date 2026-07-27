@@ -311,7 +311,7 @@ export default {
 
       return version
     },
-    async latestApprovedVersion(parent, _args, ctx) {
+    async latestApprovedVersion(parent: { streamId: string; id: string }, _args: unknown, ctx: unknown) {
       const approvedBindings = await db('approval_flow_bindings')
         .where({
           projectId: parent.streamId,
