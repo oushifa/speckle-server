@@ -15,6 +15,7 @@ import {
   retryFailedPreviewsFactory
 } from '@/modules/previews/services/retryErrors'
 import { getStreamCollaboratorsFactory } from '@/modules/core/repositories/streams'
+import { getFirstAdminFactory } from '@/modules/core/repositories/users'
 import { createAppTokenFactory } from '@/modules/core/services/tokens'
 import {
   storeApiTokenFactory,
@@ -67,6 +68,7 @@ export const scheduleRetryFailedPreviews = async ({
         serverOrigin: previewServiceShouldUsePrivateObjectsServerUrl()
           ? getPrivateObjectsServerOrigin()
           : getServerOrigin(),
+        getFirstAdmin: getFirstAdminFactory({ db }),
         getStreamCollaborators: getStreamCollaboratorsFactory({ db }),
         createAppToken: createAppTokenFactory({
           storeApiToken: storeApiTokenFactory({ db }),

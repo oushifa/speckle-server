@@ -1,4 +1,5 @@
 import type { LimitedUserWithStreamRole } from '@/modules/core/domain/streams/types'
+import type { User } from '@/modules/core/domain/users/types'
 import type {
   ObjectPreviewInput,
   ObjectPreviewRequest
@@ -34,6 +35,7 @@ describe('object preview @previews', () => {
       let objectPreviewRequest: ObjectPreviewRequest | undefined = undefined
       const createObjectPreview = createObjectPreviewFactory({
         serverOrigin,
+        getFirstAdmin: async () => undefined,
         getStreamCollaborators: async () => [streamOwner],
         createAppToken: async (tokenArgs) => {
           userId = tokenArgs.userId
@@ -64,6 +66,7 @@ describe('object preview @previews', () => {
       let objectPreviewRequest: ObjectPreviewRequest | undefined = undefined
       const createObjectPreview = createObjectPreviewFactory({
         serverOrigin,
+        getFirstAdmin: async () => undefined,
         getStreamCollaborators: async () => [streamOwner],
         createAppToken: async (tokenArgs) => {
           userId = tokenArgs.userId
@@ -103,6 +106,40 @@ describe('object preview @previews', () => {
       })
       expect(secondAttemptToCreate).to.be.false
       expect(objectPreviewRequest).to.be.undefined // we have not created a new request
+    })
+
+    it('prefers a server admin for preview execution', async () => {
+      let userId: string | undefined = undefined
+      let objectPreviewRequest: ObjectPreviewRequest | undefined = undefined
+      const previewAdmin = {
+        id: cryptoRandomString({ length: 10 })
+      } as User
+
+      const createObjectPreview = createObjectPreviewFactory({
+        serverOrigin,
+        getFirstAdmin: async () => previewAdmin,
+        getStreamCollaborators: async () => [],
+        createAppToken: async (tokenArgs) => {
+          userId = tokenArgs.userId
+          return appToken
+        },
+        storeObjectPreview: async () => {},
+        requestObjectPreview: async (previewRequest) => {
+          objectPreviewRequest = previewRequest
+        }
+      })
+
+      const objectId = cryptoRandomString({ length: 32 })
+      const streamId = cryptoRandomString({ length: 10 })
+
+      await createObjectPreview({ objectId, streamId, priority: 0 })
+
+      expect(userId).to.equal(previewAdmin.id)
+      expect(objectPreviewRequest).to.deep.equal({
+        url: `${serverOrigin}/projects/${streamId}/models/${objectId}`,
+        jobId: `${streamId}.${objectId}`,
+        token: appToken
+      })
     })
   })
 })

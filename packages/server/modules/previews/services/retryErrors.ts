@@ -13,6 +13,7 @@ import { DefaultAppIds } from '@/modules/auth/defaultApps'
 import { TokenResourceIdentifierType } from '@/modules/core/domain/tokens/types'
 import type { GetStreamCollaborators } from '@/modules/core/domain/streams/operations'
 import type { CreateAndStoreAppToken } from '@/modules/core/domain/tokens/operations'
+import type { GetFirstAdmin } from '@/modules/core/domain/users/operations'
 import { getPreviewServiceMaxQueueBackpressure } from '@/modules/shared/helpers/envHelper'
 
 export const getPaginatedObjectPreviewInErrorStateFactory =
@@ -45,6 +46,7 @@ export const getPaginatedObjectPreviewInErrorStateFactory =
 export const retryFailedPreviewsFactory = (deps: {
   getPaginatedObjectPreviewsInErrorState: GetPaginatedObjectPreviewsInErrorState
   updateObjectPreview: UpdateObjectPreview
+  getFirstAdmin: GetFirstAdmin
   getStreamCollaborators: GetStreamCollaborators
   serverOrigin: string
   createAppToken: CreateAndStoreAppToken
@@ -55,6 +57,7 @@ export const retryFailedPreviewsFactory = (deps: {
   const {
     getPaginatedObjectPreviewsInErrorState,
     updateObjectPreview,
+    getFirstAdmin,
     getStreamCollaborators,
     serverOrigin,
     createAppToken,
@@ -110,11 +113,27 @@ export const retryFailedPreviewsFactory = (deps: {
       }
     })
 
-    const owners = await getStreamCollaborators(streamId, Roles.Stream.Owner)
-    // there is always an owner, this is safe
-    const userId = owners[0].id
+    const previewAdmin = await getFirstAdmin()
+    const owners = previewAdmin
+      ? []
+      : await getStreamCollaborators(streamId, Roles.Stream.Owner, {
+          limit: 1
+        })
+    const collaborators =
+      previewAdmin || owners.length > 0
+        ? []
+        : await getStreamCollaborators(streamId, undefined, { limit: 1 })
+    const userId = previewAdmin?.id || owners[0]?.id || collaborators[0]?.id
 
-    // we're running the preview generation in the name of a project owner
+    if (!userId) {
+      logger.warn(
+        { streamId, projectId: streamId, objectId, region },
+        "Could not retry preview for {projectId}.{objectId} in region '{region}' because no preview execution user was found."
+      )
+      return false
+    }
+
+    // Prefer a server admin so preview generation does not depend on project roles.
     const token = await createAppToken({
       appId: DefaultAppIds.Web,
       name: `preview-${streamId}@${objectId}`,

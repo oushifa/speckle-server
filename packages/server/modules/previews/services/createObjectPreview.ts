@@ -1,6 +1,7 @@
 import { DefaultAppIds } from '@/modules/auth/defaultApps'
 import type { GetStreamCollaborators } from '@/modules/core/domain/streams/operations'
 import type { CreateAndStoreAppToken } from '@/modules/core/domain/tokens/operations'
+import type { GetFirstAdmin } from '@/modules/core/domain/users/operations'
 import type {
   CreateObjectPreview,
   RequestObjectPreview,
@@ -13,12 +14,14 @@ import { PreviewProjectOwnerNotFoundError } from '@/modules/previews/errors/erro
 
 export const createObjectPreviewFactory =
   ({
+    getFirstAdmin,
     getStreamCollaborators,
     createAppToken,
     requestObjectPreview,
     storeObjectPreview,
     serverOrigin
   }: {
+    getFirstAdmin: GetFirstAdmin
     getStreamCollaborators: GetStreamCollaborators
     serverOrigin: string
     createAppToken: CreateAndStoreAppToken
@@ -26,12 +29,20 @@ export const createObjectPreviewFactory =
     storeObjectPreview: StoreObjectPreview
   }): CreateObjectPreview =>
   async ({ streamId, objectId, priority }) => {
-    const owners = await getStreamCollaborators(streamId, Roles.Stream.Owner)
-    if (!owners || owners.length === 0) {
-      throw new PreviewProjectOwnerNotFoundError('No project owners found')
+    const previewAdmin = await getFirstAdmin()
+    const owners = previewAdmin
+      ? []
+      : await getStreamCollaborators(streamId, Roles.Stream.Owner, {
+          limit: 1
+        })
+    const collaborators =
+      previewAdmin || owners.length > 0
+        ? []
+        : await getStreamCollaborators(streamId, undefined, { limit: 1 })
+    const userId = previewAdmin?.id || owners[0]?.id || collaborators[0]?.id
+    if (!userId) {
+      throw new PreviewProjectOwnerNotFoundError('No preview execution user found')
     }
-
-    const userId = owners[0].id
 
     // use the database as a lock to prevent multiple jobs being created
     try {
@@ -46,7 +57,7 @@ export const createObjectPreviewFactory =
 
     const jobId = toJobId({ projectId: streamId, objectId })
 
-    // we're running the preview generation in the name of a project owner
+    // Prefer a server admin so preview generation does not depend on project roles.
     const token = await createAppToken({
       appId: DefaultAppIds.Web,
       name: `preview-${jobId}`,

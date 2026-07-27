@@ -25,6 +25,7 @@ import {
   getStreamCollaboratorsFactory,
   getStreamFactory
 } from '@/modules/core/repositories/streams'
+import { getFirstAdminFactory } from '@/modules/core/repositories/users'
 import { getPaginatedBranchCommitsItemsByNameFactory } from '@/modules/core/services/commit/retrieval'
 import { getStreamBranchByNameFactory } from '@/modules/core/repositories/branches'
 import { getFormattedObjectFactory } from '@/modules/core/repositories/objects'
@@ -75,6 +76,7 @@ const buildCreateObjectPreviewFunction = ({
       ? getPrivateObjectsServerOrigin()
       : getServerOrigin(),
     storeObjectPreview: storeObjectPreviewFactory({ db: projectDb }),
+    getFirstAdmin: getFirstAdminFactory({ db }),
     getStreamCollaborators: getStreamCollaboratorsFactory({ db }),
     createAppToken: createAppTokenFactory({
       storeApiToken: storeApiTokenFactory({ db }),
