@@ -29,14 +29,17 @@ export default {
   },
   ProjectPermissionChecks: {
     canCreateModel: async (parent, _args, ctx) => {
+      let res: any
       if (ctx.userId) {
         try {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:create')
-            return authorized
+            res = authorized
               ? { authorized: true, code: 'OK', message: 'OK', payload: null }
               : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有创建模型的权限。', payload: null }
+            console.log(`[SPECKLE-DUI-LOG] Check canCreateModel (CustomRole):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, result: res }))
+            return res
           }
         } catch (e) {
           console.error('Check custom permission error in canCreateModel:', e)
@@ -46,7 +49,9 @@ export default {
         userId: ctx.userId,
         projectId: parent.projectId
       })
-      return Authz.toGraphqlResult(canCreateModel)
+      res = Authz.toGraphqlResult(canCreateModel)
+      console.log(`[SPECKLE-DUI-LOG] Check canCreateModel (Standard):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, result: res }))
+      return res
     },
     canMoveToWorkspace: async (parent, args, ctx) => {
       const canMoveToWorkspace = await ctx.authPolicies.project.canMoveToWorkspace({
@@ -188,7 +193,9 @@ export default {
         projectId: parent.projectId,
         userId: ctx.userId
       })
-      return Authz.toGraphqlResult(canUpdate)
+      const res = Authz.toGraphqlResult(canUpdate)
+      console.log(`[SPECKLE-DUI-LOG] Check canUpdate:`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+      return res
     },
     canDelete: async (parent, _args, ctx) => {
       const canDelete = await ctx.authPolicies.project.model.canDelete({
@@ -196,17 +203,22 @@ export default {
         userId: ctx.userId,
         modelId: parent.modelId
       })
-      return Authz.toGraphqlResult(canDelete)
+      const res = Authz.toGraphqlResult(canDelete)
+      console.log(`[SPECKLE-DUI-LOG] Check canDelete:`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+      return res
     },
     canCreateVersion: async (parent, _args, ctx) => {
+      let res: any
       if (ctx.userId) {
         try {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
-            return authorized
+            res = authorized
               ? { authorized: true, code: 'OK', message: 'OK', payload: null }
               : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有发布版本的权限。', payload: null }
+            console.log(`[SPECKLE-DUI-LOG] Check canCreateVersion (CustomRole):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+            return res
           }
         } catch (e) {
           console.error('Check custom permission error in canCreateVersion:', e)
@@ -216,17 +228,22 @@ export default {
         projectId: parent.projectId,
         userId: ctx.userId
       })
-      return Authz.toGraphqlResult(canCreate)
+      res = Authz.toGraphqlResult(canCreate)
+      console.log(`[SPECKLE-DUI-LOG] Check canCreateVersion (Standard):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+      return res
     },
     canCreateIngestion: async (parent, _args, ctx) => {
+      let res: any
       if (ctx.userId) {
         try {
           const perm = await getMyEffectivePermission({ userId: ctx.userId })
           if (perm.roleId !== null) {
             const authorized = perm.isAdmin || perm.modelPerms.includes('file-management:publish')
-            return authorized
+            res = authorized
               ? { authorized: true, code: 'OK', message: 'OK', payload: null }
               : { authorized: false, code: 'FORBIDDEN', message: '您的角色没有发布版本的权限。', payload: null }
+            console.log(`[SPECKLE-DUI-LOG] Check canCreateIngestion (CustomRole):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+            return res
           }
         } catch (e) {
           console.error('Check custom permission error in canCreateIngestion:', e)
@@ -236,7 +253,9 @@ export default {
         projectId: parent.projectId,
         userId: ctx.userId
       })
-      return Authz.toGraphqlResult(canCreate)
+      res = Authz.toGraphqlResult(canCreate)
+      console.log(`[SPECKLE-DUI-LOG] Check canCreateIngestion (Standard):`, JSON.stringify({ userId: ctx.userId, projectId: parent.projectId, modelId: parent.modelId, result: res }))
+      return res
     }
   },
   VersionPermissionChecks: {

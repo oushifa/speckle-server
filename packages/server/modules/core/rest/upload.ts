@@ -47,10 +47,13 @@ export default (app: Router, { executeHooks }: { executeHooks: ExecuteHooks }) =
 
     const start = Date.now()
 
-    const hasStreamAccess = await validatePermissionsWriteStream(
-      req.params.streamId,
-      req
-    )
+    const hasStreamAccess = await validatePermissionsWriteStream(req.params.streamId, req)
+
+    console.log('[SPECKLE-DUI-LOG] REST Object Upload Request:', JSON.stringify({
+      userId: req.context?.userId || '-',
+      streamId: req.params?.streamId,
+      hasStreamAccess
+    }))
     if (!hasStreamAccess.result) {
       return res.status(hasStreamAccess.status).end()
     }
