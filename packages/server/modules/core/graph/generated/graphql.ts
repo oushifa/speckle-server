@@ -493,7 +493,8 @@ export const ApprovalFlowActionType = {
   ResetToUnsubmitted: 'RESET_TO_UNSUBMITTED',
   Started: 'STARTED',
   StepApproved: 'STEP_APPROVED',
-  TimeoutRejected: 'TIMEOUT_REJECTED'
+  TimeoutRejected: 'TIMEOUT_REJECTED',
+  TransferredAssignee: 'TRANSFERRED_ASSIGNEE'
 } as const;
 
 export type ApprovalFlowActionType = typeof ApprovalFlowActionType[keyof typeof ApprovalFlowActionType];
@@ -1023,16 +1024,16 @@ export const BillingInterval = {
 } as const;
 
 export type BillingInterval = typeof BillingInterval[keyof typeof BillingInterval];
-export type BimElements = {
-  __typename?: 'BimElements';
+export type BimElementEntry = {
+  __typename?: 'BimElementEntry';
   applicationIds: Array<Scalars['String']['output']>;
-  bimIds: Array<Scalars['String']['output']>;
+  bimIds: Array<Maybe<Scalars['String']['output']>>;
   modelId: Scalars['ID']['output'];
 };
 
-export type BimElementsInput = {
+export type BimElementEntryInput = {
   applicationIds: Array<Scalars['String']['input']>;
-  bimIds: Array<Scalars['String']['input']>;
+  bimIds: Array<InputMaybe<Scalars['String']['input']>>;
   modelId: Scalars['ID']['input'];
 };
 
@@ -1066,6 +1067,7 @@ export type BoqImportResult = {
 
 export type BoqItem = {
   __typename?: 'BoqItem';
+  amount?: Maybe<Scalars['Float']['output']>;
   children: Array<BoqItem>;
   code: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -1558,6 +1560,7 @@ export type CreateAutomateFunctionWithoutVersionInput = {
 };
 
 export type CreateBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentId?: InputMaybe<Scalars['ID']['input']>;
@@ -1628,7 +1631,8 @@ export type CreateMonthlyMeasurementInput = {
 };
 
 export type CreateQualityAcceptanceFormInput = {
-  /** @deprecated Use bimElements instead */
+  BIM?: InputMaybe<Array<BimElementEntryInput>>;
+  /** @deprecated Use BIM instead */
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
@@ -1636,7 +1640,6 @@ export type CreateQualityAcceptanceFormInput = {
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
   approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
-  bimElements?: InputMaybe<BimElementsInput>;
   boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   flowId?: InputMaybe<Scalars['ID']['input']>;
@@ -1689,16 +1692,13 @@ export type CreateUserEmailInput = {
 };
 
 export type CreateVersionInput = {
-  assetId?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   modelId: Scalars['String']['input'];
   objectId: Scalars['String']['input'];
   parents?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['String']['input'];
-  seedId?: InputMaybe<Scalars['String']['input']>;
   sourceApplication?: InputMaybe<Scalars['String']['input']>;
   totalChildrenCount?: InputMaybe<Scalars['Int']['input']>;
-  treeJson?: InputMaybe<Scalars['String']['input']>;
 };
 
 export const Currency = {
@@ -2251,7 +2251,8 @@ export type ImportBoqItemsInput = {
 };
 
 export type ImportQualityAcceptanceFormItemInput = {
-  /** @deprecated Use bimElements instead */
+  BIM?: InputMaybe<Array<BimElementEntryInput>>;
+  /** @deprecated Use BIM instead */
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
@@ -2259,7 +2260,6 @@ export type ImportQualityAcceptanceFormItemInput = {
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
   approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
-  bimElements?: InputMaybe<BimElementsInput>;
   code?: InputMaybe<Scalars['String']['input']>;
   flowId?: InputMaybe<Scalars['ID']['input']>;
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
@@ -2505,6 +2505,8 @@ export type Model = {
   /** The model's home view, if any */
   homeView?: Maybe<SavedView>;
   id: Scalars['ID']['output'];
+  /** 获取当前模型下最新审核通过的版本 */
+  latestApprovedVersion?: Maybe<Version>;
   /** Full name including the names of parent models delimited by forward slashes */
   name: Scalars['String']['output'];
   /** Returns a list of versions that are being created from a file import */
@@ -2580,8 +2582,8 @@ export type ModelMutationsUpdateArgs = {
 
 export type ModelPermissionChecks = {
   __typename?: 'ModelPermissionChecks';
-  canCreateVersion: PermissionCheckResult;
   canCreateIngestion: PermissionCheckResult;
+  canCreateVersion: PermissionCheckResult;
   canDelete: PermissionCheckResult;
   canUpdate: PermissionCheckResult;
 };
@@ -2629,6 +2631,12 @@ export type MonthlyMeasurement = {
   id: Scalars['ID']['output'];
   items: Array<MonthlyMeasurementItem>;
   projectId: Scalars['ID']['output'];
+  syncErrorPaymentDetail?: Maybe<Scalars['String']['output']>;
+  syncErrorPaymentPool?: Maybe<Scalars['String']['output']>;
+  syncErrorSettlement?: Maybe<Scalars['String']['output']>;
+  syncStatusPaymentDetail?: Maybe<Scalars['String']['output']>;
+  syncStatusPaymentPool?: Maybe<Scalars['String']['output']>;
+  syncStatusSettlement?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
 };
@@ -3396,15 +3404,26 @@ export type Project = {
   /** Get a single automation by id. Error will be thrown if automation is not found or inaccessible. */
   automation: Automation;
   automations: AutomationCollection;
+  bidSection?: Maybe<Scalars['String']['output']>;
   blob?: Maybe<BlobMetadata>;
   /** Get the metadata collection of blobs stored for this stream. */
   blobs?: Maybe<BlobMetadataCollection>;
   boqItems: Array<BoqItem>;
   boqSelectorOptions: BoqItemCollection;
+  businessUnit?: Maybe<Scalars['String']['output']>;
+  businessUnitName?: Maybe<Scalars['String']['output']>;
   /** Get specific project comment/thread by ID */
   comment?: Maybe<Comment>;
   /** All comment threads in this project */
   commentThreads: ProjectCommentCollection;
+  companyId?: Maybe<Scalars['String']['output']>;
+  companyName?: Maybe<Scalars['String']['output']>;
+  constructionUnit?: Maybe<Scalars['String']['output']>;
+  constructionUnitName?: Maybe<Scalars['String']['output']>;
+  contractCode?: Maybe<Scalars['String']['output']>;
+  contractName?: Maybe<Scalars['String']['output']>;
+  contractPrice?: Maybe<Scalars['Float']['output']>;
+  contractor?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   dashboardTokens: DashboardTokenCollection;
   dashboards: DashboardCollection;
@@ -3412,6 +3431,7 @@ export type Project = {
   /** Public project-level configuration for embedded viewer */
   embedOptions: ProjectEmbedOptions;
   embedTokens: EmbedTokenCollection;
+  employer?: Maybe<Scalars['String']['output']>;
   endDate?: Maybe<Scalars['BigInt']['output']>;
   /** Returns a flat list of all folders */
   folders: FolderCollection;
@@ -3447,6 +3467,9 @@ export type Project = {
   pendingImportedModels: Array<FileUpload>;
   permissions: ProjectPermissionChecks;
   progress?: Maybe<Scalars['Int']['output']>;
+  projectGuid?: Maybe<Scalars['String']['output']>;
+  projectNumber?: Maybe<Scalars['String']['output']>;
+  projectPackageItemguid?: Maybe<Scalars['String']['output']>;
   qualityAcceptanceForms: QualityAcceptanceFormCollection;
   responsible?: Maybe<Scalars['String']['output']>;
   /** Active user's role for this project. `null` if request is not authenticated, or the project is not explicitly shared with you. */
@@ -3461,6 +3484,8 @@ export type Project = {
   sourceApps: Array<Scalars['String']['output']>;
   startDate?: Maybe<Scalars['BigInt']['output']>;
   status?: Maybe<Scalars['String']['output']>;
+  supervisionUnit?: Maybe<Scalars['String']['output']>;
+  supervisionUnitName?: Maybe<Scalars['String']['output']>;
   team: Array<ProjectCollaborator>;
   timeZone?: Maybe<Scalars['String']['output']>;
   ungroupedViewGroup: SavedViewGroup;
@@ -3894,13 +3919,28 @@ export type ProjectCommentsUpdatedMessageType = typeof ProjectCommentsUpdatedMes
 export type ProjectCreateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
+  bidSection?: InputMaybe<Scalars['String']['input']>;
+  businessUnit?: InputMaybe<Scalars['String']['input']>;
+  businessUnitName?: InputMaybe<Scalars['String']['input']>;
+  companyId?: InputMaybe<Scalars['String']['input']>;
+  companyName?: InputMaybe<Scalars['String']['input']>;
+  constructionUnit?: InputMaybe<Scalars['String']['input']>;
+  contractCode?: InputMaybe<Scalars['String']['input']>;
+  contractName?: InputMaybe<Scalars['String']['input']>;
+  contractPrice?: InputMaybe<Scalars['Float']['input']>;
+  contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  employer?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['BigInt']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   progress?: InputMaybe<Scalars['Int']['input']>;
+  projectGuid?: InputMaybe<Scalars['String']['input']>;
+  projectNumber?: InputMaybe<Scalars['String']['input']>;
+  projectPackageItemguid?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
+  supervisionUnit?: InputMaybe<Scalars['String']['input']>;
   timeZone?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<ProjectVisibility>;
 };
@@ -4285,14 +4325,29 @@ export type ProjectTriggeredAutomationsStatusUpdatedMessageType = typeof Project
 export type ProjectUpdateInput = {
   address?: InputMaybe<Scalars['String']['input']>;
   allowPublicComments?: InputMaybe<Scalars['Boolean']['input']>;
+  bidSection?: InputMaybe<Scalars['String']['input']>;
+  businessUnit?: InputMaybe<Scalars['String']['input']>;
+  businessUnitName?: InputMaybe<Scalars['String']['input']>;
+  companyId?: InputMaybe<Scalars['String']['input']>;
+  companyName?: InputMaybe<Scalars['String']['input']>;
+  constructionUnit?: InputMaybe<Scalars['String']['input']>;
+  contractCode?: InputMaybe<Scalars['String']['input']>;
+  contractName?: InputMaybe<Scalars['String']['input']>;
+  contractPrice?: InputMaybe<Scalars['Float']['input']>;
+  contractor?: InputMaybe<Scalars['String']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  employer?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['BigInt']['input']>;
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   progress?: InputMaybe<Scalars['Int']['input']>;
+  projectGuid?: InputMaybe<Scalars['String']['input']>;
+  projectNumber?: InputMaybe<Scalars['String']['input']>;
+  projectPackageItemguid?: InputMaybe<Scalars['String']['input']>;
   responsible?: InputMaybe<Scalars['String']['input']>;
   startDate?: InputMaybe<Scalars['BigInt']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
+  supervisionUnit?: InputMaybe<Scalars['String']['input']>;
   timeZone?: InputMaybe<Scalars['String']['input']>;
   visibility?: InputMaybe<ProjectVisibility>;
 };
@@ -4359,7 +4414,8 @@ export const ProjectVisibility = {
 export type ProjectVisibility = typeof ProjectVisibility[keyof typeof ProjectVisibility];
 export type QualityAcceptanceForm = {
   __typename?: 'QualityAcceptanceForm';
-  /** @deprecated Use bimElements instead */
+  BIM?: Maybe<Array<BimElementEntry>>;
+  /** @deprecated Use BIM instead */
   BIMelement?: Maybe<Array<Scalars['String']['output']>>;
   acceptanceContent?: Maybe<Scalars['String']['output']>;
   acceptancePart?: Maybe<Scalars['String']['output']>;
@@ -4367,7 +4423,7 @@ export type QualityAcceptanceForm = {
   actualStartDate?: Maybe<Scalars['BigInt']['output']>;
   approveStatus?: Maybe<Scalars['String']['output']>;
   attachments: Array<BlobMetadata>;
-  bimElements?: Maybe<BimElements>;
+  boqItem?: Maybe<BoqItem>;
   boqItemId?: Maybe<Scalars['ID']['output']>;
   code?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
@@ -4378,6 +4434,7 @@ export type QualityAcceptanceForm = {
   inspector?: Maybe<LimitedUser>;
   inspectorId?: Maybe<Scalars['ID']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  occupiedMeasurementId?: Maybe<Scalars['ID']['output']>;
   projectId?: Maybe<Scalars['ID']['output']>;
   timeZone?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
@@ -5903,6 +5960,7 @@ export type UpdateAutomateFunctionInput = {
 };
 
 export type UpdateBoqItemInput = {
+  amount?: InputMaybe<Scalars['Float']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   itemId: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -5944,7 +6002,8 @@ export type UpdateMonthlyMeasurementInput = {
 };
 
 export type UpdateQualityAcceptanceFormInput = {
-  /** @deprecated Use bimElements instead */
+  BIM?: InputMaybe<Array<BimElementEntryInput>>;
+  /** @deprecated Use BIM instead */
   BIMelement?: InputMaybe<Array<Scalars['String']['input']>>;
   acceptanceContent?: InputMaybe<Scalars['String']['input']>;
   acceptancePart?: InputMaybe<Scalars['String']['input']>;
@@ -5952,7 +6011,6 @@ export type UpdateQualityAcceptanceFormInput = {
   actualStartDate?: InputMaybe<Scalars['BigInt']['input']>;
   approveStatus?: InputMaybe<Scalars['String']['input']>;
   attachments?: InputMaybe<Array<Scalars['String']['input']>>;
-  bimElements?: InputMaybe<BimElementsInput>;
   boqItemId?: InputMaybe<Scalars['ID']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
@@ -6004,12 +6062,8 @@ export type UpdateServerRegionInput = {
 
 /** Only non-null values will be updated */
 export type UpdateVersionInput = {
-  assetId?: InputMaybe<Scalars['String']['input']>;
-  assetName?: InputMaybe<Scalars['String']['input']>;
   message?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
-  seedId?: InputMaybe<Scalars['String']['input']>;
-  treeJson?: InputMaybe<Scalars['String']['input']>;
   versionId: Scalars['ID']['input'];
 };
 
@@ -6442,8 +6496,7 @@ export type VerifyUserEmailInput = {
 
 export type Version = {
   __typename?: 'Version';
-  assetId?: Maybe<Scalars['String']['output']>;
-  assetName?: Maybe<Scalars['String']['output']>;
+  approveStatus?: Maybe<Scalars['String']['output']>;
   authorUser?: Maybe<LimitedUser>;
   automationsStatus?: Maybe<TriggeredAutomationsStatus>;
   /** All comment threads in this version */
@@ -6458,10 +6511,8 @@ export type Version = {
   permissions: VersionPermissionChecks;
   previewUrl: Scalars['String']['output'];
   referencedObject?: Maybe<Scalars['String']['output']>;
-  seedId?: Maybe<Scalars['String']['output']>;
   sourceApplication?: Maybe<Scalars['String']['output']>;
   totalChildrenCount?: Maybe<Scalars['Int']['output']>;
-  treeJson?: Maybe<Scalars['String']['output']>;
 };
 
 
@@ -7598,8 +7649,8 @@ export type ResolversTypes = {
   BeforeChangeSavedView: ResolverTypeWrapper<BeforeChangeSavedViewGraphQLReturn>;
   BigInt: ResolverTypeWrapper<Scalars['BigInt']['output']>;
   BillingInterval: BillingInterval;
-  BimElements: ResolverTypeWrapper<BimElements>;
-  BimElementsInput: BimElementsInput;
+  BimElementEntry: ResolverTypeWrapper<BimElementEntry>;
+  BimElementEntryInput: BimElementEntryInput;
   BlobMetadata: ResolverTypeWrapper<BlobStorageItem>;
   BlobMetadataCollection: ResolverTypeWrapper<Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversTypes['BlobMetadata']>> }>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
@@ -7817,7 +7868,7 @@ export type ResolversTypes = {
   ProjectVersionsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversTypes['Version']> }>;
   ProjectVersionsUpdatedMessageType: ProjectVersionsUpdatedMessageType;
   ProjectVisibility: ProjectVisibility;
-  QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']> }>;
+  QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector'> & { BIM?: Maybe<Array<ResolversTypes['BimElementEntry']>>, attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']> }>;
   QualityAcceptanceFormCollection: ResolverTypeWrapper<Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversTypes['QualityAcceptanceForm']> }>;
   QualityAcceptanceImportResult: ResolverTypeWrapper<QualityAcceptanceImportResult>;
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
@@ -8093,8 +8144,8 @@ export type ResolversParentTypes = {
   BasicGitRepositoryMetadata: BasicGitRepositoryMetadata;
   BeforeChangeSavedView: BeforeChangeSavedViewGraphQLReturn;
   BigInt: Scalars['BigInt']['output'];
-  BimElements: BimElements;
-  BimElementsInput: BimElementsInput;
+  BimElementEntry: BimElementEntry;
+  BimElementEntryInput: BimElementEntryInput;
   BlobMetadata: BlobStorageItem;
   BlobMetadataCollection: Omit<BlobMetadataCollection, 'items'> & { items?: Maybe<Array<ResolversParentTypes['BlobMetadata']>> };
   Boolean: Scalars['Boolean']['output'];
@@ -8295,7 +8346,7 @@ export type ResolversParentTypes = {
   ProjectUpdatedMessage: Omit<ProjectUpdatedMessage, 'project'> & { project?: Maybe<ResolversParentTypes['Project']> };
   ProjectVersionsPreviewGeneratedMessage: ProjectVersionsPreviewGeneratedMessage;
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
-  QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'attachments' | 'creator' | 'inspector'> & { attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']> };
+  QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector'> & { BIM?: Maybe<Array<ResolversParentTypes['BimElementEntry']>>, attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']> };
   QualityAcceptanceFormCollection: Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversParentTypes['QualityAcceptanceForm']> };
   QualityAcceptanceImportResult: QualityAcceptanceImportResult;
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
@@ -9036,9 +9087,9 @@ export interface BigIntScalarConfig extends GraphQLScalarTypeConfig<ResolversTyp
   name: 'BigInt';
 }
 
-export type BimElementsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BimElements'] = ResolversParentTypes['BimElements']> = {
+export type BimElementEntryResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BimElementEntry'] = ResolversParentTypes['BimElementEntry']> = {
   applicationIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
-  bimIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  bimIds?: Resolver<Array<Maybe<ResolversTypes['String']>>, ParentType, ContextType>;
   modelId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -9072,6 +9123,7 @@ export type BoqImportResultResolvers<ContextType = GraphQLContext, ParentType ex
 };
 
 export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItem'] = ResolversParentTypes['BoqItem']> = {
+  amount?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   children?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9562,6 +9614,7 @@ export type ModelResolvers<ContextType = GraphQLContext, ParentType extends Reso
   folders?: Resolver<Array<ResolversTypes['Folder']>, ParentType, ContextType>;
   homeView?: Resolver<Maybe<ResolversTypes['SavedView']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  latestApprovedVersion?: Resolver<Maybe<ResolversTypes['Version']>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pendingImportedVersions?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ModelPendingImportedVersionsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ModelPermissionChecks'], ParentType, ContextType>;
@@ -9590,8 +9643,8 @@ export type ModelMutationsResolvers<ContextType = GraphQLContext, ParentType ext
 };
 
 export type ModelPermissionChecksResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['ModelPermissionChecks'] = ResolversParentTypes['ModelPermissionChecks']> = {
-  canCreateVersion?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   canCreateIngestion?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
+  canCreateVersion?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['PermissionCheckResult'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -9626,6 +9679,12 @@ export type MonthlyMeasurementResolvers<ContextType = GraphQLContext, ParentType
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['MonthlyMeasurementItem']>, ParentType, ContextType>;
   projectId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  syncErrorPaymentDetail?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncErrorPaymentPool?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncErrorSettlement?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusPaymentDetail?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusPaymentPool?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  syncStatusSettlement?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -9850,20 +9909,30 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   allowPublicComments?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   automation?: Resolver<ResolversTypes['Automation'], ParentType, ContextType, RequireFields<ProjectAutomationArgs, 'id'>>;
   automations?: Resolver<ResolversTypes['AutomationCollection'], ParentType, ContextType, Partial<ProjectAutomationsArgs>>;
+  bidSection?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   blob?: Resolver<Maybe<ResolversTypes['BlobMetadata']>, ParentType, ContextType, RequireFields<ProjectBlobArgs, 'id'>>;
   blobs?: Resolver<Maybe<ResolversTypes['BlobMetadataCollection']>, ParentType, ContextType, RequireFields<ProjectBlobsArgs, 'cursor' | 'limit' | 'query'>>;
   boqItems?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType, Partial<ProjectBoqItemsArgs>>;
   boqSelectorOptions?: Resolver<ResolversTypes['BoqItemCollection'], ParentType, ContextType, RequireFields<ProjectBoqSelectorOptionsArgs, 'input'>>;
+  businessUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  businessUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   comment?: Resolver<Maybe<ResolversTypes['Comment']>, ParentType, ContextType, RequireFields<ProjectCommentArgs, 'id'>>;
   commentThreads?: Resolver<ResolversTypes['ProjectCommentCollection'], ParentType, ContextType, Partial<ProjectCommentThreadsArgs>>;
+  companyId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  companyName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  constructionUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   constructionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  supervisionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractCode?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  contractPrice?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  contractor?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   dashboardTokens?: Resolver<ResolversTypes['DashboardTokenCollection'], ParentType, ContextType, Partial<ProjectDashboardTokensArgs>>;
   dashboards?: Resolver<ResolversTypes['DashboardCollection'], ParentType, ContextType, RequireFields<ProjectDashboardsArgs, 'limit'>>;
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   embedOptions?: Resolver<ResolversTypes['ProjectEmbedOptions'], ParentType, ContextType>;
   embedTokens?: Resolver<ResolversTypes['EmbedTokenCollection'], ParentType, ContextType, Partial<ProjectEmbedTokensArgs>>;
+  employer?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   endDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   folders?: Resolver<ResolversTypes['FolderCollection'], ParentType, ContextType, RequireFields<ProjectFoldersArgs, 'limit'>>;
   hasAccessToFeature?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<ProjectHasAccessToFeatureArgs, 'featureName'>>;
@@ -9885,6 +9954,9 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   pendingImportedModels?: Resolver<Array<ResolversTypes['FileUpload']>, ParentType, ContextType, RequireFields<ProjectPendingImportedModelsArgs, 'limit'>>;
   permissions?: Resolver<ResolversTypes['ProjectPermissionChecks'], ParentType, ContextType>;
   progress?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  projectGuid?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projectNumber?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  projectPackageItemguid?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   qualityAcceptanceForms?: Resolver<ResolversTypes['QualityAcceptanceFormCollection'], ParentType, ContextType, Partial<ProjectQualityAcceptanceFormsArgs>>;
   responsible?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   role?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -9896,6 +9968,8 @@ export type ProjectResolvers<ContextType = GraphQLContext, ParentType extends Re
   sourceApps?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
   startDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   status?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  supervisionUnit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  supervisionUnitName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   team?: Resolver<Array<ResolversTypes['ProjectCollaborator']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   ungroupedViewGroup?: Resolver<ResolversTypes['SavedViewGroup'], ParentType, ContextType, RequireFields<ProjectUngroupedViewGroupArgs, 'input'>>;
@@ -10133,6 +10207,7 @@ export type ProjectVersionsUpdatedMessageResolvers<ContextType = GraphQLContext,
 };
 
 export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['QualityAcceptanceForm'] = ResolversParentTypes['QualityAcceptanceForm']> = {
+  BIM?: Resolver<Maybe<Array<ResolversTypes['BimElementEntry']>>, ParentType, ContextType>;
   BIMelement?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   acceptanceContent?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   acceptancePart?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -10140,7 +10215,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   actualStartDate?: Resolver<Maybe<ResolversTypes['BigInt']>, ParentType, ContextType>;
   approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   attachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
-  bimElements?: Resolver<Maybe<ResolversTypes['BimElements']>, ParentType, ContextType>;
+  boqItem?: Resolver<Maybe<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   boqItemId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   code?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -10151,6 +10226,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   inspector?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   inspectorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  occupiedMeasurementId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   projectId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -10744,8 +10820,7 @@ export type UserStreamCollectionResolvers<ContextType = GraphQLContext, ParentTy
 };
 
 export type VersionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['Version'] = ResolversParentTypes['Version']> = {
-  assetId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  assetName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  approveStatus?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   authorUser?: Resolver<Maybe<ResolversTypes['LimitedUser']>, ParentType, ContextType>;
   automationsStatus?: Resolver<Maybe<ResolversTypes['TriggeredAutomationsStatus']>, ParentType, ContextType>;
   commentThreads?: Resolver<ResolversTypes['CommentCollection'], ParentType, ContextType, RequireFields<VersionCommentThreadsArgs, 'limit'>>;
@@ -10759,10 +10834,8 @@ export type VersionResolvers<ContextType = GraphQLContext, ParentType extends Re
   permissions?: Resolver<ResolversTypes['VersionPermissionChecks'], ParentType, ContextType>;
   previewUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   referencedObject?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  seedId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   sourceApplication?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   totalChildrenCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  treeJson?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11195,7 +11268,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   BasicGitRepositoryMetadata?: BasicGitRepositoryMetadataResolvers<ContextType>;
   BeforeChangeSavedView?: BeforeChangeSavedViewResolvers<ContextType>;
   BigInt?: GraphQLScalarType;
-  BimElements?: BimElementsResolvers<ContextType>;
+  BimElementEntry?: BimElementEntryResolvers<ContextType>;
   BlobMetadata?: BlobMetadataResolvers<ContextType>;
   BlobMetadataCollection?: BlobMetadataCollectionResolvers<ContextType>;
   BoqImportResult?: BoqImportResultResolvers<ContextType>;

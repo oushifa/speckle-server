@@ -2550,6 +2550,7 @@ export type ModelMutationsUpdateArgs = {
 
 export type ModelPermissionChecks = {
   __typename?: 'ModelPermissionChecks';
+  canCreateIngestion: PermissionCheckResult;
   canCreateVersion: PermissionCheckResult;
   canDelete: PermissionCheckResult;
   canUpdate: PermissionCheckResult;
@@ -12135,6 +12136,7 @@ export type ModelMutationsFieldArgs = {
   update: ModelMutationsUpdateArgs,
 }
 export type ModelPermissionChecksFieldArgs = {
+  canCreateIngestion: {},
   canCreateVersion: {},
   canDelete: {},
   canUpdate: {},

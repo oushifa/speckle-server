@@ -10,10 +10,9 @@ export class SpeckleFsMigrations extends FsMigrations {
     this.loadExtensions = isTsMode ? ['.ts'] : ['.js']
   }
 
-  getMigrationName(migration: { file: string }): string {
-    // Replace .ts w/ .js, if in TS mode
-    // (operate on cloned string to avoid mutating the original)
-    const fileName = migration.file.slice().replace(/\.ts$/, '.js')
-    return fileName
+  getMigrationName(migration: any): string {
+    if (!migration) return ''
+    const file = typeof migration === 'string' ? migration : migration.file || ''
+    return file.replace(/\.ts$/, '.js')
   }
 }
