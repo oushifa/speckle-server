@@ -1,6 +1,7 @@
 import {
   getS3AccessKey,
   getS3BucketName,
+  getS3FrontendOriginEndpointOverrides,
   getS3Endpoint,
   getS3PublicEndpoint,
   getS3Region,
@@ -127,6 +128,20 @@ export const getDynamicPublicObjectStorage = (params: {
   try {
     const configuredEndpoint = new URL(objectStorage.params.endpoint)
     const resolvedFrontendOrigin = new URL(frontendOrigin)
+    const overrideEndpoint = getS3FrontendOriginEndpointOverrides().find((override) =>
+      override.frontendOrigins.includes(resolvedFrontendOrigin.origin)
+    )?.endpoint
+
+    if (overrideEndpoint) {
+      if (overrideEndpoint === configuredEndpoint.origin) {
+        return objectStorage
+      }
+
+      return getObjectStorage({
+        ...objectStorage.params,
+        endpoint: overrideEndpoint
+      })
+    }
 
     if (configuredEndpoint.hostname === resolvedFrontendOrigin.hostname) {
       return objectStorage

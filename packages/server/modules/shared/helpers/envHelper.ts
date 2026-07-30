@@ -467,6 +467,93 @@ export function getS3PublicEndpoint() {
   return getStringFromEnv('S3_PUBLIC_ENDPOINT', { unsafe: true })
 }
 
+export type S3FrontendOriginEndpointOverride = {
+  frontendOrigins: string[]
+  endpoint: string
+}
+
+const normalizeEnvUrl = (value: string, envVarKey: string, fieldName?: string) => {
+  try {
+    return trimEnd(new URL(value).toString(), '/')
+  } catch (e: unknown) {
+    const err = ensureError(e, 'Unknown error parsing URL')
+    const suffix = fieldName ? ` (${fieldName})` : ''
+    throw new MisconfiguredEnvironmentError(
+      `${envVarKey} contains an invalid URL${suffix}`,
+      {
+        cause: err
+      }
+    )
+  }
+}
+
+export function getS3FrontendOriginEndpointOverrides(): Array<S3FrontendOriginEndpointOverride> {
+  const rawConfig = getStringFromEnv('S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES', {
+    unsafe: true
+  })
+  if (!rawConfig) return []
+
+  let parsedConfig: unknown
+  try {
+    parsedConfig = JSON.parse(rawConfig)
+  } catch (e: unknown) {
+    throw new MisconfiguredEnvironmentError(
+      'S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES must be valid JSON',
+      {
+        cause: ensureError(e, 'Unknown error parsing JSON')
+      }
+    )
+  }
+
+  if (!Array.isArray(parsedConfig)) {
+    throw new MisconfiguredEnvironmentError(
+      'S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES must be a JSON array'
+    )
+  }
+
+  return parsedConfig.map((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      throw new MisconfiguredEnvironmentError(
+        `S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES[${index}] must be an object`
+      )
+    }
+
+    const frontendOrigins = (entry as { frontendOrigins?: unknown }).frontendOrigins
+    const endpoint = (entry as { endpoint?: unknown }).endpoint
+
+    if (
+      !Array.isArray(frontendOrigins) ||
+      frontendOrigins.length < 1 ||
+      frontendOrigins.some((origin) => typeof origin !== 'string')
+    ) {
+      throw new MisconfiguredEnvironmentError(
+        `S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES[${index}].frontendOrigins must be a non-empty string array`
+      )
+    }
+
+    if (typeof endpoint !== 'string' || !endpoint.length) {
+      throw new MisconfiguredEnvironmentError(
+        `S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES[${index}].endpoint must be a non-empty string`
+      )
+    }
+
+    return {
+      frontendOrigins: frontendOrigins.map((origin, originIndex) =>
+        normalizeEnvUrl(
+          origin,
+          'S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES',
+          `${index}.frontendOrigins[${originIndex}]`
+        )
+      ),
+      endpoint: normalizeEnvUrl(
+        endpoint,
+        'S3_FRONTEND_ORIGIN_ENDPOINT_OVERRIDES',
+        `${index}.endpoint`
+      )
+    }
+  })
+}
+
 export function getFileConversionInternalS3Endpoint() {
   return getStringFromEnv('FILE_CONVERSION_INTERNAL_S3_ENDPOINT', { unsafe: true })
 }
