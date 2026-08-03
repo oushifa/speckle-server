@@ -186,7 +186,7 @@ secretName: server-vars
 
 ## @param file_size_limit_mb This maximum size of any single file (unit is Megabytes) that can be uploaded to Speckle
 ##
-file_size_limit_mb: 100
+file_size_limit_mb: 1536
 
 ## @param file_import_time_limit_min The maximum time (unit is minutes) that the file import service will attempt to process the file before it is considered to have failed
 ## If you experience repeated issues with small files taking a long time, and increasing CPU and/or memory requests & limits.
