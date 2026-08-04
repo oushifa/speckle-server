@@ -280,6 +280,30 @@ export function adminOverrideEnabled() {
   return getBooleanFromEnv('ADMIN_OVERRIDE_ENABLED')
 }
 
+export function getUnifiedWorkSyncHost() {
+  return trimEnd(process.env['UNIFIED_WORK_SYNC_HOST'] || '', '/')
+}
+
+export function getUnifiedWorkSyncToken() {
+  return process.env['UNIFIED_WORK_SYNC_TOKEN']?.trim() || ''
+}
+
+export function getUnifiedWorkSyncUsername() {
+  return process.env['UNIFIED_WORK_SYNC_USERNAME']?.trim() || ''
+}
+
+export function getUnifiedWorkSyncPassword() {
+  return process.env['UNIFIED_WORK_SYNC_PASSWORD']?.trim() || ''
+}
+
+export function getUnifiedWorkSyncRouterId() {
+  return process.env['UNIFIED_WORK_SYNC_ROUTER_ID']?.trim() || 'nbtd'
+}
+
+export function getUnifiedWorkSyncSystemCode() {
+  return process.env['UNIFIED_WORK_SYNC_SYSTEM_CODE']?.trim() || 'SPECKLE'
+}
+
 export function enableMixpanel() {
   if (isDevEnv() || isTestEnv()) {
     // Check if explicitly enabled

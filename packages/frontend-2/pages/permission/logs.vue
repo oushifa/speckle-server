@@ -3,7 +3,7 @@
     <!-- 面包屑 -->
     <Portal to="current-page">
       <NuxtLink to="/permission/roles">权限管理</NuxtLink>
-      <span> / 操作日志</span>
+      <span>/ 操作日志</span>
     </Portal>
 
     <div class="rounded-lg shadow-sm bg-foundation border border-outline-3">
@@ -16,16 +16,19 @@
             size="sm"
             :icon-left="Download"
             class="font-normal"
+            :disabled="exporting"
             @click="handleExportCsv"
           >
-            导出日志
+            {{ exporting ? '导出中...' : '导出日志' }}
           </FormButton>
         </div>
 
         <!-- 筛选区域 -->
         <div class="flex flex-wrap items-center gap-3 mb-4">
           <div class="relative w-60">
-            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-3 z-10" />
+            <Search
+              class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-3 z-10"
+            />
             <FormTextInput
               v-model="search"
               name="log-search"
@@ -48,7 +51,11 @@
             size="base"
           >
             <template #something-selected="{ value }">
-              {{ Array.isArray(value) ? value[0]?.label : (value as any)?.label || '全部类型' }}
+              {{
+                Array.isArray(value)
+                  ? value[0]?.label
+                  : (value as any)?.label || '全部类型'
+              }}
             </template>
             <template #option="{ item }">
               {{ item.label }}
@@ -67,7 +74,11 @@
             size="base"
           >
             <template #something-selected="{ value }">
-              {{ Array.isArray(value) ? value[0]?.label : (value as any)?.label || '全部结果' }}
+              {{
+                Array.isArray(value)
+                  ? value[0]?.label
+                  : (value as any)?.label || '全部结果'
+              }}
             </template>
             <template #option="{ item }">
               {{ item.label }}
@@ -106,7 +117,7 @@
           </FormButton>
 
           <span class="ml-auto text-[13px] text-foreground-3">
-            共 {{ filteredLogs.length }} 条记录
+            共 {{ totalItems }} 条记录
           </span>
         </div>
       </div>
@@ -117,7 +128,7 @@
           <!-- 表头 -->
           <div
             class="grid text-xs font-medium border-b border-outline-3 bg-foundation-2 text-foreground-3 py-2.5 px-3"
-            style="grid-template-columns: 120px 100px 100px 150px 1fr 150px 70px 60px;"
+            style="grid-template-columns: 120px 100px 100px 150px 1fr 150px 70px 60px"
           >
             <div>操作人</div>
             <div>所属模块</div>
@@ -130,12 +141,12 @@
           </div>
 
           <!-- 列表行 -->
-          <div v-if="pagedLogs.length" class="divide-y divide-outline-3">
+          <div v-if="logs.length" class="divide-y divide-outline-3">
             <div
-              v-for="log in pagedLogs"
+              v-for="log in logs"
               :key="log.id"
               class="grid items-center hover:bg-foundation-2/50 transition-colors py-2.5 px-3"
-              style="grid-template-columns: 120px 100px 100px 150px 1fr 150px 70px 60px;"
+              style="grid-template-columns: 120px 100px 100px 150px 1fr 150px 70px 60px"
             >
               <!-- 操作人 -->
               <div>
@@ -201,7 +212,9 @@
 
           <!-- 加载中 -->
           <div v-else-if="loading" class="py-16 text-center text-foreground-3">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+            <div
+              class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"
+            ></div>
             <p class="text-sm">正在加载真实日志数据...</p>
           </div>
 
@@ -214,11 +227,15 @@
       </div>
 
       <!-- 分页区域 -->
-      <div v-if="totalPages > 1" class="mx-4 border-t border-outline-3 py-3 flex justify-between items-center text-[13px] text-foreground-2">
+      <div
+        v-if="totalPages > 1"
+        class="mx-4 border-t border-outline-3 py-3 flex justify-between items-center text-[13px] text-foreground-2"
+      >
         <div class="flex items-center gap-2">
           <span>每页显示</span>
           <select
             v-model="pageSize"
+            aria-label="每页显示条数"
             class="rounded border border-outline-3 bg-foundation px-2 py-1 focus:border-primary focus:outline-none"
             @change="currentPage = 1"
           >
@@ -253,12 +270,10 @@
     <LayoutDialog v-model:open="dialogOpen" max-width="md">
       <template #header>操作详情</template>
       <div v-if="viewingLog" class="space-y-3 py-2">
-        <div
-          v-for="item in detailItems"
-          :key="item.label"
-          class="flex gap-3 text-sm"
-        >
-          <span class="w-20 flex-shrink-0 text-foreground-3 font-medium">{{ item.label }}</span>
+        <div v-for="item in detailItems" :key="item.label" class="flex gap-3 text-sm">
+          <span class="w-20 flex-shrink-0 text-foreground-3 font-medium">
+            {{ item.label }}
+          </span>
           <span class="flex-1 text-foreground break-all">{{ item.value }}</span>
         </div>
       </div>
@@ -272,30 +287,24 @@
 <script setup lang="ts">
 import { Portal } from 'portal-vue'
 import { Search, Download, X, Eye, Shield } from 'lucide-vue-next'
-import { LayoutDialog, FormButton, FormTextInput, FormSelectBase } from '@speckle/ui-components'
+import {
+  LayoutDialog,
+  FormButton,
+  FormTextInput,
+  FormSelectBase
+} from '@speckle/ui-components'
+import { useDebounceFn } from '@vueuse/core'
 import dayjs from 'dayjs'
 
 useHead({
   title: '操作日志 - 权限管理'
 })
 
-// 覆盖系统所有实际业务操作
-type OpType =
-  | '模型上传' | '版本发布' | '模型下载' | '模型删除'
-  | '协同批注'
-  | '进度计划更新' | '进度填报' | '月度计划新增' | '月度计划编辑'
-  | '检验批新增' | '检验批审批'
-  | '清单编辑' | '验工提交' | '验工审批'
-  | '档案上传' | '一致性检查'
-  | '角色授权' | '角色取消' | '权限变更' | '成员添加' | '成员移除' | '角色新增'
-  | '用户新增' | '用户删除'
-  | '数据导出' | '用户登录'
-
 interface LogEntry {
   id: string
   operator: string
   operatorDept: string
-  opType: OpType
+  opType: string
   module: string
   target: string
   detail: string
@@ -306,48 +315,160 @@ interface LogEntry {
 
 const OP_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   // 文件管理 — 蓝
-  '模型上传':     { bg: 'color-mix(in srgb, var(--chart-3) 15%, transparent)', color: 'var(--chart-3)' },
-  '版本发布':     { bg: 'color-mix(in srgb, var(--primary) 12%, transparent)',  color: 'var(--primary)' },
-  '模型下载':     { bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)', color: 'var(--chart-3)' },
-  '模型删除':     { bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)', color: 'var(--destructive)' },
+  模型上传: {
+    bg: 'color-mix(in srgb, var(--chart-3) 15%, transparent)',
+    color: 'var(--chart-3)'
+  },
+  版本发布: {
+    bg: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+    color: 'var(--primary)'
+  },
+  模型下载: {
+    bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)',
+    color: 'var(--chart-3)'
+  },
+  模型删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
   // 协同 — 紫
-  '协同批注':     { bg: 'color-mix(in srgb, var(--chart-1) 15%, transparent)', color: 'var(--chart-1)' },
+  协同批注: {
+    bg: 'color-mix(in srgb, var(--chart-1) 15%, transparent)',
+    color: 'var(--chart-1)'
+  },
   // 进度 — 绿
-  '进度计划更新': { bg: 'color-mix(in srgb, var(--chart-2) 15%, transparent)', color: 'var(--chart-2)' },
-  '进度填报':     { bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)', color: 'var(--chart-2)' },
-  '月度计划新增': { bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)', color: 'var(--chart-2)' },
-  '月度计划编辑': { bg: 'color-mix(in srgb, var(--chart-2) 10%, transparent)', color: 'var(--chart-2)' },
+  进度计划更新: {
+    bg: 'color-mix(in srgb, var(--chart-2) 15%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  进度填报: {
+    bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  月度计划新增: {
+    bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  月度计划编辑: {
+    bg: 'color-mix(in srgb, var(--chart-2) 10%, transparent)',
+    color: 'var(--chart-2)'
+  },
   // 质量 — 青
-  '检验批新增':   { bg: 'color-mix(in srgb, var(--chart-2) 15%, transparent)', color: 'var(--chart-2)' },
-  '检验批审批':   { bg: 'color-mix(in srgb, var(--chart-4) 15%, transparent)', color: 'var(--chart-4)' },
+  检验批新增: {
+    bg: 'color-mix(in srgb, var(--chart-2) 15%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  检验批审批: {
+    bg: 'color-mix(in srgb, var(--chart-4) 15%, transparent)',
+    color: 'var(--chart-4)'
+  },
   // 验工 — 橙
-  '清单编辑':     { bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)', color: 'var(--chart-4)' },
-  '验工提交':     { bg: 'color-mix(in srgb, var(--chart-4) 15%, transparent)', color: 'var(--chart-4)' },
-  '验工审批':     { bg: 'color-mix(in srgb, var(--chart-4) 18%, transparent)', color: 'var(--chart-4)' },
+  清单编辑: {
+    bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  验工提交: {
+    bg: 'color-mix(in srgb, var(--chart-4) 15%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  验工审批: {
+    bg: 'color-mix(in srgb, var(--chart-4) 18%, transparent)',
+    color: 'var(--chart-4)'
+  },
   // 档案 — 紫
-  '档案上传':     { bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)', color: 'var(--chart-1)' },
-  '一致性检查':   { bg: 'color-mix(in srgb, var(--chart-1) 15%, transparent)', color: 'var(--chart-1)' },
+  档案上传: {
+    bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)',
+    color: 'var(--chart-1)'
+  },
+  一致性检查: {
+    bg: 'color-mix(in srgb, var(--chart-1) 15%, transparent)',
+    color: 'var(--chart-1)'
+  },
   // 权限 — 主色
-  '角色授权':     { bg: 'color-mix(in srgb, var(--primary) 10%, transparent)', color: 'var(--primary)' },
-  '角色取消':     { bg: 'color-mix(in srgb, var(--chart-5) 12%, transparent)', color: 'var(--chart-5)' },
-  '权限变更':     { bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)', color: 'var(--chart-4)' },
-  '成员添加':     { bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)', color: 'var(--chart-2)' },
-  '成员移除':     { bg: 'color-mix(in srgb, var(--chart-5) 12%, transparent)', color: 'var(--chart-5)' },
-  '角色新增':     { bg: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' },
+  角色授权: {
+    bg: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+    color: 'var(--primary)'
+  },
+  角色取消: {
+    bg: 'color-mix(in srgb, var(--chart-5) 12%, transparent)',
+    color: 'var(--chart-5)'
+  },
+  权限变更: {
+    bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  成员添加: {
+    bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  成员移除: {
+    bg: 'color-mix(in srgb, var(--chart-5) 12%, transparent)',
+    color: 'var(--chart-5)'
+  },
+  角色新增: {
+    bg: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+    color: 'var(--primary)'
+  },
   // 用户
-  '用户新增':     { bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)', color: 'var(--chart-2)' },
-  '用户删除':     { bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)', color: 'var(--destructive)' },
+  用户新增: {
+    bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  用户删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
   // 系统
-  '数据导出':     { bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)', color: 'var(--chart-3)' },
-  '用户登录':     { bg: 'color-mix(in srgb, var(--muted-foreground) 15%, transparent)', color: 'var(--muted-foreground)' }
+  数据导出: {
+    bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)',
+    color: 'var(--chart-3)'
+  },
+  用户登录: {
+    bg: 'color-mix(in srgb, var(--muted-foreground) 15%, transparent)',
+    color: 'var(--muted-foreground)'
+  }
 }
 
 const OP_TYPES = Object.keys(OP_TYPE_COLORS)
 
-const { apiOrigin } = useRuntimeConfig().public
+type LogApiEvent = {
+  eventId: string
+  eventTime: string
+  who?: {
+    userId?: string | null
+    user?: { id: string; name: string | null; email: string | null } | null
+    ip?: string | null
+  } | null
+  where?: {
+    module?: string | null
+  } | null
+  what?: {
+    targetId?: string | null
+    payloadSummary?: { text?: string } | string | Record<string, unknown> | null
+  } | null
+  result?: {
+    status?: 'success' | 'fail' | 'unknown' | null
+  } | null
+  metadata?: {
+    opType?: string
+    operatorDept?: string
+    target?: string
+    detail?: string
+  } | null
+}
+
+type LogsApiResponse = {
+  items: LogApiEvent[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+const apiOrigin = useApiOrigin()
 
 // 响应式状态
 const search = ref('')
+const debouncedSearch = ref('')
 const selectedType = ref<{ value: string; label: string } | undefined>(undefined)
 const selectedResult = ref<{ value: string; label: string } | undefined>(undefined)
 const filterDateFrom = ref('')
@@ -355,13 +476,15 @@ const filterDateTo = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const viewingLog = ref<LogEntry | null>(null)
-const realLogs = ref<LogEntry[]>([])
+const logs = ref<LogEntry[]>([])
+const totalItems = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 
 // 下拉可选项
 const typeOptions = computed(() => {
   const opts = [{ value: 'all', label: '全部类型' }]
-  OP_TYPES.forEach(t => opts.push({ value: t, label: t }))
+  OP_TYPES.forEach((t) => opts.push({ value: t, label: t }))
   return opts
 })
 
@@ -381,6 +504,72 @@ const hasFilters = computed(() => {
     filterDateTo.value !== ''
   )
 })
+
+// 构建查询参数
+const buildLogQuery = (params?: { page?: number; pageSize?: number }) => {
+  const query = new URLSearchParams()
+  query.set('page', String(params?.page || currentPage.value))
+  query.set('pageSize', String(params?.pageSize || pageSize.value))
+
+  if (debouncedSearch.value) {
+    query.set('q', debouncedSearch.value)
+  }
+  if (selectedType.value?.value && selectedType.value.value !== 'all') {
+    query.set('opType', selectedType.value.value)
+  }
+  if (selectedResult.value?.value === '成功') {
+    query.set('result', 'success')
+  } else if (selectedResult.value?.value === '失败') {
+    query.set('result', 'fail')
+  }
+  if (filterDateFrom.value) {
+    query.set('dateFrom', filterDateFrom.value)
+  }
+  if (filterDateTo.value) {
+    query.set('dateTo', filterDateTo.value)
+  }
+
+  return query
+}
+
+const getPayloadSummaryText = (
+  payloadSummary: LogApiEvent['what'] extends { payloadSummary?: infer T } ? T : unknown
+) => {
+  if (typeof payloadSummary === 'string') return payloadSummary
+  if (payloadSummary && typeof payloadSummary === 'object') {
+    if ('text' in payloadSummary && typeof payloadSummary.text === 'string') {
+      return payloadSummary.text
+    }
+
+    try {
+      return JSON.stringify(payloadSummary)
+    } catch {
+      return '-'
+    }
+  }
+
+  return '-'
+}
+
+const mapLogEvent = (event: LogApiEvent): LogEntry => ({
+  id: event.eventId || `${Date.now()}`,
+  operator: event.who?.user?.name || event.who?.userId || '系统用户',
+  operatorDept: event.metadata?.operatorDept || '项目部',
+  opType: event.metadata?.opType || '未知类型',
+  module: event.where?.module || '未知模块',
+  target: event.metadata?.target || event.what?.targetId || '-',
+  detail: event.metadata?.detail || getPayloadSummaryText(event.what?.payloadSummary),
+  ipAddress: event.who?.ip || '-',
+  operatedAt: dayjs(event.eventTime).format('YYYY-MM-DD HH:mm:ss'),
+  result: event.result?.status === 'success' ? '成功' : '失败'
+})
+
+const fetchLogsPage = async (params?: { page?: number; pageSize?: number }) => {
+  const query = buildLogQuery(params)
+  return await $fetch<LogsApiResponse>(
+    `${apiOrigin}/api/v1/logs/events?${query.toString()}`
+  )
+}
 
 // 清空全部过滤器
 const clearFilters = () => {
@@ -402,7 +591,9 @@ const dialogOpen = computed({
 
 // 获取操作类型高亮背景与文本色样式
 const getTypeStyle = (opType: string) => {
-  return OP_TYPE_COLORS[opType] || { bg: 'var(--muted)', color: 'var(--muted-foreground)' }
+  return (
+    OP_TYPE_COLORS[opType] || { bg: 'var(--muted)', color: 'var(--muted-foreground)' }
+  )
 }
 
 // 获取详情弹窗键值项
@@ -421,30 +612,15 @@ const detailItems = computed(() => {
   ]
 })
 
-// 从数据库拉取真实操作日志并转换为 LogEntry 结构
 const loadRealLogs = async () => {
   loading.value = true
   try {
-    const data = await $fetch<any>(`${apiOrigin}/api/v1/logs/events?limit=500`)
-    if (data && Array.isArray(data.events)) {
-      realLogs.value = data.events
-        .filter((event: any) => event && event.metadata && event.metadata.opType)
-        .map((event: any): LogEntry => {
-          return {
-            id: event.eventId || String(Math.random()),
-            operator: event.who?.user?.name || event.who?.userId || '系统用户',
-            operatorDept: event.metadata?.operatorDept || '项目部',
-            opType: event.metadata?.opType as OpType,
-            module: event.where?.module || '未知模块',
-            target: event.metadata?.target || event.what?.targetId || '-',
-            detail: event.metadata?.detail || event.what?.payloadSummary || '-',
-            ipAddress: event.who?.ip || '127.0.0.1',
-            operatedAt: dayjs(event.eventTime).format('YYYY-MM-DD HH:mm:ss'),
-            result: event.result?.status === 'success' ? '成功' : '失败'
-          }
-        })
-    }
+    const data = await fetchLogsPage()
+    logs.value = Array.isArray(data.items) ? data.items.map(mapLogEvent) : []
+    totalItems.value = Number(data.total || 0)
   } catch (err) {
+    logs.value = []
+    totalItems.value = 0
     // eslint-disable-next-line no-console
     console.warn('Failed to load real logs from database', err)
   } finally {
@@ -452,86 +628,108 @@ const loadRealLogs = async () => {
   }
 }
 
-// 纯净对接真实日志，支持按时间排序
-const allLogs = computed(() => {
-  return [...realLogs.value].sort((a, b) => b.operatedAt.localeCompare(a.operatedAt))
-})
-
-// 筛选后得到的日志列表
-const filteredLogs = computed(() => {
-  return allLogs.value.filter(log => {
-    // 文本模糊检索
-    if (search.value.trim()) {
-      const q = search.value.toLowerCase()
-      const match =
-        log.operator.toLowerCase().includes(q) ||
-        log.target.toLowerCase().includes(q) ||
-        log.detail.toLowerCase().includes(q)
-      if (!match) return false
-    }
-    // 操作类型过滤
-    if (selectedType.value && selectedType.value.value !== 'all') {
-      if (log.opType !== selectedType.value.value) return false
-    }
-    // 结果过滤
-    if (selectedResult.value && selectedResult.value.value !== 'all') {
-      if (log.result !== selectedResult.value.value) return false
-    }
-    // 时间跨度过滤
-    if (filterDateFrom.value) {
-      if (log.operatedAt < filterDateFrom.value) return false
-    }
-    if (filterDateTo.value) {
-      // 包含截止当天
-      if (log.operatedAt > filterDateTo.value + ' 23:59:59') return false
-    }
-    return true
-  })
-})
-
-// 分页数据
 const totalPages = computed(() => {
-  return Math.ceil(filteredLogs.value.length / pageSize.value) || 1
-})
-
-const pagedLogs = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredLogs.value.slice(start, end)
+  return Math.max(1, Math.ceil(totalItems.value / pageSize.value))
 })
 
 // 导出为 CSV 文件
-const handleExportCsv = () => {
-  const headers = ['操作人', '部门/单位', '所属模块', '操作类型', '操作对象', '操作详情', '操作时间', '结果', 'IP地址']
-  const rows = filteredLogs.value.map(log => [
-    log.operator,
-    log.operatorDept,
-    log.module,
-    log.opType,
-    log.target,
-    log.detail,
-    log.operatedAt,
-    log.result,
-    log.ipAddress
-  ])
+const handleExportCsv = async () => {
+  exporting.value = true
+  try {
+    const exportPageSize = 500
+    let exportPage = 1
+    let exportTotal = 0
+    const exportLogs: LogEntry[] = []
 
-  const csvContent =
-    '\uFEFF' + // UTF-8 BOM，防止 Excel 打开中文乱码
-    [headers.join(','), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n')
+    do {
+      const data = await fetchLogsPage({
+        page: exportPage,
+        pageSize: exportPageSize
+      })
+      exportTotal = Number(data.total || 0)
+      exportLogs.push(...(Array.isArray(data.items) ? data.items.map(mapLogEvent) : []))
+      exportPage += 1
+    } while (exportLogs.length < exportTotal)
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', `操作日志导出-${dayjs().format('YYYYMMDDHHmmss')}.csv`)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+    const headers = [
+      '操作人',
+      '部门/单位',
+      '所属模块',
+      '操作类型',
+      '操作对象',
+      '操作详情',
+      '操作时间',
+      '结果',
+      'IP地址'
+    ]
+    const rows = exportLogs.map((log) => [
+      log.operator,
+      log.operatorDept,
+      log.module,
+      log.opType,
+      log.target,
+      log.detail,
+      log.operatedAt,
+      log.result,
+      log.ipAddress
+    ])
+
+    const csvContent =
+      '\uFEFF' +
+      [
+        headers.join(','),
+        ...rows.map((row) =>
+          row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(',')
+        )
+      ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute(
+      'download',
+      `操作日志导出-${dayjs().format('YYYYMMDDHHmmss')}.csv`
+    )
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } finally {
+    exporting.value = false
+  }
 }
 
-// 初始化加载
-onMounted(() => {
-  void loadRealLogs()
+const updateDebouncedSearch = useDebounceFn((value: string) => {
+  debouncedSearch.value = value.trim()
+}, 300)
+
+watch(
+  search,
+  (value) => {
+    currentPage.value = 1
+    updateDebouncedSearch(value)
+  },
+  { immediate: true }
+)
+
+watch([selectedType, selectedResult, filterDateFrom, filterDateTo], () => {
+  currentPage.value = 1
 })
+
+watch(
+  [
+    debouncedSearch,
+    selectedType,
+    selectedResult,
+    filterDateFrom,
+    filterDateTo,
+    currentPage,
+    pageSize
+  ],
+  () => {
+    void loadRealLogs()
+  },
+  { immediate: true }
+)
 </script>

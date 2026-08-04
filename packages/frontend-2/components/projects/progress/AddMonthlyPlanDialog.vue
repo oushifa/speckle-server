@@ -1,6 +1,6 @@
 <template>
   <div>
-    <LayoutDialog v-model:open="isOpen" max-width="5xl">
+    <LayoutDialog v-model:open="isOpen" max-width="xl" prevent-close-on-click-outside>
       <template #header>
         {{ initialRecord ? '编辑月度计划' : '新增月度计划' }}
       </template>
@@ -23,16 +23,17 @@
               />
             </div>
 
-            <div class="flex items-center gap-2">
-              <label for="monthly-plan-creator" class="text-body-sm font-medium">
-                编制人 <span class="text-danger">*</span>
-              </label>
-              <input
-                id="monthly-plan-creator"
-                v-model="createdBy"
-                type="text"
-                placeholder="请输入编制人"
-                class="h-8 w-40 rounded-md border border-outline-3 bg-foundation px-2 text-body-sm outline-none transition focus:border-primary"
+            <div class="w-60 shrink-0">
+              <FlowFieldsDynamicApprovalUserField
+                v-model:value="selectedCreatorUserId"
+                layout="horizontal"
+                :field="{
+                  name: '编制人',
+                  key: 'createdBy',
+                  type: 'user',
+                  required: true,
+                  placeholder: '输入用户名搜索'
+                }"
               />
             </div>
           </div>
@@ -183,33 +184,8 @@ import { FormButton, LayoutDialog } from '@speckle/ui-components'
 import { ExternalLink, Plus, Sparkles, Trash2 } from 'lucide-vue-next'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import TaskSelectDialog, { type MasterTaskOption } from './TaskSelectDialog.vue'
-
-export interface MonthlyTaskItem {
-  id: string
-  taskName: string
-  linkedPlanTaskId: string
-  linkedPlanTaskName: string
-  startDate: string
-  endDate: string
-  totalVolume: string
-  unit: string
-  plannedVolume: string
-  actualVolume: string
-  cumulativeVolume?: string
-  progressPercent: number
-  remark: string
-  bimComponentCount: number
-  bimLinked: boolean
-  selections?: Array<{ modelId: string; applicationIds: string[] }>
-}
-
-export interface MonthlyRecordItem {
-  id: string
-  yearMonth: string
-  tasks: MonthlyTaskItem[]
-  createdAt: string
-  createdBy: string
-}
+import type { MonthlyRecordItem, MonthlyPlanTaskItem as MonthlyTaskItem } from '~~/lib/projects/api/progress'
+import { searchSystemUsers, type UserSearchResult } from '~~/lib/organizations/api'
 
 const props = defineProps<{
   open: boolean
@@ -246,6 +222,32 @@ const createdBy = ref('')
 const tasks = ref<MonthlyTaskItem[]>([emptyTask()])
 const activeRowIndex = ref<number | null>(null)
 
+const apiOrigin = useApiOrigin()
+const selectedCreatorUserId = ref('')
+
+watch(selectedCreatorUserId, async (newId) => {
+  if (!newId) {
+    createdBy.value = ''
+    return
+  }
+  if (newId === activeUser.value?.id) {
+    createdBy.value = activeUser.value?.name || ''
+    return
+  }
+  try {
+    const results = await searchSystemUsers({ query: newId, apiOrigin })
+    const target = results.find((u) => u.id === newId)
+    if (target) {
+      createdBy.value = target.name
+    } else {
+      createdBy.value = newId
+    }
+  } catch (err) {
+    console.error('根据ID获取用户名出错:', err)
+    createdBy.value = newId
+  }
+})
+
 const isOpen = computed({
   get: () => props.open,
   set: (val) => emit('update:open', val)
@@ -258,11 +260,27 @@ watch(
       if (props.initialRecord) {
         yearMonth.value = props.initialRecord.yearMonth
         createdBy.value = props.initialRecord.createdBy
-        tasks.value = JSON.parse(JSON.stringify(props.initialRecord.tasks))
+        selectedCreatorUserId.value = ''
+        tasks.value = JSON.parse(JSON.stringify(props.initialRecord.tasks || []))
+
+        // 异步查匹配的ID回显
+        const creatorName = props.initialRecord.createdBy
+        if (creatorName) {
+          searchSystemUsers({ query: creatorName, apiOrigin }).then((results) => {
+            const found = results.find((u) => u.name === creatorName)
+            if (found) {
+              selectedCreatorUserId.value = found.id
+            }
+          }).catch((err) => {
+            console.error('根据名称查询用户ID出错:', err)
+          })
+        }
       } else {
         const now = new Date()
         yearMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-        createdBy.value = activeUser.value?.name || '张三'
+        const defaultUser = activeUser.value?.name || '张三'
+        createdBy.value = defaultUser
+        selectedCreatorUserId.value = activeUser.value?.id || ''
         tasks.value = [emptyTask()]
       }
     }
@@ -293,8 +311,16 @@ const handleMasterTaskSelected = (masterTask: MasterTaskOption) => {
   task.taskName = masterTask.taskName
   if (masterTask.volume) task.totalVolume = masterTask.volume
   if (masterTask.unit) task.unit = masterTask.unit
-  if (masterTask.startDate) task.startDate = masterTask.startDate
-  if (masterTask.endDate) task.endDate = masterTask.endDate
+  if (masterTask.startDate) {
+    task.startDate = masterTask.startDate.includes('T')
+      ? masterTask.startDate.split('T')[0]
+      : masterTask.startDate.substring(0, 10)
+  }
+  if (masterTask.endDate) {
+    task.endDate = masterTask.endDate.includes('T')
+      ? masterTask.endDate.split('T')[0]
+      : masterTask.endDate.substring(0, 10)
+  }
 
   activeRowIndex.value = null
 }
@@ -317,8 +343,16 @@ const handleFetchMonthlyTasks = () => {
       t.linkedPlanTaskId = mt.id
       t.linkedPlanTaskName = mt.taskName
       t.taskName = mt.taskName
-      t.startDate = mt.startDate || ''
-      t.endDate = mt.endDate || ''
+      t.startDate = mt.startDate
+        ? mt.startDate.includes('T')
+          ? mt.startDate.split('T')[0]
+          : mt.startDate.substring(0, 10)
+        : ''
+      t.endDate = mt.endDate
+        ? mt.endDate.includes('T')
+          ? mt.endDate.split('T')[0]
+          : mt.endDate.substring(0, 10)
+        : ''
       t.totalVolume = mt.volume || ''
       t.unit = mt.unit || 'm³'
       return t
@@ -331,9 +365,11 @@ const handleSave = () => {
 
   const record: MonthlyRecordItem = {
     id: props.initialRecord?.id || crypto.randomUUID(),
+    projectId: props.initialRecord?.projectId || '',
     yearMonth: yearMonth.value,
     tasks: tasks.value,
     createdAt: props.initialRecord?.createdAt || new Date().toLocaleString('zh-CN'),
+    updatedAt: props.initialRecord?.updatedAt || new Date().toLocaleString('zh-CN'),
     createdBy: createdBy.value
   }
 

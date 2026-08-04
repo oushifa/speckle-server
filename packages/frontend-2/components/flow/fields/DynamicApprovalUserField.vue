@@ -1,7 +1,14 @@
 <template>
-  <div class="space-y-2">
-    <label :for="buttonId" class="text-body-xs text-foreground-2">
-      {{ field.name }} (user)
+  <div :class="[layout === 'horizontal' ? 'flex items-center gap-2' : 'space-y-2']">
+    <label
+      :for="buttonId"
+      :class="[
+        layout === 'horizontal'
+          ? 'text-body-sm font-medium whitespace-nowrap text-foreground shrink-0'
+          : 'text-body-xs text-foreground-2'
+      ]"
+    >
+      {{ field.name }}<span v-if="layout !== 'horizontal'"> (user)</span>
       <span v-if="field.required" class="text-danger">*</span>
     </label>
     <FormSelectBase
@@ -17,6 +24,7 @@
       :label-id="labelId"
       :button-id="buttonId"
       by="id"
+      :class="[layout === 'horizontal' ? 'flex-1' : '']"
     >
       <template #nothing-selected>请选择用户</template>
       <template #something-selected="{ value: selectedValue }">
@@ -55,10 +63,16 @@ const dynamicFormUsersQuery = graphql(`
   }
 `)
 
-const props = defineProps<{
-  field: DynamicFormSchemaField
-  value: unknown
-}>()
+const props = withDefaults(
+  defineProps<{
+    field: DynamicFormSchemaField
+    value: unknown
+    layout?: 'vertical' | 'horizontal'
+  }>(),
+  {
+    layout: 'vertical'
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:value', value: string | string[]): void

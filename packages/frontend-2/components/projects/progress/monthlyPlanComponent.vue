@@ -35,46 +35,75 @@
       暂无月度计划，点击「新增月度计划」开始
     </div>
 
-    <div v-else class="space-y-3">
+    <div v-else class="border border-outline-2 rounded-lg overflow-hidden bg-foundation">
+      <!-- 统一表格大表头 -->
       <div
-        v-for="record in filteredRecords"
-        :key="record.id"
-        class="overflow-hidden rounded-lg border border-outline-2 bg-foundation transition-shadow hover:shadow-sm"
+        class="grid grid-cols-[48px_100px_1fr_100px_100px_160px_100px] gap-3 bg-foundation-page px-4 py-3 text-body-xs font-semibold text-foreground-2 border-b border-outline-2 select-none"
       >
-        <!-- Record Header / Summary Bar -->
+        <div></div>
+        <div class="flex items-center">年月</div>
+        <div class="flex items-center">任务概览</div>
+        <div class="flex items-center justify-center">任务数</div>
+        <div class="flex items-center justify-center">编制人</div>
+        <div class="flex items-center justify-center">创建时间</div>
+        <div class="flex items-center justify-center">操作</div>
+      </div>
+
+      <div class="divide-y divide-outline-2">
         <div
-          class="flex items-center justify-between bg-foundation-2/60 px-4 py-3 cursor-pointer select-none"
-          @click="toggleExpand(record.id)"
+          v-for="record in filteredRecords"
+          :key="record.id"
+          class="transition-colors"
         >
-          <div class="flex items-center gap-3">
-            <component
-              :is="expandedRecordIds.includes(record.id) ? ChevronDown : ChevronRight"
-              class="h-4 w-4 text-foreground-2 transition-transform"
-            />
-            <span
-              class="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-white"
-            >
-              {{ record.yearMonth }}
-            </span>
-            <div class="flex flex-wrap gap-1.5 ml-2">
+          <!-- Record Row Header -->
+          <div
+            class="grid grid-cols-[48px_100px_1fr_100px_100px_160px_100px] gap-3 px-4 py-3 items-center cursor-pointer hover:bg-foundation-2/30"
+            @click="toggleExpand(record.id)"
+          >
+            <!-- Expand Toggle -->
+            <div class="flex justify-center">
+              <component
+                :is="expandedRecordIds.includes(record.id) ? ChevronDown : ChevronRight"
+                class="h-4 w-4 text-foreground-2 transition-transform"
+              />
+            </div>
+
+            <!-- Year Month -->
+            <div>
+              <span
+                class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
+              >
+                {{ record.yearMonth }}
+              </span>
+            </div>
+
+            <!-- Task Preview -->
+            <div class="flex flex-wrap gap-1.5 ml-2 truncate">
               <span
                 v-for="t in record.tasks.slice(0, 3)"
                 :key="t.id"
-                class="rounded bg-foundation px-2 py-0.5 text-xs text-foreground-2 border border-outline-2"
+                class="rounded bg-foundation px-2 py-0.5 text-body-xs text-foreground-2 border border-outline-2 truncate max-w-[120px]"
               >
                 {{ t.taskName }}
               </span>
-              <span v-if="record.tasks.length > 3" class="text-xs text-foreground-2">
+              <span v-if="record.tasks.length > 3" class="text-body-xs text-foreground-2 shrink-0">
                 +{{ record.tasks.length - 3 }} 项
               </span>
             </div>
-          </div>
 
-          <div class="flex items-center gap-4 text-body-xs text-foreground-2">
-            <span>任务数：{{ record.tasks.length }}</span>
-            <span>编制人：{{ record.createdBy }}</span>
-            <span>时间：{{ record.createdAt }}</span>
-            <div class="flex items-center gap-1" @click.stop>
+            <!-- Task Count -->
+            <div class="text-center font-medium">{{ record.tasks.length }} 项</div>
+
+            <!-- Creator -->
+            <div class="text-center">{{ record.createdBy }}</div>
+
+            <!-- Created Time -->
+            <div class="text-center text-foreground-2 text-body-xs">
+              {{ record.createdAt ? record.createdAt.substring(0, 10) : '-' }}
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-center gap-1.5" @click.stop>
               <button
                 type="button"
                 class="rounded p-1 text-foreground-2 hover:bg-foundation-3 hover:text-primary transition"
@@ -93,66 +122,89 @@
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- Expanded Tasks List -->
-        <div v-if="expandedRecordIds.includes(record.id)" class="border-t border-outline-2">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-body-sm">
-              <thead class="bg-foundation-page text-foreground-2 border-b border-outline-2">
-                <tr>
-                  <th class="px-3 py-2 w-10">#</th>
-                  <th class="px-3 py-2 min-w-[200px]">任务名称</th>
-                  <th class="px-3 py-2 w-28">开始时间</th>
-                  <th class="px-3 py-2 w-28">结束时间</th>
-                  <th class="px-3 py-2 w-24">总工程量</th>
-                  <th class="px-3 py-2 w-20">单位</th>
-                  <th class="px-3 py-2 w-28">本月计划</th>
-                  <th class="px-3 py-2 w-32 text-center">BIM关联</th>
-                  <th class="px-3 py-2 min-w-[150px]">备注</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-outline-2 bg-foundation">
-                <tr
-                  v-for="(task, idx) in record.tasks"
-                  :key="task.id"
-                  class="hover:bg-foundation-2/30 transition-colors"
-                >
-                  <td class="px-3 py-2 text-foreground-2 text-center">{{ idx + 1 }}</td>
-                  <td class="px-3 py-2 font-medium">{{ task.taskName }}</td>
-                  <td class="px-3 py-2 text-foreground-2">{{ task.startDate }}</td>
-                  <td class="px-3 py-2 text-foreground-2">{{ task.endDate }}</td>
-                  <td class="px-3 py-2 text-foreground-2">{{ task.totalVolume || '-' }}</td>
-                  <td class="px-3 py-2 text-foreground-2">{{ task.unit }}</td>
-                  <td class="px-3 py-2 font-medium">{{ task.plannedVolume || '-' }}</td>
+          <!-- Expanded Tasks List -->
+          <div v-if="expandedRecordIds.includes(record.id)" class="border-t border-outline-2 bg-foundation-page/10">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-body-sm">
+                <thead class="bg-foundation-page text-foreground-2 border-b border-outline-2 select-none">
+                  <tr>
+                    <th class="px-3 py-2 w-10 text-center">#</th>
+                    <th class="px-3 py-2 min-w-[180px]">任务名称</th>
+                    <th class="px-3 py-2 w-24 text-center">开始时间</th>
+                    <th class="px-3 py-2 w-24 text-center">结束时间</th>
+                    <th class="px-3 py-2 w-24 text-center">总工程量</th>
+                    <th class="px-3 py-2 w-16 text-center">单位</th>
+                    <th class="px-3 py-2 w-24 text-center">本月计划</th>
+                    <th class="px-3 py-2 w-24 text-center">累计完成</th>
+                    <th class="px-3 py-2 w-36 text-center">进度</th>
+                    <th class="px-3 py-2 w-32 text-center">BIM关联</th>
+                    <th class="px-3 py-2 min-w-[150px]">备注</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-2 bg-foundation">
+                  <tr
+                    v-for="(task, idx) in record.tasks"
+                    :key="task.id"
+                    class="hover:bg-foundation-2/30 transition-colors"
+                  >
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ idx + 1 }}</td>
+                    <td class="px-3 py-2 font-medium">{{ task.taskName }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.startDate }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.endDate }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.totalVolume || '-' }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.unit }}</td>
+                    <td class="px-3 py-2 font-medium text-center">{{ task.plannedVolume || '-' }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.actualVolume || '-' }}</td>
+                    <td class="px-3 py-2">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1 rounded-full h-1.5 bg-outline-3 overflow-hidden">
+                          <div
+                            class="rounded-full h-full transition-all"
+                            :class="[
+                              (task.progressPercent || 0) >= 90
+                                ? 'bg-success'
+                                : (task.progressPercent || 0) >= 60
+                                ? 'bg-warning'
+                                : 'bg-danger'
+                            ]"
+                            :style="{ width: `${Math.min(task.progressPercent || 0, 100)}%` }"
+                          />
+                        </div>
+                        <span class="text-body-xs font-medium text-foreground w-8 text-right shrink-0">
+                          {{ task.progressPercent || 0 }}%
+                        </span>
+                      </div>
+                    </td>
 
-                  <!-- BIM Association Action Button -->
-                  <td class="px-3 py-2 text-center">
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs transition"
-                      :class="
-                        task.bimLinked || (task.selections && task.selections.length > 0)
-                          ? 'border-success-darker/30 bg-success-lighter text-success-darker'
-                          : 'border-outline-3 bg-foundation hover:bg-foundation-2 text-foreground-2'
-                      "
-                      @click="openBimLinkDrawer(record.id, task)"
-                    >
-                      <Box class="h-3.5 w-3.5" />
-                      <span>
-                        {{
+                    <!-- BIM Association Action Button -->
+                    <td class="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        class="inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-xs transition whitespace-nowrap shrink-0"
+                        :class="
                           task.bimLinked || (task.selections && task.selections.length > 0)
-                            ? `已关联 (${getSelectionsCount(task)}件)`
-                            : '关联BIM'
-                        }}
-                      </span>
-                    </button>
-                  </td>
+                            ? 'border-success-darker/30 bg-success-lighter text-success-darker'
+                            : 'border-outline-3 bg-foundation hover:bg-foundation-2 text-foreground-2'
+                        "
+                        @click="openBimLinkDrawer(record.id, task)"
+                      >
+                        <Box class="h-3.5 w-3.5" />
+                        <span class="whitespace-nowrap shrink-0">
+                          {{
+                            task.bimLinked || (task.selections && task.selections.length > 0)
+                              ? `已关联 (${getSelectionsCount(task)}件)`
+                              : '关联'
+                          }}
+                        </span>
+                      </button>
+                    </td>
 
-                  <td class="px-3 py-2 text-foreground-2">{{ task.remark || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
+                    <td class="px-3 py-2 text-foreground-2">{{ task.remark || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -196,15 +248,34 @@
         </div>
       </div>
     </LayoutDialog>
+
+    <CommonConfirmDialog
+      v-model:open="confirmDialogOpen"
+      :title="confirmDialogTitle"
+      :text="confirmDialogText"
+      confirm-text="确认删除"
+      :loading="isDeleting"
+      @confirm="executeDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { FormButton, FormTextInput, LayoutDialog, type LayoutDialogButton } from '@speckle/ui-components'
 import { Box, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-vue-next'
-import { CommonModelObjectMultiModelSelectDrawer } from '#components'
-import AddMonthlyPlanDialog, { type MonthlyRecordItem, type MonthlyTaskItem } from './AddMonthlyPlanDialog.vue'
+import { CommonModelObjectMultiModelSelectDrawer, CommonConfirmDialog } from '#components'
+import AddMonthlyPlanDialog from './AddMonthlyPlanDialog.vue'
 import type { MasterTaskOption } from './TaskSelectDialog.vue'
+import {
+  getProgressMonthlyPlans,
+  createProgressMonthlyPlan,
+  updateProgressMonthlyPlan,
+  deleteProgressMonthlyPlan,
+  updateMonthlyPlanTaskBimAssociation,
+  type MonthlyRecordItem,
+  type MonthlyPlanTaskItem as MonthlyTaskItem
+} from '~~/lib/projects/api/progress'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 const props = defineProps<{
   projectId: string
@@ -215,33 +286,16 @@ const emit = defineEmits<{
   (e: 'sync-records', records: MonthlyRecordItem[]): void
 }>()
 
-const records = ref<MonthlyRecordItem[]>([
-  {
-    id: 'mp-001',
-    yearMonth: '2025-01',
-    createdAt: '2025-01-05 09:00',
-    createdBy: '张三',
-    tasks: [
-      {
-        id: 't1',
-        taskName: '路基土方开挖',
-        linkedPlanTaskId: '1-1-1-1',
-        linkedPlanTaskName: '路基土方开挖',
-        startDate: '2025-01-01',
-        endDate: '2025-01-31',
-        totalVolume: '120000',
-        unit: 'm³',
-        plannedVolume: '40000',
-        actualVolume: '38500',
-        progressPercent: 96,
-        remark: '施工顺利',
-        bimComponentCount: 3,
-        bimLinked: true,
-        selections: [{ modelId: 'model-1', applicationIds: ['app-1', 'app-2', 'app-3'] }]
-      }
-    ]
-  }
-])
+const records = ref<MonthlyRecordItem[]>([])
+const apiOrigin = useApiOrigin()
+const { triggerNotification } = useGlobalToast()
+
+// 二次确认弹窗 State
+const confirmDialogOpen = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogText = ref('')
+const isDeleting = ref(false)
+const planIdToDelete = ref<string | null>(null)
 
 const expandedRecordIds = ref<string[]>(['mp-001'])
 const searchKeyword = ref('')
@@ -257,11 +311,11 @@ const draftModelIds = ref<string[]>([])
 const draftSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>([])
 
 const filteredRecords = computed(() => {
-  return records.value.filter((r) => {
+  return records.value.filter((r: MonthlyRecordItem) => {
     if (filterYearMonth.value && r.yearMonth !== filterYearMonth.value) return false
     if (searchKeyword.value) {
       const kw = searchKeyword.value.toLowerCase()
-      const hasMatch = r.tasks.some((t) => t.taskName.toLowerCase().includes(kw))
+      const hasMatch = r.tasks.some((t: MonthlyTaskItem) => t.taskName.toLowerCase().includes(kw))
       if (!hasMatch) return false
     }
     return true
@@ -283,10 +337,39 @@ const toggleExpand = (id: string) => {
 
 const getSelectionsCount = (task: MonthlyTaskItem) => {
   if (task.selections && task.selections.length > 0) {
-    return task.selections.reduce((sum, item) => sum + item.applicationIds.length, 0)
+    return task.selections.reduce((sum: number, item: any) => sum + item.applicationIds.length, 0)
   }
   return task.bimComponentCount || 0
 }
+
+const loadMonthlyPlans = async () => {
+  try {
+    const data = await getProgressMonthlyPlans({ projectId: props.projectId, apiOrigin })
+    records.value = data
+    if (data.length && expandedRecordIds.value.length === 0) {
+      expandedRecordIds.value = [data[0].id]
+    }
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '加载失败',
+      description: error instanceof Error ? error.message : '加载月度计划失败'
+    })
+  }
+}
+
+onMounted(() => {
+  loadMonthlyPlans()
+})
+
+// 监听数据变更同步给总进度
+watch(
+  records,
+  (newVal) => {
+    emit('sync-records', newVal)
+  },
+  { deep: true, immediate: true }
+)
 
 const openEditDialog = (record: MonthlyRecordItem) => {
   editingRecord.value = record
@@ -294,26 +377,123 @@ const openEditDialog = (record: MonthlyRecordItem) => {
 }
 
 const deleteRecord = (id: string) => {
-  records.value = records.value.filter((r) => r.id !== id)
-  emit('sync-records', records.value)
+  const target = records.value.find((r: MonthlyRecordItem) => r.id === id)
+  planIdToDelete.value = id
+  confirmDialogTitle.value = '确认删除月度计划'
+  confirmDialogText.value = `你确定要删除 ${target?.yearMonth || ''} 的月度计划吗？对应的任务行信息也将被全部清除，此操作不可撤销。`
+  confirmDialogOpen.value = true
 }
 
-const handleSaveRecord = (record: MonthlyRecordItem) => {
-  const existingIdx = records.value.findIndex((r) => r.id === record.id)
-  if (existingIdx !== -1) {
-    records.value[existingIdx] = record
-  } else {
-    records.value.unshift(record)
-    expandedRecordIds.value.push(record.id)
+const executeDelete = async () => {
+  if (!planIdToDelete.value) return
+  isDeleting.value = true
+  try {
+    await deleteProgressMonthlyPlan({
+      projectId: props.projectId,
+      planId: planIdToDelete.value,
+      apiOrigin
+    })
+    triggerNotification({
+      type: ToastNotificationType.Info,
+      title: '删除成功',
+      description: '月度计划删除成功。'
+    })
+    await loadMonthlyPlans()
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '删除失败',
+      description: error instanceof Error ? error.message : '删除失败，请重试'
+    })
+  } finally {
+    isDeleting.value = false
+    confirmDialogOpen.value = false
+    planIdToDelete.value = null
   }
-  editingRecord.value = null
-  emit('sync-records', records.value)
+}
+
+const handleSaveRecord = async (record: MonthlyRecordItem) => {
+  try {
+    const isEdit = !!editingRecord.value
+    let saved: MonthlyRecordItem
+
+    const payloadInput = {
+      yearMonth: record.yearMonth,
+      createdBy: record.createdBy,
+      tasks: record.tasks.map((t: MonthlyTaskItem) => ({
+        taskName: t.taskName,
+        linkedPlanTaskId: t.linkedPlanTaskId || null,
+        linkedPlanTaskName: t.linkedPlanTaskName || null,
+        startDate: t.startDate || null,
+        endDate: t.endDate || null,
+        totalVolume: t.totalVolume !== null && t.totalVolume !== undefined ? String(t.totalVolume) : null,
+        unit: t.unit || null,
+        plannedVolume: t.plannedVolume !== null && t.plannedVolume !== undefined ? String(t.plannedVolume) : null,
+        actualVolume: t.actualVolume !== null && t.actualVolume !== undefined ? String(t.actualVolume) : '0',
+        progressPercent: typeof t.progressPercent === 'number' ? Math.round(t.progressPercent) : 0,
+        remark: t.remark || null,
+        bimComponentCount: typeof t.bimComponentCount === 'number' ? Math.round(t.bimComponentCount) : 0,
+        bimLinked: !!t.bimLinked,
+        selections: t.selections || []
+      }))
+    }
+
+    if (isEdit) {
+      saved = await updateProgressMonthlyPlan({
+        projectId: props.projectId,
+        planId: record.id,
+        apiOrigin,
+        input: payloadInput
+      })
+      triggerNotification({
+        type: ToastNotificationType.Info,
+        title: '更新成功',
+        description: `已成功保存对 ${record.yearMonth} 月度计划的修改。`
+      })
+    } else {
+      saved = await createProgressMonthlyPlan({
+        projectId: props.projectId,
+        apiOrigin,
+        input: payloadInput
+      })
+      triggerNotification({
+        type: ToastNotificationType.Info,
+        title: '新增成功',
+        description: `已成功创建 ${record.yearMonth} 月度计划。`
+      })
+    }
+
+    isAddDialogOpen.value = false
+    editingRecord.value = null
+    await loadMonthlyPlans()
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '保存失败',
+      description: error instanceof Error ? error.message : '保存失败，请检查数据。'
+    })
+  }
 }
 
 const openBimLinkDrawer = (recordId: string, task: MonthlyTaskItem) => {
   activeRecordId.value = recordId
   activeBimTask.value = task
-  draftSelections.value = JSON.parse(JSON.stringify(task.selections || []))
+
+  const parseSelections = (selections: any): Array<{ modelId: string; applicationIds: string[] }> => {
+    if (!selections) return []
+    if (Array.isArray(selections)) return selections
+    if (typeof selections === 'string') {
+      try {
+        const parsed = JSON.parse(selections)
+        return parseSelections(parsed)
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
+  draftSelections.value = parseSelections(task.selections)
   draftModelIds.value = draftSelections.value.map((s) => s.modelId)
   isBimDrawerOpen.value = true
 }
@@ -335,22 +515,36 @@ const bimDialogButtons = computed<LayoutDialogButton[]>(() => [
   }
 ])
 
-const saveBimAssociation = () => {
+const saveBimAssociation = async () => {
   if (!activeRecordId.value || !activeBimTask.value) return
 
-  const rec = records.value.find((r) => r.id === activeRecordId.value)
-  if (rec) {
-    const t = rec.tasks.find((item) => item.id === activeBimTask.value?.id)
-    if (t) {
-      t.selections = JSON.parse(JSON.stringify(draftSelections.value))
-      t.bimLinked = t.selections.length > 0 && t.selections.some((s) => s.applicationIds.length > 0)
-      t.bimComponentCount = getSelectionsCount(t)
-    }
-  }
+  try {
+    const nextSelections = JSON.parse(JSON.stringify(draftSelections.value))
+    await updateMonthlyPlanTaskBimAssociation({
+      projectId: props.projectId,
+      planId: activeRecordId.value,
+      taskId: activeBimTask.value.id || '',
+      apiOrigin,
+      selections: nextSelections
+    })
 
-  emit('sync-records', records.value)
-  isBimDrawerOpen.value = false
-  activeRecordId.value = null
-  activeBimTask.value = null
+    triggerNotification({
+      type: ToastNotificationType.Info,
+      title: '关联保存成功',
+      description: `已同步更新总进度中有关任务 “${activeBimTask.value.taskName}” 的BIM构件。`
+    })
+
+    await loadMonthlyPlans()
+  } catch (error) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '关联失败',
+      description: error instanceof Error ? error.message : '关联保存失败，请重试'
+    })
+  } finally {
+    isBimDrawerOpen.value = false
+    activeRecordId.value = null
+    activeBimTask.value = null
+  }
 }
 </script>

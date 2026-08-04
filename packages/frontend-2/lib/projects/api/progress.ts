@@ -126,6 +126,16 @@ export type ActualProgressRecord = {
   siteLeader: string
   reporter: string
   constructionLog: string
+  yearMonth?: string
+  tasks?: Array<{
+    linkedPlanTaskId: string | null
+    taskName: string
+    plannedVolume: string | number
+    completedVolume: string | number
+    unit: string
+    selections: Array<{ modelId: string; applicationIds: string[] }>
+  }>
+  workers?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -170,9 +180,19 @@ export type ActualProgressRecordInput = {
   siteAppearanceRecord?: string
   overtimeRecord?: string
   otherRecord?: string
-  siteLeader?: string
   reporter?: string
+  siteLeader?: string
   constructionLog?: string
+  yearMonth?: string
+  tasks?: Array<{
+    linkedPlanTaskId: string | null
+    taskName: string
+    plannedVolume: string | number
+    completedVolume: string | number
+    unit: string
+    selections: Array<{ modelId: string; applicationIds: string[] }>
+  }>
+  workers?: string[]
 }
 
 export type ProgressElementSnapshotStatus =
@@ -774,3 +794,143 @@ export async function downloadLatestProgressPlanFile(params: {
     throw new Error(parseUnknownError(error))
   }
 }
+
+export type MonthlyPlanTaskItem = {
+  id?: string
+  taskName: string
+  linkedPlanTaskId?: string | null
+  linkedPlanTaskName?: string | null
+  startDate: string | null
+  endDate: string | null
+  totalVolume: string | null
+  unit: string | null
+  plannedVolume: string | null
+  actualVolume: string | null
+  progressPercent?: number
+  remark?: string | null
+  bimComponentCount?: number
+  bimLinked?: boolean
+  selections?: Array<{ modelId: string; applicationIds: string[] }> | null
+}
+
+export type MonthlyRecordItem = {
+  id: string
+  projectId: string
+  yearMonth: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  tasks: MonthlyPlanTaskItem[]
+}
+
+export async function getProgressMonthlyPlans(params: {
+  projectId: string
+  apiOrigin: string
+}): Promise<MonthlyRecordItem[]> {
+  const { projectId, apiOrigin } = params
+  try {
+    const response = await $fetch<{ data: MonthlyRecordItem[] }>(
+      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans`, apiOrigin).toString(),
+      {
+        method: 'GET'
+      }
+    )
+    return response.data || []
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function createProgressMonthlyPlan(params: {
+  projectId: string
+  apiOrigin: string
+  input: {
+    yearMonth: string
+    createdBy: string
+    tasks: Omit<MonthlyPlanTaskItem, 'id' | 'createdAt' | 'updatedAt'>[]
+  }
+}): Promise<MonthlyRecordItem> {
+  const { projectId, apiOrigin, input } = params
+  try {
+    const response = await $fetch<{ data: MonthlyRecordItem }>(
+      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans`, apiOrigin).toString(),
+      {
+        method: 'POST',
+        body: input
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateProgressMonthlyPlan(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+  input: {
+    yearMonth: string
+    createdBy: string
+    tasks: Partial<MonthlyPlanTaskItem>[]
+  }
+}): Promise<MonthlyRecordItem> {
+  const { projectId, planId, apiOrigin, input } = params
+  try {
+    const response = await $fetch<{ data: MonthlyRecordItem }>(
+      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`, apiOrigin).toString(),
+      {
+        method: 'PUT',
+        body: input
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function deleteProgressMonthlyPlan(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+}): Promise<boolean> {
+  const { projectId, planId, apiOrigin } = params
+  try {
+    await $fetch<{ data: { id: string } }>(
+      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`, apiOrigin).toString(),
+      {
+        method: 'DELETE'
+      }
+    )
+    return true
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateMonthlyPlanTaskBimAssociation(params: {
+  projectId: string
+  planId: string
+  taskId: string
+  apiOrigin: string
+  selections: Array<{ modelId: string; applicationIds: string[] }>
+}): Promise<MonthlyPlanTaskItem> {
+  const { projectId, planId, taskId, apiOrigin, selections } = params
+  try {
+    const response = await $fetch<{ data: MonthlyPlanTaskItem }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress/monthly-plans/${planId}/tasks/${taskId}/bim-association`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'PUT',
+        body: { selections }
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+

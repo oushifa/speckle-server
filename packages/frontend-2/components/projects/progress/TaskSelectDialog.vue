@@ -1,5 +1,5 @@
 <template>
-  <LayoutDialog v-model:open="isOpen" max-width="lg">
+  <LayoutDialog v-model:open="isOpen" max-width="lg" prevent-close-on-click-outside>
     <template #header>选择总进度计划任务</template>
 
     <div class="space-y-3 py-1">
@@ -27,10 +27,10 @@
             v-for="task in visibleTasks"
             :key="task.id"
             class="flex items-center justify-between rounded-lg p-2 text-body-sm transition-colors cursor-pointer"
-            :class="[
+             :class="[
               task.hasChildren
                 ? 'font-medium text-foreground bg-foundation-2/60'
-                : selectedTaskId === task.id
+                : tempSelectedTask?.id === task.id
                 ? 'bg-primary-muted text-primary border border-primary/30'
                 : 'hover:bg-foundation-2 text-foreground'
             ]"
@@ -42,12 +42,12 @@
                 v-if="!task.hasChildren"
                 class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border"
                 :class="
-                  selectedTaskId === task.id
+                  tempSelectedTask?.id === task.id
                     ? 'border-primary bg-primary text-white'
                     : 'border-outline-3'
                 "
               >
-                <Check v-if="selectedTaskId === task.id" class="h-3 w-3" />
+                <Check v-if="tempSelectedTask?.id === task.id" class="h-3 w-3" />
               </span>
               <span class="truncate">{{ task.taskName }}</span>
             </div>
@@ -58,7 +58,7 @@
             >
               <span>工程量：{{ task.volume ? `${task.volume}${task.unit}` : '-' }}</span>
               <span v-if="task.startDate && task.endDate">
-                {{ task.startDate }} ~ {{ task.endDate }}
+                {{ task.startDate.substring(0, 10) }} ~ {{ task.endDate.substring(0, 10) }}
               </span>
             </div>
           </div>
@@ -109,6 +109,18 @@ const isOpen = computed({
   get: () => props.open,
   set: (val) => emit('update:open', val)
 })
+
+watch(
+  () => props.open,
+  (val) => {
+    if (val) {
+      searchTerm.value = ''
+      const existing = props.masterTasks.find((t) => t.id === props.selectedTaskId)
+      tempSelectedTask.value = existing || null
+    }
+  },
+  { immediate: true }
+)
 
 const visibleTasks = computed(() => {
   if (!searchTerm.value.trim()) return props.masterTasks

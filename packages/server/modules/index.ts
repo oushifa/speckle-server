@@ -129,7 +129,8 @@ const getEnabledModuleNames = () => {
     'gatekeeperCore',
     'multiregion',
     'viewer',
-    'external'
+    'external',
+    'unified-work-sync'
   ]
 
   // TODO: add acc with feature flag?

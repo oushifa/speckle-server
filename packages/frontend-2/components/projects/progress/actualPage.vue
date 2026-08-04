@@ -9,7 +9,7 @@
         <FormTextInput
           v-model="searchQuery"
           name="actual-progress-search"
-          placeholder="搜索日期、构件编码、记录人"
+          placeholder="搜索日期、月份、记录人"
           :custom-icon="Search"
           color="foundation"
           class="w-72"
@@ -61,34 +61,42 @@
           <div class="text-body-xs text-foreground-2">{{ item.weekDay }}</div>
         </template>
 
-        <template #startElementCodes="{ item }">
-          <div
-            class="cursor-pointer hover:text-primary hover:underline transition text-body-sm break-all pr-4"
-            :class="{ 'text-foreground-2 font-light': formatElementCodes(item, 'start') === '未关联' }"
-            @click="openDirectLinkDialog(item, 'start')"
-          >
-            {{ formatElementCodes(item, 'start') }}
-          </div>
+        <template #yearMonth="{ item }">
+          <div class="text-body-sm">{{ item.yearMonth || '-' }}</div>
         </template>
 
-        <template #finishElementCodes="{ item }">
-          <div
-            class="cursor-pointer hover:text-primary hover:underline transition text-body-sm break-all pr-4"
-            :class="{ 'text-foreground-2 font-light': formatElementCodes(item, 'finish') === '未关联' }"
-            @click="openDirectLinkDialog(item, 'finish')"
-          >
-            {{ formatElementCodes(item, 'finish') }}
+        <template #tasksInfo="{ item }">
+          <div v-if="item.tasks && item.tasks.length" class="space-y-1">
+            <div
+              v-for="(task, idx) in item.tasks.slice(0, 2)"
+              :key="idx"
+              class="text-body-xs truncate"
+            >
+              <span class="font-medium">{{ task.taskName }}</span>
+              <span class="text-foreground-2 ml-1">
+                完成 {{ task.completedVolume }}{{ task.unit }}
+              </span>
+            </div>
+            <div v-if="item.tasks.length > 2" class="text-body-xs text-foreground-2">
+              +{{ item.tasks.length - 2 }} 项...
+            </div>
           </div>
+          <div v-else class="text-body-sm text-foreground-2">-</div>
+        </template>
+
+        <template #bimInfo="{ item }">
+          <div v-if="countAllTaskBimLinks(item) > 0">
+            <span
+              class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium bg-success-lighter text-success-darker"
+            >
+              已关联 {{ countAllTaskBimLinks(item) }} 个构件
+            </span>
+          </div>
+          <div v-else class="text-body-xs text-foreground-2">未关联</div>
         </template>
 
         <template #remark="{ item }">
           <div class="text-body-sm truncate">{{ item.remark || '-' }}</div>
-        </template>
-
-        <template #constructionLog="{ item }">
-          <div class="text-body-sm">
-            {{ getConstructionLogPreview(item) }}
-          </div>
         </template>
 
         <template #actions="{ item }">
@@ -176,392 +184,452 @@
       </div>
     </div>
 
+    <!-- 查看详情弹窗 -->
     <LayoutDialog
       v-model:open="viewDialogOpen"
       max-width="xl"
       :buttons="viewDialogButtons"
     >
-      <template #header>{{ viewDialogTitle }}</template>
+      <template #header>实际进度详情</template>
       <div class="max-h-[75vh] overflow-y-auto pr-2 space-y-5">
-        <div class="text-body-sm text-foreground-2">查看进度情况详细信息</div>
+        <div class="text-body-sm text-foreground-2">查看实际进度填报详情</div>
 
         <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="text-body-md font-medium">基本信息</div>
-          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div class="text-body-md font-medium">日期信息</div>
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div v-for="item in viewBasicInfoItems" :key="item.label" class="space-y-1">
               <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
               <div class="text-body-md font-medium whitespace-pre-wrap break-words">
                 {{ item.value }}
               </div>
             </div>
-            <div class="space-y-1">
-              <div class="text-body-xs text-foreground-2">关联状态</div>
-              <div>
-                <span
-                  class="inline-flex items-center rounded-full px-3 py-1 text-body-xs font-medium"
-                  :class="viewStatusBadgeClass"
+          </div>
+        </section>
+
+        <section
+          v-if="viewRecord && viewRecord.tasks && viewRecord.tasks.length"
+          class="rounded-xl bg-foundation-page p-4 space-y-3"
+        >
+          <div class="text-body-md font-medium">今日填报进度</div>
+          <div class="space-y-2">
+            <div
+              v-for="(task, idx) in viewRecord.tasks"
+              :key="idx"
+              class="rounded-lg border border-outline-2 bg-foundation p-3"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                  <div class="text-body-sm font-medium">{{ task.taskName }}</div>
+                  <div class="text-body-xs text-foreground-2 mt-1">
+                    本次完成：{{ task.completedVolume }}{{ task.unit || '' }}
+                    <span v-if="task.plannedVolume" class="ml-2"
+                      >/ 计划：{{ task.plannedVolume }}{{ task.unit || '' }}</span
+                    >
+                  </div>
+                </div>
+                <button
+                  v-if="getViewTaskSelectionCount(task) > 0"
+                  type="button"
+                  class="inline-flex items-center rounded-full px-2.5 py-1 text-body-xs font-medium bg-success-lighter text-success-darker shrink-0 hover:opacity-90"
+                  @click="openAssociatedModelDrawer(task)"
                 >
-                  {{ viewStatusText }}
+                  查看关联BIM（{{ getViewTaskSelectionCount(task) }}）
+                </button>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium bg-foundation-2 text-foreground-2 shrink-0"
+                >
+                  未关联BIM
                 </span>
               </div>
             </div>
-            <div class="space-y-1">
-              <div class="text-body-xs text-foreground-2">关联模型</div>
-              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
-                {{ displayModelIds(viewLinkedModelIds) }}
-              </div>
-            </div>
           </div>
+        </section>
+        <section
+          v-else
+          class="rounded-xl bg-foundation-page p-4 text-body-sm text-foreground-2"
+        >
+          暂无今日填报进度明细
         </section>
 
         <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="text-body-md font-medium">进度情况</div>
-          <div class="space-y-4">
-            <div v-for="item in viewProgressItems" :key="item.label" class="space-y-2">
-              <div class="text-body-sm font-medium text-foreground-2">
-                {{ item.label }}
-              </div>
-              <div
-                class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words"
-              >
-                {{ item.value }}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="flex items-center gap-2">
-            <FileText class="h-5 w-5 text-primary" />
-            <div class="text-body-md font-medium">施工日志信息</div>
-          </div>
-          <div class="grid grid-cols-2 gap-5 md:grid-cols-4">
-            <div
-              v-for="item in viewJournalInfoItems"
-              :key="item.label"
-              class="space-y-1"
-            >
-              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
-              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
-                {{ item.value }}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="space-y-4">
+          <div class="text-body-md font-medium">施工人员</div>
           <div
-            v-for="section in viewDetailSections"
-            :key="section.label"
-            class="rounded-xl bg-foundation-page p-4 space-y-2"
+            v-if="viewRecord && viewRecord.workers && viewRecord.workers.length"
+            class="flex flex-wrap gap-2"
           >
-            <div class="text-body-md font-medium">{{ section.label }}</div>
-            <div
-              v-if="section.description"
-              class="text-body-xs text-foreground-2 whitespace-pre-wrap break-words"
+            <span
+              v-for="worker in viewRecord.workers"
+              :key="worker"
+              class="inline-flex items-center rounded-full px-3 py-1 text-body-xs font-medium bg-primary-muted text-primary"
             >
-              {{ section.description }}
-            </div>
-            <div
-              class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words"
-            >
-              {{ section.value }}
-            </div>
+              {{ worker }}
+            </span>
           </div>
+          <div v-else class="text-body-sm text-foreground-2">-</div>
         </section>
 
         <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="text-body-md font-medium">人员信息</div>
-          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div v-for="item in viewPeopleItems" :key="item.label" class="space-y-1">
-              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
-              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
-                {{ item.value }}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="text-body-md font-medium">记录信息</div>
-          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div v-for="item in viewMetaItems" :key="item.label" class="space-y-1">
-              <div class="text-body-xs text-foreground-2">{{ item.label }}</div>
-              <div class="text-body-md font-medium whitespace-pre-wrap break-words">
-                {{ item.value }}
-              </div>
-            </div>
+          <div class="text-body-md font-medium">备注</div>
+          <div class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words">
+            {{ displayDetailValue(viewRecord?.remark) }}
           </div>
         </section>
       </div>
     </LayoutDialog>
 
-    <LayoutDialog v-model:open="dialogOpen" max-width="xl" :buttons="dialogButtons">
+    <LayoutDrawer
+      v-model:open="associatedModelDrawerOpen"
+      placement="right"
+      width="95%"
+      body-classes="p-4"
+    >
+      <template #title>
+        关联模型查看
+        <span v-if="selectedAssociationTaskName" class="text-sm text-foreground-2">
+          | {{ selectedAssociationTaskName }}
+        </span>
+      </template>
+      <div class="h-[85vh] relative">
+        <CommonModelPropsViewer
+          v-if="selectedAssociationModelIds.length"
+          :project-id="projectId"
+          :model-ids="selectedAssociationModelIds"
+          :filter-bims="selectedAssociationBimIds"
+          :filter-application-ids="selectedAssociationApplicationIds"
+        />
+        <div v-else class="h-full flex items-center justify-center text-foreground-2">
+          未找到关联模型
+        </div>
+      </div>
+    </LayoutDrawer>
+
+    <!-- 新增/编辑弹窗 -->
+    <LayoutDialog
+      v-model:open="dialogOpen"
+      max-width="xl"
+      :buttons="dialogButtons"
+      :prevent-close-on-click-outside="taskSelectOpen"
+    >
       <template #header>{{ dialogTitle }}</template>
-      <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <FormTextInput
-            v-model="draftForm.taskName"
-            name="actual-task-name"
-            label="计划任务"
-            show-label
-          />
-          <FormTextInput
-            v-model="draftForm.reportTimestamp"
-            name="actual-report-timestamp"
-            label="年/月/日"
-            type="datetime-local"
-            show-label
-          />
-          <FormTextInput
-            v-model="draftForm.weekDay"
-            name="actual-week-day"
-            label="星期"
-            show-label
-            :disabled="true"
-          />
-          <FormSelectUsers
-            v-model="selectedReporterUser"
-            :users="availableUsers"
-            label="记录人"
-            name="actual-reporter"
-            search
-            show-label
-            selector-placeholder="请选择记录人"
-            search-placeholder="搜索项目成员"
-            :disabled="isLoadingProjectUsers"
-            clearable
-          />
-          <FormSelectUsers
-            v-model="selectedSiteLeaderUser"
-            :users="availableUsers"
-            label="现场负责人"
-            name="actual-site-leader"
-            search
-            show-label
-            selector-placeholder="请选择现场负责人"
-            search-placeholder="搜索项目成员"
-            :disabled="isLoadingProjectUsers"
-            clearable
-          />
-          <FormTextInput
-            v-model="draftForm.highTemperature"
-            name="actual-high-temperature"
-            label="最高气温"
-            show-label
-          />
-          <FormTextInput
-            v-model="draftForm.lowTemperature"
-            name="actual-low-temperature"
-            label="最低气温"
-            show-label
-          />
-        </div>
+      <div class="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label class="text-body-sm text-foreground">
-            <span class="block mb-2">上午气候</span>
+        <!-- 日期信息 -->
+        <section class="space-y-3">
+          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">日期信息</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="draftForm.reportTimestamp"
+              name="actual-report-timestamp"
+              label="填报日期"
+              type="date"
+              show-label
+            />
+            <FormTextInput
+              v-model="draftForm.weekDay"
+              name="actual-week-day"
+              label="星期"
+              show-label
+              :disabled="true"
+            />
+          </div>
+
+          <div class="rounded-xl border border-outline-2 bg-foundation-page p-4 space-y-3">
+            <div class="flex items-center gap-2">
+              <ClipboardList class="h-4 w-4 text-primary" />
+              <div class="text-body-sm font-semibold text-foreground">选择月度计划</div>
+              <span class="text-danger text-body-xs">*</span>
+            </div>
+            <div class="text-body-xs text-foreground-2">
+              选择后自动带出该月度计划的任务细项，支持继续补充计划外任务。
+            </div>
             <select
-              v-model="draftForm.morningWeather"
-              aria-label="上午气候"
-              class="w-full rounded border border-outline-3 bg-foundation px-3 py-2 outline-none"
+              v-model="draftForm.yearMonth"
+              aria-label="选择月度计划"
+              class="w-full rounded border border-outline-3 bg-foundation px-3 py-2 outline-none text-body-sm"
+              @change="onYearMonthChange"
             >
+              <option value="">-- 请选择月份 --</option>
               <option
-                v-for="option in weatherOptions"
-                :key="`am-${option}`"
-                :value="option"
+                v-for="plan in monthlyPlans"
+                :key="plan.id"
+                :value="plan.yearMonth"
               >
-                {{ option }}
+                {{ plan.yearMonth }}（{{ plan.tasks?.length || 0 }} 项任务）
               </option>
             </select>
-          </label>
-          <label class="text-body-sm text-foreground">
-            <span class="block mb-2">下午气候</span>
-            <select
-              v-model="draftForm.afternoonWeather"
-              aria-label="下午气候"
-              class="w-full rounded border border-outline-3 bg-foundation px-3 py-2 outline-none"
+            <div
+              v-if="selectedMonthlyPlan"
+              class="flex flex-wrap items-center gap-2 text-body-xs"
             >
-              <option
-                v-for="option in weatherOptions"
-                :key="`pm-${option}`"
-                :value="option"
-              >
-                {{ option }}
-              </option>
-            </select>
-          </label>
-          <FormTextInput
-            v-model="draftForm.nightCondition"
-            name="actual-night-condition"
-            label="夜间情况"
-            show-label
-          />
-        </div>
+              <span class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 font-medium text-primary">
+                当前计划：{{ selectedMonthlyPlan.yearMonth }}
+              </span>
+              <span class="inline-flex items-center rounded-full bg-foundation px-2.5 py-1 text-foreground-2 border border-outline-2">
+                {{ selectedMonthlyPlan.tasks?.length || 0 }} 项任务
+              </span>
+            </div>
+          </div>
+        </section>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div
-            id="actual-progress-start-elements"
-            class="rounded border border-dashed p-4 bg-foundation-page transition"
-            :class="
-              activeLinkTarget === 'start'
-                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                : 'border-outline-3'
-            "
-          >
-            <div class="text-body-sm font-medium">今日开始施工的构件</div>
-            <div class="text-body-xs text-foreground-2 mt-1">
-              选择今日开始施工的 BIM 构件，保存后自动生成构件编码摘要。
+        <!-- 工程细项 -->
+        <section class="space-y-3">
+          <div class="flex items-center justify-between border-b border-outline-2 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="text-body-sm font-semibold text-foreground">今日进度填报</div>
+              <span
+                v-if="draftForm.tasks.length"
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium bg-foundation-2 text-foreground-2"
+              >
+                {{ draftForm.tasks.length }} 项任务
+              </span>
             </div>
-            <div class="mt-3">
-              <CommonModelObjectMultiModelSelectDrawer
-                v-model:model_ids="draftForm.startModelIds"
-                v-model:selections="draftForm.startSelections"
-                :project-id="projectId"
-                placeholder="选择今日开始施工构件"
-              />
-            </div>
-            <div class="text-body-xs text-foreground-2 mt-2">
-              已选择 {{ startSelectedObjectCount }} 个构件，涉及
-              {{ startSelectedModelCount }} 个模型。
-            </div>
+            <FormButton size="sm" color="outline" :icon-left="Plus" @click="openTaskSelectDialog">
+              从总计划添加
+            </FormButton>
           </div>
 
           <div
-            id="actual-progress-finish-elements"
-            class="rounded border border-dashed p-4 bg-foundation-page transition"
-            :class="
-              activeLinkTarget === 'finish'
-                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                : 'border-outline-3'
-            "
+            v-if="draftForm.yearMonth"
+            class="rounded-xl border border-outline-2 bg-foundation-page px-4 py-3"
           >
-            <div class="text-body-sm font-medium">今日完成的构件</div>
-            <div class="text-body-xs text-foreground-2 mt-1">
-              选择今日完成施工的 BIM 构件，保存后自动生成构件编码摘要。
-            </div>
-            <div class="mt-3">
-              <CommonModelObjectMultiModelSelectDrawer
-                v-model:model_ids="draftForm.finishModelIds"
-                v-model:selections="draftForm.finishSelections"
-                :project-id="projectId"
-                placeholder="选择今日完成构件"
-              />
-            </div>
-            <div class="text-body-xs text-foreground-2 mt-2">
-              已选择 {{ finishSelectedObjectCount }} 个构件，涉及
-              {{ finishSelectedModelCount }} 个模型。
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 text-body-xs font-medium text-primary">
+                {{ draftForm.yearMonth }}
+              </span>
+              <span class="text-body-xs text-foreground-2">
+                已选择月度计划，当前共 {{ draftTaskCount }} 项任务待填报。
+              </span>
             </div>
           </div>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <FormTextArea
-            v-model="draftForm.constructionRecord"
-            name="actual-construction-record"
-            label="施工情况记录"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.qualityRecord"
-            name="actual-quality-record"
-            label="质量情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.safetyRecord"
-            name="actual-safety-record"
-            label="安全情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.mortarConcreteSampleRecord"
-            name="actual-mortar-record"
-            label="砂浆、砼试块情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.materialEquipmentRecord"
-            name="actual-material-equipment-record"
-            label="设备、材料、构件、机具进场情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.siteAppearanceRecord"
-            name="actual-site-appearance-record"
-            label="场容场貌情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.overtimeRecord"
-            name="actual-overtime-record"
-            label="加班情况"
-            show-label
-          />
-          <FormTextArea
-            v-model="draftForm.otherRecord"
-            name="actual-other-record"
-            label="其他情况"
-            show-label
-          />
-        </div>
+          <div v-if="isLoadingMonthlyTasks" class="text-body-sm text-foreground-2 py-4 text-center">
+            正在加载月度计划细项...
+          </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- 任务表格 -->
+          <div
+            v-else
+            class="rounded-lg overflow-hidden border border-outline-2"
+          >
+            <!-- 表头 -->
+            <div
+              class="grid text-body-xs font-medium text-foreground-2 bg-foundation-2 border-b border-outline-2"
+              style="grid-template-columns: 1.8fr 100px 56px 120px 90px 40px; padding: 8px 12px;"
+            >
+              <div>任务名称</div>
+              <div class="text-center">本月计划工程量</div>
+              <div class="text-center">单位</div>
+              <div class="text-center">本次完成工程量</div>
+              <div class="text-center">BIM关联</div>
+              <div class="text-center">操作</div>
+            </div>
+
+            <!-- 空状态 -->
+            <div
+              v-if="!draftForm.tasks.length"
+              class="py-8 text-center text-body-sm text-foreground-2 bg-foundation"
+            >
+              {{ draftForm.yearMonth ? '该月度计划暂无细项，可点击"从总计划添加"' : '请先选择所属月份' }}
+            </div>
+
+            <!-- 任务行 -->
+            <div
+              v-for="(task, idx) in draftForm.tasks"
+              :key="idx"
+              class="grid items-center bg-foundation border-b border-outline-2 last:border-b-0 hover:bg-foundation-2/40 transition-colors"
+              style="grid-template-columns: 1.8fr 100px 56px 120px 90px 40px; padding: 8px 12px;"
+            >
+              <!-- 任务名 -->
+              <div class="pr-2">
+                <div class="text-body-xs font-medium text-foreground truncate" :title="task.taskName">
+                  {{ task.taskName }}
+                </div>
+                <div v-if="task.linkedPlanTaskId" class="text-body-xs text-foreground-2 mt-0.5 flex items-center gap-1">
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+                  月度计划
+                </div>
+              </div>
+
+              <!-- 计划工程量 -->
+              <div class="text-body-xs text-center text-foreground-2">
+                {{ task.plannedVolume || '-' }}
+              </div>
+
+              <!-- 单位 -->
+              <div class="text-body-xs text-center text-foreground-2">
+                {{ task.unit || '-' }}
+              </div>
+
+              <!-- 本次完成工程量 -->
+              <div class="px-1">
+                <input
+                  type="number"
+                  :value="task.completedVolume"
+                  min="0"
+                  :aria-label="`${task.taskName} 本次完成工程量`"
+                  class="w-full h-7 rounded border border-outline-3 bg-foundation px-2 text-body-xs outline-none focus:border-primary text-center"
+                  placeholder="0"
+                  @input="(e) => task.completedVolume = (e.target as HTMLInputElement).value"
+                />
+              </div>
+
+              <!-- BIM关联 -->
+              <div class="text-center">
+                <CommonModelObjectMultiModelSelectDrawer
+                  v-model:model_ids="task.modelIds"
+                  v-model:selections="task.selections"
+                  :project-id="projectId"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs transition-colors"
+                      :class="
+                        task.selections && task.selections.length > 0
+                          ? 'bg-success-lighter text-success-darker border border-success-lighter'
+                          : 'bg-foundation-2 text-foreground-2 border border-outline-3'
+                      "
+                    >
+                      <Box class="h-3 w-3" />
+                      <span>
+                        {{ getTaskSelectionCount(task) > 0 ? `${getTaskSelectionCount(task)}件` : '关联' }}
+                      </span>
+                    </button>
+                  </template>
+                </CommonModelObjectMultiModelSelectDrawer>
+              </div>
+
+              <!-- 删除 -->
+              <div class="flex justify-center">
+                <button
+                  class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
+                  title="移除细项"
+                  @click="removeTask(idx)"
+                >
+                  <X class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <!-- 底部：从总计划添加入口（当已有月度计划时显示） -->
+            <div
+              v-if="draftForm.yearMonth"
+              class="px-3 py-2 bg-foundation border-t border-outline-2"
+            >
+              <button
+                type="button"
+                class="flex items-center gap-1.5 text-body-xs px-3 py-1.5 rounded transition-colors text-primary border border-dashed border-primary/50 hover:bg-primary/5"
+                @click="openTaskSelectDialog"
+              >
+                <Plus class="h-3.5 w-3.5" />
+                新增计划外任务
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 备注 -->
+        <section class="space-y-3">
+          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">备注</div>
           <FormTextArea
             v-model="draftForm.remark"
             name="actual-remark"
             label="备注"
             show-label
           />
-          <FormTextArea
-            v-model="draftForm.constructionLog"
-            name="actual-construction-log"
-            label="施工日志"
-            show-label
-            :disabled="true"
-          />
-        </div>
+        </section>
+
+
+        <!-- 施工人员 -->
+        <section class="space-y-3">
+          <div class="flex items-center justify-between border-b border-outline-2 pb-2">
+            <div class="text-body-sm font-semibold text-foreground">
+              施工人员
+              <span class="text-body-xs font-normal text-foreground-2 ml-1">（已选 {{ draftForm.workers.length }} 人）</span>
+            </div>
+            <FormButton size="sm" color="outline" :icon-left="UserPlus" @click="showWorkerSelector = true">
+              添加人员
+            </FormButton>
+          </div>
+
+          <div v-if="draftForm.workers.length" class="flex flex-wrap gap-2">
+            <span
+              v-for="(worker, idx) in draftForm.workers"
+              :key="idx"
+              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-body-xs font-medium bg-primary-muted text-primary"
+            >
+              {{ worker }}
+              <button class="hover:text-danger transition" @click="removeWorker(idx)">
+                <X class="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+          <div v-else class="text-body-xs text-foreground-2">暂未添加施工人员</div>
+
+          <div v-if="showWorkerSelector" class="border border-outline-2 rounded-lg p-3 space-y-2 bg-foundation">
+            <div class="text-body-xs font-medium">选择施工人员</div>
+            <FormSelectUsers
+              v-model="tempWorkerUser"
+              :users="availableUsers"
+              label="选择人员"
+              name="actual-worker-select"
+              search
+              show-label
+              selector-placeholder="请选择施工人员"
+              search-placeholder="搜索项目成员"
+              :disabled="isLoadingProjectUsers"
+              clearable
+            />
+            <div class="flex gap-2">
+              <FormButton size="sm" color="primary" @click="addWorker">确认添加</FormButton>
+              <FormButton
+                size="sm"
+                color="outline"
+                @click="showWorkerSelector = false; tempWorkerUser = undefined"
+              >
+                取消
+              </FormButton>
+            </div>
+          </div>
+        </section>
       </div>
     </LayoutDialog>
 
-    <LayoutDialog
-      v-model:open="directLinkDialogOpen"
-      max-width="md"
-      :buttons="directLinkDialogButtons"
-    >
-      <template #header>{{ directLinkDialogTitle }}</template>
-      <div class="space-y-4 py-2">
-        <div class="text-body-xs text-foreground-2">
-          请选择要关联的模型，然后点击下方按钮在三维视图或构件树中选择构件。
-        </div>
-        <CommonModelObjectMultiModelSelectDrawer
-          v-model:model_ids="directLinkModelIds"
-          v-model:selections="directLinkSelections"
-          :project-id="projectId"
-          :placeholder="directLinkPlaceholder"
-        />
-      </div>
-    </LayoutDialog>
+    <!-- 任务选择弹窗 -->
+    <TaskSelectDialog
+      v-if="taskSelectOpen"
+      :open="taskSelectOpen"
+      :master-tasks="masterTaskOptions"
+      :selected-task-id="null"
+      @update:open="taskSelectOpen = $event"
+      @select="onTaskSelectConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
-import type { LayoutDialogButton } from '@speckle/ui-components'
 import {
+  Box,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   Download,
   Eye,
-  FileText,
   Pencil,
   Plus,
   Search,
   Trash2,
-  Upload
+  Upload,
+  UserPlus,
+  X
 } from 'lucide-vue-next'
-import { CommonModelObjectMultiModelSelectDrawer } from '#components'
+import {
+  CommonModelObjectMultiModelSelectDrawer,
+  CommonModelPropsViewer
+} from '#components'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import type { FormUsersSelectItemFragment } from '~/lib/common/generated/gql/graphql'
@@ -569,14 +637,53 @@ import {
   createActualProgressRecord,
   deleteActualProgressRecord,
   getActualProgressRecords,
+  getProgressMonthlyPlans,
+  getProgressPlanTasks,
   importActualProgressRecordsFromExcel,
   updateActualProgressRecord,
   type ActualProgressRecord,
   type ActualProgressRecordBimSelection,
-  type ActualProgressRecordInput
+  type ActualProgressRecordInput,
+  type MonthlyRecordItem,
+  type ProgressPlanTask
 } from '~/lib/projects/api/progress'
+import TaskSelectDialog from '~/components/projects/progress/TaskSelectDialog.vue'
+import type { MasterTaskOption } from '~/components/projects/progress/TaskSelectDialog.vue'
+import type { LayoutDialogButton } from '@speckle/ui-components'
 
 type DialogMode = 'create' | 'edit'
+
+type DraftTaskItem = {
+  linkedPlanTaskId: string | null
+  taskName: string
+  plannedVolume: string
+  completedVolume: string
+  unit: string
+  modelIds: string[]
+  selections: Array<{ modelId: string; applicationIds: string[] }>
+}
+
+type ActualProgressForm = {
+  id: string
+  yearMonth: string
+  reportTimestamp: string
+  weekDay: string
+  reportDate: string
+  remark: string
+  tasks: DraftTaskItem[]
+  workers: string[]
+  taskName: string
+  startModelIds: string[]
+  startApplicationIds: string[]
+  startSelections: ActualProgressRecordBimSelection[]
+  finishModelIds: string[]
+  finishApplicationIds: string[]
+  finishSelections: ActualProgressRecordBimSelection[]
+  startBIM: Array<{ modelId: string; applicationIds: string[]; bimIds: (string | null)[] }>
+  finishBIM: Array<{ modelId: string; applicationIds: string[]; bimIds: (string | null)[] }>
+  startElementCodes: string
+  finishElementCodes: string
+}
 
 const actualProgressProjectUsersQuery = gql`
   query ActualProgressProjectUsers($projectId: String!) {
@@ -593,49 +700,6 @@ const actualProgressProjectUsersQuery = gql`
     }
   }
 `
-
-type ActualProgressForm = {
-  id: string
-  taskName: string
-  reportTimestamp: string
-  weekDay: string
-  reportDate: string
-  startElementCodes: string
-  finishElementCodes: string
-  startModelIds: string[]
-  startApplicationIds: string[]
-  startSelections: ActualProgressRecordBimSelection[]
-  finishModelIds: string[]
-  finishApplicationIds: string[]
-  finishSelections: ActualProgressRecordBimSelection[]
-  startBIM: Array<{
-    modelId: string
-    applicationIds: string[]
-    bimIds: (string | null)[]
-  }>
-  finishBIM: Array<{
-    modelId: string
-    applicationIds: string[]
-    bimIds: (string | null)[]
-  }>
-  remark: string
-  highTemperature: string
-  lowTemperature: string
-  morningWeather: string
-  afternoonWeather: string
-  nightCondition: string
-  constructionRecord: string
-  qualityRecord: string
-  safetyRecord: string
-  mortarConcreteSampleRecord: string
-  materialEquipmentRecord: string
-  siteAppearanceRecord: string
-  overtimeRecord: string
-  otherRecord: string
-  siteLeader: string
-  reporter: string
-  constructionLog: string
-}
 
 const normalizeString = (value: unknown) =>
   typeof value === 'string' ? value.trim() : ''
@@ -661,44 +725,22 @@ const normalizeSelections = (
     }))
     .filter((group) => group.modelId && group.applicationIds.length > 0)
 
-const getActualRecordBimSummary = (params: {
-  modelIds?: string[] | null
-  applicationIds?: string[] | null
-  selections?: ActualProgressRecordBimSelection[] | null
-}) => {
-  const normalizedSelections = normalizeSelections(params.selections)
-  const modelIds = uniqueStrings([
-    ...(params.modelIds || []),
-    ...normalizedSelections.map((group) => group.modelId)
-  ])
-  const applicationIds = uniqueStrings(
-    normalizedSelections.flatMap((group) => group.applicationIds)
-  )
-
-  return {
-    modelIds,
-    applicationIds,
-    selections: normalizedSelections
-  }
-}
-
 const columns = [
   { id: 'reportDate', header: '日期', classes: 'col-span-2' },
-  { id: 'startElementCodes', header: '今日开始施工构件编码', classes: 'col-span-2' },
-  { id: 'finishElementCodes', header: '今日完成构件编码', classes: 'col-span-2' },
+  { id: 'yearMonth', header: '月份', classes: 'col-span-1' },
+  { id: 'tasksInfo', header: '工程细项', classes: 'col-span-3' },
+  { id: 'bimInfo', header: 'BIM关联', classes: 'col-span-2' },
   { id: 'remark', header: '备注', classes: 'col-span-2' },
-  { id: 'constructionLog', header: '施工日志', classes: 'col-span-2' },
   { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
 ]
 
-const weatherOptions = ['晴', '阴', '多云', '小雨', '大雨', '雪']
-
 const createDefaultForm = (): ActualProgressForm => ({
   id: '',
-  taskName: '路基工程',
-  reportTimestamp: '2026-05-13T00:00',
-  weekDay: '星期三',
-  reportDate: '2026-05-13',
+  yearMonth: '',
+  taskName: '',
+  reportTimestamp: new Date().toISOString().slice(0, 10),
+  weekDay: '',
+  reportDate: new Date().toISOString().slice(0, 10),
   startElementCodes: '',
   finishElementCodes: '',
   startModelIds: [],
@@ -710,22 +752,8 @@ const createDefaultForm = (): ActualProgressForm => ({
   startBIM: [],
   finishBIM: [],
   remark: '',
-  highTemperature: '28',
-  lowTemperature: '18',
-  morningWeather: '晴',
-  afternoonWeather: '多云',
-  nightCondition: '正常施工',
-  constructionRecord: '',
-  qualityRecord: '',
-  safetyRecord: '',
-  mortarConcreteSampleRecord: '',
-  materialEquipmentRecord: '',
-  siteAppearanceRecord: '',
-  overtimeRecord: '',
-  otherRecord: '',
-  siteLeader: '',
-  reporter: '',
-  constructionLog: ''
+  tasks: [],
+  workers: []
 })
 
 const route = useRoute()
@@ -742,26 +770,25 @@ const dialogOpen = ref(false)
 const viewDialogOpen = ref(false)
 const dialogMode = ref<DialogMode>('create')
 const editingId = ref<string | null>(null)
-const activeLinkTarget = ref<'start' | 'finish' | null>(null)
 const draftForm = ref<ActualProgressForm>(createDefaultForm())
 const lastOperation = ref('尚未执行导入导出操作')
 const isLoadingRecords = ref(false)
 const isImportingExcel = ref(false)
 const isSavingRecord = ref(false)
 const deletingRecordId = ref<string | null>(null)
+const viewRecord = ref<ActualProgressRecord | null>(null)
+const associatedModelDrawerOpen = ref(false)
+const selectedAssociationTaskName = ref('')
+const selectedAssociationModelIds = ref<string[]>([])
+const selectedAssociationApplicationIds = ref<string[]>([])
+const selectedAssociationBimIds = ref<string[]>([])
 
-const directLinkDialogOpen = ref(false)
-const isSavingDirectLink = ref(false)
-const directLinkModelIds = ref<string[]>([])
-const directLinkSelections = ref<ActualProgressRecordBimSelection[]>([])
-
-const directLinkDialogTitle = computed(() => {
-  return activeLinkTarget.value === 'start' ? '选取开始施工构件' : '选取完成构件'
-})
-
-const directLinkPlaceholder = computed(() => {
-  return activeLinkTarget.value === 'start' ? '选择今日开始施工构件' : '选择今日完成构件'
-})
+const monthlyPlans = ref<MonthlyRecordItem[]>([])
+const isLoadingMonthlyTasks = ref(false)
+const planTasks = ref<ProgressPlanTask[]>([])
+const taskSelectOpen = ref(false)
+const showWorkerSelector = ref(false)
+const tempWorkerUser = ref<FormUsersSelectItemFragment | undefined>(undefined)
 
 const projectId = computed(() => {
   const id = route.params.id
@@ -778,79 +805,31 @@ const { result: projectUsersResult, loading: isLoadingProjectUsers } = useQuery<
   { projectId: string }
 >(
   actualProgressProjectUsersQuery,
-  () => ({
-    projectId: projectId.value
-  }),
-  () => ({
-    enabled: !!projectId.value,
-    fetchPolicy: 'cache-and-network'
-  })
+  () => ({ projectId: projectId.value }),
+  () => ({ enabled: !!projectId.value, fetchPolicy: 'cache-and-network' })
 )
-
-const hasLinkedElements = (item: {
-  startApplicationIds: string[]
-  finishApplicationIds: string[]
-}) => item.startApplicationIds.length > 0 || item.finishApplicationIds.length > 0
-
-const getElementStatusText = (applicationIds: string[]) =>
-  applicationIds.length ? `已关联 ${applicationIds.length} 个` : '未关联'
-
-const getElementStatusBadgeClass = (applicationIds: string[]) =>
-  applicationIds.length
-    ? 'bg-success-lighter text-success-darker'
-    : 'bg-foundation-2 text-foreground-2'
-
-const startSelectedObjectCount = computed(() =>
-  draftForm.value.startSelections.reduce(
-    (count, group) => count + group.applicationIds.length,
-    0
-  )
-)
-
-const startSelectedModelCount = computed(() => draftForm.value.startModelIds.length)
-
-const finishSelectedObjectCount = computed(() =>
-  draftForm.value.finishSelections.reduce(
-    (count, group) => count + group.applicationIds.length,
-    0
-  )
-)
-
-const finishSelectedModelCount = computed(() => draftForm.value.finishModelIds.length)
 
 const availableUsers = computed<FormUsersSelectItemFragment[]>(() =>
   (projectUsersResult.value?.project?.team || [])
     .map((member: { user?: FormUsersSelectItemFragment | null }) => member.user)
     .filter(
-      (
-        user: FormUsersSelectItemFragment | null | undefined
-      ): user is FormUsersSelectItemFragment => !!user
+      (user: FormUsersSelectItemFragment | null | undefined): user is FormUsersSelectItemFragment =>
+        !!user
     )
 )
 
 const filteredItems = computed(() => {
   const query = searchQuery.value.trim()
   if (!query) return actualItems.value
-
   return actualItems.value.filter((item) =>
-    [
-      item.reportDate,
-      item.startElementCodes,
-      item.finishElementCodes,
-      item.reporter,
-      item.siteLeader,
-      item.remark,
-      item.taskName
-    ]
+    [item.reportDate, item.yearMonth, item.reporter, item.siteLeader, item.remark]
       .join(' ')
       .includes(query)
   )
 })
 
 const totalItems = computed(() => filteredItems.value.length)
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value))
-)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value)))
 const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredItems.value.slice(start, start + itemsPerPage.value)
@@ -861,90 +840,60 @@ const startItemIndex = computed(() =>
 const endItemIndex = computed(() =>
   Math.min(currentPage.value * itemsPerPage.value, totalItems.value)
 )
-const dialogTitle = computed(() => {
-  if (dialogMode.value === 'create') return '新增实际进度'
-  return '编辑实际进度'
-})
 
-const dialogButtons = computed<LayoutDialogButton[]>(() => {
-  return [
-    {
-      text: '取消',
-      props: { color: 'outline', disabled: isSavingRecord.value },
-      onClick: () => {
-        dialogOpen.value = false
-      }
-    },
-    {
-      text: dialogMode.value === 'create' ? '保存新增' : '保存修改',
-      props: { color: 'primary', disabled: isSavingRecord.value },
-      onClick: () => {
-        saveDraft()
-      }
-    }
-  ]
-})
+const dialogTitle = computed(() =>
+  dialogMode.value === 'create' ? '新增实际进度' : '编辑实际进度'
+)
 
-const viewDialogTitle = computed(() => '实际进度详情')
+const dialogButtons = computed<LayoutDialogButton[]>(() => [
+  {
+    text: '取消',
+    props: { color: 'outline', disabled: isSavingRecord.value },
+    onClick: () => { dialogOpen.value = false }
+  },
+  {
+    text: dialogMode.value === 'create' ? '保存新增' : '保存修改',
+    props: { color: 'primary', disabled: isSavingRecord.value },
+    onClick: () => { saveDraft() }
+  }
+])
 
 const viewDialogButtons = computed<LayoutDialogButton[]>(() => [
   {
     text: '关闭',
     props: { color: 'outline' },
-    onClick: () => {
-      viewDialogOpen.value = false
-    }
+    onClick: () => { viewDialogOpen.value = false }
   }
 ])
 
-const directLinkDialogButtons = computed<LayoutDialogButton[]>(() => [
-  {
-    text: '取消',
-    props: { color: 'outline', disabled: isSavingDirectLink.value },
-    onClick: () => {
-      directLinkDialogOpen.value = false
-    }
-  },
-  {
-    text: '确定',
-    props: { color: 'primary', disabled: isSavingDirectLink.value },
-    onClick: () => {
-      void saveDirectLink()
-    }
-  }
-])
+const masterTaskOptions = computed<MasterTaskOption[]>(() =>
+  planTasks.value.map((t) => ({
+    id: t.id,
+    taskName: t.taskName,
+    level: t.level ?? 0,
+    hasChildren: false,
+    parentId: t.parentId ?? undefined,
+    volume: '',
+    unit: '',
+    startDate: t.startDate ?? undefined,
+    endDate: t.endDate ?? undefined
+  }))
+)
 
-const showSuccess = (title: string, description: string) => {
-  triggerNotification({
-    type: ToastNotificationType.Success,
-    title,
-    description
-  })
-}
+const existingLinkedPlanTaskIds = computed(
+  () => new Set(draftForm.value.tasks.map((t) => t.linkedPlanTaskId).filter(Boolean))
+)
 
-const showMessage = (
-  title: string,
-  description: string,
-  type: ToastNotificationType = ToastNotificationType.Danger
-) => {
-  triggerNotification({
-    type,
-    title,
-    description
-  })
-}
+const selectedMonthlyPlan = computed(() =>
+  monthlyPlans.value.find((plan) => plan.yearMonth === draftForm.value.yearMonth) || null
+)
+
+const draftTaskCount = computed(() => draftForm.value.tasks.length)
 
 const formatDateTime = (value: string) => {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleString('zh-CN', { hour12: false })
-}
-
-const normalizeReportTimestamp = (value: string) => {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T00:00`
-  return trimmed
 }
 
 const buildWeekDay = (reportDate: string) => {
@@ -953,94 +902,11 @@ const buildWeekDay = (reportDate: string) => {
   return Number.isNaN(date.getTime()) ? '' : dayMap[date.getDay()]
 }
 
-const buildReportDate = (reportTimestamp: string) => {
-  const normalized = normalizeReportTimestamp(reportTimestamp)
-  if (!normalized) return ''
-
-  const parsed = new Date(normalized)
-  if (Number.isNaN(parsed.getTime())) return ''
-
-  return normalized.slice(0, 10)
-}
-
-const syncConstructionLog = () => {
-  draftForm.value.reportTimestamp = normalizeReportTimestamp(
-    draftForm.value.reportTimestamp
-  )
-  draftForm.value.reportDate = buildReportDate(draftForm.value.reportTimestamp)
+const syncReportDateFields = () => {
+  draftForm.value.reportDate = draftForm.value.reportTimestamp
+    ? draftForm.value.reportTimestamp.slice(0, 10)
+    : ''
   draftForm.value.weekDay = buildWeekDay(draftForm.value.reportDate)
-  draftForm.value.constructionLog = [
-    draftForm.value.constructionRecord,
-    draftForm.value.qualityRecord,
-    draftForm.value.safetyRecord
-  ]
-    .filter(Boolean)
-    .join(' ')
-}
-
-const buildElementCodes = (applicationIds: string[]) => applicationIds.join('、')
-
-const formatBimCodesOrApplicationIds = (
-  bimList: Array<{
-    modelId: string
-    applicationIds: string[]
-    bimIds: (string | null)[]
-  }> | null | undefined
-) => {
-  if (!bimList || bimList.length === 0) {
-    return '未关联'
-  }
-  
-  const codes: string[] = []
-  for (const group of bimList) {
-    const appIds = group.applicationIds || []
-    const bimIds = group.bimIds || []
-    for (let i = 0; i < appIds.length; i++) {
-      const bimCode = bimIds[i]
-      const appId = appIds[i]
-      if (bimCode) {
-        codes.push(bimCode)
-      } else if (appId) {
-        codes.push(appId)
-      }
-    }
-  }
-
-  return codes.length > 0 ? codes.join('、') : '未关联'
-}
-
-const formatElementCodes = (item: ActualProgressRecord, type: 'start' | 'finish') => {
-  const bimList = type === 'start' ? (item.startBIM || item.BIM) : item.finishBIM
-  return formatBimCodesOrApplicationIds(bimList)
-}
-
-const syncElementSelections = () => {
-  const startSummary = getActualRecordBimSummary({
-    modelIds: draftForm.value.startModelIds,
-    applicationIds: draftForm.value.startApplicationIds,
-    selections: draftForm.value.startSelections
-  })
-  draftForm.value.startModelIds = startSummary.modelIds
-  draftForm.value.startApplicationIds = startSummary.applicationIds
-  draftForm.value.startSelections = startSummary.selections
-  draftForm.value.startElementCodes = buildElementCodes(startSummary.applicationIds)
-
-  const finishSummary = getActualRecordBimSummary({
-    modelIds: draftForm.value.finishModelIds,
-    applicationIds: draftForm.value.finishApplicationIds,
-    selections: draftForm.value.finishSelections
-  })
-  draftForm.value.finishModelIds = finishSummary.modelIds
-  draftForm.value.finishApplicationIds = finishSummary.applicationIds
-  draftForm.value.finishSelections = finishSummary.selections
-  draftForm.value.finishElementCodes = buildElementCodes(finishSummary.applicationIds)
-}
-
-const getConstructionLogPreview = (
-  item: Pick<ActualProgressRecord, 'constructionLog' | 'constructionRecord'>
-) => {
-  const value = item.constructionLog || item.constructionRecord || '-'
-  return value.length > 26 ? `${value.slice(0, 26)}...` : value
 }
 
 const displayDetailValue = (value: string | null | undefined) => {
@@ -1048,425 +914,252 @@ const displayDetailValue = (value: string | null | undefined) => {
   return normalized || '-'
 }
 
-const displayModelIds = (modelIds: string[]) => {
-  if (!modelIds.length) return '-'
-  return modelIds.join('、')
-}
-
-const activeRecord = computed(
-  () => actualItems.value.find((item) => item.id === editingId.value) || null
-)
-
-const viewLinkedModelIds = computed(() =>
-  uniqueStrings([...draftForm.value.startModelIds, ...draftForm.value.finishModelIds])
-)
-
-const viewBasicInfoItems = computed(() => [
-  { label: '日期', value: displayDetailValue(draftForm.value.reportDate) },
-  { label: '填报人', value: displayDetailValue(draftForm.value.reporter) },
-  { label: '计划任务', value: displayDetailValue(draftForm.value.taskName) },
-  {
-    label: '填报时间',
-    value: displayDetailValue(
-      draftForm.value.reportTimestamp
-        ? formatDateTime(draftForm.value.reportTimestamp)
-        : draftForm.value.reportDate
+const countAllTaskBimLinks = (item: ActualProgressRecord) => {
+  if (!item.tasks || !Array.isArray(item.tasks)) return 0
+  return item.tasks.reduce((acc, task) => {
+    if (!task.selections || !Array.isArray(task.selections)) return acc
+    return (
+      acc +
+      task.selections.reduce((s: number, sel: { applicationIds?: string[] }) => s + (sel.applicationIds?.length || 0), 0)
     )
-  }
-])
-
-const viewStatusText = computed(() =>
-  hasLinkedElements(draftForm.value) ? '已关联' : '未关联'
-)
-
-const viewStatusBadgeClass = computed(() =>
-  hasLinkedElements(draftForm.value)
-    ? 'bg-success-lighter text-success-darker'
-    : 'bg-foundation-2 text-foreground-2'
-)
-
-const viewProgressItems = computed(() => [
-  {
-    label: '今日开始施工构件编码',
-    value: formatBimCodesOrApplicationIds(draftForm.value.startBIM)
-  },
-  {
-    label: '今日完成构件编码',
-    value: formatBimCodesOrApplicationIds(draftForm.value.finishBIM)
-  },
-  {
-    label: '备注',
-    value: displayDetailValue(draftForm.value.remark)
-  }
-])
-
-const viewJournalInfoItems = computed(() => [
-  { label: '星期', value: displayDetailValue(draftForm.value.weekDay) },
-  { label: '最高气温', value: displayDetailValue(draftForm.value.highTemperature) },
-  { label: '最低气温', value: displayDetailValue(draftForm.value.lowTemperature) },
-  { label: '夜间', value: displayDetailValue(draftForm.value.nightCondition) }
-])
-
-const viewDetailSections = computed(() => [
-  {
-    label: '施工情况记录',
-    description: '（人员组织、主要机械动态、施工部位及内容、完成程序及验收情况）',
-    value: displayDetailValue(draftForm.value.constructionRecord)
-  },
-  {
-    label: '质量情况',
-    description: '',
-    value: displayDetailValue(draftForm.value.qualityRecord)
-  },
-  {
-    label: '安全情况',
-    description: '',
-    value: displayDetailValue(draftForm.value.safetyRecord)
-  },
-  {
-    label: '砂浆、砼试块',
-    description: '',
-    value: displayDetailValue(draftForm.value.mortarConcreteSampleRecord)
-  },
-  {
-    label: '设备、材料、构件、机具等进场',
-    description: '',
-    value: displayDetailValue(draftForm.value.materialEquipmentRecord)
-  },
-  {
-    label: '场容场貌',
-    description: '',
-    value: displayDetailValue(draftForm.value.siteAppearanceRecord)
-  },
-  {
-    label: '加班情况',
-    description: '',
-    value: displayDetailValue(draftForm.value.overtimeRecord)
-  },
-  {
-    label: '其他',
-    description: '',
-    value: displayDetailValue(draftForm.value.otherRecord)
-  },
-  {
-    label: '施工日志',
-    description: '',
-    value: displayDetailValue(draftForm.value.constructionLog)
-  }
-])
-
-const viewPeopleItems = computed(() => [
-  { label: '现场负责人', value: displayDetailValue(draftForm.value.siteLeader) },
-  { label: '记录人', value: displayDetailValue(draftForm.value.reporter) }
-])
-
-const viewMetaItems = computed(() => [
-  {
-    label: '创建时间',
-    value: activeRecord.value?.createdAt
-      ? formatDateTime(activeRecord.value.createdAt)
-      : '-'
-  },
-  {
-    label: '更新时间',
-    value: activeRecord.value?.updatedAt
-      ? formatDateTime(activeRecord.value.updatedAt)
-      : '-'
-  }
-])
-
-const resolveStoredUser = (storedValue: string) => {
-  const normalized = storedValue.trim()
-  if (!normalized) return undefined
-
-  return availableUsers.value.find(
-    (user) => user.id === normalized || user.name === normalized
-  )
+  }, 0)
 }
 
-const selectedReporterUser = computed<FormUsersSelectItemFragment | undefined>({
-  get: () => resolveStoredUser(draftForm.value.reporter),
-  set: (user) => {
-    draftForm.value.reporter = user?.name || ''
-  }
-})
+const getTaskSelectionCount = (task: DraftTaskItem) =>
+  (task.selections || []).reduce((acc, selection) => acc + (selection.applicationIds?.length || 0), 0)
 
-const selectedSiteLeaderUser = computed<FormUsersSelectItemFragment | undefined>({
-  get: () => resolveStoredUser(draftForm.value.siteLeader),
-  set: (user) => {
-    draftForm.value.siteLeader = user?.name || ''
-  }
-})
+const getViewTaskSelectionCount = (task: NonNullable<ActualProgressRecord['tasks']>[number]) =>
+  (task.selections || []).reduce((acc, selection) => acc + (selection.applicationIds?.length || 0), 0)
 
-const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
-  id: item.id,
-  taskName: item.taskName,
-  reportTimestamp: `${item.reportDate}T00:00`,
-  weekDay: item.weekDay,
-  reportDate: item.reportDate,
-  startElementCodes: item.startElementCodes,
-  finishElementCodes: item.finishElementCodes,
-  startModelIds: item.startModelIds,
-  startApplicationIds: item.startApplicationIds,
-  startSelections: normalizeSelections(item.startSelections),
-  finishModelIds: item.finishModelIds,
-  finishApplicationIds: item.finishApplicationIds,
-  finishSelections: normalizeSelections(item.finishSelections),
-  startBIM: item.startBIM || [],
-  finishBIM: item.finishBIM || [],
-  remark: item.remark,
-  highTemperature: item.highTemperature,
-  lowTemperature: item.lowTemperature,
-  morningWeather: item.morningWeather,
-  afternoonWeather: item.afternoonWeather,
-  nightCondition: item.nightCondition,
-  constructionRecord: item.constructionRecord,
-  qualityRecord: item.qualityRecord,
-  safetyRecord: item.safetyRecord,
-  mortarConcreteSampleRecord: item.mortarConcreteSampleRecord,
-  materialEquipmentRecord: item.materialEquipmentRecord,
-  siteAppearanceRecord: item.siteAppearanceRecord,
-  overtimeRecord: item.overtimeRecord,
-  otherRecord: item.otherRecord,
-  siteLeader: item.siteLeader,
-  reporter: item.reporter,
-  constructionLog: item.constructionLog
-})
+const showSuccess = (title: string, description: string) => {
+  triggerNotification({ type: ToastNotificationType.Success, title, description })
+}
 
-const buildBimWithInheritedIds = (
-  selections: ActualProgressRecordBimSelection[],
-  originalBIM: Array<{
-    modelId: string
-    applicationIds: string[]
-    bimIds: (string | null)[]
-  }> | null | undefined
+const showMessage = (
+  title: string,
+  description: string,
+  type: ToastNotificationType = ToastNotificationType.Danger
 ) => {
-  const bimIdMap = new Map<string, string | null>()
-  if (originalBIM && Array.isArray(originalBIM)) {
-    for (const group of originalBIM) {
-      const modelId = group.modelId
-      const appIds = group.applicationIds || []
-      const bimIds = group.bimIds || []
-      for (let i = 0; i < appIds.length; i++) {
-        const appId = appIds[i]
-        const bimId = bimIds[i]
-        if (appId) {
-          bimIdMap.set(`${modelId}::${appId}`, bimId)
-        }
-      }
-    }
-  }
-
-  return selections.map((sel) => ({
-    modelId: sel.modelId,
-    applicationIds: sel.applicationIds,
-    bimIds: sel.applicationIds.map((appId) => {
-      const existingBimId = bimIdMap.get(`${sel.modelId}::${appId}`)
-      return existingBimId !== undefined ? existingBimId : null
-    })
-  }))
-}
-
-const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput => {
-  syncConstructionLog()
-  syncElementSelections()
-  
-  const startBIM = buildBimWithInheritedIds(form.startSelections, form.startBIM)
-  const finishBIM = buildBimWithInheritedIds(form.finishSelections, form.finishBIM)
-
-  return {
-    taskName: form.taskName.trim(),
-    reportDate: form.reportDate,
-    startElementCodes: form.startElementCodes,
-    finishElementCodes: form.finishElementCodes,
-    startBIM,
-    finishBIM,
-    remark: form.remark,
-    highTemperature: form.highTemperature,
-    lowTemperature: form.lowTemperature,
-    morningWeather: form.morningWeather,
-    afternoonWeather: form.afternoonWeather,
-    nightCondition: form.nightCondition,
-    constructionRecord: form.constructionRecord,
-    qualityRecord: form.qualityRecord,
-    safetyRecord: form.safetyRecord,
-    mortarConcreteSampleRecord: form.mortarConcreteSampleRecord,
-    materialEquipmentRecord: form.materialEquipmentRecord,
-    siteAppearanceRecord: form.siteAppearanceRecord,
-    overtimeRecord: form.overtimeRecord,
-    otherRecord: form.otherRecord,
-    siteLeader: form.siteLeader,
-    reporter: form.reporter,
-    constructionLog: form.constructionLog
-  }
-}
-
-const applyActualRecords = (records: ActualProgressRecord[]) => {
-  actualItems.value = records
-
-  if (!records.length) {
-    lastOperation.value = '暂无实际进度填报记录'
-    return
-  }
-
-  const [latestRecord] = [...records].sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt)
-  )
-  if (latestRecord) {
-    lastOperation.value = `最近更新于 ${formatDateTime(latestRecord.updatedAt)}`
-  }
+  triggerNotification({ type, title, description })
 }
 
 const fetchActualRecords = async () => {
   if (!projectId.value) {
     actualItems.value = []
-    lastOperation.value = '未识别项目ID'
     return
   }
-
   isLoadingRecords.value = true
   try {
-    const records = await getActualProgressRecords({
-      projectId: projectId.value,
-      apiOrigin
-    })
-    applyActualRecords(records)
+    const records = await getActualProgressRecords({ projectId: projectId.value, apiOrigin })
+    actualItems.value = records
+    if (!records.length) {
+      lastOperation.value = '暂无实际进度填报记录'
+      return
+    }
+    const [latestRecord] = [...records].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    if (latestRecord) {
+      lastOperation.value = `最近更新于 ${formatDateTime(latestRecord.updatedAt)}`
+    }
   } catch (error) {
     actualItems.value = []
-    showMessage(
-      '加载实际进度失败',
-      error instanceof Error ? error.message : '未能获取实际进度列表'
-    )
+    showMessage('加载实际进度失败', error instanceof Error ? error.message : '未能获取实际进度列表')
   } finally {
     isLoadingRecords.value = false
   }
 }
 
-const openCreateDialog = () => {
+const fetchMonthlyPlans = async () => {
+  if (!projectId.value) return
+  try {
+    monthlyPlans.value = await getProgressMonthlyPlans({ projectId: projectId.value, apiOrigin })
+  } catch {
+    monthlyPlans.value = []
+  }
+}
+
+const fetchPlanTasks = async () => {
+  if (!projectId.value) return
+  try {
+    planTasks.value = await getProgressPlanTasks({ projectId: projectId.value, apiOrigin })
+  } catch {
+    planTasks.value = []
+  }
+}
+
+const onYearMonthChange = async () => {
+  const yearMonth = draftForm.value.yearMonth
+  if (!yearMonth) {
+    draftForm.value.tasks = []
+    return
+  }
+  const plan = monthlyPlans.value.find((p) => p.yearMonth === yearMonth)
+  if (!plan) return
+  isLoadingMonthlyTasks.value = true
+  try {
+    draftForm.value.tasks = (plan.tasks || []).map((t) => ({
+      linkedPlanTaskId: t.linkedPlanTaskId ?? null,
+      taskName: t.taskName,
+      plannedVolume: String(t.plannedVolume ?? ''),
+      completedVolume: '0',
+      unit: t.unit ?? '',
+      modelIds: [],
+      selections: []
+    }))
+  } finally {
+    isLoadingMonthlyTasks.value = false
+  }
+}
+
+const openTaskSelectDialog = async () => {
+  if (!planTasks.value.length) await fetchPlanTasks()
+  taskSelectOpen.value = true
+}
+
+const onTaskSelectConfirm = (task: MasterTaskOption) => {
+  taskSelectOpen.value = false
+  if (existingLinkedPlanTaskIds.value.has(task.id)) {
+    showMessage('提示', '该任务已在细项列表中', ToastNotificationType.Warning)
+    return
+  }
+  draftForm.value.tasks.push({
+    linkedPlanTaskId: task.id,
+    taskName: task.taskName,
+    plannedVolume: task.volume ?? '',
+    completedVolume: '0',
+    unit: task.unit ?? '',
+    modelIds: [],
+    selections: []
+  })
+}
+
+const removeTask = (idx: number) => {
+  draftForm.value.tasks.splice(idx, 1)
+}
+
+const addWorker = () => {
+  if (!tempWorkerUser.value) return
+  const name = tempWorkerUser.value.name
+  if (name && !draftForm.value.workers.includes(name)) {
+    draftForm.value.workers.push(name)
+  }
+  tempWorkerUser.value = undefined
+  showWorkerSelector.value = false
+}
+
+const removeWorker = (idx: number) => {
+  draftForm.value.workers.splice(idx, 1)
+}
+
+const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
+  id: item.id,
+  yearMonth: item.yearMonth || '',
+  taskName: item.taskName || '',
+  reportTimestamp: item.reportDate || new Date().toISOString().slice(0, 10),
+  weekDay: item.weekDay,
+  reportDate: item.reportDate,
+  startElementCodes: item.startElementCodes,
+  finishElementCodes: item.finishElementCodes,
+  startModelIds: item.startModelIds || [],
+  startApplicationIds: item.startApplicationIds || [],
+  startSelections: normalizeSelections(item.startSelections),
+  finishModelIds: item.finishModelIds || [],
+  finishApplicationIds: item.finishApplicationIds || [],
+  finishSelections: normalizeSelections(item.finishSelections),
+  startBIM: item.startBIM || [],
+  finishBIM: item.finishBIM || [],
+  remark: item.remark,
+  tasks: (item.tasks || []).map((t) => ({
+    linkedPlanTaskId: t.linkedPlanTaskId ?? null,
+    taskName: t.taskName,
+    plannedVolume: String(t.plannedVolume ?? ''),
+    completedVolume: String(t.completedVolume ?? '0'),
+    unit: t.unit ?? '',
+    modelIds: (t.selections || []).map((s: { modelId: string }) => s.modelId),
+    selections: (t.selections || []).map(
+      (s: { modelId: string; applicationIds: string[] }) => ({
+        modelId: s.modelId,
+        applicationIds: s.applicationIds || []
+      })
+    )
+  })),
+  workers: item.workers || []
+})
+
+const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput => {
+  syncReportDateFields()
+  return {
+    taskName: form.taskName.trim() || (form.tasks[0]?.taskName ?? '填报'),
+    reportDate: form.reportDate,
+    remark: form.remark,
+    yearMonth: form.yearMonth,
+    tasks: form.tasks.map((t) => ({
+      linkedPlanTaskId: t.linkedPlanTaskId,
+      taskName: t.taskName,
+      plannedVolume: t.plannedVolume,
+      completedVolume: t.completedVolume,
+      unit: t.unit,
+      selections: t.selections || []
+    })),
+    workers: form.workers
+  }
+}
+
+const viewBasicInfoItems = computed(() => [
+  { label: '日期', value: displayDetailValue(viewRecord.value?.reportDate) },
+  { label: '星期', value: displayDetailValue(viewRecord.value?.weekDay) },
+  { label: '月度计划', value: displayDetailValue(viewRecord.value?.yearMonth) }
+])
+
+const openCreateDialog = async () => {
   dialogMode.value = 'create'
   editingId.value = null
-  activeLinkTarget.value = null
   draftForm.value = createDefaultForm()
-  syncElementSelections()
-  syncConstructionLog()
+  syncReportDateFields()
+  await Promise.all([fetchMonthlyPlans(), fetchPlanTasks()])
   dialogOpen.value = true
 }
 
-const openEditDialog = (item: ActualProgressRecord) => {
+const openEditDialog = async (item: ActualProgressRecord) => {
   dialogMode.value = 'edit'
   editingId.value = item.id
-  activeLinkTarget.value = null
   draftForm.value = cloneRecordToForm(item)
-  syncElementSelections()
-  syncConstructionLog()
+  syncReportDateFields()
+  await Promise.all([fetchMonthlyPlans(), fetchPlanTasks()])
   dialogOpen.value = true
 }
 
 const openViewDialog = (item: ActualProgressRecord) => {
-  editingId.value = item.id
-  draftForm.value = cloneRecordToForm(item)
-  syncElementSelections()
-  syncConstructionLog()
+  viewRecord.value = item
   viewDialogOpen.value = true
 }
 
-const openElementLinkDialog = async (
-  item: ActualProgressRecord,
-  target: 'start' | 'finish'
+const openAssociatedModelDrawer = (
+  task: NonNullable<ActualProgressRecord['tasks']>[number]
 ) => {
-  dialogMode.value = 'edit'
-  editingId.value = item.id
-  activeLinkTarget.value = target
-  draftForm.value = cloneRecordToForm(item)
-  syncElementSelections()
-  syncConstructionLog()
-  dialogOpen.value = true
-
-  await nextTick()
-  const sectionId =
-    target === 'start'
-      ? 'actual-progress-start-elements'
-      : 'actual-progress-finish-elements'
-  document.getElementById(sectionId)?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center'
-  })
-}
-
-const openDirectLinkDialog = (item: ActualProgressRecord, target: 'start' | 'finish') => {
-  editingId.value = item.id
-  activeLinkTarget.value = target
-  draftForm.value = cloneRecordToForm(item)
-  syncElementSelections()
-  
-  if (target === 'start') {
-    directLinkModelIds.value = [...draftForm.value.startModelIds]
-    directLinkSelections.value = normalizeSelections(draftForm.value.startSelections)
-  } else {
-    directLinkModelIds.value = [...draftForm.value.finishModelIds]
-    directLinkSelections.value = normalizeSelections(draftForm.value.finishSelections)
-  }
-  
-  directLinkDialogOpen.value = true
-}
-
-const saveDirectLink = async () => {
-  if (!projectId.value || !editingId.value || !activeLinkTarget.value) return
-  
-  isSavingDirectLink.value = true
-  try {
-    if (activeLinkTarget.value === 'start') {
-      draftForm.value.startModelIds = [...directLinkModelIds.value]
-      draftForm.value.startSelections = normalizeSelections(directLinkSelections.value)
-    } else {
-      draftForm.value.finishModelIds = [...directLinkModelIds.value]
-      draftForm.value.finishSelections = normalizeSelections(directLinkSelections.value)
-    }
-    
-    // 更新 codes 字符串
-    syncElementSelections()
-    
-    const input = buildRecordInput(draftForm.value)
-    const updated = await updateActualProgressRecord({
-      projectId: projectId.value,
-      recordId: editingId.value,
-      apiOrigin,
-      input
-    })
-    
-    await fetchActualRecords()
-    lastOperation.value = `已更新 ${updated.reportDate} 的构件关联`
-    showSuccess('关联已更新', '已成功保存最新的 BIM 构件关联。')
-    directLinkDialogOpen.value = false
-  } catch (error) {
-    showMessage(
-      '关联更新失败',
-      error instanceof Error ? error.message : '未能保存构件关联'
-    )
-  } finally {
-    isSavingDirectLink.value = false
-  }
+  selectedAssociationTaskName.value = task.taskName || '-'
+  selectedAssociationModelIds.value = uniqueStrings((task.selections || []).map((item) => item.modelId))
+  selectedAssociationApplicationIds.value = uniqueStrings(
+    (task.selections || []).flatMap((item) => item.applicationIds || [])
+  )
+  // Actual progress links currently persist applicationIds in selections.
+  // Reuse applicationIds as fallback filter keys for the props viewer.
+  selectedAssociationBimIds.value = [...selectedAssociationApplicationIds.value]
+  associatedModelDrawerOpen.value = true
 }
 
 const saveDraft = async () => {
-  syncConstructionLog()
+  syncReportDateFields()
 
   if (!projectId.value) {
-    showMessage(
-      '保存失败',
-      '当前未识别项目ID，无法保存实际进度。',
-      ToastNotificationType.Warning
-    )
+    showMessage('保存失败', '当前未识别项目ID，无法保存实际进度。', ToastNotificationType.Warning)
     return
   }
-
-  if (!draftForm.value.taskName.trim()) {
-    showMessage('保存失败', '请填写计划任务。', ToastNotificationType.Warning)
+  if (!draftForm.value.yearMonth) {
+    showMessage('保存失败', '请选择所属月度计划。', ToastNotificationType.Warning)
     return
   }
-
-  if (!draftForm.value.weekDay) {
-    showMessage('保存失败', '请填写有效的时间。', ToastNotificationType.Warning)
+  if (!draftForm.value.reportDate) {
+    showMessage('保存失败', '请填写有效的填报日期。', ToastNotificationType.Warning)
     return
   }
 
@@ -1492,7 +1185,6 @@ const saveDraft = async () => {
       lastOperation.value = `已更新 ${updated.reportDate} 的实际进度记录`
       showSuccess('实际进度已更新', '当前施工日志及 BIM 关联信息已保存。')
     }
-
     dialogOpen.value = false
   } catch (error) {
     showMessage(
@@ -1505,56 +1197,26 @@ const saveDraft = async () => {
 }
 
 const handleDelete = async (id: string) => {
-  if (!projectId.value) {
-    showMessage(
-      '删除失败',
-      '当前未识别项目ID，无法删除记录。',
-      ToastNotificationType.Warning
-    )
-    return
-  }
-
+  if (!projectId.value) return
   deletingRecordId.value = id
   try {
-    await deleteActualProgressRecord({
-      projectId: projectId.value,
-      recordId: id,
-      apiOrigin
-    })
+    await deleteActualProgressRecord({ projectId: projectId.value, recordId: id, apiOrigin })
     await fetchActualRecords()
-    lastOperation.value = '已删除一条实际进度记录'
-    showSuccess('记录已删除', '该条实际进度记录已从列表移除。')
+    showSuccess('已删除', '实际进度记录已成功删除。')
   } catch (error) {
-    showMessage(
-      '删除失败',
-      error instanceof Error ? error.message : '删除实际进度记录失败'
-    )
+    showMessage('删除失败', error instanceof Error ? error.message : '删除实际进度记录失败')
   } finally {
     deletingRecordId.value = null
   }
 }
 
-const triggerImportExcel = () => {
-  importInputRef.value?.click()
-}
+const triggerImportExcel = () => { importInputRef.value?.click() }
 
 const handleImportFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
-
-  if (!projectId.value) {
-    showMessage(
-      '导入失败',
-      '当前未识别项目ID，无法导入实际进度 Excel。',
-      ToastNotificationType.Warning
-    )
-    input.value = ''
-    return
-  }
-
+  if (!file || !projectId.value) return
   isImportingExcel.value = true
-
   try {
     const result = await importActualProgressRecordsFromExcel({
       projectId: projectId.value,
@@ -1563,15 +1225,9 @@ const handleImportFileChange = async (event: Event) => {
     })
     await fetchActualRecords()
     lastOperation.value = `已导入 ${file.name}，新增 ${result.createdCount} 条实际进度记录`
-    showSuccess(
-      '导入成功',
-      `已通过后端解析 Excel，并导入 ${result.createdCount} 条记录。`
-    )
+    showSuccess('导入成功', `已通过后端解析 Excel，并导入 ${result.createdCount} 条记录。`)
   } catch (error) {
-    showMessage(
-      '导入失败',
-      error instanceof Error ? error.message : '实际进度 Excel 导入失败'
-    )
+    showMessage('导入失败', error instanceof Error ? error.message : '实际进度 Excel 导入失败')
   } finally {
     isImportingExcel.value = false
     input.value = ''
@@ -1579,46 +1235,26 @@ const handleImportFileChange = async (event: Event) => {
 }
 
 const handleExportExcel = () => {
-  lastOperation.value = '已点击 Excel 导出，导出接口待接入'
-  showMessage(
-    '导出能力待接入',
-    '当前仅保留 Excel 导出入口，后续可继续补真实导出接口。',
-    ToastNotificationType.Info
-  )
+  showMessage('导出能力待接入', '当前仅保留 Excel 导出入口。', ToastNotificationType.Info)
 }
 
 watch(
   () => draftForm.value.reportTimestamp,
-  () => {
-    syncConstructionLog()
-  }
+  () => { syncReportDateFields() }
 )
 
-watch(
-  () => [
-    draftForm.value.constructionRecord,
-    draftForm.value.qualityRecord,
-    draftForm.value.safetyRecord
-  ],
-  () => {
-    syncConstructionLog()
-  }
-)
-
-watch(itemsPerPage, () => {
-  currentPage.value = 1
-})
+watch(itemsPerPage, () => { currentPage.value = 1 })
 
 watch(totalPages, (pageCount) => {
-  if (currentPage.value > pageCount) {
-    currentPage.value = pageCount
-  }
+  if (currentPage.value > pageCount) currentPage.value = pageCount
 })
 
 watch(
   projectId,
   () => {
     void fetchActualRecords()
+    void fetchMonthlyPlans()
+    void fetchPlanTasks()
   },
   { immediate: true }
 )

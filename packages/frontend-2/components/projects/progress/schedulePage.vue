@@ -148,22 +148,27 @@
               -
             </div>
           </template>
-          <div
-            v-else
-            role="button"
-            tabindex="0"
-            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
-            :class="
-              item.applicationIds.length
-                ? 'bg-success-lighter text-success-darker cursor-pointer'
-                : 'bg-foundation-2 text-foreground-2'
-            "
-            @click="openAssociatedModelDrawer(item)"
-            @keydown.enter="openAssociatedModelDrawer(item)"
-            @keydown.space="openAssociatedModelDrawer(item)"
-          >
-            {{ item.applicationIds.length ? '已关联BIM模型' : '未关联' }}
-          </div>
+          <template v-else>
+            <!-- 已关联 BIM 状态：可点击交互 -->
+            <div
+              v-if="item.applicationIds && item.applicationIds.length > 0"
+              role="button"
+              tabindex="0"
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap bg-success-lighter text-success-darker cursor-pointer"
+              @click="openAssociatedModelDrawer(item)"
+              @keydown.enter="openAssociatedModelDrawer(item)"
+              @keydown.space="openAssociatedModelDrawer(item)"
+            >
+              已关联BIM模型
+            </div>
+            <!-- 未关联 BIM 状态：置灰，不可交互 -->
+            <div
+              v-else
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap bg-foundation-2 text-foreground-2 cursor-default select-none"
+            >
+              未关联
+            </div>
+          </template>
         </template>
 
         <template #operation="{ item }">
@@ -350,7 +355,6 @@ import {
   CommonModelPropsViewer
 } from '#components'
 import MonthlyPlanComponent from './monthlyPlanComponent.vue'
-import type { MonthlyRecordItem } from './AddMonthlyPlanDialog.vue'
 import type { MasterTaskOption } from './TaskSelectDialog.vue'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
@@ -361,11 +365,13 @@ import {
   updateProgressPlanTaskMarker,
   updateProgressPlanTaskBimAssociation,
   uploadProgressPlanFile,
+  getProgressMonthlyPlans,
   type ProgressPlanFile,
   type ProgressPlanTask,
   type ProgressPlanTaskBimSelection,
   type ProgressPlanTaskMilestoneType,
-  type ProgressTaskSnapshotStatus
+  type ProgressTaskSnapshotStatus,
+  type MonthlyRecordItem
 } from '~/lib/projects/api/progress'
 
 interface ScheduleItem {
@@ -834,6 +840,17 @@ const fetchPlanTasks = async () => {
       apiOrigin
     })
     rebuildTaskTree(tasks.map(mapTaskRecordToItem))
+
+    // 自动同步加载月度计划以聚合工程量及关联状态
+    try {
+      const monthlyPlans = await getProgressMonthlyPlans({
+        projectId: projectId.value,
+        apiOrigin
+      })
+      handleMonthlyRecordsSynced(monthlyPlans)
+    } catch (monthlyErr) {
+      console.error('Failed to load monthly plans for progress sync:', monthlyErr)
+    }
   } catch (error) {
     items.value = []
     treeItems.value = []
@@ -1110,7 +1127,7 @@ const handleMonthlyRecordsSynced = (records: MonthlyRecordItem[]) => {
   records.forEach((r) => {
     r.tasks.forEach((t) => {
       if (t.linkedPlanTaskId) {
-        const val = parseFloat(t.actualVolume) || parseFloat(t.plannedVolume) || 0
+        const val = parseFloat(t.actualVolume || '') || parseFloat(t.plannedVolume || '') || 0
         cumMap.set(t.linkedPlanTaskId, (cumMap.get(t.linkedPlanTaskId) || 0) + val)
 
         if (t.selections && t.selections.length > 0) {

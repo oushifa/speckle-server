@@ -34,7 +34,10 @@ export const ProjectProgressActualRecords = buildTableHelper(
     'creator',
     'updater',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'yearMonth',
+    'tasks',
+    'workers'
   ]
 )
 
@@ -77,6 +80,9 @@ export type ProgressActualRecord = {
   updater: string
   createdAt: Date
   updatedAt: Date
+  yearMonth: string | null
+  tasks: any[] | null
+  workers: any[] | null
 }
 
 export type UpsertProgressActualRecordInput = {
@@ -104,6 +110,9 @@ export type UpsertProgressActualRecordInput = {
   siteLeader?: string | null
   reporter?: string | null
   constructionLog?: string | null
+  yearMonth?: string | null
+  tasks?: any[] | null
+  workers?: any[] | null
 }
 
 const generateId = () => cryptoRandomString({ length: 10 })
@@ -217,6 +226,9 @@ const buildUpsertPayload = (
     [actualRecordCols.siteLeader]: normalizeNullableString(params.siteLeader),
     [actualRecordCols.reporter]: normalizeNullableString(params.reporter),
     [actualRecordCols.constructionLog]: normalizeNullableString(params.constructionLog),
+    [actualRecordCols.yearMonth]: normalizeNullableString(params.yearMonth),
+    [actualRecordCols.tasks]: params.tasks ? (typeof params.tasks === 'string' ? params.tasks : JSON.stringify(params.tasks)) : null,
+    [actualRecordCols.workers]: params.workers ? (typeof params.workers === 'string' ? params.workers : JSON.stringify(params.workers)) : null,
     [actualRecordCols.updater]: params.updater,
     [actualRecordCols.updatedAt]: new Date()
   }

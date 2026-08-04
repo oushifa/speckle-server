@@ -94,35 +94,92 @@ type LogEventRow = {
   metadata: Record<string, unknown> | null
 }
 
+export type ListLogEventsParams = {
+  limit: number
+  offset: number
+  search?: string
+  opType?: string
+  result?: 'success' | 'fail'
+  dateFrom?: Date
+  dateTo?: Date
+  operationOnly?: boolean
+}
+
 export const listLogEventsFactory =
   ({ db }: { db: Knex }) =>
-  async ({ limit }: { limit: number }) => {
-    const rows = await db(SYS_LOG_TABLE)
-      .select<LogEventRow[]>(
-        'id',
-        'event_time',
-        'source',
-        'user_id',
-        'org_id',
-        'user_role',
-        'ip',
-        'user_agent',
-        'location',
-        'action',
-        'target_type',
-        'target_id',
-        'payload_summary',
-        'result_status',
-        'result_code',
-        'result_message',
-        'duration_ms',
-        'http_status',
-        'trace_id',
-        'request_id',
-        'metadata'
-      )
-      .orderBy('event_time', 'desc')
-      .limit(limit)
+  async (params: ListLogEventsParams) => {
+    const query = db(SYS_LOG_TABLE).select<LogEventRow[]>(
+      'id',
+      'event_time',
+      'source',
+      'user_id',
+      'org_id',
+      'user_role',
+      'ip',
+      'user_agent',
+      'location',
+      'action',
+      'target_type',
+      'target_id',
+      'payload_summary',
+      'result_status',
+      'result_code',
+      'result_message',
+      'duration_ms',
+      'http_status',
+      'trace_id',
+      'request_id',
+      'metadata'
+    )
+    if (params.operationOnly !== false) {
+      query.whereRaw(`metadata->>'opType' IS NOT NULL`)
+    }
 
-    return rows
+    if (params.search?.trim()) {
+      const searchTerm = `%${params.search.trim()}%`
+      query.andWhere((builder) => {
+        builder
+          .whereILike('target_id', searchTerm)
+          .orWhereRaw(`coalesce(metadata->>'target', '') ILIKE ?`, [searchTerm])
+          .orWhereRaw(`coalesce(metadata->>'detail', '') ILIKE ?`, [searchTerm])
+          .orWhereRaw(`coalesce(payload_summary->>'text', '') ILIKE ?`, [searchTerm])
+          .orWhereExists(
+            db('users')
+              .select(db.raw('1'))
+              .whereRaw(`users.id = ${SYS_LOG_TABLE}.user_id`)
+              .andWhereILike('users.name', searchTerm)
+          )
+      })
+    }
+
+    if (params.opType) {
+      query.andWhereRaw(`metadata->>'opType' = ?`, [params.opType])
+    }
+
+    if (params.result) {
+      query.andWhere('result_status', params.result)
+    }
+
+    if (params.dateFrom) {
+      query.andWhere('event_time', '>=', params.dateFrom)
+    }
+
+    if (params.dateTo) {
+      query.andWhere('event_time', '<=', params.dateTo)
+    }
+
+    const totalCountQuery = await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .count<{ count: string | number }>('* as count')
+      .first()
+    const totalCount = Number(totalCountQuery?.count ?? 0)
+
+    const rows = await query
+      .orderBy('event_time', 'desc')
+      .offset(params.offset)
+      .limit(params.limit)
+
+    return { items: rows, totalCount }
   }

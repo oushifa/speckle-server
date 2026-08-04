@@ -1539,7 +1539,7 @@
                 <td class="border border-black p-4 w-full h-44 valign-top relative">
                   <div class="font-bold mb-2">审查意见：</div>
                   <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
-                    {{ details.supervisionOpinion }}
+                    {{ professionalEngineerOpinionDisplay || details.supervisionOpinion }}
                   </div>
                   <div class="flex justify-end space-y-1">
                     <div class="flex flex-col gap-6">
@@ -1547,9 +1547,11 @@
                         安全监理人员：___________________
                       </span>
                       <span>
-                        专业工程师：___________________
+                        专业工程师：{{
+                          professionalEngineerApproverDisplay || '___________________'
+                        }}
                       </span>
-                      <span>日期：______年___月___日</span>
+                      <span>日期：{{ professionalEngineerDateDisplay }}</span>
                     </div>
                   </div>
                 </td>
@@ -3310,10 +3312,16 @@ const rejectDialogButtons = computed((): LayoutDialogButton[] => [
 const getFlowStepApprovedDateDisplay = (stepNames: readonly string[]) => {
   const steps = flowInstance.value?.steps || []
   const normalizedNames = stepNames.map((name) => name.trim())
+  const matchesStepName = (stepName?: string | null) => {
+    const normalizedStepName = String(stepName || '').trim()
+    if (!normalizedStepName) return false
+    return normalizedNames.some(
+      (name) => normalizedStepName === name || normalizedStepName.includes(name)
+    )
+  }
   const matchedStep = steps.find(
     (step: any) =>
-      normalizedNames.includes(step.name?.trim()) &&
-      (step.status === 'APPROVED' || step.completedAt)
+      matchesStepName(step.name) && (step.status === 'APPROVED' || step.completedAt)
   )
 
   if (!matchedStep?.completedAt) return '______年___月___日'
@@ -3328,8 +3336,15 @@ const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
   const steps = flowInstance.value?.steps || []
   const actions = flowInstance.value?.actions || []
   const normalizedNames = stepNames.map((name) => name.trim())
+  const matchesStepName = (stepName?: string | null) => {
+    const normalizedStepName = String(stepName || '').trim()
+    if (!normalizedStepName) return false
+    return normalizedNames.some(
+      (name) => normalizedStepName === name || normalizedStepName.includes(name)
+    )
+  }
   const matchingSteps = steps.filter((step: any) =>
-    normalizedNames.includes(step.name?.trim())
+    matchesStepName(step.name)
   )
 
   const names: string[] = []
@@ -3354,6 +3369,56 @@ const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
 
   return Array.from(new Set(names)).join('、')
 }
+
+const getFlowStepLatestComment = (stepNames: readonly string[]) => {
+  const steps = flowInstance.value?.steps || []
+  const actions = flowInstance.value?.actions || []
+  const normalizedNames = stepNames.map((name) => name.trim())
+  const matchesStepName = (stepName?: string | null) => {
+    const normalizedStepName = String(stepName || '').trim()
+    if (!normalizedStepName) return false
+    return normalizedNames.some(
+      (name) => normalizedStepName === name || normalizedStepName.includes(name)
+    )
+  }
+
+  const matchingStepIds = new Set(
+    steps.filter((step: any) => matchesStepName(step.name)).map((step: any) => step.id)
+  )
+
+  const matchingAction = [...actions]
+    .filter(
+      (action: any) =>
+        matchingStepIds.has(action.stepId) &&
+        ['APPROVED', 'STEP_APPROVED', 'REJECTED'].includes(action.action) &&
+        String(action.comment || '').trim()
+    )
+    .sort(
+      (a: any, b: any) =>
+        dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+    )[0]
+
+  return String(matchingAction?.comment || '').trim()
+}
+
+const professionalEngineerStepNames = [
+  '专业工程师',
+  '专业工程师审查',
+  '专业工程师审核',
+  '专业工程师审批'
+] as const
+
+const professionalEngineerApproverDisplay = computed(() => {
+  return getFlowStepApproverDisplay(professionalEngineerStepNames)
+})
+
+const professionalEngineerDateDisplay = computed(() => {
+  return getFlowStepApprovedDateDisplay(professionalEngineerStepNames)
+})
+
+const professionalEngineerOpinionDisplay = computed(() => {
+  return getFlowStepLatestComment(professionalEngineerStepNames)
+})
 
 const supervisionReviewApproverDisplay = computed(() => {
   return (

@@ -39,6 +39,7 @@ import {
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 import { BadRequestError } from '@/modules/shared/errors'
+import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 import type { Knex } from 'knex'
 
 const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
@@ -234,9 +235,11 @@ const resolveDefinitionEffectConfig = (params: {
   templateId?: string | null
   resourceId?: string | null
 }) => {
-  const isMonthlyMeasurement = params.templateId === MONTHLY_MEASUREMENT_TEMPLATE_ID || 
+  const isMonthlyMeasurement =
+    params.templateId === MONTHLY_MEASUREMENT_TEMPLATE_ID ||
     (params.resourceId && params.resourceId.startsWith('monthly_measurements:'))
-  const isSafetyMeasure = params.resourceId && params.resourceId.startsWith('safety_measures:')
+  const isSafetyMeasure =
+    params.resourceId && params.resourceId.startsWith('safety_measures:')
 
   if (!isMonthlyMeasurement && !isSafetyMeasure) {
     return params.effectConfig
@@ -249,7 +252,9 @@ const resolveDefinitionEffectConfig = (params: {
       : {}
   const mergedHooks = { ...existingHooks } as Record<string, unknown>
 
-  const forcedHooks = isMonthlyMeasurement ? FORCED_MONTHLY_MEASUREMENT_HOOKS : FORCED_SAFETY_MEASUREMENT_HOOKS
+  const forcedHooks = isMonthlyMeasurement
+    ? FORCED_MONTHLY_MEASUREMENT_HOOKS
+    : FORCED_SAFETY_MEASUREMENT_HOOKS
 
   for (const [event, actions] of Object.entries(forcedHooks)) {
     mergedHooks[event] = toHookActions(mergedHooks[event]).length
@@ -379,7 +384,8 @@ const updateResourceByHookAction = async (params: {
               )
             : value
       }
-      await params.trx('safety_measures')
+      await params
+        .trx('safety_measures')
         .where('id', parsed.formId)
         .update({
           ...safetyPayload,
@@ -695,7 +701,7 @@ export const startApprovalFlowFactory =
     comment?: string | null
     userId: string
   }) => {
-    return await deps.db.transaction(async (trx) => {
+    const instance = await deps.db.transaction(async (trx) => {
       const getOpenInstanceForResource = getOpenApprovalFlowInstanceForResourceFactory({
         db: trx
       })
@@ -756,7 +762,11 @@ export const startApprovalFlowFactory =
       })
 
       let bindingId: string | null = null
-      if (definition.resourceType === 'MODEL' && params.resourceId && params.projectId) {
+      if (
+        definition.resourceType === 'MODEL' &&
+        params.resourceId &&
+        params.projectId
+      ) {
         const subjectKey = buildApprovalBindingSubjectKey({
           subjectType: 'MODEL_VERSION',
           subjectId: params.resourceId
@@ -920,6 +930,13 @@ export const startApprovalFlowFactory =
 
       return instance
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: instance.id,
+      reason: 'approval-flow-started'
+    })
+
+    return instance
   }
 
 export const updateApprovalFlowStatusFactory =
@@ -933,7 +950,7 @@ export const updateApprovalFlowStatusFactory =
     nextStepApproverIds?: string[] | null
     forceByAdmin?: boolean
   }) => {
-    return await deps.db.transaction(async (trx) => {
+    const updatedInstance = await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
       const getCurrentStep = getApprovalFlowCurrentStepFactory({ db: trx })
       const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
@@ -1300,6 +1317,13 @@ export const updateApprovalFlowStatusFactory =
 
       return updatedInstance
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: `approval-flow-status-${params.targetStatus.toLowerCase()}`
+    })
+
+    return updatedInstance
   }
 
 export const reactivateApprovalFlowFactory =
@@ -1310,7 +1334,7 @@ export const reactivateApprovalFlowFactory =
     userId: string
     comment: string
   }) => {
-    return await deps.db.transaction(async (trx) => {
+    const updated = await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
       const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
       const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
@@ -1434,12 +1458,19 @@ export const reactivateApprovalFlowFactory =
 
       return updated
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-reactivated'
+    })
+
+    return updated
   }
 
 export const resetApprovalFlowToUnsubmittedFactory =
   (deps: { db: Knex }) =>
   async (params: { instanceId: string; userId: string; comment: string }) => {
-    return await deps.db.transaction(async (trx) => {
+    const updated = await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
       const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
       const updateStep = updateApprovalFlowInstanceStepFactory({ db: trx })
@@ -1528,10 +1559,19 @@ export const resetApprovalFlowToUnsubmittedFactory =
 
       return updated
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-reset-to-unsubmitted'
+    })
+
+    return updated
   }
 
 export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async () => {
-  return await deps.db.transaction(async (trx) => {
+  const affectedInstanceIds = new Set<string>()
+
+  const affectedCount = await deps.db.transaction(async (trx) => {
     const getTimedOutSteps = getApprovalFlowTimedOutStepsFactory({ db: trx })
     const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
     const updateStatus = updateApprovalFlowInstanceStatusFactory({ db: trx })
@@ -1597,7 +1637,17 @@ export const processApprovalFlowTimeoutsFactory = (deps: { db: Knex }) => async 
         actorId: 'system'
       })
       affectedCount += 1
+      affectedInstanceIds.add(step.instanceId)
     }
     return affectedCount
   })
+
+  for (const instanceId of affectedInstanceIds) {
+    scheduleApprovalFlowTodoSync({
+      instanceId,
+      reason: 'approval-flow-timeout'
+    })
+  }
+
+  return affectedCount
 }

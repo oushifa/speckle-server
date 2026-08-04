@@ -6,6 +6,7 @@ import {
   type RequestHandler
 } from 'express'
 import { z } from 'zod'
+import cryptoRandomString from 'crypto-random-string'
 import { validateRequest } from 'zod-express'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
@@ -27,8 +28,19 @@ import {
   replaceProgressPlanTasksFactory,
   updateProgressPlanTaskBimFactory,
   updateProgressPlanTaskMarkerFactory,
+  type ProgressPlanTaskBIM,
   type ProgressPlanTaskRecord
 } from '@/modules/progress/repositories/progressPlanTasks'
+import {
+  listProgressMonthlyPlansFactory,
+  createProgressMonthlyPlanFactory,
+  updateProgressMonthlyPlanFactory,
+  deleteProgressMonthlyPlanFactory,
+  syncAllPlanTasksBimFromMonthlyPlans,
+  updateMonthlyPlanTaskBimFactory,
+  type MonthlyPlanRecord,
+  type MonthlyPlanTaskRecord
+} from '@/modules/progress/repositories/progressMonthlyPlans'
 import {
   countProgressElementSnapshotsFactory,
   listProgressElementSnapshotsFactory,
@@ -49,6 +61,10 @@ import {
   syncActualRecordDerivedDataFactory,
   syncPlanTaskDerivedDataFactory
 } from '@/modules/progress/services/snapshotSync'
+import {
+  collectActualSyncScope,
+  syncMonthlyPlanProgressFromActualFactory
+} from '@/modules/progress/services/actualPlanSync'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { db } from '@/db/knex'
 import { getBlobMetadataFactory } from '@/modules/blobstorage/repositories'
@@ -66,6 +82,7 @@ import { authMiddlewareCreator } from '@/modules/shared/middleware'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
 import { ensureError } from '@speckle/shared'
 import contentDisposition from 'content-disposition'
+import type { Knex } from 'knex'
 
 const paramsSchema = z.object({
   projectId: z.string().min(1)
@@ -167,7 +184,10 @@ const actualRecordBodySchema = z.object({
   otherRecord: z.string().nullable().optional(),
   siteLeader: z.string().nullable().optional(),
   reporter: z.string().nullable().optional(),
-  constructionLog: z.string().nullable().optional()
+  constructionLog: z.string().nullable().optional(),
+  yearMonth: z.string().nullable().optional(),
+  tasks: z.array(z.any()).nullable().optional(),
+  workers: z.array(z.any()).nullable().optional()
 })
 
 const taskImportSchema = z.object({
@@ -189,6 +209,55 @@ const taskImportSchema = z.object({
       milestoneDescription: z.string().trim().max(500).nullable().optional(),
       isCriticalTask: z.boolean().optional(),
       BIM: z.array(bimEntrySchema).nullable().optional()
+    })
+  )
+})
+
+const monthlyPlanParamsSchema = z.object({
+  projectId: z.string().min(1),
+  planId: z.string().min(1)
+})
+
+const monthlyPlanTaskBimParamsSchema = z.object({
+  projectId: z.string().min(1),
+  planId: z.string().min(1),
+  taskId: z.string().min(1)
+})
+
+const monthlyPlanTaskItemSchema = z.object({
+  id: z.string().nullable().optional(),
+  taskName: z.string().min(1),
+  linkedPlanTaskId: z.string().nullable().optional(),
+  linkedPlanTaskName: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  totalVolume: z.string().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  plannedVolume: z.string().nullable().optional(),
+  actualVolume: z.string().nullable().optional(),
+  progressPercent: z.number().int().optional(),
+  remark: z.string().nullable().optional(),
+  bimComponentCount: z.number().int().optional(),
+  bimLinked: z.boolean().optional(),
+  selections: z.array(
+    z.object({
+      modelId: z.string(),
+      applicationIds: z.array(z.string())
+    })
+  ).nullable().optional()
+})
+
+const monthlyPlanBodySchema = z.object({
+  yearMonth: z.string().regex(/^\d{4}-\d{2}$/),
+  createdBy: z.string().min(1),
+  tasks: z.array(monthlyPlanTaskItemSchema)
+})
+
+const monthlyPlanTaskBimBodySchema = z.object({
+  selections: z.array(
+    z.object({
+      modelId: z.string(),
+      applicationIds: z.array(z.string())
     })
   )
 })
@@ -224,7 +293,7 @@ type SerializedPlanTaskAggregate = {
   linkedTaskCount: number
   finishedTaskCount: number
   delayedTaskCount: number
-  BIM: import('@/modules/progress/repositories/progressPlanTasks').ProgressPlanTaskBIM
+  BIM: ProgressPlanTaskBIM
 }
 
 type SerializedPlanTaskNode = {
@@ -610,6 +679,121 @@ const buildWeekDay = (reportDate: string) => {
   return Number.isNaN(date.getTime()) ? '' : dayMap[date.getDay()]
 }
 
+const serializeMonthlyPlanTask = (task: MonthlyPlanTaskRecord) => ({
+  id: task.id,
+  monthlyPlanId: task.monthlyPlanId,
+  taskName: task.taskName,
+  linkedPlanTaskId: task.linkedPlanTaskId || '',
+  linkedPlanTaskName: task.linkedPlanTaskName || '',
+  startDate: task.startDate ? task.startDate.toISOString().split('T')[0] : '',
+  endDate: task.endDate ? task.endDate.toISOString().split('T')[0] : '',
+  totalVolume: task.totalVolume || '',
+  unit: task.unit || '',
+  plannedVolume: task.plannedVolume || '',
+  actualVolume: task.actualVolume || '0',
+  progressPercent: task.progressPercent || 0,
+  remark: task.remark || '',
+  bimComponentCount: task.bimComponentCount || 0,
+  bimLinked: !!task.bimLinked,
+  selections: typeof task.selections === 'string' ? JSON.parse(task.selections) : (task.selections || [])
+})
+
+const serializeMonthlyPlan = (plan: MonthlyPlanRecord & { tasks: MonthlyPlanTaskRecord[] }) => ({
+  id: plan.id,
+  projectId: plan.projectId,
+  yearMonth: plan.yearMonth,
+  createdBy: plan.createdBy,
+  createdAt: plan.createdAt.toISOString(),
+  updatedAt: plan.updatedAt.toISOString(),
+  tasks: (plan.tasks || []).map(serializeMonthlyPlanTask)
+})
+
+type ActualBodyTaskInput = {
+  linkedPlanTaskId?: string | null
+  taskName?: string | null
+  plannedVolume?: string | number | null
+  selections?: Array<{ modelId: string; applicationIds: string[] }> | string | null
+}
+
+const syncMissingMonthlyTasksFromActual = async (
+  projectId: string,
+  yearMonth: string | null | undefined,
+  bodyTasks: ActualBodyTaskInput[] | null | undefined,
+  trx: Knex.Transaction
+) => {
+  if (!yearMonth || !Array.isArray(bodyTasks) || bodyTasks.length === 0) return
+
+  const existingPlan = await trx('project_progress_monthly_plans')
+    .where({ projectId, yearMonth })
+    .first()
+
+  if (existingPlan) {
+    const monthlyPlanId = existingPlan.id
+    const existingTasks = await trx('project_progress_monthly_plan_tasks')
+      .where({ monthlyPlanId })
+      .select('linkedPlanTaskId')
+
+    const existingLinkedIds = new Set(
+      existingTasks
+        .map((t: { linkedPlanTaskId: string | null }) => t.linkedPlanTaskId)
+        .filter((value): value is string => !!value)
+    )
+
+    const tasksToInsert: Array<{
+      id: string
+      monthlyPlanId: string
+      taskName: string
+      linkedPlanTaskId: string
+      linkedPlanTaskName: string
+      startDate: Date | null
+      endDate: Date | null
+      totalVolume: string
+      unit: string
+      plannedVolume: string | number
+      actualVolume: string
+      progressPercent: number
+      remark: string
+      bimComponentCount: number
+      bimLinked: boolean
+      selections: string | null
+    }> = []
+    for (const t of bodyTasks) {
+      const linkedId = t.linkedPlanTaskId
+      if (linkedId && !existingLinkedIds.has(linkedId)) {
+        const planTask = await trx('project_progress_plan_tasks')
+          .where({ id: linkedId, projectId })
+          .first()
+
+        if (planTask) {
+          tasksToInsert.push({
+            id: cryptoRandomString({ length: 10 }),
+            monthlyPlanId,
+            taskName: t.taskName || planTask.name,
+            linkedPlanTaskId: linkedId,
+            linkedPlanTaskName: t.taskName || planTask.name,
+            startDate: planTask.planStart,
+            endDate: planTask.planEnd,
+            totalVolume: planTask.volume || '1000',
+            unit: planTask.unit || 'm³',
+            plannedVolume: t.plannedVolume || '200',
+            actualVolume: '0',
+            progressPercent: 0,
+            remark: '由实际进度填报同步追加',
+            bimComponentCount: 0,
+            bimLinked: false,
+            selections: t.selections ? (typeof t.selections === 'string' ? t.selections : JSON.stringify(t.selections)) : null
+          })
+        }
+      }
+    }
+
+    if (tasksToInsert.length > 0) {
+      await trx('project_progress_monthly_plan_tasks').insert(tasksToInsert)
+      await syncAllPlanTasksBimFromMonthlyPlans(projectId, trx)
+    }
+  }
+}
+
 const serializeActualRecord = (record: ProgressActualRecord) => {
   const [year = '', month = '', day = ''] = record.reportDate.split('-')
   const startBIM = record.startBIM || record.BIM
@@ -645,6 +829,13 @@ const serializeActualRecord = (record: ProgressActualRecord) => {
     siteLeader: record.siteLeader || '',
     reporter: record.reporter || '',
     constructionLog: record.constructionLog || '',
+    yearMonth: record.yearMonth || '',
+    tasks: record.tasks
+      ? (typeof record.tasks === 'string' ? JSON.parse(record.tasks) : record.tasks)
+      : [],
+    workers: record.workers
+      ? (typeof record.workers === 'string' ? JSON.parse(record.workers) : record.workers)
+      : [],
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
   }
@@ -702,6 +893,7 @@ const buildRoute = (router: Router) => {
   const taskSnapshotRoute = '/api/v1/projects/:projectId/progress/task-snapshots'
   const statisticsRoute = '/api/v1/projects/:projectId/progress/statistics'
   const rebuildSnapshotsRoute = '/api/v1/projects/:projectId/progress/rebuild-snapshots'
+  const monthlyPlanRoute = '/api/v1/projects/:projectId/progress/monthly-plans'
   const progressCors = corsMiddlewareFactory({
     corsConfig: {
       origin: true,
@@ -711,6 +903,13 @@ const buildRoute = (router: Router) => {
 
   router.options(route, progressCors, allowCrossOriginResourceAccessMiddelware())
   router.options(taskRoute, progressCors, allowCrossOriginResourceAccessMiddelware())
+  router.options(monthlyPlanRoute, progressCors, allowCrossOriginResourceAccessMiddelware())
+  router.options(`${monthlyPlanRoute}/:planId`, progressCors, allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${monthlyPlanRoute}/:planId/tasks/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(
     actualRecordRoute,
     progressCors,
@@ -1157,6 +1356,24 @@ const buildRoute = (router: Router) => {
             nextRecord: record,
             actorId: req.context.userId!
           })
+
+          await syncMissingMonthlyTasksFromActual(
+            projectId,
+            req.body.yearMonth,
+            req.body.tasks,
+            trx
+          )
+
+          const syncScope = collectActualSyncScope({
+            nextRecord: record
+          })
+          await syncMonthlyPlanProgressFromActualFactory({ db: trx })({
+            projectId,
+            actorId: req.context.userId!,
+            affectedYearMonths: syncScope.affectedYearMonths,
+            affectedPlanTaskIds: syncScope.affectedPlanTaskIds
+          })
+
           return record
         })
 
@@ -1209,6 +1426,24 @@ const buildRoute = (router: Router) => {
             actorId: req.context.userId!
           })
 
+          await syncMissingMonthlyTasksFromActual(
+            projectId,
+            req.body.yearMonth,
+            req.body.tasks,
+            trx
+          )
+
+          const syncScope = collectActualSyncScope({
+            previousRecord,
+            nextRecord
+          })
+          await syncMonthlyPlanProgressFromActualFactory({ db: trx })({
+            projectId,
+            actorId: req.context.userId!,
+            affectedYearMonths: syncScope.affectedYearMonths,
+            affectedPlanTaskIds: syncScope.affectedPlanTaskIds
+          })
+
           return nextRecord
         })
 
@@ -1259,6 +1494,16 @@ const buildRoute = (router: Router) => {
             projectId,
             previousRecord,
             actorId: req.context.userId!
+          })
+
+          const syncScope = collectActualSyncScope({
+            previousRecord
+          })
+          await syncMonthlyPlanProgressFromActualFactory({ db: trx })({
+            projectId,
+            actorId: req.context.userId!,
+            affectedYearMonths: syncScope.affectedYearMonths,
+            affectedPlanTaskIds: syncScope.affectedPlanTaskIds
           })
 
           return true
@@ -1631,12 +1876,160 @@ const buildRoute = (router: Router) => {
     }
   )
 
+  // --- Monthly Plan Routes ---
+  router.get(
+    monthlyPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: paramsSchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const projectDb = await getProjectDbClient({ projectId })
+        const plans = await listProgressMonthlyPlansFactory({ db: projectDb })({ projectId })
+        return res.status(200).json({ data: plans.map(serializeMonthlyPlan) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    monthlyPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: paramsSchema, body: monthlyPlanBodySchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const projectDb = await getProjectDbClient({ projectId })
+        const plan = await createProgressMonthlyPlanFactory({ db: projectDb })({
+          projectId,
+          yearMonth: req.body.yearMonth,
+          createdBy: req.body.createdBy,
+          tasks: req.body.tasks
+        })
+        return res.status(201).json({ data: serializeMonthlyPlan(plan) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${monthlyPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: monthlyPlanParamsSchema, body: monthlyPlanBodySchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const planId = req.params.planId
+        const projectDb = await getProjectDbClient({ projectId })
+        const plan = await updateProgressMonthlyPlanFactory({ db: projectDb })({
+          projectId,
+          planId,
+          yearMonth: req.body.yearMonth,
+          createdBy: req.body.createdBy,
+          tasks: req.body.tasks
+        })
+        if (!plan) return res.status(404).json({ error: 'Monthly plan not found.' })
+        return res.status(200).json({ data: serializeMonthlyPlan(plan) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.delete(
+    `${monthlyPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: monthlyPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const planId = req.params.planId
+        const projectDb = await getProjectDbClient({ projectId })
+        const success = await deleteProgressMonthlyPlanFactory({ db: projectDb })({ projectId, planId })
+        if (!success) return res.status(404).json({ error: 'Monthly plan not found.' })
+        return res.status(200).json({ data: { id: planId } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${monthlyPlanRoute}/:planId/tasks/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: monthlyPlanTaskBimParamsSchema, body: monthlyPlanTaskBimBodySchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId, taskId } = req.params
+        const { selections } = req.body
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+        const projectDb = await getProjectDbClient({ projectId })
+        const updatedTask = await updateMonthlyPlanTaskBimFactory({ db: projectDb })({
+          projectId,
+          planId,
+          taskId,
+          selections,
+          updater: req.context.userId
+        })
+        if (!updatedTask) return res.status(404).json({ error: 'Monthly plan task not found.' })
+        return res.status(200).json({ data: serializeMonthlyPlanTask(updatedTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
   router.use(route, progressPlanFilesErrHandler)
   router.use(taskRoute, progressPlanFilesErrHandler)
   router.use(actualRecordRoute, progressPlanFilesErrHandler)
   router.use(elementSnapshotRoute, progressPlanFilesErrHandler)
   router.use(taskSnapshotRoute, progressPlanFilesErrHandler)
   router.use(statisticsRoute, progressPlanFilesErrHandler)
+  router.use(monthlyPlanRoute, progressPlanFilesErrHandler)
 }
 
 export const progressRouterFactory = (): Router => {
