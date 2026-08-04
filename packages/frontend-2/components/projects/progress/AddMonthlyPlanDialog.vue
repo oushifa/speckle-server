@@ -200,8 +200,19 @@ const emit = defineEmits<{
 
 const { activeUser } = useActiveUser()
 
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 const emptyTask = (): MonthlyTaskItem => ({
-  id: crypto.randomUUID(),
+  id: generateUUID(),
   taskName: '',
   linkedPlanTaskId: '',
   linkedPlanTaskName: '',
@@ -364,7 +375,7 @@ const handleSave = () => {
   if (!isValid.value) return
 
   const record: MonthlyRecordItem = {
-    id: props.initialRecord?.id || crypto.randomUUID(),
+    id: props.initialRecord?.id || generateUUID(),
     projectId: props.initialRecord?.projectId || '',
     yearMonth: yearMonth.value,
     tasks: tasks.value,
