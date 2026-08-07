@@ -129,6 +129,7 @@ const getEnabledModuleNames = () => {
     'workspacesCore',
     'gatekeeperCore',
     'multiregion',
+    'model-sync',
     'viewer'
   ]
 

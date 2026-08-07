@@ -25,6 +25,24 @@ from ifc_importer.repository import (
 )
 
 IDLE_TIMEOUT = 1
+MAX_SUBPROCESS_OUTPUT_CHARS = 4000
+
+
+def _truncate_process_output(output: bytes | None) -> str | None:
+    if not output:
+        return None
+
+    text = output.decode(errors="replace").strip()
+    if not text:
+        return None
+
+    if len(text) <= MAX_SUBPROCESS_OUTPUT_CHARS:
+        return text
+
+    return (
+        text[:MAX_SUBPROCESS_OUTPUT_CHARS]
+        + f"\n... [truncated {len(text) - MAX_SUBPROCESS_OUTPUT_CHARS} chars]"
+    )
 
 
 async def job_manager(logger: structlog.stdlib.BoundLogger):
@@ -55,6 +73,8 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
         attempt = job.attempt
         version_id: str | None = None
         speckle_client = None
+        subprocess_stdout: str | None = None
+        subprocess_stderr: str | None = None
 
         # this will create a new temp directory and also delete it,
         #  when the with block closes
@@ -64,9 +84,9 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
 
                 # i do not get this why are we handling this here?
                 if attempt > job.max_attempt:
-                    # something went wrong, it should have been marked as failed
                     raise Exception(
-                        "Unhandled error silently failed the job multiple times"
+                        "Job exceeded max retry attempts after previous failures whose "
+                        + "details could not be reported back to the server"
                     )
 
                 logger = logger.bind(job_id=job_id, project_id=job.payload.project_id)
@@ -80,35 +100,54 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     remaining_compute_budget_seconds=job.remaining_compute_budget_seconds,
                     job_timeout=job_timeout,
                 )
-                cmd = (
-                    f"{sys.executable} job_processor.py {temp_dir}"
-                    + f" {
-                        base64.b64encode(
-                            job.payload.model_dump_json().encode()
-                        ).decode()
-                    }"
+                job_payload = base64.b64encode(
+                    job.payload.model_dump_json().encode()
                 )
                 # subprocess: use same interpreter so ifc_importer from site-packages is found
-                process = await asyncio.create_subprocess_shell(cmd)
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "job_processor.py",
+                    temp_dir,
+                    job_payload.decode(),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
                 try:
-                    exit_code = await asyncio.wait_for(
-                        process.wait(), timeout=job_timeout
+                    stdout, stderr = await asyncio.wait_for(
+                        process.communicate(), timeout=job_timeout
                     )
                 except TimeoutError as te:
                     process.kill()
+                    stdout, stderr = await process.communicate()
+                    subprocess_stdout = _truncate_process_output(stdout)
+                    subprocess_stderr = _truncate_process_output(stderr)
                     raise Exception(
                         "Job was cancelled due to reaching the"
                         + f" {job_timeout} second timeout"
                     ) from te
+                subprocess_stdout = _truncate_process_output(stdout)
+                subprocess_stderr = _truncate_process_output(stderr)
                 # this should never happen, as the job processor is handling errors
                 # when the process is killed with a timeout we raise a TimeoutError
+                exit_code = process.returncode
                 if exit_code != 0:
-                    raise Exception(f"Job failed with exit code {exit_code}")
+                    extra_details = []
+                    if subprocess_stderr:
+                        extra_details.append(f"stderr: {subprocess_stderr}")
+                    if subprocess_stdout:
+                        extra_details.append(f"stdout: {subprocess_stdout}")
+                    details = f" {' | '.join(extra_details)}" if extra_details else ""
+                    raise Exception(f"Job failed with exit code {exit_code}.{details}")
 
                 result_path = Path(temp_dir, "result.json")
                 if not result_path.exists():
-                    # is this a special case?
-                    raise Exception("Job exited without a result")
+                    extra_details = []
+                    if subprocess_stderr:
+                        extra_details.append(f"stderr: {subprocess_stderr}")
+                    if subprocess_stdout:
+                        extra_details.append(f"stdout: {subprocess_stdout}")
+                    details = f" {' | '.join(extra_details)}" if extra_details else ""
+                    raise Exception(f"Job exited without a result.{details}")
                 # temp_dir.join("result.json")
 
                 outcome = FileimportResult.model_validate_json(
@@ -117,7 +156,10 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
 
                 if isinstance(outcome, FileimportError):
                     logger.error(
-                        "File import subprocess failed", exc_info=outcome.stack_trace
+                        "File import subprocess failed",
+                        subprocess_stdout=subprocess_stdout,
+                        subprocess_stderr=subprocess_stderr,
+                        stack_trace=outcome.stack_trace,
                     )
                     raise Exception(outcome.reason)
 
@@ -175,7 +217,13 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
 
                 if job_status == JobStatus.FAILED:
                     # we should be reporting the failure to the server
-                    logger.error("job processing failed", exc_info=ex)
+                    original_failure_reason = str(ex) if ex else None
+                    logger.error(
+                        "job processing failed",
+                        exc_info=ex,
+                        subprocess_stdout=subprocess_stdout,
+                        subprocess_stderr=subprocess_stderr,
+                    )
                     if speckle_client is None:
                         # If auth/client setup fails, we cannot report via GraphQL.
                         # Mark the queue job as failed to avoid crashing/retrying forever.
@@ -200,8 +248,14 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         # the server is responsible for moving failed jobs to the
                         # failed state
                         # so the worker does not have to do anything further
-                    except Exception as ex:
-                        logger.error("failed to report job failure", exc_info=ex)
+                    except Exception as report_ex:
+                        logger.error(
+                            "failed to report job failure",
+                            exc_info=report_ex,
+                            original_failure_reason=original_failure_reason,
+                            subprocess_stdout=subprocess_stdout,
+                            subprocess_stderr=subprocess_stderr,
+                        )
                         # somehow we're in a weird state,
                         # let's return the job to the queued state
                         # where it will get picked up again until one of total timeout,

@@ -3,7 +3,8 @@ import { BadRequestError } from '@/modules/shared/errors'
 import { ensureError } from '@speckle/shared'
 import { logger } from '@/observability/logging'
 
-const THIRD_PARTY_API_BASE = 'http://192.168.20.157:30080/service'
+export const THIRD_PARTY_API_BASE = 'http://192.168.20.157:30080/service'
+export const THIRD_PARTY_STATIC_BASE = 'http://192.168.20.157:30080'
 const AES_KEY = 'Ze/0w7rnQg7jznntRcuxGQ=='
 
 export type ThirdPartyTokenResponse = {
