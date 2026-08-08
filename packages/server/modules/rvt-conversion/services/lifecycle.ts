@@ -6,6 +6,7 @@ import {
 } from '@/modules/rvt-conversion/repositories/jobs'
 import {
   listProjectModelSyncTasksByFileUploadIdFactory,
+  type ProjectModelSyncTaskRecord,
   updateProjectModelSyncTaskFactory
 } from '@/modules/model-sync/repositories/tasks'
 import { emitModelSyncTaskUpdated } from '@/modules/model-sync/services/events'
@@ -118,6 +119,48 @@ const getJobServices = async (projectId: string) => {
   }
 }
 
+const syncRelatedModelSyncTasksFromRvtJob = async (params: {
+  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
+  job: RvtConversionJob
+  patch: Partial<
+    Pick<
+      ProjectModelSyncTaskRecord,
+      | 'status'
+      | 'versionId'
+      | 'progressPercent'
+      | 'progressPhase'
+      | 'progressMessage'
+      | 'error'
+      | 'errorCode'
+      | 'retriable'
+      | 'updater'
+    >
+  >
+}) => {
+  const listTasksByFileUploadId = listProjectModelSyncTasksByFileUploadIdFactory({
+    db: params.projectDb
+  })
+  const updateTask = updateProjectModelSyncTaskFactory({ db: params.projectDb })
+  const relatedTasks = await listTasksByFileUploadId({
+    projectId: params.job.projectId,
+    fileUploadId: params.job.sourceFileId,
+    activeOnly: true
+  })
+
+  for (const task of relatedTasks) {
+    const updatedTask = await updateTask({
+      projectId: task.projectId,
+      modelId: task.modelId,
+      taskId: task.id,
+      patch: params.patch
+    })
+
+    if (updatedTask) {
+      emitModelSyncTaskUpdated(updatedTask)
+    }
+  }
+}
+
 const buildProgressMessage = (params: {
   message: string
   progress: number
@@ -137,7 +180,7 @@ export const acknowledgeRvtConversionJob = async (params: {
   taskId: string
   externalTaskId?: string | null
 }) => {
-  const { getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
+  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
     params.projectId
   )
   const job = await getJob({ id: params.taskId })
@@ -160,6 +203,21 @@ export const acknowledgeRvtConversionJob = async (params: {
     convertedCommitId: null
   })
 
+  await syncRelatedModelSyncTasksFromRvtJob({
+    projectDb,
+    job: updatedJob || job,
+    patch: {
+      status: 'speckle_converting',
+      progressPercent: 0,
+      progressPhase: 'acknowledged',
+      progressMessage: '转换服务已接单',
+      error: null,
+      errorCode: null,
+      retriable: false,
+      updater: serviceUpdater
+    }
+  })
+
   return updatedJob || job
 }
 
@@ -173,7 +231,7 @@ export const progressRvtConversionJob = async (params: {
   current?: number
   total?: number
 }) => {
-  const { getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
+  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
     params.projectId
   )
   const job = await getJob({ id: params.taskId })
@@ -194,6 +252,21 @@ export const progressRvtConversionJob = async (params: {
     status: FileUploadConvertedStatus.Converting,
     convertedMessage: buildProgressMessage(params),
     convertedCommitId: null
+  })
+
+  await syncRelatedModelSyncTasksFromRvtJob({
+    projectDb,
+    job: updatedJob || job,
+    patch: {
+      status: 'speckle_converting',
+      progressPercent: Math.max(0, Math.min(100, params.progress)),
+      progressPhase: params.phase,
+      progressMessage: buildProgressMessage(params),
+      error: null,
+      errorCode: null,
+      retriable: false,
+      updater: serviceUpdater
+    }
   })
 
   return updatedJob || job
@@ -255,34 +328,35 @@ export const completeRvtConversionJob = async (
   })
 
   if (params.status === 'failed') {
-    const listTasksByFileUploadId = listProjectModelSyncTasksByFileUploadIdFactory({
-      db: projectDb
-    })
-    const updateTask = updateProjectModelSyncTaskFactory({ db: projectDb })
-    const relatedTasks = await listTasksByFileUploadId({
-      projectId: params.projectId,
-      fileUploadId: job.sourceFileId,
-      activeOnly: true
-    })
-
-    for (const task of relatedTasks) {
-      const failedTask = await updateTask({
-        projectId: task.projectId,
-        modelId: task.modelId,
-        taskId: task.id,
-        patch: {
-          status: 'failed',
-          error: params.errorMessage,
-          errorCode: 'FILE_CONVERSION_FAILED',
-          retriable: false,
-          updater: serviceUpdater
-        }
-      })
-
-      if (failedTask) {
-        emitModelSyncTaskUpdated(failedTask)
+    await syncRelatedModelSyncTasksFromRvtJob({
+      projectDb,
+      job,
+      patch: {
+        status: 'failed',
+        progressPhase: 'failed',
+        progressMessage: null,
+        error: params.errorMessage,
+        errorCode: 'FILE_CONVERSION_FAILED',
+        retriable: false,
+        updater: serviceUpdater
       }
-    }
+    })
+  } else {
+    await syncRelatedModelSyncTasksFromRvtJob({
+      projectDb,
+      job: updatedJob || job,
+      patch: {
+        status: 'speckle_converting',
+        versionId: params.versionId,
+        progressPercent: 100,
+        progressPhase: 'completed',
+        progressMessage: 'Speckle 转换完成',
+        error: null,
+        errorCode: null,
+        retriable: false,
+        updater: serviceUpdater
+      }
+    })
   }
 
   return updatedJob || job

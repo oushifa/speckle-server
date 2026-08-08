@@ -155,6 +155,9 @@ export const runModelSyncTaskFactory =
       await patchTask({
         fileUploadId,
         status: 'speckle_converting',
+        progressPercent: 0,
+        progressPhase: null,
+        progressMessage: '等待 Speckle 转换',
         error: null,
         errorCode: null,
         retriable: false
@@ -178,6 +181,9 @@ export const runModelSyncTaskFactory =
         fileType: upload.fileType,
         fileSize: upload.fileSize || null,
         status: 'syncing_dtp_model',
+        progressPercent: null,
+        progressPhase: null,
+        progressMessage: '正在同步 DTP 模型',
         error: null,
         errorCode: null,
         retriable: false
@@ -215,6 +221,9 @@ export const runModelSyncTaskFactory =
         assetId: dtpResult.assetId,
         assetName: dtpResult.assetName,
         status: 'syncing_external_ids',
+        progressPercent: null,
+        progressPhase: null,
+        progressMessage: '正在同步外部 ID',
         error: null,
         errorCode: null,
         retriable: false
@@ -246,6 +255,9 @@ export const runModelSyncTaskFactory =
 
       await patchTask({
         status: 'triggering_model_transform',
+        progressPercent: null,
+        progressPhase: null,
+        progressMessage: '正在触发模型转换',
         error: null,
         errorCode: null,
         retriable: false
@@ -260,7 +272,10 @@ export const runModelSyncTaskFactory =
 
       await patchTask({
         transformTaskId,
-        status: 'polling_model_transform'
+        status: 'polling_model_transform',
+        progressPercent: null,
+        progressPhase: null,
+        progressMessage: '正在等待模型转换完成'
       })
 
       const pollTransform = pollDtpModelTransformUntilFinishedFactory()
@@ -271,6 +286,9 @@ export const runModelSyncTaskFactory =
 
       await patchTask({
         status: 'succeeded',
+        progressPercent: 100,
+        progressPhase: null,
+        progressMessage: '模型同步完成',
         error: null,
         errorCode: null,
         retriable: false
@@ -279,6 +297,7 @@ export const runModelSyncTaskFactory =
       const { message, errorCode, retriable } = normalizeModelSyncTaskError(error)
       await patchTask({
         status: 'failed',
+        progressMessage: null,
         error: message,
         errorCode,
         retriable

@@ -81,6 +81,10 @@ const serializeTask = (task: ProjectModelSyncTaskRecord) => ({
   fileType: task.fileType,
   fileSize: task.fileSize === null ? null : Number(task.fileSize),
   status: task.status,
+  progressPercent:
+    task.progressPercent === null ? null : Number(task.progressPercent || 0),
+  progressPhase: task.progressPhase,
+  progressMessage: task.progressMessage,
   seedId: task.seedId,
   assetId: task.assetId,
   assetName: task.assetName,

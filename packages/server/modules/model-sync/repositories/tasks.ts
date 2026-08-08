@@ -14,6 +14,9 @@ export const ProjectModelSyncTasks = buildTableHelper('project_model_sync_tasks'
   'fileType',
   'fileSize',
   'status',
+  'progressPercent',
+  'progressPhase',
+  'progressMessage',
   'seedId',
   'assetId',
   'assetName',
@@ -49,6 +52,9 @@ export type ProjectModelSyncTaskRecord = {
   fileType: string | null
   fileSize: number | string | null
   status: ModelSyncTaskStatus
+  progressPercent: number | string | null
+  progressPhase: string | null
+  progressMessage: string | null
   seedId: string | null
   assetId: string | null
   assetName: string | null
@@ -204,6 +210,9 @@ export const createProjectModelSyncTaskFactory =
         versionId: null,
         fileType: null,
         fileSize: null,
+        progressPercent: null,
+        progressPhase: null,
+        progressMessage: null,
         seedId: null,
         assetId: null,
         assetName: null,
@@ -235,6 +244,9 @@ export const updateProjectModelSyncTaskFactory =
         | 'fileType'
         | 'fileSize'
         | 'status'
+        | 'progressPercent'
+        | 'progressPhase'
+        | 'progressMessage'
         | 'seedId'
         | 'assetId'
         | 'assetName'
