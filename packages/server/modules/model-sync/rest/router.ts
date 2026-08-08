@@ -5,7 +5,7 @@ import { buildAuthPolicies } from '@/modules'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
-import { BadRequestError } from '@/modules/shared/errors'
+import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
   createProjectModelSyncTaskFactory,
@@ -62,6 +62,12 @@ const requireProjectUpdate = async (req: Request, projectId: string) => {
       projectId
     })
   )
+}
+
+const requireAuthenticatedUser = (req: Request) => {
+  if (!req.context.userId) {
+    throw new UnauthorizedError('User not authenticated.')
+  }
 }
 
 const serializeTask = (task: ProjectModelSyncTaskRecord) => ({
@@ -127,7 +133,7 @@ export const modelSyncRouterFactory = () => {
     async (req, res, next) => {
       try {
         const projectId = req.params.projectId
-        await requireProjectRead(req, projectId)
+        requireAuthenticatedUser(req)
 
         const status = typeof req.query.status === 'string' ? req.query.status : 'active'
         const projectDb = await getProjectDbClient({ projectId })

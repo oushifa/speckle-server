@@ -101,6 +101,33 @@ export const listProjectModelSyncTasksFactory =
       .orderBy(ProjectModelSyncTasks.col.createdAt, 'desc')
       .limit(params.limit || 20)
 
+export const listProjectModelSyncTasksByFileUploadIdFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    fileUploadId: string
+    activeOnly?: boolean
+    limit?: number
+  }): Promise<ProjectModelSyncTaskRecord[]> => {
+    const query = tables
+      .tasks(deps.db)
+      .where({
+        [ProjectModelSyncTasks.col.projectId]: params.projectId,
+        [ProjectModelSyncTasks.col.fileUploadId]: params.fileUploadId
+      })
+      .orderBy(ProjectModelSyncTasks.col.createdAt, 'desc')
+
+    if (params.activeOnly) {
+      query.whereNotIn(ProjectModelSyncTasks.col.status, ['succeeded', 'failed'])
+    }
+
+    if (params.limit) {
+      query.limit(params.limit)
+    }
+
+    return await query
+  }
+
 export const listActiveProjectModelSyncTasksFactory =
   (deps: { db: Knex }) =>
   async (params: {

@@ -25,28 +25,24 @@ import {
   updateRvtConversionJobFactory
 } from '@/modules/rvt-conversion/repositories/jobs'
 import { getRvtConversionDownloadStorage } from '@/modules/rvt-conversion/services/storage'
+import {
+  acknowledgeRvtConversionJob,
+  completeRvtConversionJob
+} from '@/modules/rvt-conversion/services/lifecycle'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
-import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
-import type { FileUploadRecord } from '@/modules/fileuploads/helpers/types'
-import {
-  getFileInfoFactoryV2,
-  updateFileUploadFactory
-} from '@/modules/fileuploads/repositories/fileUploads'
 import { authorizeResolver, validateScopes } from '@/modules/shared'
 import {
   getFileSizeLimitMB,
   getFileUploadUrlExpiryMinutes
 } from '@/modules/shared/helpers/envHelper'
-import { getEventBus } from '@/modules/shared/services/eventBus'
 import { moduleLogger } from '@/observability/logging'
 import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const DownloadUrlExpirySeconds = 24 * 60 * 60
 const sourceApplicationDefault = 'External RVT Converter'
 const serviceTokenHeader = 'x-rvt-conversion-token'
-const serviceUpdater = 'rvt-conversion-service'
 const rvtRouterLogger = moduleLogger.child({
   module: 'rvt-conversion',
   component: 'rest-router'
@@ -173,91 +169,6 @@ const buildSourceObjectKey = (params: {
 const maxFileSizeBytes = () => getFileSizeLimitMB() * 1024 * 1024
 const isNoWorkerAvailableError = (error: unknown) =>
   error instanceof Error && error.message === 'No connected RVT worker is available.'
-
-const updateFileUploadFromRvtJobFactory = (deps: {
-  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
-}) => {
-  const getFileInfo = getFileInfoFactoryV2({ db: deps.projectDb })
-  const updateFileUpload = updateFileUploadFactory({ db: deps.projectDb })
-  const emitFileStatusChange = notifyChangeInFileStatus({
-    eventEmit: getEventBus().emit
-  })
-
-  return async (params: {
-    job: NonNullable<
-      Awaited<ReturnType<ReturnType<typeof getRvtConversionJobByIdFactory>>>
-    >
-    status: FileUploadConvertedStatus
-    convertedMessage: string | null
-    convertedCommitId: string | null
-  }) => {
-    rvtRouterLogger.info(
-      {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId,
-        convertedStatus: params.status,
-        convertedCommitId: params.convertedCommitId,
-        hasConvertedMessage: !!params.convertedMessage
-      },
-      'RVT CONVERT file upload status sync started'
-    )
-
-    const fileUpload = await getFileInfo({
-      fileId: params.job.sourceFileId,
-      projectId: params.job.projectId
-    })
-    if (!fileUpload) {
-      rvtRouterLogger.warn(
-        {
-          projectId: params.job.projectId,
-          modelId: params.job.modelId,
-          jobId: params.job.id,
-          sourceFileId: params.job.sourceFileId
-        },
-        'RVT CONVERT file upload not found during status sync'
-      )
-      return
-    }
-
-    const updatedFile = (await updateFileUpload({
-      id: fileUpload.id,
-      upload: {
-        convertedStatus: params.status,
-        convertedMessage: params.convertedMessage,
-        convertedCommitId: params.convertedCommitId,
-        convertedLastUpdate: new Date()
-      }
-    })) as FileUploadRecord
-
-    rvtRouterLogger.info(
-      {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId,
-        convertedStatus: updatedFile.convertedStatus,
-        convertedCommitId: updatedFile.convertedCommitId
-      },
-      'RVT CONVERT file upload status updated'
-    )
-
-    await emitFileStatusChange({
-      file: updatedFile
-    })
-
-    rvtRouterLogger.info(
-      {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId
-      },
-      'RVT CONVERT file upload status event emitted'
-    )
-  }
-}
 
 const serializeJob = (
   job: Awaited<ReturnType<ReturnType<typeof getRvtConversionJobByIdFactory>>>
@@ -900,10 +811,6 @@ export const rvtConversionRouterFactory = (): Router => {
       )
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
-      const updateJob = updateRvtConversionJobFactory({ db: projectDb })
-      const updateFileUploadFromRvtJob = updateFileUploadFromRvtJobFactory({
-        projectDb
-      })
       const job = await getJob({ id: jobId })
 
       if (!job) {
@@ -918,46 +825,46 @@ export const rvtConversionRouterFactory = (): Router => {
         return res.status(404).send({ error: 'Job not found.' })
       }
 
-      const updatedJob = await updateJob({
-        id: jobId,
-        item: {
-          status: 'acknowledged',
-          externalTaskId: req.body.externalTaskId || job.externalTaskId,
-          acknowledgedAt: new Date(),
-          updater: serviceUpdater
-        }
+      const updatedJob = await acknowledgeRvtConversionJob({
+        projectId,
+        taskId: jobId,
+        externalTaskId: req.body.externalTaskId || null
       })
+      if (!updatedJob) {
+        rvtRouterLogger.warn(
+          {
+            projectId,
+            jobId,
+            externalTaskId: req.body.externalTaskId || null
+          },
+          'RVT CONVERT job ack request could not persist updated job'
+        )
+        return res.status(404).send({ error: 'Job not found.' })
+      }
 
       rvtRouterLogger.info(
         {
           projectId,
-          modelId: (updatedJob || job).modelId,
+          modelId: updatedJob.modelId,
           jobId,
-          sourceFileId: (updatedJob || job).sourceFileId,
-          externalTaskId: (updatedJob || job).externalTaskId,
-          acknowledgedAt: (updatedJob || job).acknowledgedAt
+          sourceFileId: updatedJob.sourceFileId,
+          externalTaskId: updatedJob.externalTaskId,
+          acknowledgedAt: updatedJob.acknowledgedAt
         },
         'RVT CONVERT job acknowledged successfully'
       )
 
-      await updateFileUploadFromRvtJob({
-        job: updatedJob || job,
-        status: FileUploadConvertedStatus.Converting,
-        convertedMessage: '转换服务已接单',
-        convertedCommitId: null
-      })
-
       rvtRouterLogger.info(
         {
           projectId,
-          modelId: (updatedJob || job).modelId,
+          modelId: updatedJob.modelId,
           jobId,
-          sourceFileId: (updatedJob || job).sourceFileId
+          sourceFileId: updatedJob.sourceFileId
         },
         'RVT CONVERT job ack file upload sync completed'
       )
 
-      return res.send({ job: serializeJob(updatedJob || job) })
+      return res.send({ job: serializeJob(updatedJob) })
     }
   )
 
@@ -983,10 +890,6 @@ export const rvtConversionRouterFactory = (): Router => {
       )
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
-      const updateJob = updateRvtConversionJobFactory({ db: projectDb })
-      const updateFileUploadFromRvtJob = updateFileUploadFromRvtJobFactory({
-        projectDb
-      })
       const job = await getJob({ id: jobId })
 
       if (!job) {
@@ -1002,59 +905,57 @@ export const rvtConversionRouterFactory = (): Router => {
         return res.status(404).send({ error: 'Job not found.' })
       }
 
-      const now = new Date()
-      const updatedJob = await updateJob({
-        id: jobId,
-        item:
-          req.body.status === 'success'
-            ? {
-                status: 'succeeded',
-                externalTaskId: req.body.externalTaskId || job.externalTaskId,
-                versionId: req.body.versionId,
-                errorMessage: null,
-                finishedAt: now,
-                updater: serviceUpdater
-              }
-            : {
-                status: 'failed',
-                externalTaskId: req.body.externalTaskId || job.externalTaskId,
-                errorMessage: req.body.errorMessage,
-                finishedAt: now,
-                updater: serviceUpdater
-              }
-      })
+      const updatedJob = await completeRvtConversionJob(
+        req.body.status === 'success'
+          ? {
+              projectId,
+              taskId: jobId,
+              status: 'success',
+              externalTaskId: req.body.externalTaskId || null,
+              versionId: req.body.versionId
+            }
+          : {
+              projectId,
+              taskId: jobId,
+              status: 'failed',
+              externalTaskId: req.body.externalTaskId || null,
+              errorMessage: req.body.errorMessage
+            }
+      )
+      if (!updatedJob) {
+        rvtRouterLogger.warn(
+          {
+            projectId,
+            jobId,
+            status: req.body.status,
+            externalTaskId: req.body.externalTaskId || null
+          },
+          'RVT CONVERT job result request could not persist updated job'
+        )
+        return res.status(404).send({ error: 'Job not found.' })
+      }
 
       rvtRouterLogger.info(
         {
           projectId,
-          modelId: (updatedJob || job).modelId,
+          modelId: updatedJob.modelId,
           jobId,
-          sourceFileId: (updatedJob || job).sourceFileId,
-          status: (updatedJob || job).status,
-          externalTaskId: (updatedJob || job).externalTaskId,
-          versionId: (updatedJob || job).versionId,
-          errorMessage: (updatedJob || job).errorMessage,
-          finishedAt: (updatedJob || job).finishedAt
+          sourceFileId: updatedJob.sourceFileId,
+          status: updatedJob.status,
+          externalTaskId: updatedJob.externalTaskId,
+          versionId: updatedJob.versionId,
+          errorMessage: updatedJob.errorMessage,
+          finishedAt: updatedJob.finishedAt
         },
         'RVT CONVERT job result persisted successfully'
       )
 
-      await updateFileUploadFromRvtJob({
-        job: updatedJob || job,
-        status:
-          req.body.status === 'success'
-            ? FileUploadConvertedStatus.Completed
-            : FileUploadConvertedStatus.Error,
-        convertedMessage: req.body.status === 'success' ? null : req.body.errorMessage,
-        convertedCommitId: req.body.status === 'success' ? req.body.versionId : null
-      })
-
       rvtRouterLogger.info(
         {
           projectId,
-          modelId: (updatedJob || job).modelId,
+          modelId: updatedJob.modelId,
           jobId,
-          sourceFileId: (updatedJob || job).sourceFileId,
+          sourceFileId: updatedJob.sourceFileId,
           convertedStatus:
             req.body.status === 'success'
               ? FileUploadConvertedStatus.Completed
@@ -1064,7 +965,7 @@ export const rvtConversionRouterFactory = (): Router => {
         'RVT CONVERT job result file upload sync completed'
       )
 
-      return res.send({ job: serializeJob(updatedJob || job) })
+      return res.send({ job: serializeJob(updatedJob) })
     }
   )
 

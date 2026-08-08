@@ -1,6 +1,10 @@
 import { getRvtConversionSpeckleServerOrigin } from '@/modules/shared/helpers/envHelper'
 import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/jobs'
 import { getAvailableRvtWorker } from '@/modules/rvt-conversion/services/workerRegistry'
+import {
+  trackRvtConversionTask,
+  untrackRvtConversionTask
+} from '@/modules/rvt-conversion/services/taskRegistry'
 import { moduleLogger } from '@/observability/logging'
 
 const rvtDispatcherLogger = moduleLogger.child({
@@ -66,10 +70,19 @@ export const dispatchRvtConversionJob = async (
     'RVT CONVERT start_rvt_conversion dispatch started'
   )
 
+  trackRvtConversionTask({
+    taskId: params.job.id,
+    projectId: params.job.projectId,
+    modelId: params.job.modelId,
+    sourceFileId: params.job.sourceFileId,
+    workerId: worker.workerId
+  })
+
   await new Promise<void>((resolve, reject) => {
     try {
       worker.socket.send(JSON.stringify(payload), (error) => {
         if (error) {
+          untrackRvtConversionTask(params.job.id)
           rvtDispatcherLogger.error(
             {
               projectId: params.job.projectId,
@@ -102,6 +115,7 @@ export const dispatchRvtConversionJob = async (
         resolve()
       })
     } catch (error) {
+      untrackRvtConversionTask(params.job.id)
       rvtDispatcherLogger.error(
         {
           projectId: params.job.projectId,

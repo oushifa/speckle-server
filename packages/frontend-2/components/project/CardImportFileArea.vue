@@ -22,6 +22,12 @@
           {{ fileUpload.file.name }}
         </span>
         <span
+          v-if="activeStatusMessage && !errorMessage"
+          class="text-center text-body-3xs text-foreground-2"
+        >
+          {{ activeStatusMessage }}
+        </span>
+        <span
           v-if="errorMessage"
           class="text-danger inline-flex space-x-1 items-center text-center"
         >
@@ -107,13 +113,16 @@ import { ExclamationTriangleIcon } from '@heroicons/vue/24/solid'
 import { connectorsRoute } from '~/lib/common/helpers/route'
 import type { Nullable } from '@speckle/shared'
 import { graphql } from '~/lib/common/generated/gql'
+import { ToastNotificationType } from '@speckle/ui-components'
 import type {
   ProjectCardImportFileArea_ModelFragment,
   ProjectCardImportFileArea_ProjectFragment,
   ProjectPageLatestItemsModelItemFragment
 } from '~/lib/common/generated/gql/graphql'
 import type { FileAreaUploadingPayload } from '~/lib/form/helpers/fileUpload'
+import { resolveFileExtension } from '@speckle/ui-components'
 import { rhinoImporterSupportedFileExtensions } from '@speckle/shared/blobs'
+import { useModelSync } from '~/lib/projects/composables/useModelSync'
 
 type EmptyStateVariants = 'modelGrid' | 'modelList' | 'modelsSection'
 
@@ -158,6 +167,22 @@ const props = defineProps<{
 
 const isRhinoFileImporterEnabled = useIsRhinoFileImporterEnabled()
 const { addFailedJob } = useGlobalFileImportManager()
+const { triggerNotification } = useGlobalToast()
+const {
+  createUploadTask,
+  uploadTaskFile,
+  completeUpload,
+  waitForTask,
+  getTaskStatusMeta,
+  getTaskStatusText,
+  getErrorMessage: getModelSyncErrorMessage
+} = useModelSync()
+const modelSyncStatusMessage = ref<string | null>(null)
+const getSelectedFileExtension = (fileName?: string | null) =>
+  String(resolveFileExtension(fileName || '') || '').toLowerCase()
+const isRvtUpload = computed(
+  () => getSelectedFileExtension(fileUpload.value?.file.name) === 'rvt'
+)
 const {
   maxSizeInBytes,
   onFilesSelected,
@@ -185,12 +210,76 @@ const {
     // Register global file upload error and reset upload
     addFailedJob(failedJob)
     resetSelected()
+  },
+  customUploadHandler: async ({
+    file,
+    projectId,
+    modelId,
+    onProgress
+  }) => {
+      if (getSelectedFileExtension(file.name) !== 'rvt') {
+      modelSyncStatusMessage.value = null
+      return false
+    }
+
+    modelSyncStatusMessage.value = '正在创建模型同步任务'
+    onProgress(3)
+
+    const created = await createUploadTask({
+      projectId,
+      modelId,
+      fileName: file.name
+    })
+
+    modelSyncStatusMessage.value = '正在上传 RVT 源文件'
+    const { etag } = await uploadTaskFile({
+      uploadUrl: created.upload.uploadUrl,
+      file,
+      onProgress: (progress) => {
+        onProgress(Math.max(5, Math.min(30, Math.floor(progress * 0.3))))
+      }
+    })
+
+    modelSyncStatusMessage.value = '源文件上传完成，等待 Speckle 转换'
+    onProgress(35)
+
+    const startedTask = await completeUpload({
+      projectId,
+      modelId,
+      taskId: created.data.id,
+      etag
+    })
+
+    const finalTask = await waitForTask({
+      projectId,
+      modelId,
+      taskId: startedTask.data.id,
+      onUpdate: (task) => {
+        const meta = getTaskStatusMeta(task.status)
+        modelSyncStatusMessage.value = getTaskStatusText(task)
+        onProgress(meta.progress)
+      }
+    })
+
+    if (finalTask.status === 'failed') {
+      throw new Error(finalTask.error || '模型同步失败')
+    }
+
+    modelSyncStatusMessage.value = '模型转换与同步完成'
+    triggerNotification({
+      title: '模型同步完成',
+      description: 'RVT 文件已完成转换并同步。',
+      type: ToastNotificationType.Success
+    })
+
+    return true
   }
 })
 const { errorMessage, progressBarClasses, progressBarStyle } =
   useFileUploadProgressCore({
     item: fileUpload
   })
+const activeStatusMessage = computed(() => modelSyncStatusMessage.value)
 
 const uploadZone = ref(
   null as Nullable<{
@@ -319,6 +408,7 @@ watch(showNewModelDialog, (newVal, oldVal) => {
   if (oldVal && !newVal) {
     // Should we unselect file? Only if model was not created
     if (!isUploading.value) {
+      modelSyncStatusMessage.value = null
       resetSelected()
     }
   }
@@ -334,6 +424,14 @@ watch(isUploading, (newVal, oldVal) => {
 
   if (!newVal && oldVal) {
     // Reset file upload state when upload finishes
+    if (errorMessage.value && isRvtUpload.value) {
+      triggerNotification({
+        title: '模型同步失败',
+        description: getModelSyncErrorMessage(errorMessage.value),
+        type: ToastNotificationType.Danger
+      })
+    }
+    modelSyncStatusMessage.value = null
     resetSelected()
   }
 })

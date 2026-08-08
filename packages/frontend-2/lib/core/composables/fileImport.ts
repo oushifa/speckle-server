@@ -394,6 +394,20 @@ export function useFileImport(params: {
    * Optionally handle errors that occur either on file selection or during upload (NOT during the async import job)
    */
   errorCallback?: Optional<(params: { failedJob: FailedFileImportJob }) => void>
+  /**
+   * Optional custom uploader. Return true to mark the upload as handled and skip the default import flow.
+   */
+  customUploadHandler?: Optional<
+    (params: {
+      file: File
+      projectId: string
+      modelName: string
+      modelId: string
+      authToken: string
+      apiOrigin: string
+      onProgress: (percentage: number) => void
+    }) => Promise<boolean>
+  >
 }) {
   const {
     project,
@@ -401,11 +415,15 @@ export function useFileImport(params: {
     manuallyTriggerUpload,
     fileUploadedCallback,
     fileSelectedCallback,
-    errorCallback
+    errorCallback,
+    customUploadHandler
   } = params
 
   const { maxSizeInBytes, accept } = useFileImportBaseSettings()
-  const logger = useLogger()
+    const logger = useLogger() as {
+      error: (context: unknown, message: string) => void
+      warn: (context: unknown, message: string) => void
+    }
   const { importFile } = useFileImportApi()
   const authToken = useAuthCookie()
   const apiOrigin = useApiOrigin()
@@ -504,22 +522,44 @@ export function useFileImport(params: {
         throw new Error('文件导入失败，未提供模型')
       }
 
-      const res = await importFile(
-        {
-          file: upload.value.file,
-          projectId: unref(project).id,
-          modelName: upload.value.model.name,
-          modelId: upload.value.model.id,
-          authToken: authToken.value,
-          apiOrigin
-        },
-        {
-          onProgress: (percentage) => {
-            if (upload.value) upload.value.progress = percentage
-          }
+      const onProgress = (percentage: number) => {
+        if (upload.value) upload.value.progress = percentage
+      }
+
+      const handledByCustomUpload = customUploadHandler
+        ? await customUploadHandler({
+            file: upload.value.file,
+            projectId: unref(project).id,
+            modelName: upload.value.model.name,
+            modelId: upload.value.model.id,
+            authToken: authToken.value,
+            apiOrigin,
+            onProgress
+          })
+        : false
+
+      if (handledByCustomUpload) {
+        upload.value.result = {
+          uploadStatus: BlobUploadStatus.Completed,
+          uploadError: '',
+          formKey: 'file'
         }
-      )
-      upload.value.result = res
+      } else {
+        const res = await importFile(
+          {
+            file: upload.value.file,
+            projectId: unref(project).id,
+            modelName: upload.value.model.name,
+            modelId: upload.value.model.id,
+            authToken: authToken.value,
+            apiOrigin
+          },
+          {
+            onProgress
+          }
+        )
+        upload.value.result = res
+      }
 
       mp.track('Upload Action', {
         type: 'action',
