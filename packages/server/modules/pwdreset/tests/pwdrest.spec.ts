@@ -6,7 +6,7 @@ import { beforeEachContext } from '@/test/hooks'
 import { localAuthRestApi } from '@/modules/auth/tests/helpers/registration'
 import { expectToThrow } from '@/test/assertionHelper'
 import { expect } from 'chai'
-import { createTestUser } from '@/test/authHelper'
+import { createAuthTokenForUser, createTestUser } from '@/test/authHelper'
 import { createRandomEmail } from '@/modules/core/helpers/testHelpers'
 import cryptoRandomString from 'crypto-random-string'
 
@@ -109,6 +109,51 @@ describe('Password reset requests @passwordresets', () => {
           challenge: '123'
         })
     )
+    expect(e).to.be.ok
+    expect(e.message).to.contain('Invalid credentials')
+  })
+
+  it('Should change password for authenticated users', async () => {
+    const user = await createTestUser({
+      name: cryptoRandomString({ length: 10 }),
+      email: createRandomEmail(),
+      password: cryptoRandomString({ length: 8 }),
+      id: ''
+    })
+
+    const authRestApi = localAuthRestApi({ express: app })
+    const authToken = await createAuthTokenForUser(user.id)
+    const newPassword = 'NewPassword1'
+
+    await request(app).post('/auth/pwdreset/change').expect(401)
+
+    await request(app)
+      .post('/auth/pwdreset/change')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ oldPassword: 'wrong-password', newPassword })
+      .expect(400)
+
+    await request(app)
+      .post('/auth/pwdreset/change')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ oldPassword: user.password, newPassword })
+      .expect(200)
+
+    await authRestApi.login({
+      email: user.email,
+      password: newPassword,
+      challenge: '123'
+    })
+
+    const e = await expectToThrow(
+      async () =>
+        await authRestApi.login({
+          email: user.email,
+          password: user.password!,
+          challenge: '123'
+        })
+    )
+
     expect(e).to.be.ok
     expect(e.message).to.contain('Invalid credentials')
   })

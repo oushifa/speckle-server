@@ -6,7 +6,10 @@ import {
   getUserFactory,
   updateUserFactory
 } from '@/modules/core/repositories/users'
-import { changePasswordFactory } from '@/modules/core/services/users/management'
+import {
+  changePasswordFactory,
+  validateUserPasswordFactory
+} from '@/modules/core/services/users/management'
 import { renderEmail } from '@/modules/emails/services/emailRendering'
 import { sendEmail } from '@/modules/emails/services/sending'
 import { getAllRegisteredDbs } from '@/modules/multiregion/utils/dbSelector'
@@ -100,6 +103,74 @@ export default function (app: Express) {
     } catch (e: unknown) {
       req.log.info({ err: e }, 'Error while finalizing password recovery.')
       res.status(400).send(ensureError(e).message)
+    }
+  })
+
+  // Change password for the currently authenticated user.
+  app.post('/auth/pwdreset/change', async (req, res) => {
+    const logger = req.log
+
+    try {
+      if (!req.context.auth || !req.context.userId) {
+        return res.status(401).send('Authentication required.')
+      }
+
+      if (!req.body.oldPassword || !req.body.newPassword) {
+        throw new BadRequestError('Invalid request.')
+      }
+
+      await asMultiregionalOperation(
+        async ({ mainDb, allDbs }) => {
+          const getCurrentUser = getUserFactory({ db: mainDb })
+          const currentUser = await getCurrentUser(req.context.userId!, {
+            skipClean: true
+          })
+
+          if (!currentUser?.email) {
+            throw new BadRequestError('Could not resolve current user.')
+          }
+
+          const validateUserPassword = validateUserPasswordFactory({
+            getUserByEmail: getUserByEmailFactory({ db: mainDb })
+          })
+          const passwordMatches = await validateUserPassword({
+            email: currentUser.email,
+            password: req.body.oldPassword
+          })
+
+          if (!passwordMatches) {
+            throw new BadRequestError('Current password is incorrect.')
+          }
+
+          const updateUserPassword = changePasswordFactory({
+            getUser: getCurrentUser,
+            updateUser: async (...params) => {
+              const [result] = await Promise.all(
+                allDbs.map((db) => updateUserFactory({ db })(...params))
+              )
+
+              return result
+            }
+          })
+
+          await updateUserPassword({
+            id: currentUser.id,
+            newPassword: req.body.newPassword
+          })
+          await deleteExistingAuthTokensFactory({ db: mainDb })(currentUser.id)
+        },
+        {
+          logger,
+          dbs: await getAllRegisteredDbs(),
+          name: 'changePassword',
+          description: 'Changing current user password'
+        }
+      )
+
+      return res.status(200).send('Password changed. Please log in.')
+    } catch (e: unknown) {
+      req.log.info({ err: e }, 'Error while changing password.')
+      return res.status(400).send(ensureError(e).message)
     }
   })
 }

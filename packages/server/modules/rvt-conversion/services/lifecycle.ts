@@ -1,5 +1,6 @@
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
+  ActiveRvtConversionJobStatuses,
   getRvtConversionJobByIdFactory,
   updateRvtConversionJobFactory,
   type RvtConversionJob
@@ -343,6 +344,19 @@ export const progressRvtConversionJob = async (params: {
       'RVT_CONVERT progress lifecycle job not found'
     )
     return null
+  }
+
+  if (!ActiveRvtConversionJobStatuses.includes(job.status)) {
+    lifecycleLogger.info(
+      {
+        ...buildRvtJobLogContext(job),
+        phase: params.phase,
+        progress: params.progress,
+        externalTaskId: params.externalTaskId || null
+      },
+      'RVT_CONVERT progress lifecycle ignored because job is already completed'
+    )
+    return job
   }
 
   const updatedJob = await updateJob({

@@ -259,6 +259,18 @@ export const initRvtConversionWsServer = () => {
                 },
                 'RVT_CONVERT progress received for missing job'
               )
+            } else if (job.status === 'succeeded' || job.status === 'failed') {
+              wsLogger.info(
+                {
+                  workerId,
+                  projectId,
+                  taskId: message.taskId,
+                  jobStatus: job.status,
+                  phase: message.phase,
+                  progress: message.progress
+                },
+                'RVT_CONVERT stale progress ignored because result was already received'
+              )
             } else {
               wsLogger.info(
                 {

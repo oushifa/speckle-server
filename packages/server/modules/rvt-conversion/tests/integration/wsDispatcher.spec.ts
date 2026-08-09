@@ -321,5 +321,41 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       10,
       200
     )
+
+    workerSocket.send(
+      JSON.stringify({
+        type: 'rvt_conversion_progress',
+        taskId: payload.taskId,
+        externalTaskId: 'ext-progress-1',
+        phase: 'converting',
+        progress: 88,
+        message: '这条进度应该被忽略',
+        current: 88,
+        total: 100
+      })
+    )
+
+    await retry(
+      async () => {
+        const job = await getJob({ id: payload.taskId })
+        expect(job).to.not.be.null
+        expect(job?.status).to.equal('succeeded')
+        expect(job?.versionId).to.equal('version-progress-1')
+
+        const file = await getFileInfo({
+          fileId: uploadUrlResponse.body.fileId,
+          projectId: project.id
+        })
+        expect(file).to.not.be.undefined
+        expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Completed)
+        expect(file?.progressPercent).to.equal(100)
+        expect(file?.progressPhase).to.equal('completed')
+        expect(file?.progressMessage).to.equal('转换完成')
+        expect(file?.convertedCommitId).to.equal('version-progress-1')
+        expect(file?.convertedMessage).to.equal(null)
+      },
+      10,
+      200
+    )
   })
 })
