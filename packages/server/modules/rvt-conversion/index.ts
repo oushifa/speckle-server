@@ -1,7 +1,7 @@
 import type cron from 'node-cron'
 import type { SpeckleModule } from '@/modules/shared/helpers/typeHelper'
-import { moduleLogger } from '@/observability/logging'
 import { rvtConversionRouterFactory } from '@/modules/rvt-conversion/rest/router'
+import { createRvtConvertLogger } from '@/modules/rvt-conversion/services/logging'
 import { shutdownRvtConversionWsServer } from '@/modules/rvt-conversion/services/wsServer'
 import { db } from '@/db/knex'
 import { scheduleExecutionFactory } from '@/modules/core/services/taskScheduler'
@@ -15,12 +15,13 @@ import { TIME } from '@speckle/shared'
 
 const EveryFiveMinutes = '*/5 * * * *'
 const HalfDayInSeconds = 12 * TIME.hour
+const rvtModuleLogger = createRvtConvertLogger('module')
 
 let scheduledTask: cron.ScheduledTask | null = null
 
 const rvtConversionModule: SpeckleModule = {
   async init({ app, isInitial }) {
-    moduleLogger.info('🧱 Init RVT conversion module')
+    rvtModuleLogger.info('RVT_CONVERT init module')
     app.use(rvtConversionRouterFactory())
 
     if (isInitial) {
@@ -49,10 +50,11 @@ const rvtConversionModule: SpeckleModule = {
           logger.info(
             {
               module: 'rvt-conversion',
+              tag: 'RVT_CONVERT',
               expiredJobsCount: results.reduce((sum, jobs) => sum + jobs.length, 0),
               timeoutThresholdSeconds: HalfDayInSeconds
             },
-            'RVT CONVERT expiry task completed'
+            'RVT_CONVERT expiry task completed'
           )
         }
       )

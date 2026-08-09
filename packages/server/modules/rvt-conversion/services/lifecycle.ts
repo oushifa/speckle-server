@@ -18,13 +18,13 @@ import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/managem
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 import type { FileUploadRecord } from '@/modules/fileuploads/helpers/types'
-import { moduleLogger } from '@/observability/logging'
+import {
+  buildRvtJobLogContext,
+  createRvtConvertLogger
+} from '@/modules/rvt-conversion/services/logging'
 
 const serviceUpdater = 'rvt-conversion-service'
-const lifecycleLogger = moduleLogger.child({
-  module: 'rvt-conversion',
-  component: 'lifecycle'
-})
+const lifecycleLogger = createRvtConvertLogger('lifecycle')
 
 const syncFileUploadFromRvtJobFactory = (deps: {
   projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
@@ -46,15 +46,14 @@ const syncFileUploadFromRvtJobFactory = (deps: {
   }) => {
     lifecycleLogger.info(
       {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId,
+        ...buildRvtJobLogContext(params.job),
         convertedStatus: params.status,
         convertedCommitId: params.convertedCommitId,
-        hasConvertedMessage: !!params.convertedMessage
+        hasConvertedMessage: !!params.convertedMessage,
+        progressPercent: params.progressPercent ?? null,
+        progressPhase: params.progressPhase ?? null
       },
-      'RVT CONVERT file upload status sync started'
+      'RVT_CONVERT file upload status sync started'
     )
 
     const fileUpload = await getFileInfo({
@@ -64,12 +63,9 @@ const syncFileUploadFromRvtJobFactory = (deps: {
     if (!fileUpload) {
       lifecycleLogger.warn(
         {
-          projectId: params.job.projectId,
-          modelId: params.job.modelId,
-          jobId: params.job.id,
-          sourceFileId: params.job.sourceFileId
+          ...buildRvtJobLogContext(params.job)
         },
-        'RVT CONVERT file upload not found during status sync'
+        'RVT_CONVERT file upload not found during status sync'
       )
       return
     }
@@ -98,14 +94,13 @@ const syncFileUploadFromRvtJobFactory = (deps: {
 
     lifecycleLogger.info(
       {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId,
+        ...buildRvtJobLogContext(params.job),
         convertedStatus: updatedFile.convertedStatus,
-        convertedCommitId: updatedFile.convertedCommitId
+        convertedCommitId: updatedFile.convertedCommitId,
+        progressPercent: updatedFile.progressPercent,
+        progressPhase: updatedFile.progressPhase
       },
-      'RVT CONVERT file upload status updated'
+      'RVT_CONVERT file upload status updated'
     )
 
     await emitFileStatusChange({
@@ -114,12 +109,9 @@ const syncFileUploadFromRvtJobFactory = (deps: {
 
     lifecycleLogger.info(
       {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId
+        ...buildRvtJobLogContext(params.job)
       },
-      'RVT CONVERT file upload status event emitted'
+      'RVT_CONVERT file upload status event emitted'
     )
   }
 }
@@ -162,6 +154,15 @@ const syncRelatedModelSyncTasksFromRvtJob = async (params: {
     activeOnly: true
   })
 
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(params.job),
+      relatedTaskCount: relatedTasks.length,
+      patch: params.patch
+    },
+    'RVT_CONVERT model sync task sync started'
+  )
+
   for (const task of relatedTasks) {
     const updatedTask = await updateTask({
       projectId: task.projectId,
@@ -171,9 +172,27 @@ const syncRelatedModelSyncTasksFromRvtJob = async (params: {
     })
 
     if (updatedTask) {
+      lifecycleLogger.info(
+        {
+          ...buildRvtJobLogContext(params.job),
+          relatedTaskId: updatedTask.id,
+          relatedTaskStatus: updatedTask.status,
+          relatedTaskProgressPhase: updatedTask.progressPhase,
+          relatedTaskProgressPercent: updatedTask.progressPercent
+        },
+        'RVT_CONVERT model sync task updated'
+      )
       emitModelSyncTaskUpdated(updatedTask)
     }
   }
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(params.job),
+      relatedTaskCount: relatedTasks.length
+    },
+    'RVT_CONVERT model sync task sync completed'
+  )
 }
 
 const buildProgressMessage = (params: {
@@ -208,10 +227,29 @@ export const acknowledgeRvtConversionJob = async (params: {
   taskId: string
   externalTaskId?: string | null
 }) => {
+  lifecycleLogger.info(
+    {
+      projectId: params.projectId,
+      jobId: params.taskId,
+      externalTaskId: params.externalTaskId || null
+    },
+    'RVT_CONVERT acknowledge lifecycle started'
+  )
+
   const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
     await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
-  if (!job) return null
+  if (!job) {
+    lifecycleLogger.warn(
+      {
+        projectId: params.projectId,
+        jobId: params.taskId,
+        externalTaskId: params.externalTaskId || null
+      },
+      'RVT_CONVERT acknowledge lifecycle job not found'
+    )
+    return null
+  }
 
   const updatedJob = await updateJob({
     id: params.taskId,
@@ -222,6 +260,15 @@ export const acknowledgeRvtConversionJob = async (params: {
       updater: serviceUpdater
     }
   })
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      externalTaskId: params.externalTaskId || job.externalTaskId || null,
+      acknowledgedAt: (updatedJob || job).acknowledgedAt
+    },
+    'RVT_CONVERT acknowledge lifecycle persisted job state'
+  )
 
   await syncFileUploadFromRvtJob({
     job: updatedJob || job,
@@ -248,6 +295,14 @@ export const acknowledgeRvtConversionJob = async (params: {
     }
   })
 
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      externalTaskId: (updatedJob || job).externalTaskId || null
+    },
+    'RVT_CONVERT acknowledge lifecycle completed'
+  )
+
   return updatedJob || job
 }
 
@@ -261,10 +316,34 @@ export const progressRvtConversionJob = async (params: {
   current?: number
   total?: number
 }) => {
+  lifecycleLogger.info(
+    {
+      projectId: params.projectId,
+      jobId: params.taskId,
+      phase: params.phase,
+      progress: params.progress,
+      externalTaskId: params.externalTaskId || null,
+      current: params.current ?? null,
+      total: params.total ?? null
+    },
+    'RVT_CONVERT progress lifecycle started'
+  )
+
   const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
     await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
-  if (!job) return null
+  if (!job) {
+    lifecycleLogger.warn(
+      {
+        projectId: params.projectId,
+        jobId: params.taskId,
+        phase: params.phase,
+        progress: params.progress
+      },
+      'RVT_CONVERT progress lifecycle job not found'
+    )
+    return null
+  }
 
   const updatedJob = await updateJob({
     id: params.taskId,
@@ -277,6 +356,16 @@ export const progressRvtConversionJob = async (params: {
   })
 
   const progressState = buildProgressState(params)
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      phase: params.phase,
+      progress: params.progress,
+      progressState
+    },
+    'RVT_CONVERT progress lifecycle persisted job state'
+  )
 
   await syncFileUploadFromRvtJob({
     job: updatedJob || job,
@@ -303,6 +392,16 @@ export const progressRvtConversionJob = async (params: {
     }
   })
 
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      phase: params.phase,
+      progress: params.progress,
+      progressState
+    },
+    'RVT_CONVERT progress lifecycle completed'
+  )
+
   return updatedJob || job
 }
 
@@ -323,10 +422,39 @@ export const completeRvtConversionJob = async (
         errorMessage: string
       }
 ) => {
+  lifecycleLogger.info(
+    params.status === 'success'
+      ? {
+          projectId: params.projectId,
+          jobId: params.taskId,
+          status: params.status,
+          externalTaskId: params.externalTaskId || null,
+          versionId: params.versionId
+        }
+      : {
+          projectId: params.projectId,
+          jobId: params.taskId,
+          status: params.status,
+          externalTaskId: params.externalTaskId || null,
+          errorMessage: params.errorMessage
+        },
+    'RVT_CONVERT result lifecycle started'
+  )
+
   const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
     await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
-  if (!job) return null
+  if (!job) {
+    lifecycleLogger.warn(
+      {
+        projectId: params.projectId,
+        jobId: params.taskId,
+        status: params.status
+      },
+      'RVT_CONVERT result lifecycle job not found'
+    )
+    return null
+  }
 
   const now = new Date()
   const updatedJob = await updateJob({
@@ -349,6 +477,17 @@ export const completeRvtConversionJob = async (
             updater: serviceUpdater
           }
   })
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      externalTaskId: params.externalTaskId || job.externalTaskId || null,
+      versionId: params.status === 'success' ? params.versionId : null,
+      errorMessage: params.status === 'failed' ? params.errorMessage : null,
+      finishedAt: (updatedJob || job).finishedAt
+    },
+    'RVT_CONVERT result lifecycle persisted job state'
+  )
 
   await syncFileUploadFromRvtJob({
     job: updatedJob || job,
@@ -394,6 +533,15 @@ export const completeRvtConversionJob = async (
       }
     })
   }
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(updatedJob || job),
+      finalStatus: params.status,
+      versionId: params.status === 'success' ? params.versionId : null
+    },
+    'RVT_CONVERT result lifecycle completed'
+  )
 
   return updatedJob || job
 }

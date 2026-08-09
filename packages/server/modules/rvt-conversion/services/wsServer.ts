@@ -1,4 +1,3 @@
-import { moduleLogger } from '@/observability/logging'
 import type http from 'http'
 import { randomUUID } from 'crypto'
 import { WebSocketServer } from 'ws'
@@ -15,7 +14,15 @@ import {
   type RvtConversionProgressMessage,
   type RvtConversionResultMessage
 } from '@/modules/rvt-conversion/services/progressMessages'
-import { getTrackedRvtConversionTask, untrackRvtConversionTask } from '@/modules/rvt-conversion/services/taskRegistry'
+import {
+  createRvtConvertLogger,
+  getWorkerRequestLogContext,
+  summarizeRawWsMessage
+} from '@/modules/rvt-conversion/services/logging'
+import {
+  getTrackedRvtConversionTask,
+  untrackRvtConversionTask
+} from '@/modules/rvt-conversion/services/taskRegistry'
 import {
   registerRvtWorker,
   touchRvtWorker,
@@ -23,6 +30,7 @@ import {
 } from '@/modules/rvt-conversion/services/workerRegistry'
 
 const RvtConversionWsPath = '/api/ws/rvt-conversion'
+const wsLogger = createRvtConvertLogger('ws-server')
 
 type WorkerRegisterMessage = {
   type: 'worker_register'
@@ -81,10 +89,8 @@ const safelyParseMessage = (raw: unknown): WorkerMessage | null => {
   }
 }
 
-const resolveProjectIdForTask = (message: {
-  taskId: string
-  projectId?: string
-}) => message.projectId || getTrackedRvtConversionTask(message.taskId)?.projectId || null
+const resolveProjectIdForTask = (message: { taskId: string; projectId?: string }) =>
+  message.projectId || getTrackedRvtConversionTask(message.taskId)?.projectId || null
 
 export const initRvtConversionWsServer = () => {
   if (rvtConversionWsServer) return rvtConversionWsServer
@@ -95,15 +101,39 @@ export const initRvtConversionWsServer = () => {
     let workerId = getInitialWorkerId()
     registerRvtWorker({ workerId, socket })
 
-    moduleLogger.info({ workerId }, 'RVT worker connected')
+    wsLogger.info(
+      {
+        workerId,
+        ...getWorkerRequestLogContext(request)
+      },
+      'RVT_CONVERT worker connected'
+    )
 
     socket.on('message', (raw) => {
       void (async () => {
         const message = safelyParseMessage(raw)
-        if (!message) return
+        if (!message) {
+          wsLogger.warn(
+            {
+              workerId,
+              rawMessage: summarizeRawWsMessage(raw)
+            },
+            'RVT_CONVERT worker message parse failed'
+          )
+          return
+        }
 
         switch (message.type) {
           case 'worker_register': {
+            wsLogger.info(
+              {
+                workerId,
+                requestedWorkerId: message.workerId || null,
+                capabilities: message.capabilities || [],
+                version: message.version || null
+              },
+              'RVT_CONVERT worker register received'
+            )
             const nextWorkerId = message.workerId || workerId
             if (nextWorkerId !== workerId) {
               unregisterRvtWorker({ workerId, socket })
@@ -121,18 +151,42 @@ export const initRvtConversionWsServer = () => {
                 version: message.version
               })
             }
+            wsLogger.info(
+              {
+                workerId,
+                capabilities: message.capabilities || [],
+                version: message.version || null
+              },
+              'RVT_CONVERT worker register applied'
+            )
             break
           }
           case 'heartbeat':
             touchRvtWorker({ workerId: message.workerId || workerId })
+            wsLogger.debug(
+              {
+                workerId,
+                heartbeatWorkerId: message.workerId || workerId
+              },
+              'RVT_CONVERT worker heartbeat received'
+            )
             break
           case 'rvt_conversion_ack': {
             touchRvtWorker({ workerId })
+            wsLogger.info(
+              {
+                workerId,
+                taskId: message.taskId,
+                projectId: message.projectId || null,
+                externalTaskId: message.externalTaskId || null
+              },
+              'RVT_CONVERT ack received from worker'
+            )
             const projectId = resolveProjectIdForTask(message)
             if (!projectId) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 { workerId, taskId: message.taskId },
-                'RVT worker ack received without resolvable projectId'
+                'RVT_CONVERT ack received without resolvable projectId'
               )
               break
             }
@@ -143,20 +197,44 @@ export const initRvtConversionWsServer = () => {
               externalTaskId: message.externalTaskId || null
             })
             if (!job) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 { workerId, projectId, taskId: message.taskId },
-                'RVT worker ack received for missing job'
+                'RVT_CONVERT ack received for missing job'
+              )
+            } else {
+              wsLogger.info(
+                {
+                  workerId,
+                  projectId,
+                  taskId: message.taskId,
+                  jobStatus: job.status,
+                  externalTaskId: job.externalTaskId
+                },
+                'RVT_CONVERT ack processed successfully'
               )
             }
             break
           }
           case 'rvt_conversion_progress': {
             touchRvtWorker({ workerId })
+            wsLogger.info(
+              {
+                workerId,
+                taskId: message.taskId,
+                projectId: message.projectId || null,
+                externalTaskId: message.externalTaskId || null,
+                phase: message.phase,
+                progress: message.progress,
+                current: message.current ?? null,
+                total: message.total ?? null
+              },
+              'RVT_CONVERT progress received from worker'
+            )
             const projectId = resolveProjectIdForTask(message)
             if (!projectId) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 { workerId, taskId: message.taskId, phase: message.phase },
-                'RVT worker progress received without resolvable projectId'
+                'RVT_CONVERT progress received without resolvable projectId'
               )
               break
             }
@@ -172,25 +250,57 @@ export const initRvtConversionWsServer = () => {
               ...(message.total !== undefined ? { total: message.total } : {})
             })
             if (!job) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 {
                   workerId,
                   projectId,
                   taskId: message.taskId,
                   phase: message.phase
                 },
-                'RVT worker progress received for missing job'
+                'RVT_CONVERT progress received for missing job'
+              )
+            } else {
+              wsLogger.info(
+                {
+                  workerId,
+                  projectId,
+                  taskId: message.taskId,
+                  jobStatus: job.status,
+                  phase: message.phase,
+                  progress: message.progress
+                },
+                'RVT_CONVERT progress processed successfully'
               )
             }
             break
           }
           case 'rvt_conversion_result': {
             touchRvtWorker({ workerId })
+            wsLogger.info(
+              message.status === 'success'
+                ? {
+                    workerId,
+                    taskId: message.taskId,
+                    projectId: message.projectId || null,
+                    externalTaskId: message.externalTaskId || null,
+                    status: message.status,
+                    versionId: message.versionId
+                  }
+                : {
+                    workerId,
+                    taskId: message.taskId,
+                    projectId: message.projectId || null,
+                    externalTaskId: message.externalTaskId || null,
+                    status: message.status,
+                    errorMessage: message.errorMessage
+                  },
+              'RVT_CONVERT result received from worker'
+            )
             const projectId = resolveProjectIdForTask(message)
             if (!projectId) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 { workerId, taskId: message.taskId, status: message.status },
-                'RVT worker result received without resolvable projectId'
+                'RVT_CONVERT result received without resolvable projectId'
               )
               break
             }
@@ -213,39 +323,56 @@ export const initRvtConversionWsServer = () => {
                   }
             )
             if (!job) {
-              moduleLogger.warn(
+              wsLogger.warn(
                 {
                   workerId,
                   projectId,
                   taskId: message.taskId,
                   status: message.status
                 },
-                'RVT worker result received for missing job'
+                'RVT_CONVERT result received for missing job'
               )
               break
             }
 
             untrackRvtConversionTask(message.taskId)
+            wsLogger.info(
+              {
+                workerId,
+                projectId,
+                taskId: message.taskId,
+                jobStatus: job.status,
+                versionId: job.versionId,
+                externalTaskId: job.externalTaskId
+              },
+              'RVT_CONVERT result processed successfully'
+            )
             break
           }
         }
       })().catch((error) => {
-        moduleLogger.warn({ err: error, workerId }, 'Failed to handle RVT worker message')
+        wsLogger.warn(
+          { err: error, workerId },
+          'RVT_CONVERT failed to handle worker message'
+        )
       })
     })
 
     socket.on('close', () => {
       unregisterRvtWorker({ workerId, socket })
-      moduleLogger.info({ workerId }, 'RVT worker disconnected')
+      wsLogger.info({ workerId }, 'RVT_CONVERT worker disconnected')
     })
 
     socket.on('error', (error) => {
-      moduleLogger.warn({ err: error, workerId }, 'RVT worker WebSocket error')
+      wsLogger.warn({ err: error, workerId }, 'RVT_CONVERT worker WebSocket error')
     })
   })
 
   rvtConversionWsServer = wsServer
-  moduleLogger.info({ path: RvtConversionWsPath }, 'RVT WebSocket server initialized')
+  wsLogger.info(
+    { path: RvtConversionWsPath },
+    'RVT_CONVERT WebSocket server initialized'
+  )
   return wsServer
 }
 
@@ -262,6 +389,12 @@ export const handleRvtConversionUpgrade = (
 
   try {
     if (!isUpgradeRequestAuthorized(request)) {
+      wsLogger.warn(
+        {
+          ...getWorkerRequestLogContext(request)
+        },
+        'RVT_CONVERT worker WebSocket authorization rejected'
+      )
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
       socket.destroy()
       return
@@ -269,9 +402,22 @@ export const handleRvtConversionUpgrade = (
   } catch (error) {
     socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n')
     socket.destroy()
-    moduleLogger.error({ err: error }, 'Failed to authorize RVT worker WebSocket')
+    wsLogger.error(
+      {
+        err: error,
+        ...getWorkerRequestLogContext(request)
+      },
+      'RVT_CONVERT failed to authorize worker WebSocket'
+    )
     return
   }
+
+  wsLogger.info(
+    {
+      ...getWorkerRequestLogContext(request)
+    },
+    'RVT_CONVERT worker WebSocket upgrade authorized'
+  )
 
   rvtConversionWsServer.handleUpgrade(request, socket, head, (ws) => {
     rvtConversionWsServer?.emit('connection', ws, request)

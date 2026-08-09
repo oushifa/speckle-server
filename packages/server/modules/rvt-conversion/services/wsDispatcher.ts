@@ -1,16 +1,16 @@
 import { getRvtConversionSpeckleServerOrigin } from '@/modules/shared/helpers/envHelper'
 import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/jobs'
+import {
+  buildRvtJobLogContext,
+  createRvtConvertLogger
+} from '@/modules/rvt-conversion/services/logging'
 import { getAvailableRvtWorker } from '@/modules/rvt-conversion/services/workerRegistry'
 import {
   trackRvtConversionTask,
   untrackRvtConversionTask
 } from '@/modules/rvt-conversion/services/taskRegistry'
-import { moduleLogger } from '@/observability/logging'
 
-const rvtDispatcherLogger = moduleLogger.child({
-  module: 'rvt-conversion',
-  component: 'ws-dispatcher'
-})
+const rvtDispatcherLogger = createRvtConvertLogger('ws-dispatcher')
 
 export type DispatchRvtConversionJobPayload = {
   job: RvtConversionJob
@@ -27,12 +27,9 @@ export const dispatchRvtConversionJob = async (
   if (!worker) {
     rvtDispatcherLogger.warn(
       {
-        projectId: params.job.projectId,
-        modelId: params.job.modelId,
-        jobId: params.job.id,
-        sourceFileId: params.job.sourceFileId
+        ...buildRvtJobLogContext(params.job)
       },
-      'RVT CONVERT worker unavailable for dispatch'
+      'RVT_CONVERT worker unavailable for dispatch'
     )
     throw new Error('No connected RVT worker is available.')
   }
@@ -57,17 +54,16 @@ export const dispatchRvtConversionJob = async (
 
   rvtDispatcherLogger.info(
     {
-      projectId: params.job.projectId,
-      modelId: params.job.modelId,
-      jobId: params.job.id,
+      ...buildRvtJobLogContext(params.job),
       workerId: worker.workerId,
-      sourceFileId: params.job.sourceFileId,
       sourceFileUrlOrigin: new URL(params.sourceFileUrl).origin,
       speckleServerUrl,
       speckleTokenId: params.speckleTokenId,
-      branchName: params.branchName || null
+      branchName: params.branchName || null,
+      sourceApplication: params.job.sourceApplication,
+      hasVersionMessage: !!params.job.versionMessage
     },
-    'RVT CONVERT start_rvt_conversion dispatch started'
+    'RVT_CONVERT start_rvt_conversion dispatch started'
   )
 
   trackRvtConversionTask({
@@ -85,14 +81,11 @@ export const dispatchRvtConversionJob = async (
           untrackRvtConversionTask(params.job.id)
           rvtDispatcherLogger.error(
             {
-              projectId: params.job.projectId,
-              modelId: params.job.modelId,
-              jobId: params.job.id,
+              ...buildRvtJobLogContext(params.job),
               workerId: worker.workerId,
-              sourceFileId: params.job.sourceFileId,
               err: error
             },
-            'RVT CONVERT start_rvt_conversion dispatch failed'
+            'RVT_CONVERT start_rvt_conversion dispatch failed'
           )
           return reject(
             error instanceof Error
@@ -103,13 +96,10 @@ export const dispatchRvtConversionJob = async (
 
         rvtDispatcherLogger.info(
           {
-            projectId: params.job.projectId,
-            modelId: params.job.modelId,
-            jobId: params.job.id,
-            workerId: worker.workerId,
-            sourceFileId: params.job.sourceFileId
+            ...buildRvtJobLogContext(params.job),
+            workerId: worker.workerId
           },
-          'RVT CONVERT start_rvt_conversion dispatch completed'
+          'RVT_CONVERT start_rvt_conversion dispatch completed'
         )
 
         resolve()
@@ -118,14 +108,11 @@ export const dispatchRvtConversionJob = async (
       untrackRvtConversionTask(params.job.id)
       rvtDispatcherLogger.error(
         {
-          projectId: params.job.projectId,
-          modelId: params.job.modelId,
-          jobId: params.job.id,
+          ...buildRvtJobLogContext(params.job),
           workerId: worker.workerId,
-          sourceFileId: params.job.sourceFileId,
           err: error
         },
-        'RVT CONVERT start_rvt_conversion dispatch threw before send'
+        'RVT_CONVERT start_rvt_conversion dispatch threw before send'
       )
       reject(
         error instanceof Error

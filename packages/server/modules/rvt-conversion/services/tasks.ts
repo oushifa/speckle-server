@@ -11,16 +11,17 @@ import {
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { getEventBus } from '@/modules/shared/services/eventBus'
+import { RVT_CONVERT_LOG_TAG } from '@/modules/rvt-conversion/services/logging'
 
 const serviceUpdater = 'rvt-conversion-service'
 const timeoutErrorMessage = 'RVT convert job timed out'
 
 export const expireOldRvtConversionJobsFactory =
-  (deps: { db: Knex }) =>
-  async (params: { timeoutThresholdSeconds: number }) => {
-    const failExpiredActiveRvtConversionJobs = failExpiredActiveRvtConversionJobsFactory({
-      db: deps.db
-    })
+  (deps: { db: Knex }) => async (params: { timeoutThresholdSeconds: number }) => {
+    const failExpiredActiveRvtConversionJobs =
+      failExpiredActiveRvtConversionJobsFactory({
+        db: deps.db
+      })
     const getFileInfo = getFileInfoFactory({ db: deps.db })
     const updateFileUpload = updateFileUploadFactory({ db: deps.db })
     const emitFileStatusChange = notifyChangeInFileStatus({
@@ -41,12 +42,13 @@ export const expireOldRvtConversionJobsFactory =
             {
               module: 'rvt-conversion',
               component: 'expiry',
+              tag: RVT_CONVERT_LOG_TAG,
               projectId: job.projectId,
               modelId: job.modelId,
               jobId: job.id,
               sourceFileId: job.sourceFileId
             },
-            'RVT CONVERT timed out job source file was not found during expiry sync'
+            'RVT_CONVERT timed out job source file was not found during expiry sync'
           )
           return
         }

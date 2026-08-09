@@ -29,6 +29,7 @@ import {
   acknowledgeRvtConversionJob,
   completeRvtConversionJob
 } from '@/modules/rvt-conversion/services/lifecycle'
+import { createRvtConvertLogger } from '@/modules/rvt-conversion/services/logging'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
@@ -37,16 +38,12 @@ import {
   getFileSizeLimitMB,
   getFileUploadUrlExpiryMinutes
 } from '@/modules/shared/helpers/envHelper'
-import { moduleLogger } from '@/observability/logging'
 import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const DownloadUrlExpirySeconds = 24 * 60 * 60
 const sourceApplicationDefault = 'External RVT Converter'
 const serviceTokenHeader = 'x-rvt-conversion-token'
-const rvtRouterLogger = moduleLogger.child({
-  module: 'rvt-conversion',
-  component: 'rest-router'
-})
+const rvtRouterLogger = createRvtConvertLogger('rest-router')
 
 const routeParamsSchema = z.object({
   projectId: z.string().min(1),
@@ -230,7 +227,7 @@ export const rvtConversionRouterFactory = (): Router => {
           fileName,
           fileSize
         },
-        'RVT CONVERT upload URL request received'
+        'RVT_CONVERT upload URL request received'
       )
 
       const hasStreamAccess = await validatePermissionsWriteStream(projectId, req)
@@ -242,7 +239,7 @@ export const rvtConversionRouterFactory = (): Router => {
             userId: req.context.userId,
             status: hasStreamAccess.status
           },
-          'RVT CONVERT upload URL request denied by permissions'
+          'RVT_CONVERT upload URL request denied by permissions'
         )
         return res.status(hasStreamAccess.status).end()
       }
@@ -258,7 +255,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileName,
             error: (e as Error).message
           },
-          'RVT CONVERT upload URL request rejected due to unsupported file type'
+          'RVT_CONVERT upload URL request rejected due to unsupported file type'
         )
         return res.status(400).send({ error: (e as Error).message })
       }
@@ -273,7 +270,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileSize,
             maxFileSizeBytes: maxFileSizeBytes()
           },
-          'RVT CONVERT upload URL request rejected due to file size limit'
+          'RVT_CONVERT upload URL request rejected due to file size limit'
         )
         return res.status(400).send({
           error: `File size exceeds maximum allowed size of ${maxFileSizeBytes()} bytes.`
@@ -289,7 +286,7 @@ export const rvtConversionRouterFactory = (): Router => {
             userId: req.context.userId,
             fileName
           },
-          'RVT CONVERT upload URL request failed because model was not found'
+          'RVT_CONVERT upload URL request failed because model was not found'
         )
         return res.status(404).send({ error: 'Model not found in project.' })
       }
@@ -320,7 +317,7 @@ export const rvtConversionRouterFactory = (): Router => {
           uploadUrlOrigin: new URL(uploadUrl).origin,
           expiresInSeconds: expiresIn
         },
-        'RVT CONVERT upload URL generated'
+        'RVT_CONVERT upload URL generated'
       )
 
       return res.send({
@@ -359,7 +356,7 @@ export const rvtConversionRouterFactory = (): Router => {
           sourceApplication,
           hasVersionMessage: !!versionMessage
         },
-        'RVT CONVERT job creation request received'
+        'RVT_CONVERT job creation request received'
       )
 
       const hasStreamAccess = await validatePermissionsWriteStream(projectId, req)
@@ -372,7 +369,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileId,
             status: hasStreamAccess.status
           },
-          'RVT CONVERT job creation denied by permissions'
+          'RVT_CONVERT job creation denied by permissions'
         )
         return res.status(hasStreamAccess.status).end()
       }
@@ -389,7 +386,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileName,
             error: (e as Error).message
           },
-          'RVT CONVERT job creation rejected due to unsupported file type'
+          'RVT_CONVERT job creation rejected due to unsupported file type'
         )
         return res.status(400).send({ error: (e as Error).message })
       }
@@ -404,7 +401,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileId,
             fileName
           },
-          'RVT CONVERT job creation failed because model was not found'
+          'RVT_CONVERT job creation failed because model was not found'
         )
         return res.status(404).send({ error: 'Model not found in project.' })
       }
@@ -429,7 +426,7 @@ export const rvtConversionRouterFactory = (): Router => {
             objectKey,
             err: error
           },
-          'RVT CONVERT job creation failed because uploaded source file metadata was not found'
+          'RVT_CONVERT job creation failed because uploaded source file metadata was not found'
         )
         return res.status(400).send({ error: 'Uploaded source file not found.' })
       }
@@ -446,7 +443,7 @@ export const rvtConversionRouterFactory = (): Router => {
             expectedEtag: metadata.eTag,
             providedEtag: etag
           },
-          'RVT CONVERT job creation failed due to ETag mismatch'
+          'RVT_CONVERT job creation failed due to ETag mismatch'
         )
         return res.status(400).send({ error: 'ETag mismatch.' })
       }
@@ -461,7 +458,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileName,
             objectKey
           },
-          'RVT CONVERT job creation failed because uploaded source file is empty'
+          'RVT_CONVERT job creation failed because uploaded source file is empty'
         )
         return res.status(400).send({ error: 'Uploaded source file is empty.' })
       }
@@ -478,7 +475,7 @@ export const rvtConversionRouterFactory = (): Router => {
             contentLength: metadata.contentLength,
             maxFileSizeBytes: maxFileSizeBytes()
           },
-          'RVT CONVERT job creation failed because uploaded source file exceeds size limit'
+          'RVT_CONVERT job creation failed because uploaded source file exceeds size limit'
         )
         return res.status(400).send({
           error: `File size exceeds maximum allowed size of ${maxFileSizeBytes()} bytes.`
@@ -517,7 +514,7 @@ export const rvtConversionRouterFactory = (): Router => {
               createdAt: job.createdAt
             }))
           },
-          'RVT CONVERT duplicate dispatch detected before REST job creation'
+          'RVT_CONVERT duplicate dispatch detected before REST job creation'
         )
       }
 
@@ -545,7 +542,7 @@ export const rvtConversionRouterFactory = (): Router => {
           sourceFileSize: metadata.contentLength,
           sourceApplication
         },
-        'RVT CONVERT job record created'
+        'RVT_CONVERT job record created'
       )
 
       try {
@@ -573,7 +570,7 @@ export const rvtConversionRouterFactory = (): Router => {
             sourceFileUrlOrigin: new URL(sourceFileUrl).origin,
             hasSpeckleToken: !!token
           },
-        'RVT CONVERT job dispatch payload prepared'
+          'RVT_CONVERT job dispatch payload prepared'
         )
 
         const dispatchedJob = await updateJob({
@@ -592,7 +589,7 @@ export const rvtConversionRouterFactory = (): Router => {
             jobId: job.id,
             fileId
           },
-        'RVT CONVERT job marked as dispatched'
+          'RVT_CONVERT job marked as dispatched'
         )
 
         await dispatchRvtConversionJob({
@@ -612,7 +609,7 @@ export const rvtConversionRouterFactory = (): Router => {
             fileId,
             branchName: model.name || null
           },
-        'RVT CONVERT job dispatched to worker successfully'
+          'RVT_CONVERT job dispatched to worker successfully'
         )
 
         return res.status(201).send({ job: serializeJob(dispatchedJob || job) })
@@ -635,7 +632,7 @@ export const rvtConversionRouterFactory = (): Router => {
             err: e,
             failedJobStatus: failedJob?.status || job.status
           },
-          'RVT CONVERT job dispatch failed'
+          'RVT_CONVERT job dispatch failed'
         )
 
         return res.status(isNoWorkerAvailableError(e) ? 503 : 502).send({
@@ -666,7 +663,7 @@ export const rvtConversionRouterFactory = (): Router => {
           userId: req.context.userId,
           unfinishedOnly
         },
-        'RVT CONVERT jobs list request received'
+        'RVT_CONVERT jobs list request received'
       )
 
       const hasStreamAccess = await validatePermissionsReadStream(projectId, req)
@@ -678,7 +675,7 @@ export const rvtConversionRouterFactory = (): Router => {
             userId: req.context.userId,
             status: hasStreamAccess.status
           },
-          'RVT CONVERT jobs list request denied by permissions'
+          'RVT_CONVERT jobs list request denied by permissions'
         )
         return res.status(hasStreamAccess.status).end()
       }
@@ -694,7 +691,7 @@ export const rvtConversionRouterFactory = (): Router => {
               modelId,
               userId: req.context.userId
             },
-            'RVT CONVERT jobs list request failed because model was not found'
+            'RVT_CONVERT jobs list request failed because model was not found'
           )
           return res.status(404).send({ error: 'Model not found in project.' })
         }
@@ -715,7 +712,7 @@ export const rvtConversionRouterFactory = (): Router => {
           unfinishedOnly,
           jobCount: jobs.length
         },
-        'RVT CONVERT jobs list request completed'
+        'RVT_CONVERT jobs list request completed'
       )
 
       return res.send({
@@ -740,7 +737,7 @@ export const rvtConversionRouterFactory = (): Router => {
           jobId,
           userId: req.context.userId
         },
-        'RVT CONVERT job detail request received'
+        'RVT_CONVERT job detail request received'
       )
 
       const hasStreamAccess = await validatePermissionsReadStream(projectId, req)
@@ -753,7 +750,7 @@ export const rvtConversionRouterFactory = (): Router => {
             userId: req.context.userId,
             status: hasStreamAccess.status
           },
-          'RVT CONVERT job detail request denied by permissions'
+          'RVT_CONVERT job detail request denied by permissions'
         )
         return res.status(hasStreamAccess.status).end()
       }
@@ -770,7 +767,7 @@ export const rvtConversionRouterFactory = (): Router => {
             jobId,
             userId: req.context.userId
           },
-          'RVT CONVERT job detail request failed because job was not found'
+          'RVT_CONVERT job detail request failed because job was not found'
         )
         return res.status(404).send({ error: 'Job not found.' })
       }
@@ -785,7 +782,7 @@ export const rvtConversionRouterFactory = (): Router => {
           sourceFileId: job.sourceFileId,
           versionId: job.versionId
         },
-        'RVT CONVERT job detail request completed'
+        'RVT_CONVERT job detail request completed'
       )
 
       return res.send({ job: serializeJob(job) })
@@ -807,7 +804,7 @@ export const rvtConversionRouterFactory = (): Router => {
           jobId,
           externalTaskId: req.body.externalTaskId || null
         },
-        'RVT CONVERT job ack request received'
+        'RVT_CONVERT job ack request received'
       )
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
@@ -820,7 +817,7 @@ export const rvtConversionRouterFactory = (): Router => {
             jobId,
             externalTaskId: req.body.externalTaskId || null
           },
-          'RVT CONVERT job ack request failed because job was not found'
+          'RVT_CONVERT job ack request failed because job was not found'
         )
         return res.status(404).send({ error: 'Job not found.' })
       }
@@ -837,7 +834,7 @@ export const rvtConversionRouterFactory = (): Router => {
             jobId,
             externalTaskId: req.body.externalTaskId || null
           },
-          'RVT CONVERT job ack request could not persist updated job'
+          'RVT_CONVERT job ack request could not persist updated job'
         )
         return res.status(404).send({ error: 'Job not found.' })
       }
@@ -851,7 +848,7 @@ export const rvtConversionRouterFactory = (): Router => {
           externalTaskId: updatedJob.externalTaskId,
           acknowledgedAt: updatedJob.acknowledgedAt
         },
-        'RVT CONVERT job acknowledged successfully'
+        'RVT_CONVERT job acknowledged successfully'
       )
 
       rvtRouterLogger.info(
@@ -861,7 +858,7 @@ export const rvtConversionRouterFactory = (): Router => {
           jobId,
           sourceFileId: updatedJob.sourceFileId
         },
-        'RVT CONVERT job ack file upload sync completed'
+        'RVT_CONVERT job ack file upload sync completed'
       )
 
       return res.send({ job: serializeJob(updatedJob) })
@@ -886,7 +883,7 @@ export const rvtConversionRouterFactory = (): Router => {
           versionId: 'versionId' in req.body ? req.body.versionId || null : null,
           hasErrorMessage: !!('errorMessage' in req.body && req.body.errorMessage)
         },
-        'RVT CONVERT job result request received'
+        'RVT_CONVERT job result request received'
       )
       const projectDb = await getProjectDbClient({ projectId })
       const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
@@ -900,7 +897,7 @@ export const rvtConversionRouterFactory = (): Router => {
             status: req.body.status,
             externalTaskId: req.body.externalTaskId || null
           },
-          'RVT CONVERT job result request failed because job was not found'
+          'RVT_CONVERT job result request failed because job was not found'
         )
         return res.status(404).send({ error: 'Job not found.' })
       }
@@ -930,7 +927,7 @@ export const rvtConversionRouterFactory = (): Router => {
             status: req.body.status,
             externalTaskId: req.body.externalTaskId || null
           },
-          'RVT CONVERT job result request could not persist updated job'
+          'RVT_CONVERT job result request could not persist updated job'
         )
         return res.status(404).send({ error: 'Job not found.' })
       }
@@ -947,7 +944,7 @@ export const rvtConversionRouterFactory = (): Router => {
           errorMessage: updatedJob.errorMessage,
           finishedAt: updatedJob.finishedAt
         },
-        'RVT CONVERT job result persisted successfully'
+        'RVT_CONVERT job result persisted successfully'
       )
 
       rvtRouterLogger.info(
@@ -962,7 +959,7 @@ export const rvtConversionRouterFactory = (): Router => {
               : FileUploadConvertedStatus.Error,
           convertedCommitId: req.body.status === 'success' ? req.body.versionId : null
         },
-        'RVT CONVERT job result file upload sync completed'
+        'RVT_CONVERT job result file upload sync completed'
       )
 
       return res.send({ job: serializeJob(updatedJob) })

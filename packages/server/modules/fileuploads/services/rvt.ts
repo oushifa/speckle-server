@@ -1,6 +1,4 @@
-import {
-  getSignedDownloadUrlFactory
-} from '@/modules/blobstorage/clients/objectStorage'
+import { getSignedDownloadUrlFactory } from '@/modules/blobstorage/clients/objectStorage'
 import { getObjectKey } from '@/modules/blobstorage/helpers/blobs'
 import type { FileUploadRecordV2 } from '@/modules/fileuploads/helpers/types'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
@@ -10,18 +8,18 @@ import {
   type RvtConversionJob,
   updateRvtConversionJobFactory
 } from '@/modules/rvt-conversion/repositories/jobs'
+import {
+  buildRvtJobLogContext,
+  createRvtConvertLogger
+} from '@/modules/rvt-conversion/services/logging'
 import { getRvtConversionDownloadStorage } from '@/modules/rvt-conversion/services/storage'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
-import { moduleLogger } from '@/observability/logging'
 import type { Knex } from 'knex'
 
 const downloadUrlExpirySeconds = 24 * 60 * 60
 const sourceApplicationDefault = 'External RVT Converter'
-const rvtFileImportLogger = moduleLogger.child({
-  module: 'rvt-conversion',
-  component: 'fileupload-dispatch'
-})
+const rvtFileImportLogger = createRvtConvertLogger('fileupload-dispatch')
 
 export const dispatchRvtFileImportFactory =
   (deps: { db: Knex }) =>
@@ -43,7 +41,7 @@ export const dispatchRvtFileImportFactory =
         fileName: fileUpload.fileName,
         fileSize: fileUpload.fileSize
       },
-      'RVT CONVERT file upload dispatch requested'
+      'RVT_CONVERT file upload dispatch requested'
     )
 
     const projectStorage = await getProjectObjectStorage({ projectId })
@@ -52,7 +50,9 @@ export const dispatchRvtFileImportFactory =
     })
     const objectKey = getObjectKey(projectId, fileUpload.id)
     const createJob = createRvtConversionJobFactory({ db: deps.db })
-    const listJobsBySourceFile = listRvtConversionJobsBySourceFileFactory({ db: deps.db })
+    const listJobsBySourceFile = listRvtConversionJobsBySourceFileFactory({
+      db: deps.db
+    })
     const updateJob = updateRvtConversionJobFactory({ db: deps.db })
 
     const existingJobs = await listJobsBySourceFile({
@@ -77,7 +77,7 @@ export const dispatchRvtFileImportFactory =
             createdAt: job.createdAt
           }))
         },
-        'RVT CONVERT duplicate dispatch detected before file upload job creation'
+        'RVT_CONVERT duplicate dispatch detected before file upload job creation'
       )
     }
 
@@ -95,15 +95,15 @@ export const dispatchRvtFileImportFactory =
 
     rvtFileImportLogger.info(
       {
+        ...buildRvtJobLogContext(job),
         projectId,
         modelId,
         modelName,
         userId,
-        jobId: job.id,
         fileUploadId: fileUpload.id,
         objectKey
       },
-      'RVT CONVERT job created from file upload'
+      'RVT_CONVERT job created from file upload'
     )
 
     try {
@@ -122,16 +122,16 @@ export const dispatchRvtFileImportFactory =
 
       rvtFileImportLogger.info(
         {
+          ...buildRvtJobLogContext(job),
           projectId,
           modelId,
           modelName,
           userId,
-          jobId: job.id,
           fileUploadId: fileUpload.id,
           sourceFileUrlOrigin: new URL(sourceFileUrl).origin,
           speckleTokenId: tokenId
         },
-        'RVT CONVERT file upload dispatch payload prepared'
+        'RVT_CONVERT file upload dispatch payload prepared'
       )
 
       const dispatchedJob = await updateJob({
@@ -144,14 +144,14 @@ export const dispatchRvtFileImportFactory =
 
       rvtFileImportLogger.info(
         {
+          ...buildRvtJobLogContext(dispatchedJob || job),
           projectId,
           modelId,
           modelName,
           userId,
-          jobId: job.id,
           fileUploadId: fileUpload.id
         },
-        'RVT CONVERT job marked as dispatched from file upload'
+        'RVT_CONVERT job marked as dispatched from file upload'
       )
 
       await dispatchRvtConversionJob({
@@ -164,35 +164,36 @@ export const dispatchRvtFileImportFactory =
 
       rvtFileImportLogger.info(
         {
+          ...buildRvtJobLogContext(dispatchedJob || job),
           projectId,
           modelId,
           modelName,
           userId,
-          jobId: job.id,
           fileUploadId: fileUpload.id
         },
-        'RVT CONVERT file upload dispatched to worker successfully'
+        'RVT_CONVERT file upload dispatched to worker successfully'
       )
 
       return dispatchedJob || job
     } catch (error) {
       rvtFileImportLogger.error(
         {
+          ...buildRvtJobLogContext(job),
           projectId,
           modelId,
           modelName,
           userId,
-          jobId: job.id,
           fileUploadId: fileUpload.id,
           err: error
         },
-        'RVT CONVERT file upload dispatch failed'
+        'RVT_CONVERT file upload dispatch failed'
       )
       await updateJob({
         id: job.id,
         item: {
           status: 'failed',
-          errorMessage: error instanceof Error ? error.message : 'Failed to dispatch job.'
+          errorMessage:
+            error instanceof Error ? error.message : 'Failed to dispatch job.'
         }
       })
 
