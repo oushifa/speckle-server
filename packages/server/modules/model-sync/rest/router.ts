@@ -39,6 +39,7 @@ import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunne
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
+const globalRouteBase = '/api/v1/model-sync/tasks'
 
 const modelSyncErrHandler = (
   err: unknown,
@@ -131,6 +132,32 @@ const parseModelIds = (queryValue: unknown) =>
         .map((value) => value.trim())
         .filter(Boolean)
 
+const parseVisibleTaskTargets = (queryValue: unknown) => {
+  if (typeof queryValue !== 'string') return []
+
+  try {
+    const parsed = JSON.parse(queryValue) as Array<{
+      projectId?: unknown
+      modelIds?: unknown
+    }>
+
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((target) => ({
+        projectId: (typeof target?.projectId === 'string' ? target.projectId : '').trim(),
+        modelIds: Array.isArray(target?.modelIds)
+          ? target.modelIds
+              .map((modelId) => (typeof modelId === 'string' ? modelId.trim() : ''))
+              .filter(Boolean)
+          : []
+      }))
+      .filter((target) => target.projectId && target.modelIds.length)
+  } catch {
+    return []
+  }
+}
+
 const runTaskInBackground = (params: {
   projectId: string
   modelId: string
@@ -145,6 +172,11 @@ export const modelSyncRouterFactory = () => {
 
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(projectRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${globalRouteBase}/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(
     `${projectRouteBase}/snapshot`,
     cors(),
@@ -170,6 +202,94 @@ export const modelSyncRouterFactory = () => {
     `${routeBase}/:taskId/retry`,
     cors(),
     allowCrossOriginResourceAccessMiddelware()
+  )
+
+  router.get(
+    `${globalRouteBase}/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        requireAuthenticatedUser(req)
+
+        const targets = parseVisibleTaskTargets(req.query.targets)
+        if (!targets.length) {
+          throw new BadRequestError('targets is required')
+        }
+
+        const targetsByProjectId = new Map<string, Set<string>>()
+        for (const target of targets) {
+          const existingModelIds = targetsByProjectId.get(target.projectId) || new Set<string>()
+          target.modelIds.forEach((modelId) => existingModelIds.add(modelId))
+          targetsByProjectId.set(target.projectId, existingModelIds)
+        }
+
+        const normalizedTargets = [...targetsByProjectId.entries()].map(
+          ([projectId, modelIds]) => ({
+            projectId,
+            modelIds: [...modelIds]
+          })
+        )
+
+        await Promise.all(
+          normalizedTargets.map(({ projectId }) => requireProjectRead(req, projectId))
+        )
+
+        const snapshots = await Promise.all(
+          normalizedTargets.map(async ({ projectId, modelIds }) => {
+            const projectDb = await getProjectDbClient({ projectId })
+            const tasks = await listLatestProjectModelSyncTasksByModelIdsFactory({
+              db: projectDb
+            })({
+              projectId,
+              modelIds
+            })
+
+            return {
+              projectId,
+              modelIds,
+              tasks
+            }
+          })
+        )
+
+        res.status(200)
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache, no-transform')
+        res.setHeader('Connection', 'keep-alive')
+
+        const writeEvent = (eventName: string, data: unknown) => {
+          res.write(`event: ${eventName}\n`)
+          res.write(`data: ${JSON.stringify(data)}\n\n`)
+        }
+
+        snapshots.forEach(({ projectId, tasks }) => {
+          writeEvent('snapshot', {
+            projectId,
+            tasks: tasks.map(serializeTask)
+          })
+        })
+
+        const unsubscribeList = normalizedTargets.flatMap(({ projectId, modelIds }) =>
+          modelIds.map((modelId) =>
+            onModelSyncModelUpdated(projectId, modelId, (payload) => {
+              writeEvent('update', serializeTask(payload))
+            })
+          )
+        )
+
+        const heartbeat = setInterval(() => {
+          res.write(`: ping\n\n`)
+        }, 15000)
+
+        req.on('close', () => {
+          clearInterval(heartbeat)
+          unsubscribeList.forEach((unsubscribe) => unsubscribe())
+        })
+      } catch (err) {
+        next(err)
+      }
+    }
   )
 
   router.get(
@@ -647,6 +767,7 @@ export const modelSyncRouterFactory = () => {
     }
   )
 
+  router.use(globalRouteBase, modelSyncErrHandler)
   router.use(projectRouteBase, modelSyncErrHandler)
   router.use(routeBase, modelSyncErrHandler)
   return router

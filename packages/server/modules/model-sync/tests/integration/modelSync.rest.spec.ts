@@ -13,10 +13,12 @@ import { createTestBranch } from '@/test/speckle-helpers/branchHelper'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { createProjectModelSyncTaskFactory } from '@/modules/model-sync/repositories/tasks'
 import { Roles } from '@speckle/shared'
+import { TextDecoder } from 'util'
 
 describe('Model sync REST @model-sync', () => {
   let server: Server
   let app: Express
+  let serverAddress: string
   let owner: BasicTestUser
   let outsider: BasicTestUser
   let reviewer: BasicTestUser
@@ -27,7 +29,7 @@ describe('Model sync REST @model-sync', () => {
     const ctx = await beforeEachContext()
     server = ctx.server
     app = ctx.app
-    await initializeTestServer(ctx)
+    ;({ serverAddress } = await initializeTestServer(ctx))
 
     owner = await createTestUser({
       name: 'Model Sync Owner',
@@ -147,5 +149,145 @@ describe('Model sync REST @model-sync', () => {
 
     expect(response.status).to.equal(400)
     expect(response.body.error).to.equal('fileName is required')
+  })
+
+  it('streams aggregated model sync snapshots across projects', async () => {
+    const firstProject = await createProject({
+      name: 'Aggregated Model Sync Project A',
+      ownerId: owner.id,
+      isPublic: false
+    })
+    const secondProject = await createProject({
+      name: 'Aggregated Model Sync Project B',
+      ownerId: owner.id,
+      isPublic: false
+    })
+
+    const [firstModel, secondModel] = await Promise.all([
+      createTestBranch({
+        branch: {
+          id: '',
+          name: 'Aggregated Model Sync Model A',
+          streamId: '',
+          authorId: ''
+        },
+        stream: {
+          ...firstProject,
+          ownerId: owner.id
+        },
+        owner
+      }),
+      createTestBranch({
+        branch: {
+          id: '',
+          name: 'Aggregated Model Sync Model B',
+          streamId: '',
+          authorId: ''
+        },
+        stream: {
+          ...secondProject,
+          ownerId: owner.id
+        },
+        owner
+      })
+    ])
+
+    await Promise.all([
+      grantProjectPermissions({
+        projectId: firstProject.id,
+        userId: reviewer.id,
+        role: Roles.Stream.Reviewer
+      }),
+      grantProjectPermissions({
+        projectId: secondProject.id,
+        userId: reviewer.id,
+        role: Roles.Stream.Reviewer
+      })
+    ])
+
+    await Promise.all([
+      (async () => {
+        const projectDb = await getProjectDbClient({ projectId: firstProject.id })
+        await createProjectModelSyncTaskFactory({ db: projectDb })({
+          projectId: firstProject.id,
+          modelId: firstModel.id,
+          fileName: 'aggregated-a.rvt',
+          status: 'speckle_converting',
+          creator: owner.id,
+          updater: owner.id
+        })
+      })(),
+      (async () => {
+        const projectDb = await getProjectDbClient({ projectId: secondProject.id })
+        await createProjectModelSyncTaskFactory({ db: projectDb })({
+          projectId: secondProject.id,
+          modelId: secondModel.id,
+          fileName: 'aggregated-b.rvt',
+          status: 'failed',
+          creator: owner.id,
+          updater: owner.id
+        })
+      })()
+    ])
+
+    const controller = new AbortController()
+    const response = await fetch(
+      `${serverAddress}/api/v1/model-sync/tasks/events?targets=${encodeURIComponent(
+        JSON.stringify([
+          { projectId: firstProject.id, modelIds: [firstModel.id] },
+          { projectId: secondProject.id, modelIds: [secondModel.id] }
+        ])
+      )}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${reviewerToken}`
+        },
+        signal: controller.signal
+      }
+    )
+
+    expect(response.status).to.equal(200)
+
+    const reader = response.body?.getReader()
+    expect(reader).to.exist
+
+    const decoder = new TextDecoder()
+    const snapshots = new Map<string, Array<{ id: string; modelId: string; status: string }>>()
+    let buffer = ''
+
+    while (snapshots.size < 2) {
+      const { done, value } = await reader!.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const events = buffer.split('\n\n')
+      buffer = events.pop() || ''
+
+      for (const eventBlock of events) {
+        const eventName = eventBlock.match(/^event:\s*(.+)$/m)?.[1]?.trim()
+        const rawData = eventBlock.match(/^data:\s*(.+)$/m)?.[1]?.trim()
+        if (eventName !== 'snapshot' || !rawData) continue
+
+        const payload = JSON.parse(rawData) as {
+          projectId: string
+          tasks: Array<{ id: string; modelId: string; status: string }>
+        }
+        snapshots.set(payload.projectId, payload.tasks)
+      }
+    }
+
+    controller.abort()
+    await reader?.cancel().catch(() => undefined)
+
+    expect([...snapshots.keys()]).to.have.members([firstProject.id, secondProject.id])
+    expect(snapshots.get(firstProject.id)?.[0]).to.include({
+      modelId: firstModel.id,
+      status: 'speckle_converting'
+    })
+    expect(snapshots.get(secondProject.id)?.[0]).to.include({
+      modelId: secondModel.id,
+      status: 'failed'
+    })
   })
 })
