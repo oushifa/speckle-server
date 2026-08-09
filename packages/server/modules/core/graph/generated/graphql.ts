@@ -2055,6 +2055,9 @@ export type FileUpload = {
   modelId?: Maybe<Scalars['String']['output']>;
   /** Alias for branchName */
   modelName: Scalars['String']['output'];
+  progressMessage?: Maybe<Scalars['String']['output']>;
+  progressPercent?: Maybe<Scalars['Int']['output']>;
+  progressPhase?: Maybe<Scalars['String']['output']>;
   /** Alias for streamId */
   projectId: Scalars['String']['output'];
   streamId: Scalars['String']['output'];
@@ -2093,6 +2096,11 @@ export type FileUploadMutations = {
    * called to register the completed upload and create the blob metadata.
    */
   startFileImport: FileUpload;
+  /**
+   * Updates the in-flight progress for a file import job and emits the needed subscriptions.
+   * Mostly for internal service usage.
+   */
+  updateFileImportProgress: Scalars['Boolean']['output'];
 };
 
 
@@ -2108,6 +2116,11 @@ export type FileUploadMutationsGenerateUploadUrlArgs = {
 
 export type FileUploadMutationsStartFileImportArgs = {
   input: StartFileImportInput;
+};
+
+
+export type FileUploadMutationsUpdateFileImportProgressArgs = {
+  input: UpdateFileImportProgressInput;
 };
 
 export type FinishFileImportInput = {
@@ -5917,6 +5930,18 @@ export type UpdateDepartmentInput = {
   parentId?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type UpdateFileImportProgressInput = {
+  /**
+   * This is the blob Id of the uploaded file. For legacy reasons it is named jobId.
+   * Note: This is the not the background job Id.
+   */
+  jobId: Scalars['String']['input'];
+  progressMessage?: InputMaybe<Scalars['String']['input']>;
+  progressPercent?: InputMaybe<Scalars['Int']['input']>;
+  progressPhase?: InputMaybe<Scalars['String']['input']>;
+  projectId: Scalars['String']['input'];
+};
+
 export type UpdateFolderInput = {
   id: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
@@ -7895,6 +7920,7 @@ export type ResolversTypes = {
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateDepartmentInput: UpdateDepartmentInput;
+  UpdateFileImportProgressInput: UpdateFileImportProgressInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
@@ -8366,6 +8392,7 @@ export type ResolversParentTypes = {
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
   UpdateDepartmentInput: UpdateDepartmentInput;
+  UpdateFileImportProgressInput: UpdateFileImportProgressInput;
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
@@ -9395,6 +9422,9 @@ export type FileUploadResolvers<ContextType = GraphQLContext, ParentType extends
   model?: Resolver<Maybe<ResolversTypes['Model']>, ParentType, ContextType>;
   modelId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   modelName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  progressMessage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  progressPercent?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  progressPhase?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   projectId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   streamId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9415,6 +9445,7 @@ export type FileUploadMutationsResolvers<ContextType = GraphQLContext, ParentTyp
   finishFileImport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FileUploadMutationsFinishFileImportArgs, 'input'>>;
   generateUploadUrl?: Resolver<ResolversTypes['GenerateFileUploadUrlOutput'], ParentType, ContextType, RequireFields<FileUploadMutationsGenerateUploadUrlArgs, 'input'>>;
   startFileImport?: Resolver<ResolversTypes['FileUpload'], ParentType, ContextType, RequireFields<FileUploadMutationsStartFileImportArgs, 'input'>>;
+  updateFileImportProgress?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FileUploadMutationsUpdateFileImportProgressArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

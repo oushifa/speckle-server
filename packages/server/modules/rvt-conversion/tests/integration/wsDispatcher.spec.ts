@@ -7,7 +7,11 @@ import WebSocket from 'ws'
 import { once } from 'events'
 import { retry } from '@speckle/shared'
 import { beforeEachContext, initializeTestServer } from '@/test/hooks'
-import { createTestUser, createAuthTokenForUser, type BasicTestUser } from '@/test/authHelper'
+import {
+  createTestUser,
+  createAuthTokenForUser,
+  type BasicTestUser
+} from '@/test/authHelper'
 import { createProject } from '@/test/projectHelper'
 import { createTestBranch } from '@/test/speckle-helpers/branchHelper'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
@@ -54,13 +58,13 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       workerSocket = null
     }
 
-    if (existingServiceToken === undefined) delete process.env['FILE_CONVERSION_SERVICE_TOKEN']
+    if (existingServiceToken === undefined)
+      delete process.env['FILE_CONVERSION_SERVICE_TOKEN']
     else process.env['FILE_CONVERSION_SERVICE_TOKEN'] = existingServiceToken
 
     if (existingInternalS3Endpoint === undefined)
       delete process.env['RVT_CONVERSION_INTERNAL_S3_ENDPOINT']
-    else
-      process.env['RVT_CONVERSION_INTERNAL_S3_ENDPOINT'] = existingInternalS3Endpoint
+    else process.env['RVT_CONVERSION_INTERNAL_S3_ENDPOINT'] = existingInternalS3Endpoint
 
     if (server) {
       await new Promise<void>((resolve, reject) => {
@@ -97,7 +101,9 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       owner: user
     })
 
-    workerSocket = new WebSocket(`${wsAddress}/api/ws/rvt-conversion?token=${serviceToken}`)
+    workerSocket = new WebSocket(
+      `${wsAddress}/api/ws/rvt-conversion?token=${serviceToken}`
+    )
     await once(workerSocket, 'open')
 
     workerSocket.send(
@@ -181,7 +187,9 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       owner: user
     })
 
-    workerSocket = new WebSocket(`${wsAddress}/api/ws/rvt-conversion?token=${serviceToken}`)
+    workerSocket = new WebSocket(
+      `${wsAddress}/api/ws/rvt-conversion?token=${serviceToken}`
+    )
     await once(workerSocket, 'open')
 
     workerSocket.send(
@@ -259,20 +267,27 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
     const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
     const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
 
-    await retry(async () => {
-      const job = await getJob({ id: payload.taskId })
-      expect(job).to.not.be.null
-      expect(job?.status).to.equal('acknowledged')
-      expect(job?.externalTaskId).to.equal('ext-progress-1')
+    await retry(
+      async () => {
+        const job = await getJob({ id: payload.taskId })
+        expect(job).to.not.be.null
+        expect(job?.status).to.equal('acknowledged')
+        expect(job?.externalTaskId).to.equal('ext-progress-1')
 
-      const file = await getFileInfo({
-        fileId: uploadUrlResponse.body.fileId,
-        projectId: project.id
-      })
-      expect(file).to.not.be.undefined
-      expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Converting)
-      expect(file?.convertedMessage).to.equal('正在转换模型 (42%, 42/100)')
-    }, 10, 200)
+        const file = await getFileInfo({
+          fileId: uploadUrlResponse.body.fileId,
+          projectId: project.id
+        })
+        expect(file).to.not.be.undefined
+        expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Converting)
+        expect(file?.progressPercent).to.equal(42)
+        expect(file?.progressPhase).to.equal('converting')
+        expect(file?.progressMessage).to.equal('正在转换模型')
+        expect(file?.convertedMessage).to.equal('正在转换模型 (42%, 42/100)')
+      },
+      10,
+      200
+    )
 
     workerSocket.send(
       JSON.stringify({
@@ -284,20 +299,27 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       })
     )
 
-    await retry(async () => {
-      const job = await getJob({ id: payload.taskId })
-      expect(job).to.not.be.null
-      expect(job?.status).to.equal('succeeded')
-      expect(job?.versionId).to.equal('version-progress-1')
+    await retry(
+      async () => {
+        const job = await getJob({ id: payload.taskId })
+        expect(job).to.not.be.null
+        expect(job?.status).to.equal('succeeded')
+        expect(job?.versionId).to.equal('version-progress-1')
 
-      const file = await getFileInfo({
-        fileId: uploadUrlResponse.body.fileId,
-        projectId: project.id
-      })
-      expect(file).to.not.be.undefined
-      expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Completed)
-      expect(file?.convertedCommitId).to.equal('version-progress-1')
-      expect(file?.convertedMessage).to.equal(null)
-    }, 10, 200)
+        const file = await getFileInfo({
+          fileId: uploadUrlResponse.body.fileId,
+          projectId: project.id
+        })
+        expect(file).to.not.be.undefined
+        expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Completed)
+        expect(file?.progressPercent).to.equal(100)
+        expect(file?.progressPhase).to.equal('completed')
+        expect(file?.progressMessage).to.equal('转换完成')
+        expect(file?.convertedCommitId).to.equal('version-progress-1')
+        expect(file?.convertedMessage).to.equal(null)
+      },
+      10,
+      200
+    )
   })
 })

@@ -84,6 +84,14 @@ export const onFileImportResultFactory =
 
     const status = jobResultStatusToFileUploadStatus(jobResult.status)
     const convertedMessage = jobResultToConvertedMessage(jobResult)
+    const progressUpload = {
+      progressPercent:
+        jobResult.status === JobResultStatus.Success ? 100 : fileInfo.progressPercent,
+      progressPhase:
+        jobResult.status === JobResultStatus.Success ? 'completed' : 'failed',
+      progressMessage:
+        jobResult.status === JobResultStatus.Success ? null : jobResult.reason
+    }
 
     if (deps.FF_NEXT_GEN_FILE_IMPORTER_ENABLED) {
       try {
@@ -109,6 +117,7 @@ export const onFileImportResultFactory =
           convertedStatus: status,
           convertedLastUpdate: new Date(),
           convertedMessage,
+          ...progressUpload,
           convertedCommitId,
           performanceData: {
             durationSeconds: jobResult.result.durationSeconds,

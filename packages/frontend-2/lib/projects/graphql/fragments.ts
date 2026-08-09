@@ -87,6 +87,9 @@ export const pendingFileUploadFragment = graphql(`
     modelName
     convertedStatus
     convertedMessage
+    progressPercent
+    progressPhase
+    progressMessage
     uploadDate
     convertedLastUpdate
     fileType

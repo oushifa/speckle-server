@@ -1,8 +1,11 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
 import cors from 'cors'
 import { ensureError } from '@speckle/shared'
+import { db } from '@/db/knex'
 import { buildAuthPolicies } from '@/modules'
+import { MODEL_LIBRARY_PROJECT_ID } from '@/modules/core/constants/modelLibrary'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
+import { ensureModelLibraryProjectAccessFactory } from '@/modules/core/services/streams/modelLibrary'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
@@ -12,6 +15,7 @@ import {
   getActiveProjectModelSyncTaskFactory,
   getProjectModelSyncTaskFactory,
   listActiveProjectModelSyncTasksFactory,
+  listLatestProjectModelSyncTasksByModelIdsFactory,
   listProjectModelSyncTasksFactory,
   listResumableProjectModelSyncTasksFactory,
   updateProjectModelSyncTaskFactory,
@@ -19,9 +23,13 @@ import {
 } from '@/modules/model-sync/repositories/tasks'
 import {
   emitModelSyncTaskUpdated,
+  onModelSyncModelUpdated,
   onModelSyncTaskUpdated
 } from '@/modules/model-sync/services/events'
-import { MODEL_SYNC_AUTO_RETRY_LIMIT } from '@/modules/model-sync/services/errors'
+import {
+  getRetryStatusForEntryPoint,
+  resolveRetryEntryPoint
+} from '@/modules/model-sync/services/retry'
 import {
   getLatestModelFileUploadFactory,
   prepareModelSyncUploadFactory,
@@ -45,6 +53,14 @@ const modelSyncErrHandler = (
 }
 
 const requireProjectRead = async (req: Request, projectId: string) => {
+  if (projectId === MODEL_LIBRARY_PROJECT_ID) {
+    requireAuthenticatedUser(req)
+    await ensureModelLibraryProjectAccessFactory({ db })({
+      userId: req.context.userId as string
+    })
+    return
+  }
+
   const authz = await buildAuthPolicies({ authContext: req.context })
   throwIfAuthNotOk(
     await authz.project.canRead({
@@ -54,10 +70,18 @@ const requireProjectRead = async (req: Request, projectId: string) => {
   )
 }
 
-const requireProjectUpdate = async (req: Request, projectId: string) => {
+const requireVersionCreate = async (req: Request, projectId: string) => {
+  if (projectId === MODEL_LIBRARY_PROJECT_ID) {
+    requireAuthenticatedUser(req)
+    await ensureModelLibraryProjectAccessFactory({ db })({
+      userId: req.context.userId as string
+    })
+    return
+  }
+
   const authz = await buildAuthPolicies({ authContext: req.context })
   throwIfAuthNotOk(
-    await authz.project.canUpdate({
+    await authz.project.version.canCreate({
       userId: req.context.userId,
       projectId
     })
@@ -99,6 +123,14 @@ const serializeTask = (task: ProjectModelSyncTaskRecord) => ({
   updatedAt: task.updatedAt.toISOString()
 })
 
+const parseModelIds = (queryValue: unknown) =>
+  typeof queryValue !== 'string'
+    ? []
+    : queryValue
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+
 const runTaskInBackground = (params: {
   projectId: string
   modelId: string
@@ -113,6 +145,16 @@ export const modelSyncRouterFactory = () => {
 
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(projectRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${projectRouteBase}/snapshot`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${projectRouteBase}/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(`${routeBase}/:taskId`, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(
     `${routeBase}/:taskId/complete-upload`,
@@ -128,6 +170,35 @@ export const modelSyncRouterFactory = () => {
     `${routeBase}/:taskId/retry`,
     cors(),
     allowCrossOriginResourceAccessMiddelware()
+  )
+
+  router.get(
+    `${projectRouteBase}/snapshot`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        await requireProjectRead(req, projectId)
+
+        const modelIds = parseModelIds(req.query.modelIds)
+        if (!modelIds.length) {
+          return res.json({ data: [] })
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const tasks = await listLatestProjectModelSyncTasksByModelIdsFactory({
+          db: projectDb
+        })({
+          projectId,
+          modelIds
+        })
+
+        res.json({ data: tasks.map(serializeTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
   )
 
   router.get(
@@ -220,7 +291,7 @@ export const modelSyncRouterFactory = () => {
         const projectId = req.params.projectId
         const modelId = req.params.modelId
         const userId = req.context.userId
-        await requireProjectUpdate(req, projectId)
+        await requireVersionCreate(req, projectId)
 
         if (!userId) {
           return res.status(401).json({ error: 'User not authenticated.' })
@@ -319,7 +390,7 @@ export const modelSyncRouterFactory = () => {
         const modelId = req.params.modelId
         const taskId = req.params.taskId
         const userId = req.context.userId
-        await requireProjectUpdate(req, projectId)
+        await requireVersionCreate(req, projectId)
 
         if (!userId) {
           return res.status(401).json({ error: 'User not authenticated.' })
@@ -394,7 +465,7 @@ export const modelSyncRouterFactory = () => {
         const modelId = req.params.modelId
         const taskId = req.params.taskId
         const userId = req.context.userId
-        await requireProjectUpdate(req, projectId)
+        await requireVersionCreate(req, projectId)
 
         if (!userId) {
           return res.status(401).json({ error: 'User not authenticated.' })
@@ -421,24 +492,30 @@ export const modelSyncRouterFactory = () => {
           throw new BadRequestError('当前任务不处于失败状态')
         }
 
-        if (!task.retriable) {
-          throw new BadRequestError('当前任务不支持自动重试')
+        const retryEntryPoint = resolveRetryEntryPoint(task)
+        if (!retryEntryPoint) {
+          throw new BadRequestError('当前任务不支持重试')
         }
 
-        if (task.retryCount >= MODEL_SYNC_AUTO_RETRY_LIMIT) {
-          throw new BadRequestError('当前任务已达到自动重试上限')
-        }
-
+        const retryStatus = getRetryStatusForEntryPoint(retryEntryPoint)
         const retriedTask = await updateTask({
           projectId,
           modelId,
           taskId,
           patch: {
-            status: 'speckle_converting',
+            status: retryStatus,
             error: null,
             errorCode: null,
             retriable: false,
-            retryCount: task.retryCount + 1,
+            retryCount: 0,
+            progressPercent: retryStatus === 'speckle_converting' ? 0 : null,
+            progressPhase: null,
+            progressMessage:
+              retryStatus === 'triggering_model_transform'
+                ? '准备重新发起模型转换'
+                : retryStatus === 'syncing_dtp_model'
+                ? '准备重新同步 DTP 模型'
+                : '准备重新等待 Speckle 转换',
             updater: userId
           }
         })
@@ -455,6 +532,64 @@ export const modelSyncRouterFactory = () => {
         })
 
         res.json({ data: serializeTask(retriedTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${projectRouteBase}/events`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        await requireProjectRead(req, projectId)
+
+        const modelIds = parseModelIds(req.query.modelIds)
+        if (!modelIds.length) {
+          throw new BadRequestError('modelIds is required')
+        }
+
+        const uniqueModelIds = Array.from(new Set(modelIds))
+        const projectDb = await getProjectDbClient({ projectId })
+        const tasks = await listLatestProjectModelSyncTasksByModelIdsFactory({
+          db: projectDb
+        })({
+          projectId,
+          modelIds: uniqueModelIds
+        })
+
+        res.status(200)
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache, no-transform')
+        res.setHeader('Connection', 'keep-alive')
+
+        const writeEvent = (eventName: string, data: unknown) => {
+          res.write(`event: ${eventName}\n`)
+          res.write(`data: ${JSON.stringify(data)}\n\n`)
+        }
+
+        writeEvent('snapshot', {
+          projectId,
+          tasks: tasks.map(serializeTask)
+        })
+
+        const unsubscribeList = uniqueModelIds.map((currentModelId) =>
+          onModelSyncModelUpdated(projectId, currentModelId, (payload) => {
+            writeEvent('update', serializeTask(payload))
+          })
+        )
+
+        const heartbeat = setInterval(() => {
+          res.write(`: ping\n\n`)
+        }, 15000)
+
+        req.on('close', () => {
+          clearInterval(heartbeat)
+          unsubscribeList.forEach((unsubscribe) => unsubscribe())
+        })
       } catch (err) {
         next(err)
       }

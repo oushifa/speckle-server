@@ -24,6 +24,8 @@ import {
   updateProjectModelSyncTaskFactory
 } from '@/modules/model-sync/repositories/tasks'
 import {
+  MODEL_SYNC_AUTO_RETRY_INTERVAL_MS,
+  MODEL_SYNC_AUTO_RETRY_LIMIT,
   ModelSyncTaskError,
   normalizeModelSyncTaskError
 } from '@/modules/model-sync/services/errors'
@@ -35,6 +37,11 @@ import {
   triggerDtpModelTransformFactory,
   uploadBufferToDtpFactory
 } from '@/modules/model-sync/services/dtp'
+import {
+  getRetryStatusForEntryPoint,
+  resolveRetryEntryPoint,
+  type ModelSyncRetryEntryPoint
+} from '@/modules/model-sync/services/retry'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 
 const sleep = async (ms: number) =>
@@ -122,6 +129,25 @@ export const runModelSyncTaskFactory =
       storage: projectStorage.private
     })
     const getFileStream = getFileStreamFactory({ getBlobMetadata })
+    const getUser = getUserFactory({ db })
+    const waitForConvertedUpload = waitForConvertedUploadFactory({ getFileInfo })
+    const uploadToDtp = uploadBufferToDtpFactory({
+      loginToDtp: loginToDtpFactory(),
+      getDtpUploadConfig: getDtpUploadConfigFactory()
+    })
+    const triggerTransform = triggerDtpModelTransformFactory()
+    const pollTransform = pollDtpModelTransformUntilFinishedFactory()
+    const updateCommitAndNotify = updateCommitAndNotifyFactory({
+      getCommit: getCommitFactory({ db: projectDb }),
+      getStream: getStreamFactory({ db: projectDb }),
+      getCommitStream: getCommitStreamFactory({ db: projectDb }),
+      getStreamBranchByName: getStreamBranchByNameFactory({ db: projectDb }),
+      getCommitBranch: getCommitBranchFactory({ db: projectDb }),
+      switchCommitBranch: switchCommitBranchFactory({ db: projectDb }),
+      updateCommit: updateCommitFactory({ db: projectDb }),
+      emitEvent: getEventBus().emit,
+      markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
+    })
 
     const patchTask = async (
       patch: Parameters<typeof updateTask>[0]['patch']
@@ -139,17 +165,52 @@ export const runModelSyncTaskFactory =
       return updated
     }
 
-    try {
-      const task = await getTask({
+    const loadTask = async () =>
+      await getTask({
         projectId: params.projectId,
         modelId: params.modelId,
         taskId: params.taskId
       })
-      if (!task) return
 
+    const resolveConvertedUpload = async (task: NonNullable<Awaited<ReturnType<typeof loadTask>>>) => {
       const fileUploadId = task.fileUploadId || task.fileId
       if (!fileUploadId) {
-        throw new ModelSyncTaskError('MISSING_FILE_UPLOAD_ID', '同步任务缺少 fileUploadId', false)
+        throw new ModelSyncTaskError(
+          'MISSING_FILE_UPLOAD_ID',
+          '同步任务缺少 fileUploadId',
+          false
+        )
+      }
+
+      return await waitForConvertedUpload({
+        projectId: params.projectId,
+        fileUploadId
+      })
+    }
+
+    const ensureUserEmail = async () => {
+      const user = await getUser(params.userId)
+      if (!user?.email) {
+        throw new ModelSyncTaskError(
+          'DTP_USER_CONTACT_NOT_FOUND',
+          '未找到用户手机号，无法登录 DTP',
+          false
+        )
+      }
+
+      return user.email
+    }
+
+    const runSpeckleStage = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const fileUploadId = task.fileUploadId || task.fileId
+      if (!fileUploadId) {
+        throw new ModelSyncTaskError(
+          'MISSING_FILE_UPLOAD_ID',
+          '同步任务缺少 fileUploadId',
+          false
+        )
       }
 
       await patchTask({
@@ -163,10 +224,22 @@ export const runModelSyncTaskFactory =
         retriable: false
       })
 
-      const upload = await waitForConvertedUploadFactory({ getFileInfo })({
-        projectId: params.projectId,
-        fileUploadId
-      })
+      const upload = await resolveConvertedUpload(task)
+      if (!upload.convertedCommitId) {
+        throw new ModelSyncTaskError(
+          'VERSION_METADATA_UPDATE_FAILED',
+          '模型转换完成，但未拿到 versionId',
+          false
+        )
+      }
+
+      return upload
+    }
+
+    const runSyncStage = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const upload = await resolveConvertedUpload(task)
       if (!upload.convertedCommitId) {
         throw new ModelSyncTaskError(
           'VERSION_METADATA_UPDATE_FAILED',
@@ -180,6 +253,10 @@ export const runModelSyncTaskFactory =
         versionId: upload.convertedCommitId,
         fileType: upload.fileType,
         fileSize: upload.fileSize || null,
+        seedId: null,
+        assetId: null,
+        assetName: null,
+        transformTaskId: null,
         status: 'syncing_dtp_model',
         progressPercent: null,
         progressPhase: null,
@@ -189,28 +266,15 @@ export const runModelSyncTaskFactory =
         retriable: false
       })
 
-      const user = await getUserFactory({ db })(params.userId)
-      if (!user?.email) {
-        throw new ModelSyncTaskError(
-          'DTP_USER_CONTACT_NOT_FOUND',
-          '未找到用户手机号，无法登录 DTP',
-          false
-        )
-      }
-
+      const mobile = await ensureUserEmail()
       const fileStream = await getFileStream({
         blobId: task.fileId || upload.id,
         streamId: params.projectId,
         getObjectStream
       })
       const fileBuffer = await streamToBuffer(fileStream)
-
-      const uploadToDtp = uploadBufferToDtpFactory({
-        loginToDtp: loginToDtpFactory(),
-        getDtpUploadConfig: getDtpUploadConfigFactory()
-      })
       const dtpResult = await uploadToDtp({
-        mobile: user.email,
+        mobile,
         fileName: upload.fileName,
         buffer: fileBuffer
       })
@@ -229,18 +293,6 @@ export const runModelSyncTaskFactory =
         retriable: false
       })
 
-      const updateCommitAndNotify = updateCommitAndNotifyFactory({
-        getCommit: getCommitFactory({ db: projectDb }),
-        getStream: getStreamFactory({ db: projectDb }),
-        getCommitStream: getCommitStreamFactory({ db: projectDb }),
-        getStreamBranchByName: getStreamBranchByNameFactory({ db: projectDb }),
-        getCommitBranch: getCommitBranchFactory({ db: projectDb }),
-        switchCommitBranch: switchCommitBranchFactory({ db: projectDb }),
-        updateCommit: updateCommitFactory({ db: projectDb }),
-        emitEvent: getEventBus().emit,
-        markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
-      })
-
       await updateCommitAndNotify(
         {
           projectId: params.projectId,
@@ -253,7 +305,29 @@ export const runModelSyncTaskFactory =
         params.userId
       )
 
+      return {
+        mobile,
+        assetId: dtpResult.assetId,
+        assetName: dtpResult.assetName
+      }
+    }
+
+    const runTransformStage = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const mobile = await ensureUserEmail()
+      const assetId = task.assetId?.trim()
+      const assetName = task.assetName?.trim()
+      if (!assetId || !assetName) {
+        throw new ModelSyncTaskError(
+          'DTP_UPLOAD_RESULT_INVALID',
+          '缺少中海资产标识，无法重新发起模型转换',
+          false
+        )
+      }
+
       await patchTask({
+        transformTaskId: null,
         status: 'triggering_model_transform',
         progressPercent: null,
         progressPhase: null,
@@ -263,11 +337,10 @@ export const runModelSyncTaskFactory =
         retriable: false
       })
 
-      const triggerTransform = triggerDtpModelTransformFactory()
       const transformTaskId = await triggerTransform({
-        mobile: user.email,
-        assetId: dtpResult.assetId,
-        assetName: dtpResult.assetName
+        mobile,
+        assetId,
+        assetName
       })
 
       await patchTask({
@@ -278,11 +351,27 @@ export const runModelSyncTaskFactory =
         progressMessage: '正在等待模型转换完成'
       })
 
-      const pollTransform = pollDtpModelTransformUntilFinishedFactory()
       await pollTransform({
-        mobile: user.email,
+        mobile,
         transformTaskId
       })
+    }
+
+    const runFromEntryPoint = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>,
+      entryPoint: ModelSyncRetryEntryPoint
+    ) => {
+      if (entryPoint === 'speckle') {
+        await runSpeckleStage(task)
+      }
+
+      if (entryPoint === 'speckle' || entryPoint === 'sync') {
+        task = (await loadTask()) || task
+        await runSyncStage(task)
+      }
+
+      task = (await loadTask()) || task
+      await runTransformStage(task)
 
       await patchTask({
         status: 'succeeded',
@@ -293,14 +382,57 @@ export const runModelSyncTaskFactory =
         errorCode: null,
         retriable: false
       })
-    } catch (error) {
-      const { message, errorCode, retriable } = normalizeModelSyncTaskError(error)
-      await patchTask({
-        status: 'failed',
-        progressMessage: null,
-        error: message,
-        errorCode,
-        retriable
-      })
+    }
+
+    let task = await loadTask()
+    if (!task) return
+
+    while (task) {
+      const entryPoint = resolveRetryEntryPoint(task)
+      if (!entryPoint) return
+
+      try {
+        await runFromEntryPoint(task, entryPoint)
+        return
+      } catch (error) {
+        const { message, errorCode, retriable } = normalizeModelSyncTaskError(error)
+        const nextRetryCount: number = task.retryCount + 1
+        const canAutoRetry = retriable && nextRetryCount <= MODEL_SYNC_AUTO_RETRY_LIMIT
+
+        await patchTask({
+          status: 'failed',
+          progressPercent: null,
+          progressPhase: null,
+          progressMessage: canAutoRetry
+            ? `将在 ${Math.round(MODEL_SYNC_AUTO_RETRY_INTERVAL_MS / 1000)} 秒后自动重试`
+            : null,
+          error: message,
+          errorCode,
+          retriable: canAutoRetry
+        })
+
+        if (!canAutoRetry) {
+          return
+        }
+
+        await sleep(MODEL_SYNC_AUTO_RETRY_INTERVAL_MS)
+        const retryStatus = getRetryStatusForEntryPoint(entryPoint)
+        task =
+          (await patchTask({
+            status: retryStatus,
+            retryCount: nextRetryCount,
+            error: null,
+            errorCode: null,
+            retriable: false,
+            progressPercent: retryStatus === 'speckle_converting' ? 0 : null,
+            progressPhase: null,
+            progressMessage:
+              retryStatus === 'triggering_model_transform'
+                ? '准备重新发起模型转换'
+                : retryStatus === 'syncing_dtp_model'
+                ? '准备重新同步 DTP 模型'
+                : '准备重新等待 Speckle 转换'
+          })) || (await loadTask())
+      }
     }
   }

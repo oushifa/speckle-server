@@ -40,6 +40,9 @@ const syncFileUploadFromRvtJobFactory = (deps: {
     status: FileUploadConvertedStatus
     convertedMessage: string | null
     convertedCommitId: string | null
+    progressPercent?: number | null
+    progressPhase?: string | null
+    progressMessage?: string | null
   }) => {
     lifecycleLogger.info(
       {
@@ -77,7 +80,19 @@ const syncFileUploadFromRvtJobFactory = (deps: {
         convertedStatus: params.status,
         convertedMessage: params.convertedMessage,
         convertedCommitId: params.convertedCommitId,
-        convertedLastUpdate: new Date()
+        convertedLastUpdate: new Date(),
+        progressPercent:
+          params.progressPercent === undefined
+            ? fileUpload.progressPercent
+            : params.progressPercent,
+        progressPhase:
+          params.progressPhase === undefined
+            ? fileUpload.progressPhase
+            : params.progressPhase,
+        progressMessage:
+          params.progressMessage === undefined
+            ? fileUpload.progressMessage
+            : params.progressMessage
       }
     })) as FileUploadRecord
 
@@ -175,14 +190,26 @@ const buildProgressMessage = (params: {
   return `${params.message} (${percent}%)`
 }
 
+const buildProgressState = (params: {
+  phase: string
+  progress: number
+  message: string
+  current?: number
+  total?: number
+}) => ({
+  progressPercent: Math.max(0, Math.min(100, params.progress)),
+  progressPhase: params.phase,
+  progressMessage: params.message,
+  convertedMessage: buildProgressMessage(params)
+})
+
 export const acknowledgeRvtConversionJob = async (params: {
   projectId: string
   taskId: string
   externalTaskId?: string | null
 }) => {
-  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
-    params.projectId
-  )
+  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
+    await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
   if (!job) return null
 
@@ -200,7 +227,10 @@ export const acknowledgeRvtConversionJob = async (params: {
     job: updatedJob || job,
     status: FileUploadConvertedStatus.Converting,
     convertedMessage: '转换服务已接单',
-    convertedCommitId: null
+    convertedCommitId: null,
+    progressPercent: 0,
+    progressPhase: 'acknowledged',
+    progressMessage: '转换服务已接单'
   })
 
   await syncRelatedModelSyncTasksFromRvtJob({
@@ -231,9 +261,8 @@ export const progressRvtConversionJob = async (params: {
   current?: number
   total?: number
 }) => {
-  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
-    params.projectId
-  )
+  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
+    await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
   if (!job) return null
 
@@ -247,11 +276,16 @@ export const progressRvtConversionJob = async (params: {
     }
   })
 
+  const progressState = buildProgressState(params)
+
   await syncFileUploadFromRvtJob({
     job: updatedJob || job,
     status: FileUploadConvertedStatus.Converting,
-    convertedMessage: buildProgressMessage(params),
-    convertedCommitId: null
+    convertedMessage: progressState.convertedMessage,
+    convertedCommitId: null,
+    progressPercent: progressState.progressPercent,
+    progressPhase: progressState.progressPhase,
+    progressMessage: progressState.progressMessage
   })
 
   await syncRelatedModelSyncTasksFromRvtJob({
@@ -259,9 +293,9 @@ export const progressRvtConversionJob = async (params: {
     job: updatedJob || job,
     patch: {
       status: 'speckle_converting',
-      progressPercent: Math.max(0, Math.min(100, params.progress)),
-      progressPhase: params.phase,
-      progressMessage: buildProgressMessage(params),
+      progressPercent: progressState.progressPercent,
+      progressPhase: progressState.progressPhase,
+      progressMessage: progressState.progressMessage,
       error: null,
       errorCode: null,
       retriable: false,
@@ -289,9 +323,8 @@ export const completeRvtConversionJob = async (
         errorMessage: string
       }
 ) => {
-  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } = await getJobServices(
-    params.projectId
-  )
+  const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
+    await getJobServices(params.projectId)
   const job = await getJob({ id: params.taskId })
   if (!job) return null
 
@@ -324,7 +357,10 @@ export const completeRvtConversionJob = async (
         ? FileUploadConvertedStatus.Completed
         : FileUploadConvertedStatus.Error,
     convertedMessage: params.status === 'success' ? null : params.errorMessage,
-    convertedCommitId: params.status === 'success' ? params.versionId : null
+    convertedCommitId: params.status === 'success' ? params.versionId : null,
+    progressPercent: params.status === 'success' ? 100 : null,
+    progressPhase: params.status === 'success' ? 'completed' : 'failed',
+    progressMessage: params.status === 'success' ? '转换完成' : null
   })
 
   if (params.status === 'failed') {
@@ -350,7 +386,7 @@ export const completeRvtConversionJob = async (
         versionId: params.versionId,
         progressPercent: 100,
         progressPhase: 'completed',
-        progressMessage: 'Speckle 转换完成',
+        progressMessage: '转换完成',
         error: null,
         errorCode: null,
         retriable: false,

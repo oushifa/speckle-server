@@ -129,6 +129,27 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
         }
       })
 
+    const updateFileImportProgress = (
+      token: string,
+      payload: {
+        projectId: string
+        jobId: string
+        progressPercent?: number | null
+        progressPhase?: string | null
+        progressMessage?: string | null
+      }
+    ) =>
+      sendRequest(token, {
+        query: `mutation ($input: UpdateFileImportProgressInput!) {
+          fileUploadMutations {
+            updateFileImportProgress(input: $input)
+          }
+        }`,
+        variables: {
+          input: payload
+        }
+      })
+
     const getFileUploads = (projectId: string, token: string) =>
       sendRequest(token, {
         query: `query ($streamId: String!) {
@@ -138,6 +159,9 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
                     id
                     fileName
                     convertedStatus
+                    progressPercent
+                    progressPhase
+                    progressMessage
                   }
                 }
               }`,
@@ -281,6 +305,30 @@ const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
         expect(gqlResponse.body).to.nested.include({
           'errors[0].extensions.code': 'FILE_IMPORT_JOB_NOT_FOUND',
           'errors[0].extensions.statusCode': 404
+        })
+      })
+
+      it('should 200 if the payload reports in-flight progress', async () => {
+        const gqlResponse = await updateFileImportProgress(userOneToken, {
+          projectId: projectOneId,
+          jobId: jobOneId,
+          progressPercent: 42,
+          progressPhase: 'converting_objects',
+          progressMessage: '正在转换 IFC 对象'
+        })
+
+        expect(noErrors(gqlResponse))
+        expect(gqlResponse.status).to.equal(200)
+
+        const fileResponse = await getFileUploads(projectOneId, userOneToken)
+        expect(noErrors(fileResponse))
+        expect(fileResponse.body.data.stream.fileUploads).to.have.lengthOf(1)
+        expect(fileResponse.body.data.stream.fileUploads[0]).to.deep.include({
+          id: jobOneId,
+          convertedStatus: FileUploadConvertedStatus.Converting,
+          progressPercent: 42,
+          progressPhase: 'converting_objects',
+          progressMessage: '正在转换 IFC 对象'
         })
       })
 

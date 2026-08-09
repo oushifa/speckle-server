@@ -1,4 +1,5 @@
-export const MODEL_SYNC_AUTO_RETRY_LIMIT = 2
+export const MODEL_SYNC_AUTO_RETRY_LIMIT = 5
+export const MODEL_SYNC_AUTO_RETRY_INTERVAL_MS = 30 * 1000
 
 export type ModelSyncTaskErrorCode =
   | 'MISSING_FILE_UPLOAD_ID'

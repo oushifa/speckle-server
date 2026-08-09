@@ -17,6 +17,12 @@ type FileUploadPerformanceData = {
   parseDurationSeconds: number
 }
 
+type FileUploadProgressData = {
+  progressPercent: Nullable<number>
+  progressPhase: Nullable<string>
+  progressMessage: Nullable<string>
+}
+
 export type FileUploadRecord = {
   id: string
   streamId: string
@@ -34,7 +40,7 @@ export type FileUploadRecord = {
   convertedCommitId: Nullable<string>
   metadata: Nullable<FileUploadRecordMetadata>
   performanceData: Nullable<FileUploadPerformanceData>
-}
+} & FileUploadProgressData
 
 export type FileUploadRecordV2 = {
   id: string
@@ -52,6 +58,6 @@ export type FileUploadRecordV2 = {
   convertedCommitId: Nullable<string>
   metadata: Nullable<FileUploadRecordMetadata>
   performanceData: Nullable<FileUploadPerformanceData>
-}
+} & FileUploadProgressData
 
 export type FileUploadGraphQLReturn = FileUploadRecord | FileUploadRecordV2

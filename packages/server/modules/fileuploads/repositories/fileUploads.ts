@@ -100,7 +100,10 @@ const mapFileUploadRecordToV2 = (record: FileUploadRecord): FileUploadRecordV2 =
     convertedStatus: record.convertedStatus,
     convertedLastUpdate: record.convertedLastUpdate,
     convertedMessage: record.convertedMessage,
-    convertedCommitId: record.convertedCommitId
+    convertedCommitId: record.convertedCommitId,
+    progressPercent: record.progressPercent,
+    progressPhase: record.progressPhase,
+    progressMessage: record.progressMessage
   } as FileUploadRecordV2
 }
 
@@ -273,7 +276,9 @@ export const getBranchPendingVersionsFactory =
         .where(FileUploads.col.modelId, modelId)
         .whereIn(
           FileUploads.col.branchName,
-          Branches.knex().select(Branches.col.name).where(Branches.col.streamId, streamId)
+          Branches.knex()
+            .select(Branches.col.name)
+            .where(Branches.col.streamId, streamId)
         )
 
       if (uploadsByModelId.length) {

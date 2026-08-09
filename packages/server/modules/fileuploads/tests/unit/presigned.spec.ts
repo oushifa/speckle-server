@@ -5,6 +5,7 @@ import { registerUploadCompleteAndStartFileImportFactory } from '@/modules/fileu
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 import { ModelNotFoundError } from '@/modules/core/errors/model'
 import { BlobUploadStatus } from '@speckle/shared/blobs'
+import type { FileUploadRecordV2 } from '@/modules/fileuploads/helpers/types'
 
 describe('Presigned @blobstorage', async () => {
   describe('register a completed blob upload', () => {
@@ -28,25 +29,30 @@ describe('Presigned @blobstorage', async () => {
       userId,
       objectKey: cryptoRandomString({ length: 10 })
     })
-    const fakeInsertNewUploadAndNotify = async () => ({
+    const fakeInsertNewUploadAndNotify = async (): Promise<
+      FileUploadRecordV2 & { modelName: string }
+    > => ({
       id: blobId,
       projectId,
       modelId,
+      modelName: cryptoRandomString({ length: 10 }),
       userId,
       fileName,
       fileType: 'stl',
       fileSize: 101,
       uploadComplete: false,
       uploadDate: new Date(),
-      uploadStatus: BlobUploadStatus.Completed,
       convertedStatus: FileUploadConvertedStatus.Queued,
       convertedLastUpdate: new Date(),
       convertedMessage: null,
       convertedCommitId: null,
       metadata: null,
-      performanceData: null
+      performanceData: null,
+      progressPercent: null,
+      progressPhase: null,
+      progressMessage: null
     })
-    const fakeGetFileInfo = async () => ({
+    const fakeGetFileInfo = async (): Promise<FileUploadRecordV2> => ({
       id: blobId,
       projectId,
       modelId,
@@ -56,13 +62,15 @@ describe('Presigned @blobstorage', async () => {
       fileSize: 101,
       uploadComplete: false,
       uploadDate: new Date(),
-      uploadStatus: BlobUploadStatus.Completed,
       convertedStatus: FileUploadConvertedStatus.Queued,
       convertedLastUpdate: new Date(),
       convertedMessage: null,
       convertedCommitId: null,
       metadata: null,
-      performanceData: null
+      performanceData: null,
+      progressPercent: null,
+      progressPhase: null,
+      progressMessage: null
     })
     // const fakeGetModelsByIds = async () => [
     //   {

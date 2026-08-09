@@ -134,6 +134,45 @@ export const listProjectModelSyncTasksByFileUploadIdFactory =
     return await query
   }
 
+export const listLatestProjectModelSyncTasksByModelIdsFactory =
+  (deps: { db: Knex }) =>
+  async (params: {
+    projectId: string
+    modelIds: string[]
+  }): Promise<ProjectModelSyncTaskRecord[]> => {
+    if (!params.modelIds.length) {
+      return []
+    }
+
+    const rows = await tables
+      .tasks(deps.db)
+      .where({
+        [ProjectModelSyncTasks.col.projectId]: params.projectId
+      })
+      .whereIn(ProjectModelSyncTasks.col.modelId, params.modelIds)
+      .orderBy([
+        {
+          column: ProjectModelSyncTasks.col.modelId,
+          order: 'asc'
+        },
+        {
+          column: ProjectModelSyncTasks.col.createdAt,
+          order: 'desc'
+        }
+      ])
+
+    const latestByModelId = new Map<string, ProjectModelSyncTaskRecord>()
+    for (const row of rows) {
+      if (!latestByModelId.has(row.modelId)) {
+        latestByModelId.set(row.modelId, row)
+      }
+    }
+
+    return params.modelIds
+      .map((modelId) => latestByModelId.get(modelId))
+      .filter((task): task is ProjectModelSyncTaskRecord => Boolean(task))
+  }
+
 export const listActiveProjectModelSyncTasksFactory =
   (deps: { db: Knex }) =>
   async (params: {

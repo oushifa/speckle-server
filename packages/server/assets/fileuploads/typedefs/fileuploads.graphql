@@ -90,6 +90,9 @@ type FileUpload {
   uploadComplete: Boolean!
   uploadDate: DateTime!
   convertedLastUpdate: DateTime!
+  progressPercent: Int
+  progressPhase: String
+  progressMessage: String
 
   """
   Model associated with the file upload, if it exists already
@@ -165,6 +168,18 @@ input FinishFileImportInput {
   result: FileImportResultInput!
 }
 
+input UpdateFileImportProgressInput {
+  projectId: String!
+  """
+  This is the blob Id of the uploaded file. For legacy reasons it is named jobId.
+  Note: This is the not the background job Id.
+  """
+  jobId: String!
+  progressPercent: Int
+  progressPhase: String
+  progressMessage: String
+}
+
 type FileUploadMutations {
   """
   Generate a pre-signed url to which a file can be uploaded.
@@ -188,6 +203,12 @@ type FileUploadMutations {
   Mostly for internal service usage.
   """
   finishFileImport(input: FinishFileImportInput!): Boolean!
+
+  """
+  Updates the in-flight progress for a file import job and emits the needed subscriptions.
+  Mostly for internal service usage.
+  """
+  updateFileImportProgress(input: UpdateFileImportProgressInput!): Boolean!
 }
 
 extend type Mutation {

@@ -76,6 +76,7 @@ import type {
   FileUploadRecordV2
 } from '@/modules/fileuploads/helpers/types'
 import { onFileImportResultFactory } from '@/modules/fileuploads/services/resultHandler'
+import { onFileImportProgressFactory } from '@/modules/fileuploads/services/progressHandler'
 import type { FileImportResultPayload } from '@speckle/shared/workers/fileimport'
 import { JobResultStatus } from '@speckle/shared/workers/fileimport'
 import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
@@ -406,6 +407,48 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
     await onFileImportResult({
       blobId: jobId,
       jobResult
+    })
+
+    return true
+  },
+
+  async updateFileImportProgress(_parent, args, ctx) {
+    if (!FF_NEXT_GEN_FILE_IMPORTER_ENABLED)
+      throw new MisconfiguredEnvironmentError('File import next gen is not enabled')
+
+    const { projectId, jobId, progressPercent, progressPhase, progressMessage } =
+      args.input
+    const userId = ctx.userId
+    if (!userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    const projectDb = await getProjectDbClient({ projectId })
+    const onFileImportProgress = onFileImportProgressFactory({
+      logger: ctx.log.child({
+        projectId,
+        streamId: projectId,
+        userId,
+        blobId: jobId
+      }),
+      updateFileUpload: updateFileUploadFactory({ db: projectDb }),
+      getFileInfo: getFileInfoFactoryV2({ db: projectDb }),
+      eventEmit: getEventBus().emit
+    })
+
+    await onFileImportProgress({
+      blobId: jobId,
+      progressPercent: progressPercent ?? null,
+      progressPhase: progressPhase ?? null,
+      progressMessage: progressMessage ?? null
     })
 
     return true
