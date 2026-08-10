@@ -11,6 +11,7 @@ import {
   updateProjectModelSyncTaskFactory
 } from '@/modules/model-sync/repositories/tasks'
 import { emitModelSyncTaskUpdated } from '@/modules/model-sync/services/events'
+import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
 import {
   getFileInfoFactoryV2,
   updateFileUploadFactory
@@ -394,6 +395,48 @@ const buildProgressState = (params: {
   convertedMessage: buildProgressMessage(params)
 })
 
+const resumeRelatedModelSyncTasksAfterRvtSuccess = async (params: {
+  projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
+  job: RvtConversionJob
+}) => {
+  const listTasksByFileUploadId = listProjectModelSyncTasksByFileUploadIdFactory({
+    db: params.projectDb
+  })
+  const relatedTasks = await listTasksByFileUploadId({
+    projectId: params.job.projectId,
+    fileUploadId: params.job.sourceFileId,
+    activeOnly: true
+  })
+  const tasksToResume = relatedTasks.filter((task) => task.status === 'speckle_converting')
+
+  lifecycleLogger.info(
+    {
+      ...buildRvtJobLogContext(params.job),
+      resumableTaskCount: tasksToResume.length
+    },
+    'RVT_CONVERT model sync task resume requested'
+  )
+
+  const runModelSyncTask = runModelSyncTaskFactory()
+  for (const task of tasksToResume) {
+    void runModelSyncTask({
+      projectId: task.projectId,
+      modelId: task.modelId,
+      taskId: task.id,
+      userId: task.creator
+    }).catch((error) => {
+      lifecycleLogger.warn(
+        {
+          ...buildRvtJobLogContext(params.job),
+          relatedTaskId: task.id,
+          err: error
+        },
+        'RVT_CONVERT failed to resume related model sync task after success'
+      )
+    })
+  }
+}
+
 export const acknowledgeRvtConversionJob = async (params: {
   projectId: string
   taskId: string
@@ -716,6 +759,10 @@ export const completeRvtConversionJob = async (
         retriable: false,
         updater: serviceUpdater
       }
+    })
+    await resumeRelatedModelSyncTasksAfterRvtSuccess({
+      projectDb,
+      job: updatedJob || job
     })
   }
 

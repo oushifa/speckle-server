@@ -13,6 +13,10 @@ import {
   switchCommitBranchFactory,
   updateCommitFactory
 } from '@/modules/core/repositories/commits'
+import {
+  acquireTaskLockFactory,
+  releaseTaskLockFactory
+} from '@/modules/core/repositories/scheduledTasks'
 import { getStreamFactory, getCommitStreamFactory } from '@/modules/core/repositories/streams'
 import { getUserFactory } from '@/modules/core/repositories/users'
 import { updateCommitAndNotifyFactory } from '@/modules/core/services/commit/management'
@@ -58,6 +62,7 @@ const TerminalFileUploadStatuses = new Set<FileUploadConvertedStatus>([
   FileUploadConvertedStatus.Error
 ])
 const TerminalProgressPhases = new Set(['completed', 'failed'])
+const PostConversionLockTimeoutMs = 30 * 60 * 1000
 
 const streamToBuffer = async (stream: NodeJS.ReadableStream) => {
   const chunks: Buffer[] = []
@@ -137,6 +142,8 @@ export const runModelSyncTaskFactory =
     const updateTask = updateProjectModelSyncTaskFactory({ db: projectDb })
     const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
     const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+    const acquireTaskLock = acquireTaskLockFactory({ db })
+    const releaseTaskLock = releaseTaskLockFactory({ db })
     const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
     const getObjectStream = getObjectStreamFactory({
       storage: projectStorage.private
@@ -189,6 +196,30 @@ export const runModelSyncTaskFactory =
         modelId: params.modelId,
         taskId: params.taskId
       })
+
+    const withPostConversionLock = async <T>(callback: () => Promise<T>) => {
+      const taskName = `model-sync-post-conversion:${params.projectId}:${params.modelId}:${params.taskId}`
+      const lock = await acquireTaskLock({
+        taskName,
+        lockExpiresAt: new Date(Date.now() + PostConversionLockTimeoutMs)
+      })
+
+      if (!lock) {
+        return {
+          acquired: false as const,
+          result: null as T | null
+        }
+      }
+
+      try {
+        return {
+          acquired: true as const,
+          result: await callback()
+        }
+      } finally {
+        await releaseTaskLock({ taskName })
+      }
+    }
 
     const resolveConvertedUpload = async (task: NonNullable<Awaited<ReturnType<typeof loadTask>>>) => {
       const fileUploadId = task.fileUploadId || task.fileId
@@ -451,31 +482,59 @@ export const runModelSyncTaskFactory =
       })
     }
 
+    const runPostConversionStages = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const { acquired } = await withPostConversionLock(async () => {
+        let latestTask = (await loadTask()) || task
+        const currentEntryPoint = resolveRetryEntryPoint(latestTask)
+        if (!currentEntryPoint) {
+          return
+        }
+
+        let shouldRunTransform = false
+        if (currentEntryPoint === 'speckle' || currentEntryPoint === 'sync') {
+          await runSyncStage(latestTask)
+          latestTask = (await loadTask()) || latestTask
+          shouldRunTransform = true
+        }
+
+        if (currentEntryPoint === 'transform') {
+          shouldRunTransform = true
+        }
+
+        if (shouldRunTransform) {
+          latestTask = (await loadTask()) || latestTask
+          await runTransformStage(latestTask)
+          latestTask = (await loadTask()) || latestTask
+        }
+
+        await patchTask({
+          status: 'succeeded',
+          progressPercent: 100,
+          progressPhase: null,
+          progressMessage: '模型同步完成',
+          error: null,
+          errorCode: null,
+          retriable: false
+        })
+      })
+
+      return acquired
+    }
+
     const runFromEntryPoint = async (
       task: NonNullable<Awaited<ReturnType<typeof loadTask>>>,
       entryPoint: ModelSyncRetryEntryPoint
     ) => {
       if (entryPoint === 'speckle') {
         await runSpeckleStage(task)
-      }
-
-      if (entryPoint === 'speckle' || entryPoint === 'sync') {
         task = (await loadTask()) || task
-        await runSyncStage(task)
+        await runPostConversionStages(task)
+        return
       }
 
-      task = (await loadTask()) || task
-      await runTransformStage(task)
-
-      await patchTask({
-        status: 'succeeded',
-        progressPercent: 100,
-        progressPhase: null,
-        progressMessage: '模型同步完成',
-        error: null,
-        errorCode: null,
-        retriable: false
-      })
+      await runPostConversionStages(task)
     }
 
     let task = await loadTask()
