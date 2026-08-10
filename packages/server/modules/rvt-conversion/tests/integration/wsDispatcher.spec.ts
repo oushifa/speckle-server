@@ -18,6 +18,10 @@ import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { getRvtConversionJobByIdFactory } from '@/modules/rvt-conversion/repositories/jobs'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import {
+  createProjectModelSyncTaskFactory,
+  getProjectModelSyncTaskFactory
+} from '@/modules/model-sync/repositories/tasks'
 
 describe('RVT conversion WS dispatch @rvt-conversion', () => {
   let server: Server
@@ -266,6 +270,17 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
     const projectDb = await getProjectDbClient({ projectId: project.id })
     const getJob = getRvtConversionJobByIdFactory({ db: projectDb })
     const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+    const getTask = getProjectModelSyncTaskFactory({ db: projectDb })
+
+    const modelSyncTask = await createProjectModelSyncTaskFactory({ db: projectDb })({
+      projectId: project.id,
+      modelId: model.id,
+      fileUploadId: uploadUrlResponse.body.fileId,
+      fileName: 'test-progress-model.rvt',
+      status: 'speckle_converting',
+      creator: user.id,
+      updater: user.id
+    })
 
     await retry(
       async () => {
@@ -278,12 +293,22 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
           fileId: uploadUrlResponse.body.fileId,
           projectId: project.id
         })
+        const task = await getTask({
+          projectId: project.id,
+          modelId: model.id,
+          taskId: modelSyncTask.id
+        })
         expect(file).to.not.be.undefined
         expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Converting)
         expect(file?.progressPercent).to.equal(42)
         expect(file?.progressPhase).to.equal('converting')
         expect(file?.progressMessage).to.equal('正在转换模型')
         expect(file?.convertedMessage).to.equal('正在转换模型 (42%, 42/100)')
+        expect(task).to.not.be.null
+        expect(task?.status).to.equal('speckle_converting')
+        expect(task?.progressPercent).to.equal('42.00')
+        expect(task?.progressPhase).to.equal('converting')
+        expect(task?.progressMessage).to.equal('正在转换模型')
       },
       10,
       200
@@ -310,6 +335,11 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
           fileId: uploadUrlResponse.body.fileId,
           projectId: project.id
         })
+        const task = await getTask({
+          projectId: project.id,
+          modelId: model.id,
+          taskId: modelSyncTask.id
+        })
         expect(file).to.not.be.undefined
         expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Completed)
         expect(file?.progressPercent).to.equal(100)
@@ -317,6 +347,12 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
         expect(file?.progressMessage).to.equal('转换完成')
         expect(file?.convertedCommitId).to.equal('version-progress-1')
         expect(file?.convertedMessage).to.equal(null)
+        expect(task).to.not.be.null
+        expect(task?.status).to.equal('speckle_converting')
+        expect(task?.versionId).to.equal('version-progress-1')
+        expect(task?.progressPercent).to.equal('100.00')
+        expect(task?.progressPhase).to.equal('completed')
+        expect(task?.progressMessage).to.equal('转换完成')
       },
       10,
       200
@@ -346,6 +382,11 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
           fileId: uploadUrlResponse.body.fileId,
           projectId: project.id
         })
+        const task = await getTask({
+          projectId: project.id,
+          modelId: model.id,
+          taskId: modelSyncTask.id
+        })
         expect(file).to.not.be.undefined
         expect(file?.convertedStatus).to.equal(FileUploadConvertedStatus.Completed)
         expect(file?.progressPercent).to.equal(100)
@@ -353,6 +394,12 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
         expect(file?.progressMessage).to.equal('转换完成')
         expect(file?.convertedCommitId).to.equal('version-progress-1')
         expect(file?.convertedMessage).to.equal(null)
+        expect(task).to.not.be.null
+        expect(task?.status).to.equal('speckle_converting')
+        expect(task?.versionId).to.equal('version-progress-1')
+        expect(task?.progressPercent).to.equal('100.00')
+        expect(task?.progressPhase).to.equal('completed')
+        expect(task?.progressMessage).to.equal('转换完成')
       },
       10,
       200

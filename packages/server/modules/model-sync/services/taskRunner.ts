@@ -3,6 +3,7 @@ import { getBlobMetadataFactory } from '@/modules/blobstorage/repositories'
 import { getObjectStreamFactory } from '@/modules/blobstorage/repositories/blobs'
 import { getFileStreamFactory } from '@/modules/blobstorage/services/management'
 import {
+  getBranchByIdFactory,
   getStreamBranchByNameFactory,
   markCommitBranchUpdatedFactory
 } from '@/modules/core/repositories/branches'
@@ -15,8 +16,13 @@ import {
 import { getStreamFactory, getCommitStreamFactory } from '@/modules/core/repositories/streams'
 import { getUserFactory } from '@/modules/core/repositories/users'
 import { updateCommitAndNotifyFactory } from '@/modules/core/services/commit/management'
-import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
+import {
+  getFileInfoFactoryV2,
+  updateFileUploadFactory
+} from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
+import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
@@ -46,6 +52,12 @@ import { getEventBus } from '@/modules/shared/services/eventBus'
 
 const sleep = async (ms: number) =>
   await new Promise((resolve) => setTimeout(resolve, ms))
+
+const TerminalFileUploadStatuses = new Set<FileUploadConvertedStatus>([
+  FileUploadConvertedStatus.Completed,
+  FileUploadConvertedStatus.Error
+])
+const TerminalProgressPhases = new Set(['completed', 'failed'])
 
 const streamToBuffer = async (stream: NodeJS.ReadableStream) => {
   const chunks: Buffer[] = []
@@ -124,13 +136,19 @@ export const runModelSyncTaskFactory =
     const getTask = getProjectModelSyncTaskFactory({ db: projectDb })
     const updateTask = updateProjectModelSyncTaskFactory({ db: projectDb })
     const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+    const updateFileUpload = updateFileUploadFactory({ db: projectDb })
     const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
     const getObjectStream = getObjectStreamFactory({
       storage: projectStorage.private
     })
     const getFileStream = getFileStreamFactory({ getBlobMetadata })
+    const getBranchById = getBranchByIdFactory({ db: projectDb })
     const getUser = getUserFactory({ db })
     const waitForConvertedUpload = waitForConvertedUploadFactory({ getFileInfo })
+    const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
+    const emitFileStatusChange = notifyChangeInFileStatus({
+      eventEmit: getEventBus().emit
+    })
     const uploadToDtp = uploadBufferToDtpFactory({
       loginToDtp: loginToDtpFactory(),
       getDtpUploadConfig: getDtpUploadConfigFactory()
@@ -188,6 +206,80 @@ export const runModelSyncTaskFactory =
       })
     }
 
+    const restartRvtConversionIfNeeded = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const fileUploadId = task.fileUploadId || task.fileId
+      if (!fileUploadId) {
+        throw new ModelSyncTaskError(
+          'MISSING_FILE_UPLOAD_ID',
+          '同步任务缺少 fileUploadId',
+          false
+        )
+      }
+
+      const upload = await getFileInfo({
+        fileId: fileUploadId,
+        projectId: params.projectId
+      })
+      if (!upload) {
+        throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
+      }
+
+      if (upload.fileType.toLowerCase() !== 'rvt') {
+        return
+      }
+
+      const shouldResetForRetry =
+        TerminalFileUploadStatuses.has(upload.convertedStatus as FileUploadConvertedStatus) ||
+        (!!upload.progressPhase && TerminalProgressPhases.has(upload.progressPhase))
+
+      if (!shouldResetForRetry) {
+        return
+      }
+
+      const model = await getBranchById(task.modelId, {
+        streamId: params.projectId
+      })
+      if (!model) {
+        throw new ModelSyncTaskError('UNKNOWN', '未找到模型，无法重新发起 RVT 转换', false)
+      }
+
+      const resetUpload = await updateFileUpload({
+        id: upload.id,
+        upload: {
+          convertedStatus: FileUploadConvertedStatus.Queued,
+          convertedMessage: '准备重新转换',
+          convertedCommitId: null,
+          convertedLastUpdate: new Date(),
+          progressPercent: null,
+          progressPhase: null,
+          progressMessage: '准备重新转换'
+        }
+      })
+
+      await emitFileStatusChange({
+        file: resetUpload
+      })
+
+      await dispatchRvtFileImport({
+        projectId: params.projectId,
+        modelId: task.modelId,
+        modelName: model.name,
+        fileUpload: {
+          ...upload,
+          convertedStatus: resetUpload.convertedStatus,
+          convertedLastUpdate: resetUpload.convertedLastUpdate,
+          convertedMessage: resetUpload.convertedMessage,
+          convertedCommitId: resetUpload.convertedCommitId,
+          progressPercent: resetUpload.progressPercent,
+          progressPhase: resetUpload.progressPhase,
+          progressMessage: resetUpload.progressMessage
+        },
+        userId: params.userId
+      })
+    }
+
     const ensureUserEmail = async () => {
       const user = await getUser(params.userId)
       if (!user?.email) {
@@ -223,6 +315,8 @@ export const runModelSyncTaskFactory =
         errorCode: null,
         retriable: false
       })
+
+      await restartRvtConversionIfNeeded(task)
 
       const upload = await resolveConvertedUpload(task)
       if (!upload.convertedCommitId) {

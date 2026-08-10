@@ -70,6 +70,9 @@ export type ProjectModelSyncTaskRecord = {
 }
 
 const generateId = () => cryptoRandomString({ length: 10 })
+const AUDIT_USER_MAX_LENGTH = 10
+
+const normalizeAuditUser = (value: string) => value.slice(0, AUDIT_USER_MAX_LENGTH)
 
 const tables = {
   tasks: (db: Knex) => db<ProjectModelSyncTaskRecord>(ProjectModelSyncTasks.name)
@@ -260,7 +263,9 @@ export const createProjectModelSyncTaskFactory =
         errorCode: null,
         retriable: false,
         retryCount: 0,
-        ...params
+        ...params,
+        creator: normalizeAuditUser(params.creator),
+        updater: normalizeAuditUser(params.updater)
       },
       '*'
     )
@@ -308,6 +313,9 @@ export const updateProjectModelSyncTaskFactory =
       .update(
         {
           ...params.patch,
+          ...(params.patch.updater !== undefined
+            ? { updater: normalizeAuditUser(params.patch.updater) }
+            : {}),
           updatedAt: deps.db.fn.now()
         },
         '*'

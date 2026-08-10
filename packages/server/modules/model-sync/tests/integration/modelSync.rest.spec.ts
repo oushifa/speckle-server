@@ -11,7 +11,10 @@ import {
 import { createProject, grantProjectPermissions } from '@/test/projectHelper'
 import { createTestBranch } from '@/test/speckle-helpers/branchHelper'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
-import { createProjectModelSyncTaskFactory } from '@/modules/model-sync/repositories/tasks'
+import {
+  createProjectModelSyncTaskFactory,
+  updateProjectModelSyncTaskFactory
+} from '@/modules/model-sync/repositories/tasks'
 import { Roles } from '@speckle/shared'
 import { TextDecoder } from 'util'
 
@@ -100,6 +103,56 @@ describe('Model sync REST @model-sync', () => {
     expect(response.status).to.equal(200)
     expect(response.body.data).to.have.lengthOf(1)
     expect(response.body.data[0].id).to.equal(task.id)
+  })
+
+  it('truncates model sync task audit users to fit schema constraints', async () => {
+    const project = await createProject({
+      name: 'Model Sync Audit Constraint Project',
+      ownerId: owner.id,
+      isPublic: false
+    })
+    const model = await createTestBranch({
+      branch: {
+        id: '',
+        name: 'Model Sync Audit Constraint Model',
+        streamId: '',
+        authorId: ''
+      },
+      stream: {
+        ...project,
+        ownerId: owner.id
+      },
+      owner
+    })
+
+    const projectDb = await getProjectDbClient({ projectId: project.id })
+    const task = await createProjectModelSyncTaskFactory({ db: projectDb })({
+      projectId: project.id,
+      modelId: model.id,
+      fileName: 'audit-limit.rvt',
+      status: 'speckle_converting',
+      creator: 'rvt-conversion-service',
+      updater: 'rvt-conversion-service'
+    })
+
+    expect(task.creator).to.equal('rvt-conver')
+    expect(task.updater).to.equal('rvt-conver')
+
+    const updatedTask = await updateProjectModelSyncTaskFactory({ db: projectDb })({
+      projectId: project.id,
+      modelId: model.id,
+      taskId: task.id,
+      patch: {
+        updater: 'rvt-conversion-service',
+        progressPercent: 100,
+        progressPhase: 'completed'
+      }
+    })
+
+    expect(updatedTask).to.not.equal(null)
+    expect(updatedTask?.updater).to.equal('rvt-conver')
+    expect(updatedTask?.progressPercent).to.equal('100.00')
+    expect(updatedTask?.progressPhase).to.equal('completed')
   })
 
   it('rejects anonymous requests for project model sync task listing', async () => {

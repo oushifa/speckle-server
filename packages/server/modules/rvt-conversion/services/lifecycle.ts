@@ -26,6 +26,115 @@ import {
 
 const serviceUpdater = 'rvt-conversion-service'
 const lifecycleLogger = createRvtConvertLogger('lifecycle')
+const TerminalProgressPhases = new Set(['completed', 'failed'])
+const TerminalModelSyncStatuses = new Set(['succeeded', 'failed'])
+
+const isTerminalProgressPhase = (phase: string | null | undefined) =>
+  !!phase && TerminalProgressPhases.has(phase)
+
+const isTerminalModelSyncStatus = (
+  status: ProjectModelSyncTaskRecord['status'] | undefined
+) => !!status && TerminalModelSyncStatuses.has(status)
+
+const isTerminalFileUploadStatus = (
+  status: FileUploadRecord['convertedStatus'] | FileUploadConvertedStatus | undefined
+) => status === FileUploadConvertedStatus.Completed || status === FileUploadConvertedStatus.Error
+
+const hasChanged = <T>(current: T, next: T) => current !== next
+type FileUploadTerminalGuardState = Pick<
+  FileUploadRecord,
+  | 'convertedStatus'
+  | 'convertedMessage'
+  | 'convertedCommitId'
+  | 'progressPercent'
+  | 'progressPhase'
+  | 'progressMessage'
+>
+
+const applyTerminalGuardToFileUploadState = (
+  current: FileUploadTerminalGuardState,
+  next: FileUploadTerminalGuardState
+) => {
+  let ignoredTerminalStatusRegression = false
+  let ignoredTerminalPhaseRegression = false
+
+  if (
+    isTerminalFileUploadStatus(current.convertedStatus) &&
+    !isTerminalFileUploadStatus(next.convertedStatus)
+  ) {
+    ignoredTerminalStatusRegression = true
+    next.convertedStatus = current.convertedStatus
+    next.convertedMessage = current.convertedMessage
+    next.convertedCommitId = current.convertedCommitId
+  }
+
+  if (
+    isTerminalProgressPhase(current.progressPhase) &&
+    !isTerminalProgressPhase(next.progressPhase)
+  ) {
+    ignoredTerminalPhaseRegression = true
+    next.progressPercent = current.progressPercent
+    next.progressPhase = current.progressPhase
+    next.progressMessage = current.progressMessage
+  }
+
+  return {
+    next,
+    ignoredTerminalStatusRegression,
+    ignoredTerminalPhaseRegression
+  }
+}
+
+const applyTerminalGuardToModelSyncTaskPatch = (
+  current: ProjectModelSyncTaskRecord,
+  patch: Partial<
+    Pick<
+      ProjectModelSyncTaskRecord,
+      | 'status'
+      | 'versionId'
+      | 'progressPercent'
+      | 'progressPhase'
+      | 'progressMessage'
+      | 'error'
+      | 'errorCode'
+      | 'retriable'
+      | 'updater'
+    >
+  >
+) => {
+  const nextPatch = { ...patch }
+  let ignoredTerminalStatusRegression = false
+  let ignoredTerminalPhaseRegression = false
+
+  if (
+    'status' in nextPatch &&
+    isTerminalModelSyncStatus(current.status) &&
+    !isTerminalModelSyncStatus(nextPatch.status)
+  ) {
+    ignoredTerminalStatusRegression = true
+    nextPatch.status = current.status
+    if ('error' in nextPatch) nextPatch.error = current.error
+    if ('errorCode' in nextPatch) nextPatch.errorCode = current.errorCode
+    if ('retriable' in nextPatch) nextPatch.retriable = current.retriable
+  }
+
+  if (
+    'progressPhase' in nextPatch &&
+    isTerminalProgressPhase(current.progressPhase) &&
+    !isTerminalProgressPhase(nextPatch.progressPhase)
+  ) {
+    ignoredTerminalPhaseRegression = true
+    nextPatch.progressPhase = current.progressPhase
+    if ('progressPercent' in nextPatch) nextPatch.progressPercent = current.progressPercent
+    if ('progressMessage' in nextPatch) nextPatch.progressMessage = current.progressMessage
+  }
+
+  return {
+    nextPatch,
+    ignoredTerminalStatusRegression,
+    ignoredTerminalPhaseRegression
+  }
+}
 
 const syncFileUploadFromRvtJobFactory = (deps: {
   projectDb: Awaited<ReturnType<typeof getProjectDbClient>>
@@ -71,25 +180,60 @@ const syncFileUploadFromRvtJobFactory = (deps: {
       return
     }
 
+    const nextUploadState = applyTerminalGuardToFileUploadState(fileUpload, {
+      convertedStatus: params.status,
+      convertedMessage: params.convertedMessage,
+      convertedCommitId: params.convertedCommitId,
+      progressPercent:
+        params.progressPercent === undefined
+          ? fileUpload.progressPercent
+          : params.progressPercent,
+      progressPhase:
+        params.progressPhase === undefined
+          ? fileUpload.progressPhase
+          : params.progressPhase,
+      progressMessage:
+        params.progressMessage === undefined
+          ? fileUpload.progressMessage
+          : params.progressMessage
+    })
+
+    if (
+      !hasChanged(fileUpload.convertedStatus, nextUploadState.next.convertedStatus) &&
+      !hasChanged(fileUpload.convertedMessage, nextUploadState.next.convertedMessage) &&
+      !hasChanged(fileUpload.convertedCommitId, nextUploadState.next.convertedCommitId) &&
+      !hasChanged(fileUpload.progressPercent, nextUploadState.next.progressPercent) &&
+      !hasChanged(fileUpload.progressPhase, nextUploadState.next.progressPhase) &&
+      !hasChanged(fileUpload.progressMessage, nextUploadState.next.progressMessage)
+    ) {
+      if (
+        nextUploadState.ignoredTerminalStatusRegression ||
+        nextUploadState.ignoredTerminalPhaseRegression
+      ) {
+        lifecycleLogger.info(
+          {
+            ...buildRvtJobLogContext(params.job),
+            ignoredTerminalStatusRegression:
+              nextUploadState.ignoredTerminalStatusRegression,
+            ignoredTerminalPhaseRegression:
+              nextUploadState.ignoredTerminalPhaseRegression
+          },
+          'RVT_CONVERT file upload update ignored due to terminal state guard'
+        )
+      }
+      return
+    }
+
     const updatedFile = (await updateFileUpload({
       id: fileUpload.id,
       upload: {
-        convertedStatus: params.status,
-        convertedMessage: params.convertedMessage,
-        convertedCommitId: params.convertedCommitId,
+        convertedStatus: nextUploadState.next.convertedStatus,
+        convertedMessage: nextUploadState.next.convertedMessage,
+        convertedCommitId: nextUploadState.next.convertedCommitId,
         convertedLastUpdate: new Date(),
-        progressPercent:
-          params.progressPercent === undefined
-            ? fileUpload.progressPercent
-            : params.progressPercent,
-        progressPhase:
-          params.progressPhase === undefined
-            ? fileUpload.progressPhase
-            : params.progressPhase,
-        progressMessage:
-          params.progressMessage === undefined
-            ? fileUpload.progressMessage
-            : params.progressMessage
+        progressPercent: nextUploadState.next.progressPercent,
+        progressPhase: nextUploadState.next.progressPhase,
+        progressMessage: nextUploadState.next.progressMessage
       }
     })) as FileUploadRecord
 
@@ -165,11 +309,38 @@ const syncRelatedModelSyncTasksFromRvtJob = async (params: {
   )
 
   for (const task of relatedTasks) {
+    const nextTaskPatch = applyTerminalGuardToModelSyncTaskPatch(task, params.patch)
+
+    const patchChanged = Object.entries(nextTaskPatch.nextPatch).some(([key, value]) => {
+      const currentValue = task[key as keyof ProjectModelSyncTaskRecord]
+      return hasChanged(currentValue, value as typeof currentValue)
+    })
+
+    if (!patchChanged) {
+      if (
+        nextTaskPatch.ignoredTerminalStatusRegression ||
+        nextTaskPatch.ignoredTerminalPhaseRegression
+      ) {
+        lifecycleLogger.info(
+          {
+            ...buildRvtJobLogContext(params.job),
+            relatedTaskId: task.id,
+            ignoredTerminalStatusRegression:
+              nextTaskPatch.ignoredTerminalStatusRegression,
+            ignoredTerminalPhaseRegression:
+              nextTaskPatch.ignoredTerminalPhaseRegression
+          },
+          'RVT_CONVERT model sync task update ignored due to terminal state guard'
+        )
+      }
+      continue
+    }
+
     const updatedTask = await updateTask({
       projectId: task.projectId,
       modelId: task.modelId,
       taskId: task.id,
-      patch: params.patch
+      patch: nextTaskPatch.nextPatch
     })
 
     if (updatedTask) {
