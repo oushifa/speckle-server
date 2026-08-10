@@ -250,6 +250,13 @@ export const runModelSyncTaskFactory =
         return
       }
 
+      if (
+        upload.convertedStatus === FileUploadConvertedStatus.Completed &&
+        upload.convertedCommitId
+      ) {
+        return
+      }
+
       const shouldResetForRetry =
         TerminalFileUploadStatuses.has(upload.convertedStatus as FileUploadConvertedStatus) ||
         (!!upload.progressPhase && TerminalProgressPhases.has(upload.progressPhase))

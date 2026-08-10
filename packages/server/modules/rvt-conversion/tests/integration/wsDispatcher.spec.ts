@@ -356,6 +356,23 @@ describe('RVT conversion WS dispatch @rvt-conversion', () => {
       200
     )
 
+    const repeatedDispatchMessage = await new Promise<string | null>((resolve) => {
+      const timeout = setTimeout(() => {
+        workerSocket?.off('message', handleMessage)
+        resolve(null)
+      }, 600)
+
+      const handleMessage = (raw: WebSocket.RawData) => {
+        clearTimeout(timeout)
+        workerSocket?.off('message', handleMessage)
+        resolve(raw.toString())
+      }
+
+      workerSocket?.on('message', handleMessage)
+    })
+
+    expect(repeatedDispatchMessage).to.equal(null)
+
     workerSocket.send(
       JSON.stringify({
         type: 'rvt_conversion_progress',
