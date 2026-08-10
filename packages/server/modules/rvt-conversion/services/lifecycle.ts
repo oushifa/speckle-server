@@ -556,6 +556,8 @@ export const progressRvtConversionJob = async (params: {
 
   const { projectDb, getJob, updateJob, syncFileUploadFromRvtJob } =
     await getJobServices(params.projectId)
+  const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+
   const job = await getJob({ id: params.taskId })
   if (!job) {
     lifecycleLogger.warn(
@@ -570,7 +572,18 @@ export const progressRvtConversionJob = async (params: {
     return null
   }
 
-  if (!ActiveRvtConversionJobStatuses.includes(job.status)) {
+  const fileUpload = await getFileInfo({
+    fileId: job.sourceFileId,
+    projectId: job.projectId
+  })
+
+  if (
+    !ActiveRvtConversionJobStatuses.includes(job.status) ||
+    job.status === 'succeeded' ||
+    !!job.versionId ||
+    fileUpload?.convertedStatus === FileUploadConvertedStatus.Completed ||
+    !!fileUpload?.convertedCommitId
+  ) {
     lifecycleLogger.info(
       {
         ...buildRvtJobLogContext(job),
@@ -578,7 +591,7 @@ export const progressRvtConversionJob = async (params: {
         progress: params.progress,
         externalTaskId: params.externalTaskId || null
       },
-      'RVT_CONVERT progress lifecycle ignored because job is already completed'
+      'RVT_CONVERT progress lifecycle ignored because job or file upload is already completed'
     )
     return job
   }
