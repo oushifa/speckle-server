@@ -60,13 +60,23 @@ const applyTerminalGuardToFileUploadState = (
   let ignoredTerminalPhaseRegression = false
 
   if (
-    isTerminalFileUploadStatus(current.convertedStatus) &&
-    !isTerminalFileUploadStatus(next.convertedStatus)
+    isTerminalFileUploadStatus(current.convertedStatus) ||
+    !!current.convertedCommitId
   ) {
-    ignoredTerminalStatusRegression = true
-    next.convertedStatus = current.convertedStatus
+    if (!isTerminalFileUploadStatus(next.convertedStatus)) {
+      ignoredTerminalStatusRegression = true
+    }
+    next.convertedStatus = current.convertedStatus || FileUploadConvertedStatus.Completed
     next.convertedMessage = current.convertedMessage
     next.convertedCommitId = current.convertedCommitId
+    next.progressPercent = 100
+    next.progressPhase = 'completed'
+    next.progressMessage = current.progressMessage || '转换完成'
+    return {
+      next,
+      ignoredTerminalStatusRegression,
+      ignoredTerminalPhaseRegression: true
+    }
   }
 
   if (
