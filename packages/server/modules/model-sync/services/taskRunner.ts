@@ -82,49 +82,6 @@ const streamToBuffer = async (stream: NodeJS.ReadableStream) => {
   return Buffer.concat(chunks)
 }
 
-const waitForConvertedUploadFactory =
-  (deps: {
-    getFileInfo: ReturnType<typeof getFileInfoFactoryV2>
-  }) =>
-  async (params: {
-    projectId: string
-    fileUploadId: string
-    waitMs?: number
-    maxAttempts?: number
-  }) => {
-    const waitMs = params.waitMs || 5000
-    const maxAttempts = params.maxAttempts || 240
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const upload = await deps.getFileInfo({
-        fileId: params.fileUploadId,
-        projectId: params.projectId
-      })
-      if (!upload) {
-        throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
-      }
-
-      if (upload.convertedStatus === FileUploadConvertedStatus.Error) {
-        throw new ModelSyncTaskError(
-          'FILE_CONVERSION_FAILED',
-          upload.convertedMessage || '模型转换失败',
-          false
-        )
-      }
-
-      if (
-        upload.convertedStatus === FileUploadConvertedStatus.Completed &&
-        upload.convertedCommitId
-      ) {
-        return upload
-      }
-
-      await sleep(waitMs)
-    }
-
-    throw new ModelSyncTaskError('FILE_CONVERSION_TIMEOUT', '等待 Speckle 模型转换超时', true)
-  }
-
 export const runModelSyncTaskFactory =
   () =>
   async (params: {
@@ -151,7 +108,6 @@ export const runModelSyncTaskFactory =
     const getFileStream = getFileStreamFactory({ getBlobMetadata })
     const getBranchById = getBranchByIdFactory({ db: projectDb })
     const getUser = getUserFactory({ db })
-    const waitForConvertedUpload = waitForConvertedUploadFactory({ getFileInfo })
     const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
     const emitFileStatusChange = notifyChangeInFileStatus({
       eventEmit: getEventBus().emit
@@ -221,7 +177,9 @@ export const runModelSyncTaskFactory =
       }
     }
 
-    const resolveConvertedUpload = async (task: NonNullable<Awaited<ReturnType<typeof loadTask>>>) => {
+    const getConvertedUploadState = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
       const fileUploadId = task.fileUploadId || task.fileId
       if (!fileUploadId) {
         throw new ModelSyncTaskError(
@@ -231,10 +189,41 @@ export const runModelSyncTaskFactory =
         )
       }
 
-      return await waitForConvertedUpload({
-        projectId: params.projectId,
-        fileUploadId
+      const upload = await getFileInfo({
+        fileId: fileUploadId,
+        projectId: params.projectId
       })
+      if (!upload) {
+        throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
+      }
+
+      if (upload.convertedStatus === FileUploadConvertedStatus.Error) {
+        throw new ModelSyncTaskError(
+          'FILE_CONVERSION_FAILED',
+          upload.convertedMessage || '模型转换失败',
+          false
+        )
+      }
+
+      return upload
+    }
+
+    const resolveCompletedUpload = async (
+      task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
+    ) => {
+      const upload = await getConvertedUploadState(task)
+      if (
+        upload.convertedStatus !== FileUploadConvertedStatus.Completed ||
+        !upload.convertedCommitId
+      ) {
+        throw new ModelSyncTaskError(
+          'VERSION_METADATA_UPDATE_FAILED',
+          '模型转换尚未完成或未拿到 versionId',
+          false
+        )
+      }
+
+      return upload
     }
 
     const restartRvtConversionIfNeeded = async (
@@ -349,33 +338,26 @@ export const runModelSyncTaskFactory =
 
       await restartRvtConversionIfNeeded(task)
 
-      const upload = await resolveConvertedUpload(task)
-      if (!upload.convertedCommitId) {
-        throw new ModelSyncTaskError(
-          'VERSION_METADATA_UPDATE_FAILED',
-          '模型转换完成，但未拿到 versionId',
-          false
-        )
-      }
+      const upload = await getConvertedUploadState(task)
+      const isCompleted =
+        upload.convertedStatus === FileUploadConvertedStatus.Completed &&
+        !!upload.convertedCommitId
 
-      return upload
+      return {
+        isCompleted,
+        upload: isCompleted ? upload : null
+      }
     }
 
     const runSyncStage = async (
       task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
     ) => {
-      const upload = await resolveConvertedUpload(task)
-      if (!upload.convertedCommitId) {
-        throw new ModelSyncTaskError(
-          'VERSION_METADATA_UPDATE_FAILED',
-          '模型转换完成，但未拿到 versionId',
-          false
-        )
-      }
+      const upload = await resolveCompletedUpload(task)
+      const versionId = upload.convertedCommitId as string
 
       await patchTask({
         fileUploadId: upload.id,
-        versionId: upload.convertedCommitId,
+        versionId,
         fileType: upload.fileType,
         fileSize: upload.fileSize || null,
         seedId: null,
@@ -405,7 +387,7 @@ export const runModelSyncTaskFactory =
       })
 
       await patchTask({
-        versionId: upload.convertedCommitId,
+        versionId,
         seedId: dtpResult.seedId,
         assetId: dtpResult.assetId,
         assetName: dtpResult.assetName,
@@ -421,7 +403,7 @@ export const runModelSyncTaskFactory =
       await updateCommitAndNotify(
         {
           projectId: params.projectId,
-          versionId: upload.convertedCommitId,
+          versionId,
           seedId: dtpResult.seedId,
           assetId: dtpResult.assetId,
           assetName: dtpResult.assetName,
@@ -528,7 +510,10 @@ export const runModelSyncTaskFactory =
       entryPoint: ModelSyncRetryEntryPoint
     ) => {
       if (entryPoint === 'speckle') {
-        await runSpeckleStage(task)
+        const speckleStage = await runSpeckleStage(task)
+        if (!speckleStage.isCompleted) {
+          return
+        }
         task = (await loadTask()) || task
         await runPostConversionStages(task)
         return
