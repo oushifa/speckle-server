@@ -753,6 +753,32 @@ export const completeRvtConversionJob = async (
     progressMessage: params.status === 'success' ? '转换完成' : null
   })
 
+  if (params.status === 'success') {
+    try {
+      await projectDb('file_uploads')
+        .where({
+          projectId: params.projectId,
+          streamId: (updatedJob || job).streamId || job.streamId,
+          convertedStatus: FileUploadConvertedStatus.Converting
+        })
+        .whereNull('convertedCommitId')
+        .update({
+          convertedStatus: FileUploadConvertedStatus.Completed,
+          convertedCommitId: params.versionId,
+          convertedMessage: null,
+          progressPercent: 100,
+          progressPhase: 'completed',
+          progressMessage: '转换完成',
+          convertedLastUpdate: new Date()
+        })
+    } catch (err) {
+      lifecycleLogger.warn(
+        { ...buildRvtJobLogContext(job), error: err },
+        'RVT_CONVERT failed to cleanup orphan file uploads'
+      )
+    }
+  }
+
   if (params.status === 'failed') {
     await syncRelatedModelSyncTasksFromRvtJob({
       projectDb,
