@@ -41,7 +41,7 @@ async function startTask(knex: Knex) {
       "convertedLastUpdate" = NOW()
     FROM (
       SELECT "id" FROM file_uploads
-      WHERE "convertedStatus" = 0 AND "uploadComplete" = 't'
+      WHERE "convertedStatus" = 0 AND "uploadComplete" = 't' AND LOWER("fileType") != 'rvt'
       ORDER BY "convertedLastUpdate" ASC
       LIMIT 1
     ) as task
