@@ -757,9 +757,12 @@ export const completeRvtConversionJob = async (
     try {
       await projectDb('file_uploads')
         .where({
-          streamId: params.projectId || (updatedJob || job).projectId,
-          convertedStatus: FileUploadConvertedStatus.Converting
+          streamId: params.projectId || (updatedJob || job).projectId
         })
+        .whereIn('convertedStatus', [
+          FileUploadConvertedStatus.Queued,
+          FileUploadConvertedStatus.Converting
+        ])
         .whereNull('convertedCommitId')
         .update({
           convertedStatus: FileUploadConvertedStatus.Completed,
