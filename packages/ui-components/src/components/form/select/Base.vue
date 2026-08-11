@@ -186,7 +186,8 @@
                             !hideCheckmarks ? 'pr-8' : 'pr-2',
                             !disabledItemPredicate?.(item) && !selected
                               ? 'hover:bg-highlight-1'
-                              : ''
+                              : '',
+                            fitContent ? 'whitespace-nowrap' : ''
                           ]"
                         >
                           <slot
@@ -508,6 +509,14 @@ const props = defineProps({
   menuMaxHeightClasses: {
     type: String,
     default: undefined
+  },
+  /**
+   * Whether to allow the dropdown menu width to adapt to option text content length (fit-content/max-content)
+   * instead of being constrained by the parent/button element width.
+   */
+  fitContent: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -773,7 +782,16 @@ const listboxOptionsClasses = computed(() => {
   if (props.mountMenuOnBody) {
     classParts.push('fixed z-50')
   } else {
-    classParts.push('absolute top-[100%] w-full z-40 mt-1')
+    classParts.push('absolute top-[100%] z-40 mt-1')
+    if (props.fitContent) {
+      classParts.push(
+        props.menuOpenDirection === 'right'
+          ? 'right-0 w-max min-w-full max-w-[80vw]'
+          : 'left-0 w-max min-w-full max-w-[80vw]'
+      )
+    } else {
+      classParts.push('w-full')
+    }
   }
 
   return classParts.join(' ')
@@ -786,6 +804,13 @@ const listboxOptionsStyle = computed(() => {
   style = {
     ...style,
     ...menuStyle.value
+  }
+
+  if (props.fitContent) {
+    delete style.width
+    style.minWidth = `${listboxButtonBounding.width.value}px`
+    style.width = 'max-content'
+    style.maxWidth = '80vw'
   }
 
   return style

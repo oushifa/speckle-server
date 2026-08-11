@@ -186,6 +186,7 @@ import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import TaskSelectDialog, { type MasterTaskOption } from './TaskSelectDialog.vue'
 import type { MonthlyRecordItem, MonthlyPlanTaskItem as MonthlyTaskItem } from '~~/lib/projects/api/progress'
 import { searchSystemUsers, type UserSearchResult } from '~~/lib/organizations/api'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 const props = defineProps<{
   open: boolean
@@ -336,13 +337,27 @@ const handleMasterTaskSelected = (masterTask: MasterTaskOption) => {
   activeRowIndex.value = null
 }
 
+const { triggerNotification } = useGlobalToast()
+
+const isParentTask = (mt: MasterTaskOption) => {
+  if (mt.hasChildren) return true
+  return props.masterTasks.some((other) => other.parentId === mt.id)
+}
+
 const handleFetchMonthlyTasks = () => {
-  if (!yearMonth.value) return
+  if (!yearMonth.value) {
+    triggerNotification({
+      type: ToastNotificationType.Warning,
+      title: '获取本月计划',
+      description: '请先选择年月'
+    })
+    return
+  }
   const [y, m] = yearMonth.value.split('-')
   const currentYm = `${y}-${m}`
 
   const matches = props.masterTasks.filter((mt) => {
-    if (mt.hasChildren || !mt.startDate || !mt.endDate) return false
+    if (isParentTask(mt) || !mt.startDate || !mt.endDate) return false
     const taskStart = mt.startDate.substring(0, 7)
     const taskEnd = mt.endDate.substring(0, 7)
     return currentYm >= taskStart && currentYm <= taskEnd
@@ -367,6 +382,17 @@ const handleFetchMonthlyTasks = () => {
       t.totalVolume = mt.volume || ''
       t.unit = mt.unit || 'm³'
       return t
+    })
+    triggerNotification({
+      type: ToastNotificationType.Info,
+      title: '获取本月计划成功',
+      description: `已为您自动检索并带出 ${matches.length} 项本月施工任务（已过滤父级任务）`
+    })
+  } else {
+    triggerNotification({
+      type: ToastNotificationType.Info,
+      title: '获取本月计划',
+      description: '当前月份未匹配到符合条件的底层施工任务节点'
     })
   }
 }

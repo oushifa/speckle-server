@@ -32,6 +32,7 @@
         label="模型"
         show-label
         multiple
+        fit-content
         :class="hasFixedProject ? 'md:col-span-1' : ''"
         :items="modelOptions"
         :disabled="disabled || !activeProjectId || modelOptions.length === 0"
@@ -39,25 +40,29 @@
         by="id"
       >
         <template #nothing-selected>
-          {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
+          <span class="truncate block">
+            {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
+          </span>
         </template>
         <template #something-selected="{ value }">
-          <template v-if="Array.isArray(value)">
-            {{
-              value.length <= 2
-                ? value.map((item) => item.name).join('、')
-                : `${value
-                    .slice(0, 2)
-                    .map((item) => item.name)
-                    .join('、')} 等 ${value.length} 个模型`
-            }}
-          </template>
-          <template v-else>
-            {{ value?.name }}
-          </template>
+          <span class="truncate block">
+            <template v-if="Array.isArray(value)">
+              {{
+                value.length <= 2
+                  ? value.map((item) => item.name).join('、')
+                  : `${value
+                      .slice(0, 2)
+                      .map((item) => item.name)
+                      .join('、')} 等 ${value.length} 个模型`
+              }}
+            </template>
+            <template v-else>
+              {{ value?.name }}
+            </template>
+          </span>
         </template>
         <template #option="{ item }">
-          {{ item.name }}
+          <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
         </template>
       </FormSelectBase>
     </div>

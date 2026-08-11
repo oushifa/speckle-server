@@ -92,11 +92,12 @@ onMounted(async () => {
   try {
     const tasks = await getProgressPlanTasks({ projectId: projectId.value, apiOrigin })
     if (tasks && tasks.length) {
+      const parentIdSet = new Set(tasks.map((t) => t.parentId).filter(Boolean))
       masterTaskOptions.value = tasks.map((t) => ({
         id: t.id,
         taskName: t.taskName,
         level: t.level || 0,
-        hasChildren: t.hasChildren,
+        hasChildren: t.hasChildren || parentIdSet.has(t.id),
         parentId: t.parentId || undefined,
         volume: (t as any).volume || '1000',
         unit: (t as any).unit || 'm³',

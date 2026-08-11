@@ -9,7 +9,7 @@
         <FormTextInput
           v-model="searchQuery"
           name="actual-progress-search"
-          placeholder="搜索日期、月份、记录人"
+          placeholder="搜索日期、月份、负责人、记录人"
           :custom-icon="Search"
           color="foundation"
           class="w-72"
@@ -63,6 +63,14 @@
 
         <template #yearMonth="{ item }">
           <div class="text-body-sm">{{ item.yearMonth || '-' }}</div>
+        </template>
+
+        <template #siteLeader="{ item }">
+          <div class="text-body-sm truncate">{{ item.siteLeader || '-' }}</div>
+        </template>
+
+        <template #reporter="{ item }">
+          <div class="text-body-sm truncate">{{ item.reporter || '-' }}</div>
         </template>
 
         <template #tasksInfo="{ item }">
@@ -252,22 +260,7 @@
           暂无今日填报进度明细
         </section>
 
-        <section class="rounded-xl bg-foundation-page p-4 space-y-4">
-          <div class="text-body-md font-medium">施工人员</div>
-          <div
-            v-if="viewRecord && viewRecord.workers && viewRecord.workers.length"
-            class="flex flex-wrap gap-2"
-          >
-            <span
-              v-for="worker in viewRecord.workers"
-              :key="worker"
-              class="inline-flex items-center rounded-full px-3 py-1 text-body-xs font-medium bg-primary-muted text-primary"
-            >
-              {{ worker }}
-            </span>
-          </div>
-          <div v-else class="text-body-sm text-foreground-2">-</div>
-        </section>
+
 
         <section class="rounded-xl bg-foundation-page p-4 space-y-4">
           <div class="text-body-md font-medium">备注</div>
@@ -541,56 +534,24 @@
         </section>
 
 
-        <!-- 施工人员 -->
+        <!-- 人员信息 -->
         <section class="space-y-3">
-          <div class="flex items-center justify-between border-b border-outline-2 pb-2">
-            <div class="text-body-sm font-semibold text-foreground">
-              施工人员
-              <span class="text-body-xs font-normal text-foreground-2 ml-1">（已选 {{ draftForm.workers.length }} 人）</span>
-            </div>
-            <FormButton size="sm" color="outline" :icon-left="UserPlus" @click="showWorkerSelector = true">
-              添加人员
-            </FormButton>
-          </div>
-
-          <div v-if="draftForm.workers.length" class="flex flex-wrap gap-2">
-            <span
-              v-for="(worker, idx) in draftForm.workers"
-              :key="idx"
-              class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-body-xs font-medium bg-primary-muted text-primary"
-            >
-              {{ worker }}
-              <button class="hover:text-danger transition" @click="removeWorker(idx)">
-                <X class="h-3 w-3" />
-              </button>
-            </span>
-          </div>
-          <div v-else class="text-body-xs text-foreground-2">暂未添加施工人员</div>
-
-          <div v-if="showWorkerSelector" class="border border-outline-2 rounded-lg p-3 space-y-2 bg-foundation">
-            <div class="text-body-xs font-medium">选择施工人员</div>
-            <FormSelectUsers
-              v-model="tempWorkerUser"
-              :users="availableUsers"
-              label="选择人员"
-              name="actual-worker-select"
-              search
+          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">人员信息</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="draftForm.siteLeader"
+              name="actual-site-leader"
+              label="现场负责人"
+              placeholder="请输入现场负责人姓名"
               show-label
-              selector-placeholder="请选择施工人员"
-              search-placeholder="搜索项目成员"
-              :disabled="isLoadingProjectUsers"
-              clearable
             />
-            <div class="flex gap-2">
-              <FormButton size="sm" color="primary" @click="addWorker">确认添加</FormButton>
-              <FormButton
-                size="sm"
-                color="outline"
-                @click="showWorkerSelector = false; tempWorkerUser = undefined"
-              >
-                取消
-              </FormButton>
-            </div>
+            <FormTextInput
+              v-model="draftForm.reporter"
+              name="actual-reporter"
+              label="记录人"
+              placeholder="请输入记录人姓名"
+              show-label
+            />
           </div>
         </section>
       </div>
@@ -609,8 +570,6 @@
 </template>
 
 <script setup lang="ts">
-import { useQuery } from '@vue/apollo-composable'
-import { gql } from '@apollo/client/core'
 import {
   Box,
   ClipboardList,
@@ -623,7 +582,6 @@ import {
   Search,
   Trash2,
   Upload,
-  UserPlus,
   X
 } from 'lucide-vue-next'
 import {
@@ -632,7 +590,6 @@ import {
 } from '#components'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
-import type { FormUsersSelectItemFragment } from '~/lib/common/generated/gql/graphql'
 import {
   createActualProgressRecord,
   deleteActualProgressRecord,
@@ -669,6 +626,8 @@ type ActualProgressForm = {
   reportTimestamp: string
   weekDay: string
   reportDate: string
+  siteLeader: string
+  reporter: string
   remark: string
   tasks: DraftTaskItem[]
   workers: string[]
@@ -685,21 +644,6 @@ type ActualProgressForm = {
   finishElementCodes: string
 }
 
-const actualProgressProjectUsersQuery = gql`
-  query ActualProgressProjectUsers($projectId: String!) {
-    project(id: $projectId) {
-      id
-      team {
-        id
-        user {
-          id
-          name
-          avatar
-        }
-      }
-    }
-  }
-`
 
 const normalizeString = (value: unknown) =>
   typeof value === 'string' ? value.trim() : ''
@@ -728,9 +672,11 @@ const normalizeSelections = (
 const columns = [
   { id: 'reportDate', header: '日期', classes: 'col-span-2' },
   { id: 'yearMonth', header: '月份', classes: 'col-span-1' },
+  { id: 'siteLeader', header: '现场负责人', classes: 'col-span-1' },
+  { id: 'reporter', header: '记录人', classes: 'col-span-1' },
   { id: 'tasksInfo', header: '工程细项', classes: 'col-span-3' },
-  { id: 'bimInfo', header: 'BIM关联', classes: 'col-span-2' },
-  { id: 'remark', header: '备注', classes: 'col-span-2' },
+  { id: 'bimInfo', header: 'BIM关联', classes: 'col-span-1' },
+  { id: 'remark', header: '备注', classes: 'col-span-1' },
   { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
 ]
 
@@ -741,6 +687,8 @@ const createDefaultForm = (): ActualProgressForm => ({
   reportTimestamp: new Date().toISOString().slice(0, 10),
   weekDay: '',
   reportDate: new Date().toISOString().slice(0, 10),
+  siteLeader: '',
+  reporter: '',
   startElementCodes: '',
   finishElementCodes: '',
   startModelIds: [],
@@ -787,36 +735,11 @@ const monthlyPlans = ref<MonthlyRecordItem[]>([])
 const isLoadingMonthlyTasks = ref(false)
 const planTasks = ref<ProgressPlanTask[]>([])
 const taskSelectOpen = ref(false)
-const showWorkerSelector = ref(false)
-const tempWorkerUser = ref<FormUsersSelectItemFragment | undefined>(undefined)
 
 const projectId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' ? id : ''
 })
-
-const { result: projectUsersResult, loading: isLoadingProjectUsers } = useQuery<
-  {
-    project?: {
-      id: string
-      team?: Array<{ id: string; user?: FormUsersSelectItemFragment | null }> | null
-    } | null
-  },
-  { projectId: string }
->(
-  actualProgressProjectUsersQuery,
-  () => ({ projectId: projectId.value }),
-  () => ({ enabled: !!projectId.value, fetchPolicy: 'cache-and-network' })
-)
-
-const availableUsers = computed<FormUsersSelectItemFragment[]>(() =>
-  (projectUsersResult.value?.project?.team || [])
-    .map((member: { user?: FormUsersSelectItemFragment | null }) => member.user)
-    .filter(
-      (user: FormUsersSelectItemFragment | null | undefined): user is FormUsersSelectItemFragment =>
-        !!user
-    )
-)
 
 const filteredItems = computed(() => {
   const query = searchQuery.value.trim()
@@ -1036,20 +959,6 @@ const removeTask = (idx: number) => {
   draftForm.value.tasks.splice(idx, 1)
 }
 
-const addWorker = () => {
-  if (!tempWorkerUser.value) return
-  const name = tempWorkerUser.value.name
-  if (name && !draftForm.value.workers.includes(name)) {
-    draftForm.value.workers.push(name)
-  }
-  tempWorkerUser.value = undefined
-  showWorkerSelector.value = false
-}
-
-const removeWorker = (idx: number) => {
-  draftForm.value.workers.splice(idx, 1)
-}
-
 const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
   id: item.id,
   yearMonth: item.yearMonth || '',
@@ -1057,6 +966,8 @@ const cloneRecordToForm = (item: ActualProgressRecord): ActualProgressForm => ({
   reportTimestamp: item.reportDate || new Date().toISOString().slice(0, 10),
   weekDay: item.weekDay,
   reportDate: item.reportDate,
+  siteLeader: item.siteLeader || '',
+  reporter: item.reporter || '',
   startElementCodes: item.startElementCodes,
   finishElementCodes: item.finishElementCodes,
   startModelIds: item.startModelIds || [],
@@ -1090,6 +1001,8 @@ const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput =
   return {
     taskName: form.taskName.trim() || (form.tasks[0]?.taskName ?? '填报'),
     reportDate: form.reportDate,
+    siteLeader: form.siteLeader.trim(),
+    reporter: form.reporter.trim(),
     remark: form.remark,
     yearMonth: form.yearMonth,
     tasks: form.tasks.map((t) => ({
@@ -1107,7 +1020,9 @@ const buildRecordInput = (form: ActualProgressForm): ActualProgressRecordInput =
 const viewBasicInfoItems = computed(() => [
   { label: '日期', value: displayDetailValue(viewRecord.value?.reportDate) },
   { label: '星期', value: displayDetailValue(viewRecord.value?.weekDay) },
-  { label: '月度计划', value: displayDetailValue(viewRecord.value?.yearMonth) }
+  { label: '月度计划', value: displayDetailValue(viewRecord.value?.yearMonth) },
+  { label: '现场负责人', value: displayDetailValue(viewRecord.value?.siteLeader) },
+  { label: '记录人', value: displayDetailValue(viewRecord.value?.reporter) }
 ])
 
 const openCreateDialog = async () => {

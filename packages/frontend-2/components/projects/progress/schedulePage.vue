@@ -79,9 +79,14 @@
         <template #taskName="{ item }">
           <div class="min-w-0 py-1">
             <div class="flex items-center gap-1.5">
-              <span class="truncate font-medium text-body-sm">
+              <button
+                type="button"
+                class="truncate font-medium text-body-sm text-left hover:text-primary hover:underline transition-colors focus:outline-none"
+                :title="`点击查看【${item.taskName}】实际进度列表`"
+                @click.stop="openTaskActualProgressModal(item)"
+              >
                 {{ item.taskName }}
-              </span>
+              </button>
               <span
                 v-if="item.milestoneType"
                 v-tippy="getMilestoneTooltipProps(item)"
@@ -344,6 +349,113 @@
         </div>
       </div>
     </LayoutDrawer>
+
+    <!-- 实际进度列表弹窗 -->
+    <LayoutDialog
+      v-model:open="isActualModalOpen"
+      max-width="xl"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <span>实际进度列表</span>
+          <span v-if="selectedTaskForActual" class="text-body-sm font-normal text-foreground-2">
+            （{{ selectedTaskForActual.taskName }}）
+          </span>
+        </div>
+      </template>
+      <div v-if="selectedTaskForActual" class="space-y-4 py-1">
+        <!-- 任务信息及完成情况汇总卡片 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-outline-2 bg-foundation-page p-3 text-body-xs">
+          <div>
+            <div class="text-foreground-2">WBS / 层级</div>
+            <div class="font-medium text-foreground mt-0.5">{{ selectedTaskForActual.wbs || '-' }}</div>
+          </div>
+          <div>
+            <div class="text-foreground-2">计划时间</div>
+            <div class="font-medium text-foreground mt-0.5 truncate" :title="`${selectedTaskForActual.startDate} ~ ${selectedTaskForActual.endDate}`">
+              {{ selectedTaskForActual.startDate || '-' }} ~ {{ selectedTaskForActual.endDate || '-' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-foreground-2">计划工程量</div>
+            <div class="font-medium text-foreground mt-0.5">
+              {{ selectedTaskForActual.volume ? `${selectedTaskForActual.volume}${selectedTaskForActual.unit || ''}` : '-' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-foreground-2">累计实际完成</div>
+            <div class="font-medium text-primary mt-0.5">
+              {{ taskActualSummary.totalCompleted }} {{ taskActualSummary.unit }}
+              <span v-if="taskActualSummary.completionRateText !== '-'" class="text-foreground-2 font-normal ml-1">
+                ({{ taskActualSummary.completionRateText }})
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 实际进度明细列表 -->
+        <div class="overflow-x-auto rounded-lg border border-outline-2 max-h-[400px] overflow-y-auto">
+          <table class="w-full text-left text-body-sm">
+            <thead class="bg-foundation-2 text-foreground-2 border-b border-outline-2 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 w-10 text-center">#</th>
+                <th class="px-3 py-2 w-28">填报日期</th>
+                <th class="px-3 py-2 w-20">月份</th>
+                <th class="px-3 py-2 w-28 text-center">本次完成量</th>
+                <th class="px-3 py-2 w-24 text-center">现场负责人</th>
+                <th class="px-3 py-2 w-24 text-center">记录人</th>
+                <th class="px-3 py-2 w-24 text-center">BIM关联</th>
+                <th class="px-3 py-2 min-w-[120px]">备注</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline-2 bg-foundation">
+              <tr v-if="isLoadingActualProgressRecords">
+                <td colspan="8" class="px-3 py-8 text-center text-foreground-2">
+                  正在加载实际进度明细...
+                </td>
+              </tr>
+              <tr v-else-if="!taskMatchingActualEntries.length">
+                <td colspan="8" class="px-3 py-8 text-center text-foreground-2">
+                  该任务暂无实际进度填报记录
+                </td>
+              </tr>
+              <tr
+                v-for="(entry, idx) in taskMatchingActualEntries"
+                :key="entry.recordId + '-' + idx"
+                class="hover:bg-foundation-2/40 transition-colors"
+              >
+                <td class="px-3 py-2 text-foreground-2 text-center text-body-xs">{{ idx + 1 }}</td>
+                <td class="px-3 py-2">
+                  <div class="font-medium text-body-xs">{{ entry.reportDate }}</div>
+                  <div class="text-foreground-2 text-body-3xs">{{ entry.weekDay }}</div>
+                </td>
+                <td class="px-3 py-2 text-body-xs text-foreground-2">{{ entry.yearMonth }}</td>
+                <td class="px-3 py-2 text-center font-semibold text-primary text-body-xs">
+                  {{ entry.completedVolume }} {{ entry.unit }}
+                </td>
+                <td class="px-3 py-2 text-center text-body-xs">{{ entry.siteLeader }}</td>
+                <td class="px-3 py-2 text-center text-body-xs">{{ entry.reporter }}</td>
+                <td class="px-3 py-2 text-center">
+                  <span
+                    v-if="entry.bimCount > 0"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-body-3xs font-medium bg-success-lighter text-success-darker"
+                  >
+                    {{ entry.bimCount }} 件构件
+                  </span>
+                  <span v-else class="text-body-3xs text-foreground-2">-</span>
+                </td>
+                <td class="px-3 py-2 text-body-xs text-foreground-2 truncate max-w-[150px]" :title="entry.remark">
+                  {{ entry.remark }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <template #buttons>
+        <FormButton color="outline" @click="isActualModalOpen = false">关闭</FormButton>
+      </template>
+    </LayoutDialog>
   </div>
 </template>
 
@@ -366,12 +478,14 @@ import {
   updateProgressPlanTaskBimAssociation,
   uploadProgressPlanFile,
   getProgressMonthlyPlans,
+  getActualProgressRecords,
   type ProgressPlanFile,
   type ProgressPlanTask,
   type ProgressPlanTaskBimSelection,
   type ProgressPlanTaskMilestoneType,
   type ProgressTaskSnapshotStatus,
-  type MonthlyRecordItem
+  type MonthlyRecordItem,
+  type ActualProgressRecord
 } from '~/lib/projects/api/progress'
 
 interface ScheduleItem {
@@ -1181,5 +1295,111 @@ watch(markerDialogOpen, (isOpen) => {
   selectedMarkerTaskId.value = null
   markerFormMilestoneType.value = null
   markerFormMilestoneDescription.value = ''
+})
+
+// 实际进度列表弹窗 State
+const isActualModalOpen = ref(false)
+const selectedTaskForActual = ref<ScheduleItem | null>(null)
+const actualProgressRecords = ref<ActualProgressRecord[]>([])
+const isLoadingActualProgressRecords = ref(false)
+
+const loadActualProgressRecords = async () => {
+  if (!projectId.value) return
+  isLoadingActualProgressRecords.value = true
+  try {
+    const data = await getActualProgressRecords({ projectId: projectId.value, apiOrigin })
+    actualProgressRecords.value = data
+  } catch (error) {
+    console.error('加载实际进度记录失败:', error)
+  } finally {
+    isLoadingActualProgressRecords.value = false
+  }
+}
+
+const openTaskActualProgressModal = (task: ScheduleItem) => {
+  selectedTaskForActual.value = task
+  isActualModalOpen.value = true
+  loadActualProgressRecords()
+}
+
+const taskMatchingActualEntries = computed(() => {
+  if (!selectedTaskForActual.value) return []
+  const task = selectedTaskForActual.value
+
+  const entries: Array<{
+    recordId: string
+    reportDate: string
+    weekDay: string
+    yearMonth: string
+    siteLeader: string
+    reporter: string
+    remark: string
+    completedVolume: string | number
+    unit: string
+    bimCount: number
+  }> = []
+
+  for (const record of actualProgressRecords.value) {
+    if (!record.tasks || !Array.isArray(record.tasks)) continue
+    for (const t of record.tasks) {
+      const isMatch =
+        (t.linkedPlanTaskId && t.linkedPlanTaskId === task.id) ||
+        (t.taskName && t.taskName === task.taskName)
+
+      if (isMatch) {
+        let bimCount = 0
+        if (t.selections && Array.isArray(t.selections)) {
+          bimCount = t.selections.reduce(
+            (sum: number, item: any) => sum + (item.applicationIds?.length || 0),
+            0
+          )
+        }
+        entries.push({
+          recordId: record.id,
+          reportDate: record.reportDate,
+          weekDay: record.weekDay,
+          yearMonth: record.yearMonth || '-',
+          siteLeader: record.siteLeader || '-',
+          reporter: record.reporter || '-',
+          remark: record.remark || '-',
+          completedVolume: t.completedVolume ?? 0,
+          unit: t.unit || task.unit || '',
+          bimCount
+        })
+      }
+    }
+  }
+
+  return entries
+})
+
+const taskActualSummary = computed(() => {
+  if (!selectedTaskForActual.value) {
+    return { totalCompleted: 0, unit: '', plannedVolume: '-', completionRateText: '-' }
+  }
+  const task = selectedTaskForActual.value
+  const entries = taskMatchingActualEntries.value
+
+  const totalCompleted = entries.reduce((sum, e) => {
+    const val =
+      typeof e.completedVolume === 'number'
+        ? e.completedVolume
+        : parseFloat(String(e.completedVolume) || '0')
+    return sum + (isNaN(val) ? 0 : val)
+  }, 0)
+
+  let completionRateText = '-'
+  const plannedVol = task.volume ? parseFloat(task.volume) : 0
+  if (plannedVol > 0) {
+    const rate = ((totalCompleted / plannedVol) * 100).toFixed(1)
+    completionRateText = `${rate}%`
+  }
+
+  return {
+    totalCompleted,
+    unit: task.unit || '',
+    plannedVolume: task.volume || '-',
+    completionRateText
+  }
 })
 </script>

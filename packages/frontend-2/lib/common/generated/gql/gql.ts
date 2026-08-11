@@ -171,7 +171,6 @@ type Documents = {
     "\n  fragment ProjectsHiddenProjectWarning_User on User {\n    id\n    expiredSsoSessions {\n      id\n      slug\n      name\n      logo\n    }\n  }\n": typeof types.ProjectsHiddenProjectWarning_UserFragmentDoc,
     "\n  fragment ProjectsWorkspaceSelect_Workspace on Workspace {\n    id\n    role\n    name\n    logo\n    readOnly\n    slug\n  }\n": typeof types.ProjectsWorkspaceSelect_WorkspaceFragmentDoc,
     "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n": typeof types.ProjectsInviteBannerFragmentDoc,
-    "\n  query ActualProgressProjectUsers($projectId: String!) {\n    project(id: $projectId) {\n      id\n      team {\n        id\n        user {\n          id\n          name\n          avatar\n        }\n      }\n    }\n  }\n": typeof types.ActualProgressProjectUsersDocument,
     "\n  query PhysicalProgressFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          parentId\n          updatedAt\n          models {\n            id\n            name\n            displayName\n            updatedAt\n          }\n        }\n      }\n    }\n  }\n": typeof types.PhysicalProgressFoldersByParentDocument,
     "\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ForceApproveFlowDocument,
     "\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": typeof types.ForceRejectFlowDocument,
@@ -782,7 +781,6 @@ const documents: Documents = {
     "\n  fragment ProjectsHiddenProjectWarning_User on User {\n    id\n    expiredSsoSessions {\n      id\n      slug\n      name\n      logo\n    }\n  }\n": types.ProjectsHiddenProjectWarning_UserFragmentDoc,
     "\n  fragment ProjectsWorkspaceSelect_Workspace on Workspace {\n    id\n    role\n    name\n    logo\n    readOnly\n    slug\n  }\n": types.ProjectsWorkspaceSelect_WorkspaceFragmentDoc,
     "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n": types.ProjectsInviteBannerFragmentDoc,
-    "\n  query ActualProgressProjectUsers($projectId: String!) {\n    project(id: $projectId) {\n      id\n      team {\n        id\n        user {\n          id\n          name\n          avatar\n        }\n      }\n    }\n  }\n": types.ActualProgressProjectUsersDocument,
     "\n  query PhysicalProgressFoldersByParent($projectId: String!, $parentId: String) {\n    project(id: $projectId) {\n      id\n      folders(limit: 100, filter: { parentId: $parentId }) {\n        items {\n          id\n          name\n          parentId\n          updatedAt\n          models {\n            id\n            name\n            displayName\n            updatedAt\n          }\n        }\n      }\n    }\n  }\n": types.PhysicalProgressFoldersByParentDocument,
     "\n  mutation ForceApproveFlow($input: ApproveApprovalFlowInput!) {\n    approvalMutations {\n      approve(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ForceApproveFlowDocument,
     "\n  mutation ForceRejectFlow($input: RejectApprovalFlowInput!) {\n    approvalMutations {\n      reject(input: $input) {\n        id\n        status\n      }\n    }\n  }\n": types.ForceRejectFlowDocument,
@@ -1878,10 +1876,6 @@ export function graphql(source: "\n  fragment ProjectsWorkspaceSelect_Workspace 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n"): (typeof documents)["\n  fragment ProjectsInviteBanner on PendingStreamCollaborator {\n    id\n    invitedBy {\n      ...LimitedUserAvatar\n    }\n    projectId\n    projectName\n    token\n    user {\n      id\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ActualProgressProjectUsers($projectId: String!) {\n    project(id: $projectId) {\n      id\n      team {\n        id\n        user {\n          id\n          name\n          avatar\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ActualProgressProjectUsers($projectId: String!) {\n    project(id: $projectId) {\n      id\n      team {\n        id\n        user {\n          id\n          name\n          avatar\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

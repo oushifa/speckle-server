@@ -31,6 +31,7 @@
         name="model-object-model-select"
         label="模型"
         show-label
+        fit-content
         :class="hasFixedProject ? 'md:col-span-1' : ''"
         :items="modelOptions"
         :disabled="disabled || !activeProjectId || modelOptions.length === 0"
@@ -38,13 +39,17 @@
         by="id"
       >
         <template #nothing-selected>
-          {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
+          <span class="truncate block">
+            {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
+          </span>
         </template>
         <template #something-selected="{ value }">
-          {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+          <span class="truncate block">
+            {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+          </span>
         </template>
         <template #option="{ item }">
-          {{ item.name }}
+          <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
         </template>
       </FormSelectBase>
     </div>
