@@ -24,22 +24,22 @@
         </div>
         <div v-else class="space-y-1">
           <div
-            v-for="task in visibleTasks"
+            v-for="(task, index) in visibleTasks"
             :key="task.id"
-            class="flex items-center justify-between rounded-lg p-2 text-body-sm transition-colors cursor-pointer"
-             :class="[
-              task.hasChildren
-                ? 'font-medium text-foreground bg-foundation-2/60'
+            class="flex items-center justify-between rounded-lg p-2 text-body-sm transition-colors"
+            :class="[
+              checkIsParentTask(task, index, visibleTasks)
+                ? 'font-medium text-foreground bg-foundation-2/60 cursor-not-allowed opacity-75'
                 : tempSelectedTask?.id === task.id
-                ? 'bg-primary-muted text-primary border border-primary/30'
-                : 'hover:bg-foundation-2 text-foreground'
+                ? 'bg-primary-muted text-primary border border-primary/30 cursor-pointer'
+                : 'hover:bg-foundation-2 text-foreground cursor-pointer'
             ]"
             :style="{ paddingLeft: `${task.level * 16 + 8}px` }"
-            @click="handleSelect(task)"
+            @click="handleSelect(task, index)"
           >
-            <div className="flex items-center gap-2 truncate">
+            <div class="flex items-center gap-2 truncate">
               <span
-                v-if="!task.hasChildren"
+                v-if="!checkIsParentTask(task, index, visibleTasks)"
                 class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border"
                 :class="
                   tempSelectedTask?.id === task.id
@@ -53,12 +53,15 @@
             </div>
 
             <div
-              v-if="!task.hasChildren"
+              v-if="!checkIsParentTask(task, index, visibleTasks)"
               class="flex items-center gap-3 text-body-xs text-foreground-2 shrink-0"
             >
-              <span>工程量：{{ task.volume ? `${task.volume}${task.unit}` : '-' }}</span>
+              <span>
+                工程量：{{ task.volume ? `${task.volume}${task.unit}` : '-' }}
+              </span>
               <span v-if="task.startDate && task.endDate">
-                {{ task.startDate.substring(0, 10) }} ~ {{ task.endDate.substring(0, 10) }}
+                {{ task.startDate.substring(0, 10) }} ~
+                {{ task.endDate.substring(0, 10) }}
               </span>
             </div>
           </div>
@@ -85,10 +88,46 @@ export interface MasterTaskOption {
   level: number
   hasChildren: boolean
   parentId?: string
+  wbs?: string
   volume?: string
   unit?: string
   startDate?: string
   endDate?: string
+}
+
+const checkIsParentTask = (
+  mt: MasterTaskOption,
+  index: number,
+  allTasks: MasterTaskOption[]
+): boolean => {
+  if (!allTasks || !allTasks.length) return false
+  if (mt.hasChildren) return true
+  if (allTasks.some((other) => other.id !== mt.id && other.parentId === mt.id))
+    return true
+  if (
+    mt.wbs &&
+    allTasks.some(
+      (other) => other.id !== mt.id && other.wbs && other.wbs.startsWith(mt.wbs + '.')
+    )
+  ) {
+    return true
+  }
+  if (index < allTasks.length - 1) {
+    const nextTask = allTasks[index + 1]
+    if (
+      typeof nextTask.level === 'number' &&
+      typeof mt.level === 'number' &&
+      nextTask.level > mt.level
+    ) {
+      return true
+    }
+  }
+  const minLevel = Math.min(...allTasks.map((t) => t.level ?? 0))
+  const maxLevel = Math.max(...allTasks.map((t) => t.level ?? 0))
+  if (minLevel < maxLevel && mt.level === minLevel) {
+    return true
+  }
+  return false
 }
 
 const props = defineProps<{
@@ -128,8 +167,8 @@ const visibleTasks = computed(() => {
   return props.masterTasks.filter((t) => t.taskName.toLowerCase().includes(term))
 })
 
-const handleSelect = (task: MasterTaskOption) => {
-  if (task.hasChildren) return
+const handleSelect = (task: MasterTaskOption, index: number) => {
+  if (checkIsParentTask(task, index, visibleTasks.value)) return
   tempSelectedTask.value = task
 }
 

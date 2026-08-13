@@ -63,8 +63,32 @@
                   </LayoutSidebarMenuGroupItem>
                 </NuxtLink>
 
+                <NuxtLink
+                  v-if="showWorkspaceLinks"
+                  :to="projectBaseRoutePath + '/file-management'"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'project-sidebar-top-item',
+                      'py-3',
+                      isProjectActive('/file-management') &&
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ]"
+                    label="文件管理"
+                  >
+                    <template #icon>
+                      <IconFile class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
                 <LayoutSidebarMenuGroup
-                  v-if="hasMenuPerm('file-management') || hasMenuPerm('collaborative-management')"
+                  v-if="
+                    hasMenuPerm('file-management') ||
+                    hasMenuPerm('collaborative-management')
+                  "
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive(['/model-list', '/workbench/discussions']) &&
@@ -114,7 +138,11 @@
                 </LayoutSidebarMenuGroup>
 
                 <LayoutSidebarMenuGroup
-                  v-if="hasMenuPerm('progress-plan') || hasMenuPerm('actual-progress') || hasMenuPerm('visual-progress')"
+                  v-if="
+                    hasMenuPerm('progress-plan') ||
+                    hasMenuPerm('actual-progress') ||
+                    hasMenuPerm('visual-progress')
+                  "
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
@@ -205,7 +233,11 @@
                 </NuxtLink>
 
                 <LayoutSidebarMenuGroup
-                  v-if="hasMenuPerm('bill-management') || hasMenuPerm('monthly-valuation') || hasMenuPerm('safety-civilization')"
+                  v-if="
+                    hasMenuPerm('bill-management') ||
+                    hasMenuPerm('monthly-valuation') ||
+                    hasMenuPerm('safety-civilization')
+                  "
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([

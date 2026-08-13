@@ -120,6 +120,7 @@ const getEnabledModuleNames = () => {
     'progress',
     'project-statistics',
     'quality-acceptance-form',
+    'file-management',
     'prepayment',
     'pwdreset',
     'serverinvites',

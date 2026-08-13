@@ -22,6 +22,7 @@ const execFile = promisify(execFileCallback)
 
 type ExtractedPlanTask = {
   externalId?: string | null
+  sysTaskId?: string | null
   parentExternalId?: string | null
   wbs?: string | null
   name: string
@@ -153,6 +154,35 @@ const resolveMpxjLibDir = async () => {
   )
 }
 
+const getJavaWriterSourcePathCandidates = () =>
+  [
+    process.env.PROGRESS_PLAN_MPP_WRITER_SOURCE,
+    resolve(currentDir, '../java/ProgressPlanMppWriter.java'),
+    resolve(packageRoot, 'modules/progress/java/ProgressPlanMppWriter.java'),
+    resolve(packageRoot, 'dist/modules/progress/java/ProgressPlanMppWriter.java'),
+    resolve(
+      workspaceRoot,
+      'packages/server/modules/progress/java/ProgressPlanMppWriter.java'
+    )
+  ].filter((value): value is string => !!value?.trim())
+
+const resolveJavaWriterSourcePath = async () => {
+  const attemptedPaths: string[] = []
+
+  for (const candidate of getJavaWriterSourcePathCandidates()) {
+    attemptedPaths.push(candidate)
+    if (await pathExists(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(
+    `ProgressPlanMppWriter.java not found. Set PROGRESS_PLAN_MPP_WRITER_SOURCE or ensure the source file exists. Tried: ${attemptedPaths.join(
+      ', '
+    )}`
+  )
+}
+
 const ensureCompiledExtractor = async () => {
   await mkdir(javaBuildDir, { recursive: true })
 
@@ -178,6 +208,70 @@ const ensureCompiledExtractor = async () => {
         PATH: `/opt/homebrew/opt/openjdk/bin:${process.env.PATH || ''}`,
         JAVA_HOME: '/opt/homebrew/opt/openjdk'
       }
+    }
+  )
+}
+
+const compiledWriterClassPath = join(javaBuildDir, 'ProgressPlanMppWriter.class')
+
+const ensureCompiledWriter = async () => {
+  await mkdir(javaBuildDir, { recursive: true })
+
+  const javaSourcePath = await resolveJavaWriterSourcePath()
+  const sourceStats = await stat(javaSourcePath)
+  const shouldCompile = !(await pathExists(compiledWriterClassPath))
+    ? true
+    : (await stat(compiledWriterClassPath)).mtimeMs < sourceStats.mtimeMs
+
+  if (!shouldCompile) return
+
+  const [javacBin, mpxjLibDir] = await Promise.all([
+    resolveBinary(javacPathCandidates, 'javac runtime'),
+    resolveMpxjLibDir()
+  ])
+
+  await execFile(
+    javacBin,
+    ['-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
+    {
+      env: {
+        ...process.env,
+        PATH: `/opt/homebrew/opt/openjdk/bin:${process.env.PATH || ''}`,
+        JAVA_HOME: '/opt/homebrew/opt/openjdk'
+      }
+    }
+  )
+}
+
+const runWriter = async (params: {
+  inputFilePath: string
+  outputFilePath: string
+  mappingsFilePath: string
+}) => {
+  await ensureCompiledWriter()
+
+  const [javaBin, mpxjLibDir] = await Promise.all([
+    resolveBinary(javaPathCandidates, 'java runtime'),
+    resolveMpxjLibDir()
+  ])
+
+  await execFile(
+    javaBin,
+    [
+      '-cp',
+      `${javaBuildDir}:${mpxjLibDir}/*`,
+      'ProgressPlanMppWriter',
+      params.inputFilePath,
+      params.outputFilePath,
+      params.mappingsFilePath
+    ],
+    {
+      env: {
+        ...process.env,
+        PATH: `/opt/homebrew/opt/openjdk/bin:${process.env.PATH || ''}`,
+        JAVA_HOME: '/opt/homebrew/opt/openjdk'
+      },
+      maxBuffer: 1024 * 1024 * 20
     }
   )
 }
@@ -372,3 +466,47 @@ export const readCompiledExtractorSourceFactory = async () => {
   const javaSourcePath = await resolveJavaSourcePath()
   return await readFile(javaSourcePath, 'utf8')
 }
+
+export const exportProgressPlanFileWithSysTaskIdFactory =
+  (deps: { db: Knex; storage: ObjectStorage }) =>
+  async (params: { projectId: string; blobId: string; fileName: string }) => {
+    const { tempDir, tempFilePath } = await createTempMppFile({
+      db: deps.db,
+      storage: deps.storage,
+      projectId: params.projectId,
+      blobId: params.blobId,
+      fileName: params.fileName
+    })
+
+    const tasks = await listProgressPlanTasksFactory({ db: deps.db })({
+      projectId: params.projectId
+    })
+
+    const mappings = tasks.map((task) => ({
+      externalId: task.externalId || '',
+      wbs: task.wbs || '',
+      sysTaskId: task.sysTaskId || task.id
+    }))
+
+    const mappingsFilePath = join(tempDir, 'task-mappings.json')
+    await readFile(mappingsFilePath, 'utf8').catch(() => null)
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(mappingsFilePath, JSON.stringify(mappings, null, 2), 'utf8')
+
+    const outputFileName = `exported_${sanitizeFileName(params.fileName)}`
+    const outputFilePath = join(tempDir, outputFileName)
+
+    try {
+      await runWriter({
+        inputFilePath: tempFilePath,
+        outputFilePath,
+        mappingsFilePath
+      })
+
+      const exportedBuffer = await readFile(outputFilePath)
+      return { exportedBuffer, tempDir }
+    } catch {
+      const fallbackBuffer = await readFile(tempFilePath)
+      return { exportedBuffer: fallbackBuffer, tempDir }
+    }
+  }

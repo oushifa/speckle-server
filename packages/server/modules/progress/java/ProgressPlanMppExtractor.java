@@ -47,6 +47,7 @@ public class ProgressPlanMppExtractor {
     if (name != null) {
       Map<String, Object> record = new LinkedHashMap<>();
       record.put("externalId", toStringValue(task.getUniqueID()));
+      record.put("sysTaskId", sanitize(task.getText(1)));
       record.put("parentExternalId", effectiveParent != null ? toStringValue(effectiveParent.getUniqueID()) : null);
       record.put("wbs", firstNonBlank(task.getWBS(), task.getOutlineNumber()));
       record.put("name", name);
@@ -56,7 +57,7 @@ public class ProgressPlanMppExtractor {
       record.put("planStart", formatDate(task.getStart()));
       record.put("planEnd", formatDate(task.getFinish()));
       record.put("predecessor", formatPredecessors(task.getPredecessors()));
-      record.put("inspectionBatch", sanitize(task.getText(1)));
+      record.put("inspectionBatch", sanitize(task.getText(2)));
       output.add(record);
       effectiveParent = task;
     }

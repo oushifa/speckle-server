@@ -92,7 +92,9 @@ const hasServerAdminOverride = (req: Request) =>
   adminOverrideEnabled() && req.context.role === Roles.Server.Admin
 
 const normalizeApprovalStatus = (status: string | null | undefined) =>
-  String(status || 'START').trim().toUpperCase()
+  String(status || 'START')
+    .trim()
+    .toUpperCase()
 
 const isRegularDeleteAllowedStatus = (status: string | null | undefined) => {
   const normalized = normalizeApprovalStatus(status)
@@ -186,11 +188,16 @@ const requireServiceToken: RequestHandler = (req, res, next) => {
   return next()
 }
 
-
-
-const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: string) => {
-  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(measurementId)
-  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(measurementId)
+const calculatePaymentRequestAmounts = async (
+  projectDb: any,
+  measurementId: string
+) => {
+  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(
+    measurementId
+  )
+  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(
+    measurementId
+  )
   const extraPayItems = Array.isArray(paymentDetails?.extraPayItems)
     ? paymentDetails.extraPayItems
     : []
@@ -209,7 +216,7 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
       const supervisionQty = Number(item.supervisionQty || 0)
       const headquartersQty = Number(item.headquartersQty || 0)
       const investmentQty = Number(item.investmentQty || 0)
-      
+
       const contractorAmt = contractorQty * price
       const supervisionAmt = supervisionQty * price
       const headquartersAmt = headquartersQty * price
@@ -250,9 +257,16 @@ const calculatePaymentRequestAmounts = async (projectDb: any, measurementId: str
   }
 }
 
-const getLeaderPayAmtSum = async (projectDb: any, measurementId: string): Promise<number> => {
-  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(measurementId)
-  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(measurementId)
+const getLeaderPayAmtSum = async (
+  projectDb: any,
+  measurementId: string
+): Promise<number> => {
+  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(
+    measurementId
+  )
+  const paymentDetails = await getMonthlyPaymentDetailsFactory({ db: projectDb })(
+    measurementId
+  )
   const extraPayItems = Array.isArray(paymentDetails?.extraPayItems)
     ? paymentDetails.extraPayItems
     : []
@@ -368,9 +382,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const items = formsData.items
 
       // 2. 批量加载用户信息 (inspector & creator)
-      const userIds = Array.from(new Set(
-        items.flatMap((item: any) => [item.inspector, item.creator]).filter(Boolean)
-      ))
+      const userIds = Array.from(
+        new Set(
+          items.flatMap((item: any) => [item.inspector, item.creator]).filter(Boolean)
+        )
+      )
       let users: any[] = []
       if (userIds.length > 0) {
         users = await db('users').whereIn('id', userIds).select('id', 'name')
@@ -378,9 +394,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const userMap = new Map<string, any>(users.map((u: any) => [u.id, u]))
 
       // 3. 批量加载附件信息
-      const allBlobIds = Array.from(new Set(
-        items.flatMap((item: any) => item.attachments || []).filter(Boolean)
-      ))
+      const allBlobIds = Array.from(
+        new Set(items.flatMap((item: any) => item.attachments || []).filter(Boolean))
+      )
       let blobs: any[] = []
       if (allBlobIds.length > 0) {
         blobs = await getBlobsFactory({ db: projectDb })({
@@ -739,7 +755,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return true
       if (
         requiredRole === 'headquarters' &&
-        isStep(['现场指挥部经办人', '现场指挥部审核人', '现场指挥', '现场指挥部', '指挥部'])
+        isStep([
+          '现场指挥部经办人',
+          '现场指挥部审核人',
+          '现场指挥',
+          '现场指挥部',
+          '指挥部'
+        ])
       )
         return true
       if (
@@ -749,7 +771,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return true
       if (
         requiredRole === 'contract' &&
-        isStep(['合约管理部经办人', '合约管理部负责人', '计划合同部', '合约部', '合约管理部'])
+        isStep([
+          '合约管理部经办人',
+          '合约管理部负责人',
+          '计划合同部',
+          '合约部',
+          '合约管理部'
+        ])
       )
         return true
       if (requiredRole === 'leader' && isStep(['分管领导'])) return true
@@ -804,7 +832,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         countMonthlyMeasurementsFactory({ db: projectDb })({ projectId, search })
       ])
 
-      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const project = await db('streams')
+        .where({ id: projectId })
+        .select('contractCode')
+        .first()
       const projectContractCode = project?.contractCode || ''
 
       const itemsWithDetails = await Promise.all(
@@ -911,7 +942,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 查询项目合同编号与计算验工总额
-      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const project = await db('streams')
+        .where({ id: projectId })
+        .select('contractCode')
+        .first()
       const projectContractCode = project?.contractCode || ''
       const totalAmount = await getLeaderPayAmtSum(projectDb, id)
 
@@ -1121,7 +1155,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       // 获取当前项目合同编号
-      const project = await db('streams').where({ id: projectId }).select('contractCode').first()
+      const project = await db('streams')
+        .where({ id: projectId })
+        .select('contractCode')
+        .first()
       const projectContractCode = project?.contractCode || ''
 
       // 存入新加字段 roundName, startDate, endDate, contractCode, safetyMeasureId
@@ -1194,7 +1231,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .where('subjectKey', `monthly_measurements:${id}`)
         .select('status')
         .first()
-      const currentStatus = binding ? binding.status : (existing.approveStatus || 'START')
+      const currentStatus = binding ? binding.status : existing.approveStatus || 'START'
       if (currentStatus !== 'START' && currentStatus !== 'RETURNED') {
         throw new BadRequestError('已送审，不可编辑修改')
       }
@@ -1240,13 +1277,27 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
 
         // 获取安全文明措施费非汇总清单项数据
-        const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
+        const safetyMap = new Map<
+          string,
+          {
+            contractorQty: number
+            supervisionQty: number
+            headquartersQty: number
+            investmentQty: number
+          }
+        >()
         const currentSafetyMeasureId = body.safetyMeasureId || null
         if (currentSafetyMeasureId) {
           const safetyItems = await projectDb('safety_measure_items')
             .where('safetyMeasureId', currentSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
+            .select(
+              'boqItemId',
+              'contractorQty',
+              'supervisionQty',
+              'headquartersQty',
+              'engineeringQty'
+            )
           for (const s of safetyItems) {
             safetyMap.set(s.boqItemId, {
               contractorQty: Number(s.contractorQty) || 0,
@@ -1302,7 +1353,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             : custom?.measuredQty !== null && custom?.measuredQty !== undefined
             ? Number(custom.measuredQty)
             : row.measuredQtyDefault
-          const finalQty = Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty
+          const finalQty = Number.isNaN(measuredQty)
+            ? row.measuredQtyDefault
+            : measuredQty
 
           // 覆盖各角色工程量为安全文明措施量（若存在）
           const safetyVals = !row.isSummaryRow ? safetyMap.get(row.boqItemId) : null
@@ -1426,7 +1479,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
                 lastCumulativeQty: historyMap.get(row.boqItemId) || 0,
                 yearlyCumulativeQty: yearlyMap.get(row.boqItemId) || 0,
                 lastCumulativePay: payMap.get(row.boqItemId) || 0,
-                remark: row.isSummaryRow ? null : custom?.remark?.trim() || row.remark || null,
+                remark: row.isSummaryRow
+                  ? null
+                  : custom?.remark?.trim() || row.remark || null,
                 sourceAcceptanceIds: row.sourceAcceptanceIds,
                 createdAt: now,
                 updatedAt: now
@@ -1444,14 +1499,16 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
         await deleteMonthlyMeasurementItemsByMeasurementIdFactory({ db: trx })(id)
         await insertMonthlyMeasurementItemsFactory({ db: trx })(nextItems)
-        
+
         // 释放原有占用的质量验收单，重新将新 nextItems 关联的质量验收单占用
         await trx('quality_acceptance_forms')
           .where('occupiedMeasurementId', id)
           .update({ occupiedMeasurementId: null, updatedAt: new Date() })
 
         const allSourceAcceptanceIds = Array.from(
-          new Set(nextItems.flatMap((it: any) => it.sourceAcceptanceIds || []).filter(Boolean))
+          new Set(
+            nextItems.flatMap((it: any) => it.sourceAcceptanceIds || []).filter(Boolean)
+          )
         )
         if (allSourceAcceptanceIds.length > 0) {
           await trx('quality_acceptance_forms')
@@ -1491,7 +1548,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .where('subjectKey', `monthly_measurements:${id}`)
         .select('status', 'currentInstanceId')
         .first()
-      const currentStatus = binding ? binding.status : (measurement.approveStatus || 'START')
+      const currentStatus = binding
+        ? binding.status
+        : measurement.approveStatus || 'START'
       if (
         (!isAdminOverride && !isRegularDeleteAllowedStatus(currentStatus)) ||
         (isAdminOverride && !isAdminDeleteAllowedStatus(currentStatus))
@@ -1516,7 +1575,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       if (binding) {
-        await db('approval_flow_bindings').where('subjectKey', `monthly_measurements:${id}`).delete()
+        await db('approval_flow_bindings')
+          .where('subjectKey', `monthly_measurements:${id}`)
+          .delete()
       }
       if (didCancelPendingFlow) {
         await publishApprovalFlowTodoCountUpdated()
@@ -1545,19 +1606,19 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .where('subjectKey', `monthly_measurements:${id}`)
         .select('status')
         .first()
-      const currentStatus = binding ? binding.status : (measurement.approveStatus || 'START')
+      const currentStatus = binding
+        ? binding.status
+        : measurement.approveStatus || 'START'
       if (currentStatus !== 'START' && currentStatus !== 'RETURNED') {
         throw new BadRequestError('已送审，不可修改关联')
       }
 
       await projectDb.transaction(async (trx) => {
         // 1. 更新主表关联
-        await trx('monthly_measurements')
-          .where('id', id)
-          .update({
-            safetyMeasureId: targetSafetyMeasureId,
-            updatedAt: new Date()
-          })
+        await trx('monthly_measurements').where('id', id).update({
+          safetyMeasureId: targetSafetyMeasureId,
+          updatedAt: new Date()
+        })
 
         // 2. 查询该月度验工项的所有 items
         const items = await trx('monthly_measurement_items')
@@ -1565,12 +1626,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .orderBy('sortIndex', 'asc')
 
         // 3. 如果有关联新措施费，拉取对应的 Qty
-        const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
+        const safetyMap = new Map<
+          string,
+          {
+            contractorQty: number
+            supervisionQty: number
+            headquartersQty: number
+            investmentQty: number
+          }
+        >()
         if (targetSafetyMeasureId) {
           const safetyItems = await trx('safety_measure_items')
             .where('safetyMeasureId', targetSafetyMeasureId)
             .andWhere('isSummaryRow', false)
-            .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
+            .select(
+              'boqItemId',
+              'contractorQty',
+              'supervisionQty',
+              'headquartersQty',
+              'engineeringQty'
+            )
           for (const s of safetyItems) {
             safetyMap.set(s.boqItemId, {
               contractorQty: Number(s.contractorQty) || 0,
@@ -1582,20 +1657,24 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
 
         // 4. 批量更新月度验工项
-        const itemsToUpdate = items.map((item: any) => {
-          if (item.isSummaryRow) return null
-          
-          const defaultQty = item.measuredQty || 0 // 默认值（还原为质量验收累计工程量）
-          const safetyVals = targetSafetyMeasureId ? safetyMap.get(item.boqItemId) : null
+        const itemsToUpdate = items
+          .map((item: any) => {
+            if (item.isSummaryRow) return null
 
-          return {
-            boqItemId: item.boqItemId,
-            contractorQty: safetyVals ? safetyVals.contractorQty : defaultQty,
-            supervisionQty: safetyVals ? safetyVals.supervisionQty : defaultQty,
-            headquartersQty: safetyVals ? safetyVals.headquartersQty : defaultQty,
-            investmentQty: safetyVals ? safetyVals.investmentQty : defaultQty
-          }
-        }).filter(Boolean) as Array<any>
+            const defaultQty = item.measuredQty || 0 // 默认值（还原为质量验收累计工程量）
+            const safetyVals = targetSafetyMeasureId
+              ? safetyMap.get(item.boqItemId)
+              : null
+
+            return {
+              boqItemId: item.boqItemId,
+              contractorQty: safetyVals ? safetyVals.contractorQty : defaultQty,
+              supervisionQty: safetyVals ? safetyVals.supervisionQty : defaultQty,
+              headquartersQty: safetyVals ? safetyVals.headquartersQty : defaultQty,
+              investmentQty: safetyVals ? safetyVals.investmentQty : defaultQty
+            }
+          })
+          .filter(Boolean) as Array<any>
 
         await updateMonthlyMeasurementItemsBatchFactory({ db: trx })(id, itemsToUpdate)
       })
@@ -1612,9 +1691,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const { projectId, id } = req.params
       const projectDb = await getProjectDbClient({ projectId })
       const details = await getMonthlyMeasurementDetailsFactory({ db: projectDb })(id)
-      
+
       let acceptanceAttachments: Array<{ blobId: string; name: string }> = []
-      if (details && Array.isArray(details.acceptanceAttachments) && details.acceptanceAttachments.length > 0) {
+      if (
+        details &&
+        Array.isArray(details.acceptanceAttachments) &&
+        details.acceptanceAttachments.length > 0
+      ) {
         const blobIds = details.acceptanceAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -1657,8 +1740,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const fieldsToSave: any = {}
       if ('acceptanceAttachments' in body) {
         // 附件在草稿期或流程中，允许对应可写人员修改更新
-        fieldsToSave.acceptanceAttachments = (body.acceptanceAttachments || []).map((x: any) =>
-          typeof x === 'string' ? x : x.blobId
+        fieldsToSave.acceptanceAttachments = (body.acceptanceAttachments || []).map(
+          (x: any) => (typeof x === 'string' ? x : x.blobId)
         )
       }
 
@@ -1670,14 +1753,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const opinionKey = `${role}Opinion`
         const auditorKey = `${role}Auditor`
 
-        const nextOpinion = body[opinionKey] !== undefined ? String(body[opinionKey] || '') : undefined
+        const nextOpinion =
+          body[opinionKey] !== undefined ? String(body[opinionKey] || '') : undefined
         const prevOpinion = existing ? String((existing as any)[opinionKey] || '') : ''
 
-        const nextAuditor = body[auditorKey] !== undefined ? String(body[auditorKey] || '') : undefined
+        const nextAuditor =
+          body[auditorKey] !== undefined ? String(body[auditorKey] || '') : undefined
         const prevAuditor = existing ? String((existing as any)[auditorKey] || '') : ''
 
-        const isOpinionChanged = nextOpinion !== undefined && nextOpinion !== prevOpinion
-        const isAuditorChanged = nextAuditor !== undefined && nextAuditor !== prevAuditor
+        const isOpinionChanged =
+          nextOpinion !== undefined && nextOpinion !== prevOpinion
+        const isAuditorChanged =
+          nextAuditor !== undefined && nextAuditor !== prevAuditor
 
         if (isOpinionChanged || isAuditorChanged) {
           changedRoles.add(role)
@@ -1701,8 +1788,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const dateKey = `${role}Date`
 
         if (changedRoles.has(role)) {
-          if (body[opinionKey] !== undefined) fieldsToSave[opinionKey] = body[opinionKey]
-          if (body[auditorKey] !== undefined) fieldsToSave[auditorKey] = body[auditorKey]
+          if (body[opinionKey] !== undefined)
+            fieldsToSave[opinionKey] = body[opinionKey]
+          if (body[auditorKey] !== undefined)
+            fieldsToSave[auditorKey] = body[auditorKey]
           fieldsToSave[dateKey] = new Date()
         }
       }
@@ -1713,7 +1802,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       )
 
       let acceptanceAttachments: Array<{ blobId: string; name: string }> = []
-      if (updated && Array.isArray(updated.acceptanceAttachments) && updated.acceptanceAttachments.length > 0) {
+      if (
+        updated &&
+        Array.isArray(updated.acceptanceAttachments) &&
+        updated.acceptanceAttachments.length > 0
+      ) {
         const blobIds = updated.acceptanceAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -1725,7 +1818,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
       }
 
-      return res.status(200).json(updated ? { ...updated, acceptanceAttachments } : null)
+      return res
+        .status(200)
+        .json(updated ? { ...updated, acceptanceAttachments } : null)
     }
   )
 
@@ -1763,7 +1858,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       let paymentAttachments: Array<{ blobId: string; name: string }> = []
-      if (details && Array.isArray(details.paymentAttachments) && details.paymentAttachments.length > 0) {
+      if (
+        details &&
+        Array.isArray(details.paymentAttachments) &&
+        details.paymentAttachments.length > 0
+      ) {
         const blobIds = details.paymentAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -1782,12 +1881,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               paymentAttachments,
               extraPayItems: Array.isArray(details.extraPayItems)
                 ? details.extraPayItems.map((item: any) => {
-                    const historyPay = extraPayHistoryMap.get(item.prepaymentItemId) || 0
+                    const historyPay =
+                      extraPayHistoryMap.get(item.prepaymentItemId) || 0
                     const currentPay = getEffectiveExtraPayAmt(item)
-                    const cumulativeAmount = preciseAdd(
-                      historyPay,
-                      currentPay
-                    )
+                    const cumulativeAmount = preciseAdd(historyPay, currentPay)
                     return {
                       ...item,
                       historyPay,
@@ -1824,8 +1921,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const fieldsToSave: any = {}
       if ('paymentAttachments' in body) {
-        fieldsToSave.paymentAttachments = (body.paymentAttachments || []).map((x: any) =>
-          typeof x === 'string' ? x : x.blobId
+        fieldsToSave.paymentAttachments = (body.paymentAttachments || []).map(
+          (x: any) => (typeof x === 'string' ? x : x.blobId)
         )
       }
       if ('interimRemark' in body) fieldsToSave.interimRemark = body.interimRemark
@@ -1944,7 +2041,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       )
 
       let paymentAttachments: Array<{ blobId: string; name: string }> = []
-      if (updated && Array.isArray(updated.paymentAttachments) && updated.paymentAttachments.length > 0) {
+      if (
+        updated &&
+        Array.isArray(updated.paymentAttachments) &&
+        updated.paymentAttachments.length > 0
+      ) {
         const blobIds = updated.paymentAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -2026,7 +2127,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       let requestAttachments: Array<{ blobId: string; name: string }> = []
-      if (details && Array.isArray(details.requestAttachments) && details.requestAttachments.length > 0) {
+      if (
+        details &&
+        Array.isArray(details.requestAttachments) &&
+        details.requestAttachments.length > 0
+      ) {
         const blobIds = details.requestAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -2052,12 +2157,30 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           ? {
               ...details,
               requestAttachments,
-              contractorPayAmt: getFinalAmt(details.contractorPayAmt, calculatedAmts.contractorPayAmt),
-              supervisionPayAmt: getFinalAmt(details.supervisionPayAmt, calculatedAmts.supervisionPayAmt),
-              headquartersPayAmt: getFinalAmt(details.headquartersPayAmt, calculatedAmts.headquartersPayAmt),
-              investmentPayAmt: getFinalAmt(details.investmentPayAmt, calculatedAmts.investmentPayAmt),
-              contractPayAmt: getFinalAmt(details.contractPayAmt, calculatedAmts.contractPayAmt),
-              leaderPayAmt: getFinalAmt(details.leaderPayAmt, calculatedAmts.leaderPayAmt),
+              contractorPayAmt: getFinalAmt(
+                details.contractorPayAmt,
+                calculatedAmts.contractorPayAmt
+              ),
+              supervisionPayAmt: getFinalAmt(
+                details.supervisionPayAmt,
+                calculatedAmts.supervisionPayAmt
+              ),
+              headquartersPayAmt: getFinalAmt(
+                details.headquartersPayAmt,
+                calculatedAmts.headquartersPayAmt
+              ),
+              investmentPayAmt: getFinalAmt(
+                details.investmentPayAmt,
+                calculatedAmts.investmentPayAmt
+              ),
+              contractPayAmt: getFinalAmt(
+                details.contractPayAmt,
+                calculatedAmts.contractPayAmt
+              ),
+              leaderPayAmt: getFinalAmt(
+                details.leaderPayAmt,
+                calculatedAmts.leaderPayAmt
+              ),
               contractAmount,
               lastCumulativePayment
             }
@@ -2083,8 +2206,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       )
     }
   )
- 
-    app.patch(
+
+  app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/payment-requests',
     authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
@@ -2092,16 +2215,16 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const userId = req.context.userId!
       const projectDb = await getProjectDbClient({ projectId })
       const body = req.body || {}
- 
+
       const existing = await getMonthlyPaymentRequestsFactory({ db: projectDb })(id)
- 
+
       const fieldsToSave: any = {}
       if ('requestAttachments' in body) {
-        fieldsToSave.requestAttachments = (body.requestAttachments || []).map((x: any) =>
-          typeof x === 'string' ? x : x.blobId
+        fieldsToSave.requestAttachments = (body.requestAttachments || []).map(
+          (x: any) => (typeof x === 'string' ? x : x.blobId)
         )
       }
- 
+
       const roles = [
         'contractor',
         'supervision',
@@ -2110,12 +2233,19 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         'contract',
         'leader'
       ] as const
- 
-      const changedRoles = new Set<'contractor' | 'supervision' | 'headquarters' | 'investment' | 'contract' | 'leader'>()
+
+      const changedRoles = new Set<
+        | 'contractor'
+        | 'supervision'
+        | 'headquarters'
+        | 'investment'
+        | 'contract'
+        | 'leader'
+      >()
       for (const role of roles) {
         const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
         const payAmtKey = `${role}PayAmt`
- 
+
         let hasChange = false
         if (opinionKey in body) {
           const bodyVal = (body[opinionKey] || '').trim()
@@ -2124,7 +2254,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             hasChange = true
           }
         }
- 
+
         if (payAmtKey in body) {
           const bodyAmt = Number(body[payAmtKey] || 0)
           const dbAmt = Number((existing as any)?.[payAmtKey] || 0)
@@ -2132,16 +2262,16 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             hasChange = true
           }
         }
- 
+
         if (hasChange) {
           changedRoles.add(role)
         }
       }
- 
+
       if (changedRoles.size > 0) {
         let hasPermission = false
         let firstError: any = null
- 
+
         for (const role of changedRoles) {
           try {
             await checkWritePermission(projectDb, id, userId, role as any)
@@ -2152,32 +2282,36 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             }
           }
         }
- 
+
         if (!hasPermission) {
           throw firstError || new BadRequestError('没有权限修改数据')
         }
- 
+
         for (const role of changedRoles) {
           const opinionKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Opinion`
           const dateKey = `req${role.charAt(0).toUpperCase() + role.slice(1)}Date`
           const payAmtKey = `${role}PayAmt`
- 
+
           if (opinionKey in body) fieldsToSave[opinionKey] = body[opinionKey]
           fieldsToSave[dateKey] = new Date()
- 
+
           if (payAmtKey in body) {
             fieldsToSave[payAmtKey] = Number(body[payAmtKey] || 0)
           }
         }
       }
- 
+
       const updated = await upsertMonthlyPaymentRequestsFactory({ db: projectDb })(
         id,
         fieldsToSave
       )
- 
+
       let requestAttachments: Array<{ blobId: string; name: string }> = []
-      if (updated && Array.isArray(updated.requestAttachments) && updated.requestAttachments.length > 0) {
+      if (
+        updated &&
+        Array.isArray(updated.requestAttachments) &&
+        updated.requestAttachments.length > 0
+      ) {
         const blobIds = updated.requestAttachments
         const blobs = await projectDb('blob_storage')
           .where('streamId', projectId)
@@ -2188,7 +2322,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           return { blobId: bid, name: b ? b.fileName : bid }
         })
       }
- 
+
       const latestAmts = await calculatePaymentRequestAmounts(projectDb, id)
       const getFinalAmt = (detailsVal: any, defaultVal: number) => {
         if (detailsVal === null || detailsVal === undefined) {
@@ -2202,11 +2336,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           ? {
               ...updated,
               requestAttachments,
-              contractorPayAmt: getFinalAmt(updated.contractorPayAmt, latestAmts.contractorPayAmt),
-              supervisionPayAmt: getFinalAmt(updated.supervisionPayAmt, latestAmts.supervisionPayAmt),
-              headquartersPayAmt: getFinalAmt(updated.headquartersPayAmt, latestAmts.headquartersPayAmt),
-              investmentPayAmt: getFinalAmt(updated.investmentPayAmt, latestAmts.investmentPayAmt),
-              contractPayAmt: getFinalAmt(updated.contractPayAmt, latestAmts.contractPayAmt),
+              contractorPayAmt: getFinalAmt(
+                updated.contractorPayAmt,
+                latestAmts.contractorPayAmt
+              ),
+              supervisionPayAmt: getFinalAmt(
+                updated.supervisionPayAmt,
+                latestAmts.supervisionPayAmt
+              ),
+              headquartersPayAmt: getFinalAmt(
+                updated.headquartersPayAmt,
+                latestAmts.headquartersPayAmt
+              ),
+              investmentPayAmt: getFinalAmt(
+                updated.investmentPayAmt,
+                latestAmts.investmentPayAmt
+              ),
+              contractPayAmt: getFinalAmt(
+                updated.contractPayAmt,
+                latestAmts.contractPayAmt
+              ),
               leaderPayAmt: getFinalAmt(updated.leaderPayAmt, latestAmts.leaderPayAmt)
             }
           : null
@@ -2231,7 +2380,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       const allAcceptanceIds = Array.from(
-        new Set(items.flatMap((item: any) => item.sourceAcceptanceIds || []).filter(Boolean))
+        new Set(
+          items.flatMap((item: any) => item.sourceAcceptanceIds || []).filter(Boolean)
+        )
       )
 
       let acceptances: any[] = []
@@ -2241,7 +2392,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .select('id', 'name', 'code', 'actualFinishDate', 'workVolume', 'inspector')
       }
 
-      const userIds = Array.from(new Set(acceptances.map((a: any) => a.inspector).filter(Boolean)))
+      const userIds = Array.from(
+        new Set(acceptances.map((a: any) => a.inspector).filter(Boolean))
+      )
       let users: any[] = []
       if (userIds.length > 0) {
         users = await db('users').whereIn('id', userIds).select('id', 'name')
@@ -2268,7 +2421,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       const payload = items.map((item: any) => {
-        const itemAcceptanceIds = Array.isArray(item.sourceAcceptanceIds) ? item.sourceAcceptanceIds : []
+        const itemAcceptanceIds = Array.isArray(item.sourceAcceptanceIds)
+          ? item.sourceAcceptanceIds
+          : []
         const itemAcceptances = itemAcceptanceIds
           .map((id: string) => acceptanceMap.get(id))
           .filter(Boolean)
@@ -2392,7 +2547,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .where('subjectKey', `monthly_measurements:${id}`)
         .select('status')
         .first()
-      const currentStatus = binding ? binding.status : (measurement.approveStatus || 'START')
+      const currentStatus = binding
+        ? binding.status
+        : measurement.approveStatus || 'START'
       if (currentStatus !== 'START') {
         throw new BadRequestError('仅在月度验工开始（草稿）节点支持删除关联的质量验收')
       }
@@ -2425,7 +2582,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 6. 从关联列表中剔除，重新计算辅助验工量
-      const oldIds = Array.isArray(mmItem.sourceAcceptanceIds) ? mmItem.sourceAcceptanceIds : []
+      const oldIds = Array.isArray(mmItem.sourceAcceptanceIds)
+        ? mmItem.sourceAcceptanceIds
+        : []
       const newIds = oldIds.filter((x: string) => x !== acceptanceId)
 
       let newMeasuredQty = 0
@@ -2433,32 +2592,31 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const remainingForms = await projectDb('quality_acceptance_forms')
           .whereIn('id', newIds)
           .select('workVolume')
-        newMeasuredQty = remainingForms.reduce((acc: number, f: any) => acc + Number(f.workVolume || 0), 0)
+        newMeasuredQty = remainingForms.reduce(
+          (acc: number, f: any) => acc + Number(f.workVolume || 0),
+          0
+        )
       }
 
       // 7. 在事务中执行解除关联并重新保存明细项数据
       await projectDb.transaction(async (trx) => {
         // 释放该质量验收单的占用，重置 occupiedMeasurementId 和 approveStatus
-        await trx('quality_acceptance_forms')
-          .where('id', acceptanceId)
-          .update({
-            occupiedMeasurementId: null,
-            approveStatus: null,
-            updatedAt: new Date()
-          })
+        await trx('quality_acceptance_forms').where('id', acceptanceId).update({
+          occupiedMeasurementId: null,
+          approveStatus: null,
+          updatedAt: new Date()
+        })
 
         // 更新明细项数据（重算 measuredQty 并且同步将各角色完成数重置为 measuredQty）
-        await trx('monthly_measurement_items')
-          .where({ id: mmItem.id })
-          .update({
-            sourceAcceptanceIds: newIds,
-            measuredQty: newMeasuredQty,
-            contractorQty: newMeasuredQty,
-            supervisionQty: newMeasuredQty,
-            headquartersQty: newMeasuredQty,
-            investmentQty: newMeasuredQty,
-            updatedAt: new Date()
-          })
+        await trx('monthly_measurement_items').where({ id: mmItem.id }).update({
+          sourceAcceptanceIds: newIds,
+          measuredQty: newMeasuredQty,
+          contractorQty: newMeasuredQty,
+          supervisionQty: newMeasuredQty,
+          headquartersQty: newMeasuredQty,
+          investmentQty: newMeasuredQty,
+          updatedAt: new Date()
+        })
 
         // 更新主表更新时间以触发详情刷新
         await trx('monthly_measurements')
@@ -2559,7 +2717,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         if (!node.record.isSummaryRow) {
           const price = Number(node.record.price || 0)
-          
+
           // 如果清单有合价，则直接从清单的合价获取，否则自行计算
           const boqAmt = boqAmountMap.get(node.record.boqItemId)
           if (boqAmt !== undefined && boqAmt !== null) {
@@ -2701,7 +2859,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .select('id', 'status')
         .first()
 
-      const currentStatus = binding ? binding.status : (existing.approveStatus || 'START')
+      const currentStatus = binding ? binding.status : existing.approveStatus || 'START'
       if (currentStatus === 'IN_REVIEW' || currentStatus === 'APPROVED') {
         throw new BadRequestError('已送审，无需重复送审')
       }
@@ -2726,7 +2884,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           updatedAt: new Date()
         })
 
-        return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
+        return res
+          .status(200)
+          .json({ success: true, instanceId: result.currentInstanceId })
       }
 
       const getActiveByCategory = getActiveApprovalFlowByCategoryFactory({ db })
@@ -2773,7 +2933,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         updatedAt: new Date()
       })
 
-      return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
+      return res
+        .status(200)
+        .json({ success: true, instanceId: result.currentInstanceId })
     }
   )
 
@@ -2827,7 +2989,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 获取当前单据
-      const measurement = await projectDb('monthly_measurements').where('id', id).first()
+      const measurement = await projectDb('monthly_measurements')
+        .where('id', id)
+        .first()
       if (!measurement) {
         return res.status(404).json({ error: '月度验工不存在' })
       }
@@ -2846,11 +3010,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           ? 'syncErrorPaymentDetail'
           : 'syncErrorPaymentPool'
 
-      await projectDb('monthly_measurements').where('id', id).update({
-        [statusField]: 'LOADING',
-        [errorField]: null,
-        updatedAt: new Date()
-      })
+      await projectDb('monthly_measurements')
+        .where('id', id)
+        .update({
+          [statusField]: 'LOADING',
+          [errorField]: null,
+          updatedAt: new Date()
+        })
 
       try {
         let result
@@ -2878,20 +3044,24 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
 
         // 2. 同步成功，设置 SUCCESS 状态
-        await projectDb('monthly_measurements').where('id', id).update({
-          [statusField]: 'SUCCESS',
-          updatedAt: new Date()
-        })
+        await projectDb('monthly_measurements')
+          .where('id', id)
+          .update({
+            [statusField]: 'SUCCESS',
+            updatedAt: new Date()
+          })
 
         return res.status(200).json(result)
       } catch (err: any) {
         console.error(`Sync to budget system failed for ${type}:`, err)
         // 3. 同步失败，设置 ERROR 状态并记录错误日志
-        await projectDb('monthly_measurements').where('id', id).update({
-          [statusField]: 'ERROR',
-          [errorField]: err.message || '同步失败',
-          updatedAt: new Date()
-        })
+        await projectDb('monthly_measurements')
+          .where('id', id)
+          .update({
+            [statusField]: 'ERROR',
+            [errorField]: err.message || '同步失败',
+            updatedAt: new Date()
+          })
         return res.status(400).json({ error: err.message || '同步失败' })
       }
     }
@@ -2905,7 +3075,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     projectDb: any,
     measureId: string,
     userId: string,
-    requiredRole: 'contractor' | 'supervision' | 'supervision_approver' | 'headquarters' | 'headquarters_approver' | 'engineering' | 'engineering_approver' | 'contract'
+    requiredRole:
+      | 'contractor'
+      | 'supervision'
+      | 'supervision_approver'
+      | 'headquarters'
+      | 'headquarters_approver'
+      | 'engineering'
+      | 'engineering_approver'
+      | 'contract'
   ) => {
     const measure = await projectDb('safety_measures').where('id', measureId).first()
     if (!measure) {
@@ -2940,50 +3118,94 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const stepName = (pendingStep.name || '').trim()
       const matchRole = (role: string) => {
         if (role === 'supervision') {
-          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
-                 !stepName.includes('投资监理') && 
-                 (stepName.includes('经办') || !stepName.includes('审核'))
+          return (
+            stepName.includes('项目经理') ||
+            stepName.includes('安全监理') ||
+            (stepName.includes('监理') &&
+              !stepName.includes('投资监理') &&
+              !stepName.includes('总监理') &&
+              !stepName.includes('专业工程师') &&
+              (stepName.includes('经办') || !stepName.includes('审核')))
+          )
         }
         if (role === 'supervision_approver') {
-          return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
-                 !stepName.includes('投资监理') && 
-                 (stepName.includes('审核') || stepName.includes('负责人'))
+          return (
+            stepName.includes('专业工程师') ||
+            (stepName.includes('监理') &&
+              !stepName.includes('投资监理') &&
+              !stepName.includes('总监理') &&
+              (stepName.includes('审核') || stepName.includes('负责人')))
+          )
         }
         if (role === 'headquarters') {
-          return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
-                 (stepName.includes('经办') || !stepName.includes('审核'))
+          return (
+            (stepName.includes('指挥部') || stepName.includes('现场指挥')) &&
+            (stepName.includes('经办') || !stepName.includes('审核'))
+          )
         }
         if (role === 'headquarters_approver') {
-          return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
-                 (stepName.includes('审核') || stepName.includes('负责人'))
+          return (
+            (stepName.includes('指挥部') || stepName.includes('现场指挥')) &&
+            (stepName.includes('审核') || stepName.includes('负责人'))
+          )
         }
         if (role === 'engineering') {
-          return (stepName.includes('工管') || stepName.includes('工程管理')) && 
-                 (stepName.includes('经办') || !stepName.includes('审核'))
+          return (
+            (stepName.includes('工管') || stepName.includes('工程管理')) &&
+            (stepName.includes('经办') || !stepName.includes('审核'))
+          )
         }
         if (role === 'engineering_approver') {
-          return (stepName.includes('工管') || stepName.includes('工程管理')) && 
-                 (stepName.includes('审核') || stepName.includes('负责人'))
+          return (
+            (stepName.includes('工管') || stepName.includes('工程管理')) &&
+            (stepName.includes('审核') || stepName.includes('负责人'))
+          )
         }
         if (role === 'contract') {
-          return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
+          return (
+            stepName.includes('总监') ||
+            stepName.includes('总监理工程师') ||
+            stepName.includes('合约') ||
+            stepName.includes('计划合同') ||
+            [
+              '合约部',
+              '计划合同部',
+              '合约部审核',
+              '计划合同部经办人',
+              '合约管理部经办人',
+              '合约管理部负责人'
+            ].includes(stepName)
+          )
         }
         if (role === 'contractor') {
-          return stepName.includes('施工单位') || stepName.includes('开始') || stepName.includes('送审')
+          return (
+            stepName.includes('施工单位') ||
+            stepName.includes('发起') ||
+            stepName.includes('开始') ||
+            stepName.includes('送审')
+          )
         }
         return false
       }
 
       if (requiredRole === 'contractor' && matchRole('contractor')) return true
       if (requiredRole === 'supervision' && matchRole('supervision')) return true
-      if (requiredRole === 'supervision_approver' && matchRole('supervision_approver')) return true
+      if (requiredRole === 'supervision_approver' && matchRole('supervision_approver'))
+        return true
       if (requiredRole === 'headquarters' && matchRole('headquarters')) return true
-      if (requiredRole === 'headquarters_approver' && matchRole('headquarters_approver')) return true
+      if (
+        requiredRole === 'headquarters_approver' &&
+        matchRole('headquarters_approver')
+      )
+        return true
       if (requiredRole === 'engineering' && matchRole('engineering')) return true
-      if (requiredRole === 'engineering_approver' && matchRole('engineering_approver')) return true
+      if (requiredRole === 'engineering_approver' && matchRole('engineering_approver'))
+        return true
       if (requiredRole === 'contract' && matchRole('contract')) return true
 
-      throw new BadRequestError(`当前审批步骤【${stepName}】不允许【${requiredRole}】角色修改数据`)
+      throw new BadRequestError(
+        `当前审批步骤【${stepName}】不允许【${requiredRole}】角色修改数据`
+      )
     }
 
     throw new BadRequestError('流程已结束，数据无法修改')
@@ -3038,7 +3260,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             this.select('safetyMeasureId')
               .from('monthly_measurements')
               .whereNotNull('safetyMeasureId')
-            const excludeMeasurementId = req.query.excludeMeasurementId as string | undefined
+            const excludeMeasurementId = req.query.excludeMeasurementId as
+              | string
+              | undefined
             if (excludeMeasurementId) {
               this.andWhere('id', '!=', excludeMeasurementId)
             }
@@ -3079,12 +3303,28 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       if (allMeasures.length > 0) {
         const allItems = await projectDb('safety_measure_items')
-          .whereIn('safetyMeasureId', allMeasures.map((m) => m.id))
+          .whereIn(
+            'safetyMeasureId',
+            allMeasures.map((m) => m.id)
+          )
           .andWhere('isSummaryRow', false)
-          .select('safetyMeasureId', 'contractDeptAmount', 'engineeringAmount', 'headquartersAmount', 'supervisionAmount', 'contractorAmount')
+          .select(
+            'safetyMeasureId',
+            'contractDeptAmount',
+            'engineeringAmount',
+            'headquartersAmount',
+            'supervisionAmount',
+            'contractorAmount'
+          )
 
         for (const it of allItems) {
-          const amt = Number(it.contractDeptAmount) || Number(it.engineeringAmount) || Number(it.headquartersAmount) || Number(it.supervisionAmount) || Number(it.contractorAmount) || 0
+          const amt =
+            Number(it.contractDeptAmount) ||
+            Number(it.engineeringAmount) ||
+            Number(it.headquartersAmount) ||
+            Number(it.supervisionAmount) ||
+            Number(it.contractorAmount) ||
+            0
           const currentSum = measureTotalAmountMap.get(it.safetyMeasureId) || 0
           measureTotalAmountMap.set(it.safetyMeasureId, currentSum + amt)
         }
@@ -3110,10 +3350,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           // 累计金额：统计所有满足条件的已审批通过单据金额之和
           let cumulativeAmount = 0
           for (const m of allMeasures) {
-            const isApproved = (m.approveStatus === 'APPROVED' || m.id === item.id) && (
-              Number(m.baseDate) < Number(item.baseDate) ||
-              (Number(m.baseDate) === Number(item.baseDate) && m.code <= item.code)
-            )
+            const isApproved =
+              (m.approveStatus === 'APPROVED' || m.id === item.id) &&
+              (Number(m.baseDate) < Number(item.baseDate) ||
+                (Number(m.baseDate) === Number(item.baseDate) && m.code <= item.code))
             if (isApproved) {
               cumulativeAmount += measureTotalAmountMap.get(m.id) || 0
             }
@@ -3172,7 +3412,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const totalCount = parseInt(String(countRes?.count || '0'))
 
       const last = trimmed[trimmed.length - 1]
-      const nextCursor = hasMore && last ? `${new Date(last.updatedAt).toISOString()}|${last.id}` : null
+      const nextCursor =
+        hasMore && last ? `${new Date(last.updatedAt).toISOString()}|${last.id}` : null
 
       return res.status(200).json({
         items: itemsWithDetails,
@@ -3215,7 +3456,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       let creatorUser = null
       if (measure.creator) {
-        const u = await db('users').where('id', measure.creator).select('id', 'name').first()
+        const u = await db('users')
+          .where('id', measure.creator)
+          .select('id', 'name')
+          .first()
         if (u) {
           creatorUser = { id: u.id, name: u.name }
         }
@@ -3231,7 +3475,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .select('createdBy')
           .first()
         if (flowInstance?.createdBy) {
-          const u = await db('users').where('id', flowInstance.createdBy).select('id', 'name').first()
+          const u = await db('users')
+            .where('id', flowInstance.createdBy)
+            .select('id', 'name')
+            .first()
           if (u) {
             flowInitiatorUser = { id: u.id, name: u.name }
           }
@@ -3245,7 +3492,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         if (pendingStep) {
           currentStepName = pendingStep.name || ''
           if (pendingStep.approverIds?.length) {
-            const users = await db('users').whereIn('id', pendingStep.approverIds).select('name')
+            const users = await db('users')
+              .whereIn('id', pendingStep.approverIds)
+              .select('name')
             currentStepApprovers = users.map((u) => u.name).filter(Boolean)
           }
         }
@@ -3293,7 +3542,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .andWhereNot('id', id)
         .andWhere(function () {
           this.where('baseDate', '<', measure.baseDate).orWhere(function () {
-            this.where('baseDate', '=', measure.baseDate).andWhere('code', '<', measure.code)
+            this.where('baseDate', '=', measure.baseDate).andWhere(
+              'code',
+              '<',
+              measure.code
+            )
           })
         })
         .select('id', 'baseDate')
@@ -3309,9 +3562,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const histories = await projectDb('safety_measure_items')
           .whereIn('safetyMeasureId', approvedMeasureIds)
           .andWhere('isSummaryRow', false)
-          .select('boqItemId', 'price', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+          .select(
+            'boqItemId',
+            'price',
+            'contractDeptQty',
+            'engineeringQty',
+            'headquartersQty',
+            'supervisionQty',
+            'contractorQty'
+          )
         histories.forEach((h: any) => {
-          const qty = Number(h.contractDeptQty) || Number(h.engineeringQty) || Number(h.headquartersQty) || Number(h.supervisionQty) || Number(h.contractorQty) || 0
+          const qty =
+            Number(h.contractDeptQty) ||
+            Number(h.engineeringQty) ||
+            Number(h.headquartersQty) ||
+            Number(h.supervisionQty) ||
+            Number(h.contractorQty) ||
+            0
           const price = Number(h.price || 0)
           const amt = preciseMul(qty, price)
 
@@ -3329,9 +3596,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         const histories = await projectDb('safety_measure_items')
           .whereIn('safetyMeasureId', yearlyApprovedIds)
           .andWhere('isSummaryRow', false)
-          .select('boqItemId', 'price', 'contractDeptQty', 'engineeringQty', 'headquartersQty', 'supervisionQty', 'contractorQty')
+          .select(
+            'boqItemId',
+            'price',
+            'contractDeptQty',
+            'engineeringQty',
+            'headquartersQty',
+            'supervisionQty',
+            'contractorQty'
+          )
         histories.forEach((h: any) => {
-          const qty = Number(h.contractDeptQty) || Number(h.engineeringQty) || Number(h.headquartersQty) || Number(h.supervisionQty) || Number(h.contractorQty) || 0
+          const qty =
+            Number(h.contractDeptQty) ||
+            Number(h.engineeringQty) ||
+            Number(h.headquartersQty) ||
+            Number(h.supervisionQty) ||
+            Number(h.contractorQty) ||
+            0
           const price = Number(h.price || 0)
           const amt = preciseMul(qty, price)
 
@@ -3346,7 +3627,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       // 遍历叶子节点计算本年和累计完成量
       const rowById = new Map<string, any>()
       const rowsByDepth = new Map<number, any[]>()
-      
+
       const mappedItems = items.map((item) => {
         const contractorQty = Number(item.contractorQty || 0)
         const price = Number(item.price || 0)
@@ -3364,22 +3645,38 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         if (!item.isSummaryRow) {
           const history = lastCumulativeMap.get(item.boqItemId) || { qty: 0, amt: 0 }
-          const yearlyHist = yearlyCumulativeMap.get(item.boqItemId) || { qty: 0, amt: 0 }
+          const yearlyHist = yearlyCumulativeMap.get(item.boqItemId) || {
+            qty: 0,
+            amt: 0
+          }
 
           lastCumulativeQty = history.qty
           lastCumulativeAmount = history.amt
 
-          const currentQty = Number(item.contractDeptQty) || Number(item.engineeringQty) || Number(item.headquartersQty) || Number(item.supervisionQty) || Number(item.contractorQty) || 0
+          const currentQty =
+            Number(item.contractDeptQty) ||
+            Number(item.engineeringQty) ||
+            Number(item.headquartersQty) ||
+            Number(item.supervisionQty) ||
+            Number(item.contractorQty) ||
+            0
           cumulativeQty = preciseAdd(lastCumulativeQty, currentQty)
-          cumulativeAmount = preciseAdd(lastCumulativeAmount, preciseMul(currentQty, price))
+          cumulativeAmount = preciseAdd(
+            lastCumulativeAmount,
+            preciseMul(currentQty, price)
+          )
 
           yearlyCumulativeQty = yearlyHist.qty
           yearlyCumulativeAmount = yearlyHist.amt
           yearlyQty = preciseAdd(yearlyCumulativeQty, currentQty)
-          yearlyAmount = preciseAdd(yearlyCumulativeAmount, preciseMul(currentQty, price))
+          yearlyAmount = preciseAdd(
+            yearlyCumulativeAmount,
+            preciseMul(currentQty, price)
+          )
 
           const contractAmount = Number(item.contractAmount || 0)
-          cumulativeRate = contractAmount > 0 ? (cumulativeAmount / contractAmount) * 100 : 0
+          cumulativeRate =
+            contractAmount > 0 ? (cumulativeAmount / contractAmount) * 100 : 0
         }
 
         const row = {
@@ -3427,7 +3724,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             parent.engineeringAmount = 0
             parent.contractDeptQty = 0
             parent.contractDeptAmount = 0
-            
+
             parent.lastCumulativeQty = 0
             parent.lastCumulativeAmount = 0
             parent.cumulativeQty = 0
@@ -3440,30 +3737,84 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             parent.contractAmount = 0
           }
 
-          parent.contractorQty = preciseAdd(parent.contractorQty, row.contractorQty || 0)
-          parent.contractorAmount = preciseAdd(parent.contractorAmount, row.contractorAmount || 0)
-          parent.supervisionQty = preciseAdd(parent.supervisionQty, row.supervisionQty || 0)
-          parent.supervisionAmount = preciseAdd(parent.supervisionAmount, row.supervisionAmount || 0)
-          parent.headquartersQty = preciseAdd(parent.headquartersQty, row.headquartersQty || 0)
-          parent.headquartersAmount = preciseAdd(parent.headquartersAmount, row.headquartersAmount || 0)
-          parent.engineeringQty = preciseAdd(parent.engineeringQty, row.engineeringQty || 0)
-          parent.engineeringAmount = preciseAdd(parent.engineeringAmount, row.engineeringAmount || 0)
-          parent.contractDeptQty = preciseAdd(parent.contractDeptQty, row.contractDeptQty || 0)
-          parent.contractDeptAmount = preciseAdd(parent.contractDeptAmount, row.contractDeptAmount || 0)
+          parent.contractorQty = preciseAdd(
+            parent.contractorQty,
+            row.contractorQty || 0
+          )
+          parent.contractorAmount = preciseAdd(
+            parent.contractorAmount,
+            row.contractorAmount || 0
+          )
+          parent.supervisionQty = preciseAdd(
+            parent.supervisionQty,
+            row.supervisionQty || 0
+          )
+          parent.supervisionAmount = preciseAdd(
+            parent.supervisionAmount,
+            row.supervisionAmount || 0
+          )
+          parent.headquartersQty = preciseAdd(
+            parent.headquartersQty,
+            row.headquartersQty || 0
+          )
+          parent.headquartersAmount = preciseAdd(
+            parent.headquartersAmount,
+            row.headquartersAmount || 0
+          )
+          parent.engineeringQty = preciseAdd(
+            parent.engineeringQty,
+            row.engineeringQty || 0
+          )
+          parent.engineeringAmount = preciseAdd(
+            parent.engineeringAmount,
+            row.engineeringAmount || 0
+          )
+          parent.contractDeptQty = preciseAdd(
+            parent.contractDeptQty,
+            row.contractDeptQty || 0
+          )
+          parent.contractDeptAmount = preciseAdd(
+            parent.contractDeptAmount,
+            row.contractDeptAmount || 0
+          )
 
-          parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty, row.lastCumulativeQty || 0)
-          parent.lastCumulativeAmount = preciseAdd(parent.lastCumulativeAmount, row.lastCumulativeAmount || 0)
-          parent.cumulativeQty = preciseAdd(parent.cumulativeQty, row.cumulativeQty || 0)
-          parent.cumulativeAmount = preciseAdd(parent.cumulativeAmount, row.cumulativeAmount || 0)
-          parent.yearlyCumulativeQty = preciseAdd(parent.yearlyCumulativeQty, row.yearlyCumulativeQty || 0)
-          parent.yearlyCumulativeAmount = preciseAdd(parent.yearlyCumulativeAmount, row.yearlyCumulativeAmount || 0)
+          parent.lastCumulativeQty = preciseAdd(
+            parent.lastCumulativeQty,
+            row.lastCumulativeQty || 0
+          )
+          parent.lastCumulativeAmount = preciseAdd(
+            parent.lastCumulativeAmount,
+            row.lastCumulativeAmount || 0
+          )
+          parent.cumulativeQty = preciseAdd(
+            parent.cumulativeQty,
+            row.cumulativeQty || 0
+          )
+          parent.cumulativeAmount = preciseAdd(
+            parent.cumulativeAmount,
+            row.cumulativeAmount || 0
+          )
+          parent.yearlyCumulativeQty = preciseAdd(
+            parent.yearlyCumulativeQty,
+            row.yearlyCumulativeQty || 0
+          )
+          parent.yearlyCumulativeAmount = preciseAdd(
+            parent.yearlyCumulativeAmount,
+            row.yearlyCumulativeAmount || 0
+          )
           parent.yearlyQty = preciseAdd(parent.yearlyQty, row.yearlyQty || 0)
           parent.yearlyAmount = preciseAdd(parent.yearlyAmount, row.yearlyAmount || 0)
           parent.contractQty = preciseAdd(parent.contractQty, row.contractQty || 0)
-          parent.contractAmount = preciseAdd(parent.contractAmount, row.contractAmount || 0)
+          parent.contractAmount = preciseAdd(
+            parent.contractAmount,
+            row.contractAmount || 0
+          )
 
           const cAmount = Number(parent.contractAmount || 0)
-          parent.cumulativeRate = cAmount > 0 ? parseFloat(((parent.cumulativeAmount / cAmount) * 100).toFixed(2)) : 0
+          parent.cumulativeRate =
+            cAmount > 0
+              ? parseFloat(((parent.cumulativeAmount / cAmount) * 100).toFixed(2))
+              : 0
         })
       })
 
@@ -3506,7 +3857,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       return res.status(200).json({
         ...details,
-        attachments: typeof details.attachments === 'string' ? JSON.parse(details.attachments) : (details.attachments || [])
+        attachments:
+          typeof details.attachments === 'string'
+            ? JSON.parse(details.attachments)
+            : details.attachments || []
       })
     }
   )
@@ -3556,7 +3910,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .where('project_id', projectId)
         .whereILike('code', `${prefix}%`)
         .select('code')
-      
+
       let nextNum = 1
       if (existingList.length > 0) {
         const nums = existingList
@@ -3616,19 +3970,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
       })
 
-      const selectedBoqItems = boqItems.filter((item) => boqItemIdsToInclude.has(item.id))
+      const selectedBoqItems = boqItems.filter((item) =>
+        boqItemIdsToInclude.has(item.id)
+      )
       if (!selectedBoqItems.length) {
         return res.status(400).json({ error: '所选分部工程下未找到清单内容' })
       }
 
-      const parentIds = new Set(selectedBoqItems.map((item) => item.parentId).filter(Boolean))
+      const parentIds = new Set(
+        selectedBoqItems.map((item) => item.parentId).filter(Boolean)
+      )
       const measureId = cryptoRandomString({ length: 10 })
 
       const nextItems = selectedBoqItems.map((item, index) => {
         const isSummary = parentIds.has(item.id)
         const qty = isSummary ? 0 : Number(item.quantity || 0)
         const price = isSummary ? 0 : Number(item.price || 0)
-        
+
         let amt = 0
         if (!isSummary) {
           if (item.amount !== null && item.amount !== undefined) {
@@ -3652,7 +4010,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           price: isSummary ? null : price,
           contractQty: qty,
           contractAmount: amt,
-          
+
           contractorQty: 0,
           contractorAmount: 0,
           supervisionQty: 0,
@@ -3682,7 +4040,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           flowInstanceId: null,
           creator: userId
         }
-        
+
         await trx('safety_measures').insert(payload)
         await trx('safety_measure_items').insert(nextItems)
         await trx('safety_measure_details').insert({
@@ -3717,9 +4075,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 根据当前流转节点进行角色和修改权限的鉴权
-      let currentRole: 'contractor' | 'supervision' | 'supervision_approver' | 'headquarters' | 'headquarters_approver' | 'engineering' | 'engineering_approver' | 'contract' = 'contractor'
+      let currentRole:
+        | 'contractor'
+        | 'supervision'
+        | 'supervision_approver'
+        | 'headquarters'
+        | 'headquarters_approver'
+        | 'engineering'
+        | 'engineering_approver'
+        | 'contract' = 'contractor'
       const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
-      
+
       if (!isDraft && measure.flowInstanceId) {
         const pendingStep = await db('approval_flow_instance_steps')
           .where('instanceId', measure.flowInstanceId)
@@ -3730,46 +4096,85 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           const stepName = (pendingStep.name || '').trim()
           const matchRole = (role: string) => {
             if (role === 'supervision') {
-              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
-                     !stepName.includes('投资监理') && 
-                     (stepName.includes('经办') || !stepName.includes('审核'))
+              return (
+                stepName.includes('项目经理') ||
+                stepName.includes('安全监理') ||
+                (stepName.includes('监理') &&
+                  !stepName.includes('投资监理') &&
+                  !stepName.includes('总监理') &&
+                  !stepName.includes('专业工程师') &&
+                  (stepName.includes('经办') || !stepName.includes('审核')))
+              )
             }
             if (role === 'supervision_approver') {
-              return (stepName.includes('监理') || ['监理', '专业监理', '监理工程师', '施工监理', '施工监理经办人', '施工监理总监'].includes(stepName)) && 
-                     !stepName.includes('投资监理') && 
-                     (stepName.includes('审核') || stepName.includes('负责人'))
+              return (
+                stepName.includes('专业工程师') ||
+                (stepName.includes('监理') &&
+                  !stepName.includes('投资监理') &&
+                  !stepName.includes('总监理') &&
+                  (stepName.includes('审核') || stepName.includes('负责人')))
+              )
             }
             if (role === 'headquarters') {
-              return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
-                     (stepName.includes('经办') || !stepName.includes('审核'))
+              return (
+                (stepName.includes('指挥部') || stepName.includes('现场指挥')) &&
+                (stepName.includes('经办') || !stepName.includes('审核'))
+              )
             }
             if (role === 'headquarters_approver') {
-              return (stepName.includes('指挥部') || stepName.includes('现场指挥')) && 
-                     (stepName.includes('审核') || stepName.includes('负责人'))
+              return (
+                (stepName.includes('指挥部') || stepName.includes('现场指挥')) &&
+                (stepName.includes('审核') || stepName.includes('负责人'))
+              )
             }
             if (role === 'engineering') {
-              return (stepName.includes('工管') || stepName.includes('工程管理')) && 
-                     (stepName.includes('经办') || !stepName.includes('审核'))
+              return (
+                (stepName.includes('工管') || stepName.includes('工程管理')) &&
+                (stepName.includes('经办') || !stepName.includes('审核'))
+              )
             }
             if (role === 'engineering_approver') {
-              return (stepName.includes('工管') || stepName.includes('工程管理')) && 
-                     (stepName.includes('审核') || stepName.includes('负责人'))
+              return (
+                (stepName.includes('工管') || stepName.includes('工程管理')) &&
+                (stepName.includes('审核') || stepName.includes('负责人'))
+              )
             }
             if (role === 'contract') {
-              return stepName.includes('合约') || stepName.includes('计划合同') || ['合约部', '计划合同部', '合约部审核', '计划合同部经办人', '合约管理部经办人', '合约管理部负责人'].includes(stepName)
+              return (
+                stepName.includes('总监') ||
+                stepName.includes('总监理工程师') ||
+                stepName.includes('合约') ||
+                stepName.includes('计划合同') ||
+                [
+                  '合约部',
+                  '计划合同部',
+                  '合约部审核',
+                  '计划合同部经办人',
+                  '合约管理部经办人',
+                  '合约管理部负责人'
+                ].includes(stepName)
+              )
             }
             if (role === 'contractor') {
-              return stepName.includes('施工单位') || stepName.includes('开始') || stepName.includes('送审')
+              return (
+                stepName.includes('施工单位') ||
+                stepName.includes('发起') ||
+                stepName.includes('开始') ||
+                stepName.includes('送审')
+              )
             }
             return false
           }
 
           if (matchRole('supervision')) currentRole = 'supervision'
-          else if (matchRole('supervision_approver')) currentRole = 'supervision_approver'
+          else if (matchRole('supervision_approver'))
+            currentRole = 'supervision_approver'
           else if (matchRole('headquarters')) currentRole = 'headquarters'
-          else if (matchRole('headquarters_approver')) currentRole = 'headquarters_approver'
+          else if (matchRole('headquarters_approver'))
+            currentRole = 'headquarters_approver'
           else if (matchRole('engineering')) currentRole = 'engineering'
-          else if (matchRole('engineering_approver')) currentRole = 'engineering_approver'
+          else if (matchRole('engineering_approver'))
+            currentRole = 'engineering_approver'
           else if (matchRole('contract')) currentRole = 'contract'
           else if (matchRole('contractor')) currentRole = 'contractor'
         }
@@ -3789,31 +4194,55 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
           if (currentRole === 'contractor') {
             updateFields.contractorQty = Number(it.contractorQty || 0)
-            updateFields.contractorAmount = preciseMul(updateFields.contractorQty, price)
+            updateFields.contractorAmount = preciseMul(
+              updateFields.contractorQty,
+              price
+            )
             updateFields.supervisionQty = updateFields.contractorQty
             updateFields.supervisionAmount = updateFields.contractorAmount
             updateFields.headquartersQty = updateFields.contractorQty
             updateFields.headquartersAmount = updateFields.contractorAmount
             updateFields.engineeringQty = updateFields.contractorQty
             updateFields.engineeringAmount = updateFields.contractorAmount
-          } else if (currentRole === 'supervision' || currentRole === 'supervision_approver') {
+          } else if (
+            currentRole === 'supervision' ||
+            currentRole === 'supervision_approver'
+          ) {
             updateFields.supervisionQty = Number(it.supervisionQty || 0)
-            updateFields.supervisionAmount = preciseMul(updateFields.supervisionQty, price)
+            updateFields.supervisionAmount = preciseMul(
+              updateFields.supervisionQty,
+              price
+            )
             updateFields.headquartersQty = updateFields.supervisionQty
             updateFields.headquartersAmount = updateFields.supervisionAmount
             updateFields.engineeringQty = updateFields.supervisionQty
             updateFields.engineeringAmount = updateFields.supervisionAmount
-          } else if (currentRole === 'headquarters' || currentRole === 'headquarters_approver') {
+          } else if (
+            currentRole === 'headquarters' ||
+            currentRole === 'headquarters_approver'
+          ) {
             updateFields.headquartersQty = Number(it.headquartersQty || 0)
-            updateFields.headquartersAmount = preciseMul(updateFields.headquartersQty, price)
+            updateFields.headquartersAmount = preciseMul(
+              updateFields.headquartersQty,
+              price
+            )
             updateFields.engineeringQty = updateFields.headquartersQty
             updateFields.engineeringAmount = updateFields.headquartersAmount
-          } else if (currentRole === 'engineering' || currentRole === 'engineering_approver') {
+          } else if (
+            currentRole === 'engineering' ||
+            currentRole === 'engineering_approver'
+          ) {
             updateFields.engineeringQty = Number(it.engineeringQty || 0)
-            updateFields.engineeringAmount = preciseMul(updateFields.engineeringQty, price)
+            updateFields.engineeringAmount = preciseMul(
+              updateFields.engineeringQty,
+              price
+            )
           } else if (currentRole === 'contract') {
             updateFields.contractDeptQty = Number(it.contractDeptQty || 0)
-            updateFields.contractDeptAmount = preciseMul(updateFields.contractDeptQty, price)
+            updateFields.contractDeptAmount = preciseMul(
+              updateFields.contractDeptQty,
+              price
+            )
           }
 
           if (Object.keys(updateFields).length > 0) {
@@ -3836,7 +4265,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
 
         const now = new Date()
-        const userName = await db('users').where('id', userId).select('name').first().then(u => u?.name || '未知')
+        const userName = await db('users')
+          .where('id', userId)
+          .select('name')
+          .first()
+          .then((u) => u?.name || '未知')
 
         if (currentRole === 'supervision') {
           updateDetail.supervisionOpinion = detailPayload.supervisionOpinion || ''
@@ -3873,9 +4306,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .update(updateDetail)
 
         // 更新主表更新时间
-        await trx('safety_measures')
-          .where({ id })
-          .update({ updatedAt: new Date() })
+        await trx('safety_measures').where({ id }).update({ updatedAt: new Date() })
       })
 
       return res.status(200).json({ success: true })
@@ -3902,13 +4333,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .select('status')
         .first()
 
-      const currentStatus = binding ? binding.status : (measure.approveStatus || 'START')
+      const currentStatus = binding ? binding.status : measure.approveStatus || 'START'
       if (
         (!isAdminOverride && !isRegularDeleteAllowedStatus(currentStatus)) ||
         (isAdminOverride && !isAdminDeleteAllowedStatus(currentStatus))
       ) {
         return res.status(400).json({
-          error: isAdminOverride ? '已审核通过单据暂不支持管理员删除' : '送审后单据不可删除'
+          error: isAdminOverride
+            ? '已审核通过单据暂不支持管理员删除'
+            : '送审后单据不可删除'
         })
       }
 
@@ -3934,7 +4367,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       if (binding) {
-        await db('approval_flow_bindings').where('subjectKey', `safety_measures:${id}`).delete()
+        await db('approval_flow_bindings')
+          .where('subjectKey', `safety_measures:${id}`)
+          .delete()
       }
       if (didCancelPendingFlow) {
         await publishApprovalFlowTodoCountUpdated()
@@ -3963,7 +4398,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .select('id', 'status')
         .first()
 
-      const currentStatus = binding ? binding.status : (measure.approveStatus || 'START')
+      const currentStatus = binding ? binding.status : measure.approveStatus || 'START'
       if (currentStatus === 'IN_REVIEW' || currentStatus === 'APPROVED') {
         return res.status(400).json({ error: '已送审，请勿重复操作' })
       }
@@ -3988,7 +4423,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           updatedAt: new Date()
         })
 
-        return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
+        return res
+          .status(200)
+          .json({ success: true, instanceId: result.currentInstanceId })
       }
 
       // 获取启用的安全文明措施费工作流配置
@@ -3999,7 +4436,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       if (!activeDef) {
-        return res.status(400).json({ error: '未找到启用的安全文明措施费审批流程，请先去流程设置中创建并启用。' })
+        return res
+          .status(400)
+          .json({
+            error: '未找到启用的安全文明措施费审批流程，请先去流程设置中创建并启用。'
+          })
       }
 
       // 发起工作流并绑定
@@ -4026,7 +4467,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         updatedAt: new Date()
       })
 
-      return res.status(200).json({ success: true, instanceId: result.currentInstanceId })
+      return res
+        .status(200)
+        .json({ success: true, instanceId: result.currentInstanceId })
     }
   )
 

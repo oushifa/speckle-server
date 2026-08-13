@@ -13,7 +13,8 @@
           <div class="flex flex-wrap items-center gap-4">
             <div class="flex items-center gap-2">
               <label for="monthly-plan-yearmonth" class="text-body-sm font-medium">
-                年月 <span class="text-danger">*</span>
+                年月
+                <span class="text-danger">*</span>
               </label>
               <input
                 id="monthly-plan-yearmonth"
@@ -38,7 +39,12 @@
             </div>
           </div>
 
-          <FormButton size="sm" color="subtle" :icon-left="Sparkles" @click="handleFetchMonthlyTasks">
+          <FormButton
+            size="sm"
+            color="subtle"
+            :icon-left="Sparkles"
+            @click="handleFetchMonthlyTasks"
+          >
             获取本月计划
           </FormButton>
         </div>
@@ -50,17 +56,21 @@
               <tr>
                 <th class="px-3 py-2 w-10">#</th>
                 <th class="px-3 py-2 min-w-[220px]">
-                  任务名称 <span class="text-danger">*</span>
+                  任务名称
+                  <span class="text-danger">*</span>
                 </th>
                 <th class="px-3 py-2 w-36">
-                  开始时间 <span class="text-danger">*</span>
+                  开始时间
+                  <span class="text-danger">*</span>
                 </th>
                 <th class="px-3 py-2 w-36">
-                  结束时间 <span class="text-danger">*</span>
+                  结束时间
+                  <span class="text-danger">*</span>
                 </th>
                 <th class="px-3 py-2 w-28">总工程量</th>
                 <th class="px-3 py-2 w-24">
-                  单位 <span class="text-danger">*</span>
+                  单位
+                  <span class="text-danger">*</span>
                 </th>
                 <th class="px-3 py-2 w-32">本月计划量</th>
                 <th class="px-3 py-2 min-w-[150px]">备注</th>
@@ -184,7 +194,10 @@ import { FormButton, LayoutDialog } from '@speckle/ui-components'
 import { ExternalLink, Plus, Sparkles, Trash2 } from 'lucide-vue-next'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import TaskSelectDialog, { type MasterTaskOption } from './TaskSelectDialog.vue'
-import type { MonthlyRecordItem, MonthlyPlanTaskItem as MonthlyTaskItem } from '~~/lib/projects/api/progress'
+import type {
+  MonthlyRecordItem,
+  MonthlyPlanTaskItem as MonthlyTaskItem
+} from '~~/lib/projects/api/progress'
 import { searchSystemUsers, type UserSearchResult } from '~~/lib/organizations/api'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
@@ -278,18 +291,23 @@ watch(
         // 异步查匹配的ID回显
         const creatorName = props.initialRecord.createdBy
         if (creatorName) {
-          searchSystemUsers({ query: creatorName, apiOrigin }).then((results) => {
-            const found = results.find((u) => u.name === creatorName)
-            if (found) {
-              selectedCreatorUserId.value = found.id
-            }
-          }).catch((err) => {
-            console.error('根据名称查询用户ID出错:', err)
-          })
+          searchSystemUsers({ query: creatorName, apiOrigin })
+            .then((results) => {
+              const found = results.find((u) => u.name === creatorName)
+              if (found) {
+                selectedCreatorUserId.value = found.id
+              }
+            })
+            .catch((err) => {
+              console.error('根据名称查询用户ID出错:', err)
+            })
         }
       } else {
         const now = new Date()
-        yearMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        yearMonth.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0'
+        )}`
         const defaultUser = activeUser.value?.name || '张三'
         createdBy.value = defaultUser
         selectedCreatorUserId.value = activeUser.value?.id || ''
@@ -339,9 +357,39 @@ const handleMasterTaskSelected = (masterTask: MasterTaskOption) => {
 
 const { triggerNotification } = useGlobalToast()
 
-const isParentTask = (mt: MasterTaskOption) => {
+const checkIsParentTask = (
+  mt: MasterTaskOption,
+  index: number,
+  allTasks: MasterTaskOption[]
+): boolean => {
+  if (!allTasks || !allTasks.length) return false
   if (mt.hasChildren) return true
-  return props.masterTasks.some((other) => other.parentId === mt.id)
+  if (allTasks.some((other) => other.id !== mt.id && other.parentId === mt.id))
+    return true
+  if (
+    mt.wbs &&
+    allTasks.some(
+      (other) => other.id !== mt.id && other.wbs && other.wbs.startsWith(mt.wbs + '.')
+    )
+  ) {
+    return true
+  }
+  if (index < allTasks.length - 1) {
+    const nextTask = allTasks[index + 1]
+    if (
+      typeof nextTask.level === 'number' &&
+      typeof mt.level === 'number' &&
+      nextTask.level > mt.level
+    ) {
+      return true
+    }
+  }
+  const minLevel = Math.min(...allTasks.map((t) => t.level ?? 0))
+  const maxLevel = Math.max(...allTasks.map((t) => t.level ?? 0))
+  if (minLevel < maxLevel && mt.level === minLevel) {
+    return true
+  }
+  return false
 }
 
 const handleFetchMonthlyTasks = () => {
@@ -356,8 +404,10 @@ const handleFetchMonthlyTasks = () => {
   const [y, m] = yearMonth.value.split('-')
   const currentYm = `${y}-${m}`
 
-  const matches = props.masterTasks.filter((mt) => {
-    if (isParentTask(mt) || !mt.startDate || !mt.endDate) return false
+  const matches = props.masterTasks.filter((mt, idx) => {
+    if (checkIsParentTask(mt, idx, props.masterTasks) || !mt.startDate || !mt.endDate) {
+      return false
+    }
     const taskStart = mt.startDate.substring(0, 7)
     const taskEnd = mt.endDate.substring(0, 7)
     return currentYm >= taskStart && currentYm <= taskEnd

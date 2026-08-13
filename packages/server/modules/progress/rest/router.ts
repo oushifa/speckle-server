@@ -54,7 +54,10 @@ import {
   type ProgressTaskSnapshotRecord,
   type ProgressTaskSnapshotStatus
 } from '@/modules/progress/repositories/progressTaskSnapshots'
-import { importProgressPlanTasksFromBlobFactory } from '@/modules/progress/services/mppTaskImport'
+import {
+  exportProgressPlanFileWithSysTaskIdFactory,
+  importProgressPlanTasksFromBlobFactory
+} from '@/modules/progress/services/mppTaskImport'
 import { importProgressActualRecordsFromBlobFactory } from '@/modules/progress/services/actualRecordExcelImport'
 import {
   rebuildAllProgressSnapshotsFactory,
@@ -195,6 +198,7 @@ const taskImportSchema = z.object({
   tasks: z.array(
     z.object({
       externalId: z.string().nullable().optional(),
+      sysTaskId: z.string().nullable().optional(),
       parentExternalId: z.string().nullable().optional(),
       wbs: z.string().nullable().optional(),
       name: z.string().min(1),
@@ -239,12 +243,15 @@ const monthlyPlanTaskItemSchema = z.object({
   remark: z.string().nullable().optional(),
   bimComponentCount: z.number().int().optional(),
   bimLinked: z.boolean().optional(),
-  selections: z.array(
-    z.object({
-      modelId: z.string(),
-      applicationIds: z.array(z.string())
-    })
-  ).nullable().optional()
+  selections: z
+    .array(
+      z.object({
+        modelId: z.string(),
+        applicationIds: z.array(z.string())
+      })
+    )
+    .nullable()
+    .optional()
 })
 
 const monthlyPlanBodySchema = z.object({
@@ -571,7 +578,9 @@ const aggregatePlanTaskNode = (
   let sumWeight = 0
   let sumWeightedRate = 0
   node.children.forEach((child) => {
-    const planStart = child.task.planStart ? new Date(child.task.planStart).getTime() : 0
+    const planStart = child.task.planStart
+      ? new Date(child.task.planStart).getTime()
+      : 0
     const planEnd = child.task.planEnd ? new Date(child.task.planEnd).getTime() : 0
     const duration = planStart && planEnd ? planEnd - planStart + 86400000 : 0
 
@@ -598,6 +607,7 @@ const serializePlanTask = (node: SerializedPlanTaskNode) => ({
   projectId: node.task.projectId,
   planFileId: node.task.planFileId,
   externalId: node.task.externalId,
+  sysTaskId: node.task.sysTaskId,
   wbs: node.task.wbs,
   taskName: node.task.name,
   parentId: node.resolvedParentId,
@@ -695,10 +705,15 @@ const serializeMonthlyPlanTask = (task: MonthlyPlanTaskRecord) => ({
   remark: task.remark || '',
   bimComponentCount: task.bimComponentCount || 0,
   bimLinked: !!task.bimLinked,
-  selections: typeof task.selections === 'string' ? JSON.parse(task.selections) : (task.selections || [])
+  selections:
+    typeof task.selections === 'string'
+      ? JSON.parse(task.selections)
+      : task.selections || []
 })
 
-const serializeMonthlyPlan = (plan: MonthlyPlanRecord & { tasks: MonthlyPlanTaskRecord[] }) => ({
+const serializeMonthlyPlan = (
+  plan: MonthlyPlanRecord & { tasks: MonthlyPlanTaskRecord[] }
+) => ({
   id: plan.id,
   projectId: plan.projectId,
   yearMonth: plan.yearMonth,
@@ -781,7 +796,11 @@ const syncMissingMonthlyTasksFromActual = async (
             remark: '由实际进度填报同步追加',
             bimComponentCount: 0,
             bimLinked: false,
-            selections: t.selections ? (typeof t.selections === 'string' ? t.selections : JSON.stringify(t.selections)) : null
+            selections: t.selections
+              ? typeof t.selections === 'string'
+                ? t.selections
+                : JSON.stringify(t.selections)
+              : null
           })
         }
       }
@@ -831,10 +850,14 @@ const serializeActualRecord = (record: ProgressActualRecord) => {
     constructionLog: record.constructionLog || '',
     yearMonth: record.yearMonth || '',
     tasks: record.tasks
-      ? (typeof record.tasks === 'string' ? JSON.parse(record.tasks) : record.tasks)
+      ? typeof record.tasks === 'string'
+        ? JSON.parse(record.tasks)
+        : record.tasks
       : [],
     workers: record.workers
-      ? (typeof record.workers === 'string' ? JSON.parse(record.workers) : record.workers)
+      ? typeof record.workers === 'string'
+        ? JSON.parse(record.workers)
+        : record.workers
       : [],
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString()
@@ -903,8 +926,16 @@ const buildRoute = (router: Router) => {
 
   router.options(route, progressCors, allowCrossOriginResourceAccessMiddelware())
   router.options(taskRoute, progressCors, allowCrossOriginResourceAccessMiddelware())
-  router.options(monthlyPlanRoute, progressCors, allowCrossOriginResourceAccessMiddelware())
-  router.options(`${monthlyPlanRoute}/:planId`, progressCors, allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    monthlyPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${monthlyPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(
     `${monthlyPlanRoute}/:planId/tasks/:taskId/bim-association`,
     progressCors,
@@ -1854,22 +1885,27 @@ const buildRoute = (router: Router) => {
           return res.status(404).json({ error: 'No progress plan file found.' })
         }
 
-        const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
-        const getFileStream = getFileStreamFactory({ getBlobMetadata })
-        const getObjectStream = getObjectStreamFactory({
+        const exportPlanFile = exportProgressPlanFileWithSysTaskIdFactory({
+          db: projectDb,
           storage: projectStorage.private
         })
-        const fileStream = await getFileStream({
-          getObjectStream,
-          streamId: projectId,
-          blobId: latestFile.blobId
+
+        const { exportedBuffer, tempDir } = await exportPlanFile({
+          projectId,
+          blobId: latestFile.blobId,
+          fileName: latestFile.fileName
         })
+
+        const { rm } = await import('node:fs/promises')
 
         res.writeHead(200, {
           'Content-Type': 'application/octet-stream',
           'Content-Disposition': contentDisposition(latestFile.fileName)
         })
-        fileStream.pipe(res)
+
+        res.end(exportedBuffer, () => {
+          rm(tempDir, { recursive: true, force: true }).catch(() => null)
+        })
       } catch (err) {
         next(err)
       }
@@ -1893,7 +1929,9 @@ const buildRoute = (router: Router) => {
       try {
         const projectId = req.params.projectId
         const projectDb = await getProjectDbClient({ projectId })
-        const plans = await listProgressMonthlyPlansFactory({ db: projectDb })({ projectId })
+        const plans = await listProgressMonthlyPlansFactory({ db: projectDb })({
+          projectId
+        })
         return res.status(200).json({ data: plans.map(serializeMonthlyPlan) })
       } catch (err) {
         next(err)
@@ -1979,7 +2017,10 @@ const buildRoute = (router: Router) => {
         const projectId = req.params.projectId
         const planId = req.params.planId
         const projectDb = await getProjectDbClient({ projectId })
-        const success = await deleteProgressMonthlyPlanFactory({ db: projectDb })({ projectId, planId })
+        const success = await deleteProgressMonthlyPlanFactory({ db: projectDb })({
+          projectId,
+          planId
+        })
         if (!success) return res.status(404).json({ error: 'Monthly plan not found.' })
         return res.status(200).json({ data: { id: planId } })
       } catch (err) {
@@ -1999,7 +2040,10 @@ const buildRoute = (router: Router) => {
         })
       )
     ),
-    validateRequest({ params: monthlyPlanTaskBimParamsSchema, body: monthlyPlanTaskBimBodySchema }),
+    validateRequest({
+      params: monthlyPlanTaskBimParamsSchema,
+      body: monthlyPlanTaskBimBodySchema
+    }),
     async (req, res, next) => {
       try {
         const { projectId, planId, taskId } = req.params
@@ -2015,7 +2059,8 @@ const buildRoute = (router: Router) => {
           selections,
           updater: req.context.userId
         })
-        if (!updatedTask) return res.status(404).json({ error: 'Monthly plan task not found.' })
+        if (!updatedTask)
+          return res.status(404).json({ error: 'Monthly plan task not found.' })
         return res.status(200).json({ data: serializeMonthlyPlanTask(updatedTask) })
       } catch (err) {
         next(err)

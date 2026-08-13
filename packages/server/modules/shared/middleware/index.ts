@@ -141,6 +141,11 @@ export const authContextMiddleware: RequestHandler = async (req, res, next) => {
     updateApiToken: updateApiTokenFactory({ db })
   })
 
+  if (req.path.startsWith('/api/v1/external')) {
+    req.context = { auth: false }
+    return next()
+  }
+
   const token = getTokenFromRequest(req)
   const authContext = await createAuthContextFromToken(token, validateToken)
   const loggedContext = Object.fromEntries(
@@ -350,11 +355,12 @@ export const requirePermission = (permissionCode: string): RequestHandler => {
         return next()
       }
 
-      return res.status(403).json({ error: `Forbidden: Missing required permission [${permissionCode}]` })
+      return res
+        .status(403)
+        .json({ error: `Forbidden: Missing required permission [${permissionCode}]` })
     } catch (err) {
       req.log.error(err, 'Check custom role permission failed')
       return res.status(500).json({ error: 'Internal server check permission error' })
     }
   }
 }
-

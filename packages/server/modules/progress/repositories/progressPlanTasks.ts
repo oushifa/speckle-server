@@ -9,6 +9,7 @@ export const ProjectProgressPlanTasks = buildTableHelper(
     'projectId',
     'planFileId',
     'externalId',
+    'sysTaskId',
     'wbs',
     'name',
     'parentId',
@@ -43,6 +44,7 @@ export type ProgressPlanTaskRecord = {
   projectId: string
   planFileId: string | null
   externalId: string | null
+  sysTaskId: string | null
   wbs: string | null
   name: string
   parentId: string | null
@@ -65,6 +67,7 @@ export type ProgressPlanTaskRecord = {
 
 type ReplaceProgressPlanTaskInput = {
   externalId?: string | null
+  sysTaskId?: string | null
   parentExternalId?: string | null
   wbs?: string | null
   name: string
@@ -291,6 +294,13 @@ export const replaceProgressPlanTasksFactory =
       [ProjectProgressPlanTasks.col.projectId]: params.projectId
     })
 
+    const preservedBySysTaskId = new Map<
+      string,
+      {
+        BIM: ProgressPlanTaskBIM | null
+        marker: ProgressPlanTaskMarker
+      }
+    >()
     const preservedByExternalId = new Map<
       string,
       {
@@ -316,6 +326,12 @@ export const replaceProgressPlanTasksFactory =
         })
       }
 
+      if (task.sysTaskId) {
+        preservedBySysTaskId.set(task.sysTaskId, preservedValue)
+      }
+      if (task.id) {
+        preservedBySysTaskId.set(task.id, preservedValue)
+      }
       if (task.externalId) {
         preservedByExternalId.set(task.externalId, preservedValue)
       }
@@ -341,11 +357,13 @@ export const replaceProgressPlanTasksFactory =
     const insertPayload = params.tasks.map((task, index) => {
       const key = task.externalId || `__task_${index}`
       const preservedState =
+        (task.sysTaskId && preservedBySysTaskId.get(task.sysTaskId)) ||
         (task.externalId && preservedByExternalId.get(task.externalId)) ||
         (task.wbs && preservedByWbs.get(task.wbs)) ||
         null
       const marker = sanitizeMarker({
-        milestoneType: task.milestoneType ?? preservedState?.marker.milestoneType ?? null,
+        milestoneType:
+          task.milestoneType ?? preservedState?.marker.milestoneType ?? null,
         milestoneDescription:
           task.milestoneDescription ??
           preservedState?.marker.milestoneDescription ??
@@ -358,6 +376,7 @@ export const replaceProgressPlanTasksFactory =
         projectId: params.projectId,
         planFileId: params.planFileId || null,
         externalId: task.externalId || null,
+        sysTaskId: task.sysTaskId || null,
         wbs: task.wbs || null,
         name: task.name,
         parentId: task.parentExternalId
@@ -373,8 +392,7 @@ export const replaceProgressPlanTasksFactory =
         isCriticalTask: marker.isCriticalTask,
         predecessor: task.predecessor || null,
         inspectionBatch: task.inspectionBatch || null,
-        BIM:
-          sanitizeBIM(task.BIM ?? null) || preservedState?.BIM || null,
+        BIM: sanitizeBIM(task.BIM ?? null) || preservedState?.BIM || null,
         creator: params.actorId,
         updater: params.actorId
       }
@@ -396,7 +414,8 @@ export const replaceProgressPlanTasksFactory =
 
     // 对父节点强制清除关联模型
     insertPayload.forEach((item) => {
-      const isParent = parentIdsSet.has(item.id) || (item.wbs && parentWbsSet.has(item.wbs))
+      const isParent =
+        parentIdsSet.has(item.id) || (item.wbs && parentWbsSet.has(item.wbs))
       if (isParent) {
         item.BIM = null
       }

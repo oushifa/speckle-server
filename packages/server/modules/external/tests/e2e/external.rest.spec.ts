@@ -61,8 +61,7 @@ describe('External API @external', () => {
 
     it('returns 401 when token is missing or invalid', async () => {
       // 1. 缺失 token
-      let response = await request(app)
-        .get(`/api/v1/external/projects/${projectId}`)
+      let response = await request(app).get(`/api/v1/external/projects/${projectId}`)
       expect(response.status).to.equal(401)
 
       // 2. 错误的 token (通过 header x-external-token)
@@ -86,6 +85,15 @@ describe('External API @external', () => {
       expect(response.status).to.equal(200)
       expect(response.body.id).to.equal(projectId)
       expect(response.body.name).to.equal('External Test Project')
+    })
+
+    it('allows access with correct token in Authorization Bearer header', async () => {
+      const response = await request(app)
+        .get(`/api/v1/external/projects/${projectId}`)
+        .set('Authorization', `Bearer ${testToken}`)
+
+      expect(response.status).to.equal(200)
+      expect(response.body.id).to.equal(projectId)
     })
 
     it('allows access with correct token in query parameter', async () => {
@@ -139,16 +147,20 @@ describe('External API @external', () => {
 
     it('returns 400 when componentCodes is missing or not an array', async () => {
       const response = await request(app)
-        .post(`/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`)
+        .post(
+          `/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`
+        )
         .set('x-external-token', testToken)
         .send({})
       expect(response.status).to.equal(400)
       expect(response.body.error).to.include('componentCodes')
     })
 
-    it('returns quality acceptance forms by component codes', async () => {
+    it('returns quality acceptance forms by component codes with projectId in path', async () => {
       const response = await request(app)
-        .post(`/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`)
+        .post(
+          `/api/v1/external/projects/${projectId}/quality-acceptance/by-component-codes`
+        )
         .set('x-external-token', testToken)
         .send({ componentCodes: ['TEST_COMP_CODE_1', 'TEST_COMP_CODE_2'] })
 
@@ -159,14 +171,43 @@ describe('External API @external', () => {
       expect(response.body.results[0].componentCode).to.equal('TEST_COMP_CODE_1')
       expect(response.body.results[0].forms).to.be.an('array')
     })
+
+    it('returns quality acceptance forms by component codes without projectId in path (full traversal)', async () => {
+      const response = await request(app)
+        .post(`/api/v1/external/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({ componentCodes: ['TEST_COMP_CODE_1', 'TEST_COMP_CODE_2'] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.be.null
+      expect(response.body.results).to.be.an('array')
+      expect(response.body.results).to.have.lengthOf(2)
+    })
+
+    it('supports model_id filtering in request body', async () => {
+      const response = await request(app)
+        .post(`/api/v1/external/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          model_id: 'test_model_id_1',
+          componentCodes: ['TEST_COMP_CODE_1']
+        })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(projectId)
+      expect(response.body.modelId).to.equal('test_model_id_1')
+      expect(response.body.results).to.be.an('array')
+    })
   })
 
   describe('Presigned Blob Downloads', () => {
     const testBlobId = 'test_blob_id_999'
 
     it('fails presigned download if missing signature or expires', async () => {
-      const response = await request(app)
-        .get(`/api/v1/external/projects/${projectId}/blobs/${testBlobId}`)
+      const response = await request(app).get(
+        `/api/v1/external/projects/${projectId}/blobs/${testBlobId}`
+      )
 
       expect(response.status).to.equal(400)
       expect(response.body.error).to.include('Missing')

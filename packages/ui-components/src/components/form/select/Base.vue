@@ -780,7 +780,7 @@ const listboxOptionsClasses = computed(() => {
   ]
 
   if (props.mountMenuOnBody) {
-    classParts.push('fixed z-50')
+    classParts.push('fixed z-[9999]')
   } else {
     classParts.push('absolute top-[100%] z-40 mt-1')
     if (props.fitContent) {

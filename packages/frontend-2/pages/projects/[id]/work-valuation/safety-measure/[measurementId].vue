@@ -537,30 +537,34 @@
           </div>
         </div>
 
-        <!-- 审核签署意见卡片区 (3防意见卡片，精简布局) -->
+        <!-- 审核签署意见卡片区 (4个意见卡片) -->
         <div class="bg-foundation space-y-4 shadow-sm">
-          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <!-- 监理意见 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- 1. 安全监理意见 -->
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
-              <span class="text-xs font-semibold text-foreground-2">施工监理意见</span>
+              <span class="text-xs font-semibold text-foreground-2">安全监理意见</span>
               <textarea
                 v-model="details.supervisionOpinion"
-                placeholder="请输入监理审核意见"
-                :disabled="!permissions.supervision"
+                placeholder="请输入安全监理审核意见"
+                :disabled="!canEditSupervisionOpinion"
                 class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
               />
               <div class="space-y-2">
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
-                    经办人
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
+                    安全监理
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.supervisionAuditor || '-' }}
+                      {{
+                        details.supervisionAuditor ||
+                        getFlowStepApproverDisplay(['安全监理审核', '安全监理']) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -571,20 +575,24 @@
                       {{
                         details.supervisionDate
                           ? formatDate(details.supervisionDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay(['安全监理审核', '安全监理'])
                       }}
                     </span>
                   </div>
                 </div>
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
-                    审核人
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
+                    专业工程师
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.supervisionApproveAuditor || '-' }}
+                      {{
+                        details.supervisionApproveAuditor ||
+                        getFlowStepApproverDisplay(['专业工程师审核', '专业工程师']) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -595,7 +603,10 @@
                       {{
                         details.supervisionApproveDate
                           ? formatDate(details.supervisionApproveDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay([
+                              '专业工程师审核',
+                              '专业工程师'
+                            ])
                       }}
                     </span>
                   </div>
@@ -603,7 +614,77 @@
               </div>
             </div>
 
-            <!-- 指挥部意见 -->
+            <!-- 2. 总监意见 -->
+            <div
+              class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
+            >
+              <span class="text-xs font-semibold text-foreground-2">总监意见</span>
+              <textarea
+                v-model="details.contractOpinion"
+                placeholder="请输入总监审核意见"
+                :disabled="!permissions.contract"
+                class="w-full bg-foundation border border-outline-3 rounded p-2 text-xs focus:outline-none focus:border-primary disabled:opacity-60 h-20"
+              />
+              <div class="space-y-2">
+                <div class="flex items-center space-x-2 text-xs">
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
+                    总监
+                  </span>
+                  <div
+                    class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
+                  >
+                    <span class="font-medium text-foreground">
+                      {{
+                        details.contractAuditor ||
+                        getFlowStepApproverDisplay([
+                          '总监理工程师审核',
+                          '总监理工程师',
+                          '总监'
+                        ]) ||
+                        '-'
+                      }}
+                    </span>
+                  </div>
+                  <span class="text-foreground-2 flex-shrink-0">日期</span>
+                  <div
+                    class="w-24 rounded border border-outline-3 bg-foundation px-2 py-1 text-center"
+                  >
+                    <span class="font-mono text-foreground text-[11px]">
+                      {{
+                        details.contractDate
+                          ? formatDate(details.contractDate)
+                          : getFlowStepApprovedDateDisplay([
+                              '总监理工程师审核',
+                              '总监理工程师',
+                              '总监'
+                            ])
+                      }}
+                    </span>
+                  </div>
+                </div>
+                <!-- 空行占位：保持与其他卡片高度与布局对齐 -->
+                <div
+                  class="flex items-center space-x-2 text-xs opacity-0 pointer-events-none aria-hidden"
+                >
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
+                    &nbsp;
+                  </span>
+                  <div
+                    class="flex-grow rounded border border-transparent bg-transparent px-2 py-1"
+                  >
+                    <span class="font-medium">&nbsp;</span>
+                  </div>
+                  <span class="flex-shrink-0">&nbsp;</span>
+                  <div
+                    class="w-24 rounded border border-transparent bg-transparent px-2 py-1 text-center"
+                  >
+                    <span class="font-mono text-[11px]">&nbsp;</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. 现场指挥部意见 -->
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
@@ -618,14 +699,22 @@
               />
               <div class="space-y-2">
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
                     经办人
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.headquartersAuditor || '-' }}
+                      {{
+                        details.headquartersAuditor ||
+                        getFlowStepApproverDisplay([
+                          '指挥部经办人',
+                          '指挥部经办',
+                          '现场指挥部经办人'
+                        ]) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -636,20 +725,32 @@
                       {{
                         details.headquartersDate
                           ? formatDate(details.headquartersDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay([
+                              '指挥部经办人',
+                              '指挥部经办',
+                              '现场指挥部经办人'
+                            ])
                       }}
                     </span>
                   </div>
                 </div>
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
                     审核人
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.headquartersApproveAuditor || '-' }}
+                      {{
+                        details.headquartersApproveAuditor ||
+                        getFlowStepApproverDisplay([
+                          '指挥部审核人',
+                          '指挥部审核',
+                          '现场指挥部审核人'
+                        ]) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -660,7 +761,11 @@
                       {{
                         details.headquartersApproveDate
                           ? formatDate(details.headquartersApproveDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay([
+                              '指挥部审核人',
+                              '指挥部审核',
+                              '现场指挥部审核人'
+                            ])
                       }}
                     </span>
                   </div>
@@ -668,12 +773,12 @@
               </div>
             </div>
 
-            <!-- 工程管理部意见 -->
+            <!-- 4. 工程管理部意见 -->
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
               <span class="text-xs font-semibold text-foreground-2">
-                工程管理部审核意见
+                工程管理部意见
               </span>
               <textarea
                 v-model="details.engineeringOpinion"
@@ -683,14 +788,22 @@
               />
               <div class="space-y-2">
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
                     经办人
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.engineeringAuditor || '-' }}
+                      {{
+                        details.engineeringAuditor ||
+                        getFlowStepApproverDisplay([
+                          '工程管理部经办人',
+                          '工程管理部经办',
+                          '工管部经办人'
+                        ]) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -701,20 +814,32 @@
                       {{
                         details.engineeringDate
                           ? formatDate(details.engineeringDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay([
+                              '工程管理部经办人',
+                              '工程管理部经办',
+                              '工管部经办人'
+                            ])
                       }}
                     </span>
                   </div>
                 </div>
                 <div class="flex items-center space-x-2 text-xs">
-                  <span class="text-foreground-2 flex-shrink-0 w-12 text-right">
+                  <span class="text-foreground-2 flex-shrink-0 w-16 text-right">
                     审核人
                   </span>
                   <div
                     class="flex-grow rounded border border-outline-3 bg-foundation px-2 py-1"
                   >
                     <span class="font-medium text-foreground">
-                      {{ details.engineeringApproveAuditor || '-' }}
+                      {{
+                        details.engineeringApproveAuditor ||
+                        getFlowStepApproverDisplay([
+                          '工程管理部审核人',
+                          '工程管理部审核',
+                          '工管部审核人'
+                        ]) ||
+                        '-'
+                      }}
                     </span>
                   </div>
                   <span class="text-foreground-2 flex-shrink-0">日期</span>
@@ -725,7 +850,11 @@
                       {{
                         details.engineeringApproveDate
                           ? formatDate(details.engineeringApproveDate)
-                          : '-'
+                          : getFlowStepApprovedDateDisplay([
+                              '工程管理部审核人',
+                              '工程管理部审核',
+                              '工管部审核人'
+                            ])
                       }}
                     </span>
                   </div>
@@ -1136,7 +1265,9 @@
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <a
-                v-if="attachment.blobId && hasFunctionalPerm('safety-civilization:download')"
+                v-if="
+                  attachment.blobId && hasFunctionalPerm('safety-civilization:download')
+                "
                 :href="getBlobDownloadUrl(attachment.blobId)"
                 target="_blank"
                 class="text-primary hover:underline font-medium"
@@ -1309,24 +1440,24 @@
                 </div>
               </td>
               <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
-                <div class="font-semibold mb-1">监理工程师审核意见：</div>
+                <div class="font-semibold mb-1">监理工程师审查意见：</div>
                 <div class="text-foreground-2 italic text-[10px] mb-6">
                   {{ details.supervisionOpinion || '同意。' }}
                 </div>
                 <div class="absolute bottom-2 right-4 text-right scale-95 origin-right">
-                  经办人签字：{{ details.supervisionAuditor || '___________________' }}
-                  <br />
-                  审核人签字：{{
-                    details.supervisionApproveAuditor || '___________________'
+                  安全监理人员：{{
+                    details.supervisionAuditor ||
+                    safetyEngineerApproverDisplay ||
+                    '___________________'
                   }}
                   <br />
-                  日期：{{
-                    details.supervisionApproveDate
-                      ? formatDate(details.supervisionApproveDate)
-                      : details.supervisionDate
-                      ? formatDate(details.supervisionDate)
-                      : '______年___月___日'
+                  专业工程师：{{
+                    details.supervisionApproveAuditor ||
+                    professionalEngineerApproverDisplay ||
+                    '___________________'
                   }}
+                  <br />
+                  日期：{{ professionalEngineerDateDisplay }}
                 </div>
               </td>
             </tr>
@@ -1343,13 +1474,7 @@
                     details.headquartersApproveAuditor || '___________________'
                   }}
                   <br />
-                  日期：{{
-                    details.headquartersApproveDate
-                      ? formatDate(details.headquartersApproveDate)
-                      : details.headquartersDate
-                      ? formatDate(details.headquartersDate)
-                      : '______年___月___日'
-                  }}
+                  日期：{{ headquartersReviewDateDisplay }}
                 </div>
               </td>
               <td class="border border-black p-3 w-1/2 h-28 valign-top relative">
@@ -1364,13 +1489,7 @@
                     details.engineeringApproveAuditor || '___________________'
                   }}
                   <br />
-                  日期：{{
-                    details.engineeringApproveDate
-                      ? formatDate(details.engineeringApproveDate)
-                      : details.engineeringDate
-                      ? formatDate(details.engineeringDate)
-                      : '______年___月___日'
-                  }}
+                  日期：{{ engineeringReviewDateDisplay }}
                 </div>
               </td>
             </tr>
@@ -1408,7 +1527,12 @@
       <template #header>驳回审批</template>
       <div class="space-y-4">
         <div class="space-y-1.5">
-          <label for="safety-measure-reject-step" class="text-xs font-semibold text-foreground">选择退回目标节点</label>
+          <label
+            for="safety-measure-reject-step"
+            class="text-xs font-semibold text-foreground"
+          >
+            选择退回目标节点
+          </label>
           <select
             id="safety-measure-reject-step"
             v-model="selectedRollbackStep"
@@ -1442,10 +1566,17 @@
       <template #header>{{ adminFlowDialogTitle }}</template>
       <div class="space-y-4">
         <div
-          v-if="adminFlowOperation === 'reject-step' || adminFlowOperation === 'reactivate'"
+          v-if="
+            adminFlowOperation === 'reject-step' || adminFlowOperation === 'reactivate'
+          "
           class="space-y-1.5"
         >
-          <label for="safety-measure-admin-target-step" class="text-xs font-semibold text-foreground">目标节点</label>
+          <label
+            for="safety-measure-admin-target-step"
+            class="text-xs font-semibold text-foreground"
+          >
+            目标节点
+          </label>
           <select
             id="safety-measure-admin-target-step"
             v-model="adminSelectedStep"
@@ -1463,13 +1594,22 @@
           </select>
         </div>
         <div v-if="adminFlowOperation === 'transfer'" class="space-y-1.5">
-          <label for="safety-measure-admin-target-user" class="text-xs font-semibold text-foreground">目标处理人</label>
+          <label
+            for="safety-measure-admin-target-user"
+            class="text-xs font-semibold text-foreground"
+          >
+            目标处理人
+          </label>
           <select
             id="safety-measure-admin-target-user"
             v-model="adminSelectedAssigneeId"
             class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
           >
-            <option v-for="user in projectTeamCandidates" :key="user.id" :value="user.id">
+            <option
+              v-for="user in projectTeamCandidates"
+              :key="user.id"
+              :value="user.id"
+            >
               {{ user.name }}
             </option>
           </select>
@@ -1539,16 +1679,26 @@
                 <td class="border border-black p-4 w-full h-44 valign-top relative">
                   <div class="font-bold mb-2">审查意见：</div>
                   <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
-                    {{ professionalEngineerOpinionDisplay || details.supervisionOpinion }}
+                    {{
+                      details.supervisionOpinion ||
+                      professionalEngineerOpinionDisplay ||
+                      '同意。'
+                    }}
                   </div>
                   <div class="flex justify-end space-y-1">
                     <div class="flex flex-col gap-6">
                       <span>
-                        安全监理人员：___________________
+                        安全监理人员：{{
+                          details.supervisionAuditor ||
+                          safetyEngineerApproverDisplay ||
+                          '___________________'
+                        }}
                       </span>
                       <span>
                         专业工程师：{{
-                          professionalEngineerApproverDisplay || '___________________'
+                          details.supervisionApproveAuditor ||
+                          professionalEngineerApproverDisplay ||
+                          '___________________'
                         }}
                       </span>
                       <span>日期：{{ professionalEngineerDateDisplay }}</span>
@@ -1560,7 +1710,9 @@
                 <td class="border border-black p-4 w-full h-44 valign-top relative">
                   <div class="font-bold mb-2">审核意见：</div>
                   <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
-                    {{ details.supervisionOpinion }}
+                    {{
+                      details.contractOpinion || details.supervisionOpinion || '同意。'
+                    }}
                   </div>
                   <div class="flex justify-end space-y-1">
                     <div class="flex flex-col gap-6">
@@ -1998,12 +2150,9 @@ const { result: flowResult, refetch: refetchFlow } = useQuery(
   }
 )
 const flowInstance = computed(() => flowResult.value?.approvalFlowInstance || null)
-const { result: projectTeamResult } = useQuery(
-  projectTeamForAdminFlowQuery,
-  () => ({
-    id: projectId.value
-  })
-)
+const { result: projectTeamResult } = useQuery(projectTeamForAdminFlowQuery, () => ({
+  id: projectId.value
+}))
 
 // 权限判断
 const permissions = computed(() => {
@@ -2035,9 +2184,17 @@ const permissions = computed(() => {
     )
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
-      const approverIds = pendingStep.approverIds || []
+      const approverIds = (pendingStep.approverIds || []).filter(Boolean)
+      const approverUsers = (pendingStep.approvers || [])
+        .map((u: any) => u?.id)
+        .filter(Boolean)
 
-      if (approverIds.includes(currentUserId)) {
+      const isApprover =
+        (!approverIds.length && !approverUsers.length) ||
+        approverIds.includes(currentUserId) ||
+        approverUsers.includes(currentUserId)
+
+      if (isApprover) {
         const checkStep = (keywords: string[], exactList: string[]) => {
           return (
             exactList.includes(stepName) ||
@@ -2045,29 +2202,53 @@ const permissions = computed(() => {
           )
         }
 
-        if (checkStep(['施工单位'], ['施工单位', '施工单位经办人', '施工单位审核人'])) {
+        if (
+          checkStep(
+            ['施工单位', '发起', '草稿'],
+            [
+              '施工单位',
+              '施工单位经办人',
+              '施工单位审核人',
+              '发起人',
+              '发起节点',
+              '草稿'
+            ]
+          ) ||
+          pendingStep.stepIndex === 0
+        ) {
           result.contractor = true
         }
         if (
           checkStep(
-            ['监理'],
+            ['项目经理', '安全监理', '专业工程师'],
             [
-              '监理',
-              '专业监理',
-              '监理工程师',
-              '施工监理',
-              '施工监理经办人',
-              '施工监理总监'
+              '项目经理审核',
+              '安全监理审核',
+              '专业工程师审核',
+              '项目经理',
+              '安全监理',
+              '专业工程师'
             ]
-          ) &&
-          !stepName.includes('投资监理')
+          ) ||
+          (checkStep(['监理'], ['施工监理', '监理工程师']) &&
+            !stepName.includes('总监理') &&
+            !stepName.includes('投资监理'))
         ) {
           result.supervision = true
         }
         if (
           checkStep(
             ['指挥部', '现场指挥'],
-            ['指挥部', '现场指挥部', '指挥部审核', '现场指挥部经办人', '现场指挥']
+            [
+              '指挥部',
+              '现场指挥部',
+              '指挥部经办人',
+              '指挥部审核人',
+              '现场指挥部经办人',
+              '现场指挥部审核人',
+              '指挥部经办',
+              '指挥部审核'
+            ]
           )
         ) {
           result.headquarters = true
@@ -2078,9 +2259,12 @@ const permissions = computed(() => {
             [
               '工管部',
               '工程管理部',
-              '工管部审核',
               '工程管理部经办人',
-              '工程管理部负责人'
+              '工程管理部审核人',
+              '工管部经办人',
+              '工管部审核人',
+              '工程管理部经办',
+              '工程管理部审核'
             ]
           )
         ) {
@@ -2088,15 +2272,8 @@ const permissions = computed(() => {
         }
         if (
           checkStep(
-            ['合约', '计划合同'],
-            [
-              '合约部',
-              '计划合同部',
-              '合约部审核',
-              '计划合同部经办人',
-              '合约管理部经办人',
-              '合约管理部负责人'
-            ]
+            ['总监', '总监理工程师', '合约', '计划合同'],
+            ['总监理工程师审核', '总监理工程师', '总监', '合约部', '计划合同部']
           )
         ) {
           result.contract = true
@@ -2105,6 +2282,36 @@ const permissions = computed(() => {
     }
   }
   return result
+})
+
+const canEditSupervisionOpinion = computed(() => {
+  if (isReadOnly.value || isAdminOperationMode.value) return false
+  const currentUserId = userId.value
+  if (!currentUserId) return false
+  if (!flowInstance.value || flowInstance.value.status !== 'PENDING') return false
+
+  const pendingStep = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
+  if (!pendingStep) return false
+
+  const stepName = (pendingStep.name || '').trim()
+  const approverIds = (pendingStep.approverIds || []).filter(Boolean)
+  const approverUsers = (pendingStep.approvers || [])
+    .map((u: any) => u?.id)
+    .filter(Boolean)
+
+  const isApprover =
+    (!approverIds.length && !approverUsers.length) ||
+    approverIds.includes(currentUserId) ||
+    approverUsers.includes(currentUserId)
+
+  if (!isApprover) return false
+
+  return (
+    stepName.includes('安全监理') ||
+    stepName.includes('专业工程师') ||
+    stepName === '安全监理审核' ||
+    stepName === '专业工程师审核'
+  )
 })
 
 const isEditable = computed(() => {
@@ -2146,14 +2353,16 @@ const adminFlowComment = ref('')
 const adminSelectedStep = ref<number | null>(null)
 const adminSelectedAssigneeId = ref('')
 
-const pendingStep = computed(() =>
-  flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING') || null
+const pendingStep = computed(
+  () => flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING') || null
 )
 
 const previousStepOptions = computed(() => {
   const currentPendingStep = pendingStep.value
   if (!flowInstance.value?.steps || !currentPendingStep) return []
-  return flowInstance.value.steps.filter((s: any) => s.stepIndex < currentPendingStep.stepIndex)
+  return flowInstance.value.steps.filter(
+    (s: any) => s.stepIndex < currentPendingStep.stepIndex
+  )
 })
 
 const reactivateStepOptions = computed(() => {
@@ -2186,7 +2395,9 @@ const canAdminForceOperatePending = computed(
 
 const canAdminReactivate = computed(() => {
   if (!isAdminOperationMode.value || !flowInstance.value) return false
-  return ['APPROVED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(flowInstance.value.status)
+  return ['APPROVED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(
+    flowInstance.value.status
+  )
 })
 
 const adminFlowDialogTitle = computed(() => {
@@ -2222,7 +2433,9 @@ const adminFlowDialogButtons = computed((): LayoutDialogButton[] => [
 ])
 
 const normalizeApprovalStatus = (status?: string | null) => {
-  return String(status || 'START').trim().toUpperCase()
+  return String(status || 'START')
+    .trim()
+    .toUpperCase()
 }
 
 const currentDeleteStatus = computed(() =>
@@ -2726,6 +2939,7 @@ const saveAllData = async (silent = false) => {
           details: {
             attachments: details.value.attachments,
             supervisionOpinion: details.value.supervisionOpinion,
+            contractOpinion: details.value.contractOpinion,
             headquartersOpinion: details.value.headquartersOpinion,
             engineeringOpinion: details.value.engineeringOpinion
           }
@@ -2932,7 +3146,9 @@ const openAdminFlowDialog = (operation: AdminFlowOperation) => {
       previousStepOptions.value.length > 0 ? previousStepOptions.value[0].stepIndex : 0
   } else if (operation === 'reactivate') {
     adminSelectedStep.value =
-      reactivateStepOptions.value.length > 0 ? reactivateStepOptions.value[0].stepIndex : 0
+      reactivateStepOptions.value.length > 0
+        ? reactivateStepOptions.value[0].stepIndex
+        : 0
   } else {
     adminSelectedStep.value = null
   }
@@ -2962,7 +3178,8 @@ const executeAdminFlowOperation = async () => {
     return
   }
   if (
-    (adminFlowOperation.value === 'reject-step' || adminFlowOperation.value === 'reactivate') &&
+    (adminFlowOperation.value === 'reject-step' ||
+      adminFlowOperation.value === 'reactivate') &&
     adminSelectedStep.value === null
   ) {
     triggerNotification({
@@ -3071,9 +3288,12 @@ const executeAdminDelete = async () => {
   if (!canAdminDelete.value) return
   deletingMeasure.value = true
   try {
-    await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${measurementId.value}`, {
-      method: 'DELETE'
-    })
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${measurementId.value}`,
+      {
+        method: 'DELETE'
+      }
+    )
     deleteConfirmOpen.value = false
     triggerNotification({
       title: '删除成功',
@@ -3308,8 +3528,29 @@ const rejectDialogButtons = computed((): LayoutDialogButton[] => [
   }
 ])
 
-// 打印相关的状态和方法
+// 意见卡片及打印日期格式化
 const getFlowStepApprovedDateDisplay = (stepNames: readonly string[]) => {
+  const steps = flowInstance.value?.steps || []
+  const normalizedNames = stepNames.map((name) => name.trim())
+  const matchesStepName = (stepName?: string | null) => {
+    const normalizedStepName = String(stepName || '').trim()
+    if (!normalizedStepName) return false
+    return normalizedNames.some(
+      (name) => normalizedStepName === name || normalizedStepName.includes(name)
+    )
+  }
+  const matchedStep = steps.find(
+    (step: any) =>
+      matchesStepName(step.name) && (step.status === 'APPROVED' || step.completedAt)
+  )
+
+  if (!matchedStep?.completedAt) return '-'
+
+  const parsed = dayjs(matchedStep.completedAt)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '-'
+}
+
+const getFlowStepApprovedDateChineseDisplay = (stepNames: readonly string[]) => {
   const steps = flowInstance.value?.steps || []
   const normalizedNames = stepNames.map((name) => name.trim())
   const matchesStepName = (stepName?: string | null) => {
@@ -3327,9 +3568,7 @@ const getFlowStepApprovedDateDisplay = (stepNames: readonly string[]) => {
   if (!matchedStep?.completedAt) return '______年___月___日'
 
   const parsed = dayjs(matchedStep.completedAt)
-  return parsed.isValid()
-    ? parsed.format('YYYY年MM月DD日')
-    : '______年___月___日'
+  return parsed.isValid() ? parsed.format('YYYY年MM月DD日') : '______年___月___日'
 }
 
 const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
@@ -3343,9 +3582,7 @@ const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
       (name) => normalizedStepName === name || normalizedStepName.includes(name)
     )
   }
-  const matchingSteps = steps.filter((step: any) =>
-    matchesStepName(step.name)
-  )
+  const matchingSteps = steps.filter((step: any) => matchesStepName(step.name))
 
   const names: string[] = []
   for (const step of matchingSteps) {
@@ -3394,12 +3631,21 @@ const getFlowStepLatestComment = (stepNames: readonly string[]) => {
         String(action.comment || '').trim()
     )
     .sort(
-      (a: any, b: any) =>
-        dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+      (a: any, b: any) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
     )[0]
 
   return String(matchingAction?.comment || '').trim()
 }
+
+const safetyEngineerStepNames = ['安全监理', '安全监理审核', '安全监理审查'] as const
+
+const safetyEngineerApproverDisplay = computed(() => {
+  return getFlowStepApproverDisplay(safetyEngineerStepNames)
+})
+
+const safetyEngineerDateDisplay = computed(() => {
+  return getFlowStepApprovedDateChineseDisplay(safetyEngineerStepNames)
+})
 
 const professionalEngineerStepNames = [
   '专业工程师',
@@ -3413,7 +3659,40 @@ const professionalEngineerApproverDisplay = computed(() => {
 })
 
 const professionalEngineerDateDisplay = computed(() => {
-  return getFlowStepApprovedDateDisplay(professionalEngineerStepNames)
+  if (details.value.supervisionApproveDate) {
+    const parsed = dayjs(details.value.supervisionApproveDate)
+    if (parsed.isValid()) return parsed.format('YYYY年MM月DD日')
+  }
+  return getFlowStepApprovedDateChineseDisplay(professionalEngineerStepNames)
+})
+
+const headquartersReviewDateDisplay = computed(() => {
+  const dateVal =
+    details.value.headquartersApproveDate || details.value.headquartersDate
+  if (dateVal) {
+    const parsed = dayjs(dateVal)
+    if (parsed.isValid()) return parsed.format('YYYY年MM月DD日')
+  }
+  return getFlowStepApprovedDateChineseDisplay([
+    '指挥部审核人',
+    '指挥部经办人',
+    '现场指挥部审核人',
+    '现场指挥部经办人'
+  ])
+})
+
+const engineeringReviewDateDisplay = computed(() => {
+  const dateVal = details.value.engineeringApproveDate || details.value.engineeringDate
+  if (dateVal) {
+    const parsed = dayjs(dateVal)
+    if (parsed.isValid()) return parsed.format('YYYY年MM月DD日')
+  }
+  return getFlowStepApprovedDateChineseDisplay([
+    '工程管理部审核人',
+    '工程管理部经办人',
+    '工管部审核人',
+    '工管部经办人'
+  ])
 })
 
 const professionalEngineerOpinionDisplay = computed(() => {
@@ -3422,14 +3701,29 @@ const professionalEngineerOpinionDisplay = computed(() => {
 
 const supervisionReviewApproverDisplay = computed(() => {
   return (
-    getFlowStepApproverDisplay(['监理单位审核人', '监理单位审核', '施工监理总监']) ||
+    getFlowStepApproverDisplay([
+      '总监理工程师审核',
+      '总监理工程师',
+      '总监',
+      '监理单位审核人',
+      '监理单位审核',
+      '施工监理总监'
+    ]) ||
+    details.value.contractAuditor ||
     details.value.supervisionApproveAuditor ||
     ''
   )
 })
 
 const supervisionReviewDateDisplay = computed(() => {
-  return getFlowStepApprovedDateDisplay([
+  if (details.value.contractDate) {
+    const parsed = dayjs(details.value.contractDate)
+    if (parsed.isValid()) return parsed.format('YYYY年MM月DD日')
+  }
+  return getFlowStepApprovedDateChineseDisplay([
+    '总监理工程师审核',
+    '总监理工程师',
+    '总监',
     '监理单位审核人',
     '监理单位审核',
     '施工监理总监'
@@ -3437,11 +3731,25 @@ const supervisionReviewDateDisplay = computed(() => {
 })
 
 const contractorReviewApproverDisplay = computed(() => {
-  return getFlowStepApproverDisplay(['施工单位审核人']) || creatorName.value || ''
+  return (
+    getFlowStepApproverDisplay([
+      '项目经理审核',
+      '项目经理',
+      '施工单位审核人',
+      '施工单位'
+    ]) ||
+    creatorName.value ||
+    ''
+  )
 })
 
 const contractorReviewDateDisplay = computed(() => {
-  return getFlowStepApprovedDateDisplay(['施工单位审核人'])
+  return getFlowStepApprovedDateChineseDisplay([
+    '项目经理审核',
+    '项目经理',
+    '施工单位审核人',
+    '施工单位'
+  ])
 })
 
 const isPrinting = ref(false)

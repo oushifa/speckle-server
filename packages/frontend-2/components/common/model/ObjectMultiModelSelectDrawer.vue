@@ -10,19 +10,25 @@
         name="model-object-project-select"
         label="项目"
         show-label
+        fit-content
+        mount-menu-on-body
         :items="projectOptions"
         :disabled="disabled || projectOptions.length === 0"
         :allow-unset="true"
         by="id"
       >
         <template #nothing-selected>
-          {{ loadingProjects ? '加载项目中...' : '请选择项目' }}
+          <span class="truncate block">
+            {{ loadingProjects ? '加载项目中...' : '请选择项目' }}
+          </span>
         </template>
         <template #something-selected="{ value }">
-          {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+          <span class="truncate block">
+            {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+          </span>
         </template>
         <template #option="{ item }">
-          {{ item.name }}
+          <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
         </template>
       </FormSelectBase>
 
@@ -33,6 +39,7 @@
         show-label
         multiple
         fit-content
+        mount-menu-on-body
         :class="hasFixedProject ? 'md:col-span-1' : ''"
         :items="modelOptions"
         :disabled="disabled || !activeProjectId || modelOptions.length === 0"

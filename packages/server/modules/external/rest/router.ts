@@ -33,7 +33,16 @@ const requireExternalToken: RequestHandler = (req, res, next) => {
     })
   }
 
-  const token = req.headers['x-external-token'] || req.query.token
+  const authHeader = req.headers['authorization']
+  let bearerToken: string | undefined = undefined
+  if (
+    typeof authHeader === 'string' &&
+    authHeader.toLowerCase().startsWith('bearer ')
+  ) {
+    bearerToken = authHeader.substring(7).trim()
+  }
+
+  const token = req.headers['x-external-token'] || bearerToken || req.query.token
 
   if (!token || token !== configuredToken) {
     return res.status(401).json({
@@ -353,7 +362,9 @@ const aggregatePlanTaskNode = (
   let sumWeight = 0
   let sumWeightedRate = 0
   node.children.forEach((child) => {
-    const planStart = child.task.planStart ? new Date(child.task.planStart).getTime() : 0
+    const planStart = child.task.planStart
+      ? new Date(child.task.planStart).getTime()
+      : 0
     const planEnd = child.task.planEnd ? new Date(child.task.planEnd).getTime() : 0
     const duration = planStart && planEnd ? planEnd - planStart + 86400000 : 0
 
@@ -471,8 +482,14 @@ const serializeActualRecord = (record: any) => {
     siteLeader: record.siteLeader || '',
     reporter: record.reporter || '',
     constructionLog: record.constructionLog || '',
-    createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
-    updatedAt: record.updatedAt instanceof Date ? record.updatedAt.toISOString() : record.updatedAt
+    createdAt:
+      record.createdAt instanceof Date
+        ? record.createdAt.toISOString()
+        : record.createdAt,
+    updatedAt:
+      record.updatedAt instanceof Date
+        ? record.updatedAt.toISOString()
+        : record.updatedAt
   }
 }
 
@@ -480,17 +497,32 @@ const isProjectInfoNode = (raw: any): boolean => {
   if (!raw) return false
 
   const category = raw.category
-  if (typeof category === 'string' && (category === '项目信息' || category.toLowerCase() === 'project information' || category.toLowerCase() === 'project info')) {
+  if (
+    typeof category === 'string' &&
+    (category === '项目信息' ||
+      category.toLowerCase() === 'project information' ||
+      category.toLowerCase() === 'project info')
+  ) {
     return true
   }
 
   const name = raw.name
-  if (typeof name === 'string' && (name === '项目信息' || name.toLowerCase() === 'project information' || name.toLowerCase() === 'project info')) {
+  if (
+    typeof name === 'string' &&
+    (name === '项目信息' ||
+      name.toLowerCase() === 'project information' ||
+      name.toLowerCase() === 'project info')
+  ) {
     return true
   }
 
   const type = raw.type || raw.speckle_type
-  if (typeof type === 'string' && (type.includes('ProjectInformation') || type.includes('ProjectInfo') || type.includes('项目信息'))) {
+  if (
+    typeof type === 'string' &&
+    (type.includes('ProjectInformation') ||
+      type.includes('ProjectInfo') ||
+      type.includes('项目信息'))
+  ) {
     return true
   }
 
@@ -500,14 +532,16 @@ const isProjectInfoNode = (raw: any): boolean => {
 const getPropertyValue = (raw: any, aliases: string[]): string | null => {
   if (!raw || typeof raw !== 'object') return null
 
-  const clean = (val: string) => val.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
+  const clean = (val: string) =>
+    val.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
   const normalizedAliases = aliases.map(clean)
 
   const entries: Array<{ key: string; path: string; value: any }> = []
   const visited = new Set()
 
   const flatten = (obj: any, currentPath = '') => {
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || visited.has(obj)) return
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || visited.has(obj))
+      return
     visited.add(obj)
 
     const ignoredKeys = [
@@ -533,7 +567,8 @@ const getPropertyValue = (raw: any, aliases: string[]): string | null => {
         'value' in rawValue
       ) {
         const param = rawValue as { name?: any; value?: any }
-        const parameterName = typeof param.name === 'string' && param.name.length ? param.name : key
+        const parameterName =
+          typeof param.name === 'string' && param.name.length ? param.name : key
         entries.push({
           key: parameterName,
           path: newPath,
@@ -599,7 +634,7 @@ const buildBimCodesLookup = async (
 
     const projectInfoNodes = await projectDb('objects')
       .where('streamId', projectId)
-      .andWhere(function(this: any) {
+      .andWhere(function (this: any) {
         this.whereILike('data', '%项目信息%')
           .orWhereILike('data', '%project information%')
           .orWhereILike('data', '%project info%')
@@ -620,10 +655,13 @@ const buildBimCodesLookup = async (
 
     for (const obj of objects) {
       const data = typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data
-      const classCode = getPropertyValue(data, ['分类对象代码', 'classificationobjectcode']) || ''
-      const sectionCode = getPropertyValue(data, ['分部分项代码', 'sectionitemcode']) || ''
+      const classCode =
+        getPropertyValue(data, ['分类对象代码', 'classificationobjectcode']) || ''
+      const sectionCode =
+        getPropertyValue(data, ['分部分项代码', 'sectionitemcode']) || ''
       const serialNum = getPropertyValue(data, ['序号码', '序号', 'serialnumber']) || ''
-      const spaceCode = getPropertyValue(data, ['空间代码', 'spacecode']) || defaultSpaceCode || ''
+      const spaceCode =
+        getPropertyValue(data, ['空间代码', 'spacecode']) || defaultSpaceCode || ''
 
       if (classCode && spaceCode && sectionCode && serialNum) {
         const fullBimCode = classCode + spaceCode + sectionCode + serialNum
@@ -645,25 +683,32 @@ export const externalRouterFactory = (): Router => {
   const getStream = getStreamFactory({ db })
 
   // 1. 获取项目基本信息
-  app.get('/api/v1/external/projects/:projectId', requireExternalToken, async (req, res) => {
-    const { projectId } = req.params
-    const project = await getStream({ streamId: projectId })
-    if (!project) {
-      return res.status(404).json({ error: 'Project not found.' })
-    }
+  app.get(
+    '/api/v1/external/projects/:projectId',
+    requireExternalToken,
+    async (req, res) => {
+      const { projectId } = req.params
+      const project = await getStream({ streamId: projectId })
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' })
+      }
 
-    return res.status(200).json({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      isPublic: project.visibility === 'public',
-      projectGuid: project.projectGuid || null,
-      bidSection: project.bidSection || null,
-      contractPrice: project.contractPrice !== null && project.contractPrice !== undefined ? Number(project.contractPrice) : null,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString()
-    })
-  })
+      return res.status(200).json({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        isPublic: project.visibility === 'public',
+        projectGuid: project.projectGuid || null,
+        bidSection: project.bidSection || null,
+        contractPrice:
+          project.contractPrice !== null && project.contractPrice !== undefined
+            ? Number(project.contractPrice)
+            : null,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: project.updatedAt.toISOString()
+      })
+    }
+  )
 
   // 2. 获取进度计划数据
   app.get(
@@ -698,7 +743,9 @@ export const externalRouterFactory = (): Router => {
 
       const enrichedTasks = serializedTasks.map((task) => {
         const enrichedBIM = (task.BIM || []).map((entry) => {
-          const bimCodes = entry.applicationIds.map((appId) => bimCodesLookup.get(appId) || null)
+          const bimCodes = entry.applicationIds.map(
+            (appId) => bimCodesLookup.get(appId) || null
+          )
           return {
             ...entry,
             bimCodes
@@ -729,9 +776,11 @@ export const externalRouterFactory = (): Router => {
       }
 
       const projectDb = await getProjectDbClient({ projectId })
-      const records = await listProgressActualRecordsFactory({ db: projectDb })({ projectId })
+      const records = await listProgressActualRecordsFactory({ db: projectDb })({
+        projectId
+      })
       const recordsSerialized = records.map(serializeActualRecord)
-      
+
       const allAppIds = new Set<string>()
       recordsSerialized.forEach((rec) => {
         ;(rec.startBIM || []).forEach((entry: any) => {
@@ -750,11 +799,15 @@ export const externalRouterFactory = (): Router => {
 
       const enrichedRecords = recordsSerialized.map((rec) => {
         const enrichedStartBIM = (rec.startBIM || []).map((entry: any) => {
-          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          const bimCodes = entry.applicationIds.map(
+            (appId: any) => bimCodesLookup.get(appId) || null
+          )
           return { ...entry, bimCodes }
         })
         const enrichedFinishBIM = (rec.finishBIM || []).map((entry: any) => {
-          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          const bimCodes = entry.applicationIds.map(
+            (appId: any) => bimCodesLookup.get(appId) || null
+          )
           return { ...entry, bimCodes }
         })
         return {
@@ -829,7 +882,9 @@ export const externalRouterFactory = (): Router => {
       const enrichedItems = items.map(({ form, attachments }) => {
         const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
         const enrichedBIM = normalizedBIM.map((entry: any) => {
-          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+          const bimCodes = entry.applicationIds.map(
+            (appId: any) => bimCodesLookup.get(appId) || null
+          )
           return {
             ...entry,
             bimCodes
@@ -868,92 +923,86 @@ export const externalRouterFactory = (): Router => {
   )
 
   // 5. 24小时时效性附件下载端点
-  app.get(
-    '/api/v1/external/projects/:projectId/blobs/:blobId',
-    async (req, res) => {
-      const { projectId, blobId } = req.params
-      const { expires, signature } = req.query
+  app.get('/api/v1/external/projects/:projectId/blobs/:blobId', async (req, res) => {
+    const { projectId, blobId } = req.params
+    const { expires, signature } = req.query
 
-      if (!expires || !signature) {
-        return res.status(400).json({
-          error: 'Missing expiration or signature parameters.'
-        })
-      }
+    if (!expires || !signature) {
+      return res.status(400).json({
+        error: 'Missing expiration or signature parameters.'
+      })
+    }
 
-      const expiresTime = parseInt(String(expires), 10)
-      if (Date.now() > expiresTime) {
-        return res.status(410).json({
-          error: 'Download link has expired.'
-        })
-      }
+    const expiresTime = parseInt(String(expires), 10)
+    if (Date.now() > expiresTime) {
+      return res.status(410).json({
+        error: 'Download link has expired.'
+      })
+    }
 
-      const secret = getSessionSecret()
-      const expectedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(`${projectId}:${blobId}:${expires}`)
-        .digest('hex')
+    const secret = getSessionSecret()
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(`${projectId}:${blobId}:${expires}`)
+      .digest('hex')
 
-      if (signature !== expectedSignature) {
-        return res.status(403).json({
-          error: 'Forbidden: Invalid signature.'
-        })
-      }
+    if (signature !== expectedSignature) {
+      return res.status(403).json({
+        error: 'Forbidden: Invalid signature.'
+      })
+    }
 
-      // 获取对象存储和文件流
-      const [projectDb, projectStorage] = await Promise.all([
-        getProjectDbClient({ projectId }),
-        getProjectObjectStorage({ projectId })
-      ])
+    // 获取对象存储和文件流
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
 
-      const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
-      const getFileStream = getFileStreamFactory({ getBlobMetadata })
-      const getObjectStream = getObjectStreamFactory({
-        storage: projectStorage.private
+    const getBlobMetadata = getBlobMetadataFactory({ db: projectDb })
+    const getFileStream = getFileStreamFactory({ getBlobMetadata })
+    const getObjectStream = getObjectStreamFactory({
+      storage: projectStorage.private
+    })
+
+    try {
+      const metadata = await getBlobMetadata({
+        streamId: projectId,
+        blobId
       })
 
-      try {
-        const metadata = await getBlobMetadata({
-          streamId: projectId,
-          blobId
-        })
-
-        if (!metadata) {
-          return res.status(404).json({
-            error: 'File not found.'
-          })
-        }
-
-        const fileStream = await getFileStream({
-          getObjectStream,
-          streamId: projectId,
-          blobId
-        })
-
-        res.writeHead(200, {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': contentDisposition(metadata.fileName)
-        })
-        fileStream.pipe(res)
-      } catch (err) {
-        req.log.error(err, 'Failed to fetch blob file stream for external API.')
-        return res.status(500).json({
-          error: 'Failed to retrieve file from storage.'
+      if (!metadata) {
+        return res.status(404).json({
+          error: 'File not found.'
         })
       }
+
+      const fileStream = await getFileStream({
+        getObjectStream,
+        streamId: projectId,
+        blobId
+      })
+
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': contentDisposition(metadata.fileName)
+      })
+      fileStream.pipe(res)
+    } catch (err) {
+      req.log.error(err, 'Failed to fetch blob file stream for external API.')
+      return res.status(500).json({
+        error: 'Failed to retrieve file from storage.'
+      })
     }
-  )
+  })
 
   // 6. 根据构件编码查询质量验收信息
   app.post(
-    '/api/v1/external/projects/:projectId/quality-acceptance/by-component-codes',
+    [
+      '/api/v1/external/projects/:projectId/quality-acceptance/by-component-codes',
+      '/api/v1/external/quality-acceptance/by-component-codes'
+    ],
     requireExternalToken,
     async (req, res) => {
-      const { projectId } = req.params
-      const project = await getStream({ streamId: projectId })
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found.' })
-      }
-
       const { componentCodes } = req.body
       if (!componentCodes || !Array.isArray(componentCodes)) {
         return res.status(400).json({
@@ -961,34 +1010,92 @@ export const externalRouterFactory = (): Router => {
         })
       }
 
-      const projectDb = await getProjectDbClient({ projectId })
+      const rawProjectId =
+        req.body.projectId ||
+        req.body.project_id ||
+        req.query.projectId ||
+        req.query.project_id ||
+        (req.params.projectId && req.params.projectId !== ':projectId'
+          ? req.params.projectId
+          : null)
+      const projectId =
+        typeof rawProjectId === 'string' && rawProjectId.trim()
+          ? rawProjectId.trim()
+          : null
 
-      const forms = await projectDb('quality_acceptance_forms')
-        .where('project_id', projectId)
+      const rawModelId =
+        req.body.modelId || req.body.model_id || req.query.modelId || req.query.model_id
+      const modelId =
+        typeof rawModelId === 'string' && rawModelId.trim() ? rawModelId.trim() : null
 
-      const allAppIds = new Set<string>()
-      forms.forEach((form) => {
+      let forms: any[] = []
+      if (projectId) {
+        const project = await getStream({ streamId: projectId })
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found.' })
+        }
+        const projectDb = await getProjectDbClient({ projectId })
+        forms = await projectDb('quality_acceptance_forms').where(
+          'project_id',
+          projectId
+        )
+      } else {
+        forms = await db('quality_acceptance_forms').select('*')
+      }
+
+      // 若指定了 modelId，筛选出包含对应 modelId 构件记录的表单
+      const targetForms = forms.filter((form: any) => {
+        if (!modelId) return true
         const bim = normalizeBIM(form.BIM, form.BIMelement) || []
-        bim.forEach((entry: any) => {
-          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
-        })
+        return bim.some((entry: any) => entry.modelId === modelId)
       })
 
-      const bimCodesLookup = await buildBimCodesLookup(
-        projectDb,
-        projectId,
-        Array.from(allAppIds)
-      )
+      // 按项目 ID 分配 applicationIds 查表建立 bimCodesLookup
+      const appIdsByProject = new Map<string, Set<string>>()
+      for (const form of targetForms) {
+        const pId = form.project_id || projectId
+        if (!pId) continue
+
+        let appSet = appIdsByProject.get(pId)
+        if (!appSet) {
+          appSet = new Set<string>()
+          appIdsByProject.set(pId, appSet)
+        }
+
+        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
+        bim.forEach((entry: any) => {
+          if (!modelId || entry.modelId === modelId) {
+            ;(entry.applicationIds || []).forEach((id: any) => appSet!.add(id))
+          }
+        })
+      }
+
+      const projectBimCodesLookups = new Map<string, Map<string, string>>()
+      for (const [pId, appIdsSet] of appIdsByProject.entries()) {
+        const pDb = await getProjectDbClient({ projectId: pId })
+        const lookup = await buildBimCodesLookup(pDb, pId, Array.from(appIdsSet))
+        projectBimCodesLookups.set(pId, lookup)
+      }
 
       const formMap = new Map<string, any[]>()
-      for (const form of forms) {
+      for (const form of targetForms) {
+        const pId = form.project_id || projectId
+        const bimCodesLookup =
+          (pId ? projectBimCodesLookups.get(pId) : null) || new Map()
+
         const attachments = (form.attachments || []).map((blobId: string) =>
-          generatePresignedDownloadUrl(req, projectId, blobId)
+          generatePresignedDownloadUrl(req, pId, blobId)
         )
 
         const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
-        const enrichedBIM = normalizedBIM.map((entry: any) => {
-          const bimCodes = entry.applicationIds.map((appId: any) => bimCodesLookup.get(appId) || null)
+        const filteredBIM = modelId
+          ? normalizedBIM.filter((entry: any) => entry.modelId === modelId)
+          : normalizedBIM
+
+        const enrichedBIM = filteredBIM.map((entry: any) => {
+          const bimCodes = entry.applicationIds.map(
+            (appId: any) => bimCodesLookup.get(appId) || null
+          )
           return {
             ...entry,
             bimCodes
@@ -1014,8 +1121,16 @@ export const externalRouterFactory = (): Router => {
           BIM: enrichedBIM,
           approveStatus: form.approveStatus,
           attachments,
-          createdAt: form.createdAt.toISOString(),
-          updatedAt: form.updatedAt.toISOString()
+          createdAt: form.createdAt
+            ? typeof form.createdAt === 'string'
+              ? form.createdAt
+              : form.createdAt.toISOString()
+            : null,
+          updatedAt: form.updatedAt
+            ? typeof form.updatedAt === 'string'
+              ? form.updatedAt
+              : form.updatedAt.toISOString()
+            : null
         }
 
         const formBimCodes = new Set<string>()
@@ -1037,13 +1152,14 @@ export const externalRouterFactory = (): Router => {
         }
       }
 
-      const results = componentCodes.map((code) => ({
+      const results = componentCodes.map((code: string) => ({
         componentCode: code,
         forms: formMap.get(code) || []
       }))
 
       return res.status(200).json({
         projectId,
+        modelId,
         results
       })
     }
