@@ -52,7 +52,6 @@ import {
   replicateFactory
 } from '@/modules/shared/command'
 import { setUserOnboardingChoicesFactory } from '@/modules/core/services/users/tracking'
-import { getMixpanelClient } from '@/modules/shared/utils/mixpanel'
 import { throwIfAuthNotOk } from '@/modules/shared/helpers/errorHelper'
 import { getUserWorkspaceSeatsFactory } from '@/modules/workspacesCore/repositories/workspaces'
 import {
@@ -515,7 +514,6 @@ export default {
               const setUserOnboardingChoices = setUserOnboardingChoicesFactory({
                 getUser: getUserFactory({ db }),
                 updateMailchimpMemberTags,
-                getMixpanelClient,
                 getMailchimpStatus,
                 getMailchimpOnboardingIds
               })

@@ -3,7 +3,6 @@ import {
   setupResultListener,
   shutdownResultListener
 } from '@/modules/core/utils/dbNotificationListener'
-import * as mp from '@/modules/shared/utils/mixpanel'
 import type { SpeckleModule } from '@/modules/shared/helpers/typeHelper'
 
 import staticRest from '@/modules/core/rest/static'
@@ -34,22 +33,7 @@ import {
 } from '@/modules/core/repositories/streams'
 import { reportUserEventsFactory } from '@/modules/core/events/userTracking'
 import { coreLogger } from '@/modules/core/logger'
-import { updateUserMixpanelProfileFactory } from '@/modules/core/services/users/tracking'
 import { getUserFactory } from '@/modules/core/repositories/users'
-import {
-  getTotalWorkspaceCountFactory,
-  getUserWorkspaceCountFactory
-} from '@/modules/workspacesCore/repositories/workspaces'
-import { getUserAuthoredCommitCountsFactory } from '@/modules/core/repositories/commits'
-import { getMixpanelClient } from '@/modules/shared/utils/mixpanel'
-import { updateServerMixpanelProfileFactory } from '@/modules/core/services/server/tracking'
-import { getCachedServerInfoFactory } from '@/modules/core/repositories/server'
-import {
-  getTotalStreamCountFactory,
-  getTotalUserCountFactory
-} from '@/modules/stats/repositories'
-import { getServerTotalModelCountFactory } from '@/modules/core/services/branch/retrieval'
-import { getServerTotalVersionCountFactory } from '@/modules/core/services/commit/retrieval'
 import { bullMonitoringRouterFactory } from '@/modules/core/rest/monitoring'
 import { projectListenersFactory } from '@/modules/core/events/projectListeners'
 import { ensureModelLibraryProjectFactory } from '@/modules/core/services/streams/modelLibrary'
@@ -109,9 +93,6 @@ const coreModule: SpeckleModule<{
       // Setup global pg notification listener
       await setupResultListener()
 
-      // Init mp
-      mp.initialize()
-
       // Setup test subs
       if (isTestEnv()) {
         const { startEmittingTestSubs } = await import('@/test/graphqlHelper')
@@ -127,15 +108,7 @@ const coreModule: SpeckleModule<{
 
       reportUserEventsFactory({
         eventBus: getEventBus(),
-        logger: coreLogger,
-        updateUserMixpanelProfileFactory: updateUserMixpanelProfileFactory({
-          getUser: getUserFactory({ db }),
-          getImplicitUserProjectsCount: getImplicitUserProjectsCountFactory({ db }),
-          getUserWorkspaceCount: getUserWorkspaceCountFactory({ db }),
-          getUserAuthoredCommitCounts: getUserAuthoredCommitCountsFactory({ db }),
-          getMixpanelClient,
-          logger: coreLogger
-        })
+        logger: coreLogger
       })()
 
       projectListenersFactory({
@@ -147,18 +120,6 @@ const coreModule: SpeckleModule<{
     }
   },
   async finalize({ app }) {
-    // Update server profile in mp
-    await updateServerMixpanelProfileFactory({
-      getServerInfo: getCachedServerInfoFactory({ db }),
-      getMixpanelClient,
-      getTotalStreamCount: getTotalStreamCountFactory({ db }),
-      getTotalWorkspaceCount: getTotalWorkspaceCountFactory({ db }),
-      getTotalUserCount: getTotalUserCountFactory({ db }),
-      getServerTotalModelCount: getServerTotalModelCountFactory(),
-      getServerTotalVersionCount: getServerTotalVersionCountFactory(),
-      logger: coreLogger
-    })()
-
     // Run BullMQ monitor once the app is fully ready
     app.use(bullMonitoringRouterFactory())
   },

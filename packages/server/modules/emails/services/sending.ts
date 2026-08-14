@@ -2,7 +2,7 @@ import { emailLogger } from '@/observability/logging'
 import type { SendEmail, SendEmailParams } from '@/modules/emails/domain/operations'
 import { getTransporter } from '@/modules/emails/clients/transportBuilder'
 import { getEmailFromAddress } from '@/modules/shared/helpers/envHelper'
-import { ensureError, resolveMixpanelUserId } from '@speckle/shared'
+import { ensureError } from '@speckle/shared'
 import {
   getRequestContext,
   getRequestLogger,
@@ -69,18 +69,15 @@ export const sendEmail: SendEmail = async ({
     })
 
     const emails = typeof to === 'string' ? [to] : to
-    const distinctIds = await Promise.all(
-      emails.map((email) => resolveMixpanelUserId(email))
-    )
 
     logger.info(
       {
         subject,
-        distinctIds,
+        emails,
         deliveryStatus: sentEmailResponse.status,
         deliveryErrorMessages: sentEmailResponse.errorMessages
       },
-      'Email "{subject}" sent out to distinctIds {distinctIds}; status: {deliveryStatus}'
+      'Email "{subject}" sent out to {emails}; status: {deliveryStatus}'
     )
 
     return true

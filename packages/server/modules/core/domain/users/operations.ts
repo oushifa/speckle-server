@@ -269,8 +269,6 @@ export type AdminGetInviteList = (args: CollectionQueryArgs) => Promise<{
   items: ServerInviteGraphQLReturnType[]
 }>
 
-export type UpdateUserMixpanelProfile = (params: { userId: string }) => Promise<void>
-
 export type SetUserOnboardingChoices = (params: {
   userId: string
   choices: UserOnboardingChoices
