@@ -111,6 +111,7 @@ const getEnabledModuleNames = () => {
     'core',
     'cross-server-sync',
     'dashboards',
+    'dtp-token',
     'emails',
     'file-conversion',
     'fileuploads',
