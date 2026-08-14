@@ -45,6 +45,12 @@ export type Scalars = {
   JSONObject: { input: Record<string, unknown>; output: Record<string, unknown>; }
 };
 
+export type AbortMultipartUploadInput = {
+  fileId: Scalars['String']['input'];
+  projectId: Scalars['String']['input'];
+  uploadId: Scalars['String']['input'];
+};
+
 export type AccFolder = {
   __typename?: 'AccFolder';
   children: AccFolderCollection;
@@ -1503,6 +1509,14 @@ export type CommitsMoveInput = {
   targetBranch: Scalars['String']['input'];
 };
 
+export type CompleteMultipartUploadInput = {
+  fileId: Scalars['String']['input'];
+  modelId: Scalars['String']['input'];
+  parts: Array<MultipartUploadPartInput>;
+  projectId: Scalars['String']['input'];
+  uploadId: Scalars['String']['input'];
+};
+
 /**
  * Can be used instead of a full item collection, when the implementation doesn't call for it yet. Because
  * of the structure, it can be swapped out to a full item collection in the future
@@ -1625,6 +1639,17 @@ export type CreateMonthlyMeasurementInput = {
   measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
   projectId: Scalars['ID']['input'];
   unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateMultipartUploadInput = {
+  fileName: Scalars['String']['input'];
+  projectId: Scalars['String']['input'];
+};
+
+export type CreateMultipartUploadOutput = {
+  __typename?: 'CreateMultipartUploadOutput';
+  fileId: Scalars['String']['output'];
+  uploadId: Scalars['String']['output'];
 };
 
 export type CreateQualityAcceptanceFormInput = {
@@ -2078,6 +2103,20 @@ export type FileUploadCollection = {
 
 export type FileUploadMutations = {
   __typename?: 'FileUploadMutations';
+  /** Abort an in-progress multipart upload, removing any uploaded parts from storage. */
+  abortMultipartUpload: Scalars['Boolean']['output'];
+  /**
+   * Complete a multipart upload and start the file import flow.
+   * The parts must be provided in ascending partNumber order with the ETags
+   * returned by the object storage after each part upload.
+   */
+  completeMultipartUpload: FileUpload;
+  /**
+   * Create a multipart upload session for resumable file uploads.
+   * Returns the fileId and the S3 multipart uploadId, which the client must
+   * retain to upload parts and later complete or abort the upload.
+   */
+  createMultipartUpload: CreateMultipartUploadOutput;
   /**
    * Marks the file import flow as completed for that specific job
    * recording the provided status, and emitting the needed subscriptions.
@@ -2089,6 +2128,13 @@ export type FileUploadMutations = {
    * After uploading the file, call mutation startFileImport to register the completed upload.
    */
   generateUploadUrl: GenerateFileUploadUrlOutput;
+  /** Generate a pre-signed URL for uploading a single part of a multipart upload. */
+  getPartUploadUrl: GetPartUploadUrlOutput;
+  /**
+   * List the parts that have already been uploaded for a multipart upload.
+   * Used by clients to resume an interrupted upload without re-uploading parts.
+   */
+  listUploadedParts: MultipartUploadPartCollection;
   /**
    * Before calling this mutation, call generateUploadUrl to get the
    * pre-signed url and blobId. Then upload the file to that url.
@@ -2104,6 +2150,21 @@ export type FileUploadMutations = {
 };
 
 
+export type FileUploadMutationsAbortMultipartUploadArgs = {
+  input: AbortMultipartUploadInput;
+};
+
+
+export type FileUploadMutationsCompleteMultipartUploadArgs = {
+  input: CompleteMultipartUploadInput;
+};
+
+
+export type FileUploadMutationsCreateMultipartUploadArgs = {
+  input: CreateMultipartUploadInput;
+};
+
+
 export type FileUploadMutationsFinishFileImportArgs = {
   input: FinishFileImportInput;
 };
@@ -2111,6 +2172,16 @@ export type FileUploadMutationsFinishFileImportArgs = {
 
 export type FileUploadMutationsGenerateUploadUrlArgs = {
   input: GenerateFileUploadUrlInput;
+};
+
+
+export type FileUploadMutationsGetPartUploadUrlArgs = {
+  input: GetPartUploadUrlInput;
+};
+
+
+export type FileUploadMutationsListUploadedPartsArgs = {
+  input: ListUploadedPartsInput;
 };
 
 
@@ -2239,6 +2310,19 @@ export type GetModelUploadsInput = {
   cursor?: InputMaybe<Scalars['String']['input']>;
   /** The maximum number of uploads to return. */
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type GetPartUploadUrlInput = {
+  fileId: Scalars['String']['input'];
+  partNumber: Scalars['Int']['input'];
+  projectId: Scalars['String']['input'];
+  uploadId: Scalars['String']['input'];
+};
+
+export type GetPartUploadUrlOutput = {
+  __typename?: 'GetPartUploadUrlOutput';
+  partNumber: Scalars['Int']['output'];
+  url: Scalars['String']['output'];
 };
 
 export type GetUngroupedViewGroupInput = {
@@ -2485,6 +2569,12 @@ export type LimitedWorkspaceJoinRequestCollection = {
   cursor?: Maybe<Scalars['String']['output']>;
   items: Array<LimitedWorkspaceJoinRequest>;
   totalCount: Scalars['Int']['output'];
+};
+
+export type ListUploadedPartsInput = {
+  fileId: Scalars['String']['input'];
+  projectId: Scalars['String']['input'];
+  uploadId: Scalars['String']['input'];
 };
 
 export type MarkCommentViewedInput = {
@@ -2754,6 +2844,23 @@ export type MoveVersionsInput = {
   /** If the name references a nonexistant model, it will be created */
   targetModelName: Scalars['String']['input'];
   versionIds: Array<Scalars['ID']['input']>;
+};
+
+export type MultipartUploadPart = {
+  __typename?: 'MultipartUploadPart';
+  etag: Scalars['String']['output'];
+  partNumber: Scalars['Int']['output'];
+  size: Scalars['Int']['output'];
+};
+
+export type MultipartUploadPartCollection = {
+  __typename?: 'MultipartUploadPartCollection';
+  parts: Array<MultipartUploadPart>;
+};
+
+export type MultipartUploadPartInput = {
+  etag: Scalars['String']['input'];
+  partNumber: Scalars['Int']['input'];
 };
 
 export type Mutation = {
@@ -7530,6 +7637,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
+  AbortMultipartUploadInput: AbortMultipartUploadInput;
   AccFolder: ResolverTypeWrapper<AccFolderGraphQLReturn>;
   AccFolderCollection: ResolverTypeWrapper<Omit<AccFolderCollection, 'items'> & { items: Array<ResolversTypes['AccFolder']> }>;
   AccHub: ResolverTypeWrapper<Omit<AccHub, 'project' | 'projects'> & { project: ResolversTypes['AccProject'], projects: ResolversTypes['AccProjectCollection'] }>;
@@ -7662,6 +7770,7 @@ export type ResolversTypes = {
   CommitUpdateInput: CommitUpdateInput;
   CommitsDeleteInput: CommitsDeleteInput;
   CommitsMoveInput: CommitsMoveInput;
+  CompleteMultipartUploadInput: CompleteMultipartUploadInput;
   CountOnlyCollection: ResolverTypeWrapper<CountOnlyCollection>;
   CreateAccSyncItemInput: CreateAccSyncItemInput;
   CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
@@ -7676,6 +7785,8 @@ export type ResolversTypes = {
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
   CreateMonthlyMeasurementInput: CreateMonthlyMeasurementInput;
+  CreateMultipartUploadInput: CreateMultipartUploadInput;
+  CreateMultipartUploadOutput: ResolverTypeWrapper<CreateMultipartUploadOutput>;
   CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -7734,6 +7845,8 @@ export type ResolversTypes = {
   GenerateFileUploadUrlInput: GenerateFileUploadUrlInput;
   GenerateFileUploadUrlOutput: ResolverTypeWrapper<GenerateFileUploadUrlOutput>;
   GetModelUploadsInput: GetModelUploadsInput;
+  GetPartUploadUrlInput: GetPartUploadUrlInput;
+  GetPartUploadUrlOutput: ResolverTypeWrapper<GetPartUploadUrlOutput>;
   GetUngroupedViewGroupInput: GetUngroupedViewGroupInput;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
   ImportBoqItemInput: ImportBoqItemInput;
@@ -7752,6 +7865,7 @@ export type ResolversTypes = {
   LimitedWorkspaceCollaboratorCollection: ResolverTypeWrapper<Omit<LimitedWorkspaceCollaboratorCollection, 'items'> & { items: Array<ResolversTypes['LimitedWorkspaceCollaborator']> }>;
   LimitedWorkspaceJoinRequest: ResolverTypeWrapper<LimitedWorkspaceJoinRequestGraphQLReturn>;
   LimitedWorkspaceJoinRequestCollection: ResolverTypeWrapper<Omit<LimitedWorkspaceJoinRequestCollection, 'items'> & { items: Array<ResolversTypes['LimitedWorkspaceJoinRequest']> }>;
+  ListUploadedPartsInput: ListUploadedPartsInput;
   MarkCommentViewedInput: MarkCommentViewedInput;
   MarkReceivedVersionInput: MarkReceivedVersionInput;
   Model: ResolverTypeWrapper<ModelGraphQLReturn>;
@@ -7771,6 +7885,9 @@ export type ResolversTypes = {
   MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
+  MultipartUploadPart: ResolverTypeWrapper<MultipartUploadPart>;
+  MultipartUploadPartCollection: ResolverTypeWrapper<MultipartUploadPartCollection>;
+  MultipartUploadPartInput: MultipartUploadPartInput;
   Mutation: ResolverTypeWrapper<{}>;
   Object: ResolverTypeWrapper<ObjectGraphQLReturn>;
   ObjectCollection: ResolverTypeWrapper<Omit<ObjectCollection, 'objects'> & { objects: Array<ResolversTypes['Object']> }>;
@@ -8036,6 +8153,7 @@ export type ResolversTypes = {
 
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
+  AbortMultipartUploadInput: AbortMultipartUploadInput;
   AccFolder: AccFolderGraphQLReturn;
   AccFolderCollection: Omit<AccFolderCollection, 'items'> & { items: Array<ResolversParentTypes['AccFolder']> };
   AccHub: Omit<AccHub, 'project' | 'projects'> & { project: ResolversParentTypes['AccProject'], projects: ResolversParentTypes['AccProjectCollection'] };
@@ -8157,6 +8275,7 @@ export type ResolversParentTypes = {
   CommitUpdateInput: CommitUpdateInput;
   CommitsDeleteInput: CommitsDeleteInput;
   CommitsMoveInput: CommitsMoveInput;
+  CompleteMultipartUploadInput: CompleteMultipartUploadInput;
   CountOnlyCollection: CountOnlyCollection;
   CreateAccSyncItemInput: CreateAccSyncItemInput;
   CreateApprovalFlowDefinitionInput: CreateApprovalFlowDefinitionInput;
@@ -8171,6 +8290,8 @@ export type ResolversParentTypes = {
   CreateFolderInput: CreateFolderInput;
   CreateModelInput: CreateModelInput;
   CreateMonthlyMeasurementInput: CreateMonthlyMeasurementInput;
+  CreateMultipartUploadInput: CreateMultipartUploadInput;
+  CreateMultipartUploadOutput: CreateMultipartUploadOutput;
   CreateQualityAcceptanceFormInput: CreateQualityAcceptanceFormInput;
   CreateSavedViewGroupInput: CreateSavedViewGroupInput;
   CreateSavedViewInput: CreateSavedViewInput;
@@ -8227,6 +8348,8 @@ export type ResolversParentTypes = {
   GenerateFileUploadUrlInput: GenerateFileUploadUrlInput;
   GenerateFileUploadUrlOutput: GenerateFileUploadUrlOutput;
   GetModelUploadsInput: GetModelUploadsInput;
+  GetPartUploadUrlInput: GetPartUploadUrlInput;
+  GetPartUploadUrlOutput: GetPartUploadUrlOutput;
   GetUngroupedViewGroupInput: GetUngroupedViewGroupInput;
   ID: Scalars['ID']['output'];
   ImportBoqItemInput: ImportBoqItemInput;
@@ -8244,6 +8367,7 @@ export type ResolversParentTypes = {
   LimitedWorkspaceCollaboratorCollection: Omit<LimitedWorkspaceCollaboratorCollection, 'items'> & { items: Array<ResolversParentTypes['LimitedWorkspaceCollaborator']> };
   LimitedWorkspaceJoinRequest: LimitedWorkspaceJoinRequestGraphQLReturn;
   LimitedWorkspaceJoinRequestCollection: Omit<LimitedWorkspaceJoinRequestCollection, 'items'> & { items: Array<ResolversParentTypes['LimitedWorkspaceJoinRequest']> };
+  ListUploadedPartsInput: ListUploadedPartsInput;
   MarkCommentViewedInput: MarkCommentViewedInput;
   MarkReceivedVersionInput: MarkReceivedVersionInput;
   Model: ModelGraphQLReturn;
@@ -8263,6 +8387,9 @@ export type ResolversParentTypes = {
   MonthlyMeasurementPreviewInput: MonthlyMeasurementPreviewInput;
   MoveBoqItemInput: MoveBoqItemInput;
   MoveVersionsInput: MoveVersionsInput;
+  MultipartUploadPart: MultipartUploadPart;
+  MultipartUploadPartCollection: MultipartUploadPartCollection;
+  MultipartUploadPartInput: MultipartUploadPartInput;
   Mutation: {};
   Object: ObjectGraphQLReturn;
   ObjectCollection: Omit<ObjectCollection, 'objects'> & { objects: Array<ResolversParentTypes['Object']> };
@@ -9279,6 +9406,12 @@ export type CreateEmbedTokenReturnResolvers<ContextType = GraphQLContext, Parent
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type CreateMultipartUploadOutputResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['CreateMultipartUploadOutput'] = ResolversParentTypes['CreateMultipartUploadOutput']> = {
+  fileId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  uploadId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type CurrencyBasedPricesResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['CurrencyBasedPrices'] = ResolversParentTypes['CurrencyBasedPrices']> = {
   gbp?: Resolver<ResolversTypes['WorkspacePaidPlanPrices'], ParentType, ContextType>;
   usd?: Resolver<ResolversTypes['WorkspacePaidPlanPrices'], ParentType, ContextType>;
@@ -9442,8 +9575,13 @@ export type FileUploadCollectionResolvers<ContextType = GraphQLContext, ParentTy
 };
 
 export type FileUploadMutationsResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['FileUploadMutations'] = ResolversParentTypes['FileUploadMutations']> = {
+  abortMultipartUpload?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FileUploadMutationsAbortMultipartUploadArgs, 'input'>>;
+  completeMultipartUpload?: Resolver<ResolversTypes['FileUpload'], ParentType, ContextType, RequireFields<FileUploadMutationsCompleteMultipartUploadArgs, 'input'>>;
+  createMultipartUpload?: Resolver<ResolversTypes['CreateMultipartUploadOutput'], ParentType, ContextType, RequireFields<FileUploadMutationsCreateMultipartUploadArgs, 'input'>>;
   finishFileImport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FileUploadMutationsFinishFileImportArgs, 'input'>>;
   generateUploadUrl?: Resolver<ResolversTypes['GenerateFileUploadUrlOutput'], ParentType, ContextType, RequireFields<FileUploadMutationsGenerateUploadUrlArgs, 'input'>>;
+  getPartUploadUrl?: Resolver<ResolversTypes['GetPartUploadUrlOutput'], ParentType, ContextType, RequireFields<FileUploadMutationsGetPartUploadUrlArgs, 'input'>>;
+  listUploadedParts?: Resolver<ResolversTypes['MultipartUploadPartCollection'], ParentType, ContextType, RequireFields<FileUploadMutationsListUploadedPartsArgs, 'input'>>;
   startFileImport?: Resolver<ResolversTypes['FileUpload'], ParentType, ContextType, RequireFields<FileUploadMutationsStartFileImportArgs, 'input'>>;
   updateFileImportProgress?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<FileUploadMutationsUpdateFileImportProgressArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -9501,6 +9639,12 @@ export type GendoAiRenderCollectionResolvers<ContextType = GraphQLContext, Paren
 
 export type GenerateFileUploadUrlOutputResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['GenerateFileUploadUrlOutput'] = ResolversParentTypes['GenerateFileUploadUrlOutput']> = {
   fileId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  url?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type GetPartUploadUrlOutputResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['GetPartUploadUrlOutput'] = ResolversParentTypes['GetPartUploadUrlOutput']> = {
+  partNumber?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   url?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -9716,6 +9860,18 @@ export type MonthlyMeasurementMutationsResolvers<ContextType = GraphQLContext, P
 export type MonthlyMeasurementPreviewResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MonthlyMeasurementPreview'] = ResolversParentTypes['MonthlyMeasurementPreview']> = {
   baseDate?: Resolver<ResolversTypes['BigInt'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['MonthlyMeasurementItemPreviewItem']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MultipartUploadPartResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MultipartUploadPart'] = ResolversParentTypes['MultipartUploadPart']> = {
+  etag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  partNumber?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  size?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MultipartUploadPartCollectionResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['MultipartUploadPartCollection'] = ResolversParentTypes['MultipartUploadPartCollection']> = {
+  parts?: Resolver<Array<ResolversTypes['MultipartUploadPart']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11244,6 +11400,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   CountOnlyCollection?: CountOnlyCollectionResolvers<ContextType>;
   CreateDashboardTokenReturn?: CreateDashboardTokenReturnResolvers<ContextType>;
   CreateEmbedTokenReturn?: CreateEmbedTokenReturnResolvers<ContextType>;
+  CreateMultipartUploadOutput?: CreateMultipartUploadOutputResolvers<ContextType>;
   CurrencyBasedPrices?: CurrencyBasedPricesResolvers<ContextType>;
   Dashboard?: DashboardResolvers<ContextType>;
   DashboardCollection?: DashboardCollectionResolvers<ContextType>;
@@ -11268,6 +11425,7 @@ export type Resolvers<ContextType = GraphQLContext> = {
   GendoAIRender?: GendoAiRenderResolvers<ContextType>;
   GendoAIRenderCollection?: GendoAiRenderCollectionResolvers<ContextType>;
   GenerateFileUploadUrlOutput?: GenerateFileUploadUrlOutputResolvers<ContextType>;
+  GetPartUploadUrlOutput?: GetPartUploadUrlOutputResolvers<ContextType>;
   JSONObject?: GraphQLScalarType;
   LegacyCommentViewerData?: LegacyCommentViewerDataResolvers<ContextType>;
   LimitedUser?: LimitedUserResolvers<ContextType>;
@@ -11288,6 +11446,8 @@ export type Resolvers<ContextType = GraphQLContext> = {
   MonthlyMeasurementItemPreviewItem?: MonthlyMeasurementItemPreviewItemResolvers<ContextType>;
   MonthlyMeasurementMutations?: MonthlyMeasurementMutationsResolvers<ContextType>;
   MonthlyMeasurementPreview?: MonthlyMeasurementPreviewResolvers<ContextType>;
+  MultipartUploadPart?: MultipartUploadPartResolvers<ContextType>;
+  MultipartUploadPartCollection?: MultipartUploadPartCollectionResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Object?: ObjectResolvers<ContextType>;
   ObjectCollection?: ObjectCollectionResolvers<ContextType>;

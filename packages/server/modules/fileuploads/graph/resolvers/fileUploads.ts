@@ -42,9 +42,22 @@ import {
 import {
   getDynamicPublicObjectStorage,
   getBlobMetadataFromStorage,
-  getSignedUrlFactory
+  getSignedUrlFactory,
+  abortMultipartUploadFactory,
+  completeMultipartUploadFactory,
+  createMultipartUploadFactory,
+  getMultipartUploadPartSignedUrlFactory,
+  listMultipartUploadPartsFactory
 } from '@/modules/blobstorage/clients/objectStorage'
+import {
+  abortBlobMultipartUploadFactory,
+  completeBlobMultipartUploadFactory,
+  createBlobMultipartUploadFactory,
+  getBlobMultipartPartUploadUrlFactory,
+  listBlobMultipartUploadPartsFactory
+} from '@/modules/blobstorage/services/multipartUpload'
 import { registerUploadCompleteAndStartFileImportFactory } from '@/modules/fileuploads/services/presigned'
+import { registerMultipartUploadCompleteAndStartFileImportFactory } from '@/modules/fileuploads/services/multipart'
 import {
   generatePresignedUrlFactory,
   registerCompletedUploadFactory
@@ -109,6 +122,116 @@ const getFileUploadModel = async (params: {
   }
 
   return null
+}
+
+const handleRvtFileImportDispatch = async (params: {
+  ctx: GraphQLContext
+  projectId: string
+  userId: string
+  upload: FileUploadRecordV2 & { modelName: string }
+  dispatchRvtFileImport: ReturnType<typeof dispatchRvtFileImportFactory>
+  updateFileUpload: ReturnType<typeof updateFileUploadFactory>
+  emitFileStatusChange: ReturnType<typeof notifyChangeInFileStatus>
+}) => {
+  const {
+    ctx,
+    projectId,
+    userId,
+    upload,
+    dispatchRvtFileImport,
+    updateFileUpload,
+    emitFileStatusChange
+  } = params
+
+  if (upload.fileType.toLocaleLowerCase() !== 'rvt') return
+
+  ctx.log.info(
+    {
+      projectId,
+      fileUploadId: upload.id,
+      fileName: upload.fileName,
+      modelId: upload.modelId,
+      modelName: upload.modelName,
+      userId
+    },
+    'RVT CONVERT GraphQL identified RVT upload'
+  )
+
+  try {
+    if (!upload.modelId || !upload.modelName) {
+      throw new BadRequestError('RVT file import requires a target model.')
+    }
+
+    ctx.log.info(
+      {
+        projectId,
+        fileUploadId: upload.id,
+        fileName: upload.fileName,
+        modelId: upload.modelId,
+        modelName: upload.modelName,
+        userId
+      },
+      'RVT CONVERT GraphQL dispatching RVT job'
+    )
+
+    await dispatchRvtFileImport({
+      projectId,
+      modelId: upload.modelId,
+      modelName: upload.modelName,
+      fileUpload: upload,
+      userId
+    })
+
+    ctx.log.info(
+      {
+        projectId,
+        fileUploadId: upload.id,
+        fileName: upload.fileName,
+        modelId: upload.modelId,
+        modelName: upload.modelName,
+        userId
+      },
+      'RVT CONVERT GraphQL dispatched RVT job successfully'
+    )
+  } catch (error) {
+    ctx.log.error(
+      {
+        err: error,
+        projectId,
+        fileUploadId: upload.id,
+        fileName: upload.fileName,
+        modelId: upload.modelId,
+        modelName: upload.modelName,
+        userId
+      },
+      'RVT CONVERT GraphQL failed to dispatch RVT job'
+    )
+
+    const failedFile = await updateFileUpload({
+      id: upload.id,
+      upload: {
+        convertedStatus: FileUploadConvertedStatus.Error,
+        convertedMessage:
+          error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+        convertedLastUpdate: new Date()
+      }
+    })
+
+    await emitFileStatusChange({
+      file: failedFile
+    })
+
+    ctx.log.warn(
+      {
+        projectId,
+        fileUploadId: failedFile.id,
+        fileName: failedFile.fileName,
+        convertedStatus: failedFile.convertedStatus,
+        convertedMessage: failedFile.convertedMessage
+      },
+      'RVT CONVERT GraphQL marked upload as error after dispatch failure'
+    )
+  }
 }
 
 const fileImporterConnectionUri = getFileImporterQueuePostgresUrl()
@@ -246,101 +369,279 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
       maximumFileSize
     })
 
-    if (uploadedFileData.fileType.toLocaleLowerCase() === 'rvt') {
-      ctx.log.info(
-        {
-          projectId,
-          fileUploadId: uploadedFileData.id,
-          fileName: uploadedFileData.fileName,
-          modelId: uploadedFileData.modelId,
-          modelName: uploadedFileData.modelName,
-          userId: ctx.userId
-        },
-        'RVT CONVERT GraphQL startFileImport identified RVT upload'
-      )
-
-      try {
-        if (!uploadedFileData.modelId || !uploadedFileData.modelName) {
-          throw new BadRequestError('RVT file import requires a target model.')
-        }
-
-        ctx.log.info(
-          {
-            projectId,
-            fileUploadId: uploadedFileData.id,
-            fileName: uploadedFileData.fileName,
-            modelId: uploadedFileData.modelId,
-            modelName: uploadedFileData.modelName,
-            userId: ctx.userId
-          },
-          'RVT CONVERT GraphQL startFileImport dispatching RVT job'
-        )
-
-        await dispatchRvtFileImport({
-          projectId,
-          modelId: uploadedFileData.modelId,
-          modelName: uploadedFileData.modelName,
-          fileUpload: uploadedFileData,
-          userId: ctx.userId
-        })
-
-        ctx.log.info(
-          {
-            projectId,
-            fileUploadId: uploadedFileData.id,
-            fileName: uploadedFileData.fileName,
-            modelId: uploadedFileData.modelId,
-            modelName: uploadedFileData.modelName,
-            userId: ctx.userId
-          },
-          'RVT CONVERT GraphQL startFileImport dispatched RVT job successfully'
-        )
-      } catch (error) {
-        ctx.log.error(
-          {
-            err: error,
-            projectId,
-            fileUploadId: uploadedFileData.id,
-            fileName: uploadedFileData.fileName,
-            modelId: uploadedFileData.modelId,
-            modelName: uploadedFileData.modelName,
-            userId: ctx.userId
-          },
-          'RVT CONVERT GraphQL startFileImport failed to dispatch RVT job'
-        )
-
-        const failedFile = await updateFileUpload({
-          id: uploadedFileData.id,
-          upload: {
-            convertedStatus: FileUploadConvertedStatus.Error,
-            convertedMessage:
-              error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
-            convertedLastUpdate: new Date()
-          }
-        })
-
-        await emitFileStatusChange({
-          file: failedFile
-        })
-
-        ctx.log.warn(
-          {
-            projectId,
-            fileUploadId: failedFile.id,
-            fileName: failedFile.fileName,
-            convertedStatus: failedFile.convertedStatus,
-            convertedMessage: failedFile.convertedMessage
-          },
-          'RVT CONVERT GraphQL startFileImport marked upload as error after dispatch failure'
-        )
-      }
-    }
+    await handleRvtFileImportDispatch({
+      ctx,
+      projectId,
+      userId: ctx.userId,
+      upload: uploadedFileData,
+      dispatchRvtFileImport,
+      updateFileUpload,
+      emitFileStatusChange
+    })
 
     return {
       ...uploadedFileData,
       streamId: uploadedFileData.projectId,
       branchName: uploadedFileData.modelName
     }
+  },
+
+  async createMultipartUpload(_parent, args, ctx) {
+    const { projectId } = args.input
+    if (!ctx.userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    if (!isFileUploadsEnabled())
+      throw new BadRequestError('File uploads are not enabled for this server')
+
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
+
+    const createMultipart = createBlobMultipartUploadFactory({
+      getBlob: getBlobFactory({ db: projectDb }),
+      createMultipartUpload: createMultipartUploadFactory({
+        objectStorage: projectStorage.private
+      }),
+      upsertBlob: upsertBlobFactory({ db: projectDb }),
+      updateBlob: updateBlobFactory({ db: projectDb }),
+      abortMultipartUpload: abortMultipartUploadFactory({
+        objectStorage: projectStorage.private
+      })
+    })
+
+    const blobId = cryptoRandomString({ length: 10 })
+    const { uploadId } = await createMultipart({
+      projectId: args.input.projectId,
+      userId: ctx.userId,
+      blobId,
+      fileName: args.input.fileName
+    })
+
+    return { fileId: blobId, uploadId }
+  },
+
+  async getPartUploadUrl(_parent, args, ctx) {
+    const { projectId, fileId, uploadId, partNumber } = args.input
+    if (!ctx.userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    if (!isFileUploadsEnabled())
+      throw new BadRequestError('File uploads are not enabled for this server')
+
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
+
+    const getPartUrl = getBlobMultipartPartUploadUrlFactory({
+      getBlob: getBlobFactory({ db: projectDb }),
+      getMultipartUploadPartSignedUrl: getMultipartUploadPartSignedUrlFactory({
+        objectStorage: getDynamicPublicObjectStorage({
+          objectStorage: projectStorage.public,
+          frontendOrigin: ctx.frontendOrigin
+        })
+      })
+    })
+
+    const url = await getPartUrl({
+      projectId,
+      blobId: fileId,
+      uploadId,
+      partNumber,
+      urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * TIME.minute
+    })
+
+    return { url, partNumber }
+  },
+
+  async completeMultipartUpload(_parent, args, ctx) {
+    const { projectId } = args.input
+    if (!ctx.userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    if (!isFileUploadsEnabled())
+      throw new BadRequestError('File uploads are not enabled for this server')
+
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
+
+    const pushJobToFileImporter = pushJobToFileImporterFactory({
+      getServerOrigin: fileImportServiceShouldUsePrivateObjectsServerUrl()
+        ? getPrivateObjectsServerOrigin
+        : getServerOrigin,
+      createAppToken: createAppTokenFactory({
+        storeApiToken: storeApiTokenFactory({ db }),
+        storeTokenScopes: storeTokenScopesFactory({ db }),
+        storeTokenResourceAccessDefinitions: storeTokenResourceAccessDefinitionsFactory(
+          { db }
+        ),
+        storeUserServerAppToken: storeUserServerAppTokenFactory({ db })
+      })
+    })
+
+    const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
+      queues: fileImportQueues,
+      allowUnscheduledFileTypes: ['rvt'],
+      pushJobToFileImporter,
+      saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
+      emit: getEventBus().emit
+    })
+
+    const insertNewUploadAndNotify = insertNewUploadAndNotifyFactory({
+      saveUploadFile: saveUploadFileFactory({ db: projectDb }),
+      emit: getEventBus().emit
+    })
+
+    const registerMultipartUploadCompleteAndStartFileImport =
+      registerMultipartUploadCompleteAndStartFileImportFactory({
+        completeMultipartUpload: completeBlobMultipartUploadFactory({
+          logger: ctx.log,
+          getBlob: getBlobFactory({ db: projectDb }),
+          updateBlob: updateBlobFactory({ db: projectDb }),
+          completeMultipartUpload: completeMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          }),
+          getBlobMetadataFromStorage: getBlobMetadataFromStorage({
+            objectStorage: projectStorage.private
+          })
+        }),
+        insertNewUploadAndNotify: FF_NEXT_GEN_FILE_IMPORTER_ENABLED
+          ? insertNewUploadAndNotifyV2
+          : insertNewUploadAndNotify,
+        getFileInfo: getFileInfoFactoryV2({ db: projectDb }),
+        getModelsByIds: getBranchesByIdsFactory({ db: projectDb })
+      })
+
+    const maximumFileSize = getFileSizeLimit()
+    const emitFileStatusChange = notifyChangeInFileStatus({
+      eventEmit: getEventBus().emit
+    })
+    const updateFileUpload = updateFileUploadFactory({ db: projectDb })
+    const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
+
+    const uploadedFileData = await registerMultipartUploadCompleteAndStartFileImport({
+      projectId: args.input.projectId,
+      fileId: args.input.fileId,
+      modelId: args.input.modelId,
+      userId: ctx.userId,
+      uploadId: args.input.uploadId,
+      parts: args.input.parts,
+      maximumFileSize
+    })
+
+    await handleRvtFileImportDispatch({
+      ctx,
+      projectId,
+      userId: ctx.userId,
+      upload: uploadedFileData,
+      dispatchRvtFileImport,
+      updateFileUpload,
+      emitFileStatusChange
+    })
+
+    return {
+      ...uploadedFileData,
+      streamId: uploadedFileData.projectId,
+      branchName: uploadedFileData.modelName
+    }
+  },
+
+  async abortMultipartUpload(_parent, args, ctx) {
+    const { projectId, fileId, uploadId } = args.input
+    if (!ctx.userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    if (!isFileUploadsEnabled())
+      throw new BadRequestError('File uploads are not enabled for this server')
+
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
+
+    const abortMultipart = abortBlobMultipartUploadFactory({
+      getBlob: getBlobFactory({ db: projectDb }),
+      abortMultipartUpload: abortMultipartUploadFactory({
+        objectStorage: projectStorage.private
+      }),
+      updateBlob: updateBlobFactory({ db: projectDb })
+    })
+
+    await abortMultipart({ projectId, blobId: fileId, uploadId })
+    return true
+  },
+
+  async listUploadedParts(_parent, args, ctx) {
+    const { projectId, fileId, uploadId } = args.input
+    if (!ctx.userId) {
+      throw new ForbiddenError('No userId provided')
+    }
+
+    await throwForNotHavingServerRole(ctx, Roles.Server.User)
+
+    throwIfResourceAccessNotAllowed({
+      resourceId: projectId,
+      resourceType: TokenResourceIdentifierType.Project,
+      resourceAccessRules: ctx.resourceAccessRules
+    })
+
+    if (!isFileUploadsEnabled())
+      throw new BadRequestError('File uploads are not enabled for this server')
+
+    const [projectDb, projectStorage] = await Promise.all([
+      getProjectDbClient({ projectId }),
+      getProjectObjectStorage({ projectId })
+    ])
+
+    const listParts = listBlobMultipartUploadPartsFactory({
+      getBlob: getBlobFactory({ db: projectDb }),
+      listMultipartUploadParts: listMultipartUploadPartsFactory({
+        objectStorage: projectStorage.private
+      })
+    })
+
+    const parts = await listParts({ projectId, blobId: fileId, uploadId })
+    return { parts }
   },
 
   async finishFileImport(_parent, args, ctx) {

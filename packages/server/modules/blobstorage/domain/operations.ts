@@ -5,7 +5,10 @@ import type {
 import type { MaybeNullOrUndefined, Nullable, Optional } from '@speckle/shared'
 import type { BlobUploadStatus } from '@speckle/shared/blobs'
 import type { Readable } from 'stream'
-import type { StoreFileStream } from '@/modules/blobstorage/domain/storageOperations'
+import type {
+  MultipartUploadPart,
+  StoreFileStream
+} from '@/modules/blobstorage/domain/storageOperations'
 
 export type GetBlob = (params: {
   streamId: string
@@ -85,6 +88,41 @@ export type RegisterCompletedUpload = (params: {
   expectedETag: string
   maximumFileSize: number
 }) => Promise<BlobStorageItem>
+
+export type CreateMultipartUploadOperation = (params: {
+  projectId: string
+  userId: string
+  blobId: string
+  fileName: string
+}) => Promise<{ uploadId: string }>
+
+export type GetMultipartUploadPartUrl = (params: {
+  projectId: string
+  blobId: string
+  uploadId: string
+  partNumber: number
+  urlExpiryDurationSeconds: number
+}) => Promise<string>
+
+export type CompleteMultipartUploadOperation = (params: {
+  projectId: string
+  blobId: string
+  uploadId: string
+  parts: MultipartUploadPart[]
+  maximumFileSize: number
+}) => Promise<BlobStorageItem>
+
+export type AbortMultipartUploadOperation = (params: {
+  projectId: string
+  blobId: string
+  uploadId: string
+}) => Promise<void>
+
+export type ListMultipartUploadPartsOperation = (params: {
+  projectId: string
+  blobId: string
+  uploadId: string
+}) => Promise<Array<MultipartUploadPart & { size: number }>>
 
 export type ExpirePendingUploads = (params: {
   timeoutThresholdSeconds: number

@@ -21,3 +21,35 @@ export type DeleteObject = (params: { objectKey: string }) => Promise<void>
 export type EnsureStorageAccess = (params: {
   createBucketIfNotExists: boolean
 }) => Promise<void>
+
+export type MultipartUploadPart = {
+  partNumber: number
+  etag: string
+}
+
+export type CreateMultipartUpload = (params: {
+  objectKey: string
+}) => Promise<{ uploadId: string }>
+
+export type GetMultipartUploadPartSignedUrl = (params: {
+  objectKey: string
+  uploadId: string
+  partNumber: number
+  urlExpiryDurationSeconds: number
+}) => Promise<string>
+
+export type CompleteMultipartUpload = (params: {
+  objectKey: string
+  uploadId: string
+  parts: MultipartUploadPart[]
+}) => Promise<{ eTag: string }>
+
+export type AbortMultipartUpload = (params: {
+  objectKey: string
+  uploadId: string
+}) => Promise<void>
+
+export type ListMultipartUploadParts = (params: {
+  objectKey: string
+  uploadId: string
+}) => Promise<Array<MultipartUploadPart & { size: number }>>

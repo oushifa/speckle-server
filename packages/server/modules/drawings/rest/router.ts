@@ -13,14 +13,31 @@ import {
   getProjectDrawingFactory,
   listProjectDrawingsFactory
 } from '@/modules/drawings/repositories/drawings'
-import { upsertBlobFactory } from '@/modules/blobstorage/repositories'
+import {
+  upsertBlobFactory,
+  getBlobFactory,
+  updateBlobFactory
+} from '@/modules/blobstorage/repositories'
 import {
   getDynamicPublicObjectStorage,
   getSignedDownloadUrlFactory,
-  getSignedUrlFactory
+  getBlobMetadataFromStorage,
+  abortMultipartUploadFactory,
+  completeMultipartUploadFactory,
+  createMultipartUploadFactory,
+  getMultipartUploadPartSignedUrlFactory,
+  listMultipartUploadPartsFactory
 } from '@/modules/blobstorage/clients/objectStorage'
-import { generatePresignedUrlFactory } from '@/modules/blobstorage/services/presigned'
+import {
+  abortBlobMultipartUploadFactory,
+  completeBlobMultipartUploadFactory,
+  createBlobMultipartUploadFactory,
+  getBlobMultipartPartUploadUrlFactory,
+  listBlobMultipartUploadPartsFactory
+} from '@/modules/blobstorage/services/multipartUpload'
 import { getBlobMetadataFactory, deleteBlobFactory } from '@/modules/blobstorage/repositories'
+import { getFileSizeLimit } from '@/modules/blobstorage/services/management'
+import { logger } from '@/observability/logging'
 import { fullyDeleteBlobFactory } from '@/modules/blobstorage/services/management'
 import { deleteObjectFactory } from '@/modules/blobstorage/repositories/blobs'
 import { triggerProjectDrawingDwgToDxfConversion } from '@/modules/drawings/services/dwgToDxf'
@@ -151,6 +168,18 @@ export const drawingsRouterFactory = (): Router => {
 
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(`${routeBase}/uploads/generate-url`, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${routeBase}/uploads/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(`${routeBase}/uploads/parts`, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${routeBase}/uploads/complete`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(`${routeBase}/uploads/abort`, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(`${routeBase}/:drawingId`, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(`${routeBase}/:drawingId/download`, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(
@@ -221,26 +250,218 @@ export const drawingsRouterFactory = (): Router => {
           getProjectObjectStorage({ projectId })
         ])
 
-        const generatePresignedUrl = generatePresignedUrlFactory({
-          getSignedUrl: getSignedUrlFactory({
+        const createMultipart = createBlobMultipartUploadFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          createMultipartUpload: createMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          }),
+          upsertBlob: upsertBlobFactory({ db: projectDb }),
+          updateBlob: updateBlobFactory({ db: projectDb }),
+          abortMultipartUpload: abortMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          })
+        })
+
+        const blobId = cryptoRandomString({ length: 10 })
+        const { uploadId } = await createMultipart({
+          projectId,
+          blobId,
+          userId,
+          fileName
+        })
+
+        res.json({ data: { blobId, uploadId } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/uploads/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const userId = req.context.userId
+        if (!userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const { blobId, uploadId } = req.body as Record<string, unknown>
+        const partNumber = Number((req.body as Record<string, unknown>).partNumber)
+        if (!blobId || typeof blobId !== 'string') {
+          return res.status(400).json({ error: 'blobId is required.' })
+        }
+        if (!uploadId || typeof uploadId !== 'string') {
+          return res.status(400).json({ error: 'uploadId is required.' })
+        }
+        if (!Number.isInteger(partNumber) || partNumber < 1) {
+          return res.status(400).json({ error: 'partNumber must be a positive integer.' })
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+
+        const getPartUrl = getBlobMultipartPartUploadUrlFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          getMultipartUploadPartSignedUrl: getMultipartUploadPartSignedUrlFactory({
             objectStorage: getDynamicPublicObjectStorage({
               objectStorage: projectStorage.public,
               frontendOrigin: resolveFrontendOriginFromRequest(req)
             })
-          }),
-          upsertBlob: upsertBlobFactory({ db: projectDb })
+          })
         })
 
-        const blobId = cryptoRandomString({ length: 10 })
-        const uploadUrl = await generatePresignedUrl({
+        const url = await getPartUrl({
           projectId,
           blobId,
-          userId,
-          fileName,
+          uploadId,
+          partNumber,
           urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * TIME.minute
         })
 
-        res.json({ data: { blobId, uploadUrl } })
+        res.json({ data: { url, partNumber } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${routeBase}/uploads/parts`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const userId = req.context.userId
+        if (!userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const blobId = typeof req.query.blobId === 'string' ? req.query.blobId : ''
+        const uploadId = typeof req.query.uploadId === 'string' ? req.query.uploadId : ''
+        if (!blobId) return res.status(400).json({ error: 'blobId is required.' })
+        if (!uploadId) return res.status(400).json({ error: 'uploadId is required.' })
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+
+        const listParts = listBlobMultipartUploadPartsFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          listMultipartUploadParts: listMultipartUploadPartsFactory({
+            objectStorage: projectStorage.private
+          })
+        })
+
+        const parts = await listParts({ projectId, blobId, uploadId })
+        res.json({ data: { parts } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/uploads/complete`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const userId = req.context.userId
+        if (!userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const { blobId, uploadId, parts } = req.body as Record<string, unknown>
+        if (!blobId || typeof blobId !== 'string') {
+          return res.status(400).json({ error: 'blobId is required.' })
+        }
+        if (!uploadId || typeof uploadId !== 'string') {
+          return res.status(400).json({ error: 'uploadId is required.' })
+        }
+        if (!Array.isArray(parts) || !parts.length) {
+          return res.status(400).json({ error: 'parts is required.' })
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+
+        const completeMultipart = completeBlobMultipartUploadFactory({
+          logger,
+          getBlob: getBlobFactory({ db: projectDb }),
+          updateBlob: updateBlobFactory({ db: projectDb }),
+          completeMultipartUpload: completeMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          }),
+          getBlobMetadataFromStorage: getBlobMetadataFromStorage({
+            objectStorage: projectStorage.private
+          })
+        })
+
+        const completedBlob = await completeMultipart({
+          projectId,
+          blobId,
+          uploadId,
+          parts: (parts as Array<{ partNumber?: unknown; etag?: unknown }>).map((part) => ({
+            partNumber:
+              typeof part.partNumber === 'number'
+                ? part.partNumber
+                : Number(part.partNumber),
+            etag: typeof part.etag === 'string' ? part.etag : String(part.etag || '')
+          })),
+          maximumFileSize: getFileSizeLimit()
+        })
+
+        res.json({
+          data: {
+            blobId: completedBlob.id,
+            fileSize: completedBlob.fileSize,
+            fileHash: completedBlob.fileHash
+          }
+        })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/uploads/abort`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const userId = req.context.userId
+        if (!userId) return res.status(401).json({ error: 'User not authenticated.' })
+
+        const projectId = req.params.projectId
+        const { blobId, uploadId } = req.body as Record<string, unknown>
+        if (!blobId || typeof blobId !== 'string') {
+          return res.status(400).json({ error: 'blobId is required.' })
+        }
+        if (!uploadId || typeof uploadId !== 'string') {
+          return res.status(400).json({ error: 'uploadId is required.' })
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+
+        const abortMultipart = abortBlobMultipartUploadFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          abortMultipartUpload: abortMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          }),
+          updateBlob: updateBlobFactory({ db: projectDb })
+        })
+
+        await abortMultipart({ projectId, blobId, uploadId })
+        res.json({ data: { ok: true } })
       } catch (err) {
         next(err)
       }

@@ -5,6 +5,7 @@ import type {
 } from '@/modules/fileuploads/helpers/types'
 import type { Optional } from '@speckle/shared'
 import type { UploadResult } from '@/modules/blobstorage/domain/types'
+import type { MultipartUploadPart } from '@/modules/blobstorage/domain/storageOperations'
 import type {
   FileImportResultPayload,
   JobPayloadV1
@@ -98,6 +99,16 @@ export type RegisterUploadCompleteAndStartFileImport = (args: {
   fileId: string
   userId: string
   expectedETag: string
+  maximumFileSize: number
+}) => Promise<FileUploadRecordV2 & { modelName: string }>
+
+export type RegisterMultipartUploadCompleteAndStartFileImport = (args: {
+  projectId: string
+  modelId: string
+  fileId: string
+  userId: string
+  uploadId: string
+  parts: MultipartUploadPart[]
   maximumFileSize: number
 }) => Promise<FileUploadRecordV2 & { modelName: string }>
 

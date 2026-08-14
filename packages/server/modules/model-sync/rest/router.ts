@@ -32,8 +32,11 @@ import {
 } from '@/modules/model-sync/services/retry'
 import {
   getLatestModelFileUploadFactory,
-  prepareModelSyncUploadFactory,
-  startModelFileImportFactory
+  prepareModelSyncMultipartUploadFactory,
+  getModelSyncPartUploadUrlFactory,
+  listModelSyncUploadedPartsFactory,
+  abortModelSyncMultipartUploadFactory,
+  completeModelSyncMultipartUploadFactory
 } from '@/modules/model-sync/services/speckleUploads'
 import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
 
@@ -200,6 +203,21 @@ export const modelSyncRouterFactory = () => {
   )
   router.options(
     `${routeBase}/:taskId/retry`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${routeBase}/:taskId/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${routeBase}/:taskId/parts`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${routeBase}/:taskId/abort-upload`,
     cors(),
     allowCrossOriginResourceAccessMiddelware()
   )
@@ -434,11 +452,10 @@ export const modelSyncRouterFactory = () => {
             throw new BadRequestError('fileName is required')
           }
 
-          const prepared = await prepareModelSyncUploadFactory()({
+          const prepared = await prepareModelSyncMultipartUploadFactory()({
             projectId,
             userId,
-            fileName,
-            req
+            fileName
           })
           const task = await createTask({
             projectId,
@@ -456,7 +473,7 @@ export const modelSyncRouterFactory = () => {
             data: serializeTask(task),
             upload: {
               fileId: prepared.fileId,
-              uploadUrl: prepared.uploadUrl
+              uploadId: prepared.uploadId
             }
           })
         }
@@ -516,9 +533,13 @@ export const modelSyncRouterFactory = () => {
           return res.status(401).json({ error: 'User not authenticated.' })
         }
 
-        const etag = typeof req.body?.etag === 'string' ? req.body.etag.trim() : ''
-        if (!etag) {
-          throw new BadRequestError('etag is required')
+        const uploadId = typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
+        const parts = Array.isArray(req.body?.parts) ? req.body.parts : []
+        if (!uploadId) {
+          throw new BadRequestError('uploadId is required')
+        }
+        if (!parts.length) {
+          throw new BadRequestError('parts is required')
         }
 
         const projectDb = await getProjectDbClient({ projectId })
@@ -533,12 +554,17 @@ export const modelSyncRouterFactory = () => {
           throw new BadRequestError('当前任务不处于待上传状态')
         }
 
-        const upload = await startModelFileImportFactory()({
+        const upload = await completeModelSyncMultipartUploadFactory()({
           projectId,
           modelId,
           userId,
           fileId: task.fileId,
-          etag
+          uploadId,
+          parts: parts.map((part: { partNumber?: unknown; etag?: unknown }) => ({
+            partNumber:
+              typeof part.partNumber === 'number' ? part.partNumber : Number(part.partNumber),
+            etag: typeof part.etag === 'string' ? part.etag : String(part.etag || '')
+          }))
         })
 
         const updatedTask = await updateTask({
@@ -569,6 +595,142 @@ export const modelSyncRouterFactory = () => {
         })
 
         res.json({ data: serializeTask(updatedTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/:taskId/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const modelId = req.params.modelId
+        const taskId = req.params.taskId
+        const userId = req.context.userId
+        await requireVersionCreate(req, projectId)
+
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated.' })
+        }
+
+        const partNumber = Number(req.body?.partNumber)
+        if (!Number.isInteger(partNumber) || partNumber < 1) {
+          throw new BadRequestError('partNumber is required and must be a positive integer')
+        }
+        const uploadId =
+          typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
+        if (!uploadId) {
+          throw new BadRequestError('uploadId is required')
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const getTask = getProjectModelSyncTaskFactory({ db: projectDb })
+        const task = await getTask({ projectId, modelId, taskId })
+        if (!task) {
+          return res.status(404).json({ error: 'Task not found' })
+        }
+        if (task.status !== 'waiting_upload' || !task.fileId) {
+          throw new BadRequestError('当前任务不处于待上传状态')
+        }
+
+        const url = await getModelSyncPartUploadUrlFactory()({
+          projectId,
+          fileId: task.fileId,
+          uploadId,
+          partNumber,
+          req
+        })
+
+        res.json({ data: { url, partNumber } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${routeBase}/:taskId/parts`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const modelId = req.params.modelId
+        const taskId = req.params.taskId
+        await requireProjectRead(req, projectId)
+
+        const uploadId =
+          typeof req.query.uploadId === 'string' ? req.query.uploadId.trim() : ''
+        if (!uploadId) {
+          throw new BadRequestError('uploadId is required')
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const getTask = getProjectModelSyncTaskFactory({ db: projectDb })
+        const task = await getTask({ projectId, modelId, taskId })
+        if (!task) {
+          return res.status(404).json({ error: 'Task not found' })
+        }
+        if (!task.fileId) {
+          throw new BadRequestError('任务缺少 fileId')
+        }
+
+        const parts = await listModelSyncUploadedPartsFactory()({
+          projectId,
+          fileId: task.fileId,
+          uploadId
+        })
+
+        res.json({ data: { parts } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${routeBase}/:taskId/abort-upload`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const modelId = req.params.modelId
+        const taskId = req.params.taskId
+        const userId = req.context.userId
+        await requireVersionCreate(req, projectId)
+
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated.' })
+        }
+
+        const uploadId =
+          typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
+        if (!uploadId) {
+          throw new BadRequestError('uploadId is required')
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const getTask = getProjectModelSyncTaskFactory({ db: projectDb })
+        const task = await getTask({ projectId, modelId, taskId })
+        if (!task) {
+          return res.status(404).json({ error: 'Task not found' })
+        }
+        if (!task.fileId) {
+          throw new BadRequestError('任务缺少 fileId')
+        }
+
+        await abortModelSyncMultipartUploadFactory()({
+          projectId,
+          fileId: task.fileId,
+          uploadId
+        })
+
+        res.json({ data: { ok: true } })
       } catch (err) {
         next(err)
       }

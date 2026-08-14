@@ -26,7 +26,8 @@ describe('Presigned @blobstorage', async () => {
           uploadStatus: BlobUploadStatus.Pending,
           uploadError: null,
           createdAt: new Date(),
-          fileHash: null
+          fileHash: null,
+          multipartUploadId: blob.multipartUploadId ?? null
         })
       })
       const response = await SUT({
@@ -54,7 +55,8 @@ describe('Presigned @blobstorage', async () => {
           uploadStatus: BlobUploadStatus.Pending,
           uploadError: null,
           createdAt: new Date(),
-          fileHash: null
+          fileHash: null,
+          multipartUploadId: blob.multipartUploadId ?? null
         })
       })
       const thrownError = await expectToThrow(() =>
@@ -83,7 +85,8 @@ describe('Presigned @blobstorage', async () => {
           uploadStatus: BlobUploadStatus.Pending,
           uploadError: null,
           createdAt: new Date(),
-          fileHash: null
+          fileHash: null,
+          multipartUploadId: blob.multipartUploadId ?? null
         })
       })
       const thrownError = await expectToThrow(() =>
@@ -111,7 +114,8 @@ describe('Presigned @blobstorage', async () => {
       createdAt: new Date(),
       fileHash: null,
       userId: cryptoRandomString({ length: 10 }),
-      objectKey: cryptoRandomString({ length: 10 })
+      objectKey: cryptoRandomString({ length: 10 }),
+      multipartUploadId: null
     })
 
     const fakeUpdateBlob = async () => ({
@@ -126,7 +130,8 @@ describe('Presigned @blobstorage', async () => {
       createdAt: new Date(),
       fileHash: cryptoRandomString({ length: 32 }),
       userId: cryptoRandomString({ length: 10 }),
-      objectKey: cryptoRandomString({ length: 10 })
+      objectKey: cryptoRandomString({ length: 10 }),
+      multipartUploadId: null
     })
     it('should error if the etag is not provided', async () => {
       const projectId = cryptoRandomString({ length: 10 })

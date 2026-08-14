@@ -14,11 +14,18 @@ export type BlobStorageItem = {
   uploadError: Nullable<string>
   createdAt: Date
   fileHash: Nullable<string>
+  multipartUploadId: Nullable<string>
 }
 
 export type BlobStorageItemInput = SetOptional<
   BlobStorageItem,
-  'fileSize' | 'fileType' | 'uploadStatus' | 'uploadError' | 'createdAt' | 'fileHash'
+  | 'fileSize'
+  | 'fileType'
+  | 'uploadStatus'
+  | 'uploadError'
+  | 'createdAt'
+  | 'fileHash'
+  | 'multipartUploadId'
 >
 
 export type UploadResult = ProcessingResult & {

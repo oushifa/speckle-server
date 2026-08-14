@@ -20,9 +20,20 @@ import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorage
 import { upsertBlobFactory } from '@/modules/blobstorage/repositories'
 import {
   getDynamicPublicObjectStorage,
-  getSignedUrlFactory
+  getBlobMetadataFromStorage,
+  abortMultipartUploadFactory,
+  completeMultipartUploadFactory,
+  createMultipartUploadFactory,
+  getMultipartUploadPartSignedUrlFactory,
+  listMultipartUploadPartsFactory
 } from '@/modules/blobstorage/clients/objectStorage'
-import { generatePresignedUrlFactory } from '@/modules/blobstorage/services/presigned'
+import {
+  abortBlobMultipartUploadFactory,
+  completeBlobMultipartUploadFactory,
+  createBlobMultipartUploadFactory,
+  getBlobMultipartPartUploadUrlFactory,
+  listBlobMultipartUploadPartsFactory
+} from '@/modules/blobstorage/services/multipartUpload'
 import {
   getFileUploadUrlExpiryMinutes,
   isFileUploadsEnabled,
@@ -35,8 +46,6 @@ import {
   getBlobFactory,
   updateBlobFactory
 } from '@/modules/blobstorage/repositories'
-import { getBlobMetadataFromStorage } from '@/modules/blobstorage/clients/objectStorage'
-import { registerCompletedUploadFactory } from '@/modules/blobstorage/services/presigned'
 import {
   insertNewUploadAndNotifyFactory,
   insertNewUploadAndNotifyFactoryV2
@@ -51,7 +60,7 @@ import {
   storeUserServerAppTokenFactory
 } from '@/modules/core/repositories/tokens'
 import { saveUploadFileFactory, saveUploadFileFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
-import { registerUploadCompleteAndStartFileImportFactory } from '@/modules/fileuploads/services/presigned'
+import { registerMultipartUploadCompleteAndStartFileImportFactory } from '@/modules/fileuploads/services/multipart'
 import { getBranchesByIdsFactory } from '@/modules/core/repositories/branches'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { getFileSizeLimit } from '@/modules/blobstorage/services/management'
@@ -94,6 +103,13 @@ export default (app: Router) => {
   app.options(`${route}/models/ensure`, cors(), allowCrossOriginResourceAccessMiddelware())
   app.options(`${route}/uploads/prepare`, cors(), allowCrossOriginResourceAccessMiddelware())
   app.options(`${route}/uploads/import`, cors(), allowCrossOriginResourceAccessMiddelware())
+  app.options(
+    `${route}/uploads/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  app.options(`${route}/uploads/parts`, cors(), allowCrossOriginResourceAccessMiddelware())
+  app.options(`${route}/uploads/abort`, cors(), allowCrossOriginResourceAccessMiddelware())
 
   app.post(
     `${route}/models/ensure`,
@@ -165,24 +181,23 @@ export default (app: Router) => {
           userId
         })
 
-        const generatePresignedUrl = generatePresignedUrlFactory({
-          getSignedUrl: getSignedUrlFactory({
-            objectStorage: getDynamicPublicObjectStorage({
-              objectStorage: projectStorage.public,
-              frontendOrigin: resolveFrontendOriginFromRequest(req)
-            })
+        const createMultipart = createBlobMultipartUploadFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          createMultipartUpload: createMultipartUploadFactory({
+            objectStorage: projectStorage.private
           }),
-          upsertBlob: upsertBlobFactory({
-            db: projectDb
+          upsertBlob: upsertBlobFactory({ db: projectDb }),
+          updateBlob: updateBlobFactory({ db: projectDb }),
+          abortMultipartUpload: abortMultipartUploadFactory({
+            objectStorage: projectStorage.private
           })
         })
         const fileId = cryptoRandomString({ length: 10 })
-        const uploadUrl = await generatePresignedUrl({
+        const { uploadId } = await createMultipart({
           projectId: MODEL_LIBRARY_PROJECT_ID,
           blobId: fileId,
           userId,
-          fileName,
-          urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * TIME.minute
+          fileName
         })
 
         res.json({
@@ -192,7 +207,7 @@ export default (app: Router) => {
             modelId: model.id,
             modelName: model.name,
             fileId,
-            uploadUrl
+            uploadId
           }
         })
       } catch (err) {
@@ -211,9 +226,13 @@ export default (app: Router) => {
         await ensureModelLibraryProject()
         await ensureModelLibraryProjectAccess({ userId })
 
-        const { etag, fileId, modelId, modelName, modelDescription } = req.body || {}
-        if (!etag || typeof etag !== 'string') {
-          throw new BadRequestError('ETag is required')
+        const { uploadId, parts, fileId, modelId, modelName, modelDescription } =
+          req.body || {}
+        if (!uploadId || typeof uploadId !== 'string') {
+          throw new BadRequestError('uploadId is required')
+        }
+        if (!Array.isArray(parts) || !parts.length) {
+          throw new BadRequestError('parts is required')
         }
         if (!fileId || typeof fileId !== 'string') {
           throw new BadRequestError('File ID is required')
@@ -272,15 +291,18 @@ export default (app: Router) => {
           emit: getEventBus().emit
         })
 
-        const registerUploadCompleteAndStartFileImport =
-          registerUploadCompleteAndStartFileImportFactory({
-            registerCompletedUpload: registerCompletedUploadFactory({
+        const registerMultipartUploadCompleteAndStartFileImport =
+          registerMultipartUploadCompleteAndStartFileImportFactory({
+            completeMultipartUpload: completeBlobMultipartUploadFactory({
               logger: req.log,
               getBlob: getBlobFactory({ db: projectDb }),
               updateBlob: updateBlobFactory({
                 db: projectDb
               }),
-              getBlobMetadata: getBlobMetadataFromStorage({
+              completeMultipartUpload: completeMultipartUploadFactory({
+                objectStorage: projectStorage.private
+              }),
+              getBlobMetadataFromStorage: getBlobMetadataFromStorage({
                 objectStorage: projectStorage.private
               })
             }),
@@ -297,12 +319,17 @@ export default (app: Router) => {
         const updateFileUpload = updateFileUploadFactory({ db: projectDb })
         const dispatchRvtFileImport = dispatchRvtFileImportFactory({ db: projectDb })
 
-        const upload = await registerUploadCompleteAndStartFileImport({
+        const upload = await registerMultipartUploadCompleteAndStartFileImport({
           projectId: MODEL_LIBRARY_PROJECT_ID,
           fileId,
           modelId: resolvedModel.id,
           userId,
-          expectedETag: etag,
+          uploadId,
+          parts: parts.map((part: { partNumber?: unknown; etag?: unknown }) => ({
+            partNumber:
+              typeof part.partNumber === 'number' ? part.partNumber : Number(part.partNumber),
+            etag: typeof part.etag === 'string' ? part.etag : String(part.etag || '')
+          })),
           maximumFileSize: getFileSizeLimit()
         })
 
@@ -346,6 +373,146 @@ export default (app: Router) => {
             modelName: resolvedModel.name
           }
         })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  app.post(
+    `${route}/uploads/part-upload-url`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const userId = await ensureServerUser(req)
+        await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
+
+        const { fileId, uploadId } = req.body || {}
+        const partNumber = Number(req.body?.partNumber)
+        if (!fileId || typeof fileId !== 'string') {
+          throw new BadRequestError('File ID is required')
+        }
+        if (!uploadId || typeof uploadId !== 'string') {
+          throw new BadRequestError('uploadId is required')
+        }
+        if (!Number.isInteger(partNumber) || partNumber < 1) {
+          throw new BadRequestError('partNumber is required and must be a positive integer')
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId: MODEL_LIBRARY_PROJECT_ID }),
+          getProjectObjectStorage({ projectId: MODEL_LIBRARY_PROJECT_ID })
+        ])
+
+        const getPartUrl = getBlobMultipartPartUploadUrlFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          getMultipartUploadPartSignedUrl: getMultipartUploadPartSignedUrlFactory({
+            objectStorage: getDynamicPublicObjectStorage({
+              objectStorage: projectStorage.public,
+              frontendOrigin: resolveFrontendOriginFromRequest(req)
+            })
+          })
+        })
+
+        const url = await getPartUrl({
+          projectId: MODEL_LIBRARY_PROJECT_ID,
+          blobId: fileId,
+          uploadId,
+          partNumber,
+          urlExpiryDurationSeconds: getFileUploadUrlExpiryMinutes() * TIME.minute
+        })
+
+        res.json({ data: { url, partNumber } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  app.get(
+    `${route}/uploads/parts`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const userId = await ensureServerUser(req)
+        await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
+
+        const fileId = typeof req.query.fileId === 'string' ? req.query.fileId : ''
+        const uploadId = typeof req.query.uploadId === 'string' ? req.query.uploadId : ''
+        if (!fileId) {
+          throw new BadRequestError('fileId is required')
+        }
+        if (!uploadId) {
+          throw new BadRequestError('uploadId is required')
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId: MODEL_LIBRARY_PROJECT_ID }),
+          getProjectObjectStorage({ projectId: MODEL_LIBRARY_PROJECT_ID })
+        ])
+
+        const listParts = listBlobMultipartUploadPartsFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          listMultipartUploadParts: listMultipartUploadPartsFactory({
+            objectStorage: projectStorage.private
+          })
+        })
+
+        const parts = await listParts({
+          projectId: MODEL_LIBRARY_PROJECT_ID,
+          blobId: fileId,
+          uploadId
+        })
+
+        res.json({ data: { parts } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  app.post(
+    `${route}/uploads/abort`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const userId = await ensureServerUser(req)
+        await ensureModelLibraryProject()
+        await ensureModelLibraryProjectAccess({ userId })
+
+        const { fileId, uploadId } = req.body || {}
+        if (!fileId || typeof fileId !== 'string') {
+          throw new BadRequestError('File ID is required')
+        }
+        if (!uploadId || typeof uploadId !== 'string') {
+          throw new BadRequestError('uploadId is required')
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId: MODEL_LIBRARY_PROJECT_ID }),
+          getProjectObjectStorage({ projectId: MODEL_LIBRARY_PROJECT_ID })
+        ])
+
+        const abortMultipart = abortBlobMultipartUploadFactory({
+          getBlob: getBlobFactory({ db: projectDb }),
+          abortMultipartUpload: abortMultipartUploadFactory({
+            objectStorage: projectStorage.private
+          }),
+          updateBlob: updateBlobFactory({ db: projectDb })
+        })
+
+        await abortMultipart({
+          projectId: MODEL_LIBRARY_PROJECT_ID,
+          blobId: fileId,
+          uploadId
+        })
+
+        res.json({ data: { ok: true } })
       } catch (err) {
         next(err)
       }

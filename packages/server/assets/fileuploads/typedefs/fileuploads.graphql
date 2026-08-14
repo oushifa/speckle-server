@@ -127,6 +127,63 @@ input StartFileImportInput {
   etag: String!
 }
 
+input CreateMultipartUploadInput {
+  projectId: String!
+  fileName: String!
+}
+
+type CreateMultipartUploadOutput {
+  fileId: String!
+  uploadId: String!
+}
+
+input GetPartUploadUrlInput {
+  projectId: String!
+  fileId: String!
+  uploadId: String!
+  partNumber: Int!
+}
+
+type GetPartUploadUrlOutput {
+  url: String!
+  partNumber: Int!
+}
+
+input MultipartUploadPartInput {
+  partNumber: Int!
+  etag: String!
+}
+
+input CompleteMultipartUploadInput {
+  projectId: String!
+  modelId: String!
+  fileId: String!
+  uploadId: String!
+  parts: [MultipartUploadPartInput!]!
+}
+
+input AbortMultipartUploadInput {
+  projectId: String!
+  fileId: String!
+  uploadId: String!
+}
+
+input ListUploadedPartsInput {
+  projectId: String!
+  fileId: String!
+  uploadId: String!
+}
+
+type MultipartUploadPart {
+  partNumber: Int!
+  etag: String!
+  size: Int!
+}
+
+type MultipartUploadPartCollection {
+  parts: [MultipartUploadPart!]!
+}
+
 input FileImportResultInput {
   """
   Total processing time in seconds, since job was picked up until it completed
@@ -195,6 +252,43 @@ type FileUploadMutations {
   called to register the completed upload and create the blob metadata.
   """
   startFileImport(input: StartFileImportInput!): FileUpload!
+    @hasServerRole(role: SERVER_USER)
+
+  """
+  Create a multipart upload session for resumable file uploads.
+  Returns the fileId and the S3 multipart uploadId, which the client must
+  retain to upload parts and later complete or abort the upload.
+  """
+  createMultipartUpload(
+    input: CreateMultipartUploadInput!
+  ): CreateMultipartUploadOutput!
+    @hasServerRole(role: SERVER_USER)
+
+  """
+  Generate a pre-signed URL for uploading a single part of a multipart upload.
+  """
+  getPartUploadUrl(input: GetPartUploadUrlInput!): GetPartUploadUrlOutput!
+    @hasServerRole(role: SERVER_USER)
+
+  """
+  Complete a multipart upload and start the file import flow.
+  The parts must be provided in ascending partNumber order with the ETags
+  returned by the object storage after each part upload.
+  """
+  completeMultipartUpload(input: CompleteMultipartUploadInput!): FileUpload!
+    @hasServerRole(role: SERVER_USER)
+
+  """
+  Abort an in-progress multipart upload, removing any uploaded parts from storage.
+  """
+  abortMultipartUpload(input: AbortMultipartUploadInput!): Boolean!
+    @hasServerRole(role: SERVER_USER)
+
+  """
+  List the parts that have already been uploaded for a multipart upload.
+  Used by clients to resume an interrupted upload without re-uploading parts.
+  """
+  listUploadedParts(input: ListUploadedPartsInput!): MultipartUploadPartCollection!
     @hasServerRole(role: SERVER_USER)
 
   """

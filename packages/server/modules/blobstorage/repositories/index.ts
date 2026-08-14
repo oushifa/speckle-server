@@ -34,7 +34,8 @@ export const BlobStorage = buildTableHelper('blob_storage', [
   'uploadStatus',
   'uploadError',
   'createdAt',
-  'fileHash'
+  'fileHash',
+  'multipartUploadId'
 ])
 
 const tables = {

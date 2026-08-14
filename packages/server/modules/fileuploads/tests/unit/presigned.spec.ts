@@ -27,7 +27,8 @@ describe('Presigned @blobstorage', async () => {
       createdAt: new Date(),
       fileHash: cryptoRandomString({ length: 32 }),
       userId,
-      objectKey: cryptoRandomString({ length: 10 })
+      objectKey: cryptoRandomString({ length: 10 }),
+      multipartUploadId: null
     })
     const fakeInsertNewUploadAndNotify = async (): Promise<
       FileUploadRecordV2 & { modelName: string }

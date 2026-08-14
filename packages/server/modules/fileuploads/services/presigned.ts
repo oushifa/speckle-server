@@ -1,4 +1,5 @@
 import type { RegisterCompletedUpload } from '@/modules/blobstorage/domain/operations'
+import type { BlobStorageItem } from '@/modules/blobstorage/domain/types'
 import type { GetBranchesByIds } from '@/modules/core/domain/branches/operations'
 import type {
   GetFileInfoV2,
@@ -11,26 +12,19 @@ import { ensureError } from '@speckle/shared'
 import { FileImportJobNotFoundError } from '@/modules/fileuploads/helpers/errors'
 import { get, isString } from 'lodash-es'
 
-export const registerUploadCompleteAndStartFileImportFactory = (deps: {
-  registerCompletedUpload: RegisterCompletedUpload
+export const startFileImportAfterBlobCompletedFactory = (deps: {
   insertNewUploadAndNotify: InsertNewUploadAndNotifyV2 | InsertNewUploadAndNotify
   getModelsByIds: GetBranchesByIds
   getFileInfo: GetFileInfoV2
-}): RegisterUploadCompleteAndStartFileImport => {
-  const {
-    registerCompletedUpload,
-    insertNewUploadAndNotify,
-    getModelsByIds,
-    getFileInfo
-  } = deps
-  return async (params) => {
-    const { projectId, modelId, fileId, userId, expectedETag, maximumFileSize } = params
-    const storedBlob = await registerCompletedUpload({
-      projectId,
-      blobId: fileId,
-      expectedETag,
-      maximumFileSize
-    })
+}) => {
+  const { insertNewUploadAndNotify, getModelsByIds, getFileInfo } = deps
+  return async (params: {
+    projectId: string
+    modelId: string
+    userId: string
+    storedBlob: BlobStorageItem
+  }) => {
+    const { projectId, modelId, userId, storedBlob } = params
 
     const [model] = await getModelsByIds([modelId], { streamId: projectId })
     if (!model) throw new ModelNotFoundError(undefined)
@@ -65,7 +59,7 @@ export const registerUploadCompleteAndStartFileImportFactory = (deps: {
       ) {
         // The file import record already exists, so we try to return the existing file info
         const storedFile = await getFileInfo({
-          fileId,
+          fileId: storedBlob.id,
           projectId
         })
         if (!storedFile) {
@@ -85,5 +79,31 @@ export const registerUploadCompleteAndStartFileImportFactory = (deps: {
         'Unexpected error while registering upload of a file as complete and requesting the file import to start.'
       )
     }
+  }
+}
+
+export const registerUploadCompleteAndStartFileImportFactory = (deps: {
+  registerCompletedUpload: RegisterCompletedUpload
+  insertNewUploadAndNotify: InsertNewUploadAndNotifyV2 | InsertNewUploadAndNotify
+  getModelsByIds: GetBranchesByIds
+  getFileInfo: GetFileInfoV2
+}): RegisterUploadCompleteAndStartFileImport => {
+  const { registerCompletedUpload } = deps
+  const startFileImport = startFileImportAfterBlobCompletedFactory(deps)
+  return async (params) => {
+    const { projectId, modelId, fileId, userId, expectedETag, maximumFileSize } = params
+    const storedBlob = await registerCompletedUpload({
+      projectId,
+      blobId: fileId,
+      expectedETag,
+      maximumFileSize
+    })
+
+    return await startFileImport({
+      projectId,
+      modelId,
+      userId,
+      storedBlob
+    })
   }
 }

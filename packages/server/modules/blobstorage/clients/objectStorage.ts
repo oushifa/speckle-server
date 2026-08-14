@@ -9,17 +9,31 @@ import {
 } from '@/modules/shared/helpers/envHelper'
 import type { S3ClientConfig } from '@aws-sdk/client-s3'
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListPartsCommand,
   PutObjectCommand,
-  S3Client
+  S3Client,
+  UploadPartCommand
 } from '@aws-sdk/client-s3'
+import type { ListPartsCommandOutput } from '@aws-sdk/client-s3'
 import { getSignedUrl as s3GetSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { Optional } from '@speckle/shared'
+import { BadRequestError } from '@/modules/shared/errors'
 import type {
   GetBlobMetadataFromStorage,
   GetSignedUrl
 } from '@/modules/blobstorage/domain/operations'
+import type {
+  AbortMultipartUpload,
+  CompleteMultipartUpload,
+  CreateMultipartUpload,
+  GetMultipartUploadPartSignedUrl,
+  ListMultipartUploadParts
+} from '@/modules/blobstorage/domain/storageOperations'
 
 export type GetProjectObjectStorage = (args: {
   projectId: string
@@ -198,5 +212,127 @@ export const getBlobMetadataFromStorage = (deps: {
       contentLength: metadata.ContentLength,
       eTag: metadata.ETag
     }
+  }
+}
+
+export const createMultipartUploadFactory = (deps: {
+  objectStorage: ObjectStorage
+}): CreateMultipartUpload => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+
+  return async ({ objectKey }) => {
+    const command = new CreateMultipartUploadCommand({
+      Bucket: bucket,
+      Key: objectKey
+    })
+    const res = await client.send(command)
+    if (!res.UploadId) {
+      throw new BadRequestError('No upload id returned when creating multipart upload')
+    }
+    return { uploadId: res.UploadId }
+  }
+}
+
+export const getMultipartUploadPartSignedUrlFactory = (deps: {
+  objectStorage: ObjectStorage
+}): GetMultipartUploadPartSignedUrl => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+
+  return async ({ objectKey, uploadId, partNumber, urlExpiryDurationSeconds }) => {
+    const command = new UploadPartCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      UploadId: uploadId,
+      PartNumber: partNumber
+    })
+    return await s3GetSignedUrl(client, command, {
+      expiresIn: urlExpiryDurationSeconds
+    })
+  }
+}
+
+export const completeMultipartUploadFactory = (deps: {
+  objectStorage: ObjectStorage
+}): CompleteMultipartUpload => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+
+  return async ({ objectKey, uploadId, parts }) => {
+    // S3 requires parts to be sorted in ascending order and provided in the exact order they were uploaded
+    const sortedParts = [...parts].sort((a, b) => a.partNumber - b.partNumber)
+    const command = new CompleteMultipartUploadCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: sortedParts.map((part) => ({
+          PartNumber: part.partNumber,
+          ETag: part.etag
+        }))
+      }
+    })
+    const res = await client.send(command)
+    if (!res.ETag) {
+      throw new BadRequestError('No ETag returned when completing multipart upload')
+    }
+    return { eTag: res.ETag }
+  }
+}
+
+export const abortMultipartUploadFactory = (deps: {
+  objectStorage: ObjectStorage
+}): AbortMultipartUpload => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+
+  return async ({ objectKey, uploadId }) => {
+    await client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: bucket,
+        Key: objectKey,
+        UploadId: uploadId
+      })
+    )
+  }
+}
+
+export const listMultipartUploadPartsFactory = (deps: {
+  objectStorage: ObjectStorage
+}): ListMultipartUploadParts => {
+  const { objectStorage } = deps
+  const { client, bucket } = objectStorage
+
+  return async ({ objectKey, uploadId }) => {
+    const parts: Array<{ partNumber: number; etag: string; size: number }> = []
+    let partNumberMarker: string | undefined = undefined
+
+    do {
+      const res: ListPartsCommandOutput = await client.send(
+        new ListPartsCommand({
+          Bucket: bucket,
+          Key: objectKey,
+          UploadId: uploadId,
+          PartNumberMarker: partNumberMarker
+        })
+      )
+
+      for (const part of res.Parts || []) {
+        if (part.PartNumber === undefined || !part.ETag) continue
+        parts.push({
+          partNumber: part.PartNumber,
+          etag: part.ETag,
+          size: part.Size || 0
+        })
+      }
+
+      partNumberMarker =
+        res.IsTruncated && res.NextPartNumberMarker
+          ? res.NextPartNumberMarker
+          : undefined
+    } while (partNumberMarker)
+
+    return parts
   }
 }
