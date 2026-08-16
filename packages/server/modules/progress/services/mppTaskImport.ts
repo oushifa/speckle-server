@@ -10,7 +10,16 @@ import {
 import { syncPlanTaskDerivedDataFactory } from '@/modules/progress/services/snapshotSync'
 import { execFile as execFileCallback } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
-import { access, mkdir, mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -23,6 +32,10 @@ const execFile = promisify(execFileCallback)
 type ExtractedPlanTask = {
   externalId?: string | null
   sysTaskId?: string | null
+  /** 工程量数量（按别名「工程量」列解析，例如 Text1） */
+  quantity?: string | null
+  /** 工程量单位（按别名「单位」列解析，例如 Text4） */
+  unit?: string | null
   parentExternalId?: string | null
   wbs?: string | null
   name: string
@@ -102,6 +115,18 @@ const getJavaSourcePathCandidates = () =>
     )
   ].filter((value): value is string => !!value?.trim())
 
+const getProbeSourcePathCandidates = () =>
+  [
+    process.env.PROGRESS_PLAN_MPP_PROBE_SOURCE,
+    resolve(currentDir, '../java/ProgressPlanFieldProbe.java'),
+    resolve(packageRoot, 'modules/progress/java/ProgressPlanFieldProbe.java'),
+    resolve(packageRoot, 'dist/modules/progress/java/ProgressPlanFieldProbe.java'),
+    resolve(
+      workspaceRoot,
+      'packages/server/modules/progress/java/ProgressPlanFieldProbe.java'
+    )
+  ].filter((value): value is string => !!value?.trim())
+
 const resolveJavaSourcePath = async () => {
   const attemptedPaths: string[] = []
 
@@ -114,6 +139,23 @@ const resolveJavaSourcePath = async () => {
 
   throw new Error(
     `ProgressPlanMppExtractor.java not found. Set PROGRESS_PLAN_MPP_EXTRACTOR_SOURCE or ensure the source file exists. Tried: ${attemptedPaths.join(
+      ', '
+    )}`
+  )
+}
+
+const resolveProbeSourcePath = async () => {
+  const attemptedPaths: string[] = []
+
+  for (const candidate of getProbeSourcePathCandidates()) {
+    attemptedPaths.push(candidate)
+    if (await pathExists(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(
+    `ProgressPlanFieldProbe.java not found. Set PROGRESS_PLAN_MPP_PROBE_SOURCE or ensure the source file exists. Tried: ${attemptedPaths.join(
       ', '
     )}`
   )
@@ -467,6 +509,111 @@ export const readCompiledExtractorSourceFactory = async () => {
   return await readFile(javaSourcePath, 'utf8')
 }
 
+const compiledProbeClassPath = join(javaBuildDir, 'ProgressPlanFieldProbe.class')
+
+const ensureCompiledProbe = async () => {
+  await mkdir(javaBuildDir, { recursive: true })
+
+  const probeSourcePath = await resolveProbeSourcePath()
+  const sourceStats = await stat(probeSourcePath)
+  const shouldCompile = !(await pathExists(compiledProbeClassPath))
+    ? true
+    : (await stat(compiledProbeClassPath)).mtimeMs < sourceStats.mtimeMs
+
+  if (!shouldCompile) return
+
+  const [javacBin, mpxjLibDir] = await Promise.all([
+    resolveBinary(javacPathCandidates, 'javac runtime'),
+    resolveMpxjLibDir()
+  ])
+
+  await execFile(
+    javacBin,
+    ['-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, probeSourcePath],
+    {
+      env: {
+        ...process.env,
+        PATH: `/opt/homebrew/opt/openjdk/bin:${process.env.PATH || ''}`,
+        JAVA_HOME: '/opt/homebrew/opt/openjdk'
+      }
+    }
+  )
+}
+
+export type ProgressPlanFieldProbeResult = {
+  projectTitle: string | null
+  populatedFields: string[]
+  /** 自定义字段定义：field=字段名（如 Text1），alias=列显示名（如 工程量） */
+  customFieldDefinitions?: Array<{ field: string; alias: string | null }>
+  /** 按别名反查字段类型，如 { 工程量: 'Text1' } */
+  aliasLookup?: Record<string, string>
+  taskCount: number
+  tasks: Array<Record<string, unknown>>
+}
+
+const runFieldProbe = async (
+  inputFilePath: string
+): Promise<ProgressPlanFieldProbeResult> => {
+  await ensureCompiledProbe()
+
+  const [javaBin, mpxjLibDir] = await Promise.all([
+    resolveBinary(javaPathCandidates, 'java runtime'),
+    resolveMpxjLibDir()
+  ])
+
+  const { stdout, stderr } = await execFile(
+    javaBin,
+    ['-cp', `${javaBuildDir}:${mpxjLibDir}/*`, 'ProgressPlanFieldProbe', inputFilePath],
+    {
+      env: {
+        ...process.env,
+        PATH: `/opt/homebrew/opt/openjdk/bin:${process.env.PATH || ''}`,
+        JAVA_HOME: '/opt/homebrew/opt/openjdk'
+      },
+      maxBuffer: 1024 * 1024 * 50
+    }
+  )
+
+  // stdout 可能带 log4j 日志前缀，从第一个 '{' 开始才是 JSON
+  const jsonStart = stdout.indexOf('{')
+  if (jsonStart === -1) {
+    const stderrPreview = buildOutputPreview(stderr || '')
+    throw new Error(
+      `Failed to parse probe JSON from .mpp field probe stdout. stderr: ${stderrPreview}`
+    )
+  }
+
+  try {
+    return JSON.parse(stdout.slice(jsonStart)) as ProgressPlanFieldProbeResult
+  } catch (error) {
+    const stderrPreview = buildOutputPreview(stderr || '')
+    const message =
+      error instanceof Error ? error.message : 'Unknown probe output parsing error.'
+    throw new Error(`${message} stderr: ${stderrPreview}`)
+  }
+}
+
+/**
+ * 直接对本地 .mpp 文件运行标准计划提取器（跳过 blob/数据库环节），
+ * 供单元测试与调试使用。
+ */
+export const runProgressPlanExtractorOnFile = async (
+  inputFilePath: string
+): Promise<ExtractedPlanTask[]> => {
+  return await runExtractor(inputFilePath)
+}
+
+/**
+ * 对本地 .mpp 文件运行字段探针，导出每个任务可读取到的全部字段
+ * （含自定义 Text/Number/Cost/Flag/Date/Duration/Start/Finish 字段），
+ * 用于确认工程量等业务数据存放在哪个字段。
+ */
+export const runProgressPlanFieldProbe = async (
+  inputFilePath: string
+): Promise<ProgressPlanFieldProbeResult> => {
+  return await runFieldProbe(inputFilePath)
+}
+
 export const exportProgressPlanFileWithSysTaskIdFactory =
   (deps: { db: Knex; storage: ObjectStorage }) =>
   async (params: { projectId: string; blobId: string; fileName: string }) => {
@@ -490,10 +637,13 @@ export const exportProgressPlanFileWithSysTaskIdFactory =
 
     const mappingsFilePath = join(tempDir, 'task-mappings.json')
     await readFile(mappingsFilePath, 'utf8').catch(() => null)
-    const { writeFile } = await import('node:fs/promises')
     await writeFile(mappingsFilePath, JSON.stringify(mappings, null, 2), 'utf8')
 
-    const outputFileName = `exported_${sanitizeFileName(params.fileName)}`
+    // 当前 mpxj 版本不支持写 .mpp 二进制，统一导出为 MSPDI(.xml) 格式
+    const outputFileName = `exported_${sanitizeFileName(params.fileName).replace(
+      /\.(mpp|xml|mspdi|mpx|json)$/i,
+      ''
+    )}.xml`
     const outputFilePath = join(tempDir, outputFileName)
 
     try {
@@ -504,9 +654,45 @@ export const exportProgressPlanFileWithSysTaskIdFactory =
       })
 
       const exportedBuffer = await readFile(outputFilePath)
-      return { exportedBuffer, tempDir }
+      return { exportedBuffer, tempDir, outputFileName }
     } catch {
       const fallbackBuffer = await readFile(tempFilePath)
-      return { exportedBuffer: fallbackBuffer, tempDir }
+      return {
+        exportedBuffer: fallbackBuffer,
+        tempDir,
+        outputFileName: params.fileName
+      }
     }
   }
+
+export type ProgressPlanWriterMapping = {
+  externalId?: string | null
+  wbs?: string | null
+  sysTaskId?: string | null
+}
+
+/**
+ * 直接对本地 .mpp 文件运行计划导出器（跳过 blob/数据库环节），
+ * 供单元测试与调试使用。
+ *
+ * 注意：当前 mpxj 版本不支持写 .mpp 二进制，导出格式由输出文件后缀决定
+ * （.xml/.mspdi -> MSPDI，.mpx -> MPX，.json -> JSON；.mpp 会抛错）。
+ */
+export const runProgressPlanWriterOnFile = async (params: {
+  inputFilePath: string
+  outputFilePath: string
+  mappings: ProgressPlanWriterMapping[]
+}): Promise<void> => {
+  const tempDir = await mkdtemp(join(tmpdir(), 'speckle-progress-mpp-writer-'))
+  const mappingsFilePath = join(tempDir, 'task-mappings.json')
+  try {
+    await writeFile(mappingsFilePath, JSON.stringify(params.mappings, null, 2), 'utf8')
+    await runWriter({
+      inputFilePath: params.inputFilePath,
+      outputFilePath: params.outputFilePath,
+      mappingsFilePath
+    })
+  } finally {
+    await rm(tempDir, { recursive: true, force: true })
+  }
+}

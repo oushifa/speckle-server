@@ -314,6 +314,19 @@ interface LogEntry {
 }
 
 const OP_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
+  // 项目管理 — 主色
+  创建项目: {
+    bg: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+    color: 'var(--primary)'
+  },
+  项目删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
+  项目批量删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 15%, transparent)',
+    color: 'var(--destructive)'
+  },
   // 文件管理 — 蓝
   模型上传: {
     bg: 'color-mix(in srgb, var(--chart-3) 15%, transparent)',
@@ -330,6 +343,22 @@ const OP_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   模型删除: {
     bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
     color: 'var(--destructive)'
+  },
+  模型编辑: {
+    bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)',
+    color: 'var(--chart-3)'
+  },
+  版本删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
+  版本移动: {
+    bg: 'color-mix(in srgb, var(--chart-3) 12%, transparent)',
+    color: 'var(--chart-3)'
+  },
+  版本编辑: {
+    bg: 'color-mix(in srgb, var(--chart-3) 10%, transparent)',
+    color: 'var(--chart-3)'
   },
   // 协同 — 紫
   协同批注: {
@@ -367,6 +396,10 @@ const OP_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
     bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)',
     color: 'var(--chart-4)'
   },
+  清单导入: {
+    bg: 'color-mix(in srgb, var(--chart-4) 10%, transparent)',
+    color: 'var(--chart-4)'
+  },
   验工提交: {
     bg: 'color-mix(in srgb, var(--chart-4) 15%, transparent)',
     color: 'var(--chart-4)'
@@ -375,10 +408,63 @@ const OP_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
     bg: 'color-mix(in srgb, var(--chart-4) 18%, transparent)',
     color: 'var(--chart-4)'
   },
+  验工新增: {
+    bg: 'color-mix(in srgb, var(--chart-4) 12%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  验工编辑: {
+    bg: 'color-mix(in srgb, var(--chart-4) 10%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  验工删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
+  预算同步: {
+    bg: 'color-mix(in srgb, var(--chart-4) 10%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  验工调整: {
+    bg: 'color-mix(in srgb, var(--chart-4) 10%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  拨款编辑: {
+    bg: 'color-mix(in srgb, var(--chart-4) 10%, transparent)',
+    color: 'var(--chart-4)'
+  },
+  // 安全文明措施费 — 绿
+  措施新增: {
+    bg: 'color-mix(in srgb, var(--chart-2) 12%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  措施编辑: {
+    bg: 'color-mix(in srgb, var(--chart-2) 10%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  措施删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
+  },
+  措施提交: {
+    bg: 'color-mix(in srgb, var(--chart-2) 15%, transparent)',
+    color: 'var(--chart-2)'
+  },
+  措施关联: {
+    bg: 'color-mix(in srgb, var(--chart-2) 10%, transparent)',
+    color: 'var(--chart-2)'
+  },
   // 档案 — 紫
   档案上传: {
     bg: 'color-mix(in srgb, var(--chart-1) 12%, transparent)',
     color: 'var(--chart-1)'
+  },
+  档案编辑: {
+    bg: 'color-mix(in srgb, var(--chart-1) 10%, transparent)',
+    color: 'var(--chart-1)'
+  },
+  档案删除: {
+    bg: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+    color: 'var(--destructive)'
   },
   一致性检查: {
     bg: 'color-mix(in srgb, var(--chart-1) 15%, transparent)',

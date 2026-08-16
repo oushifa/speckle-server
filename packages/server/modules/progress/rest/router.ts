@@ -608,6 +608,8 @@ const serializePlanTask = (node: SerializedPlanTaskNode) => ({
   planFileId: node.task.planFileId,
   externalId: node.task.externalId,
   sysTaskId: node.task.sysTaskId,
+  quantity: node.task.quantity,
+  unit: node.task.unit,
   wbs: node.task.wbs,
   taskName: node.task.name,
   parentId: node.resolvedParentId,
@@ -764,7 +766,7 @@ const syncMissingMonthlyTasksFromActual = async (
       endDate: Date | null
       totalVolume: string
       unit: string
-      plannedVolume: string | number
+      plannedVolume: string | number | null
       actualVolume: string
       progressPercent: number
       remark: string
@@ -788,9 +790,9 @@ const syncMissingMonthlyTasksFromActual = async (
             linkedPlanTaskName: t.taskName || planTask.name,
             startDate: planTask.planStart,
             endDate: planTask.planEnd,
-            totalVolume: planTask.volume || '1000',
-            unit: planTask.unit || 'm³',
-            plannedVolume: t.plannedVolume || '200',
+            totalVolume: planTask.quantity || null,
+            unit: planTask.unit || null,
+            plannedVolume: t.plannedVolume || null,
             actualVolume: '0',
             progressPercent: 0,
             remark: '由实际进度填报同步追加',
@@ -1890,7 +1892,7 @@ const buildRoute = (router: Router) => {
           storage: projectStorage.private
         })
 
-        const { exportedBuffer, tempDir } = await exportPlanFile({
+        const { exportedBuffer, tempDir, outputFileName } = await exportPlanFile({
           projectId,
           blobId: latestFile.blobId,
           fileName: latestFile.fileName
@@ -1900,7 +1902,10 @@ const buildRoute = (router: Router) => {
 
         res.writeHead(200, {
           'Content-Type': 'application/octet-stream',
-          'Content-Disposition': contentDisposition(latestFile.fileName)
+          // 导出为 MSPDI(.xml)，下载文件名与导出的实际文件一致
+          'Content-Disposition': contentDisposition(
+            outputFileName || latestFile.fileName
+          )
         })
 
         res.end(exportedBuffer, () => {

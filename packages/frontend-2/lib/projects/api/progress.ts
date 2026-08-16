@@ -42,6 +42,9 @@ export type ProgressPlanTask = {
   projectId: string
   planFileId: string | null
   externalId: string | null
+  sysTaskId: string | null
+  quantity: string | null
+  unit: string | null
   wbs: string | null
   taskName: string
   parentId: string | null
@@ -409,12 +412,7 @@ export async function updateProgressPlanTaskBimAssociation(params: {
   }> | null
   apiOrigin: string
 }) {
-  const {
-    projectId,
-    taskId,
-    BIM,
-    apiOrigin
-  } = params
+  const { projectId, taskId, BIM, apiOrigin } = params
   try {
     const payload = await $fetch<{ data: ProgressPlanTask }>(
       new URL(
@@ -490,16 +488,24 @@ export async function getActualProgressRecords(params: {
     return records.map((record) => {
       const startBIM = record.startBIM || record.BIM || []
       const finishBIM = record.finishBIM || []
-      
-      const startModelIds = [...new Set(startBIM.map((e: any) => e.modelId))] as string[]
-      const startApplicationIds = startBIM.flatMap((e: any) => e.applicationIds) as string[]
+
+      const startModelIds = [
+        ...new Set(startBIM.map((e: any) => e.modelId))
+      ] as string[]
+      const startApplicationIds = startBIM.flatMap(
+        (e: any) => e.applicationIds
+      ) as string[]
       const startSelections = startBIM.map((e: any) => ({
         modelId: e.modelId,
         applicationIds: e.applicationIds
       }))
 
-      const finishModelIds = [...new Set(finishBIM.map((e: any) => e.modelId))] as string[]
-      const finishApplicationIds = finishBIM.flatMap((e: any) => e.applicationIds) as string[]
+      const finishModelIds = [
+        ...new Set(finishBIM.map((e: any) => e.modelId))
+      ] as string[]
+      const finishApplicationIds = finishBIM.flatMap(
+        (e: any) => e.applicationIds
+      ) as string[]
       const finishSelections = finishBIM.map((e: any) => ({
         modelId: e.modelId,
         applicationIds: e.applicationIds
@@ -760,7 +766,7 @@ export async function downloadLatestProgressPlanFile(params: {
   apiOrigin: string
   fallbackFileName?: string
 }) {
-  const { projectId, apiOrigin, fallbackFileName = 'progress-plan.mpp' } = params
+  const { projectId, apiOrigin, fallbackFileName = 'progress-plan.xml' } = params
   try {
     const response = await $fetch.raw<Blob>(
       new URL(
@@ -830,7 +836,10 @@ export async function getProgressMonthlyPlans(params: {
   const { projectId, apiOrigin } = params
   try {
     const response = await $fetch<{ data: MonthlyRecordItem[] }>(
-      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress/monthly-plans`,
+        apiOrigin
+      ).toString(),
       {
         method: 'GET'
       }
@@ -853,7 +862,10 @@ export async function createProgressMonthlyPlan(params: {
   const { projectId, apiOrigin, input } = params
   try {
     const response = await $fetch<{ data: MonthlyRecordItem }>(
-      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress/monthly-plans`,
+        apiOrigin
+      ).toString(),
       {
         method: 'POST',
         body: input
@@ -878,7 +890,10 @@ export async function updateProgressMonthlyPlan(params: {
   const { projectId, planId, apiOrigin, input } = params
   try {
     const response = await $fetch<{ data: MonthlyRecordItem }>(
-      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`,
+        apiOrigin
+      ).toString(),
       {
         method: 'PUT',
         body: input
@@ -898,7 +913,10 @@ export async function deleteProgressMonthlyPlan(params: {
   const { projectId, planId, apiOrigin } = params
   try {
     await $fetch<{ data: { id: string } }>(
-      new URL(`/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress/monthly-plans/${planId}`,
+        apiOrigin
+      ).toString(),
       {
         method: 'DELETE'
       }
@@ -933,4 +951,3 @@ export async function updateMonthlyPlanTaskBimAssociation(params: {
     throw new Error(parseUnknownError(error))
   }
 }
-

@@ -68,10 +68,7 @@
                   <span class="text-danger">*</span>
                 </th>
                 <th class="px-3 py-2 w-28">总工程量</th>
-                <th class="px-3 py-2 w-24">
-                  单位
-                  <span class="text-danger">*</span>
-                </th>
+                <th class="px-3 py-2 w-24">单位</th>
                 <th class="px-3 py-2 w-32">本月计划量</th>
                 <th class="px-3 py-2 min-w-[150px]">备注</th>
                 <th class="px-3 py-2 w-12 text-center"></th>
@@ -233,7 +230,7 @@ const emptyTask = (): MonthlyTaskItem => ({
   startDate: '',
   endDate: '',
   totalVolume: '',
-  unit: 'm³',
+  unit: '',
   plannedVolume: '',
   actualVolume: '0',
   progressPercent: 0,
@@ -323,7 +320,7 @@ const isValid = computed(() => {
     !!yearMonth.value &&
     !!createdBy.value &&
     tasks.value.length > 0 &&
-    tasks.value.every((t) => t.taskName && t.startDate && t.endDate && t.unit)
+    tasks.value.every((t) => t.taskName && t.startDate && t.endDate)
   )
 })
 
@@ -430,7 +427,7 @@ const handleFetchMonthlyTasks = () => {
           : mt.endDate.substring(0, 10)
         : ''
       t.totalVolume = mt.volume || ''
-      t.unit = mt.unit || 'm³'
+      t.unit = mt.unit || ''
       return t
     })
     triggerNotification({

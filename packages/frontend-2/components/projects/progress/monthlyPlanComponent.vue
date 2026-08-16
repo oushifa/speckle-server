@@ -25,17 +25,28 @@
         </FormButton>
       </div>
 
-      <FormButton size="sm" color="primary" :icon-left="Plus" @click="isAddDialogOpen = true">
+      <FormButton
+        size="sm"
+        color="primary"
+        :icon-left="Plus"
+        @click="isAddDialogOpen = true"
+      >
         新增月度计划
       </FormButton>
     </div>
 
     <!-- Monthly Plan List by Month -->
-    <div v-if="!filteredRecords.length" class="rounded-lg border border-outline-2 bg-foundation py-12 text-center text-body-sm text-foreground-2">
+    <div
+      v-if="!filteredRecords.length"
+      class="rounded-lg border border-outline-2 bg-foundation py-12 text-center text-body-sm text-foreground-2"
+    >
       暂无月度计划，点击「新增月度计划」开始
     </div>
 
-    <div v-else class="border border-outline-2 rounded-lg overflow-hidden bg-foundation">
+    <div
+      v-else
+      class="border border-outline-2 rounded-lg overflow-hidden bg-foundation"
+    >
       <!-- 统一表格大表头 -->
       <div
         class="grid grid-cols-[48px_100px_1fr_100px_100px_160px_100px] gap-3 bg-foundation-page px-4 py-3 text-body-xs font-semibold text-foreground-2 border-b border-outline-2 select-none"
@@ -86,7 +97,10 @@
               >
                 {{ t.taskName }}
               </span>
-              <span v-if="record.tasks.length > 3" class="text-body-xs text-foreground-2 shrink-0">
+              <span
+                v-if="record.tasks.length > 3"
+                class="text-body-xs text-foreground-2 shrink-0"
+              >
                 +{{ record.tasks.length - 3 }} 项
               </span>
             </div>
@@ -124,10 +138,15 @@
           </div>
 
           <!-- Expanded Tasks List -->
-          <div v-if="expandedRecordIds.includes(record.id)" class="border-t border-outline-2 bg-foundation-page/10">
+          <div
+            v-if="expandedRecordIds.includes(record.id)"
+            class="border-t border-outline-2 bg-foundation-page/10"
+          >
             <div class="overflow-x-auto">
               <table class="w-full text-left text-body-sm">
-                <thead class="bg-foundation-page text-foreground-2 border-b border-outline-2 select-none">
+                <thead
+                  class="bg-foundation-page text-foreground-2 border-b border-outline-2 select-none"
+                >
                   <tr>
                     <th class="px-3 py-2 w-10 text-center">#</th>
                     <th class="px-3 py-2 min-w-[180px]">任务名称</th>
@@ -148,17 +167,33 @@
                     :key="task.id"
                     class="hover:bg-foundation-2/30 transition-colors"
                   >
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ idx + 1 }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ idx + 1 }}
+                    </td>
                     <td class="px-3 py-2 font-medium">{{ task.taskName }}</td>
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.startDate }}</td>
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.endDate }}</td>
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.totalVolume || '-' }}</td>
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.unit }}</td>
-                    <td class="px-3 py-2 font-medium text-center">{{ task.plannedVolume || '-' }}</td>
-                    <td class="px-3 py-2 text-foreground-2 text-center">{{ task.actualVolume || '-' }}</td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ task.startDate }}
+                    </td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ task.endDate }}
+                    </td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ task.totalVolume || '-' }}
+                    </td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ task.unit }}
+                    </td>
+                    <td class="px-3 py-2 font-medium text-center">
+                      {{ task.plannedVolume || '-' }}
+                    </td>
+                    <td class="px-3 py-2 text-foreground-2 text-center">
+                      {{ task.actualVolume || '-' }}
+                    </td>
                     <td class="px-3 py-2">
                       <div class="flex items-center gap-2">
-                        <div class="flex-1 rounded-full h-1.5 bg-outline-3 overflow-hidden">
+                        <div
+                          class="flex-1 rounded-full h-1.5 bg-outline-3 overflow-hidden"
+                        >
                           <div
                             class="rounded-full h-full transition-all"
                             :class="[
@@ -168,39 +203,46 @@
                                 ? 'bg-warning'
                                 : 'bg-danger'
                             ]"
-                            :style="{ width: `${Math.min(task.progressPercent || 0, 100)}%` }"
+                            :style="{
+                              width: `${Math.min(task.progressPercent || 0, 100)}%`
+                            }"
                           />
                         </div>
-                        <span class="text-body-xs font-medium text-foreground w-8 text-right shrink-0">
+                        <span
+                          class="text-body-xs font-medium text-foreground w-8 text-right shrink-0"
+                        >
                           {{ task.progressPercent || 0 }}%
                         </span>
                       </div>
                     </td>
 
-                    <!-- BIM Association Action Button -->
+                    <!-- BIM Association (read-only: derived from actual progress) -->
                     <td class="px-3 py-2 text-center">
                       <button
                         type="button"
-                        class="inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-xs transition whitespace-nowrap shrink-0"
+                        class="inline-flex items-center justify-center gap-1.5 rounded border px-2.5 py-1 text-xs whitespace-nowrap shrink-0"
                         :class="
-                          task.bimLinked || (task.selections && task.selections.length > 0)
-                            ? 'border-success-darker/30 bg-success-lighter text-success-darker'
-                            : 'border-outline-3 bg-foundation hover:bg-foundation-2 text-foreground-2'
+                          hasBim(task)
+                            ? 'border-success-darker/30 bg-success-lighter text-success-darker cursor-pointer'
+                            : 'border-outline-3 bg-foundation-2 text-foreground-2 cursor-default'
                         "
-                        @click="openBimLinkDrawer(record.id, task)"
+                        :disabled="!hasBim(task)"
+                        @click="hasBim(task) && openBimViewDrawer(task)"
                       >
                         <Box class="h-3.5 w-3.5" />
                         <span class="whitespace-nowrap shrink-0">
                           {{
-                            task.bimLinked || (task.selections && task.selections.length > 0)
+                            hasBim(task)
                               ? `已关联 (${getSelectionsCount(task)}件)`
-                              : '关联'
+                              : '未关联'
                           }}
                         </span>
                       </button>
                     </td>
 
-                    <td class="px-3 py-2 text-foreground-2">{{ task.remark || '-' }}</td>
+                    <td class="px-3 py-2 text-foreground-2">
+                      {{ task.remark || '-' }}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -218,36 +260,49 @@
       @save="handleSaveRecord"
     />
 
-    <!-- Multi-Model BIM Object Association Drawer -->
-    <LayoutDialog v-model:open="isBimDrawerOpen" max-width="lg" :buttons="bimDialogButtons">
-      <template #header>
-        {{ activeBimTask ? `BIM关联：${activeBimTask.taskName}` : 'BIM关联' }}
+    <!-- BIM Association Viewer (read-only: derived from actual progress) -->
+    <LayoutDrawer
+      v-model:open="isBimDrawerOpen"
+      placement="right"
+      width="95%"
+      body-classes="p-4"
+    >
+      <template #title>
+        BIM关联查看
+        <span v-if="activeBimTask" class="text-sm text-foreground-2">
+          | {{ activeBimTask.taskName }}
+        </span>
       </template>
-      <div v-if="activeBimTask" class="space-y-4">
-        <div class="grid grid-cols-2 gap-3">
-          <div class="rounded border border-outline-2 bg-foundation-page p-3">
-            <div class="text-body-xs text-foreground-2">计划开始</div>
-            <div class="text-body-sm font-medium mt-1">{{ activeBimTask.startDate }}</div>
+      <div class="flex flex-col gap-3 h-[85vh]">
+        <div
+          v-if="activeBimTask"
+          class="grid grid-cols-2 gap-3 rounded-lg border border-outline-2 bg-foundation-page p-3 text-body-xs"
+        >
+          <div>
+            <div class="text-foreground-2">计划开始</div>
+            <div class="text-body-sm font-medium mt-1">
+              {{ activeBimTask.startDate }}
+            </div>
           </div>
-          <div class="rounded border border-outline-2 bg-foundation-page p-3">
-            <div class="text-body-xs text-foreground-2">计划完成</div>
+          <div>
+            <div class="text-foreground-2">计划完成</div>
             <div class="text-body-sm font-medium mt-1">{{ activeBimTask.endDate }}</div>
           </div>
         </div>
-
-        <div class="rounded border border-dashed border-outline-3 p-4 bg-foundation-page">
-          <CommonModelObjectMultiModelSelectDrawer
-            v-model:model_ids="draftModelIds"
-            v-model:selections="draftSelections"
+        <div class="relative flex-1">
+          <CommonModelPropsViewer
+            v-if="viewModelIds.length"
             :project-id="projectId"
-            placeholder="选择与月度计划关联的模型构件"
+            :model-ids="viewModelIds"
+            :filter-bims="viewBimIds"
+            :filter-application-ids="viewApplicationIds"
           />
-        </div>
-        <div class="text-body-xs text-foreground-2">
-          已关联构件将实时同步更新总进度计划对应的BIM构件关联结果。
+          <div v-else class="h-full flex items-center justify-center text-foreground-2">
+            未找到关联模型（BIM 关联由实际进度填报自动反推）
+          </div>
         </div>
       </div>
-    </LayoutDialog>
+    </LayoutDrawer>
 
     <CommonConfirmDialog
       v-model:open="confirmDialogOpen"
@@ -261,9 +316,9 @@
 </template>
 
 <script setup lang="ts">
-import { FormButton, FormTextInput, LayoutDialog, type LayoutDialogButton } from '@speckle/ui-components'
+import { FormButton, FormTextInput, LayoutDrawer } from '@speckle/ui-components'
 import { Box, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-vue-next'
-import { CommonModelObjectMultiModelSelectDrawer, CommonConfirmDialog } from '#components'
+import { CommonConfirmDialog, CommonModelPropsViewer } from '#components'
 import AddMonthlyPlanDialog from './AddMonthlyPlanDialog.vue'
 import type { MasterTaskOption } from './TaskSelectDialog.vue'
 import {
@@ -271,7 +326,6 @@ import {
   createProgressMonthlyPlan,
   updateProgressMonthlyPlan,
   deleteProgressMonthlyPlan,
-  updateMonthlyPlanTaskBimAssociation,
   type MonthlyRecordItem,
   type MonthlyPlanTaskItem as MonthlyTaskItem
 } from '~~/lib/projects/api/progress'
@@ -303,19 +357,21 @@ const filterYearMonth = ref('')
 const isAddDialogOpen = ref(false)
 const editingRecord = ref<MonthlyRecordItem | null>(null)
 
-// BIM Drawer State
+// BIM Drawer State（只读查看：BIM 关联由实际进度填报反推，不允许手动关联）
 const isBimDrawerOpen = ref(false)
-const activeRecordId = ref<string | null>(null)
 const activeBimTask = ref<MonthlyTaskItem | null>(null)
-const draftModelIds = ref<string[]>([])
-const draftSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>([])
+const viewModelIds = ref<string[]>([])
+const viewApplicationIds = ref<string[]>([])
+const viewBimIds = ref<string[]>([])
 
 const filteredRecords = computed(() => {
   return records.value.filter((r: MonthlyRecordItem) => {
     if (filterYearMonth.value && r.yearMonth !== filterYearMonth.value) return false
     if (searchKeyword.value) {
       const kw = searchKeyword.value.toLowerCase()
-      const hasMatch = r.tasks.some((t: MonthlyTaskItem) => t.taskName.toLowerCase().includes(kw))
+      const hasMatch = r.tasks.some((t: MonthlyTaskItem) =>
+        t.taskName.toLowerCase().includes(kw)
+      )
       if (!hasMatch) return false
     }
     return true
@@ -337,14 +393,20 @@ const toggleExpand = (id: string) => {
 
 const getSelectionsCount = (task: MonthlyTaskItem) => {
   if (task.selections && task.selections.length > 0) {
-    return task.selections.reduce((sum: number, item: any) => sum + item.applicationIds.length, 0)
+    return task.selections.reduce(
+      (sum: number, item: any) => sum + item.applicationIds.length,
+      0
+    )
   }
   return task.bimComponentCount || 0
 }
 
 const loadMonthlyPlans = async () => {
   try {
-    const data = await getProgressMonthlyPlans({ projectId: props.projectId, apiOrigin })
+    const data = await getProgressMonthlyPlans({
+      projectId: props.projectId,
+      apiOrigin
+    })
     records.value = data
     if (data.length && expandedRecordIds.value.length === 0) {
       expandedRecordIds.value = [data[0].id]
@@ -380,7 +442,9 @@ const deleteRecord = (id: string) => {
   const target = records.value.find((r: MonthlyRecordItem) => r.id === id)
   planIdToDelete.value = id
   confirmDialogTitle.value = '确认删除月度计划'
-  confirmDialogText.value = `你确定要删除 ${target?.yearMonth || ''} 的月度计划吗？对应的任务行信息也将被全部清除，此操作不可撤销。`
+  confirmDialogText.value = `你确定要删除 ${
+    target?.yearMonth || ''
+  } 的月度计划吗？对应的任务行信息也将被全部清除，此操作不可撤销。`
   confirmDialogOpen.value = true
 }
 
@@ -426,13 +490,24 @@ const handleSaveRecord = async (record: MonthlyRecordItem) => {
         linkedPlanTaskName: t.linkedPlanTaskName || null,
         startDate: t.startDate || null,
         endDate: t.endDate || null,
-        totalVolume: t.totalVolume !== null && t.totalVolume !== undefined ? String(t.totalVolume) : null,
+        totalVolume:
+          t.totalVolume !== null && t.totalVolume !== undefined
+            ? String(t.totalVolume)
+            : null,
         unit: t.unit || null,
-        plannedVolume: t.plannedVolume !== null && t.plannedVolume !== undefined ? String(t.plannedVolume) : null,
-        actualVolume: t.actualVolume !== null && t.actualVolume !== undefined ? String(t.actualVolume) : '0',
-        progressPercent: typeof t.progressPercent === 'number' ? Math.round(t.progressPercent) : 0,
+        plannedVolume:
+          t.plannedVolume !== null && t.plannedVolume !== undefined
+            ? String(t.plannedVolume)
+            : null,
+        actualVolume:
+          t.actualVolume !== null && t.actualVolume !== undefined
+            ? String(t.actualVolume)
+            : '0',
+        progressPercent:
+          typeof t.progressPercent === 'number' ? Math.round(t.progressPercent) : 0,
         remark: t.remark || null,
-        bimComponentCount: typeof t.bimComponentCount === 'number' ? Math.round(t.bimComponentCount) : 0,
+        bimComponentCount:
+          typeof t.bimComponentCount === 'number' ? Math.round(t.bimComponentCount) : 0,
         bimLinked: !!t.bimLinked,
         selections: t.selections || []
       }))
@@ -475,76 +550,46 @@ const handleSaveRecord = async (record: MonthlyRecordItem) => {
   }
 }
 
-const openBimLinkDrawer = (recordId: string, task: MonthlyTaskItem) => {
-  activeRecordId.value = recordId
+const hasBim = (task: MonthlyTaskItem) =>
+  !!task.bimLinked || !!(task.selections && task.selections.length > 0)
+
+const parseSelections = (
+  selections: unknown
+): Array<{ modelId: string; applicationIds: string[] }> => {
+  if (!selections) return []
+  if (Array.isArray(selections))
+    return selections as Array<{ modelId: string; applicationIds: string[] }>
+  if (typeof selections === 'string') {
+    try {
+      const parsed = JSON.parse(selections)
+      return parseSelections(parsed)
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+// 只读查看：打开 drawer 展示该任务已反推关联的 BIM 构件（来自实际进度填报）
+const openBimViewDrawer = (task: MonthlyTaskItem) => {
   activeBimTask.value = task
 
-  const parseSelections = (selections: any): Array<{ modelId: string; applicationIds: string[] }> => {
-    if (!selections) return []
-    if (Array.isArray(selections)) return selections
-    if (typeof selections === 'string') {
-      try {
-        const parsed = JSON.parse(selections)
-        return parseSelections(parsed)
-      } catch {
-        return []
-      }
-    }
-    return []
-  }
-
-  draftSelections.value = parseSelections(task.selections)
-  draftModelIds.value = draftSelections.value.map((s) => s.modelId)
+  const selections = parseSelections(task.selections)
+  viewModelIds.value = [...new Set(selections.map((s) => s.modelId).filter(Boolean))]
+  viewApplicationIds.value = [
+    ...new Set(selections.flatMap((s) => s.applicationIds || []))
+  ]
+  // Progress plan links currently persist applicationIds without separate bimIds.
+  // Reuse applicationIds as fallback lookup keys so CommonModelPropsViewer can isolate them.
+  viewBimIds.value = [...viewApplicationIds.value]
   isBimDrawerOpen.value = true
 }
 
-const bimDialogButtons = computed<LayoutDialogButton[]>(() => [
-  {
-    text: '取消',
-    props: { color: 'outline' },
-    onClick: () => {
-      isBimDrawerOpen.value = false
-    }
-  },
-  {
-    text: '保存关联',
-    props: { color: 'primary' },
-    onClick: () => {
-      saveBimAssociation()
-    }
-  }
-])
-
-const saveBimAssociation = async () => {
-  if (!activeRecordId.value || !activeBimTask.value) return
-
-  try {
-    const nextSelections = JSON.parse(JSON.stringify(draftSelections.value))
-    await updateMonthlyPlanTaskBimAssociation({
-      projectId: props.projectId,
-      planId: activeRecordId.value,
-      taskId: activeBimTask.value.id || '',
-      apiOrigin,
-      selections: nextSelections
-    })
-
-    triggerNotification({
-      type: ToastNotificationType.Info,
-      title: '关联保存成功',
-      description: `已同步更新总进度中有关任务 “${activeBimTask.value.taskName}” 的BIM构件。`
-    })
-
-    await loadMonthlyPlans()
-  } catch (error) {
-    triggerNotification({
-      type: ToastNotificationType.Danger,
-      title: '关联失败',
-      description: error instanceof Error ? error.message : '关联保存失败，请重试'
-    })
-  } finally {
-    isBimDrawerOpen.value = false
-    activeRecordId.value = null
-    activeBimTask.value = null
-  }
-}
+watch(isBimDrawerOpen, (isOpen) => {
+  if (isOpen) return
+  activeBimTask.value = null
+  viewModelIds.value = []
+  viewApplicationIds.value = []
+  viewBimIds.value = []
+})
 </script>

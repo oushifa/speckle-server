@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col gap-4 text-foreground">
     <!-- Header with Navigation Tabs -->
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-2 pb-3">
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-2 pb-3"
+    >
       <div class="flex items-center gap-6">
         <h1 class="text-heading-lg">进度计划</h1>
         <div class="flex items-center border-b border-outline-2">
@@ -99,8 +101,8 @@ onMounted(async () => {
         level: t.level || 0,
         hasChildren: t.hasChildren || parentIdSet.has(t.id),
         parentId: t.parentId || undefined,
-        volume: (t as any).volume || '1000',
-        unit: (t as any).unit || 'm³',
+        volume: t.quantity || undefined,
+        unit: t.unit || undefined,
         startDate: t.startDate || '',
         endDate: t.endDate || ''
       }))

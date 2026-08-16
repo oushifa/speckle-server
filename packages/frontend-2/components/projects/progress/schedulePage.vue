@@ -1,6 +1,8 @@
 <template>
   <div class="flex flex-col gap-4 text-foreground">
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-2 pb-3">
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-2 pb-3"
+    >
       <div class="flex items-center gap-6">
         <h1 class="text-heading-lg">进度计划</h1>
         <div class="flex items-center border-b border-outline-2">
@@ -123,18 +125,24 @@
         </template>
 
         <template #volume="{ item }">
-          <span class="text-body-sm">{{ item.volume ? `${item.volume}${item.unit || ''}` : '-' }}</span>
+          <span class="text-body-sm">{{ item.volume || '-' }}</span>
+        </template>
+
+        <template #unit="{ item }">
+          <span class="text-body-sm">{{ item.unit || '-' }}</span>
         </template>
 
         <template #cumulativeVolume="{ item }">
           <span class="text-body-sm">
-            {{ item.hasChildren ? '-' : (item.cumulativeVolume ? `${item.cumulativeVolume}${item.unit || ''}` : '-') }}
+            {{ item.hasChildren ? '-' : item.cumulativeVolume || '-' }}
           </span>
         </template>
 
         <template #taskStatus="{ item }">
           <div class="flex items-center justify-center">
-            <span v-if="item.hasChildren" class="text-body-xs text-foreground-2">-</span>
+            <span v-if="item.hasChildren" class="text-body-xs text-foreground-2">
+              -
+            </span>
             <span
               v-else
               class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-nowrap"
@@ -351,42 +359,57 @@
     </LayoutDrawer>
 
     <!-- 实际进度列表弹窗 -->
-    <LayoutDialog
-      v-model:open="isActualModalOpen"
-      max-width="xl"
-    >
+    <LayoutDialog v-model:open="isActualModalOpen" max-width="xl">
       <template #header>
         <div class="flex items-center gap-2">
           <span>实际进度列表</span>
-          <span v-if="selectedTaskForActual" class="text-body-sm font-normal text-foreground-2">
+          <span
+            v-if="selectedTaskForActual"
+            class="text-body-sm font-normal text-foreground-2"
+          >
             （{{ selectedTaskForActual.taskName }}）
           </span>
         </div>
       </template>
       <div v-if="selectedTaskForActual" class="space-y-4 py-1">
         <!-- 任务信息及完成情况汇总卡片 -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-outline-2 bg-foundation-page p-3 text-body-xs">
+        <div
+          class="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-outline-2 bg-foundation-page p-3 text-body-xs"
+        >
           <div>
             <div class="text-foreground-2">WBS / 层级</div>
-            <div class="font-medium text-foreground mt-0.5">{{ selectedTaskForActual.wbs || '-' }}</div>
+            <div class="font-medium text-foreground mt-0.5">
+              {{ selectedTaskForActual.wbs || '-' }}
+            </div>
           </div>
           <div>
             <div class="text-foreground-2">计划时间</div>
-            <div class="font-medium text-foreground mt-0.5 truncate" :title="`${selectedTaskForActual.startDate} ~ ${selectedTaskForActual.endDate}`">
-              {{ selectedTaskForActual.startDate || '-' }} ~ {{ selectedTaskForActual.endDate || '-' }}
+            <div
+              class="font-medium text-foreground mt-0.5 truncate"
+              :title="`${selectedTaskForActual.startDate} ~ ${selectedTaskForActual.endDate}`"
+            >
+              {{ selectedTaskForActual.startDate || '-' }} ~
+              {{ selectedTaskForActual.endDate || '-' }}
             </div>
           </div>
           <div>
             <div class="text-foreground-2">计划工程量</div>
             <div class="font-medium text-foreground mt-0.5">
-              {{ selectedTaskForActual.volume ? `${selectedTaskForActual.volume}${selectedTaskForActual.unit || ''}` : '-' }}
+              {{
+                selectedTaskForActual.volume
+                  ? `${selectedTaskForActual.volume}${selectedTaskForActual.unit || ''}`
+                  : '-'
+              }}
             </div>
           </div>
           <div>
             <div class="text-foreground-2">累计实际完成</div>
             <div class="font-medium text-primary mt-0.5">
               {{ taskActualSummary.totalCompleted }} {{ taskActualSummary.unit }}
-              <span v-if="taskActualSummary.completionRateText !== '-'" class="text-foreground-2 font-normal ml-1">
+              <span
+                v-if="taskActualSummary.completionRateText !== '-'"
+                class="text-foreground-2 font-normal ml-1"
+              >
                 ({{ taskActualSummary.completionRateText }})
               </span>
             </div>
@@ -394,9 +417,13 @@
         </div>
 
         <!-- 实际进度明细列表 -->
-        <div class="overflow-x-auto rounded-lg border border-outline-2 max-h-[400px] overflow-y-auto">
+        <div
+          class="overflow-x-auto rounded-lg border border-outline-2 max-h-[400px] overflow-y-auto"
+        >
           <table class="w-full text-left text-body-sm">
-            <thead class="bg-foundation-2 text-foreground-2 border-b border-outline-2 sticky top-0">
+            <thead
+              class="bg-foundation-2 text-foreground-2 border-b border-outline-2 sticky top-0"
+            >
               <tr>
                 <th class="px-3 py-2 w-10 text-center">#</th>
                 <th class="px-3 py-2 w-28">填报日期</th>
@@ -424,16 +451,24 @@
                 :key="entry.recordId + '-' + idx"
                 class="hover:bg-foundation-2/40 transition-colors"
               >
-                <td class="px-3 py-2 text-foreground-2 text-center text-body-xs">{{ idx + 1 }}</td>
+                <td class="px-3 py-2 text-foreground-2 text-center text-body-xs">
+                  {{ idx + 1 }}
+                </td>
                 <td class="px-3 py-2">
                   <div class="font-medium text-body-xs">{{ entry.reportDate }}</div>
                   <div class="text-foreground-2 text-body-3xs">{{ entry.weekDay }}</div>
                 </td>
-                <td class="px-3 py-2 text-body-xs text-foreground-2">{{ entry.yearMonth }}</td>
-                <td class="px-3 py-2 text-center font-semibold text-primary text-body-xs">
+                <td class="px-3 py-2 text-body-xs text-foreground-2">
+                  {{ entry.yearMonth }}
+                </td>
+                <td
+                  class="px-3 py-2 text-center font-semibold text-primary text-body-xs"
+                >
                   {{ entry.completedVolume }} {{ entry.unit }}
                 </td>
-                <td class="px-3 py-2 text-center text-body-xs">{{ entry.siteLeader }}</td>
+                <td class="px-3 py-2 text-center text-body-xs">
+                  {{ entry.siteLeader }}
+                </td>
                 <td class="px-3 py-2 text-center text-body-xs">{{ entry.reporter }}</td>
                 <td class="px-3 py-2 text-center">
                   <span
@@ -444,7 +479,10 @@
                   </span>
                   <span v-else class="text-body-3xs text-foreground-2">-</span>
                 </td>
-                <td class="px-3 py-2 text-body-xs text-foreground-2 truncate max-w-[150px]" :title="entry.remark">
+                <td
+                  class="px-3 py-2 text-body-xs text-foreground-2 truncate max-w-[150px]"
+                  :title="entry.remark"
+                >
                   {{ entry.remark }}
                 </td>
               </tr>
@@ -600,11 +638,12 @@ const normalizeScheduleItem = (item: ScheduleItem): ScheduleItem => ({
 
 const columns = [
   { id: 'wbs', header: '层级', classes: 'col-span-1' },
-  { id: 'taskName', header: '任务名称', classes: 'col-span-3' },
+  { id: 'taskName', header: '任务名称', classes: 'col-span-2' },
   { id: 'duration', header: '工期', classes: 'col-span-1' },
   { id: 'startDate', header: '开始时间', classes: 'col-span-1' },
   { id: 'endDate', header: '完成时间', classes: 'col-span-1' },
   { id: 'volume', header: '工程量', classes: 'col-span-1 text-center' },
+  { id: 'unit', header: '单位', classes: 'col-span-1 text-center' },
   { id: 'cumulativeVolume', header: '累计完成量', classes: 'col-span-1 text-center' },
   { id: 'taskStatus', header: '任务状态', classes: 'col-span-1 text-center' },
   { id: 'status', header: '关联状态', classes: 'col-span-1 text-center' },
@@ -679,6 +718,9 @@ const mapTaskRecordToItem = (task: ProgressPlanTask): ScheduleItem => ({
   id: task.id,
   wbs: task.wbs || undefined,
   taskName: task.taskName,
+  // 计划工程量/单位：来自 MPP 导入时按别名「工程量」「单位」列解析
+  volume: task.quantity || undefined,
+  unit: task.unit || undefined,
   duration: task.duration || '-',
   startDate: formatPlanDate(task.startDate),
   endDate: formatPlanDate(task.endDate),
@@ -1053,7 +1095,8 @@ const handleDownloadPlanFile = async () => {
     await downloadLatestProgressPlanFile({
       projectId: projectId.value,
       apiOrigin,
-      fallbackFileName: latestPlanFile.value.fileName
+      // 导出统一为 MSPDI(.xml)，下载兜底文件名同步为 .xml
+      fallbackFileName: latestPlanFile.value.fileName.replace(/\.mpp$/i, '.xml')
     })
     showSuccess('下载成功', `已下载 ${latestPlanFile.value.fileName}`)
   } catch (error) {
@@ -1224,8 +1267,8 @@ const masterTaskOptions = computed<MasterTaskOption[]>(() => {
     level: item.level,
     hasChildren: item.hasChildren,
     parentId: item.parentId,
-    volume: item.volume || '1000',
-    unit: item.unit || 'm³',
+    volume: item.volume,
+    unit: item.unit,
     startDate: item.startDate,
     endDate: item.endDate
   }))
@@ -1236,12 +1279,18 @@ const handleMonthlyRecordsSynced = (records: MonthlyRecordItem[]) => {
 
   // Aggregate monthly plan actual volumes and BIM associations to total tasks
   const cumMap = new Map<string, number>()
-  const bimLinkMap = new Map<string, Array<{ modelId: string; applicationIds: string[] }>>()
+  const bimLinkMap = new Map<
+    string,
+    Array<{ modelId: string; applicationIds: string[] }>
+  >()
 
   records.forEach((r) => {
     r.tasks.forEach((t) => {
       if (t.linkedPlanTaskId) {
-        const val = parseFloat(t.actualVolume || '') || parseFloat(t.plannedVolume || '') || 0
+        // 累计完成量只统计实际完成量：actualVolume 为空或 0 都按 0 计，
+        // 不能回退到计划量，否则未开工任务会被误判为已完成部分工程量
+        const actualVolumeNum = Number.parseFloat(String(t.actualVolume ?? ''))
+        const val = Number.isFinite(actualVolumeNum) ? actualVolumeNum : 0
         cumMap.set(t.linkedPlanTaskId, (cumMap.get(t.linkedPlanTaskId) || 0) + val)
 
         if (t.selections && t.selections.length > 0) {
@@ -1253,9 +1302,6 @@ const handleMonthlyRecordsSynced = (records: MonthlyRecordItem[]) => {
 
   // Update items in tree
   items.value.forEach((item) => {
-    if (!item.volume) item.volume = '1000'
-    if (!item.unit) item.unit = 'm³'
-
     const cumVal = cumMap.get(item.id)
     if (cumVal !== undefined) {
       item.cumulativeVolume = String(cumVal)
@@ -1264,29 +1310,33 @@ const handleMonthlyRecordsSynced = (records: MonthlyRecordItem[]) => {
     const syncedSelections = bimLinkMap.get(item.id)
     if (syncedSelections && syncedSelections.length > 0) {
       item.selections = syncedSelections
-      item.applicationIds = uniqueStrings(syncedSelections.flatMap((s) => s.applicationIds))
+      item.applicationIds = uniqueStrings(
+        syncedSelections.flatMap((s) => s.applicationIds)
+      )
       item.modelIds = uniqueStrings(syncedSelections.map((s) => s.modelId))
     }
   })
 }
 
+// 进度百分比：累计完成量 / 工程量，保留 2 位小数
 const getCalculatedStatusText = (item: ScheduleItem) => {
   const totalVol = parseFloat(item.volume || '0')
   const cumVol = parseFloat(item.cumulativeVolume || '0')
-  const pct = totalVol > 0 ? Math.min(Math.round((cumVol / totalVol) * 100), 100) : 0
+  const pct = totalVol > 0 ? Math.min((cumVol / totalVol) * 100, 100) : 0
 
-  if (pct >= 100) return `已完成 (${pct}%)`
-  if (pct > 0) return `进行中 (${pct}%)`
+  // 是否开始以是否有实际进度为准
+  if (cumVol > 0 && pct >= 100) return `已完成 (${pct.toFixed(2)}%)`
+  if (cumVol > 0) return `进行中 (${pct.toFixed(2)}%)`
   return `未开始 (0%)`
 }
 
 const getCalculatedStatusBadgeClass = (item: ScheduleItem) => {
   const totalVol = parseFloat(item.volume || '0')
   const cumVol = parseFloat(item.cumulativeVolume || '0')
-  const pct = totalVol > 0 ? Math.min(Math.round((cumVol / totalVol) * 100), 100) : 0
+  const pct = totalVol > 0 ? Math.min((cumVol / totalVol) * 100, 100) : 0
 
-  if (pct >= 100) return 'bg-success-lighter text-success-darker'
-  if (pct > 0) return 'bg-info-lighter text-info-darker'
+  if (pct >= 100 && cumVol > 0) return 'bg-success-lighter text-success-darker'
+  if (cumVol > 0) return 'bg-info-lighter text-info-darker'
   return 'bg-foundation-2 text-foreground-2'
 }
 
@@ -1307,7 +1357,10 @@ const loadActualProgressRecords = async () => {
   if (!projectId.value) return
   isLoadingActualProgressRecords.value = true
   try {
-    const data = await getActualProgressRecords({ projectId: projectId.value, apiOrigin })
+    const data = await getActualProgressRecords({
+      projectId: projectId.value,
+      apiOrigin
+    })
     actualProgressRecords.value = data
   } catch (error) {
     console.error('加载实际进度记录失败:', error)

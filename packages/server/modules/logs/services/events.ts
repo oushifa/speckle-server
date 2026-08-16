@@ -6,7 +6,7 @@ const DEFAULT_SOURCE = 'frontend' as const
 
 const toSingleHeader = (value: string | string[] | undefined) => {
   if (!value) return null
-  return Array.isArray(value) ? (value[0] ?? null) : value
+  return Array.isArray(value) ? value[0] ?? null : value
 }
 
 const sanitizeActionPart = (value: string) =>
@@ -38,9 +38,9 @@ const getClientIp = (req: Request) =>
 
 const getUserAgent = (req: Request) => toSingleHeader(req.headers['user-agent'])
 
-const buildDefaultAction = (req: Request) => {
-  const normalizedPath = sanitizeActionPart(req.path || req.originalUrl || 'unknown')
-  return `api.${req.method.toLowerCase()}.${normalizedPath || 'unknown'}`
+const buildDefaultAction = (path: string, method: string) => {
+  const normalizedPath = sanitizeActionPart(path || 'unknown')
+  return `api.${method.toLowerCase()}.${normalizedPath || 'unknown'}`
 }
 
 type IncomingLogEvent = Omit<
@@ -105,9 +105,16 @@ export const buildBackendApiOperationEvent = (params: {
   req: Request
   durationMs: number
   httpStatus: number
+  /**
+   * 请求路径快照。必须在请求进入挂载点之前捕获：
+   * express 的挂载机制（如 app.use('/graphql', ...)）会在处理过程中改写 req.url，
+   * 导致 finish 回调里读取的 req.path 变成 '/'，从而丢失真实路径。
+   */
+  path?: string | null
 }): LogEvent => {
-  const { req, durationMs, httpStatus } = params
-  const action = buildDefaultAction(req)
+  const { req, durationMs, httpStatus, path } = params
+  const effectivePath = path || req.path || req.originalUrl || 'unknown'
+  const action = buildDefaultAction(effectivePath, req.method)
   const urlWithoutQuery = (req.originalUrl || req.url || '').split('?')[0] || req.path
   const nowIso = new Date().toISOString()
 
@@ -123,7 +130,7 @@ export const buildBackendApiOperationEvent = (params: {
       userAgent: getUserAgent(req)
     },
     where: {
-      route: req.path || null,
+      route: effectivePath || null,
       api: urlWithoutQuery || null,
       module: null,
       service: null,

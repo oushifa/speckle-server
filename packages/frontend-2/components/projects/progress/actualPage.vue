@@ -230,9 +230,9 @@
                   <div class="text-body-sm font-medium">{{ task.taskName }}</div>
                   <div class="text-body-xs text-foreground-2 mt-1">
                     本次完成：{{ task.completedVolume }}{{ task.unit || '' }}
-                    <span v-if="task.plannedVolume" class="ml-2"
-                      >/ 计划：{{ task.plannedVolume }}{{ task.unit || '' }}</span
-                    >
+                    <span v-if="task.plannedVolume" class="ml-2">
+                      / 计划：{{ task.plannedVolume }}{{ task.unit || '' }}
+                    </span>
                   </div>
                 </div>
                 <button
@@ -260,11 +260,11 @@
           暂无今日填报进度明细
         </section>
 
-
-
         <section class="rounded-xl bg-foundation-page p-4 space-y-4">
           <div class="text-body-md font-medium">备注</div>
-          <div class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words">
+          <div
+            class="rounded-xl bg-foundation px-4 py-4 text-body-md whitespace-pre-wrap break-words"
+          >
             {{ displayDetailValue(viewRecord?.remark) }}
           </div>
         </section>
@@ -306,10 +306,13 @@
     >
       <template #header>{{ dialogTitle }}</template>
       <div class="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
-
         <!-- 日期信息 -->
         <section class="space-y-3">
-          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">日期信息</div>
+          <div
+            class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2"
+          >
+            日期信息
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormTextInput
               v-model="draftForm.reportTimestamp"
@@ -327,7 +330,9 @@
             />
           </div>
 
-          <div class="rounded-xl border border-outline-2 bg-foundation-page p-4 space-y-3">
+          <div
+            class="rounded-xl border border-outline-2 bg-foundation-page p-4 space-y-3"
+          >
             <div class="flex items-center gap-2">
               <ClipboardList class="h-4 w-4 text-primary" />
               <div class="text-body-sm font-semibold text-foreground">选择月度计划</div>
@@ -355,10 +360,14 @@
               v-if="selectedMonthlyPlan"
               class="flex flex-wrap items-center gap-2 text-body-xs"
             >
-              <span class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 font-medium text-primary">
+              <span
+                class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 font-medium text-primary"
+              >
                 当前计划：{{ selectedMonthlyPlan.yearMonth }}
               </span>
-              <span class="inline-flex items-center rounded-full bg-foundation px-2.5 py-1 text-foreground-2 border border-outline-2">
+              <span
+                class="inline-flex items-center rounded-full bg-foundation px-2.5 py-1 text-foreground-2 border border-outline-2"
+              >
                 {{ selectedMonthlyPlan.tasks?.length || 0 }} 项任务
               </span>
             </div>
@@ -377,7 +386,12 @@
                 {{ draftForm.tasks.length }} 项任务
               </span>
             </div>
-            <FormButton size="sm" color="outline" :icon-left="Plus" @click="openTaskSelectDialog">
+            <FormButton
+              size="sm"
+              color="outline"
+              :icon-left="Plus"
+              @click="openTaskSelectDialog"
+            >
               从总计划添加
             </FormButton>
           </div>
@@ -387,7 +401,9 @@
             class="rounded-xl border border-outline-2 bg-foundation-page px-4 py-3"
           >
             <div class="flex flex-wrap items-center gap-2">
-              <span class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 text-body-xs font-medium text-primary">
+              <span
+                class="inline-flex items-center rounded-full bg-primary-muted px-2.5 py-1 text-body-xs font-medium text-primary"
+              >
                 {{ draftForm.yearMonth }}
               </span>
               <span class="text-body-xs text-foreground-2">
@@ -396,19 +412,22 @@
             </div>
           </div>
 
-          <div v-if="isLoadingMonthlyTasks" class="text-body-sm text-foreground-2 py-4 text-center">
+          <div
+            v-if="isLoadingMonthlyTasks"
+            class="text-body-sm text-foreground-2 py-4 text-center"
+          >
             正在加载月度计划细项...
           </div>
 
           <!-- 任务表格 -->
-          <div
-            v-else
-            class="rounded-lg overflow-hidden border border-outline-2"
-          >
+          <div v-else class="rounded-lg overflow-hidden border border-outline-2">
             <!-- 表头 -->
             <div
               class="grid text-body-xs font-medium text-foreground-2 bg-foundation-2 border-b border-outline-2"
-              style="grid-template-columns: 1.8fr 100px 56px 120px 90px 40px; padding: 8px 12px;"
+              style="
+                grid-template-columns: 1.8fr 100px 56px 120px 90px 40px;
+                padding: 8px 12px;
+              "
             >
               <div>任务名称</div>
               <div class="text-center">本月计划工程量</div>
@@ -423,7 +442,11 @@
               v-if="!draftForm.tasks.length"
               class="py-8 text-center text-body-sm text-foreground-2 bg-foundation"
             >
-              {{ draftForm.yearMonth ? '该月度计划暂无细项，可点击"从总计划添加"' : '请先选择所属月份' }}
+              {{
+                draftForm.yearMonth
+                  ? '该月度计划暂无细项，可点击"从总计划添加"'
+                  : '请先选择所属月份'
+              }}
             </div>
 
             <!-- 任务行 -->
@@ -431,15 +454,26 @@
               v-for="(task, idx) in draftForm.tasks"
               :key="idx"
               class="grid items-center bg-foundation border-b border-outline-2 last:border-b-0 hover:bg-foundation-2/40 transition-colors"
-              style="grid-template-columns: 1.8fr 100px 56px 120px 90px 40px; padding: 8px 12px;"
+              style="
+                grid-template-columns: 1.8fr 100px 56px 120px 90px 40px;
+                padding: 8px 12px;
+              "
             >
               <!-- 任务名 -->
               <div class="pr-2">
-                <div class="text-body-xs font-medium text-foreground truncate" :title="task.taskName">
+                <div
+                  class="text-body-xs font-medium text-foreground truncate"
+                  :title="task.taskName"
+                >
                   {{ task.taskName }}
                 </div>
-                <div v-if="task.linkedPlanTaskId" class="text-body-xs text-foreground-2 mt-0.5 flex items-center gap-1">
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+                <div
+                  v-if="task.linkedPlanTaskId"
+                  class="text-body-xs text-foreground-2 mt-0.5 flex items-center gap-1"
+                >
+                  <span
+                    class="inline-block w-1.5 h-1.5 rounded-full bg-success shrink-0"
+                  />
                   月度计划
                 </div>
               </div>
@@ -486,7 +520,11 @@
                     >
                       <Box class="h-3 w-3" />
                       <span>
-                        {{ getTaskSelectionCount(task) > 0 ? `${getTaskSelectionCount(task)}件` : '关联' }}
+                        {{
+                          getTaskSelectionCount(task) > 0
+                            ? `${getTaskSelectionCount(task)}件`
+                            : '关联'
+                        }}
                       </span>
                     </button>
                   </template>
@@ -524,7 +562,11 @@
 
         <!-- 备注 -->
         <section class="space-y-3">
-          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">备注</div>
+          <div
+            class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2"
+          >
+            备注
+          </div>
           <FormTextArea
             v-model="draftForm.remark"
             name="actual-remark"
@@ -533,10 +575,13 @@
           />
         </section>
 
-
         <!-- 人员信息 -->
         <section class="space-y-3">
-          <div class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2">人员信息</div>
+          <div
+            class="text-body-sm font-semibold text-foreground border-b border-outline-2 pb-2"
+          >
+            人员信息
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FormTextInput
               v-model="draftForm.siteLeader"
@@ -638,12 +683,19 @@ type ActualProgressForm = {
   finishModelIds: string[]
   finishApplicationIds: string[]
   finishSelections: ActualProgressRecordBimSelection[]
-  startBIM: Array<{ modelId: string; applicationIds: string[]; bimIds: (string | null)[] }>
-  finishBIM: Array<{ modelId: string; applicationIds: string[]; bimIds: (string | null)[] }>
+  startBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }>
+  finishBIM: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }>
   startElementCodes: string
   finishElementCodes: string
 }
-
 
 const normalizeString = (value: unknown) =>
   typeof value === 'string' ? value.trim() : ''
@@ -752,7 +804,9 @@ const filteredItems = computed(() => {
 })
 
 const totalItems = computed(() => filteredItems.value.length)
-const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value)))
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value))
+)
 const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredItems.value.slice(start, start + itemsPerPage.value)
@@ -772,12 +826,16 @@ const dialogButtons = computed<LayoutDialogButton[]>(() => [
   {
     text: '取消',
     props: { color: 'outline', disabled: isSavingRecord.value },
-    onClick: () => { dialogOpen.value = false }
+    onClick: () => {
+      dialogOpen.value = false
+    }
   },
   {
     text: dialogMode.value === 'create' ? '保存新增' : '保存修改',
     props: { color: 'primary', disabled: isSavingRecord.value },
-    onClick: () => { saveDraft() }
+    onClick: () => {
+      saveDraft()
+    }
   }
 ])
 
@@ -785,7 +843,9 @@ const viewDialogButtons = computed<LayoutDialogButton[]>(() => [
   {
     text: '关闭',
     props: { color: 'outline' },
-    onClick: () => { viewDialogOpen.value = false }
+    onClick: () => {
+      viewDialogOpen.value = false
+    }
   }
 ])
 
@@ -796,8 +856,8 @@ const masterTaskOptions = computed<MasterTaskOption[]>(() =>
     level: t.level ?? 0,
     hasChildren: false,
     parentId: t.parentId ?? undefined,
-    volume: '',
-    unit: '',
+    volume: t.quantity ?? undefined,
+    unit: t.unit ?? undefined,
     startDate: t.startDate ?? undefined,
     endDate: t.endDate ?? undefined
   }))
@@ -807,8 +867,10 @@ const existingLinkedPlanTaskIds = computed(
   () => new Set(draftForm.value.tasks.map((t) => t.linkedPlanTaskId).filter(Boolean))
 )
 
-const selectedMonthlyPlan = computed(() =>
-  monthlyPlans.value.find((plan) => plan.yearMonth === draftForm.value.yearMonth) || null
+const selectedMonthlyPlan = computed(
+  () =>
+    monthlyPlans.value.find((plan) => plan.yearMonth === draftForm.value.yearMonth) ||
+    null
 )
 
 const draftTaskCount = computed(() => draftForm.value.tasks.length)
@@ -843,16 +905,28 @@ const countAllTaskBimLinks = (item: ActualProgressRecord) => {
     if (!task.selections || !Array.isArray(task.selections)) return acc
     return (
       acc +
-      task.selections.reduce((s: number, sel: { applicationIds?: string[] }) => s + (sel.applicationIds?.length || 0), 0)
+      task.selections.reduce(
+        (s: number, sel: { applicationIds?: string[] }) =>
+          s + (sel.applicationIds?.length || 0),
+        0
+      )
     )
   }, 0)
 }
 
 const getTaskSelectionCount = (task: DraftTaskItem) =>
-  (task.selections || []).reduce((acc, selection) => acc + (selection.applicationIds?.length || 0), 0)
+  (task.selections || []).reduce(
+    (acc, selection) => acc + (selection.applicationIds?.length || 0),
+    0
+  )
 
-const getViewTaskSelectionCount = (task: NonNullable<ActualProgressRecord['tasks']>[number]) =>
-  (task.selections || []).reduce((acc, selection) => acc + (selection.applicationIds?.length || 0), 0)
+const getViewTaskSelectionCount = (
+  task: NonNullable<ActualProgressRecord['tasks']>[number]
+) =>
+  (task.selections || []).reduce(
+    (acc, selection) => acc + (selection.applicationIds?.length || 0),
+    0
+  )
 
 const showSuccess = (title: string, description: string) => {
   triggerNotification({ type: ToastNotificationType.Success, title, description })
@@ -873,19 +947,27 @@ const fetchActualRecords = async () => {
   }
   isLoadingRecords.value = true
   try {
-    const records = await getActualProgressRecords({ projectId: projectId.value, apiOrigin })
+    const records = await getActualProgressRecords({
+      projectId: projectId.value,
+      apiOrigin
+    })
     actualItems.value = records
     if (!records.length) {
       lastOperation.value = '暂无实际进度填报记录'
       return
     }
-    const [latestRecord] = [...records].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    const [latestRecord] = [...records].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt)
+    )
     if (latestRecord) {
       lastOperation.value = `最近更新于 ${formatDateTime(latestRecord.updatedAt)}`
     }
   } catch (error) {
     actualItems.value = []
-    showMessage('加载实际进度失败', error instanceof Error ? error.message : '未能获取实际进度列表')
+    showMessage(
+      '加载实际进度失败',
+      error instanceof Error ? error.message : '未能获取实际进度列表'
+    )
   } finally {
     isLoadingRecords.value = false
   }
@@ -894,7 +976,10 @@ const fetchActualRecords = async () => {
 const fetchMonthlyPlans = async () => {
   if (!projectId.value) return
   try {
-    monthlyPlans.value = await getProgressMonthlyPlans({ projectId: projectId.value, apiOrigin })
+    monthlyPlans.value = await getProgressMonthlyPlans({
+      projectId: projectId.value,
+      apiOrigin
+    })
   } catch {
     monthlyPlans.value = []
   }
@@ -903,7 +988,10 @@ const fetchMonthlyPlans = async () => {
 const fetchPlanTasks = async () => {
   if (!projectId.value) return
   try {
-    planTasks.value = await getProgressPlanTasks({ projectId: projectId.value, apiOrigin })
+    planTasks.value = await getProgressPlanTasks({
+      projectId: projectId.value,
+      apiOrigin
+    })
   } catch {
     planTasks.value = []
   }
@@ -1052,7 +1140,9 @@ const openAssociatedModelDrawer = (
   task: NonNullable<ActualProgressRecord['tasks']>[number]
 ) => {
   selectedAssociationTaskName.value = task.taskName || '-'
-  selectedAssociationModelIds.value = uniqueStrings((task.selections || []).map((item) => item.modelId))
+  selectedAssociationModelIds.value = uniqueStrings(
+    (task.selections || []).map((item) => item.modelId)
+  )
   selectedAssociationApplicationIds.value = uniqueStrings(
     (task.selections || []).flatMap((item) => item.applicationIds || [])
   )
@@ -1066,7 +1156,11 @@ const saveDraft = async () => {
   syncReportDateFields()
 
   if (!projectId.value) {
-    showMessage('保存失败', '当前未识别项目ID，无法保存实际进度。', ToastNotificationType.Warning)
+    showMessage(
+      '保存失败',
+      '当前未识别项目ID，无法保存实际进度。',
+      ToastNotificationType.Warning
+    )
     return
   }
   if (!draftForm.value.yearMonth) {
@@ -1115,17 +1209,26 @@ const handleDelete = async (id: string) => {
   if (!projectId.value) return
   deletingRecordId.value = id
   try {
-    await deleteActualProgressRecord({ projectId: projectId.value, recordId: id, apiOrigin })
+    await deleteActualProgressRecord({
+      projectId: projectId.value,
+      recordId: id,
+      apiOrigin
+    })
     await fetchActualRecords()
     showSuccess('已删除', '实际进度记录已成功删除。')
   } catch (error) {
-    showMessage('删除失败', error instanceof Error ? error.message : '删除实际进度记录失败')
+    showMessage(
+      '删除失败',
+      error instanceof Error ? error.message : '删除实际进度记录失败'
+    )
   } finally {
     deletingRecordId.value = null
   }
 }
 
-const triggerImportExcel = () => { importInputRef.value?.click() }
+const triggerImportExcel = () => {
+  importInputRef.value?.click()
+}
 
 const handleImportFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
@@ -1140,9 +1243,15 @@ const handleImportFileChange = async (event: Event) => {
     })
     await fetchActualRecords()
     lastOperation.value = `已导入 ${file.name}，新增 ${result.createdCount} 条实际进度记录`
-    showSuccess('导入成功', `已通过后端解析 Excel，并导入 ${result.createdCount} 条记录。`)
+    showSuccess(
+      '导入成功',
+      `已通过后端解析 Excel，并导入 ${result.createdCount} 条记录。`
+    )
   } catch (error) {
-    showMessage('导入失败', error instanceof Error ? error.message : '实际进度 Excel 导入失败')
+    showMessage(
+      '导入失败',
+      error instanceof Error ? error.message : '实际进度 Excel 导入失败'
+    )
   } finally {
     isImportingExcel.value = false
     input.value = ''
@@ -1150,15 +1259,23 @@ const handleImportFileChange = async (event: Event) => {
 }
 
 const handleExportExcel = () => {
-  showMessage('导出能力待接入', '当前仅保留 Excel 导出入口。', ToastNotificationType.Info)
+  showMessage(
+    '导出能力待接入',
+    '当前仅保留 Excel 导出入口。',
+    ToastNotificationType.Info
+  )
 }
 
 watch(
   () => draftForm.value.reportTimestamp,
-  () => { syncReportDateFields() }
+  () => {
+    syncReportDateFields()
+  }
 )
 
-watch(itemsPerPage, () => { currentPage.value = 1 })
+watch(itemsPerPage, () => {
+  currentPage.value = 1
+})
 
 watch(totalPages, (pageCount) => {
   if (currentPage.value > pageCount) currentPage.value = pageCount

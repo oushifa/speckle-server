@@ -10,6 +10,8 @@ export const ProjectProgressPlanTasks = buildTableHelper(
     'planFileId',
     'externalId',
     'sysTaskId',
+    'quantity',
+    'unit',
     'wbs',
     'name',
     'parentId',
@@ -45,6 +47,8 @@ export type ProgressPlanTaskRecord = {
   planFileId: string | null
   externalId: string | null
   sysTaskId: string | null
+  quantity: string | null
+  unit: string | null
   wbs: string | null
   name: string
   parentId: string | null
@@ -68,6 +72,8 @@ export type ProgressPlanTaskRecord = {
 type ReplaceProgressPlanTaskInput = {
   externalId?: string | null
   sysTaskId?: string | null
+  quantity?: string | null
+  unit?: string | null
   parentExternalId?: string | null
   wbs?: string | null
   name: string
@@ -377,6 +383,8 @@ export const replaceProgressPlanTasksFactory =
         planFileId: params.planFileId || null,
         externalId: task.externalId || null,
         sysTaskId: task.sysTaskId || null,
+        quantity: task.quantity || null,
+        unit: task.unit || null,
         wbs: task.wbs || null,
         name: task.name,
         parentId: task.parentExternalId

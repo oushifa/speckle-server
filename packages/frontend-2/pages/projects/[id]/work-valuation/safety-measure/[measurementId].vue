@@ -561,9 +561,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.supervisionAuditor ||
-                        getFlowStepApproverDisplay(['安全监理审核', '安全监理']) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['安全监理审核', '安全监理'],
+                          details.supervisionAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -573,9 +574,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.supervisionDate
-                          ? formatDate(details.supervisionDate)
-                          : getFlowStepApprovedDateDisplay(['安全监理审核', '安全监理'])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['安全监理审核', '安全监理'],
+                          details.supervisionDate
+                        )
                       }}
                     </span>
                   </div>
@@ -589,9 +591,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.supervisionApproveAuditor ||
-                        getFlowStepApproverDisplay(['专业工程师审核', '专业工程师']) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['专业工程师审核', '专业工程师'],
+                          details.supervisionApproveAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -601,12 +604,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.supervisionApproveDate
-                          ? formatDate(details.supervisionApproveDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '专业工程师审核',
-                              '专业工程师'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['专业工程师审核', '专业工程师'],
+                          details.supervisionApproveDate
+                        )
                       }}
                     </span>
                   </div>
@@ -635,13 +636,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.contractAuditor ||
-                        getFlowStepApproverDisplay([
-                          '总监理工程师审核',
-                          '总监理工程师',
-                          '总监'
-                        ]) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['总监理工程师审核', '总监理工程师', '总监'],
+                          details.contractAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -651,13 +649,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.contractDate
-                          ? formatDate(details.contractDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '总监理工程师审核',
-                              '总监理工程师',
-                              '总监'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['总监理工程师审核', '总监理工程师', '总监'],
+                          details.contractDate
+                        )
                       }}
                     </span>
                   </div>
@@ -707,13 +702,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.headquartersAuditor ||
-                        getFlowStepApproverDisplay([
-                          '指挥部经办人',
-                          '指挥部经办',
-                          '现场指挥部经办人'
-                        ]) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['指挥部经办人', '指挥部经办', '现场指挥部经办人'],
+                          details.headquartersAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -723,13 +715,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.headquartersDate
-                          ? formatDate(details.headquartersDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '指挥部经办人',
-                              '指挥部经办',
-                              '现场指挥部经办人'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['指挥部经办人', '指挥部经办', '现场指挥部经办人'],
+                          details.headquartersDate
+                        )
                       }}
                     </span>
                   </div>
@@ -743,13 +732,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.headquartersApproveAuditor ||
-                        getFlowStepApproverDisplay([
-                          '指挥部审核人',
-                          '指挥部审核',
-                          '现场指挥部审核人'
-                        ]) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['指挥部审核人', '指挥部审核', '现场指挥部审核人'],
+                          details.headquartersApproveAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -759,13 +745,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.headquartersApproveDate
-                          ? formatDate(details.headquartersApproveDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '指挥部审核人',
-                              '指挥部审核',
-                              '现场指挥部审核人'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['指挥部审核人', '指挥部审核', '现场指挥部审核人'],
+                          details.headquartersApproveDate
+                        )
                       }}
                     </span>
                   </div>
@@ -796,13 +779,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.engineeringAuditor ||
-                        getFlowStepApproverDisplay([
-                          '工程管理部经办人',
-                          '工程管理部经办',
-                          '工管部经办人'
-                        ]) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['工程管理部经办人', '工程管理部经办', '工管部经办人'],
+                          details.engineeringAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -812,13 +792,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.engineeringDate
-                          ? formatDate(details.engineeringDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '工程管理部经办人',
-                              '工程管理部经办',
-                              '工管部经办人'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['工程管理部经办人', '工程管理部经办', '工管部经办人'],
+                          details.engineeringDate
+                        )
                       }}
                     </span>
                   </div>
@@ -832,13 +809,10 @@
                   >
                     <span class="font-medium text-foreground">
                       {{
-                        details.engineeringApproveAuditor ||
-                        getFlowStepApproverDisplay([
-                          '工程管理部审核人',
-                          '工程管理部审核',
-                          '工管部审核人'
-                        ]) ||
-                        '-'
+                        getFlowStepApprovedAuditorDisplay(
+                          ['工程管理部审核人', '工程管理部审核', '工管部审核人'],
+                          details.engineeringApproveAuditor
+                        )
                       }}
                     </span>
                   </div>
@@ -848,13 +822,10 @@
                   >
                     <span class="font-mono text-foreground text-[11px]">
                       {{
-                        details.engineeringApproveDate
-                          ? formatDate(details.engineeringApproveDate)
-                          : getFlowStepApprovedDateDisplay([
-                              '工程管理部审核人',
-                              '工程管理部审核',
-                              '工管部审核人'
-                            ])
+                        getFlowStepApprovedDateFormattedDisplay(
+                          ['工程管理部审核人', '工程管理部审核', '工管部审核人'],
+                          details.engineeringApproveDate
+                        )
                       }}
                     </span>
                   </div>
@@ -1657,11 +1628,11 @@
                   >
                     我单位已按照安全防护、文明施工措施费用使用计划，完成了安全防护、文明施工措施，按照施工合同规定，建设单位应在____年____月____日支付该措施费用共计人民币
                     <span class="underline font-bold px-2">
-                      {{ amountToChinese(totalSums.contractorAmount) }}
+                      {{ amountToChinese(totalSums.engineeringAmount) }}
                     </span>
                     整（小写：
                     <span class="underline font-bold px-2">
-                      {{ formatMoney(totalSums.contractorAmount) }}
+                      {{ formatMoney(totalSums.engineeringAmount) }}
                     </span>
                     元），请予以审核。 附：安全防护、文明施工措施专项资金投入使用清单
                   </div>
@@ -3529,6 +3500,32 @@ const rejectDialogButtons = computed((): LayoutDialogButton[] => [
 ])
 
 // 意见卡片及打印日期格式化
+const isStepApproved = (stepNames: readonly string[]) => {
+  const steps = flowInstance.value?.steps || []
+  const actions = flowInstance.value?.actions || []
+  const normalizedNames = stepNames.map((name) => name.trim())
+  const matchesStepName = (stepName?: string | null) => {
+    const normalizedStepName = String(stepName || '').trim()
+    if (!normalizedStepName) return false
+    return normalizedNames.some(
+      (name) => normalizedStepName === name || normalizedStepName.includes(name)
+    )
+  }
+
+  const matchedStep = steps.find(
+    (step: any) =>
+      matchesStepName(step.name) && (step.status === 'APPROVED' || step.completedAt)
+  )
+  if (matchedStep) return true
+
+  const hasApprovedAction = actions.some(
+    (item: any) =>
+      matchesStepName(steps.find((s: any) => s.id === item.stepId)?.name) &&
+      (item.action === 'APPROVED' || item.action === 'STEP_APPROVED')
+  )
+  return hasApprovedAction
+}
+
 const getFlowStepApprovedDateDisplay = (stepNames: readonly string[]) => {
   const steps = flowInstance.value?.steps || []
   const normalizedNames = stepNames.map((name) => name.trim())
@@ -3582,16 +3579,17 @@ const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
       (name) => normalizedStepName === name || normalizedStepName.includes(name)
     )
   }
-  const matchingSteps = steps.filter((step: any) => matchesStepName(step.name))
+  const matchingSteps = steps.filter(
+    (step: any) =>
+      matchesStepName(step.name) && (step.status === 'APPROVED' || step.completedAt)
+  )
 
   const names: string[] = []
   for (const step of matchingSteps) {
     const action = actions.find(
       (item: any) =>
         item.stepId === step.id &&
-        (item.action === 'APPROVED' ||
-          item.action === 'STEP_APPROVED' ||
-          item.action === 'REJECTED')
+        (item.action === 'APPROVED' || item.action === 'STEP_APPROVED')
     )
 
     if (action?.actor?.name) {
@@ -3605,6 +3603,23 @@ const getFlowStepApproverDisplay = (stepNames: readonly string[]) => {
   }
 
   return Array.from(new Set(names)).join('、')
+}
+
+const getFlowStepApprovedAuditorDisplay = (
+  stepNames: readonly string[],
+  savedAuditor?: string | null
+) => {
+  if (!isStepApproved(stepNames)) return '-'
+  return savedAuditor || getFlowStepApproverDisplay(stepNames) || '-'
+}
+
+const getFlowStepApprovedDateFormattedDisplay = (
+  stepNames: readonly string[],
+  savedDate?: any
+) => {
+  if (!isStepApproved(stepNames)) return '-'
+  if (savedDate) return formatDate(savedDate)
+  return getFlowStepApprovedDateDisplay(stepNames)
 }
 
 const getFlowStepLatestComment = (stepNames: readonly string[]) => {
