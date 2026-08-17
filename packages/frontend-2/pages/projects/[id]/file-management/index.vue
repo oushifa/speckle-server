@@ -9,7 +9,11 @@
         </p>
       </div>
       <div>
-        <FormButton color="primary" @click="showUploadDialog = true">
+        <FormButton
+          v-if="hasFunctionalPerm('source-file-management:upload')"
+          color="primary"
+          @click="showUploadDialog = true"
+        >
           <template #icon-left>
             <IconUpload class="size-4" />
           </template>
@@ -183,6 +187,7 @@
                 <div class="flex items-center justify-end space-x-1">
                   <!-- Download (for both custom uploaded files and BIM models) -->
                   <FormButton
+                    v-if="hasFunctionalPerm('source-file-management:download')"
                     color="subtle"
                     size="sm"
                     title="下载文件/模型"
@@ -193,6 +198,7 @@
 
                   <!-- Edit -->
                   <FormButton
+                    v-if="hasFunctionalPerm('source-file-management:edit')"
                     color="subtle"
                     size="sm"
                     title="编辑信息"
@@ -203,7 +209,9 @@
 
                   <!-- Delete (disabled for models) -->
                   <div
-                    v-if="item.isModel"
+                    v-if="
+                      item.isModel && hasFunctionalPerm('source-file-management:delete')
+                    "
                     class="inline-block"
                     title="模型不可在此删除"
                   >
@@ -217,7 +225,10 @@
                     </FormButton>
                   </div>
                   <FormButton
-                    v-else
+                    v-if="
+                      !item.isModel &&
+                      hasFunctionalPerm('source-file-management:delete')
+                    "
                     color="danger"
                     size="sm"
                     title="删除文件"
@@ -263,9 +274,12 @@
 <script setup lang="ts">
 import { FormButton, CommonConfirmDialog } from '#components'
 import dayjs from 'dayjs'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
+
+const { hasFunctionalPerm } = useCustomPermissions()
 
 interface FileItem {
   id: string

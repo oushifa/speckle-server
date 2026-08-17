@@ -64,7 +64,7 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
+                  v-if="showWorkspaceLinks && hasMenuPerm('source-file-management')"
                   :to="projectBaseRoutePath + '/file-management'"
                   @click="isOpenMobile = false"
                 >
@@ -76,7 +76,7 @@
                         'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
                       'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                     ]"
-                    label="文件管理"
+                    label="源文件管理"
                   >
                     <template #icon>
                       <IconFile class="size-4 text-white" />

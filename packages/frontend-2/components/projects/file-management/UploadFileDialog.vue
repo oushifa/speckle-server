@@ -48,7 +48,9 @@
             <p class="text-sm text-slate-600 dark:text-slate-300">
               点击选择文件，或拖拽文件至此处
             </p>
-            <p class="text-xs text-slate-400 mt-1">支持各类文档、图纸、模型等文件</p>
+            <p class="text-xs text-slate-400 mt-1">
+              支持各类文档、图纸、模型等文件，单个文件最大 1GB
+            </p>
           </div>
         </div>
       </div>
@@ -189,6 +191,9 @@ const category = ref('工程图纸')
 const description = ref('')
 const loading = ref(false)
 
+// 源文件管理单文件上传大小上限：1GB
+const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024
+
 interface CustomAttr {
   key: string
   value: string
@@ -202,7 +207,13 @@ const triggerFileSelect = () => {
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    selectedFile.value = target.files[0]
+    const file = target.files[0]
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      alert(`文件【${file.name}】大小超过限制（单个文件最大 1GB），请压缩后重试。`)
+      target.value = ''
+      return
+    }
+    selectedFile.value = file
   }
 }
 
@@ -232,6 +243,11 @@ const apiOrigin = useApiOrigin()
 const handleUpload = async () => {
   if (!selectedFile.value) {
     alert('请选择要上传的文件')
+    return
+  }
+
+  if (selectedFile.value.size > MAX_FILE_SIZE_BYTES) {
+    alert('文件大小超过限制（单个文件最大 1GB），请压缩后重试。')
     return
   }
 

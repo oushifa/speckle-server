@@ -35,6 +35,11 @@ import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
 import cors from 'cors'
 
+/**
+ * 源文件管理（file-management）模块单文件上传大小上限：1GB（字节）
+ */
+export const FILE_MANAGEMENT_MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024
+
 export const fileManagementRouterFactory = (): Router => {
   const router = Router()
   const processNewFileStream = processNewFileStreamFactory()
@@ -102,7 +107,7 @@ export const fileManagementRouterFactory = (): Router => {
         let description = ''
         let customAttributes: any = null
 
-        const busboy = createBusboy(req)
+        const busboy = createBusboy(req, FILE_MANAGEMENT_MAX_FILE_SIZE_BYTES)
 
         busboy.on('field', (fieldname, val) => {
           if (fieldname === 'source') fileSource = val

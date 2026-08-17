@@ -748,6 +748,11 @@ const enterpriseMenus = [
 // 项目级二级页面模块树
 const projectMenuTree = [
   {
+    id: 'source-file-mg',
+    label: '源文件管理',
+    children: [{ id: 'source-file-management', label: '源文件管理' }]
+  },
+  {
     id: 'model-mg',
     label: '模型管理',
     children: [

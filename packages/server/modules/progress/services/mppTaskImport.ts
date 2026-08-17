@@ -50,6 +50,15 @@ type ExtractedPlanTask = {
 
 const commandOutputPreviewLength = 500
 
+// Java 源文件包含中文注释/字符串，必须显式指定 UTF-8 编译，
+// 否则在默认编码非 UTF-8 的环境（如部分 Linux 服务器 locale 为 US-ASCII）下
+// javac 会报 "unmappable character for encoding US-ASCII"
+const javacEncodingArgs = ['-encoding', 'UTF-8']
+
+// 运行期同样显式指定 UTF-8，保证 Java 程序向 stdout 输出中文任务名时
+// 不被 JVM 默认字符集（file.encoding）改写为乱码
+const javaRuntimeEncodingArgs = ['-Dfile.encoding=UTF-8']
+
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const appRoot = resolve(currentDir, '../../..')
 const packageRoot = appRoot.endsWith('/dist') ? resolve(appRoot, '..') : appRoot
@@ -243,7 +252,7 @@ const ensureCompiledExtractor = async () => {
 
   await execFile(
     javacBin,
-    ['-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
+    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
     {
       env: {
         ...process.env,
@@ -274,7 +283,7 @@ const ensureCompiledWriter = async () => {
 
   await execFile(
     javacBin,
-    ['-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
+    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
     {
       env: {
         ...process.env,
@@ -300,6 +309,7 @@ const runWriter = async (params: {
   await execFile(
     javaBin,
     [
+      ...javaRuntimeEncodingArgs,
       '-cp',
       `${javaBuildDir}:${mpxjLibDir}/*`,
       'ProgressPlanMppWriter',
@@ -404,6 +414,7 @@ const runExtractor = async (inputFilePath: string): Promise<ExtractedPlanTask[]>
   const { stdout, stderr } = await execFile(
     javaBin,
     [
+      ...javaRuntimeEncodingArgs,
       '-cp',
       `${javaBuildDir}:${mpxjLibDir}/*`,
       'ProgressPlanMppExtractor',
@@ -529,7 +540,7 @@ const ensureCompiledProbe = async () => {
 
   await execFile(
     javacBin,
-    ['-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, probeSourcePath],
+    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, probeSourcePath],
     {
       env: {
         ...process.env,
@@ -563,7 +574,13 @@ const runFieldProbe = async (
 
   const { stdout, stderr } = await execFile(
     javaBin,
-    ['-cp', `${javaBuildDir}:${mpxjLibDir}/*`, 'ProgressPlanFieldProbe', inputFilePath],
+    [
+      ...javaRuntimeEncodingArgs,
+      '-cp',
+      `${javaBuildDir}:${mpxjLibDir}/*`,
+      'ProgressPlanFieldProbe',
+      inputFilePath
+    ],
     {
       env: {
         ...process.env,

@@ -4,14 +4,17 @@ import Busboy from 'busboy'
 import type { Request } from 'express'
 import { getFileSizeLimit } from '@/modules/blobstorage/services/management'
 
-export const createBusboy = (req: Request) => {
+export const createBusboy = (
+  req: Request,
+  fileSizeLimit: number = getFileSizeLimit()
+) => {
   let busboy: Busboy.Busboy
   try {
     // Busboy does some validation of user input (headers) on creation
     busboy = Busboy({
       headers: req.headers,
       defParamCharset: 'utf8',
-      limits: { fileSize: getFileSizeLimit() }
+      limits: { fileSize: fileSizeLimit }
     })
     return busboy
   } catch (err) {
