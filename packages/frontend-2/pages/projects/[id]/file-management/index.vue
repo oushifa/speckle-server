@@ -80,7 +80,12 @@
       <div v-else-if="files.length === 0" class="p-12 text-center text-slate-400">
         <IconFolder class="size-12 mx-auto mb-2 text-slate-300" />
         <p class="text-base font-medium">暂无文件记录</p>
-        <p class="text-xs text-slate-400 mt-1">您可以点击“上传文件”按钮上传新文件</p>
+        <p
+          v-if="hasFunctionalPerm('source-file-management:upload')"
+          class="text-xs text-slate-400 mt-1"
+        >
+          您可以点击“上传文件”按钮上传新文件
+        </p>
       </div>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-sm border-collapse">

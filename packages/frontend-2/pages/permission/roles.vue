@@ -941,6 +941,7 @@ const roleUsers = ref<any[]>([])
 const roleMemberCounts = ref<Record<string, number>>({})
 
 const expandedMenuIds = ref<string[]>([
+  'source-file-mg',
   'model-mg',
   'progress-mg',
   'valuation-mg'
