@@ -471,6 +471,14 @@ const submit = () => {
     errorMessage.value = '附件上传中，请稍后再提交'
     return
   }
+  // 附件已随表单提交，标记为已使用，防止 useAttachments 在组件卸载/重置时
+  // 把这些 blob 当作未提交的垃圾附件删除（否则切换页面后已保存的关联文件会丢失）
+  for (const upload of uploads.value) {
+    if (upload.inUse) continue
+    if (isSuccessfullyUploaded(upload)) {
+      upload.inUse = true
+    }
+  }
   emit('submit', {
     ...form.value,
     name: form.value.name.trim(),
