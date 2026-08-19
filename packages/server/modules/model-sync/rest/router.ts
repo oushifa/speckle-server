@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import cors from 'cors'
 import { ensureError } from '@speckle/shared'
 import { db } from '@/db/knex'
+import { logger } from '@/observability/logging'
 import { buildAuthPolicies } from '@/modules'
 import { MODEL_LIBRARY_PROJECT_ID } from '@/modules/core/constants/modelLibrary'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
@@ -469,6 +470,19 @@ export const modelSyncRouterFactory = () => {
           })
           emitModelSyncTaskUpdated(task)
 
+          logger.info(
+            {
+              taskId: task.id,
+              fileId: prepared.fileId,
+              uploadId: prepared.uploadId,
+              fileName,
+              projectId,
+              modelId,
+              userId
+            },
+            'Model upload task created, multipart upload session ready'
+          )
+
           return res.status(201).json({
             data: serializeTask(task),
             upload: {
@@ -593,6 +607,22 @@ export const modelSyncRouterFactory = () => {
           taskId,
           userId
         })
+
+        logger.info(
+          {
+            taskId,
+            fileId: task.fileId,
+            uploadId,
+            partCount: parts.length,
+            fileUploadId: upload.id,
+            fileType: upload.fileType,
+            fileSize: upload.fileSize,
+            projectId,
+            modelId,
+            userId
+          },
+          'Model upload completed, task transitioning to conversion'
+        )
 
         res.json({ data: serializeTask(updatedTask) })
       } catch (err) {

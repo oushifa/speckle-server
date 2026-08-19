@@ -13,8 +13,8 @@ import type { RvtConversionJob } from '@/modules/rvt-conversion/repositories/job
  * Unit test for the RVT conversion dispatch.
  *
  * Proves that when an RVT file upload is dispatched for conversion, the server
- * sends a `start_rvt_conversion` message over the worker websocket carrying the
- * uploaded file id/name and the pre-signed source file url.
+ * sends a `start_rvt_conversion` message over every connected worker websocket
+ * carrying the uploaded file id/name and the pre-signed source file url.
  */
 
 const buildFakeJob = (overrides: Partial<RvtConversionJob> = {}): RvtConversionJob => ({
@@ -43,12 +43,16 @@ const buildFakeJob = (overrides: Partial<RvtConversionJob> = {}): RvtConversionJ
   ...overrides
 })
 
-const createFakeSocket = () => {
+const createFakeSocket = (options: { failSend?: boolean } = {}) => {
   const sent: string[] = []
   return {
     readyState: 1, // WebSocket.OPEN
     sent,
     send: (data: string, callback?: (error?: Error | null) => void) => {
+      if (options.failSend) {
+        callback?.(new Error('socket send failed'))
+        return
+      }
       sent.push(data)
       callback?.(null)
     },
@@ -74,13 +78,19 @@ describe('RVT upload dispatch unit @rvt-conversion', () => {
     }
   })
 
-  it('sends start_rvt_conversion over the worker websocket when an RVT file is dispatched', async () => {
+  it('sends start_rvt_conversion to every connected worker websocket', async () => {
     process.env['RVT_CONVERSION_SPECKLE_SERVER_URL'] = 'http://speckle-server.local'
 
-    const socket = createFakeSocket()
+    const firstSocket = createFakeSocket()
+    const secondSocket = createFakeSocket()
     registerRvtWorker({
-      workerId: 'unit-test-rvt-worker',
-      socket: socket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      workerId: 'unit-test-rvt-worker-1',
+      socket: firstSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+    registerRvtWorker({
+      workerId: 'unit-test-rvt-worker-2',
+      socket: secondSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
       capabilities: ['rvt']
     })
 
@@ -95,22 +105,65 @@ describe('RVT upload dispatch unit @rvt-conversion', () => {
       branchName: 'main'
     })
 
-    expect(socket.sent).to.have.lengthOf(1)
+    expect(firstSocket.sent).to.have.lengthOf(1)
+    expect(secondSocket.sent).to.have.lengthOf(1)
 
-    const payload = JSON.parse(socket.sent[0]) as Record<string, unknown>
-    expect(payload.type).to.equal('start_rvt_conversion')
-    expect(payload.workerId).to.equal('unit-test-rvt-worker')
-    expect(payload.taskId).to.equal(job.id)
-    expect(payload.projectId).to.equal(job.projectId)
-    expect(payload.modelId).to.equal(job.modelId)
-    expect(payload.fileId).to.equal(job.sourceFileId)
-    expect(payload.fileName).to.equal(job.sourceFileName)
-    expect(payload.sourceFileUrl).to.equal(sourceFileUrl)
-    expect(payload.speckleServerUrl).to.equal('http://speckle-server.local')
-    expect(payload.speckleToken).to.equal('speckle-token-value')
-    expect(payload.speckleTokenId).to.equal('speckle-token-id')
-    expect(payload.branchName).to.equal('main')
-    expect(payload.sourceApplication).to.equal('External RVT Converter')
+    const firstPayload = JSON.parse(firstSocket.sent[0]) as Record<string, unknown>
+    const secondPayload = JSON.parse(secondSocket.sent[0]) as Record<string, unknown>
+
+    for (const payload of [firstPayload, secondPayload]) {
+      expect(payload.type).to.equal('start_rvt_conversion')
+      expect(payload.taskId).to.equal(job.id)
+      expect(payload.projectId).to.equal(job.projectId)
+      expect(payload.modelId).to.equal(job.modelId)
+      expect(payload.fileId).to.equal(job.sourceFileId)
+      expect(payload.fileName).to.equal(job.sourceFileName)
+      expect(payload.sourceFileUrl).to.equal(sourceFileUrl)
+      expect(payload.speckleServerUrl).to.equal('http://speckle-server.local')
+      expect(payload.speckleToken).to.equal('speckle-token-value')
+      expect(payload.speckleTokenId).to.equal('speckle-token-id')
+      expect(payload.branchName).to.equal('main')
+      expect(payload.sourceApplication).to.equal('External RVT Converter')
+    }
+
+    expect(firstPayload.workerId).to.equal('unit-test-rvt-worker-1')
+    expect(secondPayload.workerId).to.equal('unit-test-rvt-worker-2')
+  })
+
+  it('succeeds when at least one worker accepts the message despite partial send failures', async () => {
+    process.env['RVT_CONVERSION_SPECKLE_SERVER_URL'] = 'http://speckle-server.local'
+
+    const okSocket = createFakeSocket()
+    const failingSocket = createFakeSocket({ failSend: true })
+    registerRvtWorker({
+      workerId: 'unit-test-rvt-worker-ok',
+      socket: okSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+    registerRvtWorker({
+      workerId: 'unit-test-rvt-worker-failing',
+      socket: failingSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+
+    const job = buildFakeJob()
+
+    let resolved = false
+    try {
+      await dispatchRvtConversionJob({
+        job,
+        sourceFileUrl: 'http://minio.local/assets/project/test-model.rvt',
+        speckleToken: 't',
+        speckleTokenId: 'ti'
+      })
+      resolved = true
+    } catch (error) {
+      expect.fail(`dispatch should not throw when at least one worker accepts: ${error}`)
+    }
+
+    expect(resolved).to.equal(true)
+    expect(okSocket.sent).to.have.lengthOf(1)
+    expect(failingSocket.sent).to.have.lengthOf(0)
   })
 
   it('throws when no RVT worker is connected (no start_rvt_conversion is sent)', async () => {
@@ -131,5 +184,39 @@ describe('RVT upload dispatch unit @rvt-conversion', () => {
 
     expect(thrown).to.be.instanceOf(Error)
     expect((thrown as Error).message).to.contain('No connected RVT worker')
+  })
+
+  it('throws when every connected worker fails to accept the message', async () => {
+    const failingSocketOne = createFakeSocket({ failSend: true })
+    const failingSocketTwo = createFakeSocket({ failSend: true })
+    registerRvtWorker({
+      workerId: 'unit-test-rvt-worker-failing-1',
+      socket: failingSocketOne as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+    registerRvtWorker({
+      workerId: 'unit-test-rvt-worker-failing-2',
+      socket: failingSocketTwo as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+
+    const job = buildFakeJob()
+
+    let thrown: unknown
+    try {
+      await dispatchRvtConversionJob({
+        job,
+        sourceFileUrl: 'http://minio.local/assets/project/test-model.rvt',
+        speckleToken: 't',
+        speckleTokenId: 'ti'
+      })
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).to.be.instanceOf(Error)
+    expect((thrown as Error).message).to.contain('Failed to dispatch RVT conversion job')
+    expect(failingSocketOne.sent).to.have.lengthOf(0)
+    expect(failingSocketTwo.sent).to.have.lengthOf(0)
   })
 })

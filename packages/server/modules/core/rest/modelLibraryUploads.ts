@@ -200,6 +200,18 @@ export default (app: Router) => {
           fileName
         })
 
+        req.log.info(
+          {
+            fileId,
+            uploadId,
+            fileName,
+            modelId: model.id,
+            projectId: MODEL_LIBRARY_PROJECT_ID,
+            userId
+          },
+          'Model library upload session created'
+        )
+
         res.json({
           data: {
             projectId: MODEL_LIBRARY_PROJECT_ID,

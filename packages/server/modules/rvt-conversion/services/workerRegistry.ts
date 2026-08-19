@@ -63,13 +63,9 @@ export const touchRvtWorker = (params: {
   return existing
 }
 
-export const getAvailableRvtWorker = () => {
-  for (const worker of workers.values()) {
-    if (worker.socket.readyState !== WebSocket.OPEN) continue
-    return worker
-  }
-
-  return null
-}
+export const listOpenRvtWorkers = () =>
+  Array.from(workers.values()).filter(
+    (worker) => worker.socket.readyState === WebSocket.OPEN
+  )
 
 export const listRvtWorkers = () => Array.from(workers.values())

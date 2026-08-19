@@ -270,6 +270,17 @@ export const drawingsRouterFactory = (): Router => {
           fileName
         })
 
+        req.log.info(
+          {
+            blobId,
+            uploadId,
+            fileName,
+            projectId,
+            userId
+          },
+          'Drawing upload session created'
+        )
+
         res.json({ data: { blobId, uploadId } })
       } catch (err) {
         next(err)
@@ -415,6 +426,18 @@ export const drawingsRouterFactory = (): Router => {
           })),
           maximumFileSize: getFileSizeLimit()
         })
+
+        req.log.info(
+          {
+            blobId: completedBlob.id,
+            uploadId,
+            partCount: parts.length,
+            fileSize: completedBlob.fileSize,
+            projectId,
+            userId
+          },
+          'Drawing multipart upload completed'
+        )
 
         res.json({
           data: {

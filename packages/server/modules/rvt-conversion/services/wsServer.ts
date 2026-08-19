@@ -103,10 +103,10 @@ export const initRvtConversionWsServer = () => {
 
     wsLogger.info(
       {
-        workerId,
+        provisionalWorkerId: workerId,
         ...getWorkerRequestLogContext(request)
       },
-      'RVT_CONVERT worker connected'
+      'RVT_CONVERT worker socket connected'
     )
 
     socket.on('message', (raw) => {
@@ -127,7 +127,7 @@ export const initRvtConversionWsServer = () => {
           case 'worker_register': {
             wsLogger.info(
               {
-                workerId,
+                provisionalWorkerId: workerId,
                 requestedWorkerId: message.workerId || null,
                 capabilities: message.capabilities || [],
                 version: message.version || null
@@ -154,10 +154,11 @@ export const initRvtConversionWsServer = () => {
             wsLogger.info(
               {
                 workerId,
+                registeredWorkerId: workerId,
                 capabilities: message.capabilities || [],
                 version: message.version || null
               },
-              'RVT_CONVERT worker register applied'
+              'RVT_CONVERT worker connected and registered'
             )
             break
           }

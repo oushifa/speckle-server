@@ -3,7 +3,7 @@ export type TrackedRvtConversionTask = {
   projectId: string
   modelId: string
   sourceFileId: string
-  workerId: string
+  workerIds: string[]
   trackedAt: Date
 }
 

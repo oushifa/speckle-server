@@ -6,6 +6,7 @@ import type {
   InsertNewUploadAndNotifyV2,
   RegisterMultipartUploadCompleteAndStartFileImport
 } from '@/modules/fileuploads/domain/operations'
+import { fileUploadsLogger as logger } from '@/observability/logging'
 import { startFileImportAfterBlobCompletedFactory } from '@/modules/fileuploads/services/presigned'
 
 export const registerMultipartUploadCompleteAndStartFileImportFactory = (deps: {
@@ -26,6 +27,21 @@ export const registerMultipartUploadCompleteAndStartFileImportFactory = (deps: {
       parts,
       maximumFileSize
     })
+
+    logger.info(
+      {
+        fileUploadId: storedBlob.id,
+        projectId: storedBlob.streamId,
+        modelId,
+        fileName: storedBlob.fileName,
+        fileType: storedBlob.fileType,
+        fileSize: storedBlob.fileSize,
+        uploadId,
+        partCount: parts.length,
+        userId
+      },
+      'Multipart model upload completed and file import scheduled'
+    )
 
     return await startFileImport({
       projectId,

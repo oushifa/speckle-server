@@ -37,6 +37,12 @@ const isTerminalModelSyncStatus = (
   status: ProjectModelSyncTaskRecord['status'] | undefined
 ) => !!status && TerminalModelSyncStatuses.has(status)
 
+const isTerminalRvtJob = (job: RvtConversionJob) =>
+  job.status === 'succeeded' ||
+  job.status === 'failed' ||
+  !!job.versionId ||
+  !!job.finishedAt
+
 const isTerminalFileUploadStatus = (
   status: FileUploadRecord['convertedStatus'] | FileUploadConvertedStatus | undefined
 ) => status === FileUploadConvertedStatus.Completed || status === FileUploadConvertedStatus.Error
@@ -476,6 +482,17 @@ export const acknowledgeRvtConversionJob = async (params: {
     return null
   }
 
+  if (isTerminalRvtJob(job)) {
+    lifecycleLogger.info(
+      {
+        ...buildRvtJobLogContext(job),
+        externalTaskId: params.externalTaskId || null
+      },
+      'RVT_CONVERT acknowledge lifecycle ignored because job is already terminal'
+    )
+    return job
+  }
+
   const updatedJob = await updateJob({
     id: params.taskId,
     item: {
@@ -705,6 +722,28 @@ export const completeRvtConversionJob = async (
       'RVT_CONVERT result lifecycle job not found'
     )
     return null
+  }
+
+  if (isTerminalRvtJob(job)) {
+    lifecycleLogger.info(
+      params.status === 'success'
+        ? {
+            ...buildRvtJobLogContext(job),
+            status: params.status,
+            versionId: params.versionId,
+            ignoredJobStatus: job.status,
+            ignoredJobVersionId: job.versionId
+          }
+        : {
+            ...buildRvtJobLogContext(job),
+            status: params.status,
+            errorMessage: params.errorMessage,
+            ignoredJobStatus: job.status,
+            ignoredJobVersionId: job.versionId
+          },
+      'RVT_CONVERT result lifecycle ignored because job is already terminal'
+    )
+    return job
   }
 
   const now = new Date()

@@ -9,6 +9,7 @@ import type {
 } from '@/modules/fileuploads/domain/operations'
 import { ModelNotFoundError } from '@/modules/core/errors/model'
 import { ensureError } from '@speckle/shared'
+import { fileUploadsLogger } from '@/observability/logging'
 import { FileImportJobNotFoundError } from '@/modules/fileuploads/helpers/errors'
 import { get, isString } from 'lodash-es'
 
@@ -98,6 +99,19 @@ export const registerUploadCompleteAndStartFileImportFactory = (deps: {
       expectedETag,
       maximumFileSize
     })
+
+    fileUploadsLogger.info(
+      {
+        fileUploadId: storedBlob.id,
+        projectId: storedBlob.streamId,
+        modelId,
+        fileName: storedBlob.fileName,
+        fileType: storedBlob.fileType,
+        fileSize: storedBlob.fileSize,
+        userId
+      },
+      'Model upload completed and file import scheduled'
+    )
 
     return await startFileImport({
       projectId,
