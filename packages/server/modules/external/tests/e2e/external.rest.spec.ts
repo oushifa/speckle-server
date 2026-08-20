@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, camelcase */
 import request from 'supertest'
 import { expect } from 'chai'
 import { beforeEachContext } from '@/test/hooks'
@@ -198,6 +199,96 @@ describe('External API @external', () => {
       expect(response.body.projectId).to.equal(projectId)
       expect(response.body.modelId).to.equal('test_model_id_1')
       expect(response.body.results).to.be.an('array')
+    })
+
+    it('successfully queries quality acceptance forms matching Revit uniqueId and component code', async () => {
+      const targetUniqueId = 'revit_unique_id_test_001'
+      const targetCompCode = '14-94.04.01.00.00.1NB01010101CB1-99'
+
+      // 1. 插入构件对象（包含 Revit UniqueId 以及分类对象/分部分项/序号码）
+      await db('objects').insert({
+        id: 'speckle_obj_hash_999',
+        streamId: projectId,
+        speckleType: 'Objects.Data.DataObject',
+        data: JSON.stringify({
+          id: 'speckle_obj_hash_999',
+          applicationId: targetUniqueId,
+          properties: {
+            'Property Sets': {
+              文字: {
+                序号码: 'CB1-99'
+              }
+            },
+            'Element Type Property Sets': {
+              文字: {
+                分类对象代码: '14-94.04.01.00.00.1',
+                分部分项代码: '0101'
+              }
+            }
+          }
+        })
+      })
+
+      // 2. 插入项目信息节点（包含空间代码）
+      await db('objects').insert({
+        id: 'speckle_project_info_999',
+        streamId: projectId,
+        speckleType: 'Objects.Data.DataObject',
+        data: JSON.stringify({
+          id: 'speckle_project_info_999',
+          ifcType: 'IfcSite',
+          properties: {
+            'Property Sets': {
+              其他: { 类别: '项目信息' },
+              文字: { 空间代码: 'NB0101' }
+            }
+          }
+        })
+      })
+
+      // 3. 插入质量验收表单（applicationIds 存储 Revit UniqueId）
+      const formId = 'qa_form_test_revit_001'
+      await db('quality_acceptance_forms').insert({
+        id: formId,
+        project_id: projectId,
+        name: 'Revit UniqueId 测试验收单',
+        inspectionLotNumber: 'LOT-REVIT-001',
+        acceptancePart: '基坑支护',
+        workVolume: 50,
+        unit: 'm3',
+        creator: user.id,
+        BIM: JSON.stringify([
+          {
+            modelId: 'test_model_revit_1',
+            applicationIds: [targetUniqueId],
+            bimIds: ['CB1-99']
+          }
+        ]),
+        attachments: '[]',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+
+      // 4. 调用外部 API 通过构件编码查询
+      const response = await request(app)
+        .post(`/api/v1/external/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          componentCodes: [targetCompCode]
+        })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.results).to.have.lengthOf(1)
+      expect(response.body.results[0].componentCode).to.equal(targetCompCode)
+      expect(response.body.results[0].forms).to.have.lengthOf(1)
+      expect(response.body.results[0].forms[0].id).to.equal(formId)
+      expect(response.body.results[0].forms[0].name).to.equal(
+        'Revit UniqueId 测试验收单'
+      )
+      expect(response.body.results[0].forms[0].BIM[0].bimCodes).to.deep.equal([
+        targetCompCode
+      ])
     })
   })
 

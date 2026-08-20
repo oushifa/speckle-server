@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unused-vars, @typescript-eslint/consistent-type-imports */
 import crypto from 'crypto'
 import { Router, type RequestHandler } from 'express'
 import { db } from '@/db/knex'
@@ -496,6 +497,14 @@ const serializeActualRecord = (record: any) => {
 const isProjectInfoNode = (raw: any): boolean => {
   if (!raw) return false
 
+  const ifcType = raw.ifcType
+  if (
+    typeof ifcType === 'string' &&
+    (ifcType === 'IfcSite' || ifcType === 'IfcBuilding' || ifcType === 'IfcProject')
+  ) {
+    return true
+  }
+
   const category = raw.category
   if (
     typeof category === 'string' &&
@@ -627,34 +636,59 @@ const buildBimCodesLookup = async (
   if (!applicationIds.length) return lookup
 
   try {
-    const objects = await projectDb('objects')
-      .where('streamId', projectId)
-      .whereIn('id', applicationIds)
-      .select('id', 'data')
+    const chunks: string[][] = []
+    for (let i = 0; i < applicationIds.length; i += 500) {
+      chunks.push(applicationIds.slice(i, i + 500))
+    }
+
+    const objects: any[] = []
+    for (const batch of chunks) {
+      const batchObjects = await projectDb('objects')
+        .where('streamId', projectId)
+        .andWhere(function (this: any) {
+          this.whereIn('id', batch).orWhereRaw(
+            `data->>'applicationId' IN (${batch.map(() => '?').join(',')})`,
+            batch
+          )
+        })
+        .select('id', 'data')
+      objects.push(...batchObjects)
+    }
 
     const projectInfoNodes = await projectDb('objects')
       .where('streamId', projectId)
       .andWhere(function (this: any) {
-        this.whereILike('data', '%项目信息%')
-          .orWhereILike('data', '%project information%')
-          .orWhereILike('data', '%project info%')
+        this.whereRaw(
+          'data::text ILIKE ? OR data::text ILIKE ? OR data::text ILIKE ? OR data::text ILIKE ? OR data::text ILIKE ?',
+          [
+            '%空间代码%',
+            '%spacecode%',
+            '%项目信息%',
+            '%project information%',
+            '%project info%'
+          ]
+        )
       })
       .select('id', 'data')
 
     let defaultSpaceCode = ''
     for (const pin of projectInfoNodes) {
       const data = typeof pin.data === 'string' ? JSON.parse(pin.data) : pin.data
-      if (isProjectInfoNode(data)) {
-        const sc = getPropertyValue(data, ['空间代码', 'spacecode'])
-        if (sc) {
-          defaultSpaceCode = sc
-          break
-        }
+      const sc = getPropertyValue(data, ['空间代码', 'spacecode'])
+      if (sc) {
+        defaultSpaceCode = sc
+        break
       }
     }
 
     for (const obj of objects) {
       const data = typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data
+      const directCode = getPropertyValue(data, [
+        '构件编码',
+        'componentcode',
+        'bimcode'
+      ])
+
       const classCode =
         getPropertyValue(data, ['分类对象代码', 'classificationobjectcode']) || ''
       const sectionCode =
@@ -663,9 +697,19 @@ const buildBimCodesLookup = async (
       const spaceCode =
         getPropertyValue(data, ['空间代码', 'spacecode']) || defaultSpaceCode || ''
 
-      if (classCode && spaceCode && sectionCode && serialNum) {
-        const fullBimCode = classCode + spaceCode + sectionCode + serialNum
+      let fullBimCode = directCode || ''
+      if (!fullBimCode && classCode && (serialNum || sectionCode)) {
+        fullBimCode = `${classCode}${spaceCode}${sectionCode}${serialNum}`
+      }
+
+      if (fullBimCode) {
         lookup.set(obj.id, fullBimCode)
+
+        const appId =
+          data.applicationId || data.properties?.Attributes?.GlobalId || data.GlobalId
+        if (appId && typeof appId === 'string') {
+          lookup.set(appId, fullBimCode)
+        }
       }
     }
   } catch (err) {
