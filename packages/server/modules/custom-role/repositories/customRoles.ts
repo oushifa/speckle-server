@@ -171,6 +171,7 @@ export const listCustomRoleUsersFactory =
     const rows = await tables
       .customRoleUsers(db)
       .join(Users.name, CustomRoleUsers.col.userId, Users.col.id)
+      .join(CustomRoles.name, CustomRoleUsers.col.roleId, CustomRoles.col.id)
       .where(CustomRoleUsers.col.roleId, params.roleId)
       .orderBy(Users.col.name, 'asc')
       .select<
@@ -181,6 +182,8 @@ export const listCustomRoleUsersFactory =
           userName: string
           menuPerms: unknown
           modelPerms: unknown
+          roleMenuPerms: unknown
+          roleModelPerms: unknown
           isCustomized: boolean
           createdAt: Date
           updatedAt: Date
@@ -192,6 +195,8 @@ export const listCustomRoleUsersFactory =
         Users.colAs('name', 'userName'),
         CustomRoleUsers.col.menuPerms,
         CustomRoleUsers.col.modelPerms,
+        CustomRoles.colAs('menuPerms', 'roleMenuPerms'),
+        CustomRoles.colAs('modelPerms', 'roleModelPerms'),
         CustomRoleUsers.col.isCustomized,
         CustomRoleUsers.col.createdAt,
         CustomRoleUsers.col.updatedAt
@@ -199,8 +204,9 @@ export const listCustomRoleUsersFactory =
 
     return rows.map((row) => ({
       ...row,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms)
+      // 未个性化的用户继承角色默认权限
+      menuPerms: parsePerms(row.isCustomized ? row.menuPerms : row.roleMenuPerms),
+      modelPerms: parsePerms(row.isCustomized ? row.modelPerms : row.roleModelPerms)
     }))
   }
 
@@ -301,6 +307,8 @@ export const getEffectivePermissionByUserIdFactory =
           roleName: string
           menuPerms: unknown
           modelPerms: unknown
+          roleMenuPerms: unknown
+          roleModelPerms: unknown
           isCustomized: boolean
           updatedAt: Date
         }>
@@ -310,6 +318,8 @@ export const getEffectivePermissionByUserIdFactory =
         CustomRoles.colAs('name', 'roleName'),
         CustomRoleUsers.col.menuPerms,
         CustomRoleUsers.col.modelPerms,
+        CustomRoles.colAs('menuPerms', 'roleMenuPerms'),
+        CustomRoles.colAs('modelPerms', 'roleModelPerms'),
         CustomRoleUsers.col.isCustomized,
         CustomRoleUsers.col.updatedAt
       ])
@@ -321,8 +331,9 @@ export const getEffectivePermissionByUserIdFactory =
       userId: row.userId,
       roleId: row.roleId,
       roleName: row.roleName,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms),
+      // 未个性化的用户继承角色默认权限
+      menuPerms: parsePerms(row.isCustomized ? row.menuPerms : row.roleMenuPerms),
+      modelPerms: parsePerms(row.isCustomized ? row.modelPerms : row.roleModelPerms),
       isCustomized: row.isCustomized
     }
   }
@@ -364,6 +375,8 @@ export const getMyEffectivePermissionFactory =
           roleName: string
           menuPerms: unknown
           modelPerms: unknown
+          roleMenuPerms: unknown
+          roleModelPerms: unknown
           isCustomized: boolean
           updatedAt: Date
         }>
@@ -373,6 +386,8 @@ export const getMyEffectivePermissionFactory =
         CustomRoles.colAs('name', 'roleName'),
         CustomRoleUsers.col.menuPerms,
         CustomRoleUsers.col.modelPerms,
+        CustomRoles.colAs('menuPerms', 'roleMenuPerms'),
+        CustomRoles.colAs('modelPerms', 'roleModelPerms'),
         CustomRoleUsers.col.isCustomized,
         CustomRoleUsers.col.updatedAt
       ])
@@ -395,8 +410,9 @@ export const getMyEffectivePermissionFactory =
       userId: row.userId,
       roleId: row.roleId,
       roleName: row.roleName,
-      menuPerms: parsePerms(row.menuPerms),
-      modelPerms: parsePerms(row.modelPerms),
+      // 未个性化的用户继承角色默认权限
+      menuPerms: parsePerms(row.isCustomized ? row.menuPerms : row.roleMenuPerms),
+      modelPerms: parsePerms(row.isCustomized ? row.modelPerms : row.roleModelPerms),
       isCustomized: row.isCustomized,
       isAdmin: false
     }

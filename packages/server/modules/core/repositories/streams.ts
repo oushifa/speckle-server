@@ -713,7 +713,9 @@ const getUserStreamsQueryBaseFactory =
     workspaceId,
     onlyWithActiveSsoSession,
     personalOnly,
-    includeImplicitAccess
+    includeImplicitAccess,
+    authorIdWhitelist,
+    includeAllProjects
   }: BaseUserStreamsQueryParams) => {
     const query = tables.streams(deps.db).leftJoin(StreamAcl.name, (j1) => {
       j1.on(StreamAcl.col.resourceId, Streams.col.id).andOnVal(
@@ -722,7 +724,20 @@ const getUserStreamsQueryBaseFactory =
       )
     })
 
-    if (includeImplicitAccess) {
+    if (authorIdWhitelist?.length) {
+      // 部门可见性模式：项目的创建者(stream_acl role=owner)属于白名单，
+      // 不要求当前用户拥有显式 ACL 角色
+      query.whereExists((sub) => {
+        sub
+          .select(StreamAcl.col.userId)
+          .from(StreamAcl.name)
+          .where(StreamAcl.col.role, Roles.Stream.Owner)
+          .whereIn(StreamAcl.col.userId, authorIdWhitelist)
+          .whereRaw(`${StreamAcl.name}."resourceId" = ${Streams.name}."id"`)
+      })
+    } else if (includeAllProjects) {
+      // server:admin 全量模式：不限制 ACL 角色
+    } else if (includeImplicitAccess) {
       /**
        * implicit access rules:
        * 1. user must have an explicit stream role OR

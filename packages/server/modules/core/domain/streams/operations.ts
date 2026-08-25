@@ -241,6 +241,17 @@ export type BaseUserStreamsQueryParams = {
    * Only with active sso session
    */
   onlyWithActiveSsoSession?: boolean
+
+  /**
+   * 部门可见性模式：仅返回创建者(authorId)在此白名单内的项目，
+   * 此时不要求用户拥有显式 ACL 角色（用于项目管理列表按创建者归属过滤）
+   */
+  authorIdWhitelist?: string[]
+
+  /**
+   * server:admin 全量模式：返回所有 normal 项目，不要求用户拥有任何 ACL 角色
+   */
+  includeAllProjects?: boolean
 }
 
 export type UserStreamsQueryParams = BaseUserStreamsQueryParams & {

@@ -42,15 +42,14 @@ import {
   getOnboardingBaseStreamFactory,
   getUserStreamsPageFactory,
   getUserStreamsCountFactory,
-  getStreamRolesFactory,
-  legacyGetStreamsFactory
+  getStreamRolesFactory
 } from '@/modules/core/repositories/streams'
 import { getUserFactory, getUsersFactory } from '@/modules/core/repositories/users'
 import {
   createNewProjectFactory,
   deleteProjectAndCommitsFactory
 } from '@/modules/core/services/projects'
-import { adminProjectListFactory } from '@/modules/core/services/admin'
+import { getDepartmentUserIdsFactory } from '@/modules/organizations/services/departmentFilter'
 import { throwIfRateLimitedFactory } from '@/modules/core/utils/ratelimiter'
 import {
   addOrUpdateStreamCollaboratorFactory,
@@ -87,10 +86,7 @@ import { collectAndValidateCoreTargetsFactory } from '@/modules/serverinvites/se
 import { createAndSendInviteFactory } from '@/modules/serverinvites/services/creation'
 import { inviteUsersToProjectFactory } from '@/modules/serverinvites/services/projectInviteManagement'
 import { authorizeResolver, validateScopes } from '@/modules/shared'
-import {
-  adminOverrideEnabled,
-  isRateLimiterEnabled
-} from '@/modules/shared/helpers/envHelper'
+import { isRateLimiterEnabled } from '@/modules/shared/helpers/envHelper'
 import type { EventBusEmit } from '@/modules/shared/services/eventBus'
 import { getEventBus } from '@/modules/shared/services/eventBus'
 import {
@@ -200,9 +196,8 @@ const updateStreamRoleAndNotify = updateStreamRoleAndNotifyFactory({
 
 const getUserStreams = getUserStreamsPageFactory({ db })
 const getUserStreamsCount = getUserStreamsCountFactory({ db })
-const adminProjectList = adminProjectListFactory({
-  getStreams: legacyGetStreamsFactory({ db })
-})
+const grantStreamPermissions = grantStreamPermissionsFactory({ db })
+const getDepartmentUserIds = getDepartmentUserIdsFactory({ db })
 const throwIfRateLimited = throwIfRateLimitedFactory({
   rateLimiterEnabled: isRateLimiterEnabled()
 })
@@ -567,25 +562,7 @@ const resolvers: Resolvers = {
   },
   User: {
     async projects(_parent, args, ctx) {
-      // Admin override exposes all projects through the regular projects endpoint.
-      if (adminOverrideEnabled() && ctx.role === Roles.Server.Admin) {
-        const sortBy =
-          typeof args.sortBy === 'string' ? args.sortBy : (args.sortBy || [])[0] || null
-        const { cursor, items, totalCount } = await adminProjectList({
-          query: args.filter?.search || null,
-          orderBy: sortBy,
-          visibility: null,
-          limit: args.limit || 25,
-          cursor: args.cursor || null
-        })
-
-        return {
-          totalCount,
-          numberOfHidden: 0,
-          cursor,
-          items
-        }
-      }
+      const isAdmin = ctx.role === Roles.Server.Admin
 
       // If limit=0 & no filter, short-cut full execution and use data loader
       if (!args.filter && args.limit === 0) {
@@ -597,49 +574,67 @@ const resolvers: Resolvers = {
         }
       }
 
+      // 非 admin：仅展示自己创建的项目 + 同部门用户创建的项目（创建者归属过滤）
+      // admin：全量项目
+      let authorIdWhitelist: string[] | undefined
+      if (!isAdmin) {
+        const departmentUserIds = await getDepartmentUserIds(ctx.userId!)
+        authorIdWhitelist = [...new Set([ctx.userId!, ...departmentUserIds])]
+      }
+
+      const streamQueryParams = {
+        userId: ctx.userId!,
+        forOtherUser: false,
+        searchQuery: args.filter?.search || undefined,
+        withRoles: (args.filter?.onlyWithRoles || []) as StreamRoles[],
+        streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules),
+        workspaceId: args.filter?.workspaceId,
+        personalOnly: args.filter?.personalOnly,
+        includeImplicitAccess: args.filter?.includeImplicitAccess,
+        authorIdWhitelist,
+        includeAllProjects: isAdmin
+      }
+
       const [totalCount, visibleCount, { cursor, streams }] = await Promise.all([
+        getUserStreamsCount(streamQueryParams),
         getUserStreamsCount({
-          userId: ctx.userId!,
-          forOtherUser: false,
-          searchQuery: args.filter?.search || undefined,
-          withRoles: (args.filter?.onlyWithRoles || []) as StreamRoles[],
-          streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules),
-          workspaceId: args.filter?.workspaceId,
-          personalOnly: args.filter?.personalOnly,
-          includeImplicitAccess: args.filter?.includeImplicitAccess
-        }),
-        getUserStreamsCount({
-          userId: ctx.userId!,
-          forOtherUser: false,
-          searchQuery: args.filter?.search || undefined,
-          withRoles: (args.filter?.onlyWithRoles || []) as StreamRoles[],
-          streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules),
-          onlyWithActiveSsoSession: true,
-          workspaceId: args.filter?.workspaceId,
-          personalOnly: args.filter?.personalOnly,
-          includeImplicitAccess: args.filter?.includeImplicitAccess
+          ...streamQueryParams,
+          onlyWithActiveSsoSession: true
         }),
         getUserStreams({
-          userId: ctx.userId!,
+          ...streamQueryParams,
+          onlyWithActiveSsoSession: true,
           limit: args.limit,
           cursor: args.cursor || undefined,
-          searchQuery: args.filter?.search || undefined,
-          forOtherUser: false,
-          withRoles: (args.filter?.onlyWithRoles || []) as StreamRoles[],
-          streamIdWhitelist: toProjectIdWhitelist(ctx.resourceAccessRules),
-          onlyWithActiveSsoSession: true,
-          workspaceId: args.filter?.workspaceId,
-          personalOnly: args.filter?.personalOnly,
-          sortBy: args.sortBy || undefined,
-          includeImplicitAccess: args.filter?.includeImplicitAccess
+          sortBy: args.sortBy || undefined
         })
       ])
+
+      // 同部门用户创建的项目若无成员角色（或仅有历史 reviewer 角色），
+      // 自动授予 contributor（可查看可编辑）；admin 全量模式不写入 ACL
+      const items = isAdmin
+        ? streams
+        : await Promise.all(
+            streams.map(async (stream) => {
+              if (
+                stream.role === Roles.Stream.Owner ||
+                stream.role === Roles.Stream.Contributor
+              )
+                return stream
+              await grantStreamPermissions({
+                streamId: stream.id,
+                userId: ctx.userId!,
+                role: Roles.Stream.Contributor
+              })
+              return { ...stream, role: Roles.Stream.Contributor }
+            })
+          )
 
       return {
         totalCount,
         numberOfHidden: totalCount - visibleCount,
         cursor,
-        items: streams
+        items
       }
     }
   },

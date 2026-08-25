@@ -78,20 +78,12 @@ export default (app: Router) => {
 
         // 根据用户角色决定查询范围
         let allowedUserIds: string[] | undefined
-        
-        // 如果不是 admin,只查询所属部门用户的模型
+
+        // 非 admin：仅展示自己上传的模型 + 所属部门其他用户上传的模型
+        // 自己的模型始终可见（即使不属于任何部门）
         if (req.context.role !== Roles.Server.Admin && userId) {
-          allowedUserIds = await getDepartmentUserIds(userId)
-          
-          // 如果用户不属于任何部门,返回空列表
-          if (allowedUserIds.length === 0) {
-            return res.json({
-              data: [],
-              total: 0,
-              page: currentPage,
-              pageSize: currentPageSize
-            })
-          }
+          const departmentUserIds = await getDepartmentUserIds(userId)
+          allowedUserIds = [...new Set([userId, ...departmentUserIds])]
         }
 
         const latestCommitIdQuery = knex(BranchCommits.name)
@@ -163,7 +155,7 @@ export default (app: Router) => {
         if (member === 'mine' && userId) {
           countQuery.where(`${Branches.name}.authorId`, userId)
         }
-        // 如果不是 admin 且没有设置 member='mine',则按部门用户过滤
+        // 非 admin 且未设置 member='mine'：按部门用户过滤（含自己）
         if (allowedUserIds && member !== 'mine') {
           countQuery.whereIn(`${Branches.name}.authorId`, allowedUserIds)
         }
@@ -213,7 +205,7 @@ export default (app: Router) => {
         if (member === 'mine' && userId) {
           q.where(`${Branches.name}.authorId`, userId)
         }
-        // 如果不是 admin 且没有设置 member='mine',则按部门用户过滤
+        // 非 admin 且未设置 member='mine'：按部门用户过滤（含自己）
         if (allowedUserIds && member !== 'mine') {
           q.whereIn(`${Branches.name}.authorId`, allowedUserIds)
         }
