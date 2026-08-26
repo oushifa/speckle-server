@@ -61,3 +61,15 @@ export type FileUploadRecordV2 = {
 } & FileUploadProgressData
 
 export type FileUploadGraphQLReturn = FileUploadRecord | FileUploadRecordV2
+
+export const EXTERNAL_CONVERTIBLE_FILE_TYPES = ['rvt', 'skp', 'nwd', 'nwc'] as const
+export type ExternalConvertibleFileType = (typeof EXTERNAL_CONVERTIBLE_FILE_TYPES)[number]
+
+export const isExternalConvertibleFileType = (
+  fileType: string | null | undefined
+): fileType is ExternalConvertibleFileType => {
+  if (!fileType) return false
+  return (EXTERNAL_CONVERTIBLE_FILE_TYPES as readonly string[]).includes(
+    fileType.toLowerCase()
+  )
+}

@@ -41,7 +41,9 @@ import {
 } from '@/modules/fileuploads/repositories/fileUploads'
 import { fileImportQueues } from '@/modules/fileuploads/queues/fileimports'
 import {
+  EXTERNAL_CONVERTIBLE_FILE_TYPES,
   FileUploadConvertedStatus,
+  isExternalConvertibleFileType,
   type FileUploadRecord,
   type FileUploadRecordV2
 } from '@/modules/fileuploads/helpers/types'
@@ -180,7 +182,7 @@ export const startModelFileImportFactory =
 
     const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
       queues: fileImportQueues,
-      allowUnscheduledFileTypes: ['rvt'],
+      allowUnscheduledFileTypes: [...EXTERNAL_CONVERTIBLE_FILE_TYPES],
       pushJobToFileImporter,
       saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
       emit: getEventBus().emit
@@ -223,7 +225,7 @@ export const startModelFileImportFactory =
       maximumFileSize: getFileSizeLimit()
     })
 
-    if (upload.fileType.toLocaleLowerCase() === 'rvt') {
+    if (isExternalConvertibleFileType(upload.fileType)) {
       try {
         await dispatchRvtFileImport({
           projectId: params.projectId,
@@ -238,7 +240,9 @@ export const startModelFileImportFactory =
           upload: {
             convertedStatus: FileUploadConvertedStatus.Error,
             convertedMessage:
-              error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+              error instanceof Error
+                ? error.message
+                : `Failed to dispatch ${upload.fileType.toUpperCase()} file import.`,
             convertedLastUpdate: new Date()
           }
         })
@@ -413,7 +417,7 @@ export const completeModelSyncMultipartUploadFactory =
 
     const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
       queues: fileImportQueues,
-      allowUnscheduledFileTypes: ['rvt'],
+      allowUnscheduledFileTypes: [...EXTERNAL_CONVERTIBLE_FILE_TYPES],
       pushJobToFileImporter,
       saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
       emit: getEventBus().emit
@@ -460,7 +464,7 @@ export const completeModelSyncMultipartUploadFactory =
       maximumFileSize: getFileSizeLimit()
     })
 
-    if (upload.fileType.toLocaleLowerCase() === 'rvt') {
+    if (isExternalConvertibleFileType(upload.fileType)) {
       try {
         await dispatchRvtFileImport({
           projectId: params.projectId,
@@ -475,7 +479,9 @@ export const completeModelSyncMultipartUploadFactory =
           upload: {
             convertedStatus: FileUploadConvertedStatus.Error,
             convertedMessage:
-              error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+              error instanceof Error
+                ? error.message
+                : `Failed to dispatch ${upload.fileType.toUpperCase()} file import.`,
             convertedLastUpdate: new Date()
           }
         })

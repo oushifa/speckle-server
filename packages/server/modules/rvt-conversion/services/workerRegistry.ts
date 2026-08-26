@@ -11,6 +11,14 @@ export type RvtWorkerConnection = {
 
 const workers = new Map<string, RvtWorkerConnection>()
 
+const normalizeCapabilities = (capabilities?: string[]): string[] | null => {
+  if (!capabilities || !capabilities.length) return null
+  const normalized = capabilities
+    .map((c) => (typeof c === 'string' ? c.trim().toLowerCase() : ''))
+    .filter(Boolean)
+  return normalized.length ? normalized : null
+}
+
 export const registerRvtWorker = (params: {
   workerId: string
   socket: WebSocket
@@ -24,12 +32,13 @@ export const registerRvtWorker = (params: {
     existing.socket.close()
   }
 
+  const normalizedCaps = normalizeCapabilities(params.capabilities)
   const worker: RvtWorkerConnection = {
     workerId: params.workerId,
     socket: params.socket,
     connectedAt: existing?.connectedAt || now,
     lastSeenAt: now,
-    capabilities: params.capabilities || existing?.capabilities || ['rvt'],
+    capabilities: normalizedCaps || existing?.capabilities || ['rvt'],
     version: params.version ?? existing?.version ?? null
   }
 
@@ -53,8 +62,9 @@ export const touchRvtWorker = (params: {
   if (!existing) return null
 
   existing.lastSeenAt = new Date()
-  if (params.capabilities?.length) {
-    existing.capabilities = params.capabilities
+  const normalizedCaps = normalizeCapabilities(params.capabilities)
+  if (normalizedCaps?.length) {
+    existing.capabilities = normalizedCaps
   }
   if (params.version !== undefined) {
     existing.version = params.version

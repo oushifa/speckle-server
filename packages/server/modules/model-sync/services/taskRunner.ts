@@ -24,7 +24,10 @@ import {
   getFileInfoFactoryV2,
   updateFileUploadFactory
 } from '@/modules/fileuploads/repositories/fileUploads'
-import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import {
+  FileUploadConvertedStatus,
+  isExternalConvertibleFileType
+} from '@/modules/fileuploads/helpers/types'
 import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { getProjectObjectStorage } from '@/modules/multiregion/utils/blobStorageSelector'
@@ -246,7 +249,7 @@ export const runModelSyncTaskFactory =
         throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
       }
 
-      if (upload.fileType.toLowerCase() !== 'rvt') {
+      if (!isExternalConvertibleFileType(upload.fileType)) {
         return
       }
 
@@ -269,7 +272,11 @@ export const runModelSyncTaskFactory =
         streamId: params.projectId
       })
       if (!model) {
-        throw new ModelSyncTaskError('UNKNOWN', '未找到模型，无法重新发起 RVT 转换', false)
+        throw new ModelSyncTaskError(
+          'UNKNOWN',
+          `未找到模型，无法重新发起 ${upload.fileType.toUpperCase()} 转换`,
+          false
+        )
       }
 
       const resetUpload = await updateFileUpload({

@@ -19,16 +19,35 @@ export type DispatchRvtConversionJobPayload = {
   speckleToken: string
   speckleTokenId: string
   branchName?: string | null
+  fileType?: string | null
+}
+
+const resolveTargetFileType = (params: {
+  fileType?: string | null
+  job: RvtConversionJob
+}) => {
+  if (params.fileType && params.fileType.trim()) {
+    return params.fileType.trim().toLowerCase().replace(/^\./, '')
+  }
+  if (params.job.sourceFileName) {
+    const ext = params.job.sourceFileName.split('.').pop()
+    if (ext && ext !== params.job.sourceFileName) {
+      return ext.trim().toLowerCase()
+    }
+  }
+  return 'rvt'
 }
 
 const buildWorkerDispatchLogContext = (params: {
   job: RvtConversionJob
   workerId: string
   branchName?: string | null
+  fileType?: string | null
 }) => ({
   ...buildRvtJobLogContext(params.job),
   workerId: params.workerId,
   branchName: params.branchName || null,
+  fileType: params.fileType || null,
   sourceApplication: params.job.sourceApplication,
   hasVersionMessage: !!params.job.versionMessage
 })
@@ -41,12 +60,14 @@ const buildStartConversionPayload = (params: {
   speckleToken: string
   speckleTokenId: string
   branchName?: string | null
+  fileType: string
 }) => ({
   type: 'start_rvt_conversion',
   taskId: params.job.id,
   workerId: params.workerId,
   projectId: params.job.projectId,
   modelId: params.job.modelId,
+  fileType: params.fileType,
   ...(params.branchName ? { branchName: params.branchName } : {}),
   fileId: params.job.sourceFileId,
   fileName: params.job.sourceFileName,
@@ -67,6 +88,7 @@ const sendStartConversionToWorker = (params: {
   speckleToken: string
   speckleTokenId: string
   branchName?: string | null
+  fileType: string
 }) =>
   new Promise<void>((resolve, reject) => {
     const payload = buildStartConversionPayload({
@@ -76,6 +98,7 @@ const sendStartConversionToWorker = (params: {
       speckleServerUrl: params.speckleServerUrl,
       speckleToken: params.speckleToken,
       speckleTokenId: params.speckleTokenId,
+      fileType: params.fileType,
       ...(params.branchName ? { branchName: params.branchName } : {})
     })
 
@@ -96,15 +119,26 @@ const sendStartConversionToWorker = (params: {
 export const dispatchRvtConversionJob = async (
   params: DispatchRvtConversionJobPayload
 ) => {
-  const workers = listOpenRvtWorkers()
+  const targetFileType = resolveTargetFileType(params)
+  const allOpenWorkers = listOpenRvtWorkers()
+  const workers = allOpenWorkers.filter((worker) => {
+    const caps = worker.capabilities.map((c) => c.toLowerCase())
+    return caps.includes(targetFileType) || caps.includes('*') || caps.includes('all')
+  })
+
   if (!workers.length) {
     rvtDispatcherLogger.warn(
       {
-        ...buildRvtJobLogContext(params.job)
+        ...buildRvtJobLogContext(params.job),
+        targetFileType,
+        availableWorkerCapabilities: allOpenWorkers.map((w) => ({
+          workerId: w.workerId,
+          capabilities: w.capabilities
+        }))
       },
-      'RVT_CONVERT worker unavailable for dispatch'
+      `RVT_CONVERT worker unavailable for file type: ${targetFileType}`
     )
-    throw new Error('No connected RVT worker is available.')
+    throw new Error(`No connected worker is available for file type: ${targetFileType}`)
   }
 
   const speckleServerUrl = getRvtConversionSpeckleServerOrigin()
@@ -138,7 +172,8 @@ export const dispatchRvtConversionJob = async (
         buildWorkerDispatchLogContext({
           job: params.job,
           workerId: worker.workerId,
-          branchName: params.branchName
+          branchName: params.branchName,
+          fileType: targetFileType
         }),
         'RVT_CONVERT sending start_rvt_conversion to worker'
       )
@@ -151,6 +186,7 @@ export const dispatchRvtConversionJob = async (
         speckleServerUrl,
         speckleToken: params.speckleToken,
         speckleTokenId: params.speckleTokenId,
+        fileType: targetFileType,
         ...(params.branchName ? { branchName: params.branchName } : {})
       })
 
@@ -158,7 +194,8 @@ export const dispatchRvtConversionJob = async (
         buildWorkerDispatchLogContext({
           job: params.job,
           workerId: worker.workerId,
-          branchName: params.branchName
+          branchName: params.branchName,
+          fileType: targetFileType
         }),
         'RVT_CONVERT sent start_rvt_conversion to worker successfully'
       )

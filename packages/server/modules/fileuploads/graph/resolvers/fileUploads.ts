@@ -96,7 +96,11 @@ import type { GraphQLContext } from '@/modules/shared/helpers/typeHelper'
 import { updateBackgroundJobFactory } from '@/modules/backgroundjobs/repositories/backgroundjobs'
 import { configureClient } from '@/knexfile'
 import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
-import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import {
+  EXTERNAL_CONVERTIBLE_FILE_TYPES,
+  FileUploadConvertedStatus,
+  isExternalConvertibleFileType
+} from '@/modules/fileuploads/helpers/types'
 
 const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
 
@@ -143,23 +147,26 @@ const handleRvtFileImportDispatch = async (params: {
     emitFileStatusChange
   } = params
 
-  if (upload.fileType.toLocaleLowerCase() !== 'rvt') return
+  if (!isExternalConvertibleFileType(upload.fileType)) return
 
   ctx.log.info(
     {
       projectId,
       fileUploadId: upload.id,
       fileName: upload.fileName,
+      fileType: upload.fileType,
       modelId: upload.modelId,
       modelName: upload.modelName,
       userId
     },
-    'RVT CONVERT GraphQL identified RVT upload'
+    'External convert GraphQL identified convertible upload'
   )
 
   try {
     if (!upload.modelId || !upload.modelName) {
-      throw new BadRequestError('RVT file import requires a target model.')
+      throw new BadRequestError(
+        `${upload.fileType.toUpperCase()} file import requires a target model.`
+      )
     }
 
     ctx.log.info(
@@ -167,11 +174,12 @@ const handleRvtFileImportDispatch = async (params: {
         projectId,
         fileUploadId: upload.id,
         fileName: upload.fileName,
+        fileType: upload.fileType,
         modelId: upload.modelId,
         modelName: upload.modelName,
         userId
       },
-      'RVT CONVERT GraphQL dispatching RVT job'
+      'External convert GraphQL dispatching job'
     )
 
     await dispatchRvtFileImport({
@@ -187,11 +195,12 @@ const handleRvtFileImportDispatch = async (params: {
         projectId,
         fileUploadId: upload.id,
         fileName: upload.fileName,
+        fileType: upload.fileType,
         modelId: upload.modelId,
         modelName: upload.modelName,
         userId
       },
-      'RVT CONVERT GraphQL dispatched RVT job successfully'
+      'External convert GraphQL dispatched job successfully'
     )
   } catch (error) {
     ctx.log.error(
@@ -200,11 +209,12 @@ const handleRvtFileImportDispatch = async (params: {
         projectId,
         fileUploadId: upload.id,
         fileName: upload.fileName,
+        fileType: upload.fileType,
         modelId: upload.modelId,
         modelName: upload.modelName,
         userId
       },
-      'RVT CONVERT GraphQL failed to dispatch RVT job'
+      'External convert GraphQL failed to dispatch job'
     )
 
     const failedFile = await updateFileUpload({
@@ -212,7 +222,9 @@ const handleRvtFileImportDispatch = async (params: {
       upload: {
         convertedStatus: FileUploadConvertedStatus.Error,
         convertedMessage:
-          error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+          error instanceof Error
+            ? error.message
+            : `Failed to dispatch ${upload.fileType.toUpperCase()} file import.`,
         convertedLastUpdate: new Date()
       }
     })
@@ -323,7 +335,7 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
 
     const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
       queues: fileImportQueues,
-      allowUnscheduledFileTypes: ['rvt'],
+      allowUnscheduledFileTypes: [...EXTERNAL_CONVERTIBLE_FILE_TYPES],
       pushJobToFileImporter,
       saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
       emit: getEventBus().emit
@@ -512,7 +524,7 @@ const fileUploadMutations: Resolvers['FileUploadMutations'] = {
 
     const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
       queues: fileImportQueues,
-      allowUnscheduledFileTypes: ['rvt'],
+      allowUnscheduledFileTypes: [...EXTERNAL_CONVERTIBLE_FILE_TYPES],
       pushJobToFileImporter,
       saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
       emit: getEventBus().emit

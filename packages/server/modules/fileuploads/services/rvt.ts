@@ -18,8 +18,21 @@ import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDi
 import type { Knex } from 'knex'
 
 const downloadUrlExpirySeconds = 24 * 60 * 60
-const sourceApplicationDefault = 'External RVT Converter'
 const rvtFileImportLogger = createRvtConvertLogger('fileupload-dispatch')
+
+const resolveSourceApplication = (fileType: string) => {
+  const normalized = fileType.toLowerCase()
+  switch (normalized) {
+    case 'skp':
+      return 'External SketchUp Converter'
+    case 'nwd':
+    case 'nwc':
+      return 'External Navisworks Converter'
+    case 'rvt':
+    default:
+      return 'External RVT Converter'
+  }
+}
 
 export const dispatchRvtFileImportFactory =
   (deps: { db: Knex }) =>
@@ -89,7 +102,7 @@ export const dispatchRvtFileImportFactory =
       sourceObjectKey: objectKey,
       sourceFileSize: fileUpload.fileSize,
       versionMessage: null,
-      sourceApplication: sourceApplicationDefault,
+      sourceApplication: resolveSourceApplication(fileUpload.fileType),
       creator: userId
     })
 
@@ -159,7 +172,8 @@ export const dispatchRvtFileImportFactory =
         branchName: modelName || null,
         sourceFileUrl,
         speckleToken: token,
-        speckleTokenId: tokenId
+        speckleTokenId: tokenId,
+        fileType: fileUpload.fileType
       })
 
       rvtFileImportLogger.info(

@@ -69,7 +69,11 @@ import { BadRequestError, ForbiddenError } from '@/modules/shared/errors'
 import { dispatchRvtFileImportFactory } from '@/modules/fileuploads/services/rvt'
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { updateFileUploadFactory } from '@/modules/fileuploads/repositories/fileUploads'
-import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import {
+  EXTERNAL_CONVERTIBLE_FILE_TYPES,
+  FileUploadConvertedStatus,
+  isExternalConvertibleFileType
+} from '@/modules/fileuploads/helpers/types'
 import { resolveFrontendOriginFromRequest } from '@/modules/shared/helpers/frontendOrigin'
 
 const { FF_NEXT_GEN_FILE_IMPORTER_ENABLED } = getFeatureFlags()
@@ -292,7 +296,7 @@ export default (app: Router) => {
 
         const insertNewUploadAndNotifyV2 = insertNewUploadAndNotifyFactoryV2({
           queues: fileImportQueues,
-          allowUnscheduledFileTypes: ['rvt'],
+          allowUnscheduledFileTypes: [...EXTERNAL_CONVERTIBLE_FILE_TYPES],
           pushJobToFileImporter,
           saveUploadFile: saveUploadFileFactoryV2({ db: projectDb }),
           emit: getEventBus().emit
@@ -345,7 +349,7 @@ export default (app: Router) => {
           maximumFileSize: getFileSizeLimit()
         })
 
-        if (upload.fileType.toLocaleLowerCase() === 'rvt') {
+        if (isExternalConvertibleFileType(upload.fileType)) {
           try {
             await dispatchRvtFileImport({
               projectId: MODEL_LIBRARY_PROJECT_ID,
@@ -356,8 +360,13 @@ export default (app: Router) => {
             })
           } catch (error) {
             req.log.error(
-              { err: error, projectId: MODEL_LIBRARY_PROJECT_ID, fileId: upload.id },
-              'Failed to dispatch RVT file import for model library upload'
+              {
+                err: error,
+                projectId: MODEL_LIBRARY_PROJECT_ID,
+                fileId: upload.id,
+                fileType: upload.fileType
+              },
+              'Failed to dispatch external convert file import for model library upload'
             )
 
             const failedFile = await updateFileUpload({
@@ -365,7 +374,9 @@ export default (app: Router) => {
               upload: {
                 convertedStatus: FileUploadConvertedStatus.Error,
                 convertedMessage:
-                  error instanceof Error ? error.message : 'Failed to dispatch RVT file import.',
+                  error instanceof Error
+                    ? error.message
+                    : `Failed to dispatch ${upload.fileType.toUpperCase()} file import.`,
                 convertedLastUpdate: new Date()
               }
             })

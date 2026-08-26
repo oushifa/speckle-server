@@ -166,7 +166,7 @@ describe('RVT upload dispatch unit @rvt-conversion', () => {
     expect(failingSocket.sent).to.have.lengthOf(0)
   })
 
-  it('throws when no RVT worker is connected (no start_rvt_conversion is sent)', async () => {
+  it('throws when no matching worker is connected (no start_rvt_conversion is sent)', async () => {
     const job = buildFakeJob()
     const sourceFileUrl = 'http://minio.local/assets/project/test-model.rvt'
 
@@ -183,7 +183,69 @@ describe('RVT upload dispatch unit @rvt-conversion', () => {
     }
 
     expect(thrown).to.be.instanceOf(Error)
-    expect((thrown as Error).message).to.contain('No connected RVT worker')
+    expect((thrown as Error).message).to.contain('No connected worker is available for file type: rvt')
+  })
+
+  it('routes conversion job to worker matching file capability (skp and navisworks)', async () => {
+    const rvtSocket = createFakeSocket()
+    const skpSocket = createFakeSocket()
+    const navisworksSocket = createFakeSocket()
+
+    registerRvtWorker({
+      workerId: 'worker-rvt-only',
+      socket: rvtSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['rvt']
+    })
+    registerRvtWorker({
+      workerId: 'worker-skp-only',
+      socket: skpSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['skp']
+    })
+    registerRvtWorker({
+      workerId: 'worker-navisworks-only',
+      socket: navisworksSocket as unknown as Parameters<typeof registerRvtWorker>[0]['socket'],
+      capabilities: ['nwd', 'nwc']
+    })
+
+    const skpJob = buildFakeJob({
+      sourceFileName: 'house.skp',
+      sourceApplication: 'External SketchUp Converter'
+    })
+
+    await dispatchRvtConversionJob({
+      job: skpJob,
+      sourceFileUrl: 'http://minio.local/assets/project/house.skp',
+      speckleToken: 'token-skp',
+      speckleTokenId: 'token-id-skp',
+      fileType: 'skp'
+    })
+
+    expect(rvtSocket.sent).to.have.lengthOf(0)
+    expect(navisworksSocket.sent).to.have.lengthOf(0)
+    expect(skpSocket.sent).to.have.lengthOf(1)
+
+    const skpPayload = JSON.parse(skpSocket.sent[0]) as Record<string, unknown>
+    expect(skpPayload.fileType).to.equal('skp')
+    expect(skpPayload.fileName).to.equal('house.skp')
+    expect(skpPayload.workerId).to.equal('worker-skp-only')
+
+    const nwdJob = buildFakeJob({
+      sourceFileName: 'federated.nwd',
+      sourceApplication: 'External Navisworks Converter'
+    })
+
+    await dispatchRvtConversionJob({
+      job: nwdJob,
+      sourceFileUrl: 'http://minio.local/assets/project/federated.nwd',
+      speckleToken: 'token-nwd',
+      speckleTokenId: 'token-id-nwd',
+      fileType: 'nwd'
+    })
+
+    expect(navisworksSocket.sent).to.have.lengthOf(1)
+    const nwdPayload = JSON.parse(navisworksSocket.sent[0]) as Record<string, unknown>
+    expect(nwdPayload.fileType).to.equal('nwd')
+    expect(nwdPayload.workerId).to.equal('worker-navisworks-only')
   })
 
   it('throws when every connected worker fails to accept the message', async () => {
