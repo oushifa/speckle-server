@@ -23,6 +23,7 @@ const unifiedWorkSyncLogger = moduleLogger.child({
 const SYNC_DEBOUNCE_MS = 500
 const SYNC_RETRY_DELAY_MS = 2000
 const TOKEN_CACHE_MS = 20 * 60 * 1000
+const REQUEST_TIMEOUT_MS = 60 * 1000
 
 const pendingSyncTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -127,6 +128,28 @@ const extractToken = (value: unknown): string => {
   return ''
 }
 
+const formatErrorDetails = (err: unknown) => {
+  if (axios.isAxiosError(err)) {
+    return {
+      message: err.message,
+      code: err.code,
+      url: err.config?.url,
+      method: err.config?.method?.toUpperCase(),
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      responseBody: err.response?.data
+    }
+  }
+  if (err instanceof Error) {
+    return {
+      message: err.message,
+      name: err.name,
+      stack: err.stack
+    }
+  }
+  return { message: String(err) }
+}
+
 const getAuthToken = async () => {
   const config = getSyncConfig()
 
@@ -172,7 +195,7 @@ const getAuthToken = async () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 10000
+        timeout: REQUEST_TIMEOUT_MS
       }
     )
 
@@ -198,13 +221,14 @@ const getAuthToken = async () => {
 
     return token
   } catch (err) {
+    const errorDetails = formatErrorDetails(err)
     unifiedWorkSyncLogger.error(
       {
-        err,
+        error: errorDetails,
         host: config.host,
         username: config.username
       },
-      '[WORK_SYNC] Failed to log in to unified work platform'
+      `[WORK_SYNC] Failed to log in to unified work platform: ${errorDetails.message}`
     )
     return ''
   }
@@ -460,7 +484,7 @@ const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) 
         Authorization: `Bearer ${params.token}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: REQUEST_TIMEOUT_MS
     }
   )
   return response.data
@@ -479,7 +503,7 @@ const pushUnifiedWorkItem = async (params: {
         Authorization: `Bearer ${params.token}`,
         'Content-Type': 'application/json'
       },
-      timeout: 10000
+      timeout: REQUEST_TIMEOUT_MS
     }
   )
   return response.data
@@ -567,14 +591,15 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
         '[WORK_SYNC] Successfully removed unified work item'
       )
     } catch (err) {
+      const errorDetails = formatErrorDetails(err)
       unifiedWorkSyncLogger.error(
         {
-          err,
+          error: errorDetails,
           instanceId: params.instanceId,
           reason: params.reason,
           taskId
         },
-        '[WORK_SYNC] Failed to remove unified work item'
+        `[WORK_SYNC] Failed to remove unified work item (${taskId}): ${errorDetails.message}`
       )
     }
   }
@@ -598,16 +623,17 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
         '[WORK_SYNC] Successfully pushed unified work item'
       )
     } catch (err) {
+      const errorDetails = formatErrorDetails(err)
       unifiedWorkSyncLogger.error(
         {
-          err,
+          error: errorDetails,
           instanceId: params.instanceId,
           reason: params.reason,
           taskId: payload.taskId,
           assignee: payload.assignee,
           payload
         },
-        '[WORK_SYNC] Failed to push unified work item'
+        `[WORK_SYNC] Failed to push unified work item (${payload.taskId}): ${errorDetails.message}`
       )
     }
   }
@@ -636,14 +662,15 @@ const runScheduledSync = async (params: {
       reason: params.reason
     })
   } catch (err) {
+    const errorDetails = formatErrorDetails(err)
     unifiedWorkSyncLogger.error(
       {
-        err,
+        error: errorDetails,
         instanceId: params.instanceId,
         reason: params.reason,
         attempt: params.attempt
       },
-      '[WORK_SYNC] Unified work sync task failed with unhandled exception'
+      `[WORK_SYNC] Unified work sync task failed with unhandled exception: ${errorDetails.message}`
     )
 
     if (params.attempt >= 2) return
