@@ -25,6 +25,7 @@ import {
   updateApprovalFlowInstanceStepFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import { updateApprovalFlowStatusFactory } from '@/modules/flow/services/approvalFlows'
+import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 import { BadRequestError, NotFoundError } from '@/modules/shared/errors'
 import type {
   ApprovalFlowBindingRecord,
@@ -452,7 +453,8 @@ export const getApprovalInstanceDetailsFactory =
 export const submitApprovalBindingFactory =
   (deps: { db: Knex }) =>
   async (params: SubmitApprovalBindingParams): Promise<ApprovalBindingSummary> => {
-    return await deps.db.transaction(async (trx) => {
+    let createdInstanceId: string | null = null
+    const result = await deps.db.transaction(async (trx) => {
       const getBindingBySubjectKey = getApprovalFlowBindingBySubjectKeyFactory({
         db: trx
       })
@@ -560,6 +562,8 @@ export const submitApprovalBindingFactory =
         actorUserId: params.actorUserId
       })
 
+      createdInstanceId = instance.id
+
       const updatedBinding = await updateBinding({
         bindingId: binding.id,
         currentInstanceId: instance.id,
@@ -576,12 +580,22 @@ export const submitApprovalBindingFactory =
 
       return mapBindingRecord(updatedBinding) as ApprovalBindingSummary
     })
+
+    if (createdInstanceId) {
+      scheduleApprovalFlowTodoSync({
+        instanceId: createdInstanceId,
+        reason: 'approval-flow-started'
+      })
+    }
+
+    return result
   }
 
 export const resubmitApprovalBindingFactory =
   (deps: { db: Knex }) =>
   async (params: ResubmitApprovalBindingParams): Promise<ApprovalBindingSummary> => {
-    return await deps.db.transaction(async (trx) => {
+    let createdInstanceId: string | null = null
+    const result = await deps.db.transaction(async (trx) => {
       const getBindingById = getApprovalFlowBindingRecordByIdFactory({ db: trx })
       const updateBinding = updateApprovalFlowBindingFactory({ db: trx })
       const getDefinitionById = getApprovalFlowDefinitionByIdFactory({ db: trx })
@@ -656,6 +670,8 @@ export const resubmitApprovalBindingFactory =
         actorUserId: params.actorUserId
       })
 
+      createdInstanceId = instance.id
+
       const updatedBinding = await updateBinding({
         bindingId: binding.id,
         currentInstanceId: instance.id,
@@ -672,6 +688,15 @@ export const resubmitApprovalBindingFactory =
 
       return mapBindingRecord(updatedBinding) as ApprovalBindingSummary
     })
+
+    if (createdInstanceId) {
+      scheduleApprovalFlowTodoSync({
+        instanceId: createdInstanceId,
+        reason: 'approval-flow-resubmitted'
+      })
+    }
+
+    return result
   }
 
 export const approveApprovalInstanceFactory =
@@ -698,7 +723,7 @@ export const returnApprovalInstanceToStartFactory =
   async (
     params: ReturnApprovalInstanceToStartParams
   ): Promise<Record<string, unknown>> => {
-    return await deps.db.transaction(async (trx) => {
+    const result = await deps.db.transaction(async (trx) => {
       const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
       const getCurrentStep = getApprovalFlowCurrentStepFactory({ db: trx })
       const getSteps = getApprovalFlowInstanceStepsFactory({ db: trx })
@@ -764,12 +789,21 @@ export const returnApprovalInstanceToStartFactory =
         }
       })
 
-      return await syncBindingStatusFromInstance({
+      const result = await syncBindingStatusFromInstance({
         trx,
         instanceId: params.instanceId,
         updater: params.actorUserId
       })
+
+      return result
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-returned-to-start'
+    })
+
+    return result
   }
 
 export const returnApprovalInstanceToStepFactory =
