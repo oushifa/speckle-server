@@ -130,9 +130,13 @@ const extractToken = (value: unknown): string => {
 const getAuthToken = async () => {
   const config = getSyncConfig()
 
-  if (config.token) return config.token
+  if (config.token) {
+    unifiedWorkSyncLogger.debug('[WORK_SYNC] Using static token from configuration')
+    return config.token
+  }
 
   if (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()) {
+    unifiedWorkSyncLogger.debug('[WORK_SYNC] Using cached auth token')
     return cachedAuthToken.value
   }
 
@@ -142,43 +146,68 @@ const getAuthToken = async () => {
         hasUsername: Boolean(config.username),
         hasPassword: Boolean(config.password)
       },
-      'Skip unified work sync because auth credentials are incomplete'
+      '[WORK_SYNC] Skip unified work sync because auth credentials (username/password) are incomplete'
     )
     return ''
   }
 
-  const response = await axios.post(
-    `${config.host}/api/v1/auth/login2`,
-    {
-      username: config.username,
-      password: config.password,
-      routerId: config.routerId
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json'
+  try {
+    unifiedWorkSyncLogger.info(
+      {
+        host: config.host,
+        username: config.username,
+        routerId: config.routerId
       },
-      timeout: 10000
-    }
-  )
+      '[WORK_SYNC] Requesting login to unified work platform'
+    )
 
-  const token = extractToken(response.data)
-  if (!token) {
+    const response = await axios.post(
+      `${config.host}/api/v1/auth/login2`,
+      {
+        username: config.username,
+        password: config.password,
+        routerId: config.routerId
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    )
+
+    const token = extractToken(response.data)
+    if (!token) {
+      unifiedWorkSyncLogger.error(
+        {
+          responseData: response.data
+        },
+        '[WORK_SYNC] Unified work login succeeded but token was not found in response'
+      )
+      return ''
+    }
+
+    cachedAuthToken = {
+      value: token,
+      expiresAt: Date.now() + TOKEN_CACHE_MS
+    }
+
+    unifiedWorkSyncLogger.info(
+      '[WORK_SYNC] Unified work auth token obtained successfully'
+    )
+
+    return token
+  } catch (err) {
     unifiedWorkSyncLogger.error(
       {
-        responseData: response.data
+        err,
+        host: config.host,
+        username: config.username
       },
-      'Unified work login succeeded but token was not found in response'
+      '[WORK_SYNC] Failed to log in to unified work platform'
     )
     return ''
   }
-
-  cachedAuthToken = {
-    value: token,
-    expiresAt: Date.now() + TOKEN_CACHE_MS
-  }
-
-  return token
 }
 
 const buildTaskId = (instanceId: string, stepIndex: number, assigneeId: string) =>
@@ -352,7 +381,7 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
         instanceId: snapshot.instance.id,
         currentStep: currentStep.stepIndex
       },
-      'Skip unified work push because the current step has no explicit approverIds'
+      '[WORK_SYNC] Skip unified work push because the current step has no explicit approverIds'
     )
   }
 
@@ -420,7 +449,7 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
 
 const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) => {
   const config = getSyncConfig()
-  await axios.post(
+  const response = await axios.post(
     `${config.host}/api/v1/unifiedWork/removeWorkItem`,
     {
       systemCode: config.systemCode,
@@ -434,6 +463,7 @@ const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) 
       timeout: 10000
     }
   )
+  return response.data
 }
 
 const pushUnifiedWorkItem = async (params: {
@@ -441,20 +471,42 @@ const pushUnifiedWorkItem = async (params: {
   payload: UnifiedWorkPushPayload
 }) => {
   const config = getSyncConfig()
-  await axios.post(`${config.host}/api/v1/unifiedWork/work-item/push`, params.payload, {
-    headers: {
-      Authorization: `Bearer ${params.token}`,
-      'Content-Type': 'application/json'
-    },
-    timeout: 10000
-  })
+  const response = await axios.post(
+    `${config.host}/api/v1/unifiedWork/work-item/push`,
+    params.payload,
+    {
+      headers: {
+        Authorization: `Bearer ${params.token}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    }
+  )
+  return response.data
 }
 
 export const syncApprovalFlowTodoToUnifiedWork = async (params: {
   instanceId: string
   reason: string
 }) => {
-  if (!isUnifiedWorkSyncEnabled()) return
+  if (!isUnifiedWorkSyncEnabled()) {
+    unifiedWorkSyncLogger.debug(
+      {
+        instanceId: params.instanceId,
+        reason: params.reason
+      },
+      '[WORK_SYNC] Unified work sync is disabled (UNIFIED_WORK_SYNC_HOST not set)'
+    )
+    return
+  }
+
+  unifiedWorkSyncLogger.info(
+    {
+      instanceId: params.instanceId,
+      reason: params.reason
+    },
+    '[WORK_SYNC] Starting approval flow todo sync'
+  )
 
   const snapshot = await loadInstanceSnapshot(params.instanceId)
   if (!snapshot) {
@@ -463,7 +515,7 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
         instanceId: params.instanceId,
         reason: params.reason
       },
-      'Skip unified work sync because approval flow instance was not found'
+      '[WORK_SYNC] Skip unified work sync because approval flow instance was not found'
     )
     return
   }
@@ -475,12 +527,14 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
   )
 
   if (!desiredItems.length && !removableTaskIds.length) {
-    unifiedWorkSyncLogger.debug(
+    unifiedWorkSyncLogger.info(
       {
         instanceId: params.instanceId,
-        reason: params.reason
+        reason: params.reason,
+        instanceStatus: snapshot.instance.status,
+        currentStep: snapshot.instance.currentStep
       },
-      'Skip unified work sync because there are no push or remove actions'
+      '[WORK_SYNC] Skip unified work sync because there are no push or remove actions needed'
     )
     return
   }
@@ -492,17 +546,26 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
         instanceId: params.instanceId,
         reason: params.reason
       },
-      'Skip unified work sync because auth token is unavailable'
+      '[WORK_SYNC] Skip unified work sync because auth token is unavailable'
     )
     return
   }
 
   for (const taskId of removableTaskIds) {
     try {
-      await removeUnifiedWorkItem({
+      const res = await removeUnifiedWorkItem({
         token,
         taskId
       })
+      unifiedWorkSyncLogger.info(
+        {
+          instanceId: params.instanceId,
+          reason: params.reason,
+          taskId,
+          responseData: res
+        },
+        '[WORK_SYNC] Successfully removed unified work item'
+      )
     } catch (err) {
       unifiedWorkSyncLogger.error(
         {
@@ -511,17 +574,29 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
           reason: params.reason,
           taskId
         },
-        'Failed to remove unified work item'
+        '[WORK_SYNC] Failed to remove unified work item'
       )
     }
   }
 
   for (const payload of desiredItems) {
     try {
-      await pushUnifiedWorkItem({
+      const res = await pushUnifiedWorkItem({
         token,
         payload
       })
+      unifiedWorkSyncLogger.info(
+        {
+          instanceId: params.instanceId,
+          reason: params.reason,
+          taskId: payload.taskId,
+          assignee: payload.assignee,
+          title: payload.title,
+          route: payload.route,
+          responseData: res
+        },
+        '[WORK_SYNC] Successfully pushed unified work item'
+      )
     } catch (err) {
       unifiedWorkSyncLogger.error(
         {
@@ -529,9 +604,10 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
           instanceId: params.instanceId,
           reason: params.reason,
           taskId: payload.taskId,
-          assignee: payload.assignee
+          assignee: payload.assignee,
+          payload
         },
-        'Failed to push unified work item'
+        '[WORK_SYNC] Failed to push unified work item'
       )
     }
   }
@@ -541,9 +617,11 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       instanceId: params.instanceId,
       reason: params.reason,
       pushCount: desiredItems.length,
-      removeCount: removableTaskIds.length
+      removeCount: removableTaskIds.length,
+      pushedTaskIds: desiredItems.map((item) => item.taskId),
+      removedTaskIds: removableTaskIds
     },
-    'Completed unified work sync for approval flow instance'
+    '[WORK_SYNC] Completed unified work sync for approval flow instance'
   )
 }
 
@@ -565,10 +643,19 @@ const runScheduledSync = async (params: {
         reason: params.reason,
         attempt: params.attempt
       },
-      'Unified work sync task failed'
+      '[WORK_SYNC] Unified work sync task failed with unhandled exception'
     )
 
     if (params.attempt >= 2) return
+
+    unifiedWorkSyncLogger.info(
+      {
+        instanceId: params.instanceId,
+        nextAttempt: params.attempt + 1,
+        delayMs: SYNC_RETRY_DELAY_MS
+      },
+      `[WORK_SYNC] Retrying unified work sync in ${SYNC_RETRY_DELAY_MS}ms`
+    )
 
     setTimeout(() => {
       void runScheduledSync({
@@ -583,7 +670,25 @@ export const scheduleApprovalFlowTodoSync = (params: {
   instanceId: string
   reason: string
 }) => {
-  if (!isUnifiedWorkSyncEnabled()) return
+  if (!isUnifiedWorkSyncEnabled()) {
+    unifiedWorkSyncLogger.debug(
+      {
+        instanceId: params.instanceId,
+        reason: params.reason
+      },
+      '[WORK_SYNC] Skip scheduling sync because UNIFIED_WORK_SYNC_HOST is not configured'
+    )
+    return
+  }
+
+  unifiedWorkSyncLogger.info(
+    {
+      instanceId: params.instanceId,
+      reason: params.reason,
+      debounceMs: SYNC_DEBOUNCE_MS
+    },
+    '[WORK_SYNC] Scheduled approval flow todo sync'
+  )
 
   const currentTimer = pendingSyncTimers.get(params.instanceId)
   if (currentTimer) clearTimeout(currentTimer)
