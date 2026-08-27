@@ -102,4 +102,116 @@ describe('Model custom label export', () => {
       }
     ])
   })
+
+  it('prefers elementId for .rvt models', () => {
+    const payload = buildModelCustomLabelPayload({
+      modelSeedId: 'seed-rvt',
+      modelName: 'school.rvt',
+      versionCreatedAt: '2026-05-18T00:00:00.000Z',
+      rootId: 'root-1',
+      objectMap: new Map([
+        [
+          'root-1',
+          {
+            id: 'root-1',
+            childrenIds: ['wall-1', 'wall-2'],
+            raw: {
+              elements: [{ referencedId: 'wall-1' }, { referencedId: 'wall-2' }]
+            }
+          }
+        ],
+        [
+          'wall-1',
+          {
+            id: 'wall-1',
+            childrenIds: [],
+            raw: {
+              applicationId: 'a72d6cd0-434a-4b6f-a2a2-7266a0224d8e-0013e779',
+              elementId: 1304441,
+              parameters: {
+                Category: '墙'
+              }
+            }
+          }
+        ],
+        [
+          'wall-2',
+          {
+            id: 'wall-2',
+            childrenIds: [],
+            raw: {
+              applicationId: 'fallback-app-id',
+              parameters: {
+                Category: '墙'
+              }
+            }
+          }
+        ]
+      ])
+    })
+
+    expect(payload.elements).to.deep.equal([
+      {
+        id: '1304441',
+        applicationId: 'a72d6cd0-434a-4b6f-a2a2-7266a0224d8e-0013e779',
+        elementId: '1304441',
+        parameters: {
+          Category: '墙'
+        }
+      },
+      {
+        id: 'fallback-app-id',
+        applicationId: 'fallback-app-id',
+        parameters: {
+          Category: '墙'
+        }
+      }
+    ])
+  })
+
+  it('prefers applicationId for .ifc models', () => {
+    const payload = buildModelCustomLabelPayload({
+      modelSeedId: 'seed-ifc',
+      modelName: 'building.ifc',
+      versionCreatedAt: '2026-05-18T00:00:00.000Z',
+      rootId: 'root-1',
+      objectMap: new Map([
+        [
+          'root-1',
+          {
+            id: 'root-1',
+            childrenIds: ['wall-1'],
+            raw: {
+              elements: [{ referencedId: 'wall-1' }]
+            }
+          }
+        ],
+        [
+          'wall-1',
+          {
+            id: 'wall-1',
+            childrenIds: [],
+            raw: {
+              applicationId: 'ifc-guid-001',
+              elementId: 99999,
+              parameters: {
+                Category: '墙'
+              }
+            }
+          }
+        ]
+      ])
+    })
+
+    expect(payload.elements).to.deep.equal([
+      {
+        id: 'ifc-guid-001',
+        applicationId: 'ifc-guid-001',
+        elementId: '99999',
+        parameters: {
+          Category: '墙'
+        }
+      }
+    ])
+  })
 })

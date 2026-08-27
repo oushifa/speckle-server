@@ -10,6 +10,8 @@ export type ModelCustomLabelFlatPayload = {
   }
   elements: Array<{
     id: string
+    applicationId?: string
+    elementId?: string
     parameters: Record<string, FlatValue>
   }>
 }
@@ -53,9 +55,26 @@ const IFC_CATEGORY_MAP: Record<string, string> = {
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+export type SourceFileType = 'ifc' | 'rvt' | null
+
+export const inferSourceFileType = (modelName: string): SourceFileType => {
+  const lower = modelName.trim().toLowerCase()
+  if (lower.endsWith('.ifc')) return 'ifc'
+  if (lower.endsWith('.rvt')) return 'rvt'
+  return null
+}
+
 const pickString = (...values: unknown[]): string | undefined => {
   for (const value of values) {
     if (typeof value === 'string' && value.trim().length) return value
+  }
+  return undefined
+}
+
+export const pickIdString = (...values: unknown[]): string | undefined => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length) return value
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
   }
   return undefined
 }
@@ -308,18 +327,41 @@ const buildDisplayParameters = (raw: Record<string, unknown>): Record<string, Fl
   return out
 }
 
+export const getSyncElementIds = (
+  raw: Record<string, unknown>,
+  sourceFileType: SourceFileType,
+  speckleObjectId?: string
+): { id?: string; applicationId?: string; elementId?: string } => {
+  let applicationId = pickIdString(raw.applicationId, raw.originalId, raw.originalID)
+  if (speckleObjectId && applicationId === speckleObjectId) {
+    applicationId = undefined
+  }
+
+  let elementId = pickIdString(raw.elementId, raw.elementID)
+  if (speckleObjectId && elementId === speckleObjectId) {
+    elementId = undefined
+  }
+
+  if (sourceFileType === 'rvt') {
+    return {
+      id: elementId || applicationId,
+      applicationId: applicationId || undefined,
+      elementId: elementId || undefined
+    }
+  }
+
+  return {
+    id: applicationId || elementId,
+    applicationId: applicationId || undefined,
+    elementId: elementId || undefined
+  }
+}
+
 export const getElementApplicationId = (
   raw: Record<string, unknown>,
   speckleObjectId?: string
 ) => {
-  const applicationId = pickString(raw.applicationId)
-  if (!applicationId) return undefined
-
-  // Some converted objects expose the Speckle object id in applicationId.
-  // Those are not usable business ids for DTP sync and should be ignored.
-  if (speckleObjectId && applicationId === speckleObjectId) return undefined
-
-  return applicationId
+  return getSyncElementIds(raw, null, speckleObjectId).id
 }
 
 export const buildModelCustomLabelPayload = (params: {
@@ -330,14 +372,23 @@ export const buildModelCustomLabelPayload = (params: {
   objectMap: Map<string, ObjectLite>
 }): ModelCustomLabelFlatPayload => {
   const reachableIds = collectReachableIds(params.rootId, params.objectMap)
-  const dedupedElements = new Map<string, Record<string, FlatValue>>()
+  const sourceFileType = inferSourceFileType(params.modelName)
+  const dedupedElements = new Map<
+    string,
+    {
+      parameters: Record<string, FlatValue>
+      applicationId?: string
+      elementId?: string
+    }
+  >()
 
   for (const id of reachableIds) {
     if (id === params.rootId) continue
     const item = params.objectMap.get(id)
     if (!item) continue
 
-    const elementId = getElementApplicationId(item.raw, item.id)
+    const ids = getSyncElementIds(item.raw, sourceFileType, item.id)
+    const elementId = ids.id
     if (!elementId) continue
 
     const source = pickParametersSource(item.raw)
@@ -349,14 +400,18 @@ export const buildModelCustomLabelPayload = (params: {
 
     const existing = dedupedElements.get(elementId)
     if (!existing) {
-      dedupedElements.set(elementId, { ...parameters })
+      dedupedElements.set(elementId, {
+        parameters: { ...parameters },
+        ...(ids.applicationId ? { applicationId: ids.applicationId } : {}),
+        ...(ids.elementId ? { elementId: ids.elementId } : {})
+      })
       continue
     }
 
     for (const [key, value] of Object.entries(parameters)) {
-      const hasCurrent = Object.prototype.hasOwnProperty.call(existing, key)
-      if (!hasCurrent || existing[key] === null || existing[key] === '') {
-        existing[key] = value
+      const hasCurrent = Object.prototype.hasOwnProperty.call(existing.parameters, key)
+      if (!hasCurrent || existing.parameters[key] === null || existing.parameters[key] === '') {
+        existing.parameters[key] = value
       }
     }
   }
@@ -367,9 +422,11 @@ export const buildModelCustomLabelPayload = (params: {
       name: params.modelName,
       timestamp: params.versionCreatedAt
     },
-    elements: [...dedupedElements.entries()].map(([id, parameters]) => ({
+    elements: [...dedupedElements.entries()].map(([id, meta]) => ({
       id,
-      parameters
+      ...(meta.applicationId ? { applicationId: meta.applicationId } : {}),
+      ...(meta.elementId ? { elementId: meta.elementId } : {}),
+      parameters: meta.parameters
     }))
   }
 }
