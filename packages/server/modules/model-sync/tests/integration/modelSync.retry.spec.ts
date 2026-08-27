@@ -6,7 +6,7 @@ const buildTask = (
   overrides: Partial<
     Pick<
       ProjectModelSyncTaskRecord,
-      'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId'
+      'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId' | 'versionId'
     >
   >
 ) =>
@@ -16,10 +16,11 @@ const buildTask = (
     assetId: null,
     assetName: null,
     transformTaskId: null,
+    versionId: null,
     ...overrides
   }) as Pick<
     ProjectModelSyncTaskRecord,
-    'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId'
+    'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId' | 'versionId'
   >
 
 describe('Model sync retry routing @model-sync', () => {
@@ -45,6 +46,30 @@ describe('Model sync retry routing @model-sync', () => {
     )
 
     expect(entryPoint).to.equal('sync')
+  })
+
+  it('restarts from sync when task has versionId even if errorCode is unknown', async () => {
+    const entryPoint = resolveRetryEntryPoint(
+      buildTask({
+        status: 'failed',
+        errorCode: null,
+        versionId: 'version-123'
+      })
+    )
+
+    expect(entryPoint).to.equal('sync')
+  })
+
+  it('restarts from speckle when no versionId, no assetId and not in transform stage', async () => {
+    const entryPoint = resolveRetryEntryPoint(
+      buildTask({
+        status: 'failed',
+        errorCode: 'FILE_CONVERSION_FAILED',
+        versionId: null
+      })
+    )
+
+    expect(entryPoint).to.equal('speckle')
   })
 
   it('keeps syncing status on sync entry point before transform', async () => {

@@ -3,8 +3,8 @@ import { BadRequestError } from '@/modules/shared/errors'
 import { ensureError } from '@speckle/shared'
 import { logger } from '@/observability/logging'
 
-export const THIRD_PARTY_API_BASE = 'http://10.66.8.187:30080/service'
-export const THIRD_PARTY_STATIC_BASE = 'http://10.66.8.187:30080'
+export const THIRD_PARTY_API_BASE = 'http://192.168.20.157:30080/service'
+export const THIRD_PARTY_STATIC_BASE = 'http://192.168.20.157:30080'
 const AES_KEY = 'Ze/0w7rnQg7jznntRcuxGQ=='
 
 export type ThirdPartyTokenResponse = {
@@ -53,7 +53,9 @@ export function encryptMobile(mobile: string): string {
 /**
  * 调用第三方登录接口获取 token
  */
-export async function loginToThirdParty(encryptedToken: string): Promise<ThirdPartyTokenResponse> {
+export async function loginToThirdParty(
+  encryptedToken: string
+): Promise<ThirdPartyTokenResponse> {
   try {
     const response = await fetch(`${THIRD_PARTY_API_BASE}/v1/login/third-party`, {
       method: 'POST',
@@ -75,7 +77,7 @@ export async function loginToThirdParty(encryptedToken: string): Promise<ThirdPa
     }
 
     const data = (await response.json()) as ThirdPartyTokenResponse
-    
+
     if (!data.success || data.code !== 200) {
       logger.error({ response: data }, 'Third-party login returned error')
       throw new BadRequestError(data.msg || '第三方登录失败')
@@ -100,9 +102,9 @@ export async function convertSpeckleTokenToThirdParty(
 ): Promise<ThirdPartyTokenResponse> {
   // 1. 加密手机号
   const encryptedMobile = encryptMobile(mobile)
-  
+
   // 2. 调用第三方接口
   const result = await loginToThirdParty(encryptedMobile)
-  
+
   return result
 }

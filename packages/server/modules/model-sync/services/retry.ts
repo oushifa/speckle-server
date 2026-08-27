@@ -39,7 +39,7 @@ export const getRetryStatusForEntryPoint = (
 export const resolveRetryEntryPoint = (
   task: Pick<
     ProjectModelSyncTaskRecord,
-    'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId'
+    'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId' | 'versionId'
   >
 ): ModelSyncRetryEntryPoint | null => {
   switch (task.status) {
@@ -62,7 +62,7 @@ export const resolveRetryEntryPoint = (
       if (errorCode && SYNC_ERROR_CODES.has(errorCode)) {
         return 'sync'
       }
-      if (task.assetId || task.assetName) {
+      if (task.assetId || task.assetName || task.versionId) {
         return 'sync'
       }
       return 'speckle'
