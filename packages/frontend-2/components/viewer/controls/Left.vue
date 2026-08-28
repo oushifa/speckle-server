@@ -67,6 +67,18 @@
         @click="toggleActivePanel('savedViews')"
       ></ViewerControlsButtonToggle>
 
+      <!-- Roaming -->
+      <ViewerControlsButtonToggle
+        v-tippy="
+          getTooltipProps('漫游', {
+            placement: 'right'
+          })
+        "
+        :active="activePanel === 'roaming'"
+        :icon="Footprints"
+        @click="toggleActivePanel('roaming')"
+      ></ViewerControlsButtonToggle>
+
       <ViewerControlsButtonToggle
         v-if="allAutomationRuns.length !== 0"
         v-tippy="{
@@ -95,37 +107,6 @@
           secondary
           @click="goBackToPreviousPage"
         />
-        <!-- <ViewerControlsButtonToggle
-          v-tippy="
-            getTooltipProps(
-              getShortcutDisplayText(shortcuts.ToggleDevMode, { format: 'separate' }),
-              {
-                placement: 'right'
-              }
-            )
-          "
-          :active="activePanel === 'devMode'"
-          :icon="CodeXml"
-          secondary
-          @click="toggleActivePanel('devMode')"
-        />
-        <ViewerControlsButtonToggle
-          v-tippy="
-            getTooltipProps('Documentation', {
-              placement: 'right'
-            })
-          "
-          :icon="BookOpen"
-          secondary
-          @click="openDocs"
-        />
-        <ViewerControlsButtonToggle
-          v-if="isIntercomEnabled"
-          v-tippy="getTooltipProps('Get help')"
-          :icon="CircleQuestionMark"
-          secondary
-          @click="openIntercomChat"
-        /> -->
       </div>
     </div>
 
@@ -163,6 +144,10 @@
         :summary="summary"
       />
       <ViewerDataviewerPanel v-if="activePanel === 'devMode'" />
+      <ViewerRoamingPanel
+        v-if="activePanel === 'roaming'"
+        @close="activePanel = 'none'"
+      />
       <KeepAlive>
         <ViewerSavedViewsPanel
           v-if="
@@ -209,9 +194,14 @@ import {
 import { type Nullable, isNonNullable } from '@speckle/shared'
 import { useFunctionRunsStatusSummary } from '~/lib/automate/composables/runStatus'
 import { projectsRoute } from '~~/lib/common/helpers/route'
-import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/general'
-import { Camera, Box, ListFilter, MessageSquareText, LogOut } from 'lucide-vue-next'
-import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
+import {
+  Camera,
+  Box,
+  ListFilter,
+  MessageSquareText,
+  LogOut,
+  Footprints
+} from 'lucide-vue-next'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'
 import { useSettingsMenuState } from '~/lib/settings/composables/menu'
 

@@ -45,3 +45,4 @@ export type ActivePanel =
   | 'filters'
   | 'devMode'
   | 'savedViews'
+  | 'roaming'

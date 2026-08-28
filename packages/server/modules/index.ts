@@ -131,7 +131,8 @@ const getEnabledModuleNames = () => {
     'gatekeeperCore',
     'multiregion',
     'model-sync',
-    'viewer'
+    'viewer',
+    'roaming'
   ]
 
   // TODO: add acc with feature flag?
