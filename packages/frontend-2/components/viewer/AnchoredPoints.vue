@@ -219,18 +219,20 @@ watch(
     }
     const isPointMode = activeRoute.value.mode === RoamingMode.Point
     const eyeH = isPointMode ? activeRoute.value.eyeHeight ?? 1.6 : 0
-    roamingPointItems.value = activeRoute.value.points.map((p, idx) => {
-      const loc = new Vector3(p.position[0], p.position[1], p.position[2] + eyeH)
-      return {
-        id: p.id,
-        index: idx,
-        position: p.position,
-        eyeHeight: eyeH,
-        isOccluded: false,
-        style: {},
-        location: loc
+    roamingPointItems.value = activeRoute.value.points.map(
+      (p: RoamingPoint, idx: number) => {
+        const loc = new Vector3(p.position[0], p.position[1], p.position[2] + eyeH)
+        return {
+          id: p.id,
+          index: idx,
+          position: p.position,
+          eyeHeight: eyeH,
+          isOccluded: false,
+          style: {},
+          location: loc
+        }
       }
-    })
+    )
   },
   { immediate: true, deep: true }
 )

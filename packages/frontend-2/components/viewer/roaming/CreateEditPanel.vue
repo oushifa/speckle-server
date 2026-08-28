@@ -561,7 +561,7 @@ onMounted(() => {
     selectedPointIndex.value = 0
   }
   updateVisualizer()
-  unregisterCallback = registerPointSelectCallback((idx) => {
+  unregisterCallback = registerPointSelectCallback((idx: number) => {
     selectPoint(idx)
   })
 })
