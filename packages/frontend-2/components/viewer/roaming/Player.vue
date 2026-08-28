@@ -89,10 +89,7 @@
               type="button"
               class="px-3 py-1 text-left text-body-3xs hover:bg-primary/10 text-foreground font-mono"
               :class="playbackSpeed === spd ? 'text-primary font-bold' : ''"
-              @click="
-                $emit('set-speed', spd)
-                showSpeedMenu = false
-              "
+              @click="onSelectSpeed(spd)"
             >
               {{ spd }}x
             </button>
@@ -152,6 +149,11 @@ const formatTime = (sec: number) => {
 const onProgressInput = (event: Event) => {
   const val = Number((event.target as HTMLInputElement).value)
   emit('set-progress', val)
+}
+
+const onSelectSpeed = (spd: number) => {
+  emit('set-speed', spd)
+  showSpeedMenu.value = false
 }
 
 const onPlayOrResume = () => {
