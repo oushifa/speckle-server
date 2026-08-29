@@ -4,11 +4,12 @@
       class="absolute pointer-events-auto transition-transform duration-75"
       :style="style"
     >
-      <div class="relative -translate-x-1/2 -translate-y-full">
+      <!-- 左下角对齐锚点拾取点位置，并以左下角为缩放基点 -->
+      <div class="relative -translate-y-full translate-x-0 origin-bottom-left">
         <button
           type="button"
           :class="[
-            'transition-all duration-150 flex items-center justify-center shadow-md hover:shadow-xl select-none',
+            'origin-bottom-left transition-all duration-150 flex items-center justify-center shadow-md hover:shadow-xl select-none',
             'w-7 h-7 rounded-tr-full rounded-tl-full rounded-br-full cursor-pointer',
             isSelected
               ? 'bg-danger text-white ring-2 ring-warning scale-125 z-20 font-bold'

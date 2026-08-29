@@ -1,5 +1,7 @@
 <template>
-  <div class="flex flex-col h-full bg-foundation select-none">
+  <div
+    class="flex flex-col h-full max-h-[calc(100dvh-9rem)] md:max-h-[calc(100dvh-7rem)] min-h-0 bg-foundation select-none"
+  >
     <!-- 头部标题栏 -->
     <div
       class="h-10 pl-4 pr-3 flex items-center justify-between border-b border-outline-3 shrink-0"
@@ -19,7 +21,9 @@
     </div>
 
     <!-- 主表单内容区域 -->
-    <div class="flex-1 overflow-y-auto simple-scrollbar p-3 flex flex-col gap-3">
+    <div
+      class="flex-1 min-h-0 overflow-y-auto simple-scrollbar p-3 flex flex-col gap-3"
+    >
       <!-- 1. 路线名称 -->
       <div class="flex flex-col gap-1">
         <div class="text-body-2xs font-medium text-foreground">路线名称</div>
@@ -302,7 +306,7 @@
 
     <!-- 底部操作区 -->
     <div
-      class="p-3 border-t border-outline-3 flex items-center justify-between gap-2 shrink-0"
+      class="p-3 border-t border-outline-3 flex items-center justify-between gap-2 shrink-0 bg-foundation z-10"
     >
       <FormButton
         size="sm"

@@ -164,7 +164,6 @@ import { useFilterUtilities } from '~/lib/viewer/composables/filtering/filtering
 import { TailwindBreakpoints } from '~~/lib/common/helpers/tailwind'
 import { useBreakpoints } from '@vueuse/core'
 import { useRoamingAnchoredState } from '~/lib/viewer/composables/roaming/useRoamingAnchoredState'
-import { RoamingMode } from '~/lib/viewer/composables/roaming/types'
 import { Vector3 } from 'three'
 import { useViewerAnchoredPoints } from '~~/lib/viewer/composables/anchorPoints'
 import type { CSSProperties } from 'vue'
@@ -217,16 +216,14 @@ watch(
       roamingPointItems.value = []
       return
     }
-    const isPointMode = activeRoute.value.mode === RoamingMode.Point
-    const eyeH = isPointMode ? activeRoute.value.eyeHeight ?? 1.6 : 0
     roamingPointItems.value = activeRoute.value.points.map(
       (p: RoamingPoint, idx: number) => {
-        const loc = new Vector3(p.position[0], p.position[1], p.position[2] + eyeH)
+        const loc = new Vector3(p.position[0], p.position[1], p.position[2])
         return {
           id: p.id,
           index: idx,
           position: p.position,
-          eyeHeight: eyeH,
+          eyeHeight: 0,
           isOccluded: false,
           style: {},
           location: loc

@@ -78,7 +78,7 @@
     <!-- 展开的点位列表 -->
     <div
       v-if="isExpanded"
-      class="flex flex-col border-t border-outline-3 bg-foundation-2 p-2 gap-1 max-h-48 overflow-y-auto simple-scrollbar"
+      class="flex flex-col border-t border-outline-3 bg-foundation-2 p-2 gap-1 max-h-64 overflow-y-auto simple-scrollbar"
     >
       <div
         v-for="(point, idx) in route.points"

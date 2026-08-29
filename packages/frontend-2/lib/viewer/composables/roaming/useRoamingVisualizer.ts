@@ -10,7 +10,6 @@ import {
 } from 'three'
 import { type IViewer, ObjectLayers, UpdateFlags } from '@speckle/viewer'
 import type { RoamingRoute } from './types'
-import { RoamingMode } from './types'
 
 // Speckle 渲染管道中 Overlay 层对应的 layer ID 是 4
 const OVERLAY_LAYER = ObjectLayers.OVERLAY ?? 4
@@ -86,13 +85,11 @@ export const useRoamingVisualizer = (viewerProvider: () => IViewer | undefined) 
     }
 
     const points = route.points
-    const isPointMode = route.mode === RoamingMode.Point
-    const eyeH = isPointMode ? route.eyeHeight ?? 1.6 : 0
 
     const linePoints: Vector3[] = []
 
     points.forEach((pt) => {
-      const pos = new Vector3(pt.position[0], pt.position[1], pt.position[2] + eyeH)
+      const pos = new Vector3(pt.position[0], pt.position[1], pt.position[2])
       linePoints.push(pos)
     })
 
