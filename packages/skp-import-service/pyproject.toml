@@ -1,0 +1,47 @@
+[project]
+name = "skp_importer"
+version = "0.1.0"
+description = "Speckle SketchUp (SKP) importer worker app"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "typed-settings>=24.5.0",
+    "pydantic>=2.11.7",
+    "python-dotenv>=1.0.0",
+    "structlog>=25.4.0",
+    "structlog-to-seq>=21.0.0",
+    "specklepy>=3.0.7",
+    "colorful>=0.5.7",
+    "prometheus-client>=0.23.1",
+    "requests>=2.32.0",
+    "numpy>=2.0.0",
+    "trimesh>=5.0.0",
+    "openskp>=1.1.0",
+]
+
+[dependency-groups]
+dev = ["asyncpg-stubs>=0.30.2", "colorama>=0.4.6", "ruff>=0.12.2", "pytest>=8.0.0"]
+
+[tool.ruff]
+exclude = [".venv", "**/*.yml"]
+
+[tool.ruff.lint]
+select = [
+    "A",
+    "E",
+    "F",
+    "UP",
+    "B",
+    "SIM",
+    "I",
+    "N",
+    "ASYNC",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/skp_importer"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"

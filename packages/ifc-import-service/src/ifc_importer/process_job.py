@@ -241,8 +241,8 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
         data = import_job.convert()
         progress_reporter.report(
             88,
-            "uploading_speckle_object",
-            "Uploading converted model to Speckle",
+            "uploading_model_object",
+            "Uploading converted model",
             True,
         )
         root_id = send(data, transports=[remote_transport], use_default_cache=False)

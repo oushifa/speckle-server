@@ -179,6 +179,17 @@ services:
       - speckle-server
       - postgres
 
+  skp-import-server:
+    image: registry.siruijie.com.cn/speckle/skp-import-service:2.26
+    restart: always
+    environment:
+      LOG_LEVEL: 'info'
+      LOG_PRETTY: 'true'
+      FILEIMPORT_QUEUE_POSTGRES_URL: 'postgresql://speckle:speckle@postgres/speckle'
+    depends_on:
+      - speckle-server
+      - postgres
+
 volumes:
   postgres-data:
   redis-data:

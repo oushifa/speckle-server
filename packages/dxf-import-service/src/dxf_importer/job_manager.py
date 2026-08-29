@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import sys
 import tempfile
 import time
@@ -25,6 +26,25 @@ from dxf_importer.repository import (
 )
 
 IDLE_TIMEOUT = 1
+
+
+class JobPausedException(Exception):
+    """Raised when the job is paused by an administrator."""
+    pass
+
+
+async def _watch_job_paused(connection, job_id: str, poll_interval: float = 1.0) -> None:
+    """Watch if job status in DB is changed to paused."""
+    while True:
+        await asyncio.sleep(poll_interval)
+        try:
+            row = await connection.fetchrow(
+                "SELECT status FROM background_jobs WHERE id = $1", job_id
+            )
+            if row and row["status"] == JobStatus.PAUSED.value:
+                return
+        except Exception:
+            pass
 
 
 async def job_manager(logger: structlog.stdlib.BoundLogger):
@@ -79,8 +99,29 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     + f" {base64.b64encode(job.payload.model_dump_json().encode()).decode()}"
                 )
                 process = await asyncio.create_subprocess_shell(cmd)
+                watch_task = asyncio.create_task(
+                    _watch_job_paused(connection, job_id)
+                )
+                wait_task = asyncio.create_task(process.wait())
                 try:
-                    exit_code = await asyncio.wait_for(process.wait(), timeout=job_timeout)
+                    done, pending = await asyncio.wait(
+                        [watch_task, wait_task],
+                        timeout=job_timeout,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for t in pending:
+                        t.cancel()
+
+                    if watch_task in done and wait_task not in done:
+                        process.kill()
+                        with contextlib.suppress(Exception):
+                            await process.wait()
+                        raise JobPausedException("Job was paused by administrator")
+
+                    if wait_task in done:
+                        exit_code = wait_task.result()
+                    else:
+                        raise TimeoutError(f"Job reached timeout of {job_timeout} seconds")
                 except TimeoutError as te:
                     process.kill()
                     raise Exception(
@@ -126,15 +167,24 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 )
                 job_status = JobStatus.SUCCEEDED
 
+            except JobPausedException:
+                job_status = JobStatus.PAUSED
+                logger.info(
+                    "dxf job {job_id} was paused by administrator, terminating process immediately",
+                    job_id=job_id,
+                )
             except Exception as e:
                 ex = e
                 job_status = JobStatus.FAILED
             finally:
-                if duration <= 0:
-                    duration = time.time() - start
-                    await deduct_from_compute_budget(
-                        connection, logger, job_id, floor(duration)
-                    )
+                if job_status == JobStatus.PAUSED:
+                    logger.info("Skipping budget deduction and failure reporting for paused dxf job {job_id}", job_id=job_id)
+                else:
+                    if duration <= 0:
+                        duration = time.time() - start
+                        await deduct_from_compute_budget(
+                            connection, logger, job_id, floor(duration)
+                        )
 
                 if job_status == JobStatus.FAILED:
                     logger.error("job processing failed", exc_info=ex)

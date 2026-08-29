@@ -7,13 +7,11 @@ from pydantic.alias_generators import to_camel
 
 
 class JobBase(BaseModel):
-    model_config = ConfigDict(  # pyright: ignore[reportUnannotatedClassAttribute]
-        alias_generator=to_camel, populate_by_name=True
-    )
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class FileimportPayload(JobBase):
-    """Payload for the fileimport job"""
+    """Payload for the fileimport job."""
 
     payload_version: Literal[1]
     job_type: Literal["fileImport"]

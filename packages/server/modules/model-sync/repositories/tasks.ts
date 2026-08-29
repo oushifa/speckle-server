@@ -55,6 +55,7 @@ export type ProjectModelSyncTaskRecord = {
   progressPercent: number | string | null
   progressPhase: string | null
   progressMessage: string | null
+  queuePosition?: number | null
   seedId: string | null
   assetId: string | null
   assetName: string | null
@@ -206,7 +207,11 @@ export const listResumableProjectModelSyncTasksFactory =
             retryBuilder
               .where(ProjectModelSyncTasks.col.status, 'failed')
               .andWhere(ProjectModelSyncTasks.col.retriable, true)
-              .andWhere(ProjectModelSyncTasks.col.retryCount, '<', MODEL_SYNC_AUTO_RETRY_LIMIT)
+              .andWhere(
+                ProjectModelSyncTasks.col.retryCount,
+                '<',
+                MODEL_SYNC_AUTO_RETRY_LIMIT
+              )
           })
       })
       .andWhere(ProjectModelSyncTasks.col.projectId, params.projectId)

@@ -40,6 +40,7 @@ import {
   completeModelSyncMultipartUploadFactory
 } from '@/modules/model-sync/services/speckleUploads'
 import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
+import { enrichTasksWithQueuePosition } from '@/modules/model-sync/services/queuePosition'
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
@@ -114,6 +115,7 @@ const serializeTask = (task: ProjectModelSyncTaskRecord) => ({
     task.progressPercent === null ? null : Number(task.progressPercent || 0),
   progressPhase: task.progressPhase,
   progressMessage: task.progressMessage,
+  queuePosition: task.queuePosition ?? null,
   seedId: task.seedId,
   assetId: task.assetId,
   assetName: task.assetName,
@@ -149,7 +151,10 @@ const parseVisibleTaskTargets = (queryValue: unknown) => {
 
     return parsed
       .map((target) => ({
-        projectId: (typeof target?.projectId === 'string' ? target.projectId : '').trim(),
+        projectId: (typeof target?.projectId === 'string'
+          ? target.projectId
+          : ''
+        ).trim(),
         modelIds: Array.isArray(target?.modelIds)
           ? target.modelIds
               .map((modelId) => (typeof modelId === 'string' ? modelId.trim() : ''))
@@ -191,7 +196,11 @@ export const modelSyncRouterFactory = () => {
     cors(),
     allowCrossOriginResourceAccessMiddelware()
   )
-  router.options(`${routeBase}/:taskId`, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${routeBase}/:taskId`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(
     `${routeBase}/:taskId/complete-upload`,
     cors(),
@@ -238,7 +247,8 @@ export const modelSyncRouterFactory = () => {
 
         const targetsByProjectId = new Map<string, Set<string>>()
         for (const target of targets) {
-          const existingModelIds = targetsByProjectId.get(target.projectId) || new Set<string>()
+          const existingModelIds =
+            targetsByProjectId.get(target.projectId) || new Set<string>()
           target.modelIds.forEach((modelId) => existingModelIds.add(modelId))
           targetsByProjectId.set(target.projectId, existingModelIds)
         }
@@ -333,7 +343,8 @@ export const modelSyncRouterFactory = () => {
           modelIds
         })
 
-        res.json({ data: tasks.map(serializeTask) })
+        const enrichedTasks = await enrichTasksWithQueuePosition(tasks)
+        res.json({ data: enrichedTasks.map(serializeTask) })
       } catch (err) {
         next(err)
       }
@@ -349,7 +360,8 @@ export const modelSyncRouterFactory = () => {
         const projectId = req.params.projectId
         requireAuthenticatedUser(req)
 
-        const status = typeof req.query.status === 'string' ? req.query.status : 'active'
+        const status =
+          typeof req.query.status === 'string' ? req.query.status : 'active'
         const projectDb = await getProjectDbClient({ projectId })
 
         const tasks =
@@ -363,7 +375,8 @@ export const modelSyncRouterFactory = () => {
               })
             : []
 
-        res.json({ data: tasks.map(serializeTask) })
+        const enrichedTasks = await enrichTasksWithQueuePosition(tasks)
+        res.json({ data: enrichedTasks.map(serializeTask) })
       } catch (err) {
         next(err)
       }
@@ -386,7 +399,8 @@ export const modelSyncRouterFactory = () => {
           modelId
         })
 
-        res.json({ data: tasks.map(serializeTask) })
+        const enrichedTasks = await enrichTasksWithQueuePosition(tasks)
+        res.json({ data: enrichedTasks.map(serializeTask) })
       } catch (err) {
         next(err)
       }
@@ -414,7 +428,8 @@ export const modelSyncRouterFactory = () => {
           return res.status(404).json({ error: 'Task not found' })
         }
 
-        res.json({ data: serializeTask(task) })
+        const [enrichedTask] = await enrichTasksWithQueuePosition([task])
+        res.json({ data: serializeTask(enrichedTask || task) })
       } catch (err) {
         next(err)
       }
@@ -547,7 +562,8 @@ export const modelSyncRouterFactory = () => {
           return res.status(401).json({ error: 'User not authenticated.' })
         }
 
-        const uploadId = typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
+        const uploadId =
+          typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
         const parts = Array.isArray(req.body?.parts) ? req.body.parts : []
         if (!uploadId) {
           throw new BadRequestError('uploadId is required')
@@ -576,7 +592,9 @@ export const modelSyncRouterFactory = () => {
           uploadId,
           parts: parts.map((part: { partNumber?: unknown; etag?: unknown }) => ({
             partNumber:
-              typeof part.partNumber === 'number' ? part.partNumber : Number(part.partNumber),
+              typeof part.partNumber === 'number'
+                ? part.partNumber
+                : Number(part.partNumber),
             etag: typeof part.etag === 'string' ? part.etag : String(part.etag || '')
           }))
         })
@@ -649,7 +667,9 @@ export const modelSyncRouterFactory = () => {
 
         const partNumber = Number(req.body?.partNumber)
         if (!Number.isInteger(partNumber) || partNumber < 1) {
-          throw new BadRequestError('partNumber is required and must be a positive integer')
+          throw new BadRequestError(
+            'partNumber is required and must be a positive integer'
+          )
         }
         const uploadId =
           typeof req.body?.uploadId === 'string' ? req.body.uploadId.trim() : ''
@@ -827,7 +847,7 @@ export const modelSyncRouterFactory = () => {
                 ? '准备重新发起模型转换'
                 : retryStatus === 'syncing_dtp_model'
                 ? '准备重新同步 DTP 模型'
-                : '准备重新等待 Speckle 转换',
+                : '准备重新等待模型转换',
             updater: userId
           }
         })
@@ -883,9 +903,11 @@ export const modelSyncRouterFactory = () => {
           res.write(`data: ${JSON.stringify(data)}\n\n`)
         }
 
+        const enrichedTasks = await enrichTasksWithQueuePosition(tasks)
+
         writeEvent('snapshot', {
           projectId,
-          tasks: tasks.map(serializeTask)
+          tasks: enrichedTasks.map(serializeTask)
         })
 
         const unsubscribeList = uniqueModelIds.map((currentModelId) =>
@@ -941,9 +963,14 @@ export const modelSyncRouterFactory = () => {
 
         writeEvent('snapshot', serializeTask(task))
 
-        const unsubscribe = onModelSyncTaskUpdated(projectId, modelId, taskId, (payload) => {
-          writeEvent('update', serializeTask(payload))
-        })
+        const unsubscribe = onModelSyncTaskUpdated(
+          projectId,
+          modelId,
+          taskId,
+          (payload) => {
+            writeEvent('update', serializeTask(payload))
+          }
+        )
 
         const heartbeat = setInterval(() => {
           res.write(`: ping\n\n`)

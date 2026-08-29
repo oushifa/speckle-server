@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import sys
 import tempfile
 import time
@@ -43,6 +44,25 @@ def _truncate_process_output(output: bytes | None) -> str | None:
         text[:MAX_SUBPROCESS_OUTPUT_CHARS]
         + f"\n... [truncated {len(text) - MAX_SUBPROCESS_OUTPUT_CHARS} chars]"
     )
+
+
+class JobPausedException(Exception):
+    """Raised when the job is paused by an administrator."""
+    pass
+
+
+async def _watch_job_paused(connection, job_id: str, poll_interval: float = 1.0) -> None:
+    """Watch if job status in DB is changed to paused."""
+    while True:
+        await asyncio.sleep(poll_interval)
+        try:
+            row = await connection.fetchrow(
+                "SELECT status FROM background_jobs WHERE id = $1", job_id
+            )
+            if row and row["status"] == JobStatus.PAUSED.value:
+                return
+        except Exception:
+            pass
 
 
 async def job_manager(logger: structlog.stdlib.BoundLogger):
@@ -112,10 +132,29 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
+                watch_task = asyncio.create_task(
+                    _watch_job_paused(connection, job_id)
+                )
+                communicate_task = asyncio.create_task(process.communicate())
                 try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(), timeout=job_timeout
+                    done, pending = await asyncio.wait(
+                        [watch_task, communicate_task],
+                        timeout=job_timeout,
+                        return_when=asyncio.FIRST_COMPLETED,
                     )
+                    for t in pending:
+                        t.cancel()
+
+                    if watch_task in done and communicate_task not in done:
+                        process.kill()
+                        with contextlib.suppress(Exception):
+                            await process.communicate()
+                        raise JobPausedException("Job was paused by administrator")
+
+                    if communicate_task in done:
+                        stdout, stderr = communicate_task.result()
+                    else:
+                        raise TimeoutError(f"Job reached timeout of {job_timeout} seconds")
                 except TimeoutError as te:
                     process.kill()
                     stdout, stderr = await process.communicate()
@@ -201,19 +240,28 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 # handling routines on finalisation
                 job_status = JobStatus.SUCCEEDED
 
+            except JobPausedException:
+                job_status = JobStatus.PAUSED
+                logger.info(
+                    "job {job_id} was paused by administrator, terminating process immediately",
+                    job_id=job_id,
+                )
             # raised if the task is canceled
             except Exception as e:
                 #
                 ex = e
                 job_status = JobStatus.FAILED
             finally:
-                if duration <= 0:
-                    # it probably failed before we calculated the duration,
-                    # so calculate it now
-                    duration = time.time() - start
-                    await deduct_from_compute_budget(
-                        connection, logger, job_id, floor(duration)
-                    )
+                if job_status == JobStatus.PAUSED:
+                    logger.info("Skipping budget deduction and failure reporting for paused job {job_id}", job_id=job_id)
+                else:
+                    if duration <= 0:
+                        # it probably failed before we calculated the duration,
+                        # so calculate it now
+                        duration = time.time() - start
+                        await deduct_from_compute_budget(
+                            connection, logger, job_id, floor(duration)
+                        )
 
                 if job_status == JobStatus.FAILED:
                     # we should be reporting the failure to the server

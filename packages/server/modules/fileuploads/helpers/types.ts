@@ -62,8 +62,9 @@ export type FileUploadRecordV2 = {
 
 export type FileUploadGraphQLReturn = FileUploadRecord | FileUploadRecordV2
 
-export const EXTERNAL_CONVERTIBLE_FILE_TYPES = ['rvt', 'skp', 'nwd', 'nwc'] as const
-export type ExternalConvertibleFileType = (typeof EXTERNAL_CONVERTIBLE_FILE_TYPES)[number]
+export const EXTERNAL_CONVERTIBLE_FILE_TYPES = ['rvt', 'nwd', 'nwc'] as const
+export type ExternalConvertibleFileType =
+  (typeof EXTERNAL_CONVERTIBLE_FILE_TYPES)[number]
 
 export const isExternalConvertibleFileType = (
   fileType: string | null | undefined

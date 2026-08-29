@@ -43,6 +43,7 @@ class FileimportResult(JobBase):
 class JobStatus(StrEnum):
     QUEUED = "queued"
     PROCESSING = "processing"
+    PAUSED = "paused"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
 

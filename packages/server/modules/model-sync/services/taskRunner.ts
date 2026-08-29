@@ -17,7 +17,10 @@ import {
   acquireTaskLockFactory,
   releaseTaskLockFactory
 } from '@/modules/core/repositories/scheduledTasks'
-import { getStreamFactory, getCommitStreamFactory } from '@/modules/core/repositories/streams'
+import {
+  getStreamFactory,
+  getCommitStreamFactory
+} from '@/modules/core/repositories/streams'
 import { getUserFactory } from '@/modules/core/repositories/users'
 import { updateCommitAndNotifyFactory } from '@/modules/core/services/commit/management'
 import {
@@ -36,6 +39,10 @@ import {
   getProjectModelSyncTaskFactory,
   updateProjectModelSyncTaskFactory
 } from '@/modules/model-sync/repositories/tasks'
+import {
+  getQueuePositionsByBlobIds,
+  QUEUE_SUPPORTED_FILE_TYPES
+} from '@/modules/model-sync/services/queuePosition'
 import {
   MODEL_SYNC_AUTO_RETRY_INTERVAL_MS,
   MODEL_SYNC_AUTO_RETRY_LIMIT,
@@ -133,9 +140,7 @@ export const runModelSyncTaskFactory =
       markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
     })
 
-    const patchTask = async (
-      patch: Parameters<typeof updateTask>[0]['patch']
-    ) => {
+    const patchTask = async (patch: Parameters<typeof updateTask>[0]['patch']) => {
       const updated = await updateTask({
         projectId: params.projectId,
         modelId: params.modelId,
@@ -197,7 +202,11 @@ export const runModelSyncTaskFactory =
         projectId: params.projectId
       })
       if (!upload) {
-        throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
+        throw new ModelSyncTaskError(
+          'FILE_UPLOAD_NOT_FOUND',
+          '未找到模型上传记录',
+          false
+        )
       }
 
       if (upload.convertedStatus === FileUploadConvertedStatus.Error) {
@@ -246,7 +255,11 @@ export const runModelSyncTaskFactory =
         projectId: params.projectId
       })
       if (!upload) {
-        throw new ModelSyncTaskError('FILE_UPLOAD_NOT_FOUND', '未找到模型上传记录', false)
+        throw new ModelSyncTaskError(
+          'FILE_UPLOAD_NOT_FOUND',
+          '未找到模型上传记录',
+          false
+        )
       }
 
       if (!isExternalConvertibleFileType(upload.fileType)) {
@@ -261,7 +274,9 @@ export const runModelSyncTaskFactory =
       }
 
       const shouldResetForRetry =
-        TerminalFileUploadStatuses.has(upload.convertedStatus as FileUploadConvertedStatus) ||
+        TerminalFileUploadStatuses.has(
+          upload.convertedStatus as FileUploadConvertedStatus
+        ) ||
         (!!upload.progressPhase && TerminalProgressPhases.has(upload.progressPhase))
 
       if (!shouldResetForRetry) {
@@ -339,12 +354,31 @@ export const runModelSyncTaskFactory =
         )
       }
 
+      let initialProgressMessage = '等待模型转换'
+      const normFileType = task.fileType?.toLowerCase() || ''
+      if (QUEUE_SUPPORTED_FILE_TYPES.has(normFileType)) {
+        try {
+          const queueMap = await getQueuePositionsByBlobIds([fileUploadId])
+          const queueInfo = queueMap.get(fileUploadId)
+          if (
+            queueInfo?.status === 'queued' &&
+            typeof queueInfo.queuePosition === 'number'
+          ) {
+            initialProgressMessage = `排队中，当前处于队列第 ${queueInfo.queuePosition} 位`
+          } else if (queueInfo?.status === 'processing') {
+            initialProgressMessage = '正在转换模型'
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       await patchTask({
         fileUploadId,
         status: 'speckle_converting',
         progressPercent: 0,
         progressPhase: null,
-        progressMessage: '等待 Speckle 转换',
+        progressMessage: initialProgressMessage,
         error: null,
         errorCode: null,
         retriable: false
@@ -413,18 +447,6 @@ export const runModelSyncTaskFactory =
         errorCode: null,
         retriable: false
       })
-
-      await updateCommitAndNotify(
-        {
-          projectId: params.projectId,
-          versionId,
-          seedId: dtpResult.seedId,
-          assetId: dtpResult.assetId,
-          assetName: dtpResult.assetName,
-          skipStandardUpdateAuth: true
-        },
-        params.userId
-      )
 
       return {
         mobile,
@@ -505,6 +527,25 @@ export const runModelSyncTaskFactory =
           latestTask = (await loadTask()) || latestTask
         }
 
+        const versionId = latestTask.versionId
+        const seedId = latestTask.seedId
+        const assetId = latestTask.assetId
+        const assetName = latestTask.assetName
+
+        if (versionId && seedId && assetId && assetName) {
+          await updateCommitAndNotify(
+            {
+              projectId: params.projectId,
+              versionId,
+              seedId,
+              assetId,
+              assetName,
+              skipStandardUpdateAuth: true
+            },
+            params.userId
+          )
+        }
+
         await patchTask({
           status: 'succeeded',
           progressPercent: 100,
@@ -556,7 +597,9 @@ export const runModelSyncTaskFactory =
           progressPercent: null,
           progressPhase: null,
           progressMessage: canAutoRetry
-            ? `将在 ${Math.round(MODEL_SYNC_AUTO_RETRY_INTERVAL_MS / 1000)} 秒后自动重试`
+            ? `将在 ${Math.round(
+                MODEL_SYNC_AUTO_RETRY_INTERVAL_MS / 1000
+              )} 秒后自动重试`
             : null,
           error: message,
           errorCode,
@@ -583,7 +626,7 @@ export const runModelSyncTaskFactory =
                 ? '准备重新发起模型转换'
                 : retryStatus === 'syncing_dtp_model'
                 ? '准备重新同步 DTP 模型'
-                : '准备重新等待 Speckle 转换'
+                : '准备重新等待模型转换'
           })) || (await loadTask())
       }
     }

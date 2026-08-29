@@ -31,6 +31,7 @@ import {
 } from '@/modules/core/repositories/scheduledTasks'
 import { FileUploadDatabaseEvents } from '@/modules/fileuploads/domain/consts'
 import { fileuploadRouterFactory } from '@/modules/fileuploads/rest/router'
+import { adminQueueRouterFactory } from '@/modules/fileuploads/rest/adminQueueRouter'
 import {
   shutdownQueues,
   initializePostgresQueue
@@ -90,6 +91,11 @@ export const init: SpeckleModule['init'] = async ({
         await initializePostgresQueue({
           label: 'dxf',
           supportedFileTypes: ['dxf'],
+          db: queueDb
+        }),
+        await initializePostgresQueue({
+          label: 'skp',
+          supportedFileTypes: ['skp'],
           db: queueDb
         })
       ]
@@ -171,6 +177,7 @@ export const init: SpeckleModule['init'] = async ({
   }
 
   app.use(fileuploadRouterFactory())
+  app.use(adminQueueRouterFactory())
 }
 
 export const shutdown: SpeckleModule['shutdown'] = async () => {

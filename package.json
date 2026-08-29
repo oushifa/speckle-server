@@ -45,6 +45,8 @@
     "dev:hc-bim:dxf-import-service": "cross-env FILEIMPORT_QUEUE_POSTGRES_URL=postgresql://speckle:speckle@127.0.0.1:15432/speckle_hc_bim sh ./packages/dxf-import-service/run.sh",
     "dev:ifc-import-service": "sh ./packages/ifc-import-service/run.sh",
     "dev:hc-bim:ifc-import-service": "cross-env FILEIMPORT_QUEUE_POSTGRES_URL=postgresql://speckle:speckle@127.0.0.1:15432/speckle_hc_bim sh ./packages/ifc-import-service/run.sh",
+    "dev:skp-import-service": "sh ./packages/skp-import-service/run.sh",
+    "dev:hc-bim:skp-import-service": "cross-env FILEIMPORT_QUEUE_POSTGRES_URL=postgresql://speckle:speckle@127.0.0.1:15432/speckle_hc_bim sh ./packages/skp-import-service/run.sh",
     "prepare": "husky install",
     "postinstall": "husky install",
     "cm": "cz",

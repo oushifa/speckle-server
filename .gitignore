@@ -92,3 +92,4 @@ packages/*/.tshy/
 AGENTS.md
 .trae/
 worksConclude/
+ignores/
