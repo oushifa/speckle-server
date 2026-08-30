@@ -53,6 +53,7 @@ const requireProjectUpdate = async (req: Request, projectId: string) => {
 const serializeRoute = (record: RoamingRouteRecord) => ({
   id: record.id,
   projectId: record.projectId,
+  modelId: record.modelId || null,
   name: record.name,
   mode: record.mode,
   points:
@@ -80,7 +81,7 @@ export const roamingRouterFactory = () => {
     allowCrossOriginResourceAccessMiddelware()
   )
 
-  // 1. 获取漫游路线列表
+  // 1. 获取漫游路线列表（支持按 modelId 过滤）
   router.get(
     routeBase,
     cors(),
@@ -88,11 +89,12 @@ export const roamingRouterFactory = () => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const projectId = req.params.projectId as string
+        const modelId = (req.query.modelId as string) || undefined
         await requireProjectRead(req, projectId)
 
         const db = await getProjectDbClient({ projectId })
         const listRoutes = listRoamingRoutesFactory({ db })
-        const routes = await listRoutes({ projectId })
+        const routes = await listRoutes({ projectId, modelId })
 
         res.json({
           data: routes.map(serializeRoute)
@@ -132,7 +134,7 @@ export const roamingRouterFactory = () => {
     }
   )
 
-  // 3. 创建漫游路线
+  // 3. 创建漫游路线（关联当前 modelId）
   router.post(
     routeBase,
     cors(),
@@ -156,6 +158,7 @@ export const roamingRouterFactory = () => {
         const created = await createRoute({
           id,
           projectId,
+          modelId: body.modelId || null,
           name: body.name.trim(),
           mode: body.mode || 'point',
           points: body.points || [],
@@ -194,6 +197,7 @@ export const roamingRouterFactory = () => {
           projectId,
           routeId,
           updates: {
+            modelId: body.modelId !== undefined ? body.modelId : undefined,
             name: body.name !== undefined ? body.name.trim() : undefined,
             mode: body.mode,
             points: body.points,

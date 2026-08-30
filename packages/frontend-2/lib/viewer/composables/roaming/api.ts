@@ -20,10 +20,14 @@ export const useRoamingApi = () => {
     })
   }
 
-  // 获取项目的漫游路线列表
-  const fetchRoamingRoutes = async (projectId: string): Promise<RoamingRoute[]> => {
+  // 获取项目的漫游路线列表（支持指定 modelId）
+  const fetchRoamingRoutes = async (
+    projectId: string,
+    modelId?: string
+  ): Promise<RoamingRoute[]> => {
+    const query = modelId ? `?modelId=${encodeURIComponent(modelId)}` : ''
     const res = await request<{ data: RoamingRoute[] }>(
-      `/api/v1/projects/${projectId}/roaming/routes`
+      `/api/v1/projects/${projectId}/roaming/routes${query}`
     )
     return res.data || []
   }

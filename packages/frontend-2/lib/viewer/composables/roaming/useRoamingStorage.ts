@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useInjectedViewerState } from '~/lib/viewer/composables/setup'
 import type { RoamingRoute } from './types'
 import { useRoamingApi } from './api'
@@ -7,17 +8,37 @@ const STORAGE_PREFIX = 'speckle_roaming_routes_'
 
 export const useRoamingStorage = () => {
   const logger = useLogger()
+  const route = useRoute()
   const state = useInjectedViewerState()
   const projectId = computed(() => state.projectId.value)
+
+  // 获取当前正在查看的模型 ID，优先从已加载资源模型列表中提取，兜底从路由参数解析
+  const currentModelId = computed(() => {
+    const models = state.resources?.response?.modelsAndVersionIds?.value
+    if (models && models.length > 0) {
+      return models[0].model.id
+    }
+    const rawModelId = route.params.modelId as string | undefined
+    if (rawModelId && typeof rawModelId === 'string') {
+      return rawModelId.split(',')[0].split('@')[0]
+    }
+    return null
+  })
+
   const api = useRoamingApi()
 
-  const storageKey = computed(() => `${STORAGE_PREFIX}${projectId.value || 'default'}`)
+  const storageKey = computed(
+    () =>
+      `${STORAGE_PREFIX}${projectId.value || 'default'}_${
+        currentModelId.value || 'all'
+      }`
+  )
 
   const routes = ref<RoamingRoute[]>([])
   const isLoaded = ref(false)
   const isLoading = ref(false)
 
-  // 1. 从后端加载漫游列表，并备份到本地缓存
+  // 1. 从后端加载漫游列表，并备份到本地缓存（按当前 modelId 过滤）
   const loadRoutes = async () => {
     if (!import.meta.client || !projectId.value) return
     isLoading.value = true
@@ -27,13 +48,18 @@ export const useRoamingStorage = () => {
       const raw = localStorage.getItem(storageKey.value)
       if (raw) {
         routes.value = JSON.parse(raw)
+      } else {
+        routes.value = []
       }
     } catch (e) {
       logger.error('Failed to load roaming routes from localStorage cache:', e)
     }
 
     try {
-      const serverRoutes = await api.fetchRoamingRoutes(projectId.value)
+      const serverRoutes = await api.fetchRoamingRoutes(
+        projectId.value,
+        currentModelId.value || undefined
+      )
       routes.value = serverRoutes
       localStorage.setItem(storageKey.value, JSON.stringify(serverRoutes))
     } catch (e) {
@@ -44,13 +70,18 @@ export const useRoamingStorage = () => {
     }
   }
 
-  // 2. 新增漫游路线（调用后端 REST API，并同步到本地）
+  // 2. 新增漫游路线（关联当前 modelId）
   const addRoute = async (
     routeData: Omit<RoamingRoute, 'id' | 'createdAt' | 'updatedAt'>
   ) => {
     if (!projectId.value) return null
+    const payload = {
+      ...routeData,
+      modelId: routeData.modelId || currentModelId.value || null
+    }
+
     try {
-      const created = await api.createRoamingRoute(projectId.value, routeData)
+      const created = await api.createRoamingRoute(projectId.value, payload)
       routes.value.unshift(created)
       localStorage.setItem(storageKey.value, JSON.stringify(routes.value))
       return created
@@ -58,7 +89,7 @@ export const useRoamingStorage = () => {
       logger.error('Failed to create roaming route on server, fallback local:', e)
       // 本地兜底
       const localRoute: RoamingRoute = {
-        ...routeData,
+        ...payload,
         id: `roam_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -121,11 +152,11 @@ export const useRoamingStorage = () => {
     return routes.value.find((r) => r.id === id) || null
   }
 
-  // 监听项目切换自动重载
+  // 监听项目或当前模型切换自动重载
   watch(
-    projectId,
-    (newId) => {
-      if (newId) {
+    [projectId, currentModelId],
+    ([newProjectId]) => {
+      if (newProjectId) {
         loadRoutes()
       }
     },
@@ -136,6 +167,7 @@ export const useRoamingStorage = () => {
     routes,
     isLoaded,
     isLoading,
+    currentModelId,
     loadRoutes,
     addRoute,
     updateRoute,

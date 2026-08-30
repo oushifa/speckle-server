@@ -34,6 +34,8 @@ export interface RoamingPoint {
 
 export interface RoamingRoute {
   id: string
+  projectId: string
+  modelId?: string | null
   name: string
   mode: RoamingMode
   points: RoamingPoint[]

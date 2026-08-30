@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { Vector3, Vector2, Raycaster } from 'three'
 import { CameraController, ViewerEvent } from '@speckle/viewer'
 import type { SelectionEvent } from '@speckle/viewer'
@@ -9,9 +9,10 @@ import { useRoamingVisualizer } from './useRoamingVisualizer'
 
 export const useRoamingController = () => {
   const logger = useLogger()
+  const state = useInjectedViewerState()
   const {
     viewer: { instance }
-  } = useInjectedViewerState()
+  } = state
 
   const visualizer = useRoamingVisualizer(() => instance)
 
@@ -312,7 +313,6 @@ export const useRoamingController = () => {
       try {
         cameraController.setCameraView({ position: curPos, target: curTarget }, false)
         cameraController.updateCameraPlanes()
-        visualizer.renderRoute(currentRoute.value, 0, curPos)
         instance.requestRender()
       } catch (e) {
         logger.error('Camera fly-in error:', e)
@@ -438,7 +438,6 @@ export const useRoamingController = () => {
       try {
         cameraController.setCameraView({ position: curPos, target: curTarget }, false)
         cameraController.updateCameraPlanes()
-        visualizer.renderRoute(currentRoute.value, curSegment.pointIndex, curPos)
         instance.requestRender()
       } catch (e) {
         logger.error('Camera update error in roaming loop:', e)
@@ -467,6 +466,9 @@ export const useRoamingController = () => {
     } else {
       accumulatedTime = 0
     }
+
+    // 开始播放时清空连线指示，保证漫游第一人称视野纯净
+    visualizer.clear()
 
     const cameraController = instance.getExtension(CameraController)
     cameraController.disableRotations()
@@ -561,12 +563,30 @@ export const useRoamingController = () => {
       const cameraController = instance.getExtension(CameraController)
       cameraController.enableRotations()
       cameraController.updateCameraPlanes()
-      visualizer.renderRoute(currentRoute.value)
+
+      // 仅在漫游面板激活时恢复显示漫游路线连线，否则彻底清空
+      const isRoamingActive = state.ui?.panels?.active?.value === 'roaming'
+      if (isRoamingActive && currentRoute.value) {
+        visualizer.renderRoute(currentRoute.value)
+      } else {
+        visualizer.clear()
+      }
+
       instance.requestRender()
     } catch (e) {
       logger.error('Failed to stop roaming:', e)
     }
   }
+
+  // 监听侧边栏面板状态：只要离开或关闭漫游面板，立即彻底清空三维连线
+  watch(
+    () => state.ui?.panels?.active?.value,
+    (activePanel) => {
+      if (activePanel !== 'roaming') {
+        visualizer.clear()
+      }
+    }
+  )
 
   const setProgress = (targetProgress: number) => {
     if (!currentRoute.value || totalTime.value <= 0) return

@@ -3,6 +3,7 @@ import type { Knex } from 'knex'
 export interface RoamingRouteRecord {
   id: string
   projectId: string
+  modelId: string | null
   name: string
   mode: string
   points: unknown[]
@@ -24,10 +25,18 @@ const toJsonbValue = <T>(db: Knex, value: T | null | undefined) =>
 
 export const listRoamingRoutesFactory =
   ({ db }: { db: Knex }) =>
-  async ({ projectId }: { projectId: string }): Promise<RoamingRouteRecord[]> => {
-    return (await db(TABLE_NAME)
-      .where({ projectId })
-      .orderBy('updatedAt', 'desc')) as RoamingRouteRecord[]
+  async ({
+    projectId,
+    modelId
+  }: {
+    projectId: string
+    modelId?: string
+  }): Promise<RoamingRouteRecord[]> => {
+    let query = db(TABLE_NAME).where({ projectId })
+    if (modelId) {
+      query = query.andWhere({ modelId })
+    }
+    return (await query.orderBy('updatedAt', 'desc')) as RoamingRouteRecord[]
   }
 
 export const getRoamingRouteFactory =
@@ -53,6 +62,7 @@ export const createRoamingRouteFactory =
     const now = new Date()
     const insertPayload = {
       ...record,
+      modelId: record.modelId || null,
       points: toJsonbValue(db, record.points || []),
       createdAt: now,
       updatedAt: now

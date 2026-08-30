@@ -262,5 +262,6 @@ onUnmounted(() => {
     logger.error('Failed to restore selection:', e)
   }
   visualizer.clear()
+  useRoamingAnchoredState().clear()
 })
 </script>
