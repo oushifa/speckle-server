@@ -13,7 +13,7 @@
             'w-7 h-7 rounded-tr-full rounded-tl-full rounded-br-full cursor-pointer',
             isSelected
               ? 'bg-danger text-white ring-2 ring-warning scale-125 z-20 font-bold'
-              : 'bg-foundation text-primary border border-primary/60 hover:scale-110 hover:border-primary z-10 font-medium',
+              : 'bg-foundation text-success border border-success/60 hover:scale-110 hover:border-success z-10 font-medium',
             isOccluded && !isSelected ? 'opacity-65 hover:opacity-100' : 'opacity-100'
           ]"
           :title="`漫游点位 ${index + 1}`"

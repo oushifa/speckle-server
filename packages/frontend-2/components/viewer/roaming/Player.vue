@@ -30,7 +30,7 @@
         step="0.001"
         :value="progress"
         aria-label="漫游进度调节"
-        class="w-full h-1.5 bg-outline-3 rounded-lg appearance-none cursor-pointer accent-primary"
+        class="w-full h-1.5 bg-outline-3 rounded-lg appearance-none cursor-pointer accent-success"
         @input="onProgressInput"
       />
     </div>
@@ -87,8 +87,8 @@
               v-for="spd in [0.5, 1.0, 1.5, 2.0, 3.0]"
               :key="spd"
               type="button"
-              class="px-3 py-1 text-left text-body-3xs hover:bg-primary/10 text-foreground font-mono"
-              :class="playbackSpeed === spd ? 'text-primary font-bold' : ''"
+              class="px-3 py-1 text-left text-body-3xs hover:bg-success/10 text-foreground font-mono"
+              :class="playbackSpeed === spd ? 'text-success font-bold' : ''"
               @click="onSelectSpeed(spd)"
             >
               {{ spd }}x
@@ -100,6 +100,7 @@
         <FormButton
           size="sm"
           :color="isLoop ? 'primary' : 'subtle'"
+          :class="isLoop ? '!bg-success !text-white focus-visible:!border-success' : ''"
           :icon-left="Repeat"
           hide-text
           class="!h-7 !w-7"

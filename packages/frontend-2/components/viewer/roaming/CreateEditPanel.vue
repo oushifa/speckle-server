@@ -7,7 +7,7 @@
       class="h-10 pl-4 pr-3 flex items-center justify-between border-b border-outline-3 shrink-0"
     >
       <div class="text-body-xs text-foreground font-medium flex items-center gap-1.5">
-        <Footprints class="w-4 h-4 text-primary" />
+        <Footprints class="w-4 h-4 text-success" />
         <span>{{ isEdit ? '编辑漫游路线' : '新建漫游路线' }}</span>
       </div>
       <FormButton
@@ -77,6 +77,9 @@
           <FormButton
             size="sm"
             :color="isPicking ? 'danger' : 'primary'"
+            :class="
+              !isPicking ? '!bg-success !text-white focus-visible:!border-success' : ''
+            "
             :icon-left="isPicking ? Square : MousePointerClick"
             @click="togglePicking"
           >
@@ -85,9 +88,9 @@
         </div>
         <div
           v-if="isPicking"
-          class="p-2 rounded bg-primary-muted text-primary text-body-3xs flex items-center gap-1.5 animate-pulse"
+          class="p-2 rounded bg-success-lightest text-success text-body-3xs flex items-center gap-1.5 animate-pulse"
         >
-          <span class="w-2 h-2 rounded-full bg-primary" />
+          <span class="w-2 h-2 rounded-full bg-success" />
           <span>正在选点中：请直接在 3D 模型表面点击添加路径点</span>
         </div>
         <div class="flex items-center justify-between pt-1">
@@ -100,7 +103,7 @@
               min="0"
               max="10"
               aria-label="人眼视高偏置"
-              class="w-16 h-6 px-1.5 text-body-3xs text-right rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-primary"
+              class="w-16 h-6 px-1.5 text-body-3xs text-right rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-success"
             />
             <span class="text-body-3xs text-foreground-2">米</span>
           </div>
@@ -117,6 +120,7 @@
           <FormButton
             size="sm"
             color="primary"
+            class="!bg-success !text-white focus-visible:!border-success"
             :icon-left="Camera"
             @click="onCaptureView"
           >
@@ -138,16 +142,23 @@
         </div>
         <div class="flex items-center justify-between">
           <span class="text-body-3xs text-foreground-2">默认倍速</span>
-          <select
-            v-model.number="form.speed"
-            aria-label="默认漫游倍速"
-            class="h-6 px-1 rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-primary text-body-3xs"
+          <FormSelectBase
+            :model-value="String(form.speed)"
+            :items="speedOptions"
+            name="default-speed"
+            label="默认漫游倍速"
+            :show-label="false"
+            :allow-unset="false"
+            size="sm"
+            mount-menu-on-body
+            class="w-20"
+            @update:model-value="onSpeedChange"
           >
-            <option :value="0.5">0.5x</option>
-            <option :value="1.0">1.0x</option>
-            <option :value="1.5">1.5x</option>
-            <option :value="2.0">2.0x</option>
-          </select>
+            <template #something-selected>
+              {{ Number(form.speed).toFixed(1) }}x
+            </template>
+            <template #option="{ item }">{{ Number(item).toFixed(1) }}x</template>
+          </FormSelectBase>
         </div>
       </div>
 
@@ -181,7 +192,7 @@
             class="flex flex-col p-2.5 rounded-lg border transition cursor-pointer gap-1.5 text-body-3xs select-none"
             :class="[
               selectedPointIndex === idx
-                ? 'border-primary ring-2 ring-primary/40 bg-primary-muted/20 shadow-sm'
+                ? 'border-success ring-2 ring-success/40 bg-success/10 shadow-sm'
                 : 'border-outline-3 bg-foundation-2 hover:border-outline-2'
             ]"
             @click="selectPoint(idx)"
@@ -196,7 +207,7 @@
                   :class="[
                     selectedPointIndex === idx
                       ? 'bg-danger text-foreground-on-primary ring-2 ring-warning'
-                      : 'bg-primary text-foreground-on-primary'
+                      : 'bg-success text-foreground-on-primary'
                   ]"
                 >
                   {{ idx + 1 }}
@@ -205,7 +216,7 @@
                   class="font-medium truncate"
                   :class="[
                     selectedPointIndex === idx
-                      ? 'text-primary font-bold'
+                      ? 'text-success font-bold'
                       : 'text-foreground'
                   ]"
                 >
@@ -278,25 +289,37 @@
                   min="0.2"
                   max="60"
                   aria-label="点位用时"
-                  class="w-full h-6 px-1.5 rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-primary text-body-3xs"
+                  class="w-full h-6 px-1.5 rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-success text-body-3xs"
                 />
                 <span class="text-foreground-2 shrink-0">秒</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <span class="text-foreground-2 shrink-0">曲线:</span>
-                <select
-                  v-model="point.easing"
-                  aria-label="点位缓动曲线"
-                  class="w-full h-6 px-1 rounded border border-outline-3 bg-foundation text-foreground focus:outline-none focus:border-primary text-body-3xs"
+                <FormSelectBase
+                  :model-value="point.easing"
+                  :items="easingOptions"
+                  :name="`point-easing-${idx}`"
+                  label="点位缓动曲线"
+                  :show-label="false"
+                  :allow-unset="false"
+                  size="sm"
+                  mount-menu-on-body
+                  :menu-max-width="230"
+                  menu-open-direction="left"
+                  class="flex-1 min-w-0"
+                  @update:model-value="onEasingChange(idx, $event)"
                 >
-                  <option
-                    v-for="(label, key) in EasingTypeLabels"
-                    :key="key"
-                    :value="key"
-                  >
-                    {{ label }}
-                  </option>
-                </select>
+                  <template #something-selected>
+                    <span class="block truncate">
+                      {{ EasingTypeLabels[point.easing] }}
+                    </span>
+                  </template>
+                  <template #option="{ item }">
+                    <span class="block truncate">
+                      {{ EasingTypeLabels[item as EasingType] }}
+                    </span>
+                  </template>
+                </FormSelectBase>
               </div>
             </div>
           </div>
@@ -323,6 +346,7 @@
         <FormButton
           size="sm"
           color="primary"
+          class="!bg-success !text-white focus-visible:!border-success"
           :icon-left="Check"
           :disabled="!form.name.trim() || form.points.length === 0"
           @click="onSave"
@@ -412,6 +436,22 @@ const form = reactive<{
   speed: props.routeData?.speed ?? 1.0,
   eyeHeight: props.routeData?.eyeHeight ?? 1.6
 })
+
+const easingOptions = Object.keys(EasingTypeLabels)
+const speedOptions = ['0.5', '1', '1.5', '2']
+
+const onEasingChange = (idx: number, val: unknown) => {
+  if (typeof val === 'string' && form.points[idx]) {
+    form.points[idx].easing = val as EasingType
+  }
+}
+
+const onSpeedChange = (val: unknown) => {
+  const n = Number(val)
+  if (!Number.isNaN(n)) {
+    form.speed = n
+  }
+}
 
 const totalDuration = computed(() => {
   const sum = form.points.reduce((acc, p) => acc + (p.duration || 3), 0)
