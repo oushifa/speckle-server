@@ -5,7 +5,7 @@ import type { ProjectModelSyncTaskRecord } from '@/modules/model-sync/repositori
 
 export const QUEUE_SUPPORTED_FILE_TYPES = new Set(['ifc', 'dxf', 'skp'])
 
-const getQueueDb = () => {
+export const getQueueDb = () => {
   const connectionUri = getFileImporterQueuePostgresUrl()
   return connectionUri ? configureClient({ postgres: { connectionUri } }).public : db
 }

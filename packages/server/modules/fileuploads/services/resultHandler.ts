@@ -21,6 +21,9 @@ import {
   type FileImportJobPayloadV1,
   JobResultStatus
 } from '@speckle/shared/workers/fileimport'
+import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
+import { emitModelSyncTaskUpdated } from '@/modules/model-sync/services/events'
+import type { ProjectModelSyncTaskRecord } from '@/modules/model-sync/repositories/tasks'
 
 type OnFileImportResultDeps = {
   getFileInfo: GetFileInfoV2
@@ -153,6 +156,52 @@ export const onFileImportResultFactory =
         jobResult
       }
     })
+
+    // 联动同步更新关联的 project_model_sync_tasks 状态，解除前端卡在 speckle_converting 的问题
+    try {
+      const projectDb = await getProjectDbClient({ projectId: fileInfo.projectId })
+      if (jobResult.status === JobResultStatus.Error) {
+        const affectedTasks = await projectDb<ProjectModelSyncTaskRecord>(
+          'project_model_sync_tasks'
+        )
+          .where({ fileUploadId: blobId })
+          .whereIn('status', ['speckle_converting', 'waiting_upload'])
+          .update({
+            status: 'failed',
+            error: convertedMessage || jobResult.reason || '模型转换失败',
+            errorCode: 'FILE_CONVERSION_FAILED',
+            retriable: true,
+            updatedAt: new Date()
+          })
+          .returning('*')
+
+        for (const task of affectedTasks) {
+          emitModelSyncTaskUpdated(task)
+        }
+      } else if (jobResult.status === JobResultStatus.Success && convertedCommitId) {
+        const affectedTasks = await projectDb<ProjectModelSyncTaskRecord>(
+          'project_model_sync_tasks'
+        )
+          .where({ fileUploadId: blobId })
+          .where({ status: 'speckle_converting' })
+          .update({
+            versionId: convertedCommitId,
+            progressPercent: 100,
+            progressMessage: '模型转换完成',
+            updatedAt: new Date()
+          })
+          .returning('*')
+
+        for (const task of affectedTasks) {
+          emitModelSyncTaskUpdated(task)
+        }
+      }
+    } catch (taskSyncErr) {
+      logger.warn(
+        { err: taskSyncErr, blobId },
+        '同步更新 project_model_sync_tasks 状态失败'
+      )
+    }
 
     logger.info('File upload status updated')
   }

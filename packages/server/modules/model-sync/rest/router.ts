@@ -41,6 +41,8 @@ import {
 } from '@/modules/model-sync/services/speckleUploads'
 import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
 import { enrichTasksWithQueuePosition } from '@/modules/model-sync/services/queuePosition'
+import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
+import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
@@ -820,11 +822,23 @@ export const modelSyncRouterFactory = () => {
           return res.status(409).json({ error: '已有运行中的模型同步任务' })
         }
 
-        if (task.status !== 'failed') {
+        let isEligibleForRetry = task.status === 'failed'
+        if (!isEligibleForRetry) {
+          const fileUploadId = task.fileUploadId || task.fileId
+          if (fileUploadId) {
+            const getFileInfo = getFileInfoFactoryV2({ db: projectDb })
+            const upload = await getFileInfo({ fileId: fileUploadId, projectId })
+            if (upload && upload.convertedStatus === FileUploadConvertedStatus.Error) {
+              isEligibleForRetry = true
+            }
+          }
+        }
+
+        if (!isEligibleForRetry) {
           throw new BadRequestError('当前任务不处于失败状态')
         }
 
-        const retryEntryPoint = resolveRetryEntryPoint(task)
+        const retryEntryPoint = resolveRetryEntryPoint(task) || 'speckle'
         if (!retryEntryPoint) {
           throw new BadRequestError('当前任务不支持重试')
         }

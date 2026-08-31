@@ -1,22 +1,22 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
-
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
-WORKDIR /src
-
+FROM python:3.13-slim-bookworm AS build
+RUN python -m venv /app && /app/bin/pip install --upgrade pip
 COPY ./packages/skp-import-service /src
+WORKDIR /src
+RUN /app/bin/pip install .
 
-RUN uv sync --frozen --no-dev --no-install-project
+FROM python:3.13-slim-bookworm
 
-WORKDIR /app
+ENV PATH=/app/bin:$PATH
 
-RUN useradd -m app
-USER app
+STOPSIGNAL SIGINT
 
+RUN groupadd -r app && useradd -r -d /app -g app -N app
+COPY --from=build --chown=app:app /app /app
 COPY --chown=app:app ./packages/skp-import-service/main.py /app
 COPY --chown=app:app ./packages/skp-import-service/job_processor.py /app
+USER app
+WORKDIR /app
 
-ENV PATH="/src/.venv/bin:$PATH"
+ENTRYPOINT []
 
-ENTRYPOINT ["python", "main.py"]
+CMD ["python", "main.py"]

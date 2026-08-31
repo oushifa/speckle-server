@@ -40,6 +40,7 @@ import {
   updateProjectModelSyncTaskFactory
 } from '@/modules/model-sync/repositories/tasks'
 import {
+  getQueueDb,
   getQueuePositionsByBlobIds,
   QUEUE_SUPPORTED_FILE_TYPES
 } from '@/modules/model-sync/services/queuePosition'
@@ -238,7 +239,7 @@ export const runModelSyncTaskFactory =
       return upload
     }
 
-    const restartRvtConversionIfNeeded = async (
+    const restartConversionIfNeeded = async (
       task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
     ) => {
       const fileUploadId = task.fileUploadId || task.fileId
@@ -262,14 +263,52 @@ export const runModelSyncTaskFactory =
         )
       }
 
-      if (!isExternalConvertibleFileType(upload.fileType)) {
-        return
-      }
-
+      // 已成功转换并包含 versionId 则无需重置
       if (
         upload.convertedStatus === FileUploadConvertedStatus.Completed &&
         upload.convertedCommitId
       ) {
+        return
+      }
+
+      const normFileType = (upload.fileType || '').toLowerCase()
+
+      // 1. 处理微服务后台队列格式 (IFC / SKP / DXF) 重试
+      if (QUEUE_SUPPORTED_FILE_TYPES.has(normFileType)) {
+        const resetUpload = await updateFileUpload({
+          id: upload.id,
+          upload: {
+            convertedStatus: FileUploadConvertedStatus.Queued,
+            convertedMessage: '准备重新转换',
+            convertedCommitId: null,
+            convertedLastUpdate: new Date(),
+            progressPercent: null,
+            progressPhase: null,
+            progressMessage: '准备重新转换'
+          }
+        })
+
+        await emitFileStatusChange({
+          file: resetUpload
+        })
+
+        const queueKnex = getQueueDb()
+        const existingJob = await queueKnex('background_jobs')
+          .whereRaw("payload ->> 'blobId' = ?", [fileUploadId])
+          .first()
+        if (existingJob) {
+          await queueKnex('background_jobs').where({ id: existingJob.id }).update({
+            status: 'queued',
+            attempt: 0,
+            remainingComputeBudgetSeconds: 1200,
+            updatedAt: new Date()
+          })
+        }
+        return
+      }
+
+      // 2. 处理外部转换服务格式 (RVT / NWD / NWC) 重试
+      if (!isExternalConvertibleFileType(upload.fileType)) {
         return
       }
 
@@ -384,7 +423,7 @@ export const runModelSyncTaskFactory =
         retriable: false
       })
 
-      await restartRvtConversionIfNeeded(task)
+      await restartConversionIfNeeded(task)
 
       const upload = await getConvertedUploadState(task)
       const isCompleted =
