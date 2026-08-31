@@ -165,6 +165,25 @@ jobs:
           tags: ${{ inputs.IMAGE_PREFIX }}/speckle-ifc-import-service:${{ inputs.IMAGE_VERSION_TAG }}
           file: ./packages/ifc-import-service/Dockerfile
 
+  docker-build-skp-import-service:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: SKP import service
+    steps:
+      - name: Login to Helm Chart & Container Image Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.REGISTRY_DOMAIN }}
+          username: ${{ inputs.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Setup Docker Builder
+        uses: useblacksmith/setup-docker-builder@v1
+      - name: Build and push
+        uses: useblacksmith/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ inputs.IMAGE_PREFIX }}/speckle-skp-import-service:${{ inputs.IMAGE_VERSION_TAG }}
+          file: ./packages/skp-import-service/Dockerfile
+
   docker-build-test-deploy:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     name: Test deploy util

@@ -66,6 +66,34 @@ def test_skp_parser_full_model_extraction():
     )
 
 
+def test_skp_parser_legacy_znzmo_multi_component():
+    znzmo_skp = Path("/Users/yujian/work/speckle-server/ignores/znzmo-1149111425-1.skp")
+    if not znzmo_skp.exists():
+        return
+
+    parser = SkpParser(znzmo_skp, stable_root_id="test_znzmo_model")
+    root = parser.parse()
+
+    assert root["speckle_type"] == "Objects.Organization.Collection"
+    layers = root["elements"]
+    assert len(layers) >= 1
+
+    total_meshes = sum(len(layer["elements"]) for layer in layers)
+    # Ensure it is parsed into multiple components, NOT just 1 mesh!
+    assert total_meshes > 50, f"Expected multiple meshes, got {total_meshes}"
+
+    # Ensure materials are properly attached
+    has_material = False
+    for layer in layers:
+        for elem in layer["elements"]:
+            if getattr(elem, "renderMaterial", None):
+                has_material = True
+                break
+        if has_material:
+            break
+    assert has_material, "Expected component meshes to have assigned render materials"
+
+
 def test_fileimport_payload_validation():
     raw_payload = {
         "payloadVersion": 1,

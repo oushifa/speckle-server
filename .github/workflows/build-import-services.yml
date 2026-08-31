@@ -1,0 +1,190 @@
+name: Build & Push Import Services (GHCR)
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: '选择编译的服务 (Service to build)'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - ifc-import-service
+          - skp-import-service
+      image_tag:
+        description: '自定义镜像标签 (留空则使用当前时间戳 yyyy-mm-dd_HH-mm-ss)'
+        required: false
+        default: ''
+        type: string
+      push:
+        description: '是否推送到 GHCR'
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - main
+      - hc-server
+    paths:
+      - 'packages/ifc-import-service/**'
+      - 'packages/skp-import-service/**'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  filter-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build_ifc: ${{ steps.check.outputs.build_ifc }}
+      build_skp: ${{ steps.check.outputs.build_skp }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SELECTED="${{ inputs.service }}"
+            if [ "$SELECTED" = "all" ] || [ "$SELECTED" = "ifc-import-service" ]; then
+              echo "build_ifc=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "build_ifc=false" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "$SELECTED" = "all" ] || [ "$SELECTED" = "skp-import-service" ]; then
+              echo "build_skp=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "build_skp=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "build_ifc=true" >> "$GITHUB_OUTPUT"
+            echo "build_skp=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-ifc-import-service:
+    needs: filter-changes
+    if: needs.filter-changes.outputs.build_ifc == 'true'
+    runs-on: ubuntu-latest
+    name: Build & Push ifc-import-service
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ github.event_name == 'push' || inputs.push }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve Docker tags
+        id: tags
+        run: |
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          # Docker Tag 规范只允许字母、数字、下划线、句点和连字符，冒号 ':' 为非法字符
+          # 因此时间戳格式采用 yyyy-mm-dd_HH-mm-ss（北京时间 UTC+8）
+          TIME_TAG=$(TZ='Asia/Shanghai' date +'%Y-%m-%d_%H-%M-%S')
+          CUSTOM_TAG="${{ inputs.image_tag }}"
+
+          TAGS=""
+          add_tags_for_name() {
+            local image_name="$1"
+            # 优先使用时间戳 Tag（不再使用 latest）
+            TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${TIME_TAG},"
+            if [ -n "$CUSTOM_TAG" ]; then
+              TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${CUSTOM_TAG},"
+            fi
+            if [ "${{ github.ref_type }}" = "tag" ]; then
+              TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${{ github.ref_name }},"
+            fi
+          }
+
+          add_tags_for_name "ifc-import-service"
+          add_tags_for_name "speckle-ifc-import-service"
+
+          TAGS="${TAGS%,}"
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "Generated tags: ${TAGS}"
+
+      - name: Build and push IFC Import Service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/ifc-import-service/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' || inputs.push }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-skp-import-service:
+    needs: filter-changes
+    if: needs.filter-changes.outputs.build_skp == 'true'
+    runs-on: ubuntu-latest
+    name: Build & Push skp-import-service
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ github.event_name == 'push' || inputs.push }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve Docker tags
+        id: tags
+        run: |
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          # Docker Tag 规范只允许字母、数字、下划线、句点和连字符，冒号 ':' 为非法字符
+          # 因此时间戳格式采用 yyyy-mm-dd_HH-mm-ss（北京时间 UTC+8）
+          TIME_TAG=$(TZ='Asia/Shanghai' date +'%Y-%m-%d_%H-%M-%S')
+          CUSTOM_TAG="${{ inputs.image_tag }}"
+
+          TAGS=""
+          add_tags_for_name() {
+            local image_name="$1"
+            # 优先使用时间戳 Tag（不再使用 latest）
+            TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${TIME_TAG},"
+            if [ -n "$CUSTOM_TAG" ]; then
+              TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${CUSTOM_TAG},"
+            fi
+            if [ "${{ github.ref_type }}" = "tag" ]; then
+              TAGS="${TAGS}ghcr.io/${REPO_OWNER}/${image_name}:${{ github.ref_name }},"
+            fi
+          }
+
+          add_tags_for_name "skp-import-service"
+          add_tags_for_name "speckle-skp-import-service"
+
+          TAGS="${TAGS%,}"
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "Generated tags: ${TAGS}"
+
+      - name: Build and push SKP Import Service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./packages/skp-import-service/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' || inputs.push }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

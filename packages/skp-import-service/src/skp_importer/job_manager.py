@@ -51,12 +51,15 @@ def _truncate_process_output(output: bytes | None) -> str | None:
     )
 
 
-class JobPausedException(Exception):
+class JobPausedError(Exception):
     """Raised when the job is paused by an administrator."""
+
     pass
 
 
-async def _watch_job_paused(connection, job_id: str, poll_interval: float = 1.0) -> None:
+async def _watch_job_paused(
+    connection, job_id: str, poll_interval: float = 1.0
+) -> None:
     """Watch if job status in DB is changed to paused."""
     while True:
         await asyncio.sleep(poll_interval)
@@ -149,12 +152,14 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         process.kill()
                         with contextlib.suppress(Exception):
                             await process.communicate()
-                        raise JobPausedException("Job was paused by administrator")
+                        raise JobPausedError("Job was paused by administrator")
 
                     if communicate_task in done:
                         stdout, stderr = communicate_task.result()
                     else:
-                        raise TimeoutError(f"Job reached timeout of {job_timeout} seconds")
+                        raise TimeoutError(
+                            f"Job reached timeout of {job_timeout} seconds"
+                        )
                 except TimeoutError as te:
                     process.kill()
                     stdout, stderr = await process.communicate()
@@ -202,10 +207,11 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         )
                     )
                     job_status = JobStatus.SUCCEEDED
-            except JobPausedException:
+            except JobPausedError:
                 job_status = JobStatus.PAUSED
                 logger.info(
-                    "skp job {job_id} was paused by administrator, terminating process immediately",
+                    "skp job {job_id} was paused by administrator, "
+                    + "terminating process immediately",
                     job_id=job_id,
                 )
             except Exception as e:
@@ -213,7 +219,10 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 job_status = JobStatus.FAILED
             finally:
                 if job_status == JobStatus.PAUSED:
-                    logger.info("Skipping budget deduction and failure reporting for paused skp job {job_id}", job_id=job_id)
+                    logger.info(
+                        "Skipping budget deduction for paused skp job {job_id}",
+                        job_id=job_id,
+                    )
                 else:
                     duration_int = floor(time.time() - start)
                     await deduct_from_compute_budget(
