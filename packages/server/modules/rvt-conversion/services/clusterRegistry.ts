@@ -8,7 +8,7 @@ const logger = createRvtConvertLogger('cluster-registry')
 export const CLUSTER_INSTANCE_ID = randomUUID()
 const WORKERS_HASH_KEY = 'speckle:rvt:cluster_workers'
 const TASK_KEY_PREFIX = 'speckle:rvt:task:'
-const WORKER_STALE_TIMEOUT_MS = 120 * 1000 // 2 minutes
+const WORKER_STALE_TIMEOUT_MS = 300 * 1000 // 5 minutes
 const TASK_TTL_SECONDS = 24 * 60 * 60 // 24 hours
 
 export type ClusterRvtWorkerInfo = {

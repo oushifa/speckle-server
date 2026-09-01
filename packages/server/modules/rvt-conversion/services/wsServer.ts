@@ -32,6 +32,7 @@ import {
   shutdownClusterDispatcher
 } from '@/modules/rvt-conversion/services/clusterDispatcher'
 import {
+  listOpenRvtWorkers,
   registerRvtWorker,
   touchRvtWorker,
   unregisterRvtWorker
@@ -387,6 +388,11 @@ export const initRvtConversionWsServer = () => {
       })
     })
 
+    socket.on('ping', () => {
+      touchRvtWorker({ workerId })
+      wsLogger.debug({ workerId }, 'RVT_CONVERT worker ping received')
+    })
+
     socket.on('close', () => {
       unregisterRvtWorker({ workerId, socket })
       wsLogger.info({ workerId }, 'RVT_CONVERT worker disconnected')
@@ -397,12 +403,36 @@ export const initRvtConversionWsServer = () => {
     })
   })
 
+  startLocalWorkersKeepalive()
   rvtConversionWsServer = wsServer
   wsLogger.info(
     { path: RvtConversionWsPath },
     'RVT_CONVERT WebSocket server initialized'
   )
   return wsServer
+}
+
+let localWorkersKeepaliveTimer: NodeJS.Timeout | null = null
+
+const startLocalWorkersKeepalive = () => {
+  if (localWorkersKeepaliveTimer) return
+  localWorkersKeepaliveTimer = setInterval(() => {
+    const openWorkers = listOpenRvtWorkers()
+    for (const worker of openWorkers) {
+      touchRvtWorker({
+        workerId: worker.workerId,
+        capabilities: worker.capabilities,
+        version: worker.version
+      })
+    }
+  }, 20 * 1000)
+}
+
+const stopLocalWorkersKeepalive = () => {
+  if (localWorkersKeepaliveTimer) {
+    clearInterval(localWorkersKeepaliveTimer)
+    localWorkersKeepaliveTimer = null
+  }
 }
 
 export const handleRvtConversionUpgrade = (
@@ -454,6 +484,7 @@ export const handleRvtConversionUpgrade = (
 }
 
 export const shutdownRvtConversionWsServer = async () => {
+  stopLocalWorkersKeepalive()
   await shutdownClusterDispatcher()
   if (!rvtConversionWsServer) return
 
