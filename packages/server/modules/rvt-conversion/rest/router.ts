@@ -32,6 +32,11 @@ import {
 import { createRvtConvertLogger } from '@/modules/rvt-conversion/services/logging'
 import { createRvtConversionDelegatedToken } from '@/modules/rvt-conversion/services/tokens'
 import { dispatchRvtConversionJob } from '@/modules/rvt-conversion/services/wsDispatcher'
+import { listOpenRvtWorkers } from '@/modules/rvt-conversion/services/workerRegistry'
+import {
+  listClusterWorkers,
+  CLUSTER_INSTANCE_ID
+} from '@/modules/rvt-conversion/services/clusterRegistry'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 import { authorizeResolver, validateScopes } from '@/modules/shared'
 import {
@@ -965,6 +970,40 @@ export const rvtConversionRouterFactory = (): Router => {
       return res.send({ job: serializeJob(updatedJob) })
     }
   )
+
+  app.get('/api/v1/rvt/workers', async (_req, res) => {
+    const localOpenWorkers = listOpenRvtWorkers()
+    const clusterWorkers = await listClusterWorkers().catch(() => [])
+
+    const combined = new Map<string, Record<string, unknown>>()
+    for (const cw of clusterWorkers) {
+      combined.set(cw.workerId, {
+        workerId: cw.workerId,
+        capabilities: cw.capabilities,
+        version: cw.version,
+        connectedAt: cw.connectedAt,
+        lastSeenAt: cw.lastSeenAt,
+        instanceId: cw.instanceId,
+        isLocal: false
+      })
+    }
+    for (const lw of localOpenWorkers) {
+      combined.set(lw.workerId, {
+        workerId: lw.workerId,
+        capabilities: lw.capabilities,
+        version: lw.version,
+        connectedAt: lw.connectedAt.toISOString(),
+        lastSeenAt: lw.lastSeenAt.toISOString(),
+        instanceId: CLUSTER_INSTANCE_ID,
+        isLocal: true
+      })
+    }
+
+    return res.send({
+      total: combined.size,
+      workers: Array.from(combined.values())
+    })
+  })
 
   return app
 }

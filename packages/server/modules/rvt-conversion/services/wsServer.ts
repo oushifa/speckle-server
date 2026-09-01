@@ -24,6 +24,14 @@ import {
   untrackRvtConversionTask
 } from '@/modules/rvt-conversion/services/taskRegistry'
 import {
+  getClusterTask,
+  untrackClusterTask
+} from '@/modules/rvt-conversion/services/clusterRegistry'
+import {
+  initClusterDispatcher,
+  shutdownClusterDispatcher
+} from '@/modules/rvt-conversion/services/clusterDispatcher'
+import {
   registerRvtWorker,
   touchRvtWorker,
   unregisterRvtWorker
@@ -89,12 +97,19 @@ const safelyParseMessage = (raw: unknown): WorkerMessage | null => {
   }
 }
 
-const resolveProjectIdForTask = (message: { taskId: string; projectId?: string }) =>
-  message.projectId || getTrackedRvtConversionTask(message.taskId)?.projectId || null
+const resolveProjectIdForTask = async (message: {
+  taskId: string
+  projectId?: string
+}) =>
+  message.projectId ||
+  getTrackedRvtConversionTask(message.taskId)?.projectId ||
+  (await getClusterTask(message.taskId))?.projectId ||
+  null
 
 export const initRvtConversionWsServer = () => {
   if (rvtConversionWsServer) return rvtConversionWsServer
 
+  initClusterDispatcher()
   const wsServer = new WebSocketServer({ noServer: true })
 
   wsServer.on('connection', (socket, request) => {
@@ -183,7 +198,7 @@ export const initRvtConversionWsServer = () => {
               },
               'RVT_CONVERT ack received from worker'
             )
-            const projectId = resolveProjectIdForTask(message)
+            const projectId = await resolveProjectIdForTask(message)
             if (!projectId) {
               wsLogger.warn(
                 { workerId, taskId: message.taskId },
@@ -231,7 +246,7 @@ export const initRvtConversionWsServer = () => {
               },
               'RVT_CONVERT progress received from worker'
             )
-            const projectId = resolveProjectIdForTask(message)
+            const projectId = await resolveProjectIdForTask(message)
             if (!projectId) {
               wsLogger.warn(
                 { workerId, taskId: message.taskId, phase: message.phase },
@@ -309,7 +324,7 @@ export const initRvtConversionWsServer = () => {
                   },
               'RVT_CONVERT result received from worker'
             )
-            const projectId = resolveProjectIdForTask(message)
+            const projectId = await resolveProjectIdForTask(message)
             if (!projectId) {
               wsLogger.warn(
                 { workerId, taskId: message.taskId, status: message.status },
@@ -349,6 +364,7 @@ export const initRvtConversionWsServer = () => {
             }
 
             untrackRvtConversionTask(message.taskId)
+            void untrackClusterTask(message.taskId).catch(() => undefined)
             wsLogger.info(
               {
                 workerId,
@@ -438,6 +454,7 @@ export const handleRvtConversionUpgrade = (
 }
 
 export const shutdownRvtConversionWsServer = async () => {
+  await shutdownClusterDispatcher()
   if (!rvtConversionWsServer) return
 
   await new Promise<void>((resolve, reject) => {

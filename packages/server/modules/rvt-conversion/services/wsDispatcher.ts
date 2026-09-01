@@ -10,6 +10,12 @@ import {
   trackRvtConversionTask,
   untrackRvtConversionTask
 } from '@/modules/rvt-conversion/services/taskRegistry'
+import {
+  listClusterWorkers,
+  trackClusterTask,
+  untrackClusterTask
+} from '@/modules/rvt-conversion/services/clusterRegistry'
+import { broadcastJobToCluster } from '@/modules/rvt-conversion/services/clusterDispatcher'
 
 const rvtDispatcherLogger = createRvtConvertLogger('ws-dispatcher')
 
@@ -120,20 +126,45 @@ export const dispatchRvtConversionJob = async (
   params: DispatchRvtConversionJobPayload
 ) => {
   const targetFileType = resolveTargetFileType(params)
-  const allOpenWorkers = listOpenRvtWorkers()
-  const workers = allOpenWorkers.filter((worker) => {
+  const localOpenWorkers = listOpenRvtWorkers()
+  const clusterWorkers = await listClusterWorkers().catch(() => [])
+
+  const combinedWorkersMap = new Map<
+    string,
+    { workerId: string; capabilities: string[]; isLocal: boolean }
+  >()
+
+  for (const cw of clusterWorkers) {
+    combinedWorkersMap.set(cw.workerId, {
+      workerId: cw.workerId,
+      capabilities: cw.capabilities,
+      isLocal: false
+    })
+  }
+
+  for (const lw of localOpenWorkers) {
+    combinedWorkersMap.set(lw.workerId, {
+      workerId: lw.workerId,
+      capabilities: lw.capabilities,
+      isLocal: true
+    })
+  }
+
+  const allAvailableWorkers = Array.from(combinedWorkersMap.values())
+  const matchingWorkers = allAvailableWorkers.filter((worker) => {
     const caps = worker.capabilities.map((c) => c.toLowerCase())
     return caps.includes(targetFileType) || caps.includes('*') || caps.includes('all')
   })
 
-  if (!workers.length) {
+  if (!matchingWorkers.length) {
     rvtDispatcherLogger.warn(
       {
         ...buildRvtJobLogContext(params.job),
         targetFileType,
-        availableWorkerCapabilities: allOpenWorkers.map((w) => ({
+        availableWorkerCapabilities: allAvailableWorkers.map((w) => ({
           workerId: w.workerId,
-          capabilities: w.capabilities
+          capabilities: w.capabilities,
+          isLocal: w.isLocal
         }))
       },
       `RVT_CONVERT worker unavailable for file type: ${targetFileType}`
@@ -142,7 +173,7 @@ export const dispatchRvtConversionJob = async (
   }
 
   const speckleServerUrl = getRvtConversionSpeckleServerOrigin()
-  const targetedWorkerIds = workers.map((worker) => worker.workerId)
+  const targetedWorkerIds = matchingWorkers.map((worker) => worker.workerId)
 
   rvtDispatcherLogger.info(
     {
@@ -165,68 +196,97 @@ export const dispatchRvtConversionJob = async (
     sourceFileId: params.job.sourceFileId,
     workerIds: targetedWorkerIds
   })
+  void trackClusterTask({
+    taskId: params.job.id,
+    projectId: params.job.projectId,
+    modelId: params.job.modelId,
+    sourceFileId: params.job.sourceFileId,
+    workerIds: targetedWorkerIds
+  }).catch(() => undefined)
 
-  const results = await Promise.allSettled(
-    workers.map(async (worker) => {
-      rvtDispatcherLogger.info(
-        buildWorkerDispatchLogContext({
+  // 1. 尝试匹配本地连接的 Worker
+  const localMatchingWorkers = localOpenWorkers.filter((worker) => {
+    const caps = worker.capabilities.map((c) => c.toLowerCase())
+    return caps.includes(targetFileType) || caps.includes('*') || caps.includes('all')
+  })
+
+  if (localMatchingWorkers.length > 0) {
+    const results = await Promise.allSettled(
+      localMatchingWorkers.map(async (worker) => {
+        rvtDispatcherLogger.info(
+          buildWorkerDispatchLogContext({
+            job: params.job,
+            workerId: worker.workerId,
+            branchName: params.branchName,
+            fileType: targetFileType
+          }),
+          'RVT_CONVERT sending start_rvt_conversion to local worker'
+        )
+
+        await sendStartConversionToWorker({
           job: params.job,
           workerId: worker.workerId,
-          branchName: params.branchName,
-          fileType: targetFileType
-        }),
-        'RVT_CONVERT sending start_rvt_conversion to worker'
-      )
+          socket: worker.socket,
+          sourceFileUrl: params.sourceFileUrl,
+          speckleServerUrl,
+          speckleToken: params.speckleToken,
+          speckleTokenId: params.speckleTokenId,
+          fileType: targetFileType,
+          ...(params.branchName ? { branchName: params.branchName } : {})
+        })
 
-      await sendStartConversionToWorker({
-        job: params.job,
-        workerId: worker.workerId,
-        socket: worker.socket,
-        sourceFileUrl: params.sourceFileUrl,
-        speckleServerUrl,
-        speckleToken: params.speckleToken,
-        speckleTokenId: params.speckleTokenId,
-        fileType: targetFileType,
-        ...(params.branchName ? { branchName: params.branchName } : {})
+        rvtDispatcherLogger.info(
+          buildWorkerDispatchLogContext({
+            job: params.job,
+            workerId: worker.workerId,
+            branchName: params.branchName,
+            fileType: targetFileType
+          }),
+          'RVT_CONVERT sent start_rvt_conversion to local worker successfully'
+        )
       })
+    )
 
-      rvtDispatcherLogger.info(
-        buildWorkerDispatchLogContext({
-          job: params.job,
-          workerId: worker.workerId,
-          branchName: params.branchName,
-          fileType: targetFileType
-        }),
-        'RVT_CONVERT sent start_rvt_conversion to worker successfully'
+    const succeededWorkerIds: string[] = []
+    const failedWorkerIds: string[] = []
+    results.forEach((result, index) => {
+      const worker = localMatchingWorkers[index]
+      if (result.status === 'fulfilled') {
+        succeededWorkerIds.push(worker.workerId)
+        return
+      }
+
+      failedWorkerIds.push(worker.workerId)
+      rvtDispatcherLogger.error(
+        {
+          ...buildWorkerDispatchLogContext({
+            job: params.job,
+            workerId: worker.workerId,
+            branchName: params.branchName
+          }),
+          err: result.reason
+        },
+        'RVT_CONVERT start_rvt_conversion dispatch failed for local worker'
       )
     })
-  )
 
-  const succeededWorkerIds: string[] = []
-  const failedWorkerIds: string[] = []
-  results.forEach((result, index) => {
-    const worker = workers[index]
-    if (result.status === 'fulfilled') {
-      succeededWorkerIds.push(worker.workerId)
+    if (succeededWorkerIds.length > 0) {
+      rvtDispatcherLogger.info(
+        {
+          ...buildRvtJobLogContext(params.job),
+          targetedWorkerIds,
+          succeededWorkerIds,
+          failedWorkerIds,
+          succeededWorkerCount: succeededWorkerIds.length,
+          failedWorkerCount: failedWorkerIds.length
+        },
+        'RVT_CONVERT start_rvt_conversion local dispatch completed'
+      )
       return
     }
 
-    failedWorkerIds.push(worker.workerId)
-    rvtDispatcherLogger.error(
-      {
-        ...buildWorkerDispatchLogContext({
-          job: params.job,
-          workerId: worker.workerId,
-          branchName: params.branchName
-        }),
-        err: result.reason
-      },
-      'RVT_CONVERT start_rvt_conversion dispatch failed for worker'
-    )
-  })
-
-  if (!succeededWorkerIds.length) {
     untrackRvtConversionTask(params.job.id)
+    void untrackClusterTask(params.job.id).catch(() => undefined)
     rvtDispatcherLogger.error(
       {
         ...buildRvtJobLogContext(params.job),
@@ -237,15 +297,55 @@ export const dispatchRvtConversionJob = async (
     throw new Error('Failed to dispatch RVT conversion job over WebSocket.')
   }
 
+  // 2. 若本地无可用连接或本地派发均失败，跨 Pod 通过 Redis 广播调度
   rvtDispatcherLogger.info(
     {
       ...buildRvtJobLogContext(params.job),
       targetedWorkerIds,
-      succeededWorkerIds,
-      failedWorkerIds,
-      succeededWorkerCount: succeededWorkerIds.length,
-      failedWorkerCount: failedWorkerIds.length
+      targetFileType
     },
-    'RVT_CONVERT start_rvt_conversion broadcast completed'
+    'RVT_CONVERT dispatching via Redis cluster broadcast to remote workers'
   )
+
+  try {
+    const basePayload = buildStartConversionPayload({
+      job: params.job,
+      workerId: targetedWorkerIds[0] || 'worker',
+      sourceFileUrl: params.sourceFileUrl,
+      speckleServerUrl,
+      speckleToken: params.speckleToken,
+      speckleTokenId: params.speckleTokenId,
+      fileType: targetFileType,
+      ...(params.branchName ? { branchName: params.branchName } : {})
+    })
+
+    const confirmedWorkerIds = await broadcastJobToCluster({
+      targetWorkerIds: targetedWorkerIds,
+      targetFileType,
+      payload: basePayload
+    })
+
+    rvtDispatcherLogger.info(
+      {
+        ...buildRvtJobLogContext(params.job),
+        targetedWorkerIds,
+        confirmedWorkerIds
+      },
+      'RVT_CONVERT cluster broadcast dispatch confirmed successfully'
+    )
+  } catch (error) {
+    untrackRvtConversionTask(params.job.id)
+    void untrackClusterTask(params.job.id).catch(() => undefined)
+    rvtDispatcherLogger.error(
+      {
+        ...buildRvtJobLogContext(params.job),
+        err: error,
+        targetedWorkerIds
+      },
+      'RVT_CONVERT cluster broadcast dispatch failed'
+    )
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to dispatch RVT conversion job over cluster broadcast.')
+  }
 }

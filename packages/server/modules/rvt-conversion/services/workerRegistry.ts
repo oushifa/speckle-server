@@ -1,4 +1,9 @@
 import WebSocket from 'ws'
+import {
+  removeWorkerFromCluster,
+  syncWorkerToCluster,
+  touchWorkerInCluster
+} from '@/modules/rvt-conversion/services/clusterRegistry'
 
 export type RvtWorkerConnection = {
   workerId: string
@@ -43,14 +48,24 @@ export const registerRvtWorker = (params: {
   }
 
   workers.set(params.workerId, worker)
+  void syncWorkerToCluster({
+    workerId: worker.workerId,
+    capabilities: worker.capabilities,
+    version: worker.version
+  }).catch(() => undefined)
+
   return worker
 }
 
-export const unregisterRvtWorker = (params: { workerId: string; socket: WebSocket }) => {
+export const unregisterRvtWorker = (params: {
+  workerId: string
+  socket: WebSocket
+}) => {
   const existing = workers.get(params.workerId)
   if (!existing || existing.socket !== params.socket) return
 
   workers.delete(params.workerId)
+  void removeWorkerFromCluster({ workerId: params.workerId }).catch(() => undefined)
 }
 
 export const touchRvtWorker = (params: {
@@ -69,6 +84,12 @@ export const touchRvtWorker = (params: {
   if (params.version !== undefined) {
     existing.version = params.version
   }
+
+  void touchWorkerInCluster({
+    workerId: existing.workerId,
+    capabilities: existing.capabilities,
+    version: existing.version
+  }).catch(() => undefined)
 
   return existing
 }
