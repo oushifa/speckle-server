@@ -2411,13 +2411,61 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         acceptanceMap.set(a.id, a)
       }
 
-      // 获取 boq_items 上配置的合价 amount
+      // 获取 boq_items 上配置的合价 amount 及复核量相关数据
       const boqItems = await projectDb('boq_items')
         .where('projectId', projectId)
-        .select('id', 'amount')
-      const boqAmountMap = new Map<string, number | null>()
+        .select(
+          'id',
+          'amount',
+          'reviewPrice',
+          'reviewQuantity',
+          'changeQuantity',
+          'reviewAmount'
+        )
+
+      const toNum = (val: unknown): number | null => {
+        if (val === null || val === undefined || val === '') return null
+        const n = Number(val)
+        return Number.isNaN(n) ? null : n
+      }
+
+      const boqInfoMap = new Map<
+        string,
+        {
+          amount: number | null
+          reviewPrice: number | null
+          reviewQuantity: number | null
+          changeQuantity: number | null
+          totalQuantityWithChanges: number | null
+          reviewAmount: number | null
+        }
+      >()
       for (const boq of boqItems) {
-        boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+        const amount = toNum(boq.amount)
+        const reviewPrice = toNum(boq.reviewPrice)
+        const reviewQuantity = toNum(boq.reviewQuantity)
+        const changeQuantity = toNum(boq.changeQuantity)
+        const totalQuantityWithChanges =
+          reviewQuantity !== null || changeQuantity !== null
+            ? Number(((reviewQuantity ?? 0) + (changeQuantity ?? 0)).toFixed(6))
+            : null
+        let reviewAmount = toNum(boq.reviewAmount)
+        if (
+          reviewAmount === null &&
+          reviewPrice !== null &&
+          totalQuantityWithChanges !== null
+        ) {
+          reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
+        }
+
+        boqInfoMap.set(boq.id, {
+          amount,
+          reviewPrice,
+          reviewQuantity,
+          changeQuantity,
+          totalQuantityWithChanges,
+          reviewAmount
+        })
       }
 
       const payload = items.map((item: any) => {
@@ -2428,6 +2476,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .map((id: string) => acceptanceMap.get(id))
           .filter(Boolean)
 
+        const boqInfo = boqInfoMap.get(item.boqItemId)
+
         return {
           ...item,
           measuredQtyDefault: item.isSummaryRow ? 0 : Number(item.measuredQty || 0),
@@ -2435,7 +2485,12 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           sourceAcceptances: item.isSummaryRow ? [] : itemAcceptances,
           lastCumulativeQty: item.lastCumulativeQty || 0,
           yearlyCumulativeQty: item.yearlyCumulativeQty || 0,
-          boqAmount: boqAmountMap.get(item.boqItemId) ?? null
+          boqAmount: boqInfo?.amount ?? null,
+          reviewPrice: boqInfo?.reviewPrice ?? null,
+          reviewQuantity: boqInfo?.reviewQuantity ?? null,
+          changeQuantity: boqInfo?.changeQuantity ?? null,
+          totalQuantityWithChanges: boqInfo?.totalQuantityWithChanges ?? null,
+          reviewAmount: boqInfo?.reviewAmount ?? null
         }
       })
 
@@ -4436,11 +4491,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       if (!activeDef) {
-        return res
-          .status(400)
-          .json({
-            error: '未找到启用的安全文明措施费审批流程，请先去流程设置中创建并启用。'
-          })
+        return res.status(400).json({
+          error: '未找到启用的安全文明措施费审批流程，请先去流程设置中创建并启用。'
+        })
       }
 
       // 发起工作流并绑定

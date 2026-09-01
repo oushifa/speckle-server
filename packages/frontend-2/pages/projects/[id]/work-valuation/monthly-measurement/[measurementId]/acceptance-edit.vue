@@ -1,5 +1,7 @@
 <template>
-  <div class="flex flex-col h-full relative bg-foundation w-full max-w-full overflow-hidden p-1">
+  <div
+    class="flex flex-col h-full relative bg-foundation w-full max-w-full overflow-hidden p-1"
+  >
     <div class="flex flex-col h-full rounded-lg bg-foundation min-h-0">
       <div class="flex-shrink-0 flex items-center mb-4">
         <button
@@ -201,343 +203,401 @@
                 :class="
                   row.isSummaryRow
                     ? 'bg-highlight-1/5 font-medium'
-                    : (row.sourceAcceptanceIds && row.sourceAcceptanceIds.length > 0)
-                      ? 'bg-primary-lighter/10 dark:bg-primary-darker/5'
-                      : 'bg-foundation'
+                    : row.sourceAcceptanceIds && row.sourceAcceptanceIds.length > 0
+                    ? 'bg-primary-lighter/10 dark:bg-primary-darker/5'
+                    : 'bg-foundation'
                 "
               >
-              <!-- 1. 清单编号 -->
-              <td class="px-2 py-2 truncate font-mono border-r border-outline-3">
-                {{ row.boqCode }}
-              </td>
+                <!-- 1. 清单编号 -->
+                <td class="px-2 py-2 truncate font-mono border-r border-outline-3">
+                  {{ row.boqCode }}
+                </td>
 
-              <!-- 2. 项目名称 (含折叠/展开和缩进) -->
-              <td class="px-2 py-2 border-r border-outline-3">
-                <div
-                  class="flex items-center"
-                  :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 12}px` }"
-                >
-                  <button
-                    v-if="hasChildren(row)"
-                    class="mr-1 hover:bg-highlight-1/30 rounded p-0.5 transition-colors focus:outline-none flex-shrink-0"
-                    @click.stop="toggleExpand(row)"
+                <!-- 2. 项目名称 (含折叠/展开和缩进) -->
+                <td class="px-2 py-2 border-r border-outline-3">
+                  <div
+                    class="flex items-center"
+                    :style="{ paddingLeft: `${Math.max(0, row.boqDepth - 1) * 12}px` }"
                   >
-                    <svg
-                      v-if="row.isExpanded"
-                      class="h-3 w-3 text-foreground-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      stroke-width="3"
+                    <button
+                      v-if="hasChildren(row)"
+                      class="mr-1 hover:bg-highlight-1/30 rounded p-0.5 transition-colors focus:outline-none flex-shrink-0"
+                      @click.stop="toggleExpand(row)"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                    <svg
-                      v-else
-                      class="h-3 w-3 text-foreground-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      stroke-width="3"
+                      <svg
+                        v-if="row.isExpanded"
+                        class="h-3 w-3 text-foreground-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="3"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        class="h-3 w-3 text-foreground-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="3"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                    <span v-else class="w-4 inline-block flex-shrink-0"></span>
+
+                    <!-- 折叠展开关联质量验收的按钮 -->
+                    <button
+                      v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
+                      class="mr-1.5 hover:bg-highlight-1/30 rounded p-0.5 transition-colors focus:outline-none flex-shrink-0"
+                      title="查看关联的质量验收"
+                      @click.stop="toggleExpandAcceptance(row.boqItemId)"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                  <span v-else class="w-4 inline-block flex-shrink-0"></span>
+                      <svg
+                        v-if="expandedAcceptanceIds.has(row.boqItemId)"
+                        class="h-3 w-3 text-primary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="3.5"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        class="h-3 w-3 text-primary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="3.5"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
 
-                  <!-- 折叠展开关联质量验收的按钮 -->
-                  <button
-                    v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
-                    class="mr-1.5 hover:bg-highlight-1/30 rounded p-0.5 transition-colors focus:outline-none flex-shrink-0"
-                    title="查看关联的质量验收"
-                    @click.stop="toggleExpandAcceptance(row.boqItemId)"
-                  >
-                    <svg
-                      v-if="expandedAcceptanceIds.has(row.boqItemId)"
-                      class="h-3 w-3 text-primary"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      stroke-width="3.5"
+                    <span class="truncate" :title="row.boqName">{{ row.boqName }}</span>
+
+                    <!-- 关联质量验收的 Badge -->
+                    <span
+                      v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
+                      class="ml-1.5 px-1 py-0.2 rounded bg-primary-lighter text-primary-darker text-[9px] scale-90 origin-left"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                    <svg
-                      v-else
-                      class="h-3 w-3 text-primary"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      stroke-width="3.5"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-
-                  <span class="truncate" :title="row.boqName">{{ row.boqName }}</span>
-
-                  <!-- 关联质量验收的 Badge -->
-                  <span
-                    v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0"
-                    class="ml-1.5 px-1 py-0.2 rounded bg-primary-lighter text-primary-darker text-[9px] scale-90 origin-left"
-                  >
-                    验收:{{ row.sourceAcceptanceIds.length }}
-                  </span>
-                </div>
-              </td>
-
-              <!-- 3. 单位 -->
-              <td class="px-2 py-2 text-center border-r border-outline-3">
-                {{ row.uom || '-' }}
-              </td>
-
-              <!-- 4. 上期累计完成量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatQty(row.lastCumulativeQty) }}
-              </td>
-
-              <!-- 5. 合同量 -->
-              <!-- 单价 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                <template v-if="!row.isSummaryRow">
-                  {{ formatMoney(row.price) }}
-                </template>
-                <span v-else>-</span>
-              </td>
-              <!-- 数量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatQty(row.pendingTotalQty) }}
-              </td>
-              <!-- 合同价 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.contractAmount) }}
-              </td>
-
-              <!-- 6. 复核量 -->
-              <!-- 单价 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                <template v-if="!row.isSummaryRow">
-                  {{ formatMoney(row.price) }}
-                </template>
-                <span v-else>-</span>
-              </td>
-              <!-- 数量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatQty(row.pendingTotalQty) }}
-              </td>
-              <!-- 合价 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.contractAmount) }}
-              </td>
-
-              <!-- 7. 本月完成数 -->
-              <!-- 辅助验工量数量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatQty(row.measuredQtyDefault) }}
-              </td>
-
-              <!-- 施工单位数量 -->
-              <td class="px-2 py-1 border-r border-outline-3 w-24">
-                <input
-                  v-if="!row.isSummaryRow"
-                  v-model.number="row.contractorQty"
-                  type="number"
-                  step="any"
-                  :disabled="!permissions.contractor"
-                  class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="handleQtyInput(row, 'contractor')"
-                />
-                <span v-else class="font-mono pr-3 inline-block w-full text-right">
-                  {{ formatQty(row.contractorQty) }}
-                </span>
-              </td>
-              <!-- 施工单位金额 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.contractorAmount) }}
-              </td>
-
-              <!-- 施工监理数量 -->
-              <td class="px-2 py-1 border-r border-outline-3 w-24">
-                <input
-                  v-if="!row.isSummaryRow"
-                  v-model.number="row.supervisionQty"
-                  type="number"
-                  step="any"
-                  :disabled="!permissions.supervision"
-                  class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="handleQtyInput(row, 'supervision')"
-                />
-                <span v-else class="font-mono pr-3 inline-block w-full text-right">
-                  {{ formatQty(row.supervisionQty) }}
-                </span>
-              </td>
-              <!-- 施工监理金额 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.supervisionAmount) }}
-              </td>
-
-              <!-- 现场指挥部数量 -->
-              <td class="px-2 py-1 border-r border-outline-3 w-24">
-                <input
-                  v-if="!row.isSummaryRow"
-                  v-model.number="row.headquartersQty"
-                  type="number"
-                  step="any"
-                  :disabled="!permissions.headquarters"
-                  class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="handleQtyInput(row, 'headquarters')"
-                />
-                <span v-else class="font-mono pr-3 inline-block w-full text-right">
-                  {{ formatQty(row.headquartersQty) }}
-                </span>
-              </td>
-              <!-- 现场指挥部金额 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.headquartersAmount) }}
-              </td>
-
-              <!-- 投资监理数量 -->
-              <td class="px-2 py-1 border-r border-outline-3 w-24 text-primary">
-                <input
-                  v-if="!row.isSummaryRow"
-                  v-model.number="row.investmentQty"
-                  type="number"
-                  step="any"
-                  :disabled="!permissions.investment"
-                  class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
-                  @input="handleQtyInput(row, 'investment')"
-                />
-                <span
-                  v-else
-                  class="font-mono pr-3 inline-block w-full text-right text-primary font-semibold"
-                >
-                  {{ formatQty(row.investmentQty) }}
-                </span>
-              </td>
-              <!-- 投资监理金额 -->
-              <td
-                class="px-2 py-2 text-right border-r border-outline-3 font-mono text-primary font-semibold pr-3"
-              >
-                {{ formatMoney(row.investmentAmount) }}
-              </td>
-
-              <!-- 8. 本年完成工程量 -->
-              <!-- 数量 (本年累计 = 本年历史累计 + 本期投资监理量) -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{
-                  formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0))
-                }}
-              </td>
-              <!-- 工作量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatMoney(row.yearlyAmount) }}
-              </td>
-
-              <!-- 9. 累计完成数 -->
-              <!-- 数量 -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0)) }}
-              </td>
-              <!-- 累计完成工作量 -->
-              <td
-                class="px-2 py-2 text-right border-r border-outline-3 font-mono text-success-darker pr-3"
-              >
-                {{ formatMoney(row.cumulativeAmount) }}
-              </td>
-              <!-- 合同累计完成比例% -->
-              <td class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3">
-                {{ getCumulativeRate(row) }}%
-              </td>
-
-              <!-- 10. 备注 -->
-              <td
-                class="px-2 py-2 text-center text-foreground-2 truncate max-w-[100px]"
-              >
-                {{ row.remark || '-' }}
-              </td>
-            </tr>
-
-            <!-- 展开展示的关联质量验收列表子行 -->
-            <tr
-              v-if="!row.isSummaryRow && row.sourceAcceptanceIds?.length > 0 && expandedAcceptanceIds.has(row.boqItemId)"
-              :key="`acceptance-details-${row.boqItemId}`"
-              class="bg-info-lighter/5 border-b border-outline-3 text-[11px]"
-            >
-              <td colspan="23" class="px-8 py-3 bg-foundation-2">
-                <div class="rounded-md border border-outline-3 bg-foundation overflow-hidden max-w-4xl shadow-sm text-left">
-                  <div class="px-3 py-2 bg-foundation-2 font-medium text-foreground-2 border-b border-outline-3 flex items-center justify-between">
-                    <span>关联的质量验收单列表</span>
-                    <span class="text-xs text-foreground-3">
-                      共 {{ row.sourceAcceptances?.length || 0 }} 个验收单
+                      验收:{{ row.sourceAcceptanceIds.length }}
                     </span>
                   </div>
-                  <table class="w-full text-left border-collapse">
-                    <thead>
-                      <tr class="bg-foundation-3 text-foreground-2 border-b border-outline-3 font-semibold text-[10px]">
-                        <th class="px-3 py-1.5 w-44">验收编号</th>
-                        <th class="px-3 py-1.5">验收名称</th>
-                        <th class="px-3 py-1.5 w-24 text-right pr-4">工程量</th>
-                        <th class="px-3 py-1.5 w-24">查验人</th>
-                        <th class="px-3 py-1.5 w-32">查验日期</th>
-                        <th class="px-3 py-1.5 w-20 text-center">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="form in row.sourceAcceptances"
-                        :key="form.id"
-                        class="border-b border-outline-3 hover:bg-highlight-1/10 transition-colors last:border-0"
-                      >
-                        <td class="px-3 py-1.5 font-mono text-[10px]">{{ form.code || '-' }}</td>
-                        <td class="px-3 py-1.5 text-[10px]">{{ form.name || '-' }}</td>
-                        <td class="px-3 py-1.5 text-right font-mono pr-4 text-[10px]">{{ formatQty(form.workVolume) }}</td>
-                        <td class="px-3 py-1.5 text-[10px]">{{ form.inspectorName || '-' }}</td>
-                        <td class="px-3 py-1.5 text-[10px]">{{ formatTimestamp(form.actualFinishDate) }}</td>
-                        <td class="px-3 py-1.5 text-center">
-                          <button
-                            v-if="!isReadOnly && isCurrentApprover"
-                            class="text-danger hover:text-danger-darker font-medium transition-colors cursor-pointer text-[10px] bg-transparent border-0 px-1 py-0.5 rounded hover:bg-danger-lighter"
-                            title="解除关联"
-                            @click.stop="confirmRemoveAcceptance(row, form)"
+                </td>
+
+                <!-- 3. 单位 -->
+                <td class="px-2 py-2 text-center border-r border-outline-3">
+                  {{ row.uom || '-' }}
+                </td>
+
+                <!-- 4. 上期累计完成量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatQty(row.lastCumulativeQty) }}
+                </td>
+
+                <!-- 5. 合同量 -->
+                <!-- 单价 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  <template v-if="!row.isSummaryRow">
+                    {{ formatMoney(row.price) }}
+                  </template>
+                  <span v-else>-</span>
+                </td>
+                <!-- 数量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatQty(row.pendingTotalQty) }}
+                </td>
+                <!-- 合同价 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.contractAmount) }}
+                </td>
+
+                <!-- 6. 复核量 -->
+                <!-- 单价 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  <template v-if="!row.isSummaryRow">
+                    {{ formatMoney(row.reviewPrice) }}
+                  </template>
+                  <span v-else>-</span>
+                </td>
+                <!-- 数量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatQty(row.totalQuantityWithChanges) }}
+                </td>
+                <!-- 合价 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.reviewAmount) }}
+                </td>
+
+                <!-- 7. 本月完成数 -->
+                <!-- 辅助验工量数量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatQty(row.measuredQtyDefault) }}
+                </td>
+
+                <!-- 施工单位数量 -->
+                <td class="px-2 py-1 border-r border-outline-3 w-24">
+                  <input
+                    v-if="!row.isSummaryRow"
+                    v-model.number="row.contractorQty"
+                    type="number"
+                    step="any"
+                    :disabled="!permissions.contractor"
+                    class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+                    @input="handleQtyInput(row, 'contractor')"
+                  />
+                  <span v-else class="font-mono pr-3 inline-block w-full text-right">
+                    {{ formatQty(row.contractorQty) }}
+                  </span>
+                </td>
+                <!-- 施工单位金额 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.contractorAmount) }}
+                </td>
+
+                <!-- 施工监理数量 -->
+                <td class="px-2 py-1 border-r border-outline-3 w-24">
+                  <input
+                    v-if="!row.isSummaryRow"
+                    v-model.number="row.supervisionQty"
+                    type="number"
+                    step="any"
+                    :disabled="!permissions.supervision"
+                    class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+                    @input="handleQtyInput(row, 'supervision')"
+                  />
+                  <span v-else class="font-mono pr-3 inline-block w-full text-right">
+                    {{ formatQty(row.supervisionQty) }}
+                  </span>
+                </td>
+                <!-- 施工监理金额 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.supervisionAmount) }}
+                </td>
+
+                <!-- 现场指挥部数量 -->
+                <td class="px-2 py-1 border-r border-outline-3 w-24">
+                  <input
+                    v-if="!row.isSummaryRow"
+                    v-model.number="row.headquartersQty"
+                    type="number"
+                    step="any"
+                    :disabled="!permissions.headquarters"
+                    class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+                    @input="handleQtyInput(row, 'headquarters')"
+                  />
+                  <span v-else class="font-mono pr-3 inline-block w-full text-right">
+                    {{ formatQty(row.headquartersQty) }}
+                  </span>
+                </td>
+                <!-- 现场指挥部金额 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.headquartersAmount) }}
+                </td>
+
+                <!-- 投资监理数量 -->
+                <td class="px-2 py-1 border-r border-outline-3 w-24 text-primary">
+                  <input
+                    v-if="!row.isSummaryRow"
+                    v-model.number="row.investmentQty"
+                    type="number"
+                    step="any"
+                    :disabled="!permissions.investment"
+                    class="w-full text-right bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 font-mono text-[11px]"
+                    @input="handleQtyInput(row, 'investment')"
+                  />
+                  <span
+                    v-else
+                    class="font-mono pr-3 inline-block w-full text-right text-primary font-semibold"
+                  >
+                    {{ formatQty(row.investmentQty) }}
+                  </span>
+                </td>
+                <!-- 投资监理金额 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono text-primary font-semibold pr-3"
+                >
+                  {{ formatMoney(row.investmentAmount) }}
+                </td>
+
+                <!-- 8. 本年完成工程量 -->
+                <!-- 数量 (本年累计 = 本年历史累计 + 本期投资监理量) -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{
+                    formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0))
+                  }}
+                </td>
+                <!-- 工作量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ formatMoney(row.yearlyAmount) }}
+                </td>
+
+                <!-- 9. 累计完成数 -->
+                <!-- 数量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{
+                    formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0))
+                  }}
+                </td>
+                <!-- 累计完成工作量 -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono text-success-darker pr-3"
+                >
+                  {{ formatMoney(row.cumulativeAmount) }}
+                </td>
+                <!-- 合同累计完成比例% -->
+                <td
+                  class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
+                >
+                  {{ getCumulativeRate(row) }}%
+                </td>
+
+                <!-- 10. 备注 -->
+                <td
+                  class="px-2 py-2 text-center text-foreground-2 truncate max-w-[100px]"
+                >
+                  {{ row.remark || '-' }}
+                </td>
+              </tr>
+
+              <!-- 展开展示的关联质量验收列表子行 -->
+              <tr
+                v-if="
+                  !row.isSummaryRow &&
+                  row.sourceAcceptanceIds?.length > 0 &&
+                  expandedAcceptanceIds.has(row.boqItemId)
+                "
+                :key="`acceptance-details-${row.boqItemId}`"
+                class="bg-info-lighter/5 border-b border-outline-3 text-[11px]"
+              >
+                <td colspan="23" class="px-8 py-3 bg-foundation-2">
+                  <div
+                    class="rounded-md border border-outline-3 bg-foundation overflow-hidden max-w-4xl shadow-sm text-left"
+                  >
+                    <div
+                      class="px-3 py-2 bg-foundation-2 font-medium text-foreground-2 border-b border-outline-3 flex items-center justify-between"
+                    >
+                      <span>关联的质量验收单列表</span>
+                      <span class="text-xs text-foreground-3">
+                        共 {{ row.sourceAcceptances?.length || 0 }} 个验收单
+                      </span>
+                    </div>
+                    <table class="w-full text-left border-collapse">
+                      <thead>
+                        <tr
+                          class="bg-foundation-3 text-foreground-2 border-b border-outline-3 font-semibold text-[10px]"
+                        >
+                          <th class="px-3 py-1.5 w-44">验收编号</th>
+                          <th class="px-3 py-1.5">验收名称</th>
+                          <th class="px-3 py-1.5 w-24 text-right pr-4">工程量</th>
+                          <th class="px-3 py-1.5 w-24">查验人</th>
+                          <th class="px-3 py-1.5 w-32">查验日期</th>
+                          <th class="px-3 py-1.5 w-20 text-center">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="form in row.sourceAcceptances"
+                          :key="form.id"
+                          class="border-b border-outline-3 hover:bg-highlight-1/10 transition-colors last:border-0"
+                        >
+                          <td class="px-3 py-1.5 font-mono text-[10px]">
+                            {{ form.code || '-' }}
+                          </td>
+                          <td class="px-3 py-1.5 text-[10px]">
+                            {{ form.name || '-' }}
+                          </td>
+                          <td class="px-3 py-1.5 text-right font-mono pr-4 text-[10px]">
+                            {{ formatQty(form.workVolume) }}
+                          </td>
+                          <td class="px-3 py-1.5 text-[10px]">
+                            {{ form.inspectorName || '-' }}
+                          </td>
+                          <td class="px-3 py-1.5 text-[10px]">
+                            {{ formatTimestamp(form.actualFinishDate) }}
+                          </td>
+                          <td class="px-3 py-1.5 text-center">
+                            <button
+                              v-if="!isReadOnly && isCurrentApprover"
+                              class="text-danger hover:text-danger-darker font-medium transition-colors cursor-pointer text-[10px] bg-transparent border-0 px-1 py-0.5 rounded hover:bg-danger-lighter"
+                              title="解除关联"
+                              @click.stop="confirmRemoveAcceptance(row, form)"
+                            >
+                              删除
+                            </button>
+                            <span v-else class="text-foreground-3">-</span>
+                          </td>
+                        </tr>
+                        <tr v-if="!row.sourceAcceptances?.length">
+                          <td
+                            colspan="6"
+                            class="px-3 py-4 text-center text-foreground-3"
                           >
-                            删除
-                          </button>
-                          <span v-else class="text-foreground-3">-</span>
-                        </td>
-                      </tr>
-                      <tr v-if="!row.sourceAcceptances?.length">
-                        <td colspan="6" class="px-3 py-4 text-center text-foreground-3">
-                          暂无关联的质量验收单数据
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
+                            暂无关联的质量验收单数据
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
         </table>
       </div>
 
       <!-- 右下角取消和保存操作区 -->
-      <div v-if="!isReadOnly" class="flex-shrink-0 flex justify-end items-center gap-2 mt-4">
+      <div
+        v-if="!isReadOnly"
+        class="flex-shrink-0 flex justify-end items-center gap-2 mt-4"
+      >
         <FormButton color="outline" @click="closeTreeEdit">取消</FormButton>
         <FormButton
           v-if="isCurrentApprover"
@@ -555,7 +615,9 @@
   <CommonConfirmDialog
     v-model:open="removeAcceptanceConfirmOpen"
     title="确认解除质量验收关联"
-    :text="`确定要解除该质量验收单 '${acceptanceToRemove?.form?.code || acceptanceToRemove?.form?.name || ''}' 与当前清单项的关联吗？解除后将重新计算该清单项的辅助验工量。`"
+    :text="`确定要解除该质量验收单 '${
+      acceptanceToRemove?.form?.code || acceptanceToRemove?.form?.name || ''
+    }' 与当前清单项的关联吗？解除后将重新计算该清单项的辅助验工量。`"
     confirm-text="确认解除"
     @confirm="submitRemoveAcceptance"
   />
@@ -607,8 +669,6 @@ const rowById = shallowRef<Map<string, any>>(new Map())
 const rowsByDepth = shallowRef<Map<number, any[]>>(new Map())
 const hasChildrenSet = shallowRef<Set<string>>(new Set())
 
-
-
 const buildTreeIndex = (rows: any[]) => {
   const byId = new Map<string, any>()
   const depthMap = new Map<number, any[]>()
@@ -632,7 +692,9 @@ const buildTreeIndex = (rows: any[]) => {
 }
 
 const isAdminOperationMode = computed(() => route.query.adminMode === '1')
-const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+const isReadOnly = computed(
+  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+)
 
 const permissions = computed(() => {
   const result = {
@@ -834,6 +896,9 @@ const recalculateTreeRows = () => {
       row.lastCumulativeQty = 0
       row.yearlyCumulativeQty = 0
       row.pendingTotalQty = 0
+      row.totalQuantityWithChanges = null
+      row.reviewAmount = null
+      row.reviewPrice = null
 
       // 汇总行金额初始化
       row.contractAmount = 0
@@ -854,6 +919,36 @@ const recalculateTreeRows = () => {
       const yearlyCumulativeQty = toSafeNumber(row.yearlyCumulativeQty)
       const lastCumulativeQty = toSafeNumber(row.lastCumulativeQty)
       const boqAmount = toSafeNumber(row.boqAmount)
+
+      // 复核量相关
+      const reviewPrice =
+        row.reviewPrice !== null &&
+        row.reviewPrice !== undefined &&
+        row.reviewPrice !== ''
+          ? Number(row.reviewPrice)
+          : null
+      const totalQuantityWithChanges =
+        row.totalQuantityWithChanges !== null &&
+        row.totalQuantityWithChanges !== undefined &&
+        row.totalQuantityWithChanges !== ''
+          ? Number(row.totalQuantityWithChanges)
+          : null
+      let reviewAmount =
+        row.reviewAmount !== null &&
+        row.reviewAmount !== undefined &&
+        row.reviewAmount !== ''
+          ? Number(row.reviewAmount)
+          : null
+      if (
+        reviewAmount === null &&
+        reviewPrice !== null &&
+        totalQuantityWithChanges !== null
+      ) {
+        reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
+      }
+      row.reviewPrice = reviewPrice
+      row.totalQuantityWithChanges = totalQuantityWithChanges
+      row.reviewAmount = reviewAmount
 
       row.contractAmount =
         row.boqAmount !== undefined && row.boqAmount !== null
@@ -876,23 +971,78 @@ const recalculateTreeRows = () => {
       if (!row.boqParentId) return
       const parent = rowById.value.get(row.boqParentId)
       if (!parent || !parent.isSummaryRow) return
-      parent.contractorQty = preciseAdd(parent.contractorQty || 0, row.contractorQty || 0)
-      parent.supervisionQty = preciseAdd(parent.supervisionQty || 0, row.supervisionQty || 0)
-      parent.headquartersQty = preciseAdd(parent.headquartersQty || 0, row.headquartersQty || 0)
-      parent.investmentQty = preciseAdd(parent.investmentQty || 0, row.investmentQty || 0)
-      parent.measuredQtyDefault = preciseAdd(parent.measuredQtyDefault || 0, row.measuredQtyDefault || 0)
-      parent.lastCumulativeQty = preciseAdd(parent.lastCumulativeQty || 0, row.lastCumulativeQty || 0)
-      parent.yearlyCumulativeQty = preciseAdd(parent.yearlyCumulativeQty || 0, row.yearlyCumulativeQty || 0)
-      parent.pendingTotalQty = preciseAdd(parent.pendingTotalQty || 0, row.pendingTotalQty || 0)
+      parent.contractorQty = preciseAdd(
+        parent.contractorQty || 0,
+        row.contractorQty || 0
+      )
+      parent.supervisionQty = preciseAdd(
+        parent.supervisionQty || 0,
+        row.supervisionQty || 0
+      )
+      parent.headquartersQty = preciseAdd(
+        parent.headquartersQty || 0,
+        row.headquartersQty || 0
+      )
+      parent.investmentQty = preciseAdd(
+        parent.investmentQty || 0,
+        row.investmentQty || 0
+      )
+      parent.measuredQtyDefault = preciseAdd(
+        parent.measuredQtyDefault || 0,
+        row.measuredQtyDefault || 0
+      )
+      parent.lastCumulativeQty = preciseAdd(
+        parent.lastCumulativeQty || 0,
+        row.lastCumulativeQty || 0
+      )
+      parent.yearlyCumulativeQty = preciseAdd(
+        parent.yearlyCumulativeQty || 0,
+        row.yearlyCumulativeQty || 0
+      )
+      parent.pendingTotalQty = preciseAdd(
+        parent.pendingTotalQty || 0,
+        row.pendingTotalQty || 0
+      )
+
+      if (
+        row.totalQuantityWithChanges !== null &&
+        row.totalQuantityWithChanges !== undefined
+      ) {
+        parent.totalQuantityWithChanges = preciseAdd(
+          parent.totalQuantityWithChanges || 0,
+          row.totalQuantityWithChanges
+        )
+      }
+      if (row.reviewAmount !== null && row.reviewAmount !== undefined) {
+        parent.reviewAmount = preciseAdd(parent.reviewAmount || 0, row.reviewAmount)
+      }
 
       // 累加金额
-      parent.contractAmount = preciseAdd(parent.contractAmount || 0, row.contractAmount || 0)
-      parent.contractorAmount = preciseAdd(parent.contractorAmount || 0, row.contractorAmount || 0)
-      parent.supervisionAmount = preciseAdd(parent.supervisionAmount || 0, row.supervisionAmount || 0)
-      parent.headquartersAmount = preciseAdd(parent.headquartersAmount || 0, row.headquartersAmount || 0)
-      parent.investmentAmount = preciseAdd(parent.investmentAmount || 0, row.investmentAmount || 0)
+      parent.contractAmount = preciseAdd(
+        parent.contractAmount || 0,
+        row.contractAmount || 0
+      )
+      parent.contractorAmount = preciseAdd(
+        parent.contractorAmount || 0,
+        row.contractorAmount || 0
+      )
+      parent.supervisionAmount = preciseAdd(
+        parent.supervisionAmount || 0,
+        row.supervisionAmount || 0
+      )
+      parent.headquartersAmount = preciseAdd(
+        parent.headquartersAmount || 0,
+        row.headquartersAmount || 0
+      )
+      parent.investmentAmount = preciseAdd(
+        parent.investmentAmount || 0,
+        row.investmentAmount || 0
+      )
       parent.yearlyAmount = preciseAdd(parent.yearlyAmount || 0, row.yearlyAmount || 0)
-      parent.cumulativeAmount = preciseAdd(parent.cumulativeAmount || 0, row.cumulativeAmount || 0)
+      parent.cumulativeAmount = preciseAdd(
+        parent.cumulativeAmount || 0,
+        row.cumulativeAmount || 0
+      )
     })
   })
 }
@@ -1002,7 +1152,6 @@ const saveTreeItems = async () => {
     treeSaving.value = false
   }
 }
-
 
 onMounted(() => {
   void loadTreeData()

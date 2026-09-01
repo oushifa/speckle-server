@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, json } from 'express'
 import type { Request, Response } from 'express'
 import Busboy from 'busboy'
 import * as XLSX from 'xlsx'
@@ -24,7 +24,8 @@ import {
 import {
   createBoqItemFactory,
   importBoqItemsFactory,
-  updateBoqItemFactory as updateBoqItemEntryFactory
+  updateBoqItemFactory as updateBoqItemEntryFactory,
+  updateBoqItemReviewFactory
 } from '@/modules/bop-item/services/boq'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 
@@ -129,25 +130,63 @@ export const bopItemRouterFactory = (): Router => {
           '计量单位',
           '工程量',
           '综合单价（元）',
-          '合价'
+          '合价',
+          '复核量',
+          '变更/签证量',
+          '工程量（含签证变更）',
+          '复核单价',
+          '复核总价'
         ]
 
         const idToCodeMap = new Map(items.map((i) => [i.id, i.code]))
         const rows = items.map((item) => {
           const parentCode = item.parentId ? idToCodeMap.get(item.parentId) || '' : ''
           const labelType = childTypeLabelMap[item.type as BoqItemType] || item.type
-          
-          const quantityVal = item.quantity === null || item.quantity === undefined 
-            ? '' 
-            : Number.parseFloat(item.quantity)
-            
-          const priceVal = item.price === null || item.price === undefined 
-            ? '' 
-            : Number.parseFloat(item.price)
 
-          const amountVal = item.amount === null || item.amount === undefined 
-            ? '' 
-            : Number.parseFloat(item.amount)
+          const quantityVal =
+            item.quantity === null || item.quantity === undefined
+              ? ''
+              : Number.parseFloat(item.quantity)
+
+          const priceVal =
+            item.price === null || item.price === undefined
+              ? ''
+              : Number.parseFloat(item.price)
+
+          const amountVal =
+            item.amount === null || item.amount === undefined
+              ? ''
+              : Number.parseFloat(item.amount)
+
+          const reviewQuantityVal =
+            item.reviewQuantity === null || item.reviewQuantity === undefined
+              ? ''
+              : Number.parseFloat(item.reviewQuantity)
+
+          const changeQuantityVal =
+            item.changeQuantity === null || item.changeQuantity === undefined
+              ? ''
+              : Number.parseFloat(item.changeQuantity)
+
+          const totalQtyVal =
+            item.reviewQuantity !== null || item.changeQuantity !== null
+              ? (Number.isNaN(reviewQuantityVal as number)
+                  ? 0
+                  : (reviewQuantityVal as number)) +
+                (Number.isNaN(changeQuantityVal as number)
+                  ? 0
+                  : (changeQuantityVal as number))
+              : ''
+
+          const reviewPriceVal =
+            item.reviewPrice === null || item.reviewPrice === undefined
+              ? ''
+              : Number.parseFloat(item.reviewPrice)
+
+          const reviewAmountVal =
+            item.reviewAmount === null || item.reviewAmount === undefined
+              ? ''
+              : Number.parseFloat(item.reviewAmount)
 
           return [
             item.code,
@@ -157,7 +196,14 @@ export const bopItemRouterFactory = (): Router => {
             item.unit || '',
             Number.isNaN(quantityVal) ? '' : quantityVal,
             Number.isNaN(priceVal) ? '' : priceVal,
-            Number.isNaN(amountVal) ? '' : amountVal
+            Number.isNaN(amountVal) ? '' : amountVal,
+            Number.isNaN(reviewQuantityVal as number) ? '' : reviewQuantityVal,
+            Number.isNaN(changeQuantityVal as number) ? '' : changeQuantityVal,
+            totalQtyVal === '' || Number.isNaN(totalQtyVal as number)
+              ? ''
+              : totalQtyVal,
+            Number.isNaN(reviewPriceVal as number) ? '' : reviewPriceVal,
+            Number.isNaN(reviewAmountVal as number) ? '' : reviewAmountVal
           ]
         })
 
@@ -249,7 +295,9 @@ export const bopItemRouterFactory = (): Router => {
               getBoqItems: getBoqItemsFactory({ db: projectDb }),
               createBoqItem: createBoqItemFactory({
                 getBoqItem: getBoqItemFactory({ db: projectDb }),
-                getSiblingMaxSortOrder: getSiblingMaxSortOrderFactory({ db: projectDb }),
+                getSiblingMaxSortOrder: getSiblingMaxSortOrderFactory({
+                  db: projectDb
+                }),
                 insertBoqItem: insertBoqItemFactory({ db: projectDb })
               }),
               updateBoqItem: updateBoqItemEntryFactory({
@@ -301,6 +349,57 @@ export const bopItemRouterFactory = (): Router => {
     }
   )
 
+  // 3. 更新清单复核量/变更量/复核单价接口
+  app.patch(
+    '/api/v1/projects/:projectId/boq/items/:itemId/review',
+    json(),
+    authMiddlewareCreator(
+      streamWritePermissionsPipelineFactory({
+        getStream
+      })
+    ),
+    async (req: Request, res: Response) => {
+      const { projectId, itemId } = req.params
+      const userId = req.context.userId
+      if (!userId) {
+        throw new UnauthorizedError('User not authenticated.')
+      }
+
+      const project = await getStream({ streamId: projectId })
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' })
+      }
+
+      const { reviewQuantity, changeQuantity, reviewPrice } = req.body || {}
+
+      const parseField = (val: unknown) => {
+        if (val === undefined) return undefined
+        if (val === null || val === '') return null
+        const num = Number(val)
+        return Number.isNaN(num) ? null : num
+      }
+
+      const projectDb = await getProjectDbClient({ projectId })
+      const updateBoqItemReview = updateBoqItemReviewFactory({
+        getBoqItem: getBoqItemFactory({ db: projectDb }),
+        updateBoqItem: updateBoqItemFactory({ db: projectDb })
+      })
+
+      const updated = await updateBoqItemReview({
+        projectId,
+        itemId,
+        reviewQuantity: parseField(reviewQuantity),
+        changeQuantity: parseField(changeQuantity),
+        reviewPrice: parseField(reviewPrice)
+      })
+
+      return res.status(200).json({
+        success: true,
+        item: updated
+      })
+    }
+  )
+
   return app
 }
 
@@ -328,6 +427,15 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
   const quantityIndex = findHeaderIndex(['工程量'])
   const priceIndex = findHeaderIndex(['综合单价（元）', '综合单价', '单价'])
   const amountIndex = findHeaderIndex(['合价', '合价（元）', '合同价', '合同价（元）'])
+  const reviewQuantityIndex = findHeaderIndex(['复核量'])
+  const changeQuantityIndex = findHeaderIndex([
+    '变更/签证量',
+    '变更签证量',
+    '变更量',
+    '签证量'
+  ])
+  const reviewPriceIndex = findHeaderIndex(['复核单价', '复核单价（元）'])
+  const reviewAmountIndex = findHeaderIndex(['复核总价', '复核总价（元）'])
 
   if (codeIndex < 0 || nameIndex < 0 || typeIndex < 0) {
     throw new Error('模板缺少必要列：清单编码、清单名称、类型')
@@ -352,6 +460,10 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
     const quantityValue = readValue(quantityIndex)
     const priceValue = readValue(priceIndex)
     const amountValue = readValue(amountIndex)
+    const reviewQuantityValue = readValue(reviewQuantityIndex)
+    const changeQuantityValue = readValue(changeQuantityIndex)
+    const reviewPriceValue = readValue(reviewPriceIndex)
+    const reviewAmountValue = readValue(reviewAmountIndex)
 
     if (
       !code &&
@@ -361,7 +473,11 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
       !unit &&
       !quantityValue &&
       !priceValue &&
-      !amountValue
+      !amountValue &&
+      !reviewQuantityValue &&
+      !changeQuantityValue &&
+      !reviewPriceValue &&
+      !reviewAmountValue
     ) {
       continue
     }
@@ -382,13 +498,21 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
     const quantity = parseOptionalNumber(quantityValue)
     const price = parseOptionalNumber(priceValue)
     const amount = parseOptionalNumber(amountValue)
+    const reviewQuantity = parseOptionalNumber(reviewQuantityValue)
+    const changeQuantity = parseOptionalNumber(changeQuantityValue)
+    const reviewPrice = parseOptionalNumber(reviewPriceValue)
+    const reviewAmount = parseOptionalNumber(reviewAmountValue)
 
     if (
       (quantityValue && Number.isNaN(quantity)) ||
       (priceValue && Number.isNaN(price)) ||
-      (amountValue && Number.isNaN(amount))
+      (amountValue && Number.isNaN(amount)) ||
+      (reviewQuantityValue && Number.isNaN(reviewQuantity)) ||
+      (changeQuantityValue && Number.isNaN(changeQuantity)) ||
+      (reviewPriceValue && Number.isNaN(reviewPrice)) ||
+      (reviewAmountValue && Number.isNaN(reviewAmount))
     ) {
-      throw new Error(`第 ${rowNumber} 行工程量、综合单价或合价不是有效数字`)
+      throw new Error(`第 ${rowNumber} 行工程量、综合单价、复核量或单价不是有效数字`)
     }
 
     if (type === 'ITEM') {
@@ -414,7 +538,11 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
       unit: type === 'ITEM' ? unit : null,
       quantity: type === 'ITEM' ? quantity : null,
       price: type === 'ITEM' ? price : null,
-      amount: type === 'ITEM' ? amount : null
+      amount: amount ?? null,
+      reviewQuantity: type === 'ITEM' ? reviewQuantity : null,
+      changeQuantity: type === 'ITEM' ? changeQuantity : null,
+      reviewPrice: type === 'ITEM' ? reviewPrice : null,
+      reviewAmount: reviewAmount ?? null
     })
   }
 

@@ -230,6 +230,12 @@ export const updateBoqItemMutation = graphql(`
           unit
           quantity
           price
+          amount
+          reviewQuantity
+          changeQuantity
+          totalQuantityWithChanges
+          reviewPrice
+          reviewAmount
           sortOrder
           depth
           hasChildren

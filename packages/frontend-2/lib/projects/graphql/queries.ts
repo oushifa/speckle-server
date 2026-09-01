@@ -232,6 +232,11 @@ export const projectBoqItemsQuery = graphql(`
         quantity
         price
         amount
+        reviewQuantity
+        changeQuantity
+        totalQuantityWithChanges
+        reviewPrice
+        reviewAmount
         sortOrder
         depth
         hasChildren
@@ -248,6 +253,11 @@ export const projectBoqItemsQuery = graphql(`
           quantity
           price
           amount
+          reviewQuantity
+          changeQuantity
+          totalQuantityWithChanges
+          reviewPrice
+          reviewAmount
           sortOrder
           depth
           hasChildren
@@ -264,6 +274,11 @@ export const projectBoqItemsQuery = graphql(`
             quantity
             price
             amount
+            reviewQuantity
+            changeQuantity
+            totalQuantityWithChanges
+            reviewPrice
+            reviewAmount
             sortOrder
             depth
             hasChildren
@@ -280,6 +295,11 @@ export const projectBoqItemsQuery = graphql(`
               quantity
               price
               amount
+              reviewQuantity
+              changeQuantity
+              totalQuantityWithChanges
+              reviewPrice
+              reviewAmount
               sortOrder
               depth
               hasChildren
@@ -296,6 +316,11 @@ export const projectBoqItemsQuery = graphql(`
                 quantity
                 price
                 amount
+                reviewQuantity
+                changeQuantity
+                totalQuantityWithChanges
+                reviewPrice
+                reviewAmount
                 sortOrder
                 depth
                 hasChildren
@@ -312,6 +337,11 @@ export const projectBoqItemsQuery = graphql(`
                   quantity
                   price
                   amount
+                  reviewQuantity
+                  changeQuantity
+                  totalQuantityWithChanges
+                  reviewPrice
+                  reviewAmount
                   sortOrder
                   depth
                   hasChildren

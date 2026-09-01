@@ -18,6 +18,11 @@ type BoqItem {
   quantity: Float
   price: Float
   amount: Float
+  reviewQuantity: Float
+  changeQuantity: Float
+  totalQuantityWithChanges: Float
+  reviewPrice: Float
+  reviewAmount: Float
   sortOrder: Int!
   depth: Int!
   hasChildren: Boolean!
@@ -52,6 +57,10 @@ input CreateBoqItemInput {
   quantity: Float
   price: Float
   amount: Float
+  reviewQuantity: Float
+  changeQuantity: Float
+  reviewPrice: Float
+  reviewAmount: Float
   sortOrder: Int
 }
 
@@ -64,6 +73,10 @@ input UpdateBoqItemInput {
   quantity: Float
   price: Float
   amount: Float
+  reviewQuantity: Float
+  changeQuantity: Float
+  reviewPrice: Float
+  reviewAmount: Float
   sortOrder: Int
 }
 
@@ -90,6 +103,10 @@ input ImportBoqItemInput {
   quantity: Float
   price: Float
   amount: Float
+  reviewQuantity: Float
+  changeQuantity: Float
+  reviewPrice: Float
+  reviewAmount: Float
 }
 
 input ImportBoqItemsInput {

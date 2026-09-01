@@ -59,82 +59,298 @@
         />
       </div>
     </div>
-    <!-- Table -->
-    <LayoutTable
-      :columns="columns"
-      :items="items"
-      :loading="boqItemsLoading"
-      empty-message="暂无清单数据"
-      class="w-full"
+
+    <!-- Tree Table Container -->
+    <div
+      class="w-full overflow-x-auto rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm"
     >
-      <template #code="{ item }">
-        <a href="#" class="text-primary hover:underline font-medium">
-          {{ item.code }}
-        </a>
-      </template>
+      <table class="w-full text-xs text-left min-w-[1520px] border-collapse">
+        <thead
+          class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
+        >
+          <tr class="divide-x divide-outline-3/60">
+            <th class="py-2.5 px-3 w-[220px]">清单编码</th>
+            <th class="py-2.5 px-3 w-[220px]">清单名称</th>
+            <th class="py-2.5 px-3 w-[90px] text-center">类型</th>
+            <th class="py-2.5 px-3 w-[70px] text-center">计量单位</th>
+            <th class="py-2.5 px-3 w-[100px] text-right">合同工程量</th>
+            <th class="py-2.5 px-3 w-[110px] text-right">综合单价(元)</th>
+            <th class="py-2.5 px-3 w-[110px] text-right">合价(元)</th>
+            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+              复核量
+            </th>
+            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+              变更/签证量
+            </th>
+            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+              工程量(含变更)
+            </th>
+            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+              复核单价
+            </th>
+            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">复核总价</th>
+            <th
+              class="py-2.5 px-3 w-[110px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
+            >
+              操作
+            </th>
+          </tr>
+        </thead>
 
-      <template #name="{ item }">
-        <a href="#" class="text-primary hover:underline font-medium">
-          {{ item.name }}
-        </a>
-      </template>
+        <!-- Loading State -->
+        <tbody v-if="isInitialLoading" class="divide-y divide-outline-3 font-normal">
+          <tr>
+            <td colspan="13" class="py-12 text-center text-foreground-2">
+              <div class="flex items-center justify-center gap-2">
+                <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
+                <span>加载清单数据中...</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
 
-      <template #unit="{ item }">
-        <span class="text-foreground">{{ item.unit }}</span>
-      </template>
+        <!-- Empty State -->
+        <tbody
+          v-else-if="!flatItems.length"
+          class="divide-y divide-outline-3 font-normal"
+        >
+          <tr>
+            <td colspan="13" class="py-12 text-center text-foreground-2 italic">
+              暂无清单数据
+            </td>
+          </tr>
+        </tbody>
 
-      <template #type="{ item }">
-        <span class="text-foreground">{{ childTypeLabelMap[item.type] }}</span>
-      </template>
+        <!-- Data Rows -->
+        <tbody v-else class="divide-y divide-outline-3 font-normal">
+          <tr
+            v-for="row in flatItems"
+            :key="row.item.id"
+            class="hover:bg-highlight-1/50 transition-colors divide-x divide-outline-3/40"
+          >
+            <!-- 清单编码 -->
+            <td class="py-2 px-3">
+              <div
+                class="flex items-center"
+                :style="{ paddingLeft: `${row.depth * 20}px` }"
+              >
+                <button
+                  v-if="row.hasChildren"
+                  type="button"
+                  class="w-4 h-4 mr-1.5 text-foreground-2 hover:text-foreground transition inline-flex items-center justify-center shrink-0"
+                  @click.stop="toggleRow(row.item)"
+                >
+                  <ChevronRightIcon
+                    class="h-3.5 w-3.5 transition-transform duration-150"
+                    :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
+                  />
+                </button>
+                <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
+                <button
+                  type="button"
+                  class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
+                  @click="openEditDialog(row.item)"
+                >
+                  {{ row.item.code }}
+                </button>
+              </div>
+            </td>
 
-      <template #quantity="{ item }">
-        <span class="text-foreground">{{ formatNumber(item.quantity, 2) }}</span>
-      </template>
+            <!-- 清单名称 -->
+            <td class="py-2 px-3">
+              <span
+                class="font-medium text-foreground truncate block max-w-[210px]"
+                :title="row.item.name"
+              >
+                {{ row.item.name }}
+              </span>
+            </td>
 
-      <template #price="{ item }">
-        <span class="text-foreground">{{ formatNumber(item.price, 2) }}</span>
-      </template>
+            <!-- 类型 -->
+            <td class="py-2 px-3 text-center">
+              <span
+                class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-foundation-3 text-foreground-2 border border-outline-3 whitespace-nowrap"
+              >
+                {{ childTypeLabelMap[row.item.type] }}
+              </span>
+            </td>
 
-      <template #amount="{ item }">
-        <span class="text-foreground">{{ formatNumber(item.amount, 2) }}</span>
-      </template>
+            <!-- 计量单位 -->
+            <td class="py-2 px-3 text-center text-foreground-2">
+              {{ row.item.unit || '-' }}
+            </td>
 
-      <template #actions="{ item }">
-        <div class="flex items-center justify-end gap-2">
-          <FormButton
-            v-if="hasFunctionalPerm('bill-management:edit')"
-            color="outline"
-            size="sm"
-            hide-text
-            :icon-left="PencilSquareIcon"
-            :disabled="rowMutationLoading"
-            @click.stop="handleEditItem(item)"
-          />
-          <FormButton
-            v-if="hasFunctionalPerm('bill-management:delete')"
-            color="outline"
-            size="sm"
-            hide-text
-            :icon-left="TrashIcon"
-            :disabled="rowMutationLoading"
-            @click.stop="handleDeleteItem(item)"
-          />
-          <FormButton
-            v-slot="{}"
-            v-if="hasFunctionalPerm('bill-management:create')"
-            color="outline"
-            size="sm"
-            hide-text
-            :icon-left="PlusIcon"
-            :disabled="rowMutationLoading || !canCreateChild(item.type)"
-            @click.stop="handleCreateChildItem(item)"
-          />
-        </div>
-      </template>
-    </LayoutTable>
+            <!-- 合同工程量 -->
+            <td class="py-2 px-3 text-right font-mono text-foreground">
+              {{ formatNumber(row.item.quantity, 2) }}
+            </td>
+
+            <!-- 综合单价 -->
+            <td class="py-2 px-3 text-right font-mono text-foreground">
+              {{ formatNumber(row.item.price, 2) }}
+            </td>
+
+            <!-- 合价 -->
+            <td class="py-2 px-3 text-right font-mono text-foreground font-medium">
+              {{ formatNumber(row.item.amount, 2) }}
+            </td>
+
+            <!-- 复核量（可编辑） -->
+            <td class="py-1 px-2 text-right bg-primary/5">
+              <div
+                v-if="row.item.type === 'ITEM'"
+                class="flex items-center justify-end relative"
+              >
+                <input
+                  type="number"
+                  step="any"
+                  aria-label="复核量"
+                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                  :class="[
+                    savedItemIds.has(row.item.id)
+                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                  ]"
+                  :value="getInlineReviewQuantity(row.item)"
+                  placeholder="复核量"
+                  :disabled="savingItemId === row.item.id"
+                  @input="
+                    onInlineInput(
+                      row.item,
+                      'reviewQuantity',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
+                  @blur="saveInlineReview(row.item)"
+                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                />
+              </div>
+              <span v-else class="text-foreground-3 block text-center">-</span>
+            </td>
+
+            <!-- 变更/签证量（可编辑） -->
+            <td class="py-1 px-2 text-right bg-primary/5">
+              <div
+                v-if="row.item.type === 'ITEM'"
+                class="flex items-center justify-end relative"
+              >
+                <input
+                  type="number"
+                  step="any"
+                  aria-label="变更/签证量"
+                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                  :class="[
+                    savedItemIds.has(row.item.id)
+                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                  ]"
+                  :value="getInlineChangeQuantity(row.item)"
+                  placeholder="变更量"
+                  :disabled="savingItemId === row.item.id"
+                  @input="
+                    onInlineInput(
+                      row.item,
+                      'changeQuantity',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
+                  @blur="saveInlineReview(row.item)"
+                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                />
+              </div>
+              <span v-else class="text-foreground-3 block text-center">-</span>
+            </td>
+
+            <!-- 工程量（含签证变更）（不可编辑计算列） -->
+            <td
+              class="py-2 px-3 text-right font-mono font-medium text-foreground bg-primary/10"
+            >
+              {{ formatNumber(computeItemTotalQuantity(row.item), 2) }}
+            </td>
+
+            <!-- 复核单价（可编辑） -->
+            <td class="py-1 px-2 text-right bg-primary/5">
+              <div
+                v-if="row.item.type === 'ITEM'"
+                class="flex items-center justify-end relative"
+              >
+                <input
+                  type="number"
+                  step="any"
+                  aria-label="复核单价"
+                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                  :class="[
+                    savedItemIds.has(row.item.id)
+                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                  ]"
+                  :value="getInlineReviewPrice(row.item)"
+                  placeholder="复核单价"
+                  :disabled="savingItemId === row.item.id"
+                  @input="
+                    onInlineInput(
+                      row.item,
+                      'reviewPrice',
+                      ($event.target as HTMLInputElement).value
+                    )
+                  "
+                  @blur="saveInlineReview(row.item)"
+                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                />
+              </div>
+              <span v-else class="text-foreground-3 block text-center">-</span>
+            </td>
+
+            <!-- 复核总价（不可编辑计算列，上级汇总） -->
+            <td
+              class="py-2 px-3 text-right font-mono font-semibold text-primary bg-primary/10"
+            >
+              {{ formatNumber(computeItemReviewAmount(row.item), 2) }}
+            </td>
+
+            <!-- 操作 -->
+            <td
+              class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
+            >
+              <div class="flex items-center justify-end gap-1.5">
+                <FormButton
+                  v-if="hasFunctionalPerm('bill-management:edit')"
+                  color="outline"
+                  size="sm"
+                  hide-text
+                  :icon-left="PencilSquareIcon"
+                  :disabled="rowMutationLoading"
+                  @click.stop="handleEditItem(row.item)"
+                />
+                <FormButton
+                  v-if="hasFunctionalPerm('bill-management:delete')"
+                  color="outline"
+                  size="sm"
+                  hide-text
+                  :icon-left="TrashIcon"
+                  :disabled="rowMutationLoading"
+                  @click.stop="handleDeleteItem(row.item)"
+                />
+                <FormButton
+                  v-if="hasFunctionalPerm('bill-management:create')"
+                  color="outline"
+                  size="sm"
+                  hide-text
+                  :icon-left="PlusIcon"
+                  :disabled="rowMutationLoading || !canCreateChild(row.item.type)"
+                  @click.stop="handleCreateChildItem(row.item)"
+                />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Edit/Delete/AddChild Dialog -->
     <LayoutDialog
       v-model:open="boqDialogOpen"
-      max-width="sm"
+      max-width="md"
       :buttons="boqDialogButtons"
     >
       <template #header>{{ boqDialogTitle }}</template>
@@ -210,28 +426,77 @@
               {{ item }}
             </template>
           </FormSelectBase>
-          <FormTextInput
-            v-model="boqDialogQuantityInput"
-            name="boq-quantity"
-            label="工程量"
-            type="number"
-            step="any"
-            show-label
-            show-required
-            :rules="[isRequired]"
-            placeholder="请输入工程量"
-          />
-          <FormTextInput
-            v-model="boqDialogPriceInput"
-            name="boq-price"
-            label="综合单价（元）"
-            type="number"
-            step="any"
-            show-label
-            show-required
-            :rules="[isRequired]"
-            placeholder="请输入综合单价"
-          />
+          <div class="grid grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="boqDialogQuantityInput"
+              name="boq-quantity"
+              label="合同工程量"
+              type="number"
+              step="any"
+              show-label
+              show-required
+              :rules="[isRequired]"
+              placeholder="请输入工程量"
+            />
+            <FormTextInput
+              v-model="boqDialogPriceInput"
+              name="boq-price"
+              label="综合单价（元）"
+              type="number"
+              step="any"
+              show-label
+              show-required
+              :rules="[isRequired]"
+              placeholder="请输入综合单价"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="boqDialogReviewQuantityInput"
+              name="boq-review-quantity"
+              label="复核量"
+              type="number"
+              step="any"
+              show-label
+              placeholder="默认取合同量"
+            />
+            <FormTextInput
+              v-model="boqDialogChangeQuantityInput"
+              name="boq-change-quantity"
+              label="变更/签证量"
+              type="number"
+              step="any"
+              show-label
+              placeholder="默认0"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <FormTextInput
+              v-model="boqDialogReviewPriceInput"
+              name="boq-review-price"
+              label="复核单价（元）"
+              type="number"
+              step="any"
+              show-label
+              placeholder="默认取综合单价"
+            />
+            <div
+              class="flex flex-col justify-center bg-foundation-2 p-2.5 rounded border border-outline-3"
+            >
+              <span class="text-xs text-foreground-2">工程量(含变更)</span>
+              <span class="text-sm font-mono font-medium text-foreground">
+                {{ formatNumber(dialogCalculatedTotalQty, 2) }}
+              </span>
+            </div>
+          </div>
+          <div
+            class="p-2.5 bg-primary/10 rounded border border-primary/20 flex justify-between items-center"
+          >
+            <span class="text-xs text-primary font-medium">复核总价预估</span>
+            <span class="text-base font-mono font-semibold text-primary">
+              {{ formatNumber(dialogCalculatedReviewAmount, 2) }} 元
+            </span>
+          </div>
           <div v-if="boqDialogNumericError" class="text-body-3xs text-danger">
             {{ boqDialogNumericError }}
           </div>
@@ -249,8 +514,10 @@ import {
   ArrowUpTrayIcon,
   PlusIcon,
   PencilSquareIcon,
-  TrashIcon
+  TrashIcon,
+  ChevronRightIcon
 } from '@heroicons/vue/24/outline'
+import { CommonLoadingIcon } from '@speckle/ui-components'
 import { useMutation, useQuery } from '@vue/apollo-composable'
 import { useDebounceFn } from '@vueuse/core'
 import type {
@@ -315,17 +582,6 @@ const { mutate: updateBoqItem, loading: updateBoqItemLoading } =
 const { mutate: deleteBoqItem, loading: deleteBoqItemLoading } =
   useMutation(deleteBoqItemMutation)
 
-const columns = [
-  { id: 'code', header: '清单编码', classes: 'col-span-2' },
-  { id: 'name', header: '名称', classes: 'col-span-2' },
-  { id: 'type', header: '类型', classes: 'col-span-1' },
-  { id: 'unit', header: '计量单位', classes: 'col-span-1' },
-  { id: 'quantity', header: '工程量', classes: 'col-span-2' },
-  { id: 'price', header: '综合单价（元）', classes: 'col-span-2' },
-  { id: 'amount', header: '合价（元）', classes: 'col-span-1' },
-  { id: 'actions', header: '操作', classes: 'col-span-1 text-right' }
-]
-
 const units = [
   'm',
   '㎡',
@@ -352,6 +608,7 @@ const items = computed(() => {
     (item): item is BoqTreeItem => !!item
   )
 })
+const isInitialLoading = computed(() => boqItemsLoading.value && !items.value.length)
 const allItems = computed(() => {
   const flattened: BoqTreeItem[] = []
   const walk = (list: BoqTreeItem[]) => {
@@ -420,6 +677,9 @@ const boqDialogName = ref('')
 const boqDialogUnit = ref('')
 const boqDialogQuantity = ref('')
 const boqDialogPrice = ref('')
+const boqDialogReviewQuantity = ref('')
+const boqDialogChangeQuantity = ref('')
+const boqDialogReviewPrice = ref('')
 const boqDialogChildType = ref<UiBoqItemType | undefined>(undefined)
 const boqDialogCodeError = ref('')
 const boqDialogNumericError = ref('')
@@ -433,6 +693,255 @@ const notify = (title: string, type: ToastNotificationType, description?: string
     description,
     type
   })
+}
+
+// 树形表格展开与平铺
+const expandedRows = ref<Set<string>>(new Set())
+
+const collectExpandableIds = (list: BoqTreeItem[] = []): string[] => {
+  return list.flatMap((item) => {
+    const children = (item.children || []).filter((c): c is BoqTreeItem => !!c)
+    if (!children.length) return []
+    return [item.id, ...collectExpandableIds(children)]
+  })
+}
+
+watch(
+  items,
+  (newItems) => {
+    if (newItems.length && expandedRows.value.size === 0) {
+      expandedRows.value = new Set(collectExpandableIds(newItems))
+    }
+  },
+  { immediate: true, deep: true }
+)
+
+const isRowExpanded = (item: BoqTreeItem): boolean => {
+  return expandedRows.value.has(item.id)
+}
+
+const toggleRow = (item: BoqTreeItem) => {
+  const updated = new Set(expandedRows.value)
+  if (updated.has(item.id)) {
+    updated.delete(item.id)
+  } else {
+    updated.add(item.id)
+  }
+  expandedRows.value = updated
+}
+
+type FlatRowItem = {
+  item: BoqTreeItem
+  depth: number
+  hasChildren: boolean
+}
+
+const flatItems = computed<FlatRowItem[]>(() => {
+  const rows: FlatRowItem[] = []
+  const traverse = (list: BoqTreeItem[], depth: number) => {
+    list.forEach((item) => {
+      const children = (item.children || []).filter((c): c is BoqTreeItem => !!c)
+      const hasChildren = children.length > 0
+      rows.push({ item, depth, hasChildren })
+      if (hasChildren && expandedRows.value.has(item.id)) {
+        traverse(children, depth + 1)
+      }
+    })
+  }
+  traverse(items.value, 0)
+  return rows
+})
+
+// 行内编辑数据缓存与响应式计算
+const inlineEditValues = reactive<
+  Record<
+    string,
+    {
+      reviewQuantity?: string
+      changeQuantity?: string
+      reviewPrice?: string
+    }
+  >
+>({})
+const localItemOverrides = reactive<
+  Record<
+    string,
+    {
+      reviewQuantity?: number | null
+      changeQuantity?: number | null
+      totalQuantityWithChanges?: number | null
+      reviewPrice?: number | null
+      reviewAmount?: number | null
+    }
+  >
+>({})
+const savingItemId = ref<string | null>(null)
+const savedItemIds = ref<Set<string>>(new Set())
+
+const getInlineReviewQuantity = (item: BoqTreeItem): string => {
+  if (inlineEditValues[item.id]?.reviewQuantity !== undefined) {
+    return inlineEditValues[item.id].reviewQuantity!
+  }
+  const override = localItemOverrides[item.id]?.reviewQuantity
+  if (override !== undefined && override !== null) {
+    return `${override}`
+  }
+  if (item.reviewQuantity !== null && item.reviewQuantity !== undefined) {
+    return `${item.reviewQuantity}`
+  }
+  return item.quantity !== null && item.quantity !== undefined ? `${item.quantity}` : ''
+}
+
+const getInlineChangeQuantity = (item: BoqTreeItem): string => {
+  if (inlineEditValues[item.id]?.changeQuantity !== undefined) {
+    return inlineEditValues[item.id].changeQuantity!
+  }
+  const override = localItemOverrides[item.id]?.changeQuantity
+  if (override !== undefined && override !== null) {
+    return `${override}`
+  }
+  if (item.changeQuantity !== null && item.changeQuantity !== undefined) {
+    return `${item.changeQuantity}`
+  }
+  return '0'
+}
+
+const getInlineReviewPrice = (item: BoqTreeItem): string => {
+  if (inlineEditValues[item.id]?.reviewPrice !== undefined) {
+    return inlineEditValues[item.id].reviewPrice!
+  }
+  const override = localItemOverrides[item.id]?.reviewPrice
+  if (override !== undefined && override !== null) {
+    return `${override}`
+  }
+  if (item.reviewPrice !== null && item.reviewPrice !== undefined) {
+    return `${item.reviewPrice}`
+  }
+  return item.price !== null && item.price !== undefined ? `${item.price}` : ''
+}
+
+const onInlineInput = (
+  item: BoqTreeItem,
+  field: 'reviewQuantity' | 'changeQuantity' | 'reviewPrice',
+  value: string
+) => {
+  if (!inlineEditValues[item.id]) {
+    inlineEditValues[item.id] = {}
+  }
+  inlineEditValues[item.id][field] = value
+}
+
+const computeItemTotalQuantity = (item: BoqTreeItem): number | null => {
+  if (item.type !== 'ITEM') return null
+  const rqStr = getInlineReviewQuantity(item)
+  const cqStr = getInlineChangeQuantity(item)
+  if (rqStr === '' && cqStr === '') return null
+  const rq = rqStr === '' ? 0 : Number.parseFloat(rqStr)
+  const cq = cqStr === '' ? 0 : Number.parseFloat(cqStr)
+  if (Number.isNaN(rq) || Number.isNaN(cq)) return null
+  return Number((rq + cq).toFixed(6))
+}
+
+const computeItemReviewAmount = (item: BoqTreeItem): number | null => {
+  if (item.type === 'ITEM') {
+    const rpStr = getInlineReviewPrice(item)
+    const totalQty = computeItemTotalQuantity(item)
+    if (rpStr === '' || totalQty === null) return null
+    const rp = Number.parseFloat(rpStr)
+    if (Number.isNaN(rp)) return null
+    return Number((rp * totalQty).toFixed(2))
+  }
+  if (item.children && item.children.length > 0) {
+    let sum = 0
+    let hasVal = false
+    const walk = (childList: (BoqTreeItem | null | undefined)[]) => {
+      childList.forEach((c) => {
+        if (!c) return
+        const val = computeItemReviewAmount(c)
+        if (val !== null && !Number.isNaN(val)) {
+          sum += val
+          hasVal = true
+        }
+      })
+    }
+    walk(item.children as (BoqTreeItem | null | undefined)[])
+    return hasVal ? Number(sum.toFixed(2)) : null
+  }
+  const overrideAmount = localItemOverrides[item.id]?.reviewAmount
+  if (overrideAmount !== undefined && overrideAmount !== null) {
+    return overrideAmount
+  }
+  return item.reviewAmount ?? null
+}
+
+const saveInlineReview = async (item: BoqTreeItem) => {
+  if (item.type !== 'ITEM') return
+  const currentEdit = inlineEditValues[item.id]
+  if (!currentEdit) return
+
+  const rqStr = getInlineReviewQuantity(item)
+  const cqStr = getInlineChangeQuantity(item)
+  const rpStr = getInlineReviewPrice(item)
+
+  const parseVal = (str: string) => {
+    if (str.trim() === '') return null
+    const parsed = Number.parseFloat(str.trim())
+    return Number.isNaN(parsed) ? null : parsed
+  }
+
+  const reviewQuantity = parseVal(rqStr)
+  const changeQuantity = parseVal(cqStr)
+  const reviewPrice = parseVal(rpStr)
+
+  try {
+    savingItemId.value = item.id
+    const res = await $fetch<{
+      success: boolean
+      item: {
+        reviewQuantity?: number | null
+        changeQuantity?: number | null
+        totalQuantityWithChanges?: number | null
+        reviewPrice?: number | null
+        reviewAmount?: number | null
+      }
+    }>(`${apiOrigin}/api/v1/projects/${projectId.value}/boq/items/${item.id}/review`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${authToken.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        reviewQuantity,
+        changeQuantity,
+        reviewPrice
+      }
+    })
+    if (res?.success && res.item) {
+      // 1. 使用 localItemOverrides 就地响应，完全避开直接向 Apollo 冻结对象属性赋值
+      localItemOverrides[item.id] = {
+        reviewQuantity: res.item.reviewQuantity,
+        changeQuantity: res.item.changeQuantity,
+        totalQuantityWithChanges: res.item.totalQuantityWithChanges,
+        reviewPrice: res.item.reviewPrice,
+        reviewAmount: res.item.reviewAmount
+      }
+      delete inlineEditValues[item.id]
+
+      // 2. 触发微状态成功动画（轻微绿框提示），无需任何粗暴弹窗
+      savedItemIds.value.add(item.id)
+      setTimeout(() => {
+        savedItemIds.value.delete(item.id)
+      }, 1500)
+
+      // 3. 在后台静默触发数据拉取以同步上级汇总，不重新销毁/卸载表格
+      boqItemsRefetch?.().catch(() => {})
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    notify('保存失败', ToastNotificationType.Danger, message)
+  } finally {
+    savingItemId.value = null
+  }
 }
 
 const getRequestErrorMessage = (error: unknown) => {
@@ -601,6 +1110,39 @@ const boqDialogPriceInput = computed({
   }
 })
 
+const boqDialogReviewQuantityInput = computed({
+  get: () => `${boqDialogReviewQuantity.value ?? ''}`,
+  set: (val: string | number) => {
+    boqDialogReviewQuantity.value = `${val ?? ''}`
+  }
+})
+
+const boqDialogChangeQuantityInput = computed({
+  get: () => `${boqDialogChangeQuantity.value ?? ''}`,
+  set: (val: string | number) => {
+    boqDialogChangeQuantity.value = `${val ?? ''}`
+  }
+})
+
+const boqDialogReviewPriceInput = computed({
+  get: () => `${boqDialogReviewPrice.value ?? ''}`,
+  set: (val: string | number) => {
+    boqDialogReviewPrice.value = `${val ?? ''}`
+  }
+})
+
+const dialogCalculatedTotalQty = computed(() => {
+  const rq = Number.parseFloat(boqDialogReviewQuantity.value || '0') || 0
+  const cq = Number.parseFloat(boqDialogChangeQuantity.value || '0') || 0
+  return Number((rq + cq).toFixed(6))
+})
+
+const dialogCalculatedReviewAmount = computed(() => {
+  const rp =
+    Number.parseFloat(boqDialogReviewPrice.value || boqDialogPrice.value || '0') || 0
+  return Number((rp * dialogCalculatedTotalQty.value).toFixed(2))
+})
+
 const dialogWorkingType = computed<UiBoqItemType | undefined>(() => {
   if (!boqDialogTarget.value) return undefined
   if (boqDialogMode.value === 'addChild') {
@@ -689,6 +1231,22 @@ const openEditDialog = (item: BoqTreeItem) => {
     item.quantity === null || item.quantity === undefined ? '' : `${item.quantity}`
   boqDialogPrice.value =
     item.price === null || item.price === undefined ? '' : `${item.price}`
+  boqDialogReviewQuantity.value =
+    item.reviewQuantity !== null && item.reviewQuantity !== undefined
+      ? `${item.reviewQuantity}`
+      : item.quantity !== null && item.quantity !== undefined
+      ? `${item.quantity}`
+      : ''
+  boqDialogChangeQuantity.value =
+    item.changeQuantity !== null && item.changeQuantity !== undefined
+      ? `${item.changeQuantity}`
+      : '0'
+  boqDialogReviewPrice.value =
+    item.reviewPrice !== null && item.reviewPrice !== undefined
+      ? `${item.reviewPrice}`
+      : item.price !== null && item.price !== undefined
+      ? `${item.price}`
+      : ''
   boqDialogOpen.value = true
 }
 
@@ -702,6 +1260,9 @@ const openDeleteDialog = (item: BoqTreeItem) => {
   boqDialogUnit.value = ''
   boqDialogQuantity.value = ''
   boqDialogPrice.value = ''
+  boqDialogReviewQuantity.value = ''
+  boqDialogChangeQuantity.value = ''
+  boqDialogReviewPrice.value = ''
   boqDialogChildType.value = undefined
   boqDialogOpen.value = true
 }
@@ -717,6 +1278,9 @@ const openAddChildDialog = (item: BoqTreeItem) => {
   boqDialogUnit.value = ''
   boqDialogQuantity.value = ''
   boqDialogPrice.value = ''
+  boqDialogReviewQuantity.value = ''
+  boqDialogChangeQuantity.value = ''
+  boqDialogReviewPrice.value = ''
   boqDialogChildType.value = undefined
   boqDialogOpen.value = true
 }
@@ -740,9 +1304,18 @@ const handleCreateChildItem = async (item: BoqTreeItem) => {
 watch(boqDialogCode, () => {
   boqDialogCodeError.value = ''
 })
-watch([boqDialogQuantity, boqDialogPrice], () => {
-  boqDialogNumericError.value = ''
-})
+watch(
+  [
+    boqDialogQuantity,
+    boqDialogPrice,
+    boqDialogReviewQuantity,
+    boqDialogChangeQuantity,
+    boqDialogReviewPrice
+  ],
+  () => {
+    boqDialogNumericError.value = ''
+  }
+)
 
 const submitBoqDialog = async () => {
   const target = boqDialogTarget.value
@@ -789,6 +1362,10 @@ const submitBoqDialog = async () => {
   let nextUnit: string | null = null
   let nextQuantity: number | null = null
   let nextPrice: number | null = null
+  let nextReviewQuantity: number | null = null
+  let nextChangeQuantity: number | null = null
+  let nextReviewPrice: number | null = null
+
   boqDialogNumericError.value = ''
   if (isItemDetailsRequired.value) {
     const unitInput = boqDialogUnit.value.trim()
@@ -806,6 +1383,19 @@ const submitBoqDialog = async () => {
     nextUnit = unitInput
     nextQuantity = quantity
     nextPrice = price
+
+    if (boqDialogReviewQuantity.value.trim().length) {
+      const parsed = Number.parseFloat(boqDialogReviewQuantity.value.trim())
+      if (!Number.isNaN(parsed)) nextReviewQuantity = parsed
+    }
+    if (boqDialogChangeQuantity.value.trim().length) {
+      const parsed = Number.parseFloat(boqDialogChangeQuantity.value.trim())
+      if (!Number.isNaN(parsed)) nextChangeQuantity = parsed
+    }
+    if (boqDialogReviewPrice.value.trim().length) {
+      const parsed = Number.parseFloat(boqDialogReviewPrice.value.trim())
+      if (!Number.isNaN(parsed)) nextReviewPrice = parsed
+    }
   }
 
   try {
@@ -818,7 +1408,10 @@ const submitBoqDialog = async () => {
           name: nextName,
           unit: nextUnit,
           quantity: nextQuantity,
-          price: nextPrice
+          price: nextPrice,
+          reviewQuantity: nextReviewQuantity,
+          changeQuantity: nextChangeQuantity,
+          reviewPrice: nextReviewPrice
         }
       })
       boqDialogOpen.value = false
@@ -841,7 +1434,10 @@ const submitBoqDialog = async () => {
         name: nextName,
         unit: nextUnit,
         quantity: nextQuantity,
-        price: nextPrice
+        price: nextPrice,
+        reviewQuantity: nextReviewQuantity,
+        changeQuantity: nextChangeQuantity,
+        reviewPrice: nextReviewPrice
       }
     })
     boqDialogOpen.value = false

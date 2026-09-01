@@ -6,7 +6,6 @@ import type {
 import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
 import { BadRequestError } from '@/modules/shared/errors'
 import cryptoRandomString from 'crypto-random-string'
-import type { Knex } from 'knex'
 import dayjs from 'dayjs'
 
 type MonthlyMeasurementPreviewItem = {
@@ -24,6 +23,11 @@ type MonthlyMeasurementPreviewItem = {
   sourceAcceptances: QualityAcceptanceFormRecord[]
   isSummaryRow: boolean
   sortIndex: number
+  reviewPrice?: number | null
+  reviewQuantity?: number | null
+  changeQuantity?: number | null
+  totalQuantityWithChanges?: number | null
+  reviewAmount?: number | null
 }
 
 const prepareMonthlyMeasurementSnapshotRows = (
@@ -135,7 +139,9 @@ type BuildPreviewDeps = {
     currentMeasurementId?: string | null
   }) => Promise<QualityAcceptanceFormRecord[]>
   getProjectBoqItems: (params: { projectId: string }) => Promise<BoqItemRecord[]>
-  getQualityAcceptanceFormsByIds: (params: { ids: string[] }) => Promise<QualityAcceptanceFormRecord[]>
+  getQualityAcceptanceFormsByIds: (params: {
+    ids: string[]
+  }) => Promise<QualityAcceptanceFormRecord[]>
 }
 
 export const buildMonthlyMeasurementPreviewFactory =
@@ -255,6 +261,22 @@ export const buildMonthlyMeasurementPreviewFactory =
     const previewById = new Map<string, MonthlyMeasurementPreviewItem>()
     for (const item of includedItems) {
       const groupedItem = grouped.get(item.id)
+      const reviewPrice = toNullableNumber(item.reviewPrice)
+      const reviewQuantity = toNullableNumber(item.reviewQuantity)
+      const changeQuantity = toNullableNumber(item.changeQuantity)
+      const totalQuantityWithChanges =
+        reviewQuantity !== null || changeQuantity !== null
+          ? Number(((reviewQuantity ?? 0) + (changeQuantity ?? 0)).toFixed(6))
+          : null
+      let reviewAmount = toNullableNumber(item.reviewAmount)
+      if (
+        reviewAmount === null &&
+        reviewPrice !== null &&
+        totalQuantityWithChanges !== null
+      ) {
+        reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
+      }
+
       previewById.set(item.id, {
         boqItemId: item.id,
         boqCode: item.code,
@@ -269,7 +291,12 @@ export const buildMonthlyMeasurementPreviewFactory =
         sourceAcceptanceIds: groupedItem?.sourceAcceptanceIds || [],
         sourceAcceptances: groupedItem?.sourceAcceptances || [],
         isSummaryRow: parentIds.has(item.id),
-        sortIndex: 0
+        sortIndex: 0,
+        reviewPrice,
+        reviewQuantity,
+        changeQuantity,
+        totalQuantityWithChanges,
+        reviewAmount
       })
     }
 
@@ -281,18 +308,43 @@ export const buildMonthlyMeasurementPreviewFactory =
       const current = previewById.get(boqItemId)
       if (!current) return
       if (!children.length) return
-      
+
       current.pendingTotalQty = 0
       current.approvedCumulativeQty = 0
-      
+
+      let sumReviewTotalQty: number | null = null
+      let sumReviewAmount: number | null = null
+
       for (const child of children) {
         const childPreview = previewById.get(child.id)
         if (!childPreview) continue
         current.pendingTotalQty += Math.max(childPreview.pendingTotalQty, 0)
         current.approvedCumulativeQty += childPreview.approvedCumulativeQty
+
+        if (
+          childPreview.totalQuantityWithChanges !== null &&
+          childPreview.totalQuantityWithChanges !== undefined
+        ) {
+          sumReviewTotalQty = Number(
+            ((sumReviewTotalQty ?? 0) + childPreview.totalQuantityWithChanges).toFixed(
+              6
+            )
+          )
+        }
+        if (
+          childPreview.reviewAmount !== null &&
+          childPreview.reviewAmount !== undefined
+        ) {
+          sumReviewAmount = Number(
+            ((sumReviewAmount ?? 0) + childPreview.reviewAmount).toFixed(2)
+          )
+        }
       }
       if (current.isSummaryRow) {
         current.measuredQtyDefault = 0
+        current.totalQuantityWithChanges = sumReviewTotalQty
+        current.reviewAmount = sumReviewAmount
+        current.reviewPrice = null
       }
     }
 
@@ -380,7 +432,8 @@ export const createMonthlyMeasurementFromPreviewFactory =
     const currentYear = dayjs(params.baseDate).year()
 
     // 1. 获取所有的历史已通过的明细记录（投资监理审定量）
-    const approvedItems = await deps.db('monthly_measurement_items')
+    const approvedItems = await deps
+      .db('monthly_measurement_items')
       .join(
         'monthly_measurements',
         'monthly_measurement_items.measurementId',
@@ -418,12 +471,27 @@ export const createMonthlyMeasurementFromPreviewFactory =
     )
 
     // 2. 获取安全文明措施费明细项，用于工程量覆盖
-    const safetyMap = new Map<string, { contractorQty: number; supervisionQty: number; headquartersQty: number; investmentQty: number }>()
+    const safetyMap = new Map<
+      string,
+      {
+        contractorQty: number
+        supervisionQty: number
+        headquartersQty: number
+        investmentQty: number
+      }
+    >()
     if (params.safetyMeasureId) {
-      const safetyItems = await deps.db('safety_measure_items')
+      const safetyItems = await deps
+        .db('safety_measure_items')
         .where('safetyMeasureId', params.safetyMeasureId)
         .andWhere('isSummaryRow', false)
-        .select('boqItemId', 'contractorQty', 'supervisionQty', 'headquartersQty', 'engineeringQty')
+        .select(
+          'boqItemId',
+          'contractorQty',
+          'supervisionQty',
+          'headquartersQty',
+          'engineeringQty'
+        )
       for (const s of safetyItems) {
         safetyMap.set(s.boqItemId, {
           contractorQty: Number(s.contractorQty) || 0,
@@ -501,7 +569,8 @@ export const createMonthlyMeasurementFromPreviewFactory =
       new Set(items.flatMap((it) => it.sourceAcceptanceIds || []).filter(Boolean))
     )
     if (allSourceAcceptanceIds.length > 0) {
-      await deps.db('quality_acceptance_forms')
+      await deps
+        .db('quality_acceptance_forms')
         .whereIn('id', allSourceAcceptanceIds)
         .update({
           occupiedMeasurementId: measurement.id,

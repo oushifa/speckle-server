@@ -23,6 +23,10 @@ export type BoqItemRecord = {
   quantity: string | null
   price: string | null
   amount: string | null
+  reviewQuantity: string | null
+  changeQuantity: string | null
+  reviewPrice: string | null
+  reviewAmount: string | null
   sortOrder: number
   depth: number
   createdAt: Date
@@ -144,6 +148,10 @@ export const updateBoqItemFactory =
         | 'quantity'
         | 'price'
         | 'amount'
+        | 'reviewQuantity'
+        | 'changeQuantity'
+        | 'reviewPrice'
+        | 'reviewAmount'
         | 'sortOrder'
         | 'depth'
         | 'updatedAt'

@@ -555,6 +555,11 @@ export const BoqItems = buildTableHelper('boq_items', [
   'unit',
   'quantity',
   'price',
+  'amount',
+  'reviewQuantity',
+  'changeQuantity',
+  'reviewPrice',
+  'reviewAmount',
   'sortOrder',
   'depth',
   'createdAt',
@@ -740,25 +745,28 @@ export const MonthlyMeasurements = buildTableHelper('monthly_measurements', [
   'updatedAt'
 ])
 
-export const MonthlyMeasurementDetails = buildTableHelper('monthly_measurement_details', [
-  'id',
-  'measurementId',
-  'acceptanceAttachments',
-  'supervisionOpinion',
-  'supervisionAuditor',
-  'supervisionDate',
-  'headquartersOpinion',
-  'headquartersAuditor',
-  'headquartersDate',
-  'investmentOpinion',
-  'investmentAuditor',
-  'investmentDate',
-  'ownerOpinion',
-  'ownerAuditor',
-  'ownerDate',
-  'createdAt',
-  'updatedAt'
-])
+export const MonthlyMeasurementDetails = buildTableHelper(
+  'monthly_measurement_details',
+  [
+    'id',
+    'measurementId',
+    'acceptanceAttachments',
+    'supervisionOpinion',
+    'supervisionAuditor',
+    'supervisionDate',
+    'headquartersOpinion',
+    'headquartersAuditor',
+    'headquartersDate',
+    'investmentOpinion',
+    'investmentAuditor',
+    'investmentDate',
+    'ownerOpinion',
+    'ownerAuditor',
+    'ownerDate',
+    'createdAt',
+    'updatedAt'
+  ]
+)
 
 export const MonthlyPaymentDetails = buildTableHelper('monthly_payment_details', [
   'id',

@@ -76,7 +76,7 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
     await createTestWorkspace(workspace, user, {
       regionKey: getMainTestRegionKeyIfMultiRegion()
     })
-    
+
     // Create token
     ;({ token } = await createToken({
       userId: user.id,
@@ -95,8 +95,9 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
   })
 
   it('Imports standard BOQ Excel successfully', async () => {
-    const excelPath = '/Users/yujian/work/speckle-server/packages/frontend-2/public/1-南北通道浦西段和越江段新建工程2标-市出-整理后.xlsx'
-    
+    const excelPath =
+      '/Users/yujian/work/speckle-server/packages/frontend-2/public/1-南北通道浦西段和越江段新建工程2标-市出-整理后.xlsx'
+
     const response = await request(app)
       .post(`/api/v1/projects/${projectId}/boq/import-excel`)
       .set('Authorization', `Bearer ${token}`)
@@ -109,7 +110,16 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
 
   it('Imports BOQ Excel when amount header uses 合同价（元）', async () => {
     const excelBuffer = createBoqExcelBuffer([
-      ['清单编码', '清单名称', '类型', '上级编码', '计量单位', '工程量', '综合单价（元）', '合同价（元）'],
+      [
+        '清单编码',
+        '清单名称',
+        '类型',
+        '上级编码',
+        '计量单位',
+        '工程量',
+        '综合单价（元）',
+        '合同价（元）'
+      ],
       ['C99', '测试单位工程', '单位工程', '', '', '', '', ''],
       ['C9901', '测试分类工程', '分类工程', 'C99', '', '', '', 2468.5]
     ])
@@ -128,7 +138,7 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
       .first()
 
     expect(importedItem).to.exist
-    expect(importedItem.amount).to.equal('2468.5')
+    expect(Number(importedItem.amount)).to.equal(2468.5)
   })
 
   it('Exports BOQ Excel successfully', async () => {
@@ -158,9 +168,40 @@ describe('BOQ Excel Import and Export REST API @boq-rest', () => {
     expect(response.body.length).to.be.greaterThan(0)
   })
 
+  it('Updates BOQ item review quantities and calculates total and amount via REST PATCH', async () => {
+    const projectDb = await getProjectDbClient({ projectId })
+    const item = await projectDb('boq_items').where({ projectId, type: 'ITEM' }).first()
+    expect(item).to.exist
+
+    const patchRes = await request(app)
+      .patch(`/api/v1/projects/${projectId}/boq/items/${item.id}/review`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        reviewQuantity: 100,
+        changeQuantity: 20,
+        reviewPrice: 50
+      })
+
+    expect(patchRes.status).to.equal(200)
+    expect(patchRes.body.success).to.be.true
+    expect(patchRes.body.item).to.exist
+    expect(patchRes.body.item.reviewQuantity).to.equal(100)
+    expect(patchRes.body.item.changeQuantity).to.equal(20)
+    expect(patchRes.body.item.totalQuantityWithChanges).to.equal(120)
+    expect(patchRes.body.item.reviewPrice).to.equal(50)
+    expect(patchRes.body.item.reviewAmount).to.equal(6000)
+
+    const reloaded = await projectDb('boq_items').where({ id: item.id }).first()
+    expect(Number(reloaded.reviewQuantity)).to.equal(100)
+    expect(Number(reloaded.changeQuantity)).to.equal(20)
+    expect(Number(reloaded.reviewPrice)).to.equal(50)
+    expect(Number(reloaded.reviewAmount)).to.equal(6000)
+  })
+
   it('Blocks requests without valid authorization token', async () => {
-    const response = await request(app)
-      .get(`/api/v1/projects/${projectId}/boq/export-excel`)
+    const response = await request(app).get(
+      `/api/v1/projects/${projectId}/boq/export-excel`
+    )
 
     expect([401, 403]).to.include(response.status)
   })

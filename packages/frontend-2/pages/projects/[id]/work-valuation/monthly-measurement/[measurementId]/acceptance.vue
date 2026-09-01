@@ -1091,13 +1091,13 @@
 
                 <!-- 复核量 -->
                 <td class="text-right font-mono border-r border-black">
-                  {{ !row.isSummaryRow ? formatMoney(row.price) : '-' }}
+                  {{ !row.isSummaryRow ? formatMoney(row.reviewPrice) : '-' }}
                 </td>
                 <td class="text-right font-mono border-r border-black">
-                  {{ formatQty(row.pendingTotalQty) }}
+                  {{ formatQty(row.totalQuantityWithChanges) }}
                 </td>
                 <td class="text-right font-mono border-r border-black">
-                  {{ formatMoney(row.contractAmount) }}
+                  {{ formatMoney(row.reviewAmount) }}
                 </td>
 
                 <!-- 本月完成数 -->
@@ -1174,10 +1174,10 @@
                 <!-- 复核量 -->
                 <td class="text-right border-r border-black">-</td>
                 <td class="text-right font-mono border-r border-black">
-                  {{ formatQty(printDetailRoot.pendingTotalQty) }}
+                  {{ formatQty(printDetailRoot.totalQuantityWithChanges) }}
                 </td>
                 <td class="text-right font-mono border-r border-black">
-                  {{ formatMoney(printDetailRoot.contractAmount) }}
+                  {{ formatMoney(printDetailRoot.reviewAmount) }}
                 </td>
                 <!-- 本月完成数 -->
                 <!-- 施工单位 -->
@@ -1233,80 +1233,79 @@
                 <td colspan="23" class="print-opinions-cell !p-0">
                   <!-- 四方盖章意见 -->
                   <div class="grid w-full grid-cols-4 print-opinions">
-                  <div
-                    class="border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
-                  >
-                    <div class="font-bold">施工监理意见：</div>
-                    <div class="italic flex-grow">
-                      {{ acceptanceDetails.supervisionOpinion || '' }}
-                    </div>
-                    <div class="text-[10px]">
-                      <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
-                      <div>
-                        日&nbsp;&nbsp;期：{{
-                          getAcceptanceOperatorDate('施工监理经办人') ||
-                          formatDate(acceptanceDetails.supervisionDate)
-                        }}
+                    <div
+                      class="border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                    >
+                      <div class="font-bold">施工监理意见：</div>
+                      <div class="italic flex-grow">
+                        {{ acceptanceDetails.supervisionOpinion || '' }}
+                      </div>
+                      <div class="text-[10px]">
+                        <div>经办人：{{ getAcceptanceAuditUser('supervision') }}</div>
+                        <div>
+                          日&nbsp;&nbsp;期：{{
+                            getAcceptanceOperatorDate('施工监理经办人') ||
+                            formatDate(acceptanceDetails.supervisionDate)
+                          }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div
-                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
-                  >
-                    <div class="font-bold">现场指挥部意见：</div>
-                    <div class="italic flex-grow">
-                      {{ acceptanceDetails.headquartersOpinion || '' }}
-                    </div>
-                    <div class="text-[10px]">
-                      <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
-                      <div>
-                        日&nbsp;&nbsp;期：{{
-                          getAcceptanceOperatorDate('现场指挥部经办人') ||
-                          formatDate(acceptanceDetails.headquartersDate)
-                        }}
+                    <div
+                      class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                    >
+                      <div class="font-bold">现场指挥部意见：</div>
+                      <div class="italic flex-grow">
+                        {{ acceptanceDetails.headquartersOpinion || '' }}
+                      </div>
+                      <div class="text-[10px]">
+                        <div>经办人：{{ getAcceptanceAuditUser('headquarters') }}</div>
+                        <div>
+                          日&nbsp;&nbsp;期：{{
+                            getAcceptanceOperatorDate('现场指挥部经办人') ||
+                            formatDate(acceptanceDetails.headquartersDate)
+                          }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div
-                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
-                  >
-                    <div class="font-bold">投资监理意见：</div>
-                    <div class="italic flex-grow">
-                      {{ acceptanceDetails.investmentOpinion || '' }}
-                    </div>
-                    <div class="text-[10px]">
-                      <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
-                      <div>
-                        日&nbsp;&nbsp;期：{{
-                          getAcceptanceOperatorDate('投资监理经办人') ||
-                          formatDate(acceptanceDetails.investmentDate)
-                        }}
+                    <div
+                      class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                    >
+                      <div class="font-bold">投资监理意见：</div>
+                      <div class="italic flex-grow">
+                        {{ acceptanceDetails.investmentOpinion || '' }}
+                      </div>
+                      <div class="text-[10px]">
+                        <div>经办人：{{ getAcceptanceAuditUser('investment') }}</div>
+                        <div>
+                          日&nbsp;&nbsp;期：{{
+                            getAcceptanceOperatorDate('投资监理经办人') ||
+                            formatDate(acceptanceDetails.investmentDate)
+                          }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div
-                    class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
-                  >
-                    <div class="font-bold">合约部管理意见：</div>
-                    <div class="italic flex-grow">
-                      {{ acceptanceDetails.ownerOpinion || '' }}
-                    </div>
-                    <div class="text-[10px]">
-                      <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
-                      <div>
-                        日&nbsp;&nbsp;期：{{
-                          getAcceptanceOperatorDate('合约管理部经办人') ||
-                          formatDate(acceptanceDetails.ownerDate)
-                        }}
+                    <div
+                      class="border-l border-black p-3 space-y-2 text-xs flex flex-col justify-between h-36"
+                    >
+                      <div class="font-bold">合约部管理意见：</div>
+                      <div class="italic flex-grow">
+                        {{ acceptanceDetails.ownerOpinion || '' }}
+                      </div>
+                      <div class="text-[10px]">
+                        <div>经办人：{{ getAcceptanceAuditUser('owner') }}</div>
+                        <div>
+                          日&nbsp;&nbsp;期：{{
+                            getAcceptanceOperatorDate('合约管理部经办人') ||
+                            formatDate(acceptanceDetails.ownerDate)
+                          }}
+                        </div>
                       </div>
                     </div>
-                  </div>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-
         </div>
       </div>
     </Teleport>
@@ -1382,7 +1381,9 @@ const headquartersApprovalStepNames = [
 ] as const
 
 const isHeadquartersApprovalStep = computed(() =>
-  headquartersApprovalStepNames.includes(currentStepName.value as (typeof headquartersApprovalStepNames)[number])
+  headquartersApprovalStepNames.includes(
+    currentStepName.value as (typeof headquartersApprovalStepNames)[number]
+  )
 )
 
 const flowInitiatorName = computed(() => {
@@ -1549,7 +1550,9 @@ const modelViewerOpen = ref(false)
 
 const route = useRoute()
 const isAdminOperationMode = computed(() => route.query.adminMode === '1')
-const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+const isReadOnly = computed(
+  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+)
 
 const permissions = computed(() => {
   const result = {
@@ -2239,7 +2242,8 @@ const getPrintableDetailItemIds = (
 
   const printableIds = new Set<string>()
   allItems.forEach((item) => {
-    if (!selectedSubtreeIds.has(item.boqItemId) || !hasFilledPrintDetailData(item)) return
+    if (!selectedSubtreeIds.has(item.boqItemId) || !hasFilledPrintDetailData(item))
+      return
 
     let currentId: string | null = item.boqItemId
     while (currentId && selectedSubtreeIds.has(currentId)) {
@@ -2350,6 +2354,9 @@ const executePrintDetail = async () => {
         row.lastCumulativeQty = 0
         row.yearlyCumulativeQty = 0
         row.pendingTotalQty = 0
+        row.totalQuantityWithChanges = null
+        row.reviewAmount = null
+        row.reviewPrice = null
 
         // 汇总行金额初始化
         row.contractAmount = 0
@@ -2360,8 +2367,37 @@ const executePrintDetail = async () => {
         row.yearlyAmount = 0
         row.cumulativeAmount = 0
       } else {
-        // 明明细行金额初始化
+        // 明细行金额初始化
         const price = toSafeNumber(row.price)
+        const reviewPrice =
+          row.reviewPrice !== null &&
+          row.reviewPrice !== undefined &&
+          row.reviewPrice !== ''
+            ? Number(row.reviewPrice)
+            : null
+        const totalQuantityWithChanges =
+          row.totalQuantityWithChanges !== null &&
+          row.totalQuantityWithChanges !== undefined &&
+          row.totalQuantityWithChanges !== ''
+            ? Number(row.totalQuantityWithChanges)
+            : null
+        let reviewAmount =
+          row.reviewAmount !== null &&
+          row.reviewAmount !== undefined &&
+          row.reviewAmount !== ''
+            ? Number(row.reviewAmount)
+            : null
+        if (
+          reviewAmount === null &&
+          reviewPrice !== null &&
+          totalQuantityWithChanges !== null
+        ) {
+          reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
+        }
+        row.reviewPrice = reviewPrice
+        row.totalQuantityWithChanges = totalQuantityWithChanges
+        row.reviewAmount = reviewAmount
+
         row.contractAmount =
           row.boqAmount !== undefined && row.boqAmount !== null
             ? toSafeNumber(row.boqAmount)
@@ -2399,9 +2435,23 @@ const executePrintDetail = async () => {
         parent.lastCumulativeQty =
           toSafeNumber(parent.lastCumulativeQty) + toSafeNumber(row.lastCumulativeQty)
         parent.yearlyCumulativeQty =
-          toSafeNumber(parent.yearlyCumulativeQty) + toSafeNumber(row.yearlyCumulativeQty)
+          toSafeNumber(parent.yearlyCumulativeQty) +
+          toSafeNumber(row.yearlyCumulativeQty)
         parent.pendingTotalQty =
           toSafeNumber(parent.pendingTotalQty) + toSafeNumber(row.pendingTotalQty)
+
+        if (
+          row.totalQuantityWithChanges !== null &&
+          row.totalQuantityWithChanges !== undefined
+        ) {
+          parent.totalQuantityWithChanges =
+            (parent.totalQuantityWithChanges ?? 0) +
+            toSafeNumber(row.totalQuantityWithChanges)
+        }
+        if (row.reviewAmount !== null && row.reviewAmount !== undefined) {
+          parent.reviewAmount =
+            (parent.reviewAmount ?? 0) + toSafeNumber(row.reviewAmount)
+        }
 
         // 累加金额
         parent.contractAmount =
@@ -2430,6 +2480,8 @@ const executePrintDetail = async () => {
       price: 0,
       pendingTotalQty: 0,
       boqAmount: 0,
+      totalQuantityWithChanges: null as number | null,
+      reviewAmount: null as number | null,
       contractorQty: 0,
       supervisionQty: 0,
       headquartersQty: 0,
@@ -2454,6 +2506,18 @@ const executePrintDetail = async () => {
           rootRow.boqAmount !== undefined && rootRow.boqAmount !== null
             ? toSafeNumber(rootRow.boqAmount)
             : toSafeNumber(rootRow.pendingTotalQty) * toSafeNumber(rootRow.price)
+        if (
+          rootRow.totalQuantityWithChanges !== null &&
+          rootRow.totalQuantityWithChanges !== undefined
+        ) {
+          sumRoot.totalQuantityWithChanges =
+            (sumRoot.totalQuantityWithChanges ?? 0) +
+            toSafeNumber(rootRow.totalQuantityWithChanges)
+        }
+        if (rootRow.reviewAmount !== null && rootRow.reviewAmount !== undefined) {
+          sumRoot.reviewAmount =
+            (sumRoot.reviewAmount ?? 0) + toSafeNumber(rootRow.reviewAmount)
+        }
         sumRoot.contractorQty += toSafeNumber(rootRow.contractorQty)
         sumRoot.supervisionQty += toSafeNumber(rootRow.supervisionQty)
         sumRoot.headquartersQty += toSafeNumber(rootRow.headquartersQty)

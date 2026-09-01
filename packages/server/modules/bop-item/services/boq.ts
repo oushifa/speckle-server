@@ -1,7 +1,10 @@
 import type { Collection } from '@/modules/shared/helpers/dbHelper'
 import type { BoqItemRecord, BoqItemType } from '@/modules/bop-item/repositories/boq'
 import { boqItemTypes } from '@/modules/bop-item/repositories/boq'
-import { BoqItemNotFoundError, BoqItemValidationError } from '@/modules/bop-item/errors/boq'
+import {
+  BoqItemNotFoundError,
+  BoqItemValidationError
+} from '@/modules/bop-item/errors/boq'
 import { clamp } from 'lodash-es'
 import cryptoRandomString from 'crypto-random-string'
 
@@ -41,6 +44,11 @@ export type BoqItem = {
   quantity: number | null
   price: number | null
   amount: number | null
+  reviewQuantity: number | null
+  changeQuantity: number | null
+  totalQuantityWithChanges: number | null
+  reviewPrice: number | null
+  reviewAmount: number | null
   sortOrder: number
   depth: number
   createdAt: Date
@@ -55,14 +63,34 @@ const toNullableNumber = (value: string | null): number | null => {
   return Number.isNaN(parsed) ? null : parsed
 }
 
-const toBoqItem = (item: BoqItemRecord): BoqItem => ({
-  ...item,
-  quantity: toNullableNumber(item.quantity),
-  price: toNullableNumber(item.price),
-  amount: toNullableNumber(item.amount),
-  hasChildren: false,
-  children: []
-})
+const toBoqItem = (item: BoqItemRecord): BoqItem => {
+  const quantity = toNullableNumber(item.quantity)
+  const price = toNullableNumber(item.price)
+  const amount = toNullableNumber(item.amount)
+  const reviewQuantity = toNullableNumber(item.reviewQuantity)
+  const changeQuantity = toNullableNumber(item.changeQuantity)
+  const reviewPrice = toNullableNumber(item.reviewPrice)
+  const reviewAmount = toNullableNumber(item.reviewAmount)
+
+  const totalQuantityWithChanges =
+    reviewQuantity !== null || changeQuantity !== null
+      ? Number(((reviewQuantity ?? 0) + (changeQuantity ?? 0)).toFixed(6))
+      : null
+
+  return {
+    ...item,
+    quantity,
+    price,
+    amount,
+    reviewQuantity,
+    changeQuantity,
+    totalQuantityWithChanges,
+    reviewPrice,
+    reviewAmount,
+    hasChildren: false,
+    children: []
+  }
+}
 
 const validateType = (type: string): type is BoqItemType => {
   return boqItemTypes.includes(type as BoqItemType)
@@ -92,6 +120,38 @@ const buildBoqTree = (items: BoqItemRecord[]) => {
     parent.children.push(item)
     parent.hasChildren = true
   })
+
+  // 向上递归汇总各层级金额
+  const computeTotals = (node: BoqItem) => {
+    if (!node.children || node.children.length === 0) {
+      return
+    }
+    let sumAmount = 0
+    let hasChildAmount = false
+    let sumReviewAmount = 0
+    let hasChildReviewAmount = false
+
+    node.children.forEach((child) => {
+      computeTotals(child)
+      if (child.amount !== null && child.amount !== undefined) {
+        sumAmount += child.amount
+        hasChildAmount = true
+      }
+      if (child.reviewAmount !== null && child.reviewAmount !== undefined) {
+        sumReviewAmount += child.reviewAmount
+        hasChildReviewAmount = true
+      }
+    })
+
+    if (node.amount === null && hasChildAmount) {
+      node.amount = Number(sumAmount.toFixed(2))
+    }
+    if (node.reviewAmount === null && hasChildReviewAmount) {
+      node.reviewAmount = Number(sumReviewAmount.toFixed(2))
+    }
+  }
+
+  roots.forEach(computeTotals)
 
   return roots
 }
@@ -202,6 +262,10 @@ export type CreateBoqItem = (params: {
   quantity?: number | null
   price?: number | null
   amount?: number | null
+  reviewQuantity?: number | null
+  changeQuantity?: number | null
+  reviewPrice?: number | null
+  reviewAmount?: number | null
   sortOrder?: number | null
 }) => Promise<BoqItem>
 
@@ -227,6 +291,10 @@ export const createBoqItemFactory =
     quantity,
     price,
     amount,
+    reviewQuantity,
+    changeQuantity,
+    reviewPrice,
+    reviewAmount,
     sortOrder
   }) => {
     if (!validateType(type)) {
@@ -261,6 +329,36 @@ export const createBoqItemFactory =
       parentId: resolvedParentId
     })
     const now = new Date()
+
+    const resolvedReviewQuantity =
+      reviewQuantity !== undefined
+        ? reviewQuantity
+        : quantity !== null && quantity !== undefined
+        ? quantity
+        : null
+    const resolvedChangeQuantity = changeQuantity !== undefined ? changeQuantity : null
+    const resolvedReviewPrice =
+      reviewPrice !== undefined
+        ? reviewPrice
+        : price !== null && price !== undefined
+        ? price
+        : null
+
+    let resolvedReviewAmount = reviewAmount
+    if (resolvedReviewAmount === undefined) {
+      if (
+        resolvedReviewQuantity !== null ||
+        resolvedChangeQuantity !== null ||
+        resolvedReviewPrice !== null
+      ) {
+        const totalQty = (resolvedReviewQuantity ?? 0) + (resolvedChangeQuantity ?? 0)
+        const p = resolvedReviewPrice ?? price ?? 0
+        resolvedReviewAmount = Number((p * totalQty).toFixed(2))
+      } else {
+        resolvedReviewAmount = null
+      }
+    }
+
     const item: BoqItemRecord = {
       id: cryptoRandomString({ length: 10 }),
       projectId,
@@ -272,6 +370,22 @@ export const createBoqItemFactory =
       quantity: quantity === null || quantity === undefined ? null : String(quantity),
       price: price === null || price === undefined ? null : String(price),
       amount: amount === null || amount === undefined ? null : String(amount),
+      reviewQuantity:
+        resolvedReviewQuantity === null || resolvedReviewQuantity === undefined
+          ? null
+          : String(resolvedReviewQuantity),
+      changeQuantity:
+        resolvedChangeQuantity === null || resolvedChangeQuantity === undefined
+          ? null
+          : String(resolvedChangeQuantity),
+      reviewPrice:
+        resolvedReviewPrice === null || resolvedReviewPrice === undefined
+          ? null
+          : String(resolvedReviewPrice),
+      reviewAmount:
+        resolvedReviewAmount === null || resolvedReviewAmount === undefined
+          ? null
+          : String(resolvedReviewAmount),
       sortOrder: sortOrder ?? (maxSortOrder !== null ? maxSortOrder + 1 : 0),
       depth: resolvedDepth,
       createdAt: now,
@@ -290,6 +404,10 @@ export type UpdateBoqItem = (params: {
   quantity?: number | null
   price?: number | null
   amount?: number | null
+  reviewQuantity?: number | null
+  changeQuantity?: number | null
+  reviewPrice?: number | null
+  reviewAmount?: number | null
   sortOrder?: number | null
 }) => Promise<BoqItem>
 
@@ -312,6 +430,10 @@ export const updateBoqItemFactory =
           | 'quantity'
           | 'price'
           | 'amount'
+          | 'reviewQuantity'
+          | 'changeQuantity'
+          | 'reviewPrice'
+          | 'reviewAmount'
           | 'sortOrder'
           | 'depth'
           | 'updatedAt'
@@ -319,9 +441,55 @@ export const updateBoqItemFactory =
       >
     }) => Promise<number>
   }): UpdateBoqItem =>
-  async ({ projectId, itemId, code, name, unit, quantity, price, amount, sortOrder }) => {
+  async ({
+    projectId,
+    itemId,
+    code,
+    name,
+    unit,
+    quantity,
+    price,
+    amount,
+    reviewQuantity,
+    changeQuantity,
+    reviewPrice,
+    reviewAmount,
+    sortOrder
+  }) => {
     const item = await deps.getBoqItem({ projectId, id: itemId })
     if (!item) throw new BoqItemNotFoundError()
+
+    const finalReviewQuantity =
+      reviewQuantity === undefined
+        ? toNullableNumber(item.reviewQuantity)
+        : reviewQuantity
+    const finalChangeQuantity =
+      changeQuantity === undefined
+        ? toNullableNumber(item.changeQuantity)
+        : changeQuantity
+    const finalReviewPrice =
+      reviewPrice === undefined
+        ? toNullableNumber(item.reviewPrice) ??
+          (price !== undefined ? price : toNullableNumber(item.price))
+        : reviewPrice
+
+    let finalReviewAmount: number | null = null
+    if (reviewAmount !== undefined) {
+      finalReviewAmount = reviewAmount
+    } else if (
+      finalReviewQuantity !== null ||
+      finalChangeQuantity !== null ||
+      finalReviewPrice !== null
+    ) {
+      const totalQty = (finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0)
+      const p =
+        finalReviewPrice ??
+        (price !== undefined ? price : toNullableNumber(item.price)) ??
+        0
+      finalReviewAmount = Number((p * totalQty).toFixed(2))
+    } else {
+      finalReviewAmount = toNullableNumber(item.reviewAmount)
+    }
 
     const updated: BoqItemRecord = {
       ...item,
@@ -335,7 +503,12 @@ export const updateBoqItemFactory =
           ? null
           : String(quantity),
       price: price === undefined ? item.price : price === null ? null : String(price),
-      amount: amount === undefined ? item.amount : amount === null ? null : String(amount),
+      amount:
+        amount === undefined ? item.amount : amount === null ? null : String(amount),
+      reviewQuantity: finalReviewQuantity === null ? null : String(finalReviewQuantity),
+      changeQuantity: finalChangeQuantity === null ? null : String(finalChangeQuantity),
+      reviewPrice: finalReviewPrice === null ? null : String(finalReviewPrice),
+      reviewAmount: finalReviewAmount === null ? null : String(finalReviewAmount),
       sortOrder: sortOrder ?? item.sortOrder,
       updatedAt: new Date()
     }
@@ -350,12 +523,97 @@ export const updateBoqItemFactory =
         quantity: updated.quantity,
         price: updated.price,
         amount: updated.amount,
+        reviewQuantity: updated.reviewQuantity,
+        changeQuantity: updated.changeQuantity,
+        reviewPrice: updated.reviewPrice,
+        reviewAmount: updated.reviewAmount,
         sortOrder: updated.sortOrder,
         updatedAt: updated.updatedAt
       }
     })
 
     return toBoqItem(updated)
+  }
+
+export type UpdateBoqItemReview = (params: {
+  projectId: string
+  itemId: string
+  reviewQuantity?: number | null
+  changeQuantity?: number | null
+  reviewPrice?: number | null
+}) => Promise<BoqItem>
+
+export const updateBoqItemReviewFactory =
+  (deps: {
+    getBoqItem: (params: {
+      projectId: string
+      id: string
+    }) => Promise<BoqItemRecord | undefined>
+    updateBoqItem: (params: {
+      projectId: string
+      id: string
+      item: Partial<
+        Pick<
+          BoqItemRecord,
+          | 'reviewQuantity'
+          | 'changeQuantity'
+          | 'reviewPrice'
+          | 'reviewAmount'
+          | 'updatedAt'
+        >
+      >
+    }) => Promise<number>
+  }): UpdateBoqItemReview =>
+  async ({ projectId, itemId, reviewQuantity, changeQuantity, reviewPrice }) => {
+    const item = await deps.getBoqItem({ projectId, id: itemId })
+    if (!item) throw new BoqItemNotFoundError()
+
+    const finalReviewQuantity =
+      reviewQuantity === undefined
+        ? toNullableNumber(item.reviewQuantity)
+        : reviewQuantity
+    const finalChangeQuantity =
+      changeQuantity === undefined
+        ? toNullableNumber(item.changeQuantity)
+        : changeQuantity
+    const finalReviewPrice =
+      reviewPrice === undefined
+        ? toNullableNumber(item.reviewPrice) ?? toNullableNumber(item.price)
+        : reviewPrice
+
+    let finalReviewAmount: number | null = null
+    if (
+      finalReviewQuantity !== null ||
+      finalChangeQuantity !== null ||
+      finalReviewPrice !== null
+    ) {
+      const totalQty = (finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0)
+      const p = finalReviewPrice ?? toNullableNumber(item.price) ?? 0
+      finalReviewAmount = Number((p * totalQty).toFixed(2))
+    } else {
+      finalReviewAmount = null
+    }
+
+    const updatedRecord: Partial<BoqItemRecord> = {
+      reviewQuantity: finalReviewQuantity === null ? null : String(finalReviewQuantity),
+      changeQuantity: finalChangeQuantity === null ? null : String(finalChangeQuantity),
+      reviewPrice: finalReviewPrice === null ? null : String(finalReviewPrice),
+      reviewAmount: finalReviewAmount === null ? null : String(finalReviewAmount),
+      updatedAt: new Date()
+    }
+
+    await deps.updateBoqItem({
+      projectId,
+      id: itemId,
+      item: updatedRecord
+    })
+
+    const fullUpdated: BoqItemRecord = {
+      ...item,
+      ...updatedRecord
+    } as BoqItemRecord
+
+    return toBoqItem(fullUpdated)
   }
 
 export type ImportBoqItemRow = {
@@ -368,6 +626,10 @@ export type ImportBoqItemRow = {
   quantity?: number | null
   price?: number | null
   amount?: number | null
+  reviewQuantity?: number | null
+  changeQuantity?: number | null
+  reviewPrice?: number | null
+  reviewAmount?: number | null
 }
 
 export type BoqImportResult = {
@@ -471,7 +733,11 @@ export const importBoqItemsFactory =
             unit: row.unit ?? null,
             quantity: row.quantity ?? null,
             price: row.price ?? null,
-            amount: row.amount ?? null
+            amount: row.amount ?? null,
+            reviewQuantity: row.reviewQuantity ?? undefined,
+            changeQuantity: row.changeQuantity ?? undefined,
+            reviewPrice: row.reviewPrice ?? undefined,
+            reviewAmount: row.reviewAmount ?? undefined
           })
           updatedCount += 1
           progressed = true
@@ -487,7 +753,11 @@ export const importBoqItemsFactory =
           unit: row.unit ?? null,
           quantity: row.quantity ?? null,
           price: row.price ?? null,
-          amount: row.amount ?? null
+          amount: row.amount ?? null,
+          reviewQuantity: row.reviewQuantity ?? undefined,
+          changeQuantity: row.changeQuantity ?? undefined,
+          reviewPrice: row.reviewPrice ?? undefined,
+          reviewAmount: row.reviewAmount ?? undefined
         })
 
         runtimeItems.set(row.code, {
@@ -569,7 +839,9 @@ export const moveBoqItemFactory =
       const requiredTypes = requiredParentTypeMap[item.type]
       if (!requiredTypes?.includes(parent.type)) {
         throw new BoqItemValidationError(
-          `Invalid parent type for ${item.type}, expected ${requiredTypes?.join(' or ')}`
+          `Invalid parent type for ${item.type}, expected ${requiredTypes?.join(
+            ' or '
+          )}`
         )
       }
       nextDepth = parent.depth + 1
