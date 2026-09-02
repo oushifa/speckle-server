@@ -124,7 +124,8 @@ export const indexObjectsFromStream = async (
   for await (const row of rows) {
     try {
       const parsed =
-        row.data || (row.dataText ? (JSON.parse(row.dataText) as Record<string, unknown>) : null)
+        row.data ||
+        (row.dataText ? (JSON.parse(row.dataText) as Record<string, unknown>) : null)
       if (!parsed) continue
       objectMap.set(row.id, objectToLite(row.id, parsed))
     } catch {
@@ -280,11 +281,15 @@ const setQuantityField = (
   if (found) out[label] = formatQuantityValue(found)
 }
 
-const buildDisplayParameters = (raw: Record<string, unknown>): Record<string, FlatValue> => {
+const buildDisplayParameters = (
+  raw: Record<string, unknown>
+): Record<string, FlatValue> => {
   const out: Record<string, FlatValue> = {}
 
   const properties = isObject(raw.properties) ? raw.properties : undefined
-  const attributes = isObject(properties?.Attributes) ? properties.Attributes : undefined
+  const attributes = isObject(properties?.Attributes)
+    ? properties.Attributes
+    : undefined
   const quantities = collectNamedQuantities(
     isObject(properties?.Quantities) ? properties.Quantities : {}
   )
@@ -329,7 +334,7 @@ const buildDisplayParameters = (raw: Record<string, unknown>): Record<string, Fl
 
 export const getSyncElementIds = (
   raw: Record<string, unknown>,
-  sourceFileType: SourceFileType,
+  _sourceFileType?: SourceFileType,
   speckleObjectId?: string
 ): { id?: string; applicationId?: string; elementId?: string } => {
   let applicationId = pickIdString(raw.applicationId, raw.originalId, raw.originalID)
@@ -342,16 +347,8 @@ export const getSyncElementIds = (
     elementId = undefined
   }
 
-  if (sourceFileType === 'rvt') {
-    return {
-      id: elementId || applicationId,
-      applicationId: applicationId || undefined,
-      elementId: elementId || undefined
-    }
-  }
-
   return {
-    id: applicationId || elementId,
+    id: elementId || applicationId,
     applicationId: applicationId || undefined,
     elementId: elementId || undefined
   }
@@ -410,7 +407,11 @@ export const buildModelCustomLabelPayload = (params: {
 
     for (const [key, value] of Object.entries(parameters)) {
       const hasCurrent = Object.prototype.hasOwnProperty.call(existing.parameters, key)
-      if (!hasCurrent || existing.parameters[key] === null || existing.parameters[key] === '') {
+      if (
+        !hasCurrent ||
+        existing.parameters[key] === null ||
+        existing.parameters[key] === ''
+      ) {
         existing.parameters[key] = value
       }
     }

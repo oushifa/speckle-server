@@ -169,10 +169,10 @@ describe('Model custom label export', () => {
     ])
   })
 
-  it('prefers applicationId for .ifc models', () => {
+  it('prefers elementId regardless of model name or extension', () => {
     const payload = buildModelCustomLabelPayload({
-      modelSeedId: 'seed-ifc',
-      modelName: 'building.ifc',
+      modelSeedId: 'seed-custom',
+      modelName: '56 - 副本 (3)',
       versionCreatedAt: '2026-05-18T00:00:00.000Z',
       rootId: 'root-1',
       objectMap: new Map([
@@ -180,9 +180,9 @@ describe('Model custom label export', () => {
           'root-1',
           {
             id: 'root-1',
-            childrenIds: ['wall-1'],
+            childrenIds: ['wall-1', 'wall-2'],
             raw: {
-              elements: [{ referencedId: 'wall-1' }]
+              elements: [{ referencedId: 'wall-1' }, { referencedId: 'wall-2' }]
             }
           }
         ],
@@ -192,8 +192,21 @@ describe('Model custom label export', () => {
             id: 'wall-1',
             childrenIds: [],
             raw: {
-              applicationId: 'ifc-guid-001',
-              elementId: 99999,
+              applicationId: 'b5e6a1bb-53d4-4786-9605-392660652267-00051cc0',
+              elementId: 335040,
+              parameters: {
+                Category: '楼板'
+              }
+            }
+          }
+        ],
+        [
+          'wall-2',
+          {
+            id: 'wall-2',
+            childrenIds: [],
+            raw: {
+              applicationId: 'fallback-app-id',
               parameters: {
                 Category: '墙'
               }
@@ -205,9 +218,16 @@ describe('Model custom label export', () => {
 
     expect(payload.elements).to.deep.equal([
       {
-        id: 'ifc-guid-001',
-        applicationId: 'ifc-guid-001',
-        elementId: '99999',
+        id: '335040',
+        applicationId: 'b5e6a1bb-53d4-4786-9605-392660652267-00051cc0',
+        elementId: '335040',
+        parameters: {
+          Category: '楼板'
+        }
+      },
+      {
+        id: 'fallback-app-id',
+        applicationId: 'fallback-app-id',
         parameters: {
           Category: '墙'
         }
