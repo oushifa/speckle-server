@@ -147,8 +147,10 @@
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
                       '/progress/schedule',
+                      '/progress/annual',
                       '/progress/monthly',
                       '/progress/actual',
+                      '/progress/milestone',
                       '/progress/physical'
                     ]) && 'project-sidebar-group-wrapper-active'
                   ]"
@@ -168,10 +170,11 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2',
-                        isProjectActive('/progress/schedule') &&
-                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
-                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                        'py-2 border-l-4',
+                        isProjectActive('/progress/schedule') ||
+                        isProjectActive('/progress/annual')
+                          ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
+                          : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
                       ]"
                       extra-padding
                       label="进度计划"
@@ -184,13 +187,14 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2',
-                        isProjectActive('/progress/actual') &&
-                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
-                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                        'py-2 border-l-4',
+                        isProjectActive('/progress/actual') ||
+                        isProjectActive('/progress/milestone')
+                          ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
+                          : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
                       ]"
                       extra-padding
-                      label="实际进度"
+                      label="进度管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
@@ -549,6 +553,10 @@ const isProjectActive = (suffix = ''): boolean => {
   const base = projectBaseRoute.value
   if (!base) return false
   const fullPath = `${base}${suffix}`
+  if (suffix) {
+    // 子级路由（如 /progress/annual/:planId）保持父级菜单/分组高亮
+    return route.path === fullPath || route.path.startsWith(`${fullPath}/`)
+  }
   return route.path === fullPath
 }
 

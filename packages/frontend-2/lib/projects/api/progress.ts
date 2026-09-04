@@ -475,7 +475,15 @@ export async function getActualProgressRecords(params: {
 }) {
   const { projectId, apiOrigin } = params
   try {
-    const payload = await $fetch<{ data: any[] }>(
+    const payload = await $fetch<{
+      data: Array<
+        Record<string, unknown> & {
+          startBIM?: ActualProgressRecordBimSelection[]
+          BIM?: ActualProgressRecordBimSelection[]
+          finishBIM?: ActualProgressRecordBimSelection[]
+        }
+      >
+    }>(
       new URL(
         `/api/v1/projects/${projectId}/progress/actual-records`,
         apiOrigin
@@ -489,24 +497,16 @@ export async function getActualProgressRecords(params: {
       const startBIM = record.startBIM || record.BIM || []
       const finishBIM = record.finishBIM || []
 
-      const startModelIds = [
-        ...new Set(startBIM.map((e: any) => e.modelId))
-      ] as string[]
-      const startApplicationIds = startBIM.flatMap(
-        (e: any) => e.applicationIds
-      ) as string[]
-      const startSelections = startBIM.map((e: any) => ({
+      const startModelIds = [...new Set(startBIM.map((e) => e.modelId))]
+      const startApplicationIds = startBIM.flatMap((e) => e.applicationIds)
+      const startSelections = startBIM.map((e) => ({
         modelId: e.modelId,
         applicationIds: e.applicationIds
       }))
 
-      const finishModelIds = [
-        ...new Set(finishBIM.map((e: any) => e.modelId))
-      ] as string[]
-      const finishApplicationIds = finishBIM.flatMap(
-        (e: any) => e.applicationIds
-      ) as string[]
-      const finishSelections = finishBIM.map((e: any) => ({
+      const finishModelIds = [...new Set(finishBIM.map((e) => e.modelId))]
+      const finishApplicationIds = finishBIM.flatMap((e) => e.applicationIds)
+      const finishSelections = finishBIM.map((e) => ({
         modelId: e.modelId,
         applicationIds: e.applicationIds
       }))
@@ -519,7 +519,7 @@ export async function getActualProgressRecords(params: {
         finishModelIds,
         finishApplicationIds,
         finishSelections
-      } as ActualProgressRecord
+      } as unknown as ActualProgressRecord
     })
   } catch (error) {
     throw new Error(parseUnknownError(error))
@@ -944,6 +944,365 @@ export async function updateMonthlyPlanTaskBimAssociation(params: {
       {
         method: 'PUT',
         body: { selections }
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 年度计划 (Annual Plan)
+// ---------------------------------------------------------------------------
+
+export type AnnualPlan = {
+  id: string
+  projectId: string
+  year: number
+  name: string
+  startDate: string
+  endDate: string
+  preparedBy: string | null
+  blobId: string | null
+  fileName: string | null
+  fileSize: number | string | null
+  remark: string | null
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type AnnualPlanInput = {
+  year: number
+  name: string
+  startDate: string
+  endDate: string
+  preparedBy?: string | null
+  blobId?: string | null
+  fileName?: string | null
+  fileSize?: number | string | null
+  remark?: string | null
+}
+
+const annualPlansBaseUrl = (projectId: string) =>
+  `/api/v1/projects/${projectId}/progress/annual-plans`
+
+export async function getProgressAnnualPlans(params: {
+  projectId: string
+  apiOrigin: string
+  search?: string
+}): Promise<AnnualPlan[]> {
+  const { projectId, apiOrigin, search } = params
+  try {
+    const url = new URL(annualPlansBaseUrl(projectId), apiOrigin)
+    if (search && search.trim()) url.searchParams.set('search', search.trim())
+    const response = await $fetch<{ data: AnnualPlan[] }>(url.toString(), {
+      method: 'GET',
+      cache: 'no-store'
+    })
+    return response.data || []
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function getProgressAnnualPlan(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+}): Promise<AnnualPlan> {
+  const { projectId, planId, apiOrigin } = params
+  try {
+    const response = await $fetch<{ data: AnnualPlan }>(
+      new URL(`${annualPlansBaseUrl(projectId)}/${planId}`, apiOrigin).toString(),
+      {
+        method: 'GET',
+        cache: 'no-store'
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function createProgressAnnualPlan(params: {
+  projectId: string
+  apiOrigin: string
+  input: AnnualPlanInput
+}): Promise<AnnualPlan> {
+  const { projectId, apiOrigin, input } = params
+  try {
+    const response = await $fetch<{ data: AnnualPlan }>(
+      new URL(annualPlansBaseUrl(projectId), apiOrigin).toString(),
+      {
+        method: 'POST',
+        body: input
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateProgressAnnualPlan(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+  input: AnnualPlanInput
+}): Promise<AnnualPlan> {
+  const { projectId, planId, apiOrigin, input } = params
+  try {
+    const response = await $fetch<{ data: AnnualPlan }>(
+      new URL(`${annualPlansBaseUrl(projectId)}/${planId}`, apiOrigin).toString(),
+      {
+        method: 'PUT',
+        body: input
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function deleteProgressAnnualPlan(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+}): Promise<boolean> {
+  const { projectId, planId, apiOrigin } = params
+  try {
+    await $fetch<{ data: { id: string } }>(
+      new URL(`${annualPlansBaseUrl(projectId)}/${planId}`, apiOrigin).toString(),
+      {
+        method: 'DELETE'
+      }
+    )
+    return true
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function getLatestProgressAnnualPlanFile(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+}): Promise<ProgressPlanFile | null> {
+  const { projectId, planId, apiOrigin } = params
+  try {
+    const response = await $fetch<{ data: ProgressPlanFile | null }>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/plan-files`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache'
+        }
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function uploadProgressAnnualPlanFile(
+  params: {
+    projectId: string
+    planId: string
+    file: File
+    apiOrigin: string
+  },
+  callbacks?: Partial<{
+    onProgress: (percentage: number) => void
+  }>
+) {
+  const { projectId, planId, file, apiOrigin } = params
+  const { onProgress } = callbacks || {}
+
+  const data = new FormData()
+  const formKey = 'file'
+  data.append(formKey, file)
+
+  try {
+    onProgress?.(0)
+
+    const uploadPayload = await $fetch<PostBlobResponse>(
+      new URL(`/api/stream/${projectId}/blob`, apiOrigin).toString(),
+      {
+        method: 'POST',
+        body: data
+      }
+    )
+    const uploadResults =
+      (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
+    const result = uploadResults.find((r) => r.formKey === formKey)
+
+    if (!result?.blobId) {
+      throw new Error(result?.uploadError || '文件上传后未返回 blobId')
+    }
+
+    const payload = await $fetch<ProgressPlanUploadResult>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/plan-files`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'POST',
+        body: {
+          blobId: result.blobId,
+          fileName: result.fileName || file.name,
+          fileType: 'mpp',
+          fileSize: result.fileSize || file.size || null
+        }
+      }
+    )
+
+    onProgress?.(100)
+    return payload
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function downloadProgressAnnualPlanFile(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+  fallbackFileName?: string
+}) {
+  const {
+    projectId,
+    planId,
+    apiOrigin,
+    fallbackFileName = 'progress-plan.xml'
+  } = params
+  try {
+    const response = await $fetch.raw<Blob>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/plan-files/download`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'GET',
+        responseType: 'blob'
+      }
+    )
+
+    const blob = response._data
+    if (!blob) {
+      throw new Error('下载失败，服务端未返回文件内容')
+    }
+    const fileName = parseFileNameFromDisposition(
+      response.headers.get('content-disposition'),
+      fallbackFileName
+    )
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = fileName
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function getProgressAnnualPlanTasks(params: {
+  projectId: string
+  planId: string
+  apiOrigin: string
+}): Promise<ProgressPlanTask[]> {
+  const { projectId, planId, apiOrigin } = params
+  try {
+    const response = await $fetch<{ data: ProgressPlanTask[] }>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/plan-tasks`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'GET'
+      }
+    )
+    return response.data || []
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateProgressAnnualPlanTaskBimAssociation(params: {
+  projectId: string
+  planId: string
+  taskId: string
+  BIM?: Array<{
+    modelId: string
+    applicationIds: string[]
+    bimIds: (string | null)[]
+  }> | null
+  apiOrigin: string
+}): Promise<ProgressPlanTask> {
+  const { projectId, planId, taskId, BIM, apiOrigin } = params
+  try {
+    const response = await $fetch<{ data: ProgressPlanTask }>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/tasks/${taskId}/bim-association`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'PUT',
+        body: {
+          BIM: BIM || []
+        }
+      }
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function updateProgressAnnualPlanTaskMarker(params: {
+  projectId: string
+  planId: string
+  taskId: string
+  milestoneType?: ProgressPlanTaskMilestoneType | null
+  milestoneDescription?: string | null
+  isCriticalTask?: boolean
+  apiOrigin: string
+}): Promise<ProgressPlanTask> {
+  const {
+    projectId,
+    planId,
+    taskId,
+    milestoneType,
+    milestoneDescription,
+    isCriticalTask,
+    apiOrigin
+  } = params
+  try {
+    const response = await $fetch<{ data: ProgressPlanTask }>(
+      new URL(
+        `${annualPlansBaseUrl(projectId)}/${planId}/tasks/${taskId}/marker`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'PUT',
+        body: {
+          milestoneType: milestoneType ?? null,
+          milestoneDescription: milestoneDescription ?? null,
+          isCriticalTask: !!isCriticalTask
+        }
       }
     )
     return response.data

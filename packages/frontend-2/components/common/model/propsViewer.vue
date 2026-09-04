@@ -1,5 +1,6 @@
 <template>
   <ViewerStateSetup
+    class="relative isolate"
     :init-params="viewerInitParams"
     :cancel-hash-state="true"
     @setup="onViewerSetup"
@@ -8,19 +9,21 @@
     <div class="absolute inset-0">
       <ViewerCoreSetup viewer-host-classes="h-full" :hide-loading-bar="true" />
     </div>
-    <div class="h-full">
-      <div class="absolute z-50 left-0 w-72 bg-zinc-200 h-full overflow-hidden">
-        <ViewerModelsPanel v-model:sub-view="modelsSubView" />
-      </div>
+    <div
+      class="absolute z-20 left-0 inset-y-0 w-72 bg-foundation border-r border-outline-3 overflow-hidden"
+    >
+      <ViewerModelsPanel v-model:sub-view="modelsSubView" />
     </div>
-    <div v-if="!selectionSidbarDisabled" class="right-0 top-0 absolute">
-      <ViewerSelectionSidebar ref="selectionSidebar" class="z-20" />
+    <div v-if="!selectionSidbarDisabled" class="absolute z-20 right-0 top-0">
+      <ViewerSelectionSidebar />
     </div>
   </ViewerStateSetup>
 </template>
 <script setup lang="ts">
+import { until } from '@vueuse/core'
+import { timeoutAt, TIME_MS, TimeoutError } from '@speckle/shared'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
-import { ViewerEvent } from '@speckle/viewer'
+import { SelectionExtension, ViewerEvent } from '@speckle/viewer'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import type {
@@ -73,35 +76,14 @@ const onViewerSetup = (State: InjectableViewerState) => {
   emit('update:viewerState', State)
 }
 
-const attrs = useAttrs()
+const normalizedProjectId = computed(() => props.projectId || '')
+const normalizedModelIds = computed(() => props.modelIds || [])
+const normalizedFilterBims = computed(() => props.filterBims || [])
+const normalizedFilterApplicationIds = computed(() => props.filterApplicationIds || [])
 
-const toStringArray = (input: unknown): string[] => {
-  if (!Array.isArray(input)) return []
-  return input.map((id) => String(id)).filter(Boolean)
-}
-
-const attrProjectId = computed(() => String(attrs['project_id'] || ''))
-const attrModelIds = computed(() => toStringArray(attrs['model_ids']))
-const attrModel = computed(() => toStringArray(attrs.model))
-
-const normalizedProjectId = computed(() => props.projectId || attrProjectId.value)
-
-const normalizedModelIds = computed(() => {
-  const source =
-    props.modelIds.length > 0
-      ? props.modelIds
-      : attrModelIds.value.length > 0
-      ? attrModelIds.value
-      : attrModel.value
-  return toStringArray(source)
-})
-
-const normalizedFilterBims = computed(() => toStringArray(props.filterBims))
-const normalizedFilterApplicationIds = computed(() =>
-  toStringArray(props.filterApplicationIds)
-)
-const isApplyingFilters = ref(false)
-
+// These are required to be AsyncWritableComputedRef (see UseSetupViewerParams) so that the
+// setup composable can drive them (e.g. resolving saved views). The local props remain the
+// source of truth, hence the no-op setters.
 const viewerResourceIdString = writableAsyncComputed({
   get: () => {
     const modelIds = normalizedModelIds.value.slice()
@@ -147,73 +129,91 @@ type ViewerTreeLike = {
   findApplicationId?: (applicationId: string) => ViewerTreeNodeLike[] | null
 }
 
+/**
+ * Filters are refs in the viewer state, but they can occasionally be accessed as plain
+ * values, so we defensively write back via `.value` when present.
+ */
+function setViewerFilterValue(target: unknown, value: unknown): void {
+  if (target && typeof target === 'object' && 'value' in target) {
+    ;(target as { value: unknown }).value = value
+  }
+}
+
 const applyFilters = () => {
   const state = setupViewerState.value
   if (!state) return
 
   const bimIds = normalizedFilterBims.value
   const appIds = normalizedFilterApplicationIds.value
-  isApplyingFilters.value = true
+
+  // Without filters there's nothing to isolate/select - don't wipe the user's
+  // current selection or isolation state
+  if (!bimIds.length && !appIds.length) return
+
+  const objectsById = new Map<string, SpeckleObject>()
+  const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
+  if (tree) {
+    const typedTree = tree as ViewerTreeLike & {
+      findBimNodeId: (bimId: string) => ViewerTreeNodeLike[] | null
+    }
+
+    const collect = (nodes: ViewerTreeNodeLike[] | null) => {
+      nodes?.forEach((node) => {
+        const raw = node.model?.raw
+        if (!raw?.id) return
+        objectsById.set(raw.id, raw)
+      })
+    }
+
+    bimIds.forEach((bimId) => {
+      if (!bimId) return
+      collect(typedTree.findBimNodeId(bimId))
+    })
+
+    appIds.forEach((appId) => {
+      if (!appId) return
+      let nodes = typedTree.findApplicationId?.(appId) || []
+      if (!nodes.length) nodes = typedTree.findId(appId) || []
+      collect(nodes)
+    })
+  }
+
+  const objectIds = Array.from(objectsById.keys())
+  setViewerFilterValue(state.ui.filters.isolatedObjectIds, objectIds)
+  setViewerFilterValue(
+    state.ui.filters.selectedObjects,
+    Array.from(objectsById.values())
+  )
+}
+
+/**
+ * The world tree (and its application/bim lookup maps) is only safe to query once the
+ * viewer has finished loading. Capture and await the loading signal instead of relying on
+ * an arbitrary delay.
+ */
+const waitForLoadingOver = async () => {
+  const state = setupViewerState.value
+  if (!state) return
+  if (!state.ui.loading?.value) return
+
   try {
-    const objects: SpeckleObject[] = []
-    const objectIds: string[] = []
-    const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
-    if (tree) {
-      const typedTree = tree as ViewerTreeLike & {
-        findBimNodeId: (bimId: string) => ViewerTreeNodeLike[] | null
-      }
-      
-      bimIds.forEach((bimId) => {
-        if (!bimId) return
-        const nodes = typedTree.findBimNodeId(bimId) || []
-        nodes?.forEach((node) => {
-          if (!node.model?.raw?.id) return
-          objects.push(node.model.raw)
-          objectIds.push(node.model.raw.id)
-        })
-      })
-
-      appIds.forEach((appId) => {
-        if (!appId) return
-        let nodes = typedTree.findApplicationId?.(appId) || []
-        if (!nodes.length) {
-          nodes = typedTree.findId(appId) || []
-        }
-        nodes?.forEach((node) => {
-          if (!node.model?.raw?.id) return
-          objects.push(node.model.raw)
-          objectIds.push(node.model.raw.id)
-        })
-      })
-    }
-
-    const isolatedIds = objectIds.filter((id): id is string => !!id)
-    const isolatedRef = state.ui.filters.isolatedObjectIds as unknown as {
-      value?: string[]
-    }
-    if (isolatedRef && 'value' in isolatedRef) {
-      isolatedRef.value = isolatedIds
-    } else {
-      ;(state.ui.filters.isolatedObjectIds as unknown as string[]) = isolatedIds
-    }
-
-    const selectedObjects = state.ui.filters.selectedObjects as unknown
-    const selectedObjectsRef = selectedObjects as { value?: SpeckleObject[] }
-    if (selectedObjectsRef && 'value' in selectedObjectsRef) {
-      selectedObjectsRef.value = objects
-    } else {
-      ;(state.ui.filters.selectedObjects as unknown as SpeckleObject[]) = objects
-    }
-  } finally {
-    isApplyingFilters.value = false
+    await Promise.race([
+      until(state.ui.loading).toBe(false),
+      timeoutAt(TIME_MS.minute, 'Waiting for viewer to finish loading timed out')
+    ])
+  } catch (e) {
+    if (!(e instanceof TimeoutError)) throw e
+    // Timeout - fall through and let applyFilters use whatever is already available
   }
 }
 
+const applyFiltersWhenReady = async () => {
+  await waitForLoadingOver()
+  applyFilters()
+}
+
 const onViewerLoadComplete = () => {
-  // nextTick(() => applyFilters())
-  setTimeout(() => {
-    applyFilters()
-  }, 300)
+  applyFiltersWhenReady()
 }
 
 watch(
@@ -223,20 +223,10 @@ watch(
     () => normalizedFilterApplicationIds.value
   ],
   () => {
-    applyFilters()
+    applyFiltersWhenReady()
   },
   { immediate: true, deep: true }
 )
-
-// watch(
-//   () => getMaybeRefValue(setupViewerState.value?.resources.response.resourcesLoaded),
-//   (loaded) => {
-//     if (!loaded) return
-//     console.log('viewer inited')
-//     nextTick(() => applyFilters())
-//   },
-//   { immediate: true }
-// )
 
 watch(
   () => setupViewerState.value,
@@ -257,20 +247,12 @@ watch(
 onBeforeUnmount(() => {
   const state = setupViewerState.value
   if (!state) return
+  // The viewer is a per-session singleton; reset the transient selection/isolation we may
+  // have applied so it doesn't leak into the next viewer-bearing component that mounts.
+  state.ui.filters.isolatedObjectIds.value = []
+  state.ui.filters.hiddenObjectIds.value = []
+  state.ui.filters.selectedObjects.value = []
+  state.viewer.instance.getExtension(SelectionExtension)?.clearSelection()
   state.viewer.instance.removeListener(ViewerEvent.LoadComplete, onViewerLoadComplete)
 })
-
-// watch(
-//   () => props.modelIds,
-//   (newModelId, oldModelId) => {
-//     if (newModelId === oldModelId) return
-//     bimIdsModel.value = []
-//     draftSelectedIds.value = new Set()
-//     if (newModelId) openDrawer()
-//     else {
-//       open.value = false
-//       viewerState.value = null
-//     }
-//   }
-// )
 </script>

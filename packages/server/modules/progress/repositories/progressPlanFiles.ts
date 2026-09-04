@@ -7,6 +7,7 @@ export const ProjectProgressPlanFiles = buildTableHelper(
   [
     'id',
     'projectId',
+    'annualPlanId',
     'blobId',
     'fileName',
     'fileType',
@@ -21,6 +22,7 @@ export const ProjectProgressPlanFiles = buildTableHelper(
 export type ProgressPlanFileRecord = {
   id: string
   projectId: string
+  annualPlanId?: string | null
   blobId: string
   fileName: string
   fileType: string
@@ -40,6 +42,7 @@ const tables = {
 
 export type CreateProgressPlanFileParams = {
   projectId: string
+  annualPlanId?: string | null
   blobId: string
   fileName: string
   fileType: string
@@ -54,7 +57,14 @@ export const createProgressPlanFileFactory =
     const [insertedItem] = await tables.projectProgressPlanFiles(deps.db).insert(
       {
         id: generateId(),
-        ...params
+        projectId: params.projectId,
+        annualPlanId: params.annualPlanId ?? null,
+        blobId: params.blobId,
+        fileName: params.fileName,
+        fileType: params.fileType,
+        fileSize: params.fileSize,
+        creator: params.creator,
+        updater: params.updater
       },
       '*'
     )
@@ -66,12 +76,19 @@ export const getLatestProgressPlanFileFactory =
   (deps: { db: Knex }) =>
   async (params: {
     projectId: string
+    annualPlanId?: string | null
   }): Promise<ProgressPlanFileRecord | undefined> => {
-    return await tables
-      .projectProgressPlanFiles(deps.db)
-      .where({
-        [ProjectProgressPlanFiles.col.projectId]: params.projectId
+    let query = tables.projectProgressPlanFiles(deps.db).where({
+      [ProjectProgressPlanFiles.col.projectId]: params.projectId
+    })
+
+    if (params.annualPlanId) {
+      query = query.where({
+        annualPlanId: params.annualPlanId
       })
-      .orderBy(ProjectProgressPlanFiles.col.createdAt, 'desc')
-      .first()
+    } else {
+      query = query.whereNull('annualPlanId')
+    }
+
+    return await query.orderBy(ProjectProgressPlanFiles.col.createdAt, 'desc').first()
   }

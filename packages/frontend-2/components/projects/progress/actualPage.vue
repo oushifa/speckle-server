@@ -1,19 +1,45 @@
 <template>
   <div class="flex flex-col h-full text-foreground gap-4">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 class="text-heading-lg mt-3">实际进度</h1>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <!-- 页面大标题与 Tab 导航 -->
+      <div class="flex items-center gap-6">
+        <h1 class="text-heading-lg mt-1 font-bold text-foreground">进度管理</h1>
+        <div class="flex items-center border-b border-outline-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-body-sm font-medium transition-colors border-b-2 border-primary text-primary font-semibold"
+          >
+            进度管理
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-body-sm font-medium transition-colors border-b-2 border-transparent text-foreground-2 hover:text-foreground"
+            @click="navigateToMilestone"
+          >
+            里程碑管理
+          </button>
+        </div>
       </div>
 
+      <!-- 右侧操作栏：搜索与功能按钮 -->
       <div class="flex flex-wrap items-center gap-3">
         <FormTextInput
           v-model="searchQuery"
           name="actual-progress-search"
-          placeholder="搜索日期、月份、负责人、记录人"
+          placeholder="搜索任务名称 / 填报时间 / 上传人..."
           :custom-icon="Search"
           color="foundation"
           class="w-72"
         />
+        <FormButton
+          v-if="hasFunctionalPerm('actual-progress:create')"
+          color="primary"
+          :icon-left="Plus"
+          :disabled="isLoadingRecords"
+          @click="openCreateDialog"
+        >
+          新增
+        </FormButton>
         <FormButton
           v-if="hasFunctionalPerm('actual-progress:import')"
           color="outline"
@@ -21,7 +47,7 @@
           :disabled="isLoadingRecords || isImportingExcel"
           @click="triggerImportExcel"
         >
-          {{ isImportingExcel ? '导入中...' : '导入Excel' }}
+          {{ isImportingExcel ? '导入中...' : '导入' }}
         </FormButton>
         <FormButton
           v-if="hasFunctionalPerm('actual-progress:export')"
@@ -30,16 +56,7 @@
           :disabled="isLoadingRecords"
           @click="handleExportExcel"
         >
-          导出Excel
-        </FormButton>
-        <FormButton
-          v-if="hasFunctionalPerm('actual-progress:create')"
-          color="primary"
-          :icon-left="Plus"
-          :disabled="isLoadingRecords"
-          @click="openCreateDialog"
-        >
-          新增填报
+          导出
         </FormButton>
         <input
           ref="importInputRef"
@@ -52,6 +69,7 @@
       </div>
     </div>
 
+    <!-- 实际进度内容表格 -->
     <div
       class="flex-1 overflow-hidden flex flex-col rounded-lg border border-outline-2 bg-foundation"
     >
@@ -508,7 +526,7 @@
                   v-model:selections="task.selections"
                   :project-id="projectId"
                 >
-                  <template #trigger>
+                  <template #trigger="{ open }">
                     <button
                       type="button"
                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs transition-colors"
@@ -517,6 +535,7 @@
                           ? 'bg-success-lighter text-success-darker border border-success-lighter'
                           : 'bg-foundation-2 text-foreground-2 border border-outline-3'
                       "
+                      @click="open"
                     >
                       <Box class="h-3 w-3" />
                       <span>
@@ -731,6 +750,13 @@ const columns = [
   { id: 'remark', header: '备注', classes: 'col-span-1' },
   { id: 'actions', header: '操作', classes: 'col-span-2 text-right' }
 ]
+
+const router = useRouter()
+const navigateToMilestone = () => {
+  if (projectId.value) {
+    router.push(`/projects/${projectId.value}/progress/milestone`)
+  }
+}
 
 const createDefaultForm = (): ActualProgressForm => ({
   id: '',

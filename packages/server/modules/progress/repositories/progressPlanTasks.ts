@@ -7,6 +7,7 @@ export const ProjectProgressPlanTasks = buildTableHelper(
   [
     'id',
     'projectId',
+    'annualPlanId',
     'planFileId',
     'externalId',
     'sysTaskId',
@@ -44,6 +45,7 @@ export type ProgressPlanTaskBIM = BimElementEntry[]
 export type ProgressPlanTaskRecord = {
   id: string
   projectId: string
+  annualPlanId?: string | null
   planFileId: string | null
   externalId: string | null
   sysTaskId: string | null
@@ -144,7 +146,7 @@ const sanitizeBIM = (
 }
 
 const sanitizeMilestoneType = (
-  value?: ProgressPlanTaskMilestoneType | string | null
+  value?: ProgressPlanTaskMilestoneType | null
 ): ProgressPlanTaskMilestoneType | null => {
   if (value === 'project' || value === 'phase' || value === 'acceptance') {
     return value
@@ -176,12 +178,21 @@ const toNullableDate = (value?: string | Date | null) => {
 
 export const listProgressPlanTasksFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string }): Promise<ProgressPlanTaskRecord[]> => {
-    return await tables
-      .projectProgressPlanTasks(deps.db)
-      .where({
-        [ProjectProgressPlanTasks.col.projectId]: params.projectId
-      })
+  async (params: {
+    projectId: string
+    annualPlanId?: string | null
+  }): Promise<ProgressPlanTaskRecord[]> => {
+    let query = tables.projectProgressPlanTasks(deps.db).where({
+      [ProjectProgressPlanTasks.col.projectId]: params.projectId
+    })
+
+    if (params.annualPlanId) {
+      query = query.where({ annualPlanId: params.annualPlanId })
+    } else {
+      query = query.whereNull('annualPlanId')
+    }
+
+    return await query
       .orderBy(ProjectProgressPlanTasks.col.sortOrder, 'asc')
       .orderBy(ProjectProgressPlanTasks.col.createdAt, 'asc')
   }
@@ -237,7 +248,7 @@ export const updateProgressPlanTaskBimFactory =
           [planTaskCols.BIM]: sanitizedBim ? JSON.stringify(sanitizedBim) : null,
           [planTaskCols.updater]: params.updater,
           [planTaskCols.updatedAt]: deps.db.fn.now()
-        } as any,
+        },
         '*'
       )
 
@@ -291,14 +302,21 @@ export const replaceProgressPlanTasksFactory =
   (deps: { db: Knex }) =>
   async (params: {
     projectId: string
+    annualPlanId?: string | null
     planFileId?: string | null
     tasks: ReplaceProgressPlanTaskInput[]
     actorId: string
   }): Promise<ProgressPlanTaskRecord[]> => {
     const taskTable = tables.projectProgressPlanTasks(deps.db)
-    const existingTasks = await taskTable.where({
+    let existingQuery = taskTable.where({
       [ProjectProgressPlanTasks.col.projectId]: params.projectId
     })
+    if (params.annualPlanId) {
+      existingQuery = existingQuery.where({ annualPlanId: params.annualPlanId })
+    } else {
+      existingQuery = existingQuery.whereNull('annualPlanId')
+    }
+    const existingTasks = await existingQuery
 
     const preservedBySysTaskId = new Map<
       string,
@@ -346,11 +364,15 @@ export const replaceProgressPlanTasksFactory =
       }
     }
 
-    await taskTable
-      .where({
-        [ProjectProgressPlanTasks.col.projectId]: params.projectId
-      })
-      .del()
+    let deleteQuery = taskTable.where({
+      [ProjectProgressPlanTasks.col.projectId]: params.projectId
+    })
+    if (params.annualPlanId) {
+      deleteQuery = deleteQuery.where({ annualPlanId: params.annualPlanId })
+    } else {
+      deleteQuery = deleteQuery.whereNull('annualPlanId')
+    }
+    await deleteQuery.del()
 
     if (!params.tasks.length) return []
 
@@ -380,6 +402,7 @@ export const replaceProgressPlanTasksFactory =
       return {
         id: idsByExternalKey.get(key) || generateId(),
         projectId: params.projectId,
+        annualPlanId: params.annualPlanId ?? null,
         planFileId: params.planFileId || null,
         externalId: task.externalId || null,
         sysTaskId: task.sysTaskId || null,
@@ -434,5 +457,8 @@ export const replaceProgressPlanTasksFactory =
       BIM: item.BIM ? JSON.stringify(item.BIM) : null
     }))
 
-    return await taskTable.insert(insertPayloadForDb as any, '*')
+    return await taskTable.insert(
+      insertPayloadForDb as unknown as ProgressPlanTaskRecord[],
+      '*'
+    )
   }

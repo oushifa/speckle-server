@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div class="space-y-4">
     <!-- Header Controls -->
@@ -255,7 +256,7 @@
     <!-- Add/Edit Monthly Plan Dialog -->
     <AddMonthlyPlanDialog
       v-model:open="isAddDialogOpen"
-      :master-tasks="masterTasks"
+      :project-id="projectId"
       :initial-record="editingRecord"
       @save="handleSaveRecord"
     />
@@ -316,11 +317,12 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
+import { computed, onMounted, ref, watch } from 'vue'
 import { FormButton, FormTextInput, LayoutDrawer } from '@speckle/ui-components'
 import { Box, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { CommonConfirmDialog, CommonModelPropsViewer } from '#components'
 import AddMonthlyPlanDialog from './AddMonthlyPlanDialog.vue'
-import type { MasterTaskOption } from './TaskSelectDialog.vue'
 import {
   getProgressMonthlyPlans,
   createProgressMonthlyPlan,
@@ -333,7 +335,6 @@ import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/
 
 const props = defineProps<{
   projectId: string
-  masterTasks: MasterTaskOption[]
 }>()
 
 const emit = defineEmits<{

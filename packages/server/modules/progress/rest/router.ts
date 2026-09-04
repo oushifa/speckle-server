@@ -42,6 +42,13 @@ import {
   type MonthlyPlanTaskRecord
 } from '@/modules/progress/repositories/progressMonthlyPlans'
 import {
+  createProgressAnnualPlanFactory,
+  deleteProgressAnnualPlanFactory,
+  getProgressAnnualPlanByIdFactory,
+  listProgressAnnualPlansFactory,
+  updateProgressAnnualPlanFactory
+} from '@/modules/progress/repositories/progressAnnualPlans'
+import {
   countProgressElementSnapshotsFactory,
   listProgressElementSnapshotsFactory,
   type ProgressElementSnapshotRecord,
@@ -70,9 +77,6 @@ import {
 } from '@/modules/progress/services/actualPlanSync'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { db } from '@/db/knex'
-import { getBlobMetadataFactory } from '@/modules/blobstorage/repositories'
-import { getObjectStreamFactory } from '@/modules/blobstorage/repositories/blobs'
-import { getFileStreamFactory } from '@/modules/blobstorage/services/management'
 import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
 import { Roles } from '@/modules/core/helpers/mainConstants'
@@ -268,6 +272,35 @@ const monthlyPlanTaskBimBodySchema = z.object({
     })
   )
 })
+
+const annualPlanParamsSchema = z.object({
+  projectId: z.string().min(1),
+  planId: z.string().min(1)
+})
+
+const annualPlanListQuerySchema = z.object({
+  search: z.string().trim().optional()
+})
+
+const annualPlanTaskParamsSchema = z.object({
+  projectId: z.string().min(1),
+  planId: z.string().min(1),
+  taskId: z.string().min(1)
+})
+
+const createAnnualPlanBodySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2200),
+  name: z.string().trim().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  preparedBy: z.string().trim().nullable().optional(),
+  blobId: z.string().nullable().optional(),
+  fileName: z.string().nullable().optional(),
+  fileSize: z.number().nullable().optional(),
+  remark: z.string().trim().nullable().optional()
+})
+
+const updateAnnualPlanBodySchema = createAnnualPlanBodySchema.partial()
 
 const progressPlanFilesErrHandler = (
   err: unknown,
@@ -919,6 +952,7 @@ const buildRoute = (router: Router) => {
   const statisticsRoute = '/api/v1/projects/:projectId/progress/statistics'
   const rebuildSnapshotsRoute = '/api/v1/projects/:projectId/progress/rebuild-snapshots'
   const monthlyPlanRoute = '/api/v1/projects/:projectId/progress/monthly-plans'
+  const annualPlanRoute = '/api/v1/projects/:projectId/progress/annual-plans'
   const progressCors = corsMiddlewareFactory({
     corsConfig: {
       origin: true,
@@ -940,6 +974,41 @@ const buildRoute = (router: Router) => {
   )
   router.options(
     `${monthlyPlanRoute}/:planId/tasks/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    annualPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId/plan-files`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId/plan-files/download`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId/plan-tasks`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId/tasks/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  router.options(
+    `${annualPlanRoute}/:planId/tasks/:taskId/marker`,
     progressCors,
     allowCrossOriginResourceAccessMiddelware()
   )
@@ -2067,6 +2136,523 @@ const buildRoute = (router: Router) => {
         if (!updatedTask)
           return res.status(404).json({ error: 'Monthly plan task not found.' })
         return res.status(200).json({ data: serializeMonthlyPlanTask(updatedTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  // --- Annual Plan Routes ---
+
+  const ensureAnnualPlanExists = async (
+    projectId: string,
+    planId: string,
+    projectDb: Knex
+  ): Promise<boolean> => {
+    const plan = await getProgressAnnualPlanByIdFactory({ db: projectDb })({
+      projectId,
+      planId
+    })
+    return !!plan
+  }
+
+  const ensureAnnualPlanTaskExists = async (
+    projectId: string,
+    planId: string,
+    taskId: string,
+    projectDb: Knex
+  ): Promise<boolean> => {
+    const task = await getProgressPlanTaskFactory({ db: projectDb })({
+      projectId,
+      taskId
+    })
+    return !!task && task.annualPlanId === planId
+  }
+
+  router.get(
+    annualPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: paramsSchema, query: annualPlanListQuerySchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const projectDb = await getProjectDbClient({ projectId })
+        const plans = await listProgressAnnualPlansFactory({ db: projectDb })({
+          projectId,
+          search: (req.query.search as string | undefined) || ''
+        })
+        return res.status(200).json({ data: plans })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    annualPlanRoute,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: paramsSchema, body: createAnnualPlanBodySchema }),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        const created = await createProgressAnnualPlanFactory({ db: projectDb })({
+          projectId,
+          year: req.body.year,
+          name: req.body.name,
+          startDate: req.body.startDate,
+          endDate: req.body.endDate,
+          preparedBy: req.body.preparedBy ?? null,
+          blobId: req.body.blobId ?? null,
+          fileName: req.body.fileName ?? null,
+          fileSize: req.body.fileSize ?? null,
+          remark: req.body.remark ?? null,
+          createdBy: req.context.userId
+        })
+
+        return res.status(201).json({ data: created })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${annualPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const projectDb = await getProjectDbClient({ projectId })
+        const plan = await getProgressAnnualPlanByIdFactory({ db: projectDb })({
+          projectId,
+          planId
+        })
+        if (!plan) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        return res.status(200).json({ data: plan })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${annualPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({
+      params: annualPlanParamsSchema,
+      body: updateAnnualPlanBodySchema
+    }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        const updated = await updateProgressAnnualPlanFactory({ db: projectDb })({
+          projectId,
+          planId,
+          input: req.body
+        })
+        return res.status(200).json({ data: updated })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.delete(
+    `${annualPlanRoute}/:planId`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        await deleteProgressAnnualPlanFactory({ db: projectDb })({
+          projectId,
+          planId
+        })
+        return res.status(200).json({ data: { id: planId } })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${annualPlanRoute}/:planId/plan-files`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        res.setHeader(
+          'Cache-Control',
+          'no-store, no-cache, must-revalidate, proxy-revalidate'
+        )
+        res.setHeader('Pragma', 'no-cache')
+        res.setHeader('Expires', '0')
+        const latestFile = await getLatestProgressPlanFileFactory({
+          db: projectDb
+        })({
+          projectId,
+          annualPlanId: planId
+        })
+        return res.status(200).json({ data: latestFile || null })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    `${annualPlanRoute}/:planId/plan-files`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema, body: bodySchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+
+        const created = await createProgressPlanFileFactory({ db: projectDb })({
+          projectId,
+          annualPlanId: planId,
+          blobId: req.body.blobId,
+          fileName: req.body.fileName,
+          fileType: req.body.fileType,
+          fileSize: req.body.fileSize ?? null,
+          creator: req.context.userId,
+          updater: req.context.userId
+        })
+
+        try {
+          const importedTasks = await importProgressPlanTasksFromBlobFactory({
+            db: projectDb,
+            storage: projectStorage.private
+          })({
+            projectId,
+            annualPlanId: planId,
+            planFileId: created.id,
+            blobId: created.blobId,
+            fileName: created.fileName,
+            actorId: req.context.userId
+          })
+
+          return res.status(201).json({
+            data: created,
+            importSummary: {
+              status: 'completed',
+              importedTaskCount: importedTasks.length
+            }
+          })
+        } catch (importError) {
+          const error = ensureError(importError)
+          req.log.error(error, 'Failed to import annual plan tasks from .mpp file')
+
+          return res.status(201).json({
+            data: created,
+            importSummary: {
+              status: 'failed',
+              importedTaskCount: 0,
+              error: error.message
+            }
+          })
+        }
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${annualPlanRoute}/:planId/plan-files/download`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const [projectDb, projectStorage] = await Promise.all([
+          getProjectDbClient({ projectId }),
+          getProjectObjectStorage({ projectId })
+        ])
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+
+        const latestFile = await getLatestProgressPlanFileFactory({ db: projectDb })({
+          projectId,
+          annualPlanId: planId
+        })
+
+        if (!latestFile) {
+          return res.status(404).json({ error: 'No progress plan file found.' })
+        }
+
+        const exportPlanFile = exportProgressPlanFileWithSysTaskIdFactory({
+          db: projectDb,
+          storage: projectStorage.private
+        })
+
+        const { exportedBuffer, tempDir, outputFileName } = await exportPlanFile({
+          projectId,
+          blobId: latestFile.blobId,
+          fileName: latestFile.fileName
+        })
+
+        const { rm } = await import('node:fs/promises')
+
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': contentDisposition(
+            outputFileName || latestFile.fileName
+          )
+        })
+
+        res.end(exportedBuffer, () => {
+          rm(tempDir, { recursive: true, force: true }).catch(() => null)
+        })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.get(
+    `${annualPlanRoute}/:planId/plan-tasks`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamReadPermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({ params: annualPlanParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId } = req.params
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        const tasks = await listProgressPlanTasksFactory({ db: projectDb })({
+          projectId,
+          annualPlanId: planId
+        })
+        const taskSnapshots = await listProgressTaskSnapshotsByTaskIdsFactory({
+          db: projectDb
+        })({
+          projectId,
+          taskIds: tasks.map((task) => task.id)
+        })
+
+        return res.status(200).json({
+          data: serializePlanTasksWithAggregation(tasks, taskSnapshots)
+        })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${annualPlanRoute}/:planId/tasks/:taskId/bim-association`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({
+      params: annualPlanTaskParamsSchema,
+      body: taskBimSchema
+    }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId, taskId } = req.params
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        if (!(await ensureAnnualPlanTaskExists(projectId, planId, taskId, projectDb))) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        const allTasks = await listProgressPlanTasksFactory({ db: projectDb })({
+          projectId,
+          annualPlanId: planId
+        })
+        const hierarchy = buildPlanTaskHierarchy(allTasks)
+        const targetNode = hierarchy.nodeMap.get(taskId)
+        if (!targetNode) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+        if (targetNode.hasChildren) {
+          return res
+            .status(400)
+            .json({ error: 'Parent tasks cannot be associated directly.' })
+        }
+
+        const updated = await updateProgressPlanTaskBimFactory({ db: projectDb })({
+          projectId,
+          taskId,
+          BIM: req.body.BIM,
+          updater: req.context.userId
+        })
+
+        if (!updated) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        return res.status(200).json({ data: serializeSinglePlanTask(updated) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.put(
+    `${annualPlanRoute}/:planId/tasks/:taskId/marker`,
+    progressCors,
+    allowCrossOriginResourceAccessMiddelware(),
+    withAdminOverride(
+      authMiddlewareCreator(
+        streamWritePermissionsPipelineFactory({
+          getStream: getStreamFactory({ db })
+        })
+      )
+    ),
+    validateRequest({
+      params: annualPlanTaskParamsSchema,
+      body: taskMarkerSchema
+    }),
+    async (req, res, next) => {
+      try {
+        const { projectId, planId, taskId } = req.params
+        if (!req.context.userId) {
+          return res.status(401).json({ error: 'Authentication required.' })
+        }
+
+        const projectDb = await getProjectDbClient({ projectId })
+        if (!(await ensureAnnualPlanExists(projectId, planId, projectDb))) {
+          return res.status(404).json({ error: 'Annual plan not found.' })
+        }
+        if (!(await ensureAnnualPlanTaskExists(projectId, planId, taskId, projectDb))) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        const updated = await updateProgressPlanTaskMarkerFactory({ db: projectDb })({
+          projectId,
+          taskId,
+          milestoneType: req.body.milestoneType ?? null,
+          milestoneDescription: req.body.milestoneDescription ?? null,
+          isCriticalTask: req.body.isCriticalTask ?? false,
+          updater: req.context.userId
+        })
+
+        if (!updated) {
+          return res.status(404).json({ error: 'Progress plan task not found.' })
+        }
+
+        return res.status(200).json({ data: serializeSinglePlanTask(updated) })
       } catch (err) {
         next(err)
       }

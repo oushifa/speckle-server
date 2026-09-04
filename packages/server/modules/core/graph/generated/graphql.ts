@@ -1068,6 +1068,7 @@ export type BoqImportResult = {
 export type BoqItem = {
   __typename?: 'BoqItem';
   amount?: Maybe<Scalars['Float']['output']>;
+  changeQuantity?: Maybe<Scalars['Float']['output']>;
   children: Array<BoqItem>;
   code: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -1079,7 +1080,11 @@ export type BoqItem = {
   price?: Maybe<Scalars['Float']['output']>;
   projectId: Scalars['ID']['output'];
   quantity?: Maybe<Scalars['Float']['output']>;
+  reviewAmount?: Maybe<Scalars['Float']['output']>;
+  reviewPrice?: Maybe<Scalars['Float']['output']>;
+  reviewQuantity?: Maybe<Scalars['Float']['output']>;
   sortOrder: Scalars['Int']['output'];
+  totalQuantityWithChanges?: Maybe<Scalars['Float']['output']>;
   type: BoqItemType;
   unit?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
@@ -1561,12 +1566,16 @@ export type CreateAutomateFunctionWithoutVersionInput = {
 
 export type CreateBoqItemInput = {
   amount?: InputMaybe<Scalars['Float']['input']>;
+  changeQuantity?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentId?: InputMaybe<Scalars['ID']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
   projectId: Scalars['ID']['input'];
   quantity?: InputMaybe<Scalars['Float']['input']>;
+  reviewAmount?: InputMaybe<Scalars['Float']['input']>;
+  reviewPrice?: InputMaybe<Scalars['Float']['input']>;
+  reviewQuantity?: InputMaybe<Scalars['Float']['input']>;
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
   type: BoqItemType;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -2235,11 +2244,15 @@ export type GetUngroupedViewGroupInput = {
 
 export type ImportBoqItemInput = {
   amount?: InputMaybe<Scalars['Float']['input']>;
+  changeQuantity?: InputMaybe<Scalars['Float']['input']>;
   code: Scalars['String']['input'];
   name: Scalars['String']['input'];
   parentCode?: InputMaybe<Scalars['String']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
   quantity?: InputMaybe<Scalars['Float']['input']>;
+  reviewAmount?: InputMaybe<Scalars['Float']['input']>;
+  reviewPrice?: InputMaybe<Scalars['Float']['input']>;
+  reviewQuantity?: InputMaybe<Scalars['Float']['input']>;
   rowNumber: Scalars['Int']['input'];
   type: BoqItemType;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -5961,12 +5974,16 @@ export type UpdateAutomateFunctionInput = {
 
 export type UpdateBoqItemInput = {
   amount?: InputMaybe<Scalars['Float']['input']>;
+  changeQuantity?: InputMaybe<Scalars['Float']['input']>;
   code?: InputMaybe<Scalars['String']['input']>;
   itemId: Scalars['ID']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
   price?: InputMaybe<Scalars['Float']['input']>;
   projectId: Scalars['ID']['input'];
   quantity?: InputMaybe<Scalars['Float']['input']>;
+  reviewAmount?: InputMaybe<Scalars['Float']['input']>;
+  reviewPrice?: InputMaybe<Scalars['Float']['input']>;
+  reviewQuantity?: InputMaybe<Scalars['Float']['input']>;
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
 };
@@ -9124,6 +9141,7 @@ export type BoqImportResultResolvers<ContextType = GraphQLContext, ParentType ex
 
 export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['BoqItem'] = ResolversParentTypes['BoqItem']> = {
   amount?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  changeQuantity?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   children?: Resolver<Array<ResolversTypes['BoqItem']>, ParentType, ContextType>;
   code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
@@ -9135,7 +9153,11 @@ export type BoqItemResolvers<ContextType = GraphQLContext, ParentType extends Re
   price?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   projectId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   quantity?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  reviewAmount?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  reviewPrice?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  reviewQuantity?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   sortOrder?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  totalQuantityWithChanges?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
   type?: Resolver<ResolversTypes['BoqItemType'], ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;

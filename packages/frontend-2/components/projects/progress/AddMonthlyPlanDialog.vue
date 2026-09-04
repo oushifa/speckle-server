@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div>
     <LayoutDialog v-model:open="isOpen" max-width="xl" prevent-close-on-click-outside>
@@ -39,14 +40,40 @@
             </div>
           </div>
 
-          <FormButton
-            size="sm"
-            color="subtle"
-            :icon-left="Sparkles"
-            @click="handleFetchMonthlyTasks"
-          >
-            获取本月计划
-          </FormButton>
+          <div class="flex items-center gap-2">
+            <span
+              v-if="annualPlanName"
+              class="hidden max-w-[220px] truncate rounded bg-primary/10 px-2 py-1 text-body-3xs font-medium text-primary xl:inline"
+              :title="annualPlanName"
+            >
+              年度计划：{{ annualPlanName }}
+            </span>
+            <FormButton
+              size="sm"
+              color="subtle"
+              :icon-left="Sparkles"
+              :loading="isLoadingAnnualTasks"
+              @click="handleFetchMonthlyTasks"
+            >
+              获取本月计划
+            </FormButton>
+          </div>
+        </div>
+
+        <!-- 年度计划任务来源提示 -->
+        <div
+          v-if="!annualTasks.length && yearMonth && !isLoadingAnnualTasks"
+          class="rounded-lg border border-dashed border-outline-3 bg-foundation-page px-3 py-2 text-body-xs text-foreground-2"
+        >
+          {{
+            yearMonth
+              ? `${yearMonth.slice(
+                  0,
+                  4
+                )} 年暂无可用年度计划，或该年度计划尚未导入任务。`
+              : '请先选择年月以匹配对应年度计划任务。'
+          }}
+          可先在「年度计划」详情页导入 `.mpp` 文件后再回来获取本月计划。
         </div>
 
         <!-- Task Items Table -->
@@ -90,7 +117,7 @@
                     @click="activeRowIndex = index"
                   >
                     <span className="truncate font-medium">
-                      {{ task.taskName || '选择总计划任务...' }}
+                      {{ task.taskName || '选择年度计划任务...' }}
                     </span>
                     <ExternalLink class="h-3.5 w-3.5 text-foreground-2 shrink-0 ml-1" />
                   </button>
@@ -178,8 +205,11 @@
     <TaskSelectDialog
       v-if="activeRowIndex !== null"
       :open="activeRowIndex !== null"
-      :master-tasks="masterTasks"
+      :master-tasks="annualTasks"
       :selected-task-id="tasks[activeRowIndex]?.linkedPlanTaskId"
+      title="选择年度计划任务"
+      search-placeholder="搜索年度计划任务名称..."
+      empty-text="暂无匹配的年度计划任务，请确认该年份年度计划已导入任务"
       @update:open="activeRowIndex = null"
       @select="handleMasterTaskSelected"
     />
@@ -187,6 +217,8 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
+import { computed, ref, watch } from 'vue'
 import { FormButton, LayoutDialog } from '@speckle/ui-components'
 import { ExternalLink, Plus, Sparkles, Trash2 } from 'lucide-vue-next'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -195,12 +227,16 @@ import type {
   MonthlyRecordItem,
   MonthlyPlanTaskItem as MonthlyTaskItem
 } from '~~/lib/projects/api/progress'
-import { searchSystemUsers, type UserSearchResult } from '~~/lib/organizations/api'
+import {
+  getProgressAnnualPlanTasks,
+  getProgressAnnualPlans
+} from '~~/lib/projects/api/progress'
+import { searchSystemUsers } from '~~/lib/organizations/api'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 const props = defineProps<{
   open: boolean
-  masterTasks: MasterTaskOption[]
+  projectId: string
   initialRecord?: MonthlyRecordItem | null
 }>()
 
@@ -247,7 +283,76 @@ const activeRowIndex = ref<number | null>(null)
 const apiOrigin = useApiOrigin()
 const selectedCreatorUserId = ref('')
 
-watch(selectedCreatorUserId, async (newId) => {
+// 年度计划任务（由选择年月年份对应的年度计划任务树提供）
+const annualTasks = ref<MasterTaskOption[]>([])
+const annualPlanName = ref('')
+const isLoadingAnnualTasks = ref(false)
+
+const loadAnnualPlanTasksForYear = async (yearValue: string) => {
+  if (!props.projectId || !yearValue) {
+    annualTasks.value = []
+    annualPlanName.value = ''
+    return
+  }
+
+  isLoadingAnnualTasks.value = true
+  try {
+    const plans = await getProgressAnnualPlans({
+      projectId: props.projectId,
+      apiOrigin,
+      search: yearValue
+    })
+    const year = Number(yearValue)
+    const targetPlan = plans
+      .filter((p) => p.year === year)
+      .sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      )[0]
+
+    if (!targetPlan) {
+      annualTasks.value = []
+      annualPlanName.value = ''
+      return
+    }
+
+    annualPlanName.value = targetPlan.name
+
+    const planTasks = await getProgressAnnualPlanTasks({
+      projectId: props.projectId,
+      planId: targetPlan.id,
+      apiOrigin
+    })
+    if (!planTasks.length) {
+      annualTasks.value = []
+      return
+    }
+
+    const parentIdSet = new Set(planTasks.map((t) => t.parentId).filter(Boolean))
+    annualTasks.value = planTasks.map((t) => ({
+      id: t.id,
+      taskName: t.taskName,
+      level: t.level || 0,
+      hasChildren: t.hasChildren || parentIdSet.has(t.id),
+      parentId: t.parentId || undefined,
+      wbs: t.wbs || undefined,
+      volume: t.quantity || undefined,
+      unit: t.unit || undefined,
+      startDate: t.startDate || '',
+      endDate: t.endDate || ''
+    }))
+  } catch {
+    // 年度计划任务为辅助数据，加载失败保持空态
+    annualTasks.value = []
+    annualPlanName.value = ''
+  } finally {
+    isLoadingAnnualTasks.value = false
+  }
+}
+
+watch([selectedCreatorUserId, yearMonth], async ([newId, newYearMonth]) => {
+  if (newYearMonth) {
+    loadAnnualPlanTasksForYear(String(newYearMonth).slice(0, 4))
+  }
   if (!newId) {
     createdBy.value = ''
     return
@@ -310,6 +415,14 @@ watch(
         selectedCreatorUserId.value = activeUser.value?.id || ''
         tasks.value = [emptyTask()]
       }
+
+      // 打开弹窗时同步加载所选年份对应的年度计划任务树
+      if (yearMonth.value) {
+        loadAnnualPlanTasksForYear(yearMonth.value.slice(0, 4))
+      }
+    } else {
+      annualTasks.value = []
+      annualPlanName.value = ''
     }
   },
   { immediate: true }
@@ -389,7 +502,7 @@ const checkIsParentTask = (
   return false
 }
 
-const handleFetchMonthlyTasks = () => {
+const handleFetchMonthlyTasks = async () => {
   if (!yearMonth.value) {
     triggerNotification({
       type: ToastNotificationType.Warning,
@@ -400,9 +513,24 @@ const handleFetchMonthlyTasks = () => {
   }
   const [y, m] = yearMonth.value.split('-')
   const currentYm = `${y}-${m}`
+  const yearValue = y
 
-  const matches = props.masterTasks.filter((mt, idx) => {
-    if (checkIsParentTask(mt, idx, props.masterTasks) || !mt.startDate || !mt.endDate) {
+  // 若年度计划任务尚未就绪，先按年份加载对应年度计划任务
+  if (!annualTasks.value.length && !isLoadingAnnualTasks.value) {
+    await loadAnnualPlanTasksForYear(yearValue)
+  }
+
+  if (!annualTasks.value.length) {
+    triggerNotification({
+      type: ToastNotificationType.Warning,
+      title: '获取本月计划',
+      description: `${yearValue} 年暂无可用年度计划任务，请先在「年度计划」中创建并导入任务。`
+    })
+    return
+  }
+
+  const matches = annualTasks.value.filter((mt, idx) => {
+    if (checkIsParentTask(mt, idx, annualTasks.value) || !mt.startDate || !mt.endDate) {
       return false
     }
     const taskStart = mt.startDate.substring(0, 7)

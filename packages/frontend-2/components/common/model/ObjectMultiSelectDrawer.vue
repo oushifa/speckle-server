@@ -1,83 +1,24 @@
 <template>
   <div class="space-y-3">
-    <div
-      class="grid grid-cols-1 gap-3"
-      :class="hasFixedProject ? 'md:grid-cols-1' : 'md:grid-cols-2'"
-    >
-      <FormSelectBase
-        v-if="!hasFixedProject"
-        v-model="projectOptionProxy"
-        name="model-object-project-select"
-        label="项目"
-        show-label
-        fit-content
-        mount-menu-on-body
-        :items="projectOptions"
-        :disabled="disabled || projectOptions.length === 0"
-        :allow-unset="true"
-        by="id"
+    <slot name="trigger" :open="openDrawer">
+      <button
+        type="button"
+        class="w-full px-3 py-2 border border-outline-3 rounded-md bg-foundation-page text-left flex items-center justify-between gap-2 disabled:opacity-50"
+        :disabled="disabled"
+        @click="openDrawer"
       >
-        <template #nothing-selected>
-          <span class="truncate block">
-            {{ loadingProjects ? '加载项目中...' : '请选择项目' }}
-          </span>
-        </template>
-        <template #something-selected="{ value }">
-          <span class="truncate block">
-            {{ Array.isArray(value) ? value[0]?.name : value?.name }}
-          </span>
-        </template>
-        <template #option="{ item }">
-          <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
-        </template>
-      </FormSelectBase>
-
-      <FormSelectBase
-        v-model="modelOptionProxy"
-        name="model-object-model-select"
-        label="模型"
-        show-label
-        fit-content
-        mount-menu-on-body
-        :class="hasFixedProject ? 'md:col-span-1' : ''"
-        :items="modelOptions"
-        :disabled="disabled || !activeProjectId || modelOptions.length === 0"
-        :allow-unset="true"
-        by="id"
-      >
-        <template #nothing-selected>
-          <span class="truncate block">
-            {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
-          </span>
-        </template>
-        <template #something-selected="{ value }">
-          <span class="truncate block">
-            {{ Array.isArray(value) ? value[0]?.name : value?.name }}
-          </span>
-        </template>
-        <template #option="{ item }">
-          <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
-        </template>
-      </FormSelectBase>
-    </div>
-
-    <button
-      type="button"
-      class="w-full px-3 py-2 border border-outline-3 rounded-md bg-foundation-page text-left flex items-center justify-between gap-2 disabled:opacity-50"
-      :disabled="disabled || !modelIdModel"
-      @click="openDrawer"
-    >
-      <span
-        v-tippy="triggerSelectedNamesTooltip"
-        class="truncate text-body-sm"
-        :class="selectedCount > 0 ? 'text-foreground' : 'text-foreground-2'"
-      >
-        {{ triggerSelectedNamesLabel }}
-      </span>
-      <span class="text-body-xs text-foreground-2 shrink-0">
-        {{ selectedCount }} 已选
-      </span>
-    </button>
+        <span
+          v-tippy="triggerSelectedNamesTooltip"
+          class="truncate text-body-sm"
+          :class="selectedCount > 0 ? 'text-foreground' : 'text-foreground-2'"
+        >
+          {{ triggerSelectedNamesLabel }}
+        </span>
+        <span class="text-body-xs text-foreground-2 shrink-0">
+          {{ selectedCount }} 已选
+        </span>
+      </button>
+    </slot>
 
     <CommonConfirmDialog
       v-model:open="open"
@@ -87,7 +28,67 @@
       fullscreen="all"
       @confirm="submitSelection"
     >
-      <div class="p-3 h-full flex flex-col">
+      <div class="p-3 h-full flex flex-col gap-3">
+        <div
+          class="grid grid-cols-1 gap-3"
+          :class="hasFixedProject ? 'md:grid-cols-1' : 'md:grid-cols-2'"
+        >
+          <FormSelectBase
+            v-if="!hasFixedProject"
+            v-model="projectOptionProxy"
+            name="model-object-project-select"
+            label="项目"
+            show-label
+            fit-content
+            mount-menu-on-body
+            :items="projectOptions"
+            :disabled="disabled || projectOptions.length === 0"
+            :allow-unset="true"
+            by="id"
+          >
+            <template #nothing-selected>
+              <span class="truncate block">
+                {{ loadingProjects ? '加载项目中...' : '请选择项目' }}
+              </span>
+            </template>
+            <template #something-selected="{ value }">
+              <span class="truncate block">
+                {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+              </span>
+            </template>
+            <template #option="{ item }">
+              <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
+            </template>
+          </FormSelectBase>
+
+          <FormSelectBase
+            v-model="modelOptionProxy"
+            name="model-object-model-select"
+            label="模型"
+            show-label
+            fit-content
+            mount-menu-on-body
+            :items="modelOptions"
+            :disabled="disabled || !activeProjectId || modelOptions.length === 0"
+            :allow-unset="true"
+            by="id"
+          >
+            <template #nothing-selected>
+              <span class="truncate block">
+                {{ activeProjectId ? '请选择模型' : '请先选择项目' }}
+              </span>
+            </template>
+            <template #something-selected="{ value }">
+              <span class="truncate block">
+                {{ Array.isArray(value) ? value[0]?.name : value?.name }}
+              </span>
+            </template>
+            <template #option="{ item }">
+              <span class="whitespace-nowrap" :title="item.name">{{ item.name }}</span>
+            </template>
+          </FormSelectBase>
+        </div>
+
         <div class="text-body-xs text-foreground-2 truncate">
           项目：{{ projectDisplayName }} ｜ 模型：{{ modelDisplayName }}
         </div>
@@ -152,6 +153,7 @@
 import { gql } from '@apollo/client/core'
 import { useQuery } from '@vue/apollo-composable'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
+import { SelectionExtension } from '@speckle/viewer'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import { getHeaderAndSubheaderForSpeckleObject } from '~/lib/object-sidebar/helpers'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
@@ -239,7 +241,7 @@ const selectionSidebar = ref()
 
 // draftSelectedIds 存储 applicationId（BIM 侧标识）
 const draftSelectedIds = ref<Set<string>>(new Set())
-const viewerState = ref<InjectableViewerState | null>(null)
+const viewerState = shallowRef<InjectableViewerState | null>(null)
 const applicationIdByBimId = ref<Record<string, string>>({})
 // 反向映射：applicationId -> bimId列表（用于高亮 viewer 中的构件）
 const bimIdsByApplicationId = ref<Record<string, string[]>>({})
@@ -404,8 +406,6 @@ const getSelectedObjectDisplayName = (id: string) => {
 }
 
 const triggerSelectedNamesLabel = computed(() => {
-  if (!activeProjectId.value) return '请先选择项目'
-  if (!modelIdModel.value) return '请先选择模型'
   if (!selectedCount.value) return props.placeholder
 
   const names = filteredApplicationIds.value
@@ -417,7 +417,7 @@ const triggerSelectedNamesLabel = computed(() => {
 })
 
 const triggerSelectedNamesTooltip = computed(() => {
-  if (!activeProjectId.value || !modelIdModel.value || !selectedCount.value) {
+  if (!selectedCount.value) {
     return triggerSelectedNamesLabel.value
   }
 
@@ -525,8 +525,18 @@ const openDrawer = () => {
   open.value = true
 }
 
+// Snapshot of the committed v-model state taken when the drawer opens, so a cancel can
+// revert any live mutations made while the drawer was open (e.g. the model select writing
+// straight into `model_id`).
+let committedSnapshot: {
+  modelId: string | null
+  applicationIds: string[]
+} | null = null
+let skipRestore = false
+
 const submitSelection = () => {
   // draftSelectedIds 此时存的是 applicationId
+  skipRestore = true
   const selectedApplicationIds = Array.from(draftSelectedIds.value)
   applicationIdsModel.value = selectedApplicationIds
   open.value = false
@@ -562,7 +572,6 @@ watch(
     applicationIdByBimId.value = {}
     bimIdsByApplicationId.value = {}
     draftSelectedIds.value = new Set()
-    open.value = false
     viewerState.value = null
   }
 )
@@ -575,19 +584,40 @@ watch(
     applicationIdByBimId.value = {}
     bimIdsByApplicationId.value = {}
     draftSelectedIds.value = new Set()
-    if (newModelId) openDrawer()
-    else {
-      open.value = false
-      viewerState.value = null
-    }
+    if (!newModelId) viewerState.value = null
   }
 )
 
 watch(
   () => open.value,
   (isOpen, wasOpen) => {
-    if (isOpen && !wasOpen) syncDraftFromModel()
-    if (!isOpen && wasOpen) viewerState.value = null
+    if (isOpen && !wasOpen) {
+      committedSnapshot = {
+        modelId: modelIdModel.value,
+        applicationIds: Array.from(filteredApplicationIds.value)
+      }
+      syncDraftFromModel()
+    }
+    if (!isOpen && wasOpen) {
+      // Reset the shared viewer's transient selection/isolation so it doesn't leak the
+      // current draft (e.g. components picked but not saved) into the next viewer mount.
+      const state = viewerState.value
+      if (state) {
+        state.ui.filters.isolatedObjectIds.value = []
+        state.ui.filters.hiddenObjectIds.value = []
+        state.ui.filters.selectedObjects.value = []
+        state.viewer.instance.getExtension(SelectionExtension)?.clearSelection()
+      }
+      viewerState.value = null
+      if (skipRestore) {
+        skipRestore = false
+      } else if (committedSnapshot) {
+        modelIdModel.value = committedSnapshot.modelId
+        applicationIdsModel.value = committedSnapshot.applicationIds
+      }
+      committedSnapshot = null
+      draftSelectedIds.value = new Set()
+    }
   }
 )
 

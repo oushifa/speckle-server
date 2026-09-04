@@ -1,8 +1,12 @@
+<!-- eslint-disable -->
 <template>
   <div class="permission-management-root p-4 text-foreground font-sans">
     <div class="rounded-lg shadow-sm p-4" style="background-color: var(--card)">
       <!-- Breadcrumb (像素级复刻) -->
-      <div class="flex items-center gap-2 text-xs mb-3" style="color: var(--muted-foreground)">
+      <div
+        class="flex items-center gap-2 text-xs mb-3"
+        style="color: var(--muted-foreground)"
+      >
         <span class="hover:underline cursor-pointer">项目管理</span>
         <span>/</span>
         <span class="hover:underline cursor-pointer">项目设置</span>
@@ -16,14 +20,20 @@
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-3">
           <h1 class="text-lg font-bold" style="color: var(--foreground)">角色配置</h1>
-          
+
           <!-- Domain Toggle (企业级与项目级全局切换开关) -->
-          <div class="flex items-center gap-1 rounded-lg p-1" style="background-color: var(--muted); border: 1px solid var(--border)">
+          <div
+            class="flex items-center gap-1 rounded-lg p-1"
+            style="background-color: var(--muted); border: 1px solid var(--border)"
+          >
             <button
               class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all"
               :style="{
                 backgroundColor: domain === 'project' ? 'var(--card)' : 'transparent',
-                color: domain === 'project' ? 'var(--foreground)' : 'var(--muted-foreground)',
+                color:
+                  domain === 'project'
+                    ? 'var(--foreground)'
+                    : 'var(--muted-foreground)',
                 boxShadow: domain === 'project' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
               }"
               @click="domain = 'project'"
@@ -34,9 +44,14 @@
             <button
               class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all"
               :style="{
-                backgroundColor: domain === 'enterprise' ? 'var(--card)' : 'transparent',
-                color: domain === 'enterprise' ? 'var(--foreground)' : 'var(--muted-foreground)',
-                boxShadow: domain === 'enterprise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                backgroundColor:
+                  domain === 'enterprise' ? 'var(--card)' : 'transparent',
+                color:
+                  domain === 'enterprise'
+                    ? 'var(--foreground)'
+                    : 'var(--muted-foreground)',
+                boxShadow:
+                  domain === 'enterprise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
               }"
               @click="domain = 'enterprise'"
             >
@@ -49,11 +64,21 @@
 
       <!-- Split layout (像素级复刻) -->
       <div class="grid gap-4" style="grid-template-columns: 240px 1fr">
-        
         <!-- ── Left: Role list (像素级复刻) ── -->
-        <div class="rounded-lg overflow-hidden flex flex-col" style="border: 1px solid var(--border)">
-          <div class="p-3 flex items-center justify-between flex-shrink-0" style="border-bottom: 1px solid var(--border); background-color: var(--muted)">
-            <h3 class="text-xs font-semibold" style="color: var(--foreground)">角色列表</h3>
+        <div
+          class="rounded-lg overflow-hidden flex flex-col"
+          style="border: 1px solid var(--border)"
+        >
+          <div
+            class="p-3 flex items-center justify-between flex-shrink-0"
+            style="
+              border-bottom: 1px solid var(--border);
+              background-color: var(--muted);
+            "
+          >
+            <h3 class="text-xs font-semibold" style="color: var(--foreground)">
+              角色列表
+            </h3>
             <button
               v-if="hasFunctionalPerm('ent-permission:create')"
               class="h-7 px-2.5 rounded text-[11px] font-bold inline-flex items-center gap-1 transition-all"
@@ -67,19 +92,30 @@
 
           <div class="p-2 flex-shrink-0" style="border-bottom: 1px solid var(--border)">
             <div class="relative">
-              <MagnifyingGlassIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style="color: var(--muted-foreground)" />
+              <MagnifyingGlassIcon
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5"
+                style="color: var(--muted-foreground)"
+              />
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="搜索角色..."
                 class="w-full h-7 pl-8 pr-3 text-[11px] rounded border focus:outline-none"
-                style="background-color: var(--input-background); border-color: var(--border); color: var(--foreground)"
+                style="
+                  background-color: var(--input-background);
+                  border-color: var(--border);
+                  color: var(--foreground);
+                "
               />
             </div>
           </div>
 
           <div class="overflow-y-auto" style="max-height: 640px">
-            <div v-if="filteredRoles.length === 0" class="p-6 text-center text-xs" style="color: var(--muted-foreground)">
+            <div
+              v-if="filteredRoles.length === 0"
+              class="p-6 text-center text-xs"
+              style="color: var(--muted-foreground)"
+            >
               暂无角色
             </div>
             <div
@@ -88,8 +124,13 @@
               :key="role.id"
               class="group/item p-3 cursor-pointer transition-colors flex items-center justify-between gap-2"
               :style="{
-                borderLeft: `3px solid ${selectedRoleId === role.id ? getRoleHexColor(role.name) : 'transparent'}`,
-                backgroundColor: selectedRoleId === role.id ? 'var(--accent)' : undefined,
+                borderLeft: `3px solid ${
+                  selectedRoleId === role.id
+                    ? getRoleHexColor(role.name)
+                    : 'transparent'
+                }`,
+                backgroundColor:
+                  selectedRoleId === role.id ? 'var(--accent)' : undefined,
                 borderBottom: '1px solid var(--border)'
               }"
               @click="selectRole(role)"
@@ -106,10 +147,16 @@
                 </div>
 
                 <div class="flex-1 min-w-0">
-                  <span class="text-xs font-semibold truncate block" style="color: var(--foreground)">
+                  <span
+                    class="text-xs font-semibold truncate block"
+                    style="color: var(--foreground)"
+                  >
                     {{ role.name }}
                   </span>
-                  <div class="flex items-center gap-2 mt-1 text-[10px] font-medium" style="color: var(--muted-foreground)">
+                  <div
+                    class="flex items-center gap-2 mt-1 text-[10px] font-medium"
+                    style="color: var(--muted-foreground)"
+                  >
                     <span class="flex items-center gap-0.5">
                       <UsersIcon class="w-3 h-3" />
                       {{ getRoleMemberCount(role.id) }}人
@@ -121,7 +168,9 @@
               </div>
 
               <!-- 操作按键 -->
-              <div class="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0">
+              <div
+                class="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0"
+              >
                 <button
                   v-if="hasFunctionalPerm('ent-permission:edit')"
                   class="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-all text-foreground-3 hover:text-foreground"
@@ -144,18 +193,40 @@
         </div>
 
         <!-- ── Right: Permission panel (像素级复刻) ── -->
-        <div class="rounded-lg overflow-hidden flex flex-col bg-foundation" style="border: 1px solid var(--border); min-height: 500px">
-          <div v-if="!selectedRole" class="flex-1 flex items-center justify-center p-12">
+        <div
+          class="rounded-lg overflow-hidden flex flex-col bg-foundation"
+          style="border: 1px solid var(--border); min-height: 500px"
+        >
+          <div
+            v-if="!selectedRole"
+            class="flex-1 flex items-center justify-center p-12"
+          >
             <div class="text-center">
-              <ShieldCheckIcon class="w-14 h-14 mx-auto mb-4" style="color: var(--muted-foreground); opacity: 0.2" />
-              <p class="text-sm font-semibold mb-1" style="color: var(--muted-foreground)">请选择角色</p>
-              <p class="text-xs" style="color: var(--muted-foreground)">从左侧列表选择角色，配置其权限与成员</p>
+              <ShieldCheckIcon
+                class="w-14 h-14 mx-auto mb-4"
+                style="color: var(--muted-foreground); opacity: 0.2"
+              />
+              <p
+                class="text-sm font-semibold mb-1"
+                style="color: var(--muted-foreground)"
+              >
+                请选择角色
+              </p>
+              <p class="text-xs" style="color: var(--muted-foreground)">
+                从左侧列表选择角色，配置其权限与成员
+              </p>
             </div>
           </div>
 
           <div v-else class="flex flex-col h-full overflow-hidden">
             <!-- Role header -->
-            <div class="p-4 flex-shrink-0 border-b border-outline-3 flex items-center justify-between gap-4" style="border-bottom: 1px solid var(--border); background-color: var(--muted)">
+            <div
+              class="p-4 flex-shrink-0 border-b border-outline-3 flex items-center justify-between gap-4"
+              style="
+                border-bottom: 1px solid var(--border);
+                background-color: var(--muted);
+              "
+            >
               <div class="flex items-center gap-3">
                 <div
                   class="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold border"
@@ -169,7 +240,9 @@
                 </div>
                 <div>
                   <div class="flex items-center gap-2">
-                    <h3 class="font-semibold text-sm" style="color: var(--foreground)">{{ selectedRole.name }}</h3>
+                    <h3 class="font-semibold text-sm" style="color: var(--foreground)">
+                      {{ selectedRole.name }}
+                    </h3>
                     <span
                       class="text-[10px] font-bold px-2 py-0.5 rounded-full"
                       :style="{
@@ -180,14 +253,20 @@
                       {{ getRoleMemberCount(selectedRoleId) }} 名成员
                     </span>
                   </div>
-                  <p class="text-[11px] mt-0.5" style="color: var(--muted-foreground)">正在配置 {{ domain === 'project' ? '项目级' : '企业级' }} 范围下的权限设定</p>
+                  <p class="text-[11px] mt-0.5" style="color: var(--muted-foreground)">
+                    正在配置
+                    {{ domain === 'project' ? '项目级' : '企业级' }} 范围下的权限设定
+                  </p>
                 </div>
               </div>
 
               <button
                 v-if="hasFunctionalPerm('ent-permission:edit')"
                 class="h-7.5 px-3.5 rounded text-xs font-bold transition-all shrink-0"
-                style="background-color: var(--primary); color: var(--primary-foreground)"
+                style="
+                  background-color: var(--primary);
+                  color: var(--primary-foreground);
+                "
                 :disabled="savingPerms"
                 @click="savePermissions"
               >
@@ -196,16 +275,23 @@
             </div>
 
             <!-- Tabs (Demo 样式 - 根据 Domain 切换) -->
-            <div class="flex flex-shrink-0 overflow-x-auto bg-foundation border-b border-outline-3 scrollbar-none" style="border-bottom: 1px solid var(--border)">
+            <div
+              class="flex flex-shrink-0 overflow-x-auto bg-foundation border-b border-outline-3 scrollbar-none"
+              style="border-bottom: 1px solid var(--border)"
+            >
               <button
                 v-for="tab in TABS"
                 :key="tab.key"
                 @click="activeTab = tab.key"
                 class="flex items-center gap-1.5 px-4 py-3 text-xs transition-colors whitespace-nowrap border-b-2 -mb-px"
                 :style="{
-                  color: activeTab === tab.key ? 'var(--primary)' : 'var(--muted-foreground)',
+                  color:
+                    activeTab === tab.key
+                      ? 'var(--primary)'
+                      : 'var(--muted-foreground)',
                   fontWeight: activeTab === tab.key ? 600 : 400,
-                  borderBottomColor: activeTab === tab.key ? 'var(--primary)' : 'transparent'
+                  borderBottomColor:
+                    activeTab === tab.key ? 'var(--primary)' : 'transparent'
                 }"
               >
                 <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
@@ -222,15 +308,34 @@
 
             <!-- Tab content -->
             <div class="flex-1 overflow-y-auto">
-              
               <!-- 1. 菜单权限 Tab -->
               <div v-if="activeTab === 'menu'" class="divide-y divide-outline-3">
                 <!-- 快捷操作栏 -->
-                <div class="flex items-center gap-3 px-4 py-2" style="border-bottom: 1px solid var(--border); background-color: var(--muted)">
-                  <button class="text-xs hover:underline font-semibold" style="color: var(--primary)" @click="selectAllMenus">全选</button>
+                <div
+                  class="flex items-center gap-3 px-4 py-2"
+                  style="
+                    border-bottom: 1px solid var(--border);
+                    background-color: var(--muted);
+                  "
+                >
+                  <button
+                    class="text-xs hover:underline font-semibold"
+                    style="color: var(--primary)"
+                    @click="selectAllMenus"
+                  >
+                    全选
+                  </button>
                   <span style="color: var(--border)">|</span>
-                  <button class="text-xs hover:underline font-semibold" style="color: var(--primary)" @click="clearAllMenus">清空</button>
-                  <span class="ml-auto text-xs" style="color: var(--muted-foreground)">已启用 {{ selectedMenuCount }} 个页面</span>
+                  <button
+                    class="text-xs hover:underline font-semibold"
+                    style="color: var(--primary)"
+                    @click="clearAllMenus"
+                  >
+                    清空
+                  </button>
+                  <span class="ml-auto text-xs" style="color: var(--muted-foreground)">
+                    已启用 {{ selectedMenuCount }} 个页面
+                  </span>
                 </div>
 
                 <!-- 企业级菜单树列表 -->
@@ -249,7 +354,9 @@
                       class="rounded border-outline-3 text-blue-600 focus:ring-blue-600/30 scale-90 cursor-pointer"
                     />
                     <FolderIcon class="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                    <span class="text-xs font-bold" style="color: var(--foreground)">{{ menu.label }}</span>
+                    <span class="text-xs font-bold" style="color: var(--foreground)">
+                      {{ menu.label }}
+                    </span>
                   </div>
                 </div>
 
@@ -259,11 +366,25 @@
                     <!-- 一级分组 (level = 0, 带灰色背景) -->
                     <div
                       class="flex items-center gap-2.5 py-2.5 px-3 transition-colors border-b"
-                      style="border-bottom: 1px solid var(--border); background-color: var(--muted)"
+                      style="
+                        border-bottom: 1px solid var(--border);
+                        background-color: var(--muted);
+                      "
                     >
-                      <button @click="toggleExpandMenu(grp.id)" class="flex-shrink-0 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800">
-                        <ChevronDownIcon v-if="isMenuExpanded(grp.id)" class="w-3.5 h-3.5" style="color: var(--muted-foreground)" />
-                        <ChevronRightIcon v-else class="w-3.5 h-3.5" style="color: var(--muted-foreground)" />
+                      <button
+                        @click="toggleExpandMenu(grp.id)"
+                        class="flex-shrink-0 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"
+                      >
+                        <ChevronDownIcon
+                          v-if="isMenuExpanded(grp.id)"
+                          class="w-3.5 h-3.5"
+                          style="color: var(--muted-foreground)"
+                        />
+                        <ChevronRightIcon
+                          v-else
+                          class="w-3.5 h-3.5"
+                          style="color: var(--muted-foreground)"
+                        />
                       </button>
                       <input
                         type="checkbox"
@@ -272,7 +393,9 @@
                         @change="toggleGroupMenu(grp)"
                       />
                       <FolderIcon class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                      <span class="text-xs font-bold" style="color: var(--foreground)">{{ grp.label }}</span>
+                      <span class="text-xs font-bold" style="color: var(--foreground)">
+                        {{ grp.label }}
+                      </span>
                     </div>
 
                     <!-- 二级页面 (level = 1, 缩进) -->
@@ -281,7 +404,10 @@
                         v-for="child in grp.children"
                         :key="child.id"
                         class="flex items-center gap-2.5 py-2.5 pr-3 hover:bg-accent/40 transition-colors border-b"
-                        style="padding-left: 32px; border-bottom: 1px solid var(--border)"
+                        style="
+                          padding-left: 32px;
+                          border-bottom: 1px solid var(--border);
+                        "
                       >
                         <span class="w-3.5 shrink-0" />
                         <input
@@ -292,7 +418,9 @@
                           @change="onProjectMenuToggle(child.id)"
                         />
                         <DocumentIcon class="w-3.5 h-3.5 text-foreground-3 shrink-0" />
-                        <span class="text-xs" style="color: var(--foreground)">{{ child.label }}</span>
+                        <span class="text-xs" style="color: var(--foreground)">
+                          {{ child.label }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -334,10 +462,14 @@
                       :style="{
                         gridTemplateColumns: gridCols,
                         borderBottom: '1px solid var(--border)',
-                        backgroundColor: idx % 2 !== 0 ? 'rgba(236, 236, 240, 0.3)' : undefined
+                        backgroundColor:
+                          idx % 2 !== 0 ? 'rgba(236, 236, 240, 0.3)' : undefined
                       }"
                     >
-                      <div class="px-3.5 py-3 text-xs font-semibold" style="color: var(--foreground)">
+                      <div
+                        class="px-3.5 py-3 text-xs font-semibold"
+                        style="color: var(--foreground)"
+                      >
                         {{ menu.label }}
                       </div>
                       <div
@@ -368,7 +500,12 @@
                           padding: '6px 0'
                         }"
                       >
-                        <div class="px-3 text-xs font-semibold" style="color: var(--muted-foreground)">{{ grp.label }}</div>
+                        <div
+                          class="px-3 text-xs font-semibold"
+                          style="color: var(--muted-foreground)"
+                        >
+                          {{ grp.label }}
+                        </div>
                         <div v-for="act in functionalActions" :key="act.id" />
                       </div>
 
@@ -380,10 +517,14 @@
                         :style="{
                           gridTemplateColumns: gridCols,
                           borderBottom: '1px solid var(--border)',
-                          backgroundColor: idx % 2 !== 0 ? 'rgba(236, 236, 240, 0.3)' : undefined
+                          backgroundColor:
+                            idx % 2 !== 0 ? 'rgba(236, 236, 240, 0.3)' : undefined
                         }"
                       >
-                        <div class="px-3.5 py-3 text-xs pl-6" style="color: var(--foreground)">
+                        <div
+                          class="px-3.5 py-3 text-xs pl-6"
+                          style="color: var(--foreground)"
+                        >
                           {{ child.label }}
                         </div>
                         <div
@@ -407,30 +548,57 @@
               <!-- 3. 数据权限 Tab (Radio 卡片组样式) -->
               <div v-if="activeTab === 'data'" class="flex flex-col p-4 max-w-md">
                 <div class="space-y-3">
-                  <h4 class="text-xs font-semibold" style="color: var(--foreground)">数据范围</h4>
-                  <div class="rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
+                  <h4 class="text-xs font-semibold" style="color: var(--foreground)">
+                    数据范围
+                  </h4>
+                  <div
+                    class="rounded-lg overflow-hidden"
+                    style="border: 1px solid var(--border)"
+                  >
                     <div
                       v-for="(opt, idx) in dataPermissionOptions"
                       :key="opt.value"
                       @click="tempDataPerm = opt.value"
                       class="flex items-center gap-3 p-3 cursor-pointer transition-colors"
                       :style="{
-                        borderBottom: idx < dataPermissionOptions.length - 1 ? '1px solid var(--border)' : undefined,
-                        backgroundColor: tempDataPerm === opt.value ? 'rgba(59, 130, 246, 0.08)' : undefined
+                        borderBottom:
+                          idx < dataPermissionOptions.length - 1
+                            ? '1px solid var(--border)'
+                            : undefined,
+                        backgroundColor:
+                          tempDataPerm === opt.value
+                            ? 'rgba(59, 130, 246, 0.08)'
+                            : undefined
                       }"
                     >
                       <div
                         class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
                         :style="{
-                          borderColor: tempDataPerm === opt.value ? 'var(--primary)' : 'var(--border)',
-                          backgroundColor: tempDataPerm === opt.value ? 'var(--primary)' : 'transparent'
+                          borderColor:
+                            tempDataPerm === opt.value
+                              ? 'var(--primary)'
+                              : 'var(--border)',
+                          backgroundColor:
+                            tempDataPerm === opt.value
+                              ? 'var(--primary)'
+                              : 'transparent'
                         }"
                       >
-                        <div v-if="tempDataPerm === opt.value" class="w-1.5 h-1.5 rounded-full bg-white" />
+                        <div
+                          v-if="tempDataPerm === opt.value"
+                          class="w-1.5 h-1.5 rounded-full bg-white"
+                        />
                       </div>
                       <div>
-                        <p class="text-xs font-semibold" style="color: var(--foreground)">{{ opt.label }}</p>
-                        <p class="text-[10px]" style="color: var(--muted-foreground)">{{ opt.desc }}</p>
+                        <p
+                          class="text-xs font-semibold"
+                          style="color: var(--foreground)"
+                        >
+                          {{ opt.label }}
+                        </p>
+                        <p class="text-[10px]" style="color: var(--muted-foreground)">
+                          {{ opt.desc }}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -438,18 +606,28 @@
               </div>
 
               <!-- 4. 扩展维度 Tab (预留专业与标段) -->
-              <div v-if="activeTab === 'extensions'" class="p-5 relative overflow-hidden">
-                <div class="absolute inset-0 bg-white/5 dark:bg-black/5 backdrop-blur-[1px] flex flex-col items-center justify-center text-center p-6 z-10 select-none">
-                  <ExclamationTriangleIcon class="h-8 w-8 text-amber-500 mb-2 animate-bounce" />
+              <div
+                v-if="activeTab === 'extensions'"
+                class="p-5 relative overflow-hidden"
+              >
+                <div
+                  class="absolute inset-0 bg-white/5 dark:bg-black/5 backdrop-blur-[1px] flex flex-col items-center justify-center text-center p-6 z-10 select-none"
+                >
+                  <ExclamationTriangleIcon
+                    class="h-8 w-8 text-amber-500 mb-2 animate-bounce"
+                  />
                   <p class="text-xs font-bold text-foreground">维度扩展预留</p>
                   <p class="text-[10px] text-foreground-3 mt-1 max-w-xs leading-normal">
-                    专业维度和标段数据维度权限在数据库结构及后端 API 层已完成预留，将随着下一步业务构件绑定功能的发布而同步解封。
+                    专业维度和标段数据维度权限在数据库结构及后端 API
+                    层已完成预留，将随着下一步业务构件绑定功能的发布而同步解封。
                   </p>
                 </div>
 
                 <div class="opacity-30 pointer-events-none select-none space-y-6">
                   <div>
-                    <h3 class="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
+                    <h3
+                      class="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5"
+                    >
                       <TagIcon class="h-4 w-4 text-blue-500" />
                       预留：专业数据权限
                     </h3>
@@ -464,8 +642,13 @@
                     </div>
                   </div>
 
-                  <div class="border-t border-outline-3 pt-4" style="border-top: 1px solid var(--border)">
-                    <h3 class="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
+                  <div
+                    class="border-t border-outline-3 pt-4"
+                    style="border-top: 1px solid var(--border)"
+                  >
+                    <h3
+                      class="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5"
+                    >
                       <QueueListIcon class="h-4 w-4 text-blue-500" />
                       预留：工程标段权限
                     </h3>
@@ -484,30 +667,58 @@
 
               <!-- 5. 权限预览 Tab -->
               <div v-if="activeTab === 'preview'" class="p-4 space-y-4">
-                <div class="flex items-start gap-2 rounded-lg p-3 text-xs" style="background-color: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15)">
-                  <ExclamationTriangleIcon class="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600" />
+                <div
+                  class="flex items-start gap-2 rounded-lg p-3 text-xs"
+                  style="
+                    background-color: rgba(16, 185, 129, 0.08);
+                    border: 1px solid rgba(16, 185, 129, 0.15);
+                  "
+                >
+                  <ExclamationTriangleIcon
+                    class="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600"
+                  />
                   <span style="color: var(--foreground)">
-                    以下为 <strong>{{ selectedRole.name }}</strong> 角色的当前已配置权限总览。
+                    以下为
+                    <strong>{{ selectedRole.name }}</strong>
+                    角色的当前已配置权限总览。
                   </span>
                 </div>
 
                 <div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <!-- 企业级菜单预览 -->
-                  <div class="rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
-                    <div class="px-3 py-2 flex items-center gap-2" style="background-color: var(--muted); border-bottom: 1px solid var(--border)">
+                  <div
+                    class="rounded-lg overflow-hidden"
+                    style="border: 1px solid var(--border)"
+                  >
+                    <div
+                      class="px-3 py-2 flex items-center gap-2"
+                      style="
+                        background-color: var(--muted);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
                       <Square2StackIcon class="w-3.5 h-3.5 text-blue-600" />
-                      <span class="text-xs font-semibold" style="color: var(--foreground)">企业级启用菜单及操作</span>
+                      <span
+                        class="text-xs font-semibold"
+                        style="color: var(--foreground)"
+                      >
+                        企业级启用菜单及操作
+                      </span>
                     </div>
                     <div class="p-3 space-y-2 max-h-[220px] overflow-y-auto">
                       <div v-for="id in previewEntMenus" :key="id">
                         <div class="flex items-center gap-1.5">
                           <FolderIcon class="w-3 h-3 text-blue-500" />
-                          <span class="text-xs font-bold text-foreground-2">{{ id }}</span>
+                          <span class="text-xs font-bold text-foreground-2">
+                            {{ id }}
+                          </span>
                         </div>
                         <!-- 显示对应的企业级按钮操作 -->
                         <div class="flex flex-wrap gap-1 mt-1 pl-4">
                           <span
-                            v-for="act in getMenuActionsPreview(getEntMenuIdByLabel(id))"
+                            v-for="act in getMenuActionsPreview(
+                              getEntMenuIdByLabel(id)
+                            )"
                             :key="act"
                             class="text-[9px] px-1 bg-blue-500/10 text-blue-600 rounded font-semibold"
                           >
@@ -515,29 +726,62 @@
                           </span>
                         </div>
                       </div>
-                      <span v-if="!previewEntMenus.length" class="text-xs text-foreground-3 block text-center py-2">无配置</span>
+                      <span
+                        v-if="!previewEntMenus.length"
+                        class="text-xs text-foreground-3 block text-center py-2"
+                      >
+                        无配置
+                      </span>
                     </div>
                   </div>
 
                   <!-- 项目级权限预览 -->
-                  <div class="rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
-                    <div class="px-3 py-2 flex items-center gap-2" style="background-color: var(--muted); border-bottom: 1px solid var(--border)">
+                  <div
+                    class="rounded-lg overflow-hidden"
+                    style="border: 1px solid var(--border)"
+                  >
+                    <div
+                      class="px-3 py-2 flex items-center gap-2"
+                      style="
+                        background-color: var(--muted);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
                       <FolderIcon class="w-3.5 h-3.5 text-blue-600" />
-                      <span class="text-xs font-semibold" style="color: var(--foreground)">项目级启用菜单及操作</span>
+                      <span
+                        class="text-xs font-semibold"
+                        style="color: var(--foreground)"
+                      >
+                        项目级启用菜单及操作
+                      </span>
                     </div>
                     <div class="p-3 space-y-2 max-h-[220px] overflow-y-auto">
                       <div v-for="item in previewProjActions" :key="item.menuLabel">
                         <div class="flex items-center gap-1.5">
                           <DocumentIcon class="w-3 h-3 text-slate-500" />
-                          <span class="text-xs font-bold" style="color: var(--foreground)">{{ item.menuLabel }}</span>
+                          <span
+                            class="text-xs font-bold"
+                            style="color: var(--foreground)"
+                          >
+                            {{ item.menuLabel }}
+                          </span>
                         </div>
                         <div class="flex flex-wrap gap-1 mt-1 pl-4">
-                          <span v-for="act in item.actions" :key="act" class="text-[9px] px-1 bg-emerald-500/10 text-emerald-600 rounded">
+                          <span
+                            v-for="act in item.actions"
+                            :key="act"
+                            class="text-[9px] px-1 bg-emerald-500/10 text-emerald-600 rounded"
+                          >
                             {{ act }}
                           </span>
                         </div>
                       </div>
-                      <span v-if="!previewProjActions.length" class="text-xs text-foreground-3 block text-center py-2">无配置</span>
+                      <span
+                        v-if="!previewProjActions.length"
+                        class="text-xs text-foreground-3 block text-center py-2"
+                      >
+                        无配置
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -545,32 +789,51 @@
 
               <!-- 6. 成员列表 Tab -->
               <div v-if="activeTab === 'users'" class="p-4 flex flex-col gap-4">
-                <div class="flex items-center justify-between pb-2" style="border-bottom: 1px solid var(--border)">
-                  <h3 class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <div
+                  class="flex items-center justify-between pb-2"
+                  style="border-bottom: 1px solid var(--border)"
+                >
+                  <h3
+                    class="text-xs font-bold text-foreground flex items-center gap-1.5"
+                  >
                     <UsersIcon class="h-4 w-4 text-blue-600" />
                     成员列表
                   </h3>
                   <button
                     v-if="hasFunctionalPerm('ent-permission:create')"
                     class="h-7 px-3 rounded text-[11px] font-semibold transition-all shrink-0"
-                    style="background-color: var(--primary); color: var(--primary-foreground)"
+                    style="
+                      background-color: var(--primary);
+                      color: var(--primary-foreground);
+                    "
                     @click="openAddUserModal"
                   >
                     指派成员
                   </button>
                 </div>
 
-                <div v-if="loadingUsers" class="py-12 flex flex-col items-center justify-center gap-2">
-                  <div class="h-6 w-6 animate-spin rounded-full border-3 border-blue-600 border-t-transparent"></div>
+                <div
+                  v-if="loadingUsers"
+                  class="py-12 flex flex-col items-center justify-center gap-2"
+                >
+                  <div
+                    class="h-6 w-6 animate-spin rounded-full border-3 border-blue-600 border-t-transparent"
+                  ></div>
                   <span class="text-xs text-foreground-2">正在拉取成员...</span>
                 </div>
 
-                <div v-else-if="!roleUsers.length" class="py-10 text-center border border-dashed rounded-lg flex flex-col items-center justify-center p-6 bg-foundation-page/20" style="border-color: var(--border)">
+                <div
+                  v-else-if="!roleUsers.length"
+                  class="py-10 text-center border border-dashed rounded-lg flex flex-col items-center justify-center p-6 bg-foundation-page/20"
+                  style="border-color: var(--border)"
+                >
                   <UsersIcon class="h-8 w-8 text-foreground-3 mb-1.5" />
                   <p class="text-xs text-foreground-2">当前角色下无分配的成员</p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                <div
+                  class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1"
+                >
                   <div
                     v-for="usr in roleUsers"
                     :key="usr.userId"
@@ -589,8 +852,16 @@
                         {{ usr.userName.charAt(0) }}
                       </span>
                       <div class="min-w-0">
-                        <p class="text-xs font-bold text-foreground leading-snug truncate">{{ usr.userName }}</p>
-                        <p class="text-[9px] text-foreground-3 mt-0.5 leading-snug truncate">ID: {{ usr.userId }}</p>
+                        <p
+                          class="text-xs font-bold text-foreground leading-snug truncate"
+                        >
+                          {{ usr.userName }}
+                        </p>
+                        <p
+                          class="text-[9px] text-foreground-3 mt-0.5 leading-snug truncate"
+                        >
+                          ID: {{ usr.userId }}
+                        </p>
                       </div>
                     </div>
                     <button
@@ -604,7 +875,6 @@
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -623,8 +893,12 @@
           @keydown.enter="submitCreateRole"
         />
         <div class="flex justify-end gap-3 pt-3 border-t border-outline-3">
-          <FormButton color="outline" size="sm" @click="addRoleModalOpen = false">取消</FormButton>
-          <FormButton color="primary" size="sm" @click="submitCreateRole">保存</FormButton>
+          <FormButton color="outline" size="sm" @click="addRoleModalOpen = false">
+            取消
+          </FormButton>
+          <FormButton color="primary" size="sm" @click="submitCreateRole">
+            保存
+          </FormButton>
         </div>
       </div>
     </LayoutDialog>
@@ -640,8 +914,12 @@
           @keydown.enter="submitRename"
         />
         <div class="flex justify-end gap-3 pt-3 border-t border-outline-3">
-          <FormButton color="outline" size="sm" @click="renameModalOpen = false">取消</FormButton>
-          <FormButton color="primary" size="sm" @click="submitRename">确认修改</FormButton>
+          <FormButton color="outline" size="sm" @click="renameModalOpen = false">
+            取消
+          </FormButton>
+          <FormButton color="primary" size="sm" @click="submitRename">
+            确认修改
+          </FormButton>
         </div>
       </div>
     </LayoutDialog>
@@ -650,7 +928,9 @@
     <CommonConfirmDialog
       v-model:open="deleteConfirmOpen"
       title="确认删除该角色吗？"
-      :text="`删除角色 '${roleToDelete?.name || ''}' 将会同步解除所有分配给该角色的用户关联。该操作无法撤销！`"
+      :text="`删除角色 '${
+        roleToDelete?.name || ''
+      }' 将会同步解除所有分配给该角色的用户关联。该操作无法撤销！`"
       confirm-text="确认删除"
       @confirm="submitDeleteRole"
     />
@@ -659,7 +939,9 @@
     <CommonConfirmDialog
       v-model:open="removeUserConfirmOpen"
       title="确认从角色中移除成员吗？"
-      :text="`确定要把用户 '${userToRemove?.userName || ''}' 从角色 '${selectedRole?.name || ''}' 的成员中移除吗？`"
+      :text="`确定要把用户 '${userToRemove?.userName || ''}' 从角色 '${
+        selectedRole?.name || ''
+      }' 的成员中移除吗？`"
       confirm-text="确认移除"
       @confirm="submitRemoveUser"
     />
@@ -677,9 +959,21 @@
           class="text-xs"
         />
 
-        <div class="flex justify-end gap-3 pt-3 border-t border-outline-3" style="border-top: 1px solid var(--border)">
-          <FormButton color="outline" size="sm" @click="addUserModalOpen = false">取消</FormButton>
-          <FormButton color="primary" size="sm" :disabled="!selectedApprovers.length" @click="submitAddUser">确认分配</FormButton>
+        <div
+          class="flex justify-end gap-3 pt-3 border-t border-outline-3"
+          style="border-top: 1px solid var(--border)"
+        >
+          <FormButton color="outline" size="sm" @click="addUserModalOpen = false">
+            取消
+          </FormButton>
+          <FormButton
+            color="primary"
+            size="sm"
+            :disabled="!selectedApprovers.length"
+            @click="submitAddUser"
+          >
+            确认分配
+          </FormButton>
         </div>
       </div>
     </LayoutDialog>
@@ -696,6 +990,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useHead } from '#imports'
 import {
@@ -765,7 +1060,7 @@ const projectMenuTree = [
     label: '进度管理',
     children: [
       { id: 'progress-plan', label: '进度计划' },
-      { id: 'actual-progress', label: '实际进度' },
+      { id: 'actual-progress', label: '进度管理' },
       { id: 'visual-progress', label: '形象进度' },
       { id: 'monthly-plan', label: '月度计划' }
     ]
@@ -773,9 +1068,7 @@ const projectMenuTree = [
   {
     id: 'quality-mg',
     label: '质量验收',
-    children: [
-      { id: 'quality-check', label: '质量验收' }
-    ]
+    children: [{ id: 'quality-check', label: '质量验收' }]
   },
   {
     id: 'valuation-mg',
@@ -840,9 +1133,21 @@ const gridCols = computed(() => {
 })
 
 const dataPermissionOptions = [
-  { value: 'all', label: '全部数据', desc: '允许查看本系统下该项目所属的全部数据信息。' },
-  { value: 'dept', label: '本部门数据', desc: '根据项目内部门行政归属，仅可见所在部门及下属数据。' },
-  { value: 'project', label: '本人所在项目数据', desc: '仅可见当前所加入并参建的相关工程项目的数据。' }
+  {
+    value: 'all',
+    label: '全部数据',
+    desc: '允许查看本系统下该项目所属的全部数据信息。'
+  },
+  {
+    value: 'dept',
+    label: '本部门数据',
+    desc: '根据项目内部门行政归属，仅可见所在部门及下属数据。'
+  },
+  {
+    value: 'project',
+    label: '本人所在项目数据',
+    desc: '仅可见当前所加入并参建的相关工程项目的数据。'
+  }
 ] as const
 
 // 根据 domain 切换动态展现配置 Tab (项目级展示数据和扩展，企业级只显示菜单/功能)
@@ -873,7 +1178,7 @@ const ROLE_COLORS = [
   '#06b6d4', // cyan
   '#8b5cf6', // purple
   '#6366f1', // indigo
-  '#ec4899'  // pink
+  '#ec4899' // pink
 ]
 
 const getRoleHexColor = (name: string) => {
@@ -969,13 +1274,10 @@ watch(domain, () => {
 
 const selectedMenuCount = computed(() => {
   if (domain.value === 'enterprise') {
-    return tempMenuPerms.value.filter((id) =>
-      enterpriseMenus.some((m) => m.id === id)
-    ).length
+    return tempMenuPerms.value.filter((id) => enterpriseMenus.some((m) => m.id === id))
+      .length
   } else {
-    return tempMenuPerms.value.filter((id) =>
-      allProjMenuIds.value.includes(id)
-    ).length
+    return tempMenuPerms.value.filter((id) => allProjMenuIds.value.includes(id)).length
   }
 })
 
@@ -1012,11 +1314,17 @@ const clearAllMenus = () => {
     const entIds = enterpriseMenus.map((m) => m.id)
     tempMenuPerms.value = tempMenuPerms.value.filter((id) => !entIds.includes(id))
     // 同步清空企业功能权限
-    tempModelPerms.value = tempModelPerms.value.filter((x) => !entIds.includes(x.split(':')[0]))
+    tempModelPerms.value = tempModelPerms.value.filter(
+      (x) => !entIds.includes(x.split(':')[0])
+    )
   } else {
-    tempMenuPerms.value = tempMenuPerms.value.filter((id) => !allProjMenuIds.value.includes(id))
+    tempMenuPerms.value = tempMenuPerms.value.filter(
+      (id) => !allProjMenuIds.value.includes(id)
+    )
     // 同步清空项目功能权限
-    tempModelPerms.value = tempModelPerms.value.filter((x) => !allProjMenuIds.value.includes(x.split(':')[0]))
+    tempModelPerms.value = tempModelPerms.value.filter(
+      (x) => !allProjMenuIds.value.includes(x.split(':')[0])
+    )
   }
 }
 
@@ -1031,7 +1339,9 @@ const toggleGroupMenu = (grp: any) => {
   const childIds = grp.children.map((c: any) => c.id)
   if (isAllChecked) {
     tempMenuPerms.value = tempMenuPerms.value.filter((id) => !childIds.includes(id))
-    tempModelPerms.value = tempModelPerms.value.filter((x) => !childIds.includes(x.split(':')[0]))
+    tempModelPerms.value = tempModelPerms.value.filter(
+      (x) => !childIds.includes(x.split(':')[0])
+    )
   } else {
     childIds.forEach((id: string) => {
       if (!tempMenuPerms.value.includes(id)) {
@@ -1057,13 +1367,16 @@ const toggleAction = (menuId: string, actionId: string) => {
 
 // 纵向全选/反选某列功能
 const toggleActionColumn = (actionId: string) => {
-  const activeMenus = domain.value === 'enterprise' 
-    ? tempMenuPerms.value.filter((id) => enterpriseMenus.some((m) => m.id === id))
-    : tempMenuPerms.value.filter((id) => allProjMenuIds.value.includes(id))
-    
+  const activeMenus =
+    domain.value === 'enterprise'
+      ? tempMenuPerms.value.filter((id) => enterpriseMenus.some((m) => m.id === id))
+      : tempMenuPerms.value.filter((id) => allProjMenuIds.value.includes(id))
+
   if (!activeMenus.length) return
-  
-  const allChecked = activeMenus.every((menuId) => tempModelPerms.value.includes(`${menuId}:${actionId}`))
+
+  const allChecked = activeMenus.every((menuId) =>
+    tempModelPerms.value.includes(`${menuId}:${actionId}`)
+  )
   if (allChecked) {
     tempModelPerms.value = tempModelPerms.value.filter((x) => {
       const [mId, aId] = x.split(':')
@@ -1086,7 +1399,7 @@ watch(selectedRole, (newVal) => {
     tempMenuPerms.value = [...(newVal.menuPerms || [])]
     tempModelPerms.value = [...(newVal.modelPerms || [])]
     tempDataPerm.value = newVal.dataPerm || 'project'
-    
+
     nextTick(() => {
       hasChanges.value = false
       isInitializing.value = false
@@ -1101,7 +1414,7 @@ watch(selectedRole, (newVal) => {
     tempModelPerms.value = []
     tempDataPerm.value = 'project'
     roleUsers.value = []
-    
+
     nextTick(() => {
       hasChanges.value = false
       isInitializing.value = false
@@ -1109,11 +1422,15 @@ watch(selectedRole, (newVal) => {
   }
 })
 
-watch([tempMenuPerms, tempModelPerms, tempDataPerm], () => {
-  if (!isInitializing.value) {
-    hasChanges.value = true
-  }
-}, { deep: true })
+watch(
+  [tempMenuPerms, tempModelPerms, tempDataPerm],
+  () => {
+    if (!isInitializing.value) {
+      hasChanges.value = true
+    }
+  },
+  { deep: true }
+)
 
 watch(activeTab, (tab) => {
   if (tab === 'users' && selectedRoleId.value) {
@@ -1148,7 +1465,7 @@ const getMenuActionsPreview = (menuId: string) => {
 const previewProjActions = computed(() => {
   const result: Array<{ menuLabel: string; actions: string[] }> = []
   const menuIds = tempMenuPerms.value.filter((id) => allProjMenuIds.value.includes(id))
-  
+
   menuIds.forEach((menuId) => {
     const menuLabel = projectMenuLabelsMap.value[menuId] || menuId
     const tokens = tempModelPerms.value.filter((x) => x.startsWith(`${menuId}:`))
@@ -1174,11 +1491,13 @@ const fetchRoles = async () => {
   try {
     const data = await $fetch<{ items: any[] }>(`${apiOrigin}/api/v1/custom-roles`)
     rolesList.value = data.items || []
-    
+
     await Promise.all(
       rolesList.value.map(async (role) => {
         try {
-          const res = await $fetch<{ items: any[] }>(`${apiOrigin}/api/v1/custom-roles/${role.id}/users`)
+          const res = await $fetch<{ items: any[] }>(
+            `${apiOrigin}/api/v1/custom-roles/${role.id}/users`
+          )
           roleMemberCounts.value[role.id] = (res.items || []).length
         } catch (e) {
           roleMemberCounts.value[role.id] = 0
@@ -1302,15 +1621,18 @@ const savePermissions = async () => {
   if (!selectedRoleId.value) return
   savingPerms.value = true
   try {
-    const updated = await $fetch<any>(`${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/default-permissions`, {
-      method: 'PATCH',
-      body: {
-        menuPerms: tempMenuPerms.value,
-        modelPerms: tempModelPerms.value,
-        dataPerm: tempDataPerm.value
+    const updated = await $fetch<any>(
+      `${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/default-permissions`,
+      {
+        method: 'PATCH',
+        body: {
+          menuPerms: tempMenuPerms.value,
+          modelPerms: tempModelPerms.value,
+          dataPerm: tempDataPerm.value
+        }
       }
-    })
-    
+    )
+
     const idx = rolesList.value.findIndex((r) => r.id === selectedRoleId.value)
     if (idx !== -1) {
       rolesList.value[idx] = {
@@ -1341,7 +1663,9 @@ const fetchRoleUsers = async () => {
   if (!selectedRoleId.value) return
   loadingUsers.value = true
   try {
-    const data = await $fetch<{ items: any[] }>(`${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/users`)
+    const data = await $fetch<{ items: any[] }>(
+      `${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/users`
+    )
     roleUsers.value = data.items || []
     roleMemberCounts.value[selectedRoleId.value] = roleUsers.value.length
   } catch (error) {
@@ -1355,7 +1679,9 @@ const openAddUserModal = async () => {
   selectedApprovers.value = []
   addUserModalOpen.value = true
   try {
-    const data = await $fetch<{ data: any[] }>(`${apiOrigin}/api/v1/organizations/users/search?q=`)
+    const data = await $fetch<{ data: any[] }>(
+      `${apiOrigin}/api/v1/organizations/users/search?q=`
+    )
     allSystemUsers.value = data.data || []
   } catch (e) {
     console.error('拉取系统用户列表出错:', e)
@@ -1397,9 +1723,12 @@ const triggerRemoveUser = (usr: any) => {
 const submitRemoveUser = async () => {
   if (!selectedRoleId.value || !userToRemove.value) return
   try {
-    await $fetch(`${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/users/${userToRemove.value.userId}`, {
-      method: 'DELETE'
-    })
+    await $fetch(
+      `${apiOrigin}/api/v1/custom-roles/${selectedRoleId.value}/users/${userToRemove.value.userId}`,
+      {
+        method: 'DELETE'
+      }
+    )
     removeUserConfirmOpen.value = false
     await fetchRoleUsers()
     await fetchRoles()
@@ -1421,7 +1750,9 @@ const submitRemoveUser = async () => {
 const onProjectMenuToggle = (menuId: string) => {
   if (!tempMenuPerms.value.includes(menuId)) {
     // 菜单取消勾选，自动级联清空该二级菜单下的操作矩阵数据
-    tempModelPerms.value = tempModelPerms.value.filter((x) => !x.startsWith(`${menuId}:`))
+    tempModelPerms.value = tempModelPerms.value.filter(
+      (x) => !x.startsWith(`${menuId}:`)
+    )
   }
 }
 

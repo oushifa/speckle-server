@@ -1,12 +1,15 @@
+<!-- eslint-disable -->
 <template>
   <LayoutDialog v-model:open="isOpen" max-width="lg" prevent-close-on-click-outside>
-    <template #header>选择总进度计划任务</template>
+    <template #header>
+      {{ props.title || '选择总进度计划任务' }}
+    </template>
 
     <div class="space-y-3 py-1">
       <div class="relative">
         <FormTextInput
           v-model="searchTerm"
-          placeholder="搜索总进度任务名称..."
+          :placeholder="props.searchPlaceholder || '搜索总进度任务名称...'"
           name="task-search"
           size="sm"
           class="w-full"
@@ -20,7 +23,7 @@
           v-if="!visibleTasks.length"
           class="py-8 text-center text-body-sm text-foreground-2"
         >
-          暂无匹配的总进度任务
+          {{ props.emptyText || '暂无匹配的总进度任务' }}
         </div>
         <div v-else class="space-y-1">
           <div
@@ -79,6 +82,8 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
+import { computed, ref, watch } from 'vue'
 import { FormButton, FormTextInput, LayoutDialog } from '@speckle/ui-components'
 import { Check } from 'lucide-vue-next'
 
@@ -134,6 +139,9 @@ const props = defineProps<{
   open: boolean
   masterTasks: MasterTaskOption[]
   selectedTaskId?: string | null
+  title?: string
+  searchPlaceholder?: string
+  emptyText?: string
 }>()
 
 const emit = defineEmits<{

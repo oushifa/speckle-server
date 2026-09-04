@@ -56,7 +56,7 @@
               <div class="flex-grow relative">
                 <CommonModelPropsViewer
                   :project-id="selectedInstance.projectId"
-                  :model="modelViewerResources"
+                  :model-ids="modelViewerResources"
                 ></CommonModelPropsViewer>
               </div>
             </div>
@@ -486,7 +486,11 @@ const openInstanceDrawer = (instance: FlowListItem) => {
   const safetyMeasureId = getSafetyMeasureId(instance)
   if (safetyMeasureId) {
     if (!instance.projectId) {
-      notify('流程打开失败', '未找到安全文明措施详情数据', ToastNotificationType.Warning)
+      notify(
+        '流程打开失败',
+        '未找到安全文明措施详情数据',
+        ToastNotificationType.Warning
+      )
       return
     }
     void navigateTo(

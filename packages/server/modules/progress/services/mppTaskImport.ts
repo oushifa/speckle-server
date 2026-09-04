@@ -252,7 +252,14 @@ const ensureCompiledExtractor = async () => {
 
   await execFile(
     javacBin,
-    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
+    [
+      ...javacEncodingArgs,
+      '-cp',
+      `${mpxjLibDir}/*`,
+      '-d',
+      javaBuildDir,
+      javaSourcePath
+    ],
     {
       env: {
         ...process.env,
@@ -283,7 +290,14 @@ const ensureCompiledWriter = async () => {
 
   await execFile(
     javacBin,
-    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, javaSourcePath],
+    [
+      ...javacEncodingArgs,
+      '-cp',
+      `${mpxjLibDir}/*`,
+      '-d',
+      javaBuildDir,
+      javaSourcePath
+    ],
     {
       env: {
         ...process.env,
@@ -475,6 +489,7 @@ export const importProgressPlanTasksFromBlobFactory =
   (deps: { db: Knex; storage: ObjectStorage }) =>
   async (params: {
     projectId: string
+    annualPlanId?: string | null
     planFileId: string
     blobId: string
     fileName: string
@@ -492,21 +507,25 @@ export const importProgressPlanTasksFromBlobFactory =
       const extractedTasks = await runExtractor(tempFilePath)
       return await deps.db.transaction(async (trx) => {
         const previousTasks = await listProgressPlanTasksFactory({ db: trx })({
-          projectId: params.projectId
+          projectId: params.projectId,
+          annualPlanId: params.annualPlanId
         })
         const replaced = await replaceProgressPlanTasksFactory({ db: trx })({
           projectId: params.projectId,
+          annualPlanId: params.annualPlanId,
           planFileId: params.planFileId,
           actorId: params.actorId,
           tasks: extractedTasks
         })
 
-        await syncPlanTaskDerivedDataFactory({ db: trx })({
-          projectId: params.projectId,
-          previousTasks,
-          nextTasks: replaced,
-          actorId: params.actorId
-        })
+        if (!params.annualPlanId) {
+          await syncPlanTaskDerivedDataFactory({ db: trx })({
+            projectId: params.projectId,
+            previousTasks,
+            nextTasks: replaced,
+            actorId: params.actorId
+          })
+        }
 
         return replaced
       })
@@ -540,7 +559,14 @@ const ensureCompiledProbe = async () => {
 
   await execFile(
     javacBin,
-    [...javacEncodingArgs, '-cp', `${mpxjLibDir}/*`, '-d', javaBuildDir, probeSourcePath],
+    [
+      ...javacEncodingArgs,
+      '-cp',
+      `${mpxjLibDir}/*`,
+      '-d',
+      javaBuildDir,
+      probeSourcePath
+    ],
     {
       env: {
         ...process.env,
