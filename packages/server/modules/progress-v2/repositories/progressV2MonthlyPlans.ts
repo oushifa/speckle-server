@@ -9,6 +9,9 @@ export const ProjectProgressV2MonthlyPlans = buildTableHelper(
     'projectId',
     'yearMonth',
     'title',
+    'startDate',
+    'endDate',
+    'preparedBy',
     'remark',
     'tasks',
     'createdBy',
@@ -35,6 +38,9 @@ export type ProgressV2MonthlyPlanRecord = {
   projectId: string
   yearMonth: string
   title: string | null
+  startDate: Date | null
+  endDate: Date | null
+  preparedBy: string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[] | string
   createdBy: string
@@ -53,6 +59,9 @@ export type CreateProgressV2MonthlyPlanParams = {
   projectId: string
   yearMonth: string
   title?: string | null
+  startDate?: Date | null
+  endDate?: Date | null
+  preparedBy?: string | null
   remark?: string | null
   tasks?: MonthlyPlanTaskItem[]
   createdBy: string
@@ -62,6 +71,9 @@ export type UpdateProgressV2MonthlyPlanParams = {
   id: string
   projectId: string
   title?: string | null
+  startDate?: Date | null
+  endDate?: Date | null
+  preparedBy?: string | null
   remark?: string | null
   tasks?: MonthlyPlanTaskItem[]
 }
@@ -79,7 +91,10 @@ export const listProgressV2MonthlyPlansFactory =
 
 export const getProgressV2MonthlyPlanByIdFactory =
   (deps: { db: Knex }) =>
-  async (params: { id: string; projectId: string }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
+  async (params: {
+    id: string
+    projectId: string
+  }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
     return await tables
       .projectProgressV2MonthlyPlans(deps.db)
       .where({
@@ -91,7 +106,10 @@ export const getProgressV2MonthlyPlanByIdFactory =
 
 export const getProgressV2MonthlyPlanByYearMonthFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string; yearMonth: string }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
+  async (params: {
+    projectId: string
+    yearMonth: string
+  }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
     return await tables
       .projectProgressV2MonthlyPlans(deps.db)
       .where({
@@ -103,7 +121,9 @@ export const getProgressV2MonthlyPlanByYearMonthFactory =
 
 export const createProgressV2MonthlyPlanFactory =
   (deps: { db: Knex }) =>
-  async (params: CreateProgressV2MonthlyPlanParams): Promise<ProgressV2MonthlyPlanRecord> => {
+  async (
+    params: CreateProgressV2MonthlyPlanParams
+  ): Promise<ProgressV2MonthlyPlanRecord> => {
     const tasksJson = JSON.stringify(params.tasks || [])
     const [inserted] = await tables.projectProgressV2MonthlyPlans(deps.db).insert(
       {
@@ -111,8 +131,11 @@ export const createProgressV2MonthlyPlanFactory =
         projectId: params.projectId,
         yearMonth: params.yearMonth,
         title: params.title ?? `${params.yearMonth} 月度施工计划`,
+        startDate: params.startDate ?? null,
+        endDate: params.endDate ?? null,
+        preparedBy: params.preparedBy ?? null,
         remark: params.remark ?? null,
-        tasks: tasksJson as any,
+        tasks: tasksJson as string,
         createdBy: params.createdBy
       },
       '*'
@@ -122,11 +145,16 @@ export const createProgressV2MonthlyPlanFactory =
 
 export const updateProgressV2MonthlyPlanFactory =
   (deps: { db: Knex }) =>
-  async (params: UpdateProgressV2MonthlyPlanParams): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
+  async (
+    params: UpdateProgressV2MonthlyPlanParams
+  ): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
     const updateData: Record<string, unknown> = {
       updatedAt: new Date()
     }
     if (params.title !== undefined) updateData.title = params.title
+    if (params.startDate !== undefined) updateData.startDate = params.startDate
+    if (params.endDate !== undefined) updateData.endDate = params.endDate
+    if (params.preparedBy !== undefined) updateData.preparedBy = params.preparedBy
     if (params.remark !== undefined) updateData.remark = params.remark
     if (params.tasks !== undefined) updateData.tasks = JSON.stringify(params.tasks)
 

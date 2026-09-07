@@ -127,27 +127,21 @@
         class="w-full"
         expand-all-by-default
       >
-        <template #wbs="{ item }">
-          <span class="text-body-sm text-foreground-2">{{ item.wbs }}</span>
-        </template>
-        <!-- 去掉任务项点击显示实际进度详情弹窗，仅作纯文本显示 -->
         <template #taskName="{ item }">
-          <span class="text-body-sm font-medium text-foreground">{{ item.taskName }}</span>
+          <span class="text-body-sm font-medium text-foreground">
+            {{ item.taskName || item.name }}
+          </span>
         </template>
         <template #duration="{ item }">
-          <span class="text-body-sm">{{ item.duration || '-' }}</span>
+          <span class="text-body-sm text-center block">{{ item.duration || '-' }}</span>
         </template>
         <template #startDate="{ item }">
-          <span class="text-body-sm">{{ item.startDate || '-' }}</span>
+          <span class="text-body-sm text-center block">
+            {{ item.startDate || '-' }}
+          </span>
         </template>
         <template #endDate="{ item }">
-          <span class="text-body-sm">{{ item.endDate || '-' }}</span>
-        </template>
-        <template #quantity="{ item }">
-          <span class="text-body-sm">{{ item.quantity || '-' }}</span>
-        </template>
-        <template #unit="{ item }">
-          <span class="text-body-sm">{{ item.unit || '-' }}</span>
+          <span class="text-body-sm text-center block">{{ item.endDate || '-' }}</span>
         </template>
       </LayoutTable>
 
@@ -158,7 +152,9 @@
         <span>当前总计划文件：{{ latestPlanFile.fileName }}</span>
         <span v-if="latestPlanFile.updatedAt">
           最后更新：{{
-            new Date(latestPlanFile.updatedAt).toLocaleString('zh-CN', { hour12: false })
+            new Date(latestPlanFile.updatedAt).toLocaleString('zh-CN', {
+              hour12: false
+            })
           }}
         </span>
       </div>
@@ -184,7 +180,9 @@
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-body-sm border-collapse">
           <thead>
-            <tr class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium">
+            <tr
+              class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
+            >
               <th class="py-3 px-4">年份</th>
               <th class="py-3 px-4">计划名称</th>
               <th class="py-3 px-4">起止日期</th>
@@ -200,9 +198,7 @@
               :key="plan.id"
               class="border-b border-outline-2 hover:bg-primary-muted/20 transition-colors"
             >
-              <td class="py-3 px-4 font-semibold text-primary">
-                {{ plan.year }}年
-              </td>
+              <td class="py-3 px-4 font-semibold text-primary">{{ plan.year }}年</td>
               <td class="py-3 px-4">
                 <NuxtLink
                   :to="`/projects/${projectId}/progress-v2/annual/${plan.id}`"
@@ -219,29 +215,42 @@
                 {{ plan.preparedBy || '-' }}
               </td>
               <td class="py-3 px-4">
-                <span v-if="plan.fileName" class="text-body-xs bg-foundation-page px-2 py-0.5 rounded border border-outline-2">
+                <span
+                  v-if="plan.fileName"
+                  class="text-body-xs bg-foundation-page px-2 py-0.5 rounded border border-outline-2"
+                >
                   {{ plan.fileName }}
                 </span>
                 <span v-else class="text-foreground-3 text-body-xs">未上传MPP</span>
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs">
-                {{ plan.updatedAt ? new Date(plan.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '-' }}
+                {{
+                  plan.updatedAt
+                    ? new Date(plan.updatedAt).toLocaleString('zh-CN', {
+                        hour12: false
+                      })
+                    : '-'
+                }}
               </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <button
-                  type="button"
-                  class="text-primary hover:underline text-body-sm"
-                  @click="openEditAnnualDialog(plan)"
-                >
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  class="text-danger hover:underline text-body-sm"
-                  @click="promptDeleteAnnual(plan)"
-                >
-                  删除
-                </button>
+              <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="编辑"
+                    @click="openEditAnnualDialog(plan)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
+                    title="删除"
+                    @click="promptDeleteAnnual(plan)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -269,7 +278,9 @@
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-body-sm border-collapse">
           <thead>
-            <tr class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium">
+            <tr
+              class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
+            >
               <th class="py-3 px-4">计划月份</th>
               <th class="py-3 px-4">计划标题</th>
               <th class="py-3 px-4">任务数</th>
@@ -297,23 +308,33 @@
                 {{ plan.remark || '-' }}
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs">
-                {{ plan.updatedAt ? new Date(plan.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '-' }}
+                {{
+                  plan.updatedAt
+                    ? new Date(plan.updatedAt).toLocaleString('zh-CN', {
+                        hour12: false
+                      })
+                    : '-'
+                }}
               </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <button
-                  type="button"
-                  class="text-primary hover:underline text-body-sm"
-                  @click="openEditMonthlyDialog(plan)"
-                >
-                  编辑任务
-                </button>
-                <button
-                  type="button"
-                  class="text-danger hover:underline text-body-sm"
-                  @click="promptDeleteMonthly(plan)"
-                >
-                  删除
-                </button>
+              <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="编辑任务"
+                    @click="openEditMonthlyDialog(plan)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
+                    title="删除"
+                    @click="promptDeleteMonthly(plan)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -329,9 +350,10 @@
     >
       <form class="space-y-4" @submit.prevent="handleSaveAnnual">
         <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-            年份 <span class="text-danger">*</span>
-          </label>
+          <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+            年份
+            <span class="text-danger">*</span>
+          </div>
           <FormTextInput
             v-model="annualForm.year"
             name="annual-year"
@@ -342,9 +364,10 @@
           />
         </div>
         <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-            计划名称 <span class="text-danger">*</span>
-          </label>
+          <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+            计划名称
+            <span class="text-danger">*</span>
+          </div>
           <FormTextInput
             v-model="annualForm.name"
             name="annual-name"
@@ -355,7 +378,9 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">开始日期</label>
+            <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+              开始日期
+            </div>
             <FormTextInput
               v-model="annualForm.startDate"
               name="annual-start"
@@ -365,7 +390,9 @@
             />
           </div>
           <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">结束日期</label>
+            <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+              结束日期
+            </div>
             <FormTextInput
               v-model="annualForm.endDate"
               name="annual-end"
@@ -376,7 +403,9 @@
           </div>
         </div>
         <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">编制人</label>
+          <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+            编制人
+          </div>
           <FormTextInput
             v-model="annualForm.preparedBy"
             name="annual-prepared-by"
@@ -385,7 +414,9 @@
           />
         </div>
         <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">备注说明</label>
+          <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+            备注说明
+          </div>
           <FormTextArea
             v-model="annualForm.remark"
             name="annual-remark"
@@ -409,143 +440,151 @@
     <LayoutDialog
       v-model:open="monthlyDialogOpen"
       :title="editingMonthlyPlan ? '编辑月度计划' : '新增月度计划'"
-      max-width="lg"
+      max-width="md"
     >
-      <form class="space-y-4" @submit.prevent="handleSaveMonthly">
+      <form class="space-y-4 py-1" @submit.prevent="handleSaveMonthly">
+        <!-- 年月 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">
+            年月
+            <span class="text-danger">*</span>
+          </div>
+          <FormTextInput
+            v-model="monthlyForm.yearMonth"
+            name="monthly-yearMonth"
+            type="month"
+            :disabled="!!editingMonthlyPlan"
+            color="foundation"
+            required
+            @update:model-value="onYearMonthChange"
+          />
+        </div>
+
+        <!-- 计划名称 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">
+            计划名称
+            <span class="text-danger">*</span>
+          </div>
+          <FormTextInput
+            v-model="monthlyForm.title"
+            name="monthly-title"
+            :placeholder="
+              monthlyForm.yearMonth
+                ? `${monthlyForm.yearMonth.replace('-', '年')}月月度施工进度计划`
+                : '请输入计划名称'
+            "
+            color="foundation"
+            required
+          />
+        </div>
+
+        <!-- 开始日期 + 结束日期 -->
         <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-              年月 <span class="text-danger">*</span>
-            </label>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              开始日期
+              <span class="text-danger">*</span>
+            </div>
             <FormTextInput
-              v-model="monthlyForm.yearMonth"
-              name="monthly-yearMonth"
-              type="month"
-              :disabled="!!editingMonthlyPlan"
+              v-model="monthlyForm.startDate"
+              name="monthly-start"
+              type="date"
               color="foundation"
               required
             />
           </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">计划标题</label>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              结束日期
+              <span class="text-danger">*</span>
+            </div>
             <FormTextInput
-              v-model="monthlyForm.title"
-              name="monthly-title"
-              placeholder="例如 2026-09 月度施工计划"
+              v-model="monthlyForm.endDate"
+              name="monthly-end"
+              type="date"
               color="foundation"
+              required
             />
           </div>
         </div>
 
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-body-xs font-semibold text-foreground">本月施工任务清单（独立维护）</span>
-            <FormButton
-              size="sm"
-              color="outline"
-              type="button"
-              :icon-left="Plus"
-              @click="addMonthlyTaskRow"
-            >
-              添加任务
-            </FormButton>
-          </div>
-          <div class="border border-outline-2 rounded overflow-hidden max-h-60 overflow-y-auto">
-            <table class="w-full text-left text-body-xs border-collapse">
-              <thead>
-                <tr class="bg-foundation-page/60 border-b border-outline-2 text-foreground-2">
-                  <th class="p-2">任务名称</th>
-                  <th class="p-2">计划起止</th>
-                  <th class="p-2">计划量</th>
-                  <th class="p-2">单位</th>
-                  <th class="p-2">责任人</th>
-                  <th class="p-2 w-12">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(task, idx) in monthlyForm.tasks"
-                  :key="task.id"
-                  class="border-b border-outline-2"
-                >
-                  <td class="p-1">
-                    <input
-                      v-model="task.taskName"
-                      class="w-full bg-foundation border border-outline-2 rounded px-2 py-1 text-body-xs text-foreground"
-                      placeholder="任务名"
-                      required
-                    />
-                  </td>
-                  <td class="p-1 flex gap-1">
-                    <input
-                      v-model="task.startDate"
-                      type="date"
-                      class="w-24 bg-foundation border border-outline-2 rounded px-1 py-1 text-body-xs text-foreground"
-                    />
-                    <input
-                      v-model="task.endDate"
-                      type="date"
-                      class="w-24 bg-foundation border border-outline-2 rounded px-1 py-1 text-body-xs text-foreground"
-                    />
-                  </td>
-                  <td class="p-1">
-                    <input
-                      v-model="task.plannedVolume"
-                      class="w-16 bg-foundation border border-outline-2 rounded px-2 py-1 text-body-xs text-foreground"
-                      placeholder="工程量"
-                    />
-                  </td>
-                  <td class="p-1">
-                    <input
-                      v-model="task.unit"
-                      class="w-12 bg-foundation border border-outline-2 rounded px-2 py-1 text-body-xs text-foreground"
-                      placeholder="单位"
-                    />
-                  </td>
-                  <td class="p-1">
-                    <input
-                      v-model="task.responsible"
-                      class="w-16 bg-foundation border border-outline-2 rounded px-2 py-1 text-body-xs text-foreground"
-                      placeholder="责任人"
-                    />
-                  </td>
-                  <td class="p-1 text-center">
-                    <button
-                      type="button"
-                      class="text-danger hover:underline text-body-xs"
-                      @click="removeMonthlyTaskRow(idx)"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="!monthlyForm.tasks.length">
-                  <td colspan="6" class="p-4 text-center text-foreground-3 text-body-xs">
-                    暂未添加任务，可点击上方“添加任务”自主录入本月任务。
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">备注说明</label>
-          <FormTextArea
-            v-model="monthlyForm.remark"
-            name="monthly-remark"
-            placeholder="说明与要求..."
+        <!-- 编制人 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">编制人</div>
+          <FormTextInput
+            v-model="monthlyForm.preparedBy"
+            name="monthly-preparedBy"
+            placeholder="请输入编制人"
             color="foundation"
-            rows="2"
           />
         </div>
 
-        <div class="flex justify-end gap-2 pt-2">
+        <!-- 附件上传 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">附件</div>
+          <label
+            class="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-outline-2 cursor-pointer transition-colors hover:bg-primary-muted/20 text-body-xs text-foreground-2"
+          >
+            <Paperclip class="w-4 h-4 shrink-0" />
+            <span>点击上传附件</span>
+            <input
+              type="file"
+              multiple
+              class="sr-only"
+              @change="onMonthlyAttachmentChange"
+            />
+          </label>
+          <div v-if="monthlyAttachments.length > 0" class="flex flex-col gap-1 mt-1">
+            <div
+              v-for="(f, i) in monthlyAttachments"
+              :key="i"
+              class="flex items-center justify-between px-2.5 py-1 rounded bg-foundation-page text-body-xs border border-outline-2"
+            >
+              <div class="flex items-center gap-1.5 truncate">
+                <Paperclip class="w-3.5 h-3.5 shrink-0 text-foreground-2" />
+                <span class="truncate text-foreground">{{ f.name }}</span>
+              </div>
+              <button
+                type="button"
+                class="ml-2 p-0.5 rounded hover:bg-danger/10 text-foreground-2 hover:text-danger transition-colors"
+                @click="monthlyAttachments.splice(i, 1)"
+              >
+                <X class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 备注 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">备注</div>
+          <FormTextInput
+            v-model="monthlyForm.remark"
+            name="monthly-remark"
+            placeholder="可选"
+            color="foundation"
+          />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-outline-2">
           <FormButton color="outline" type="button" @click="monthlyDialogOpen = false">
             取消
           </FormButton>
-          <FormButton color="primary" type="submit" :disabled="isSavingMonthly">
-            {{ isSavingMonthly ? '保存中...' : '确定保存' }}
+          <FormButton
+            color="primary"
+            type="submit"
+            :disabled="
+              isSavingMonthly ||
+              !monthlyForm.yearMonth ||
+              !monthlyForm.title ||
+              !monthlyForm.startDate ||
+              !monthlyForm.endDate
+            "
+          >
+            {{
+              isSavingMonthly ? '保存中...' : editingMonthlyPlan ? '保存修改' : '保存'
+            }}
           </FormButton>
         </div>
       </form>
@@ -565,7 +604,7 @@
 </template>
 
 <script setup lang="ts">
-import { Download, Upload, Plus } from 'lucide-vue-next'
+import { Download, Upload, Plus, Pencil, Trash2, Paperclip, X } from 'lucide-vue-next'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { CommonConfirmDialog } from '#components'
 import {
@@ -584,8 +623,7 @@ import {
   type ProgressV2PlanFile,
   type ProgressV2PlanTask,
   type ProgressV2AnnualPlan,
-  type ProgressV2MonthlyPlan,
-  type MonthlyPlanTaskItem
+  type ProgressV2MonthlyPlan
 } from '~/lib/projects/api/progress-v2'
 
 const route = useRoute()
@@ -606,37 +644,117 @@ const planImportInputRef = ref<HTMLInputElement | null>(null)
 const latestPlanFile = ref<ProgressV2PlanFile | null>(null)
 const planTasks = ref<ProgressV2PlanTask[]>([])
 
+// 字段使用新版：任务名称（占首列大宽度，负责展开折叠）、工期、开始时间、完成时间
 const taskColumns = [
-  { id: 'wbs', header: '层级', classes: 'col-span-1' },
-  { id: 'taskName', header: '任务名称', classes: 'col-span-4' },
-  { id: 'duration', header: '工期', classes: 'col-span-1' },
-  { id: 'startDate', header: '开始时间', classes: 'col-span-2' },
-  { id: 'endDate', header: '完成时间', classes: 'col-span-2' },
-  { id: 'quantity', header: '工程量', classes: 'col-span-1' },
-  { id: 'unit', header: '单位', classes: 'col-span-1' }
+  { id: 'taskName', header: '任务名称', classes: 'col-span-6' },
+  { id: 'duration', header: '工期', classes: 'col-span-2 text-center' },
+  { id: 'startDate', header: '开始时间', classes: 'col-span-2 text-center' },
+  { id: 'endDate', header: '完成时间', classes: 'col-span-2 text-center' }
 ]
 
-const buildTaskTree = (tasks: ProgressV2PlanTask[]): ProgressV2PlanTask[] => {
-  const taskMap = new Map<string, ProgressV2PlanTask>()
-  tasks.forEach((t) => {
-    taskMap.set(t.id, { ...t, children: [] })
-  })
-
-  const rootTasks: ProgressV2PlanTask[] = []
-  taskMap.forEach((task) => {
-    if (task.parentId && taskMap.has(task.parentId)) {
-      const parent = taskMap.get(task.parentId)!
-      parent.children = parent.children || []
-      parent.children.push(task)
-      parent.hasChildren = true
-    } else {
-      rootTasks.push(task)
-    }
-  })
-  return rootTasks
+const parseWbsSegments = (wbs?: string) => {
+  if (!wbs) return []
+  return wbs
+    .split('.')
+    .filter(Boolean)
+    .map((segment) => Number.parseInt(segment, 10))
 }
 
-const treeTasks = computed(() => buildTaskTree(planTasks.value))
+const compareWbs = (left?: string, right?: string) => {
+  if (!left && !right) return 0
+  if (left && !right) return -1
+  if (!left && right) return 1
+
+  const leftSegments = parseWbsSegments(left)
+  const rightSegments = parseWbsSegments(right)
+  const maxLength = Math.max(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < maxLength; index++) {
+    const leftSegment = leftSegments[index]
+    const rightSegment = rightSegments[index]
+
+    if (leftSegment === undefined) return -1
+    if (rightSegment === undefined) return 1
+    if (leftSegment !== rightSegment) return leftSegment - rightSegment
+  }
+
+  return 0
+}
+
+const getParentWbs = (wbs?: string) => {
+  if (!wbs) return null
+  const segments = wbs.split('.').filter(Boolean)
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('.')
+}
+
+const getWbsLevel = (wbs?: string, fallbackLevel = 0) => {
+  if (!wbs) return fallbackLevel
+  const segments = wbs.split('.').filter(Boolean)
+  return Math.max(segments.length - 1, 0)
+}
+
+// 展示方式（展开收缩）使用旧版：按树形层级构建带 children 的嵌套对象，首列渲染箭头与缩进
+const rebuildTaskTree = (taskItems: ProgressV2PlanTask[]): ProgressV2PlanTask[] => {
+  const orderedItems = [...taskItems].sort((left, right) => {
+    const wbsOrder = compareWbs(left.wbs || undefined, right.wbs || undefined)
+    if (wbsOrder !== 0) return wbsOrder
+    return (left.taskName || left.name).localeCompare(
+      right.taskName || right.name,
+      'zh-CN'
+    )
+  })
+
+  const originalParentIds = new Map(
+    orderedItems.map((item) => [item.id, item.parentId || undefined])
+  )
+  const itemMap = new Map(
+    orderedItems.map((item) => [
+      item.id,
+      { ...item, children: [] as ProgressV2PlanTask[] }
+    ])
+  )
+  const itemByWbs = new Map(
+    orderedItems.flatMap((item) =>
+      item.wbs ? [[item.wbs, itemMap.get(item.id)!] as const] : []
+    )
+  )
+
+  itemMap.forEach((item) => {
+    item.children = []
+    item.parentId = null
+    item.level = getWbsLevel(item.wbs || undefined, item.level)
+  })
+
+  const rootItems: ProgressV2PlanTask[] = []
+
+  orderedItems.forEach((raw) => {
+    const item = itemMap.get(raw.id)!
+    const wbsParent = getParentWbs(item.wbs || undefined)
+    const originalParentId = originalParentIds.get(item.id)
+    const parent = item.wbs
+      ? wbsParent
+        ? itemByWbs.get(wbsParent)
+        : undefined
+      : originalParentId
+      ? itemMap.get(originalParentId)
+      : undefined
+
+    if (!parent) {
+      rootItems.push(item)
+      return
+    }
+
+    item.parentId = parent.id
+    item.level = parent.level + 1
+    parent.children = [...(parent.children || []), item]
+    parent.hasChildren = true
+  })
+
+  return rootItems
+}
+
+const treeTasks = computed(() => rebuildTaskTree(planTasks.value))
 
 const loadTotalPlanData = async () => {
   if (!projectId.value) return
@@ -648,11 +766,11 @@ const loadTotalPlanData = async () => {
     ])
     latestPlanFile.value = file
     planTasks.value = tasks
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载总进度计划失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isLoadingTasks.value = false
@@ -682,11 +800,11 @@ const handlePlanImportChange = async (event: Event) => {
       description: `成功解析并更新 ${res.taskCount} 条总计划任务`
     })
     await loadTotalPlanData()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '导入总进度计划失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isImporting.value = false
@@ -695,7 +813,10 @@ const handlePlanImportChange = async (event: Event) => {
 
 const handleDownloadPlanFile = () => {
   if (!projectId.value || !latestPlanFile.value) return
-  const url = getProgressV2PlanFileDownloadUrl({ projectId: projectId.value, apiOrigin })
+  const url = getProgressV2PlanFileDownloadUrl({
+    projectId: projectId.value,
+    apiOrigin
+  })
   window.open(url, '_blank')
 }
 
@@ -722,11 +843,11 @@ const loadAnnualPlans = async () => {
       projectId: projectId.value,
       apiOrigin
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载年度计划失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isLoadingAnnual.value = false
@@ -800,11 +921,11 @@ const handleSaveAnnual = async () => {
     }
     annualDialogOpen.value = false
     await loadAnnualPlans()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '保存失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isSavingAnnual.value = false
@@ -817,12 +938,41 @@ const monthlyPlans = ref<ProgressV2MonthlyPlan[]>([])
 const monthlyDialogOpen = ref(false)
 const editingMonthlyPlan = ref<ProgressV2MonthlyPlan | null>(null)
 const isSavingMonthly = ref(false)
+const monthlyAttachments = ref<File[]>([])
+
 const monthlyForm = reactive({
-  yearMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+  yearMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
+    2,
+    '0'
+  )}`,
   title: '',
-  remark: '',
-  tasks: [] as MonthlyPlanTaskItem[]
+  startDate: '',
+  endDate: '',
+  preparedBy: '',
+  remark: ''
 })
+
+const onYearMonthChange = (ym: string) => {
+  if (!editingMonthlyPlan.value && ym) {
+    const parts = ym.split('-')
+    if (parts.length === 2) {
+      const year = Number.parseInt(parts[0], 10)
+      const month = Number.parseInt(parts[1], 10)
+      monthlyForm.title = `${year}年${String(month).padStart(2, '0')}月月度施工进度计划`
+      monthlyForm.startDate = `${ym}-01`
+      const lastDay = new Date(year, month, 0).getDate()
+      monthlyForm.endDate = `${ym}-${String(lastDay).padStart(2, '0')}`
+    }
+  }
+}
+
+const onMonthlyAttachmentChange = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  if (target.files) {
+    monthlyAttachments.value.push(...Array.from(target.files))
+    target.value = ''
+  }
+}
 
 const loadMonthlyPlans = async () => {
   if (!projectId.value) return
@@ -832,11 +982,11 @@ const loadMonthlyPlans = async () => {
       projectId: projectId.value,
       apiOrigin
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载月度计划失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isLoadingMonthly.value = false
@@ -845,39 +995,34 @@ const loadMonthlyPlans = async () => {
 
 const openCreateMonthlyDialog = () => {
   editingMonthlyPlan.value = null
-  const ym = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  monthlyAttachments.value = []
+  const now = new Date()
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const firstDay = `${ym}-01`
+  const lastDayObj = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const lastDay = `${ym}-${String(lastDayObj.getDate()).padStart(2, '0')}`
   monthlyForm.yearMonth = ym
-  monthlyForm.title = `${ym} 月度施工计划`
+  monthlyForm.title = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(
+    2,
+    '0'
+  )}月月度施工进度计划`
+  monthlyForm.startDate = firstDay
+  monthlyForm.endDate = lastDay
+  monthlyForm.preparedBy = ''
   monthlyForm.remark = ''
-  monthlyForm.tasks = []
   monthlyDialogOpen.value = true
 }
 
 const openEditMonthlyDialog = (plan: ProgressV2MonthlyPlan) => {
   editingMonthlyPlan.value = plan
+  monthlyAttachments.value = []
   monthlyForm.yearMonth = plan.yearMonth
   monthlyForm.title = plan.title || ''
+  monthlyForm.startDate = plan.startDate ? plan.startDate.slice(0, 10) : ''
+  monthlyForm.endDate = plan.endDate ? plan.endDate.slice(0, 10) : ''
+  monthlyForm.preparedBy = plan.preparedBy || ''
   monthlyForm.remark = plan.remark || ''
-  monthlyForm.tasks = JSON.parse(JSON.stringify(plan.tasks || []))
   monthlyDialogOpen.value = true
-}
-
-const addMonthlyTaskRow = () => {
-  monthlyForm.tasks.push({
-    id: String(Date.now()),
-    taskName: '',
-    startDate: '',
-    endDate: '',
-    plannedVolume: '',
-    actualVolume: '0',
-    unit: 'm³',
-    responsible: '',
-    remark: ''
-  })
-}
-
-const removeMonthlyTaskRow = (index: number) => {
-  monthlyForm.tasks.splice(index, 1)
 }
 
 const handleSaveMonthly = async () => {
@@ -891,14 +1036,16 @@ const handleSaveMonthly = async () => {
         apiOrigin,
         data: {
           title: monthlyForm.title,
-          remark: monthlyForm.remark,
-          tasks: monthlyForm.tasks
+          startDate: monthlyForm.startDate || null,
+          endDate: monthlyForm.endDate || null,
+          preparedBy: monthlyForm.preparedBy || null,
+          remark: monthlyForm.remark
         }
       })
       triggerNotification({
         type: ToastNotificationType.Success,
         title: '更新成功',
-        description: '月度计划任务已保存'
+        description: '月度计划已保存'
       })
     } else {
       await createProgressV2MonthlyPlan({
@@ -907,8 +1054,10 @@ const handleSaveMonthly = async () => {
         data: {
           yearMonth: monthlyForm.yearMonth,
           title: monthlyForm.title,
-          remark: monthlyForm.remark,
-          tasks: monthlyForm.tasks
+          startDate: monthlyForm.startDate || null,
+          endDate: monthlyForm.endDate || null,
+          preparedBy: monthlyForm.preparedBy || null,
+          remark: monthlyForm.remark
         }
       })
       triggerNotification({
@@ -919,11 +1068,11 @@ const handleSaveMonthly = async () => {
     }
     monthlyDialogOpen.value = false
     await loadMonthlyPlans()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '保存失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isSavingMonthly.value = false
@@ -978,11 +1127,11 @@ const executeDelete = async () => {
   if (!pendingDeleteAction) return
   try {
     await pendingDeleteAction()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '删除失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     pendingDeleteAction = null

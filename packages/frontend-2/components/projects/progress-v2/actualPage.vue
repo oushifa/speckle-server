@@ -44,7 +44,6 @@
           :custom-icon="Search"
           color="foundation"
           class="w-64"
-          @update:model-value="debounceLoadActual"
         />
         <FormTextInput
           v-else
@@ -54,7 +53,6 @@
           :custom-icon="Search"
           color="foundation"
           class="w-64"
-          @update:model-value="debounceLoadMilestones"
         />
 
         <FormButton
@@ -98,15 +96,17 @@
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-body-sm border-collapse">
           <thead>
-            <tr class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium">
-              <th class="py-3 px-4">填报日期</th>
+            <tr
+              class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
+            >
               <th class="py-3 px-4">施工任务名称</th>
-              <th class="py-3 px-4">施工部位/区域</th>
-              <th class="py-3 px-4">起止时间</th>
-              <th class="py-3 px-4">进度%</th>
-              <th class="py-3 px-4">天气情况</th>
-              <th class="py-3 px-4">填报人</th>
+              <th class="py-3 px-4">构件编码</th>
+              <th class="py-3 px-4 text-center">计划起止时间</th>
+              <th class="py-3 px-4 text-center">实际起止时间</th>
+              <th class="py-3 px-4 text-center">关联状态</th>
               <th class="py-3 px-4">备注说明</th>
+              <th class="py-3 px-4">填报人</th>
+              <th class="py-3 px-4">填报日期</th>
               <th class="py-3 px-4 text-right">操作</th>
             </tr>
           </thead>
@@ -116,48 +116,77 @@
               :key="rec.id"
               class="border-b border-outline-2 hover:bg-primary-muted/20 transition-colors"
             >
-              <td class="py-3 px-4 font-semibold text-primary">
-                {{ rec.reportDate }}
-              </td>
               <td class="py-3 px-4 font-medium text-foreground">
                 {{ rec.taskName }}
               </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ rec.sectionName || '-' }}
+              <td class="py-3 px-4 text-foreground-2 text-body-xs font-mono">
+                {{ rec.componentCode || '-' }}
               </td>
-              <td class="py-3 px-4 text-foreground-2 text-body-xs">
-                {{ rec.actualStartDate ? rec.actualStartDate.slice(0, 10) : '-' }} ~
-                {{ rec.actualEndDate ? rec.actualEndDate.slice(0, 10) : '-' }}
+              <td class="py-3 px-4 text-foreground-2 text-body-xs text-center">
+                {{ formatYmd(rec.planStartDate) }} ~ {{ formatYmd(rec.planEndDate) }}
               </td>
-              <td class="py-3 px-4">
-                <span class="inline-block px-2 py-0.5 rounded text-body-xs font-semibold bg-primary-muted text-primary">
-                  {{ rec.progressPercent }}%
+              <td class="py-3 px-4 text-foreground-2 text-body-xs text-center">
+                {{ formatYmd(rec.actualStartDate) }} ~
+                {{ formatYmd(rec.actualEndDate) }}
+              </td>
+              <td class="py-3 px-4 text-center">
+                <span
+                  v-if="getRecordBimCount(rec) > 0"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs font-medium bg-success-lighter text-success-darker border border-success-lighter"
+                >
+                  <Check class="w-3 h-3" />
+                  已关联 ({{ getRecordBimCount(rec) }}件)
                 </span>
-              </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ rec.weather || '-' }} {{ rec.highTemperature ? `${rec.highTemperature}℃` : '' }}
-              </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ rec.reporter || '-' }}
+                <span
+                  v-else
+                  class="inline-flex items-center px-2 py-0.5 rounded text-body-xs bg-foundation-page text-foreground-2 border border-outline-2"
+                >
+                  未关联
+                </span>
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs max-w-xs truncate">
                 {{ rec.remark || '-' }}
               </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <button
-                  type="button"
-                  class="text-primary hover:underline text-body-sm"
-                  @click="openEditActualDialog(rec)"
-                >
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  class="text-danger hover:underline text-body-sm"
-                  @click="promptDeleteActual(rec)"
-                >
-                  删除
-                </button>
+              <td class="py-3 px-4 text-foreground-2">
+                {{ rec.reporter || '-' }}
+              </td>
+              <td class="py-3 px-4 font-semibold text-primary">
+                {{ rec.reportDate }}
+              </td>
+              <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <!-- 只有进度管理才有关联BIM的操作，点击按钮打开全局唯一的BIM构件选择抽屉 -->
+                  <button
+                    type="button"
+                    :class="[
+                      'p-1.5 rounded transition-colors',
+                      getRecordBimCount(rec) > 0
+                        ? 'text-primary bg-primary/10 border border-primary/30'
+                        : 'text-foreground-2 hover:text-primary hover:bg-primary/10'
+                    ]"
+                    title="关联/查看BIM模型构件"
+                    @click="openRowBimDrawer(rec)"
+                  >
+                    <Box class="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="编辑"
+                    @click="openEditActualDialog(rec)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
+                    title="删除"
+                    @click="promptDeleteActual(rec)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -185,12 +214,16 @@
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-body-sm border-collapse">
           <thead>
-            <tr class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium">
+            <tr
+              class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
+            >
               <th class="py-3 px-4">里程碑名称</th>
+              <th class="py-3 px-4">计划开始时间</th>
               <th class="py-3 px-4">计划完成时间</th>
+              <th class="py-3 px-4">实际开始时间</th>
               <th class="py-3 px-4">实际完成时间</th>
               <th class="py-3 px-4">当前状态</th>
-              <th class="py-3 px-4">级别类型</th>
+              <th class="py-3 px-4">标签类型</th>
               <th class="py-3 px-4">责任人</th>
               <th class="py-3 px-4">备注说明</th>
               <th class="py-3 px-4 text-right">操作</th>
@@ -205,11 +238,17 @@
               <td class="py-3 px-4 font-semibold text-foreground">
                 {{ item.taskName }}
               </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ item.plannedEnd ? item.plannedEnd.slice(0, 10) : '-' }}
+              <td class="py-3 px-4 text-foreground-2 text-body-xs">
+                {{ formatYmd(item.plannedStart) }}
               </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ item.actualEnd ? item.actualEnd.slice(0, 10) : '-' }}
+              <td class="py-3 px-4 text-foreground-2 text-body-xs">
+                {{ formatYmd(item.plannedEnd) }}
+              </td>
+              <td class="py-3 px-4 text-foreground-2 text-body-xs">
+                {{ formatYmd(item.actualStart) }}
+              </td>
+              <td class="py-3 px-4 text-foreground-2 text-body-xs">
+                {{ formatYmd(item.actualEnd) }}
               </td>
               <td class="py-3 px-4">
                 <span
@@ -228,13 +267,30 @@
                 </span>
               </td>
               <td class="py-3 px-4 text-foreground-2">
-                {{
-                  item.milestoneType === 'project'
-                    ? '项目级'
-                    : item.milestoneType === 'phase'
-                    ? '阶段级'
-                    : '验收级'
-                }}
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    v-if="item.tags?.includes('key')"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-danger-lighter text-danger-darker"
+                  >
+                    <Star class="w-3 h-3 fill-current" />
+                    关键工序
+                  </span>
+                  <span
+                    v-if="item.tags?.includes('milestone')"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-primary-muted text-primary"
+                  >
+                    <Flag class="w-3 h-3 fill-current" />
+                    里程碑
+                  </span>
+                  <span
+                    v-if="
+                      !item.tags?.includes('key') && !item.tags?.includes('milestone')
+                    "
+                    class="text-body-xs text-foreground-2"
+                  >
+                    -
+                  </span>
+                </div>
               </td>
               <td class="py-3 px-4 text-foreground-2">
                 {{ item.responsible || '-' }}
@@ -242,21 +298,25 @@
               <td class="py-3 px-4 text-foreground-2 text-body-xs max-w-xs truncate">
                 {{ item.remark || '-' }}
               </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <button
-                  type="button"
-                  class="text-primary hover:underline text-body-sm"
-                  @click="openEditMilestoneDialog(item)"
-                >
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  class="text-danger hover:underline text-body-sm"
-                  @click="promptDeleteMilestone(item)"
-                >
-                  删除
-                </button>
+              <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="编辑"
+                    @click="openEditMilestoneDialog(item)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
+                    title="删除"
+                    @click="promptDeleteMilestone(item)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -264,116 +324,180 @@
       </div>
     </div>
 
-    <!-- ── 弹窗 1: 新增/编辑进度填报 ── -->
+    <!-- ── 弹窗 1: 新增/编辑进度情况 ── -->
     <LayoutDialog
       v-model:open="actualDialogOpen"
-      :title="editingActualRecord ? '编辑进度填报' : '新增进度填报'"
-      max-width="md"
+      :title="editingActualRecord ? '编辑进度情况' : '新增进度情况'"
+      max-width="lg"
     >
-      <form class="space-y-4" @submit.prevent="handleSaveActual">
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-            任务名称 <span class="text-danger">*</span>
-          </label>
+      <form class="space-y-4 py-1" @submit.prevent="handleSaveActual">
+        <!-- 任务名称 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">
+            任务名称
+            <span class="text-danger">*</span>
+          </div>
           <FormTextInput
             v-model="actualForm.taskName"
             name="actual-taskName"
-            placeholder="例如 1#桥梁桩基混凝土浇筑"
+            placeholder="请输入任务名称"
             color="foundation"
             required
           />
         </div>
+
+        <!-- 构件编码 + 从BIM模型中选择构件 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">构件编码</div>
+          <FormTextInput
+            v-model="actualForm.componentCode"
+            name="actual-componentCode"
+            placeholder="请输入构件编码"
+            color="foundation"
+          />
+
+          <!-- 已选构件标签 -->
+          <div
+            v-if="actualFormPickedCodes.length > 0"
+            class="flex flex-wrap gap-1.5 mt-1"
+          >
+            <span
+              v-for="code in actualFormPickedCodes"
+              :key="code"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs bg-primary/10 text-primary border border-primary/30"
+            >
+              {{ code }}
+              <button
+                type="button"
+                class="hover:opacity-75"
+                @click="removePickedComponent(code)"
+              >
+                <X class="w-3 h-3" />
+              </button>
+            </span>
+          </div>
+
+          <!-- 只有进度管理才有关联BIM的操作：从BIM模型中选择构件（调用 CommonModelObjectMultiModelSelectDrawer） -->
+          <CommonModelObjectMultiModelSelectDrawer
+            v-if="actualDialogOpen"
+            v-model:selections="actualFormSelections"
+            :project-id="projectId"
+            @update:selections="onActualFormSelectionsChange"
+          >
+            <template #trigger="{ open }">
+              <button
+                type="button"
+                class="flex items-center justify-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-outline-2 text-body-xs text-foreground-2 hover:bg-primary-muted/20 transition-colors"
+                @click="open"
+              >
+                <Box class="w-4 h-4 shrink-0 text-primary" />
+                <span>
+                  {{
+                    actualFormPickedCodes.length > 0
+                      ? `已选 ${actualFormPickedCodes.length} 个模型构件`
+                      : '从BIM模型中选择构件'
+                  }}
+                </span>
+              </button>
+            </template>
+          </CommonModelObjectMultiModelSelectDrawer>
+        </div>
+
+        <!-- 计划开始时间 + 计划结束时间 -->
         <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-              填报日期 <span class="text-danger">*</span>
-            </label>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              计划开始时间
+            </div>
+            <FormTextInput
+              v-model="actualForm.planStartDate"
+              name="actual-planStart"
+              type="date"
+              color="foundation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              计划结束时间
+            </div>
+            <FormTextInput
+              v-model="actualForm.planEndDate"
+              name="actual-planEnd"
+              type="date"
+              color="foundation"
+            />
+          </div>
+        </div>
+
+        <!-- 实际开始时间 + 实际结束时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              实际开始时间
+            </div>
+            <FormTextInput
+              v-model="actualForm.actualStartDate"
+              name="actual-actualStart"
+              type="date"
+              color="foundation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              实际结束时间
+            </div>
+            <FormTextInput
+              v-model="actualForm.actualEndDate"
+              name="actual-actualEnd"
+              type="date"
+              color="foundation"
+            />
+          </div>
+        </div>
+
+        <!-- 备注 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">备注</div>
+          <FormTextInput
+            v-model="actualForm.remark"
+            name="actual-remark"
+            placeholder="可选"
+            color="foundation"
+          />
+        </div>
+
+        <!-- 上传人 + 上传时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">上传人</div>
+            <FormTextInput
+              v-model="actualForm.reporter"
+              name="actual-reporter"
+              placeholder="请输入上传人"
+              color="foundation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">上传时间</div>
             <FormTextInput
               v-model="actualForm.reportDate"
               name="actual-reportDate"
               type="date"
               color="foundation"
-              required
             />
           </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">施工部位/区域</label>
-            <FormTextInput
-              v-model="actualForm.sectionName"
-              name="actual-sectionName"
-              placeholder="例如 K12+200~K12+350"
-              color="foundation"
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">实际开始</label>
-            <FormTextInput
-              v-model="actualForm.actualStartDate"
-              name="actual-startDate"
-              type="date"
-              color="foundation"
-            />
-          </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">实际完成</label>
-            <FormTextInput
-              v-model="actualForm.actualEndDate"
-              name="actual-endDate"
-              type="date"
-              color="foundation"
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">完成进度 (%)</label>
-            <FormTextInput
-              v-model="actualForm.progressPercent"
-              name="actual-progressPercent"
-              type="number"
-              min="0"
-              max="100"
-              color="foundation"
-            />
-          </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">填报人</label>
-            <FormTextInput
-              v-model="actualForm.reporter"
-              name="actual-reporter"
-              placeholder="填报人姓名"
-              color="foundation"
-            />
-          </div>
-        </div>
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">施工记录与说明</label>
-          <FormTextArea
-            v-model="actualForm.constructionRecord"
-            name="actual-record"
-            placeholder="现场施工进度与情况记录..."
-            color="foundation"
-            rows="2"
-          />
-        </div>
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">备注</label>
-          <FormTextInput
-            v-model="actualForm.remark"
-            name="actual-remark"
-            placeholder="备注说明"
-            color="foundation"
-          />
         </div>
 
-        <div class="flex justify-end gap-2 pt-2">
+        <div class="flex justify-end gap-2 pt-2 border-t border-outline-2">
           <FormButton color="outline" type="button" @click="actualDialogOpen = false">
             取消
           </FormButton>
-          <FormButton color="primary" type="submit" :disabled="isSavingActual">
-            {{ isSavingActual ? '保存中...' : '确定保存' }}
+          <FormButton
+            color="primary"
+            type="submit"
+            :disabled="isSavingActual || !actualForm.taskName"
+          >
+            {{ isSavingActual ? '保存中...' : '保存' }}
           </FormButton>
         </div>
       </form>
@@ -385,22 +509,39 @@
       :title="editingMilestone ? '编辑里程碑' : '新增里程碑'"
       max-width="md"
     >
-      <form class="space-y-4" @submit.prevent="handleSaveMilestone">
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">
-            里程碑名称 <span class="text-danger">*</span>
-          </label>
+      <form class="space-y-4 py-1" @submit.prevent="handleSaveMilestone">
+        <!-- 任务名称 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">
+            任务名称
+            <span class="text-danger">*</span>
+          </div>
           <FormTextInput
             v-model="milestoneForm.taskName"
             name="ms-taskName"
-            placeholder="例如 主体结构封顶"
+            placeholder="请输入任务名称"
             color="foundation"
             required
           />
         </div>
+
+        <!-- 计划开始时间 + 计划结束时间 -->
         <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">计划完成时间</label>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              计划开始时间
+            </div>
+            <FormTextInput
+              v-model="milestoneForm.plannedStart"
+              name="ms-planStart"
+              type="date"
+              color="foundation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              计划结束时间
+            </div>
             <FormTextInput
               v-model="milestoneForm.plannedEnd"
               name="ms-planEnd"
@@ -408,8 +549,25 @@
               color="foundation"
             />
           </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">实际完成时间</label>
+        </div>
+
+        <!-- 实际开始时间 + 实际结束时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              实际开始时间
+            </div>
+            <FormTextInput
+              v-model="milestoneForm.actualStart"
+              name="ms-actStart"
+              type="date"
+              color="foundation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <div class="block text-body-xs font-medium text-foreground-2">
+              实际结束时间
+            </div>
             <FormTextInput
               v-model="milestoneForm.actualEnd"
               name="ms-actEnd"
@@ -418,62 +576,81 @@
             />
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">状态</label>
-            <select
-              v-model="milestoneForm.status"
-              class="w-full bg-foundation border border-outline-2 rounded px-3 py-2 text-body-sm text-foreground"
-            >
-              <option value="未开始">未开始</option>
-              <option value="进行中">进行中</option>
-              <option value="按期完成">按期完成</option>
-              <option value="逾期完成">逾期完成</option>
-              <option value="已逾期">已逾期</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-body-xs font-medium text-foreground-2 mb-1">级别类型</label>
-            <select
-              v-model="milestoneForm.milestoneType"
-              class="w-full bg-foundation border border-outline-2 rounded px-3 py-2 text-body-sm text-foreground"
-            >
-              <option value="project">项目级</option>
-              <option value="phase">阶段级</option>
-              <option value="inspection">验收级</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">责任人</label>
+
+        <!-- 备注 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">备注</div>
           <FormTextInput
-            v-model="milestoneForm.responsible"
-            name="ms-responsible"
-            placeholder="负责人姓名"
-            color="foundation"
-          />
-        </div>
-        <div>
-          <label class="block text-body-xs font-medium text-foreground-2 mb-1">备注说明</label>
-          <FormTextArea
             v-model="milestoneForm.remark"
             name="ms-remark"
-            placeholder="里程碑意义及验收标准说明..."
+            placeholder="可选"
             color="foundation"
-            rows="2"
           />
         </div>
 
-        <div class="flex justify-end gap-2 pt-2">
-          <FormButton color="outline" type="button" @click="milestoneDialogOpen = false">
+        <!-- 标签：关键工序 / 里程碑 -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">标签</div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              :class="[
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-body-xs font-medium transition-colors',
+                milestoneForm.isKey
+                  ? 'bg-danger-lighter text-danger-darker border-danger/40'
+                  : 'bg-foundation-page text-foreground-2 border-outline-2 hover:text-foreground'
+              ]"
+              @click="milestoneForm.isKey = !milestoneForm.isKey"
+            >
+              <Star :class="['w-4 h-4', milestoneForm.isKey ? 'fill-current' : '']" />
+              <span>关键工序</span>
+            </button>
+            <button
+              type="button"
+              :class="[
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-body-xs font-medium transition-colors',
+                milestoneForm.isMilestone
+                  ? 'bg-primary-muted text-primary border-primary/40'
+                  : 'bg-foundation-page text-foreground-2 border-outline-2 hover:text-foreground'
+              ]"
+              @click="milestoneForm.isMilestone = !milestoneForm.isMilestone"
+            >
+              <Flag
+                :class="['w-4 h-4', milestoneForm.isMilestone ? 'fill-current' : '']"
+              />
+              <span>里程碑</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-outline-2">
+          <FormButton
+            color="outline"
+            type="button"
+            @click="milestoneDialogOpen = false"
+          >
             取消
           </FormButton>
-          <FormButton color="primary" type="submit" :disabled="isSavingMilestone">
-            {{ isSavingMilestone ? '保存中...' : '确定保存' }}
+          <FormButton
+            color="primary"
+            type="submit"
+            :disabled="isSavingMilestone || !milestoneForm.taskName"
+          >
+            {{ isSavingMilestone ? '保存中...' : '保存' }}
           </FormButton>
         </div>
       </form>
     </LayoutDialog>
+
+    <!-- ── 列表行操作栏共用 BIM 关联抽屉（按需挂载，避免列表循环请求） ── -->
+    <CommonModelObjectMultiModelSelectDrawer
+      v-if="rowBimDrawerOpen && activeRowForBim"
+      v-model:open="rowBimDrawerOpen"
+      v-model:model_ids="rowBimDraftModelIds"
+      v-model:selections="rowBimDraftSelections"
+      :project-id="projectId"
+      @update:open="onRowBimDrawerOpenChange"
+    />
 
     <!-- ── 二次确认删除弹窗 (CommonConfirmDialog) ── -->
     <CommonConfirmDialog
@@ -489,7 +666,17 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, Search } from 'lucide-vue-next'
+import {
+  Plus,
+  Search,
+  Box,
+  Pencil,
+  Trash2,
+  Star,
+  Flag,
+  Check,
+  X
+} from 'lucide-vue-next'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { CommonConfirmDialog } from '#components'
 import {
@@ -516,6 +703,114 @@ const { triggerNotification } = useGlobalToast()
 
 const activeTab = ref<'actual' | 'milestone'>('actual')
 
+// ── 通用工具函数 ──
+const formatYmd = (value?: string | null) => {
+  if (!value) return '-'
+  return value.slice(0, 10)
+}
+
+type ModelObjectGroup = {
+  modelId: string
+  applicationIds?: string[]
+}
+
+const getRecordBimCount = (rec: ProgressV2ActualRecord) => {
+  if (!rec.BIM) return 0
+  try {
+    const raw = rec.BIM
+    const list = (
+      Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : []
+    ) as ModelObjectGroup[]
+    if (!Array.isArray(list)) return 0
+    return list.reduce(
+      (total: number, g: ModelObjectGroup) => total + (g.applicationIds?.length || 0),
+      0
+    )
+  } catch {
+    return 0
+  }
+}
+
+const getRecordModelIds = (rec: ProgressV2ActualRecord): string[] => {
+  if (!rec.BIM) return []
+  try {
+    const raw = rec.BIM
+    const list = (
+      Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : []
+    ) as ModelObjectGroup[]
+    if (!Array.isArray(list)) return []
+    return Array.from(
+      new Set(list.map((g: ModelObjectGroup) => g.modelId).filter(Boolean))
+    )
+  } catch {
+    return []
+  }
+}
+
+const getRecordSelections = (
+  rec: ProgressV2ActualRecord
+): Array<{ modelId: string; applicationIds: string[] }> => {
+  if (!rec.BIM) return []
+  try {
+    const raw = rec.BIM
+    const list = (
+      Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : []
+    ) as Array<{ modelId: string; applicationIds: string[] }>
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+// ── 列表行级 BIM 抽屉控制（单例按需挂载） ──
+const activeRowForBim = ref<ProgressV2ActualRecord | null>(null)
+const rowBimDrawerOpen = ref(false)
+const rowBimDraftSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>(
+  []
+)
+const rowBimDraftModelIds = ref<string[]>([])
+
+const openRowBimDrawer = (rec: ProgressV2ActualRecord) => {
+  activeRowForBim.value = rec
+  rowBimDraftSelections.value = JSON.parse(JSON.stringify(getRecordSelections(rec)))
+  rowBimDraftModelIds.value = [...getRecordModelIds(rec)]
+  rowBimDrawerOpen.value = true
+}
+
+const onRowBimDrawerOpenChange = async (isOpen: boolean) => {
+  // 当用户在抽屉中点击确定完成选择（Drawer 关闭）时执行保存
+  if (!isOpen && activeRowForBim.value && projectId.value) {
+    const rec = activeRowForBim.value
+    const newSelections = rowBimDraftSelections.value
+    const allCodes = newSelections.flatMap((g) => g.applicationIds || [])
+    try {
+      await updateProgressV2ActualRecord({
+        projectId: projectId.value,
+        recordId: rec.id,
+        apiOrigin,
+        data: {
+          BIM: newSelections,
+          componentCode: allCodes.length > 0 ? allCodes.join(', ') : rec.componentCode
+        }
+      })
+      triggerNotification({
+        type: ToastNotificationType.Success,
+        title: '关联已更新',
+        description: `已关联 ${allCodes.length} 个模型构件`
+      })
+      await loadActualRecords()
+    } catch (err: unknown) {
+      triggerNotification({
+        type: ToastNotificationType.Danger,
+        title: '更新BIM关联失败',
+        description: (err as Error)?.message || '操作失败'
+      })
+    } finally {
+      activeRowForBim.value = null
+    }
+  }
+}
+
 // ── 进度管理（实际填报） ──
 const isLoadingActual = ref(false)
 const actualRecords = ref<ProgressV2ActualRecord[]>([])
@@ -526,15 +821,45 @@ const isSavingActual = ref(false)
 
 const actualForm = reactive({
   taskName: '',
-  sectionName: '',
-  reportDate: new Date().toISOString().slice(0, 10),
-  actualStartDate: '',
-  actualEndDate: '',
-  progressPercent: '100',
+  componentCode: '',
+  planStartDate: '',
+  planEndDate: '',
+  actualStartDate: new Date().toISOString().slice(0, 10),
+  actualEndDate: new Date().toISOString().slice(0, 10),
   reporter: '',
-  constructionRecord: '',
+  reportDate: new Date().toISOString().slice(0, 10),
   remark: ''
 })
+
+const actualFormSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>(
+  []
+)
+
+const actualFormPickedCodes = computed(() => {
+  return actualFormSelections.value.flatMap((g) => g.applicationIds || [])
+})
+
+const onActualFormSelectionsChange = (
+  newSelections: Array<{ modelId: string; applicationIds: string[] }>
+) => {
+  actualFormSelections.value = newSelections || []
+  const codes = actualFormPickedCodes.value
+  if (codes.length > 0) {
+    actualForm.componentCode = codes.join(', ')
+  }
+}
+
+const removePickedComponent = (code: string) => {
+  actualFormSelections.value = actualFormSelections.value
+    .map((g) => ({
+      ...g,
+      applicationIds: (g.applicationIds || []).filter((id) => id !== code)
+    }))
+    .filter((g) => g.applicationIds.length > 0)
+
+  const remaining = actualFormPickedCodes.value
+  actualForm.componentCode = remaining.join(', ')
+}
 
 const loadActualRecords = async () => {
   if (!projectId.value) return
@@ -545,48 +870,54 @@ const loadActualRecords = async () => {
       apiOrigin,
       search: actualSearchQuery.value
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载实际进度失败',
-      description: err.message
+      description: (err as Error)?.message || '加载失败'
     })
   } finally {
     isLoadingActual.value = false
   }
 }
 
-let actualSearchTimer: any = null
+let actualSearchTimer: ReturnType<typeof setTimeout> | null = null
 const debounceLoadActual = () => {
-  clearTimeout(actualSearchTimer)
+  if (actualSearchTimer) clearTimeout(actualSearchTimer)
   actualSearchTimer = setTimeout(loadActualRecords, 300)
 }
 
 const openCreateActualDialog = () => {
   editingActualRecord.value = null
   actualForm.taskName = ''
-  actualForm.sectionName = ''
-  actualForm.reportDate = new Date().toISOString().slice(0, 10)
+  actualForm.componentCode = ''
+  actualForm.planStartDate = ''
+  actualForm.planEndDate = ''
   actualForm.actualStartDate = new Date().toISOString().slice(0, 10)
   actualForm.actualEndDate = new Date().toISOString().slice(0, 10)
-  actualForm.progressPercent = '100'
   actualForm.reporter = ''
-  actualForm.constructionRecord = ''
+  actualForm.reportDate = new Date().toISOString().slice(0, 10)
   actualForm.remark = ''
+  actualFormSelections.value = []
   actualDialogOpen.value = true
 }
 
 const openEditActualDialog = (rec: ProgressV2ActualRecord) => {
   editingActualRecord.value = rec
   actualForm.taskName = rec.taskName
-  actualForm.sectionName = rec.sectionName || ''
-  actualForm.reportDate = rec.reportDate
-  actualForm.actualStartDate = rec.actualStartDate ? rec.actualStartDate.slice(0, 10) : ''
+  actualForm.componentCode = rec.componentCode || ''
+  actualForm.planStartDate = rec.planStartDate ? rec.planStartDate.slice(0, 10) : ''
+  actualForm.planEndDate = rec.planEndDate ? rec.planEndDate.slice(0, 10) : ''
+  actualForm.actualStartDate = rec.actualStartDate
+    ? rec.actualStartDate.slice(0, 10)
+    : ''
   actualForm.actualEndDate = rec.actualEndDate ? rec.actualEndDate.slice(0, 10) : ''
-  actualForm.progressPercent = String(rec.progressPercent)
   actualForm.reporter = rec.reporter || ''
-  actualForm.constructionRecord = rec.constructionRecord || ''
+  actualForm.reportDate = rec.reportDate
+    ? rec.reportDate.slice(0, 10)
+    : new Date().toISOString().slice(0, 10)
   actualForm.remark = rec.remark || ''
+  actualFormSelections.value = getRecordSelections(rec)
   actualDialogOpen.value = true
 }
 
@@ -594,57 +925,50 @@ const handleSaveActual = async () => {
   if (!projectId.value) return
   isSavingActual.value = true
   try {
+    const saveData = {
+      taskName: actualForm.taskName,
+      componentCode: actualForm.componentCode || null,
+      planStartDate: actualForm.planStartDate || null,
+      planEndDate: actualForm.planEndDate || null,
+      actualStartDate: actualForm.actualStartDate || null,
+      actualEndDate: actualForm.actualEndDate || null,
+      reporter: actualForm.reporter || null,
+      reportDate: actualForm.reportDate,
+      remark: actualForm.remark || null,
+      BIM: actualFormSelections.value
+    }
+
     if (editingActualRecord.value) {
       await updateProgressV2ActualRecord({
         projectId: projectId.value,
         recordId: editingActualRecord.value.id,
         apiOrigin,
-        data: {
-          taskName: actualForm.taskName,
-          sectionName: actualForm.sectionName || null,
-          reportDate: actualForm.reportDate,
-          actualStartDate: actualForm.actualStartDate || null,
-          actualEndDate: actualForm.actualEndDate || null,
-          progressPercent: Number(actualForm.progressPercent || 0),
-          reporter: actualForm.reporter || null,
-          constructionRecord: actualForm.constructionRecord || null,
-          remark: actualForm.remark || null
-        }
+        data: saveData
       })
       triggerNotification({
         type: ToastNotificationType.Success,
         title: '更新成功',
-        description: '填报记录已更新'
+        description: '进度情况已更新'
       })
     } else {
       await createProgressV2ActualRecord({
         projectId: projectId.value,
         apiOrigin,
-        data: {
-          taskName: actualForm.taskName,
-          sectionName: actualForm.sectionName || null,
-          reportDate: actualForm.reportDate,
-          actualStartDate: actualForm.actualStartDate || null,
-          actualEndDate: actualForm.actualEndDate || null,
-          progressPercent: Number(actualForm.progressPercent || 0),
-          reporter: actualForm.reporter || null,
-          constructionRecord: actualForm.constructionRecord || null,
-          remark: actualForm.remark || null
-        }
+        data: saveData
       })
       triggerNotification({
         type: ToastNotificationType.Success,
         title: '创建成功',
-        description: '已新增进度填报记录'
+        description: '已新增进度情况'
       })
     }
     actualDialogOpen.value = false
     await loadActualRecords()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '保存失败',
-      description: err.message
+      description: (err as Error)?.message || '保存失败'
     })
   } finally {
     isSavingActual.value = false
@@ -661,12 +985,13 @@ const isSavingMilestone = ref(false)
 
 const milestoneForm = reactive({
   taskName: '',
+  plannedStart: '',
   plannedEnd: '',
+  actualStart: '',
   actualEnd: '',
-  status: '未开始',
-  milestoneType: 'phase',
-  responsible: '',
-  remark: ''
+  remark: '',
+  isKey: false,
+  isMilestone: false
 })
 
 const loadMilestones = async () => {
@@ -678,44 +1003,51 @@ const loadMilestones = async () => {
       apiOrigin,
       search: milestoneSearchQuery.value
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载里程碑失败',
-      description: err.message
+      description: (err as Error)?.message || '加载失败'
     })
   } finally {
     isLoadingMilestones.value = false
   }
 }
 
-let milestoneSearchTimer: any = null
+let milestoneSearchTimer: ReturnType<typeof setTimeout> | null = null
 const debounceLoadMilestones = () => {
-  clearTimeout(milestoneSearchTimer)
+  if (milestoneSearchTimer) clearTimeout(milestoneSearchTimer)
   milestoneSearchTimer = setTimeout(loadMilestones, 300)
 }
 
 const openCreateMilestoneDialog = () => {
   editingMilestone.value = null
   milestoneForm.taskName = ''
+  milestoneForm.plannedStart = ''
   milestoneForm.plannedEnd = ''
+  milestoneForm.actualStart = ''
   milestoneForm.actualEnd = ''
-  milestoneForm.status = '未开始'
-  milestoneForm.milestoneType = 'phase'
-  milestoneForm.responsible = ''
   milestoneForm.remark = ''
+  milestoneForm.isKey = false
+  milestoneForm.isMilestone = true
   milestoneDialogOpen.value = true
 }
 
 const openEditMilestoneDialog = (m: ProgressV2Milestone) => {
   editingMilestone.value = m
   milestoneForm.taskName = m.taskName
+  milestoneForm.plannedStart = m.plannedStart ? m.plannedStart.slice(0, 10) : ''
   milestoneForm.plannedEnd = m.plannedEnd ? m.plannedEnd.slice(0, 10) : ''
+  milestoneForm.actualStart = m.actualStart ? m.actualStart.slice(0, 10) : ''
   milestoneForm.actualEnd = m.actualEnd ? m.actualEnd.slice(0, 10) : ''
-  milestoneForm.status = m.status || '未开始'
-  milestoneForm.milestoneType = m.milestoneType || 'phase'
-  milestoneForm.responsible = m.responsible || ''
   milestoneForm.remark = m.remark || ''
+  const tagList = Array.isArray(m.tags)
+    ? m.tags
+    : typeof m.tags === 'string'
+    ? JSON.parse(m.tags || '[]')
+    : []
+  milestoneForm.isKey = tagList.includes('key')
+  milestoneForm.isMilestone = tagList.includes('milestone')
   milestoneDialogOpen.value = true
 }
 
@@ -723,23 +1055,29 @@ const handleSaveMilestone = async () => {
   if (!projectId.value) return
   isSavingMilestone.value = true
   try {
+    const tags: string[] = []
+    if (milestoneForm.isKey) tags.push('key')
+    if (milestoneForm.isMilestone) tags.push('milestone')
+
+    const saveData = {
+      taskName: milestoneForm.taskName,
+      plannedStart: milestoneForm.plannedStart || null,
+      plannedEnd: milestoneForm.plannedEnd || null,
+      actualStart: milestoneForm.actualStart || null,
+      actualEnd: milestoneForm.actualEnd || null,
+      status: milestoneForm.actualEnd ? '已完成' : '进行中',
+      milestoneType: 'phase',
+      responsible: null,
+      remark: milestoneForm.remark || null,
+      tags
+    }
+
     if (editingMilestone.value) {
       await updateProgressV2Milestone({
         projectId: projectId.value,
         milestoneId: editingMilestone.value.id,
         apiOrigin,
-        data: {
-          taskName: milestoneForm.taskName,
-          plannedStart: null,
-          plannedEnd: milestoneForm.plannedEnd || null,
-          actualStart: null,
-          actualEnd: milestoneForm.actualEnd || null,
-          status: milestoneForm.status,
-          milestoneType: milestoneForm.milestoneType,
-          responsible: milestoneForm.responsible || null,
-          remark: milestoneForm.remark || null,
-          tags: ['milestone']
-        }
+        data: saveData
       })
       triggerNotification({
         type: ToastNotificationType.Success,
@@ -750,18 +1088,7 @@ const handleSaveMilestone = async () => {
       await createProgressV2Milestone({
         projectId: projectId.value,
         apiOrigin,
-        data: {
-          taskName: milestoneForm.taskName,
-          plannedStart: null,
-          plannedEnd: milestoneForm.plannedEnd || null,
-          actualStart: null,
-          actualEnd: milestoneForm.actualEnd || null,
-          status: milestoneForm.status,
-          milestoneType: milestoneForm.milestoneType,
-          responsible: milestoneForm.responsible || null,
-          remark: milestoneForm.remark || null,
-          tags: ['milestone']
-        }
+        data: saveData
       })
       triggerNotification({
         type: ToastNotificationType.Success,
@@ -771,11 +1098,11 @@ const handleSaveMilestone = async () => {
     }
     milestoneDialogOpen.value = false
     await loadMilestones()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '保存失败',
-      description: err.message
+      description: (err as Error)?.message || '保存失败'
     })
   } finally {
     isSavingMilestone.value = false
@@ -789,8 +1116,8 @@ const deleteConfirmText = ref('确定要删除该项吗？此操作不可逆。'
 let pendingDeleteAction: (() => Promise<void>) | null = null
 
 const promptDeleteActual = (rec: ProgressV2ActualRecord) => {
-  deleteConfirmTitle.value = '删除填报记录'
-  deleteConfirmText.value = `确定要删除「${rec.reportDate} - ${rec.taskName}」的填报记录吗？`
+  deleteConfirmTitle.value = '删除进度情况'
+  deleteConfirmText.value = `确定要删除「${rec.taskName}」的进度记录吗？`
   pendingDeleteAction = async () => {
     await deleteProgressV2ActualRecord({
       projectId: projectId.value,
@@ -800,7 +1127,7 @@ const promptDeleteActual = (rec: ProgressV2ActualRecord) => {
     triggerNotification({
       type: ToastNotificationType.Success,
       title: '删除成功',
-      description: '施工填报记录已删除'
+      description: '进度记录已删除'
     })
     await loadActualRecords()
   }
@@ -830,11 +1157,11 @@ const executeDelete = async () => {
   if (!pendingDeleteAction) return
   try {
     await pendingDeleteAction()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '删除失败',
-      description: err.message
+      description: (err as Error)?.message || '删除失败'
     })
   } finally {
     pendingDeleteAction = null
@@ -847,6 +1174,20 @@ watch(
   (tab) => {
     if (tab === 'actual') loadActualRecords()
     else if (tab === 'milestone') loadMilestones()
+  }
+)
+
+watch(
+  () => actualSearchQuery.value,
+  () => {
+    debounceLoadActual()
+  }
+)
+
+watch(
+  () => milestoneSearchQuery.value,
+  () => {
+    debounceLoadMilestones()
   }
 )
 

@@ -76,7 +76,10 @@ export type UpdateProgressV2AnnualPlanParams = {
 
 export const listProgressV2AnnualPlansFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string; year?: number }): Promise<ProgressV2AnnualPlanRecord[]> => {
+  async (params: {
+    projectId: string
+    year?: number
+  }): Promise<ProgressV2AnnualPlanRecord[]> => {
     let query = tables
       .projectProgressV2AnnualPlans(deps.db)
       .where({ [ProjectProgressV2AnnualPlans.col.projectId]: params.projectId })
@@ -85,12 +88,17 @@ export const listProgressV2AnnualPlansFactory =
       query = query.where({ [ProjectProgressV2AnnualPlans.col.year]: params.year })
     }
 
-    return await query.orderBy(ProjectProgressV2AnnualPlans.col.year, 'desc').orderBy(ProjectProgressV2AnnualPlans.col.createdAt, 'desc')
+    return await query
+      .orderBy(ProjectProgressV2AnnualPlans.col.year, 'desc')
+      .orderBy(ProjectProgressV2AnnualPlans.col.createdAt, 'desc')
   }
 
 export const getProgressV2AnnualPlanByIdFactory =
   (deps: { db: Knex }) =>
-  async (params: { id: string; projectId: string }): Promise<ProgressV2AnnualPlanRecord | undefined> => {
+  async (params: {
+    id: string
+    projectId: string
+  }): Promise<ProgressV2AnnualPlanRecord | undefined> => {
     return await tables
       .projectProgressV2AnnualPlans(deps.db)
       .where({
@@ -102,7 +110,9 @@ export const getProgressV2AnnualPlanByIdFactory =
 
 export const createProgressV2AnnualPlanFactory =
   (deps: { db: Knex }) =>
-  async (params: CreateProgressV2AnnualPlanParams): Promise<ProgressV2AnnualPlanRecord> => {
+  async (
+    params: CreateProgressV2AnnualPlanParams
+  ): Promise<ProgressV2AnnualPlanRecord> => {
     const [inserted] = await tables.projectProgressV2AnnualPlans(deps.db).insert(
       {
         id: generateId(),
@@ -125,7 +135,9 @@ export const createProgressV2AnnualPlanFactory =
 
 export const updateProgressV2AnnualPlanFactory =
   (deps: { db: Knex }) =>
-  async (params: UpdateProgressV2AnnualPlanParams): Promise<ProgressV2AnnualPlanRecord | undefined> => {
+  async (
+    params: UpdateProgressV2AnnualPlanParams
+  ): Promise<ProgressV2AnnualPlanRecord | undefined> => {
     const updateData: Record<string, unknown> = {
       updatedAt: new Date()
     }

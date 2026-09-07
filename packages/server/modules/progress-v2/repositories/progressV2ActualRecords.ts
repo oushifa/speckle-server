@@ -10,9 +10,12 @@ export const ProjectProgressV2ActualRecords = buildTableHelper(
     'taskName',
     'sectionName',
     'reportDate',
+    'planStartDate',
+    'planEndDate',
     'actualStartDate',
     'actualEndDate',
     'progressPercent',
+    'componentCode',
     'weather',
     'highTemperature',
     'lowTemperature',
@@ -21,6 +24,7 @@ export const ProjectProgressV2ActualRecords = buildTableHelper(
     'safetyRecord',
     'reporter',
     'remark',
+    'BIM',
     'creator',
     'updater',
     'createdAt',
@@ -34,9 +38,12 @@ export type ProgressV2ActualRecord = {
   taskName: string
   sectionName: string | null
   reportDate: string
+  planStartDate: Date | null
+  planEndDate: Date | null
   actualStartDate: Date | null
   actualEndDate: Date | null
   progressPercent: number
+  componentCode: string | null
   weather: string | null
   highTemperature: string | null
   lowTemperature: string | null
@@ -45,6 +52,7 @@ export type ProgressV2ActualRecord = {
   safetyRecord: string | null
   reporter: string | null
   remark: string | null
+  BIM: Array<{ modelId: string; applicationIds: string[] }> | null
   creator: string
   updater: string
   createdAt: Date
@@ -63,9 +71,12 @@ export type CreateProgressV2ActualRecordParams = {
   taskName: string
   sectionName?: string | null
   reportDate: string
+  planStartDate?: Date | null
+  planEndDate?: Date | null
   actualStartDate?: Date | null
   actualEndDate?: Date | null
   progressPercent?: number
+  componentCode?: string | null
   weather?: string | null
   highTemperature?: string | null
   lowTemperature?: string | null
@@ -74,6 +85,7 @@ export type CreateProgressV2ActualRecordParams = {
   safetyRecord?: string | null
   reporter?: string | null
   remark?: string | null
+  BIM?: Array<{ modelId: string; applicationIds: string[] }> | null
   creator: string
   updater: string
 }
@@ -84,9 +96,12 @@ export type UpdateProgressV2ActualRecordParams = {
   taskName?: string
   sectionName?: string | null
   reportDate?: string
+  planStartDate?: Date | null
+  planEndDate?: Date | null
   actualStartDate?: Date | null
   actualEndDate?: Date | null
   progressPercent?: number
+  componentCode?: string | null
   weather?: string | null
   highTemperature?: string | null
   lowTemperature?: string | null
@@ -95,17 +110,19 @@ export type UpdateProgressV2ActualRecordParams = {
   safetyRecord?: string | null
   reporter?: string | null
   remark?: string | null
+  BIM?: Array<{ modelId: string; applicationIds: string[] }> | null
   updater: string
 }
 
 export const listProgressV2ActualRecordsFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string; search?: string }): Promise<ProgressV2ActualRecord[]> => {
-    let query = tables
-      .projectProgressV2ActualRecords(deps.db)
-      .where({
-        [ProjectProgressV2ActualRecords.col.projectId]: params.projectId
-      })
+  async (params: {
+    projectId: string
+    search?: string
+  }): Promise<ProgressV2ActualRecord[]> => {
+    let query = tables.projectProgressV2ActualRecords(deps.db).where({
+      [ProjectProgressV2ActualRecords.col.projectId]: params.projectId
+    })
 
     if (params.search?.trim()) {
       const s = `%${params.search.trim()}%`
@@ -114,12 +131,17 @@ export const listProgressV2ActualRecordsFactory =
       })
     }
 
-    return await query.orderBy(ProjectProgressV2ActualRecords.col.reportDate, 'desc').orderBy(ProjectProgressV2ActualRecords.col.createdAt, 'desc')
+    return await query
+      .orderBy(ProjectProgressV2ActualRecords.col.reportDate, 'desc')
+      .orderBy(ProjectProgressV2ActualRecords.col.createdAt, 'desc')
   }
 
 export const getProgressV2ActualRecordByIdFactory =
   (deps: { db: Knex }) =>
-  async (params: { id: string; projectId: string }): Promise<ProgressV2ActualRecord | undefined> => {
+  async (params: {
+    id: string
+    projectId: string
+  }): Promise<ProgressV2ActualRecord | undefined> => {
     return await tables
       .projectProgressV2ActualRecords(deps.db)
       .where({
@@ -131,7 +153,9 @@ export const getProgressV2ActualRecordByIdFactory =
 
 export const createProgressV2ActualRecordFactory =
   (deps: { db: Knex }) =>
-  async (params: CreateProgressV2ActualRecordParams): Promise<ProgressV2ActualRecord> => {
+  async (
+    params: CreateProgressV2ActualRecordParams
+  ): Promise<ProgressV2ActualRecord> => {
     const [inserted] = await tables.projectProgressV2ActualRecords(deps.db).insert(
       {
         id: generateId(),
@@ -139,9 +163,12 @@ export const createProgressV2ActualRecordFactory =
         taskName: params.taskName,
         sectionName: params.sectionName ?? null,
         reportDate: params.reportDate,
+        planStartDate: params.planStartDate ?? null,
+        planEndDate: params.planEndDate ?? null,
         actualStartDate: params.actualStartDate ?? null,
         actualEndDate: params.actualEndDate ?? null,
         progressPercent: params.progressPercent ?? 0,
+        componentCode: params.componentCode ?? null,
         weather: params.weather ?? null,
         highTemperature: params.highTemperature ?? null,
         lowTemperature: params.lowTemperature ?? null,
@@ -150,6 +177,9 @@ export const createProgressV2ActualRecordFactory =
         safetyRecord: params.safetyRecord ?? null,
         reporter: params.reporter ?? null,
         remark: params.remark ?? null,
+        BIM: (params.BIM
+          ? JSON.stringify(params.BIM)
+          : null) as unknown as ProgressV2ActualRecord['BIM'],
         creator: params.creator,
         updater: params.updater
       },
@@ -160,7 +190,9 @@ export const createProgressV2ActualRecordFactory =
 
 export const updateProgressV2ActualRecordFactory =
   (deps: { db: Knex }) =>
-  async (params: UpdateProgressV2ActualRecordParams): Promise<ProgressV2ActualRecord | undefined> => {
+  async (
+    params: UpdateProgressV2ActualRecordParams
+  ): Promise<ProgressV2ActualRecord | undefined> => {
     const updateData: Record<string, unknown> = {
       updater: params.updater,
       updatedAt: new Date()
@@ -168,17 +200,31 @@ export const updateProgressV2ActualRecordFactory =
     if (params.taskName !== undefined) updateData.taskName = params.taskName
     if (params.sectionName !== undefined) updateData.sectionName = params.sectionName
     if (params.reportDate !== undefined) updateData.reportDate = params.reportDate
-    if (params.actualStartDate !== undefined) updateData.actualStartDate = params.actualStartDate
-    if (params.actualEndDate !== undefined) updateData.actualEndDate = params.actualEndDate
-    if (params.progressPercent !== undefined) updateData.progressPercent = params.progressPercent
+    if (params.planStartDate !== undefined)
+      updateData.planStartDate = params.planStartDate
+    if (params.planEndDate !== undefined) updateData.planEndDate = params.planEndDate
+    if (params.actualStartDate !== undefined)
+      updateData.actualStartDate = params.actualStartDate
+    if (params.actualEndDate !== undefined)
+      updateData.actualEndDate = params.actualEndDate
+    if (params.progressPercent !== undefined)
+      updateData.progressPercent = params.progressPercent
+    if (params.componentCode !== undefined)
+      updateData.componentCode = params.componentCode
     if (params.weather !== undefined) updateData.weather = params.weather
-    if (params.highTemperature !== undefined) updateData.highTemperature = params.highTemperature
-    if (params.lowTemperature !== undefined) updateData.lowTemperature = params.lowTemperature
-    if (params.constructionRecord !== undefined) updateData.constructionRecord = params.constructionRecord
-    if (params.qualityRecord !== undefined) updateData.qualityRecord = params.qualityRecord
+    if (params.highTemperature !== undefined)
+      updateData.highTemperature = params.highTemperature
+    if (params.lowTemperature !== undefined)
+      updateData.lowTemperature = params.lowTemperature
+    if (params.constructionRecord !== undefined)
+      updateData.constructionRecord = params.constructionRecord
+    if (params.qualityRecord !== undefined)
+      updateData.qualityRecord = params.qualityRecord
     if (params.safetyRecord !== undefined) updateData.safetyRecord = params.safetyRecord
     if (params.reporter !== undefined) updateData.reporter = params.reporter
     if (params.remark !== undefined) updateData.remark = params.remark
+    if (params.BIM !== undefined)
+      updateData.BIM = params.BIM ? JSON.stringify(params.BIM) : null
 
     const [updated] = await tables
       .projectProgressV2ActualRecords(deps.db)

@@ -70,7 +70,9 @@ export const createProgressV2PlanFileFactory =
 
 export const getLatestProgressV2PlanFileFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string }): Promise<ProgressV2PlanFileRecord | undefined> => {
+  async (params: {
+    projectId: string
+  }): Promise<ProgressV2PlanFileRecord | undefined> => {
     return await tables
       .projectProgressV2PlanFiles(deps.db)
       .where({

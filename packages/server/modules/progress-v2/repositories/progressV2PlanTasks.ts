@@ -91,7 +91,10 @@ export const listProgressV2PlanTasksFactory =
 
 export const getProgressV2PlanTaskFactory =
   (deps: { db: Knex }) =>
-  async (params: { id: string; projectId: string }): Promise<ProgressV2PlanTaskRecord | undefined> => {
+  async (params: {
+    id: string
+    projectId: string
+  }): Promise<ProgressV2PlanTaskRecord | undefined> => {
     return await tables
       .projectProgressV2PlanTasks(deps.db)
       .where({
@@ -147,10 +150,9 @@ export const replaceProgressV2PlanTasksFactory =
       const inserted: ProgressV2PlanTaskRecord[] = []
       for (let i = 0; i < rows.length; i += chunkSize) {
         const chunk = rows.slice(i, i + chunkSize)
-        const res = await trx<ProgressV2PlanTaskRecord>(ProjectProgressV2PlanTasks.name).insert(
-          chunk,
-          '*'
-        )
+        const res = await trx<ProgressV2PlanTaskRecord>(
+          ProjectProgressV2PlanTasks.name
+        ).insert(chunk, '*')
         inserted.push(...res)
       }
 

@@ -112,7 +112,9 @@ export async function up(knex: Knex): Promise<void> {
   }
 
   // 4. project_progress_v2_annual_plan_tasks: 年度计划任务表
-  const hasAnnualTasks = await knex.schema.hasTable('project_progress_v2_annual_plan_tasks')
+  const hasAnnualTasks = await knex.schema.hasTable(
+    'project_progress_v2_annual_plan_tasks'
+  )
   if (!hasAnnualTasks) {
     await knex.schema.createTable('project_progress_v2_annual_plan_tasks', (table) => {
       table.string('id', 10).primary()
@@ -158,7 +160,9 @@ export async function up(knex: Knex): Promise<void> {
   }
 
   // 5. project_progress_v2_monthly_plans: 月度计划表
-  const hasMonthlyPlans = await knex.schema.hasTable('project_progress_v2_monthly_plans')
+  const hasMonthlyPlans = await knex.schema.hasTable(
+    'project_progress_v2_monthly_plans'
+  )
   if (!hasMonthlyPlans) {
     await knex.schema.createTable('project_progress_v2_monthly_plans', (table) => {
       table.string('id', 10).primary()
@@ -187,7 +191,9 @@ export async function up(knex: Knex): Promise<void> {
   }
 
   // 6. project_progress_v2_actual_records: 进度管理实际填报记录表
-  const hasActualRecords = await knex.schema.hasTable('project_progress_v2_actual_records')
+  const hasActualRecords = await knex.schema.hasTable(
+    'project_progress_v2_actual_records'
+  )
   if (!hasActualRecords) {
     await knex.schema.createTable('project_progress_v2_actual_records', (table) => {
       table.string('id', 10).primary()

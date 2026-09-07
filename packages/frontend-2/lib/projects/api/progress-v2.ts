@@ -105,6 +105,9 @@ export type ProgressV2MonthlyPlan = {
   projectId: string
   yearMonth: string
   title: string | null
+  startDate?: string | null
+  endDate?: string | null
+  preparedBy?: string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[]
   createdBy: string
@@ -118,9 +121,12 @@ export type ProgressV2ActualRecord = {
   taskName: string
   sectionName: string | null
   reportDate: string
+  planStartDate: string | null
+  planEndDate: string | null
   actualStartDate: string | null
   actualEndDate: string | null
   progressPercent: number
+  componentCode: string | null
   weather: string | null
   highTemperature: string | null
   lowTemperature: string | null
@@ -129,6 +135,7 @@ export type ProgressV2ActualRecord = {
   safetyRecord: string | null
   reporter: string | null
   remark: string | null
+  BIM?: Array<{ modelId: string; applicationIds: string[] }> | null
   creator: string
   updater: string
   createdAt: string
@@ -174,7 +181,10 @@ export async function getLatestProgressV2PlanFile(params: {
   const { projectId, apiOrigin } = params
   try {
     const payload = await $fetch<{ data: ProgressV2PlanFile | null }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/plan-file`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/plan-file`,
+        apiOrigin
+      ).toString(),
       { method: 'GET', cache: 'no-store' }
     )
     return payload.data
@@ -202,7 +212,8 @@ export async function uploadProgressV2PlanFile(
       new URL(`/api/stream/${projectId}/blob`, apiOrigin).toString(),
       { method: 'POST', body: data }
     )
-    const uploadResults = (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
+    const uploadResults =
+      (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
     const result = uploadResults.find((r) => r.formKey === 'file')
     if (!result?.blobId) throw new Error('上传计划文件到对象存储失败')
 
@@ -211,7 +222,10 @@ export async function uploadProgressV2PlanFile(
       success: boolean
       data: { planFile: ProgressV2PlanFile; taskCount: number }
     }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/plan-file`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/plan-file`,
+        apiOrigin
+      ).toString(),
       {
         method: 'POST',
         body: {
@@ -236,7 +250,10 @@ export async function getProgressV2PlanTasks(params: {
   const { projectId, apiOrigin } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2PlanTask[] }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/plan-tasks`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/plan-tasks`,
+        apiOrigin
+      ).toString(),
       { method: 'GET', cache: 'no-store' }
     )
     return (payload.data || []).map((t) => ({
@@ -270,7 +287,10 @@ export async function listProgressV2AnnualPlans(params: {
 }): Promise<ProgressV2AnnualPlan[]> {
   const { projectId, apiOrigin, year } = params
   try {
-    const url = new URL(`/api/v1/projects/${projectId}/progress-v2/annual-plans`, apiOrigin)
+    const url = new URL(
+      `/api/v1/projects/${projectId}/progress-v2/annual-plans`,
+      apiOrigin
+    )
     if (year) url.searchParams.set('year', String(year))
     const payload = await $fetch<{ success: boolean; data: ProgressV2AnnualPlan[] }>(
       url.toString(),
@@ -297,7 +317,10 @@ export async function createProgressV2AnnualPlan(params: {
   const { projectId, apiOrigin, data } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2AnnualPlan }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/annual-plans`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/annual-plans`,
+        apiOrigin
+      ).toString(),
       { method: 'POST', body: data }
     )
     return payload.data
@@ -374,7 +397,8 @@ export async function uploadProgressV2AnnualPlanFile(
       new URL(`/api/stream/${projectId}/blob`, apiOrigin).toString(),
       { method: 'POST', body: data }
     )
-    const uploadResults = (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
+    const uploadResults =
+      (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
     const result = uploadResults.find((r) => r.formKey === 'file')
     if (!result?.blobId) throw new Error('上传文件到对象存储失败')
 
@@ -411,7 +435,10 @@ export async function getProgressV2AnnualPlanTasks(params: {
 }): Promise<ProgressV2AnnualPlanTask[]> {
   const { projectId, annualPlanId, apiOrigin } = params
   try {
-    const payload = await $fetch<{ success: boolean; data: ProgressV2AnnualPlanTask[] }>(
+    const payload = await $fetch<{
+      success: boolean
+      data: ProgressV2AnnualPlanTask[]
+    }>(
       new URL(
         `/api/v1/projects/${projectId}/progress-v2/annual-plans/${annualPlanId}/tasks`,
         apiOrigin
@@ -439,7 +466,10 @@ export async function listProgressV2MonthlyPlans(params: {
   const { projectId, apiOrigin } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2MonthlyPlan[] }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/monthly-plans`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/monthly-plans`,
+        apiOrigin
+      ).toString(),
       { method: 'GET', cache: 'no-store' }
     )
     return (payload.data || []).map((item) => ({
@@ -457,6 +487,9 @@ export async function createProgressV2MonthlyPlan(params: {
   data: {
     yearMonth: string
     title?: string | null
+    startDate?: string | null
+    endDate?: string | null
+    preparedBy?: string | null
     remark?: string | null
     tasks?: MonthlyPlanTaskItem[]
   }
@@ -464,7 +497,10 @@ export async function createProgressV2MonthlyPlan(params: {
   const { projectId, apiOrigin, data } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2MonthlyPlan }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/monthly-plans`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/monthly-plans`,
+        apiOrigin
+      ).toString(),
       { method: 'POST', body: data }
     )
     return payload.data
@@ -479,6 +515,9 @@ export async function updateProgressV2MonthlyPlan(params: {
   apiOrigin: string
   data: {
     title?: string | null
+    startDate?: string | null
+    endDate?: string | null
+    preparedBy?: string | null
     remark?: string | null
     tasks?: MonthlyPlanTaskItem[]
   }
@@ -528,7 +567,10 @@ export async function listProgressV2ActualRecords(params: {
 }): Promise<ProgressV2ActualRecord[]> {
   const { projectId, apiOrigin, search } = params
   try {
-    const url = new URL(`/api/v1/projects/${projectId}/progress-v2/actual-records`, apiOrigin)
+    const url = new URL(
+      `/api/v1/projects/${projectId}/progress-v2/actual-records`,
+      apiOrigin
+    )
     if (search) url.searchParams.set('search', search)
     const payload = await $fetch<{ success: boolean; data: ProgressV2ActualRecord[] }>(
       url.toString(),
@@ -547,9 +589,12 @@ export async function createProgressV2ActualRecord(params: {
     taskName: string
     sectionName?: string | null
     reportDate: string
+    planStartDate?: string | null
+    planEndDate?: string | null
     actualStartDate?: string | null
     actualEndDate?: string | null
     progressPercent?: number
+    componentCode?: string | null
     weather?: string | null
     highTemperature?: string | null
     lowTemperature?: string | null
@@ -558,12 +603,16 @@ export async function createProgressV2ActualRecord(params: {
     safetyRecord?: string | null
     reporter?: string | null
     remark?: string | null
+    BIM?: Array<{ modelId: string; applicationIds: string[] }> | null
   }
 }) {
   const { projectId, apiOrigin, data } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2ActualRecord }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/actual-records`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/actual-records`,
+        apiOrigin
+      ).toString(),
       { method: 'POST', body: data }
     )
     return payload.data
@@ -580,9 +629,12 @@ export async function updateProgressV2ActualRecord(params: {
     taskName: string
     sectionName: string | null
     reportDate: string
+    planStartDate: string | null
+    planEndDate: string | null
     actualStartDate: string | null
     actualEndDate: string | null
     progressPercent: number
+    componentCode: string | null
     weather: string | null
     highTemperature: string | null
     lowTemperature: string | null
@@ -591,6 +643,7 @@ export async function updateProgressV2ActualRecord(params: {
     safetyRecord: string | null
     reporter: string | null
     remark: string | null
+    BIM: Array<{ modelId: string; applicationIds: string[] }> | null
   }>
 }) {
   const { projectId, recordId, apiOrigin, data } = params
@@ -638,7 +691,10 @@ export async function listProgressV2Milestones(params: {
 }): Promise<ProgressV2Milestone[]> {
   const { projectId, apiOrigin, search } = params
   try {
-    const url = new URL(`/api/v1/projects/${projectId}/progress-v2/milestones`, apiOrigin)
+    const url = new URL(
+      `/api/v1/projects/${projectId}/progress-v2/milestones`,
+      apiOrigin
+    )
     if (search) url.searchParams.set('search', search)
     const payload = await $fetch<{ success: boolean; data: ProgressV2Milestone[] }>(
       url.toString(),
@@ -672,7 +728,10 @@ export async function createProgressV2Milestone(params: {
   const { projectId, apiOrigin, data } = params
   try {
     const payload = await $fetch<{ success: boolean; data: ProgressV2Milestone }>(
-      new URL(`/api/v1/projects/${projectId}/progress-v2/milestones`, apiOrigin).toString(),
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/milestones`,
+        apiOrigin
+      ).toString(),
       { method: 'POST', body: data }
     )
     return payload.data

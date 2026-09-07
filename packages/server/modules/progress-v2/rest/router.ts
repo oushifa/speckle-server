@@ -17,18 +17,13 @@ import {
   streamReadPermissionsPipelineFactory,
   streamWritePermissionsPipelineFactory
 } from '@/modules/shared/authz'
-import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
-import { ensureError } from '@speckle/shared'
 import contentDisposition from 'content-disposition'
 
 import {
   createProgressV2PlanFileFactory,
   getLatestProgressV2PlanFileFactory
 } from '@/modules/progress-v2/repositories/progressV2PlanFiles'
-import {
-  listProgressV2PlanTasksFactory,
-  getProgressV2PlanTaskFactory
-} from '@/modules/progress-v2/repositories/progressV2PlanTasks'
+import { listProgressV2PlanTasksFactory } from '@/modules/progress-v2/repositories/progressV2PlanTasks'
 import {
   createProgressV2AnnualPlanFactory,
   deleteProgressV2AnnualPlanFactory,
@@ -47,14 +42,12 @@ import {
 import {
   createProgressV2ActualRecordFactory,
   deleteProgressV2ActualRecordFactory,
-  getProgressV2ActualRecordByIdFactory,
   listProgressV2ActualRecordsFactory,
   updateProgressV2ActualRecordFactory
 } from '@/modules/progress-v2/repositories/progressV2ActualRecords'
 import {
   createProgressV2MilestoneFactory,
   deleteProgressV2MilestoneFactory,
-  getProgressV2MilestoneByIdFactory,
   listProgressV2MilestonesFactory,
   updateProgressV2MilestoneFactory
 } from '@/modules/progress-v2/repositories/progressV2Milestones'
@@ -117,12 +110,18 @@ const updateAnnualPlanBodySchema = z.object({
 const createMonthlyPlanBodySchema = z.object({
   yearMonth: z.string().regex(/^\d{4}-\d{2}$/),
   title: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  preparedBy: z.string().nullable().optional(),
   remark: z.string().nullable().optional(),
   tasks: z.array(z.any()).optional()
 })
 
 const updateMonthlyPlanBodySchema = z.object({
   title: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+  preparedBy: z.string().nullable().optional(),
   remark: z.string().nullable().optional(),
   tasks: z.array(z.any()).optional()
 })
@@ -131,9 +130,12 @@ const createActualRecordBodySchema = z.object({
   taskName: z.string().min(1),
   sectionName: z.string().nullable().optional(),
   reportDate: z.string().min(1),
+  planStartDate: z.string().nullable().optional(),
+  planEndDate: z.string().nullable().optional(),
   actualStartDate: z.string().nullable().optional(),
   actualEndDate: z.string().nullable().optional(),
   progressPercent: z.number().int().min(0).max(100).optional(),
+  componentCode: z.string().nullable().optional(),
   weather: z.string().nullable().optional(),
   highTemperature: z.string().nullable().optional(),
   lowTemperature: z.string().nullable().optional(),
@@ -141,16 +143,20 @@ const createActualRecordBodySchema = z.object({
   qualityRecord: z.string().nullable().optional(),
   safetyRecord: z.string().nullable().optional(),
   reporter: z.string().nullable().optional(),
-  remark: z.string().nullable().optional()
+  remark: z.string().nullable().optional(),
+  BIM: z.array(z.any()).nullable().optional()
 })
 
 const updateActualRecordBodySchema = z.object({
   taskName: z.string().min(1).optional(),
   sectionName: z.string().nullable().optional(),
   reportDate: z.string().optional(),
+  planStartDate: z.string().nullable().optional(),
+  planEndDate: z.string().nullable().optional(),
   actualStartDate: z.string().nullable().optional(),
   actualEndDate: z.string().nullable().optional(),
   progressPercent: z.number().int().min(0).max(100).optional(),
+  componentCode: z.string().nullable().optional(),
   weather: z.string().nullable().optional(),
   highTemperature: z.string().nullable().optional(),
   lowTemperature: z.string().nullable().optional(),
@@ -158,7 +164,8 @@ const updateActualRecordBodySchema = z.object({
   qualityRecord: z.string().nullable().optional(),
   safetyRecord: z.string().nullable().optional(),
   reporter: z.string().nullable().optional(),
-  remark: z.string().nullable().optional()
+  remark: z.string().nullable().optional(),
+  BIM: z.array(z.any()).nullable().optional()
 })
 
 const createMilestoneBodySchema = z.object({
@@ -313,9 +320,13 @@ export const progressV2RouterFactory = (): Router => {
         const { projectId } = req.params
         const db = await getProjectDbClient({ projectId })
         const storage = await getProjectObjectStorage({ projectId })
-        const latestFile = await getLatestProgressV2PlanFileFactory({ db })({ projectId })
+        const latestFile = await getLatestProgressV2PlanFileFactory({ db })({
+          projectId
+        })
         if (!latestFile) {
-          return res.status(404).json({ success: false, message: 'Plan file not found' })
+          return res
+            .status(404)
+            .json({ success: false, message: 'Plan file not found' })
         }
 
         const { rm } = await import('node:fs/promises')
@@ -423,7 +434,10 @@ export const progressV2RouterFactory = (): Router => {
     `${basePath}/annual-plans/:annualPlanId`,
     cors,
     allowCrossOriginResourceAccessMiddelware(),
-    validateRequest({ params: annualPlanParamsSchema, body: updateAnnualPlanBodySchema }),
+    validateRequest({
+      params: annualPlanParamsSchema,
+      body: updateAnnualPlanBodySchema
+    }),
     writeAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -574,6 +588,9 @@ export const progressV2RouterFactory = (): Router => {
           projectId,
           yearMonth: req.body.yearMonth,
           title: req.body.title,
+          startDate: req.body.startDate ? new Date(req.body.startDate) : null,
+          endDate: req.body.endDate ? new Date(req.body.endDate) : null,
+          preparedBy: req.body.preparedBy,
           remark: req.body.remark,
           tasks: req.body.tasks,
           createdBy: actorId
@@ -611,7 +628,10 @@ export const progressV2RouterFactory = (): Router => {
     `${basePath}/monthly-plans/:monthlyPlanId`,
     cors,
     allowCrossOriginResourceAccessMiddelware(),
-    validateRequest({ params: monthlyPlanParamsSchema, body: updateMonthlyPlanBodySchema }),
+    validateRequest({
+      params: monthlyPlanParamsSchema,
+      body: updateMonthlyPlanBodySchema
+    }),
     writeAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -621,6 +641,9 @@ export const progressV2RouterFactory = (): Router => {
           id: monthlyPlanId,
           projectId,
           title: req.body.title,
+          startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+          endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
+          preparedBy: req.body.preparedBy,
           remark: req.body.remark,
           tasks: req.body.tasks
         })
@@ -666,7 +689,10 @@ export const progressV2RouterFactory = (): Router => {
         const { projectId } = req.params
         const search = req.query.search as string | undefined
         const db = await getProjectDbClient({ projectId })
-        const list = await listProgressV2ActualRecordsFactory({ db })({ projectId, search })
+        const list = await listProgressV2ActualRecordsFactory({ db })({
+          projectId,
+          search
+        })
         return res.json({ success: true, data: list })
       } catch (err) {
         return next(err)
@@ -678,7 +704,10 @@ export const progressV2RouterFactory = (): Router => {
     `${basePath}/actual-records`,
     cors,
     allowCrossOriginResourceAccessMiddelware(),
-    validateRequest({ params: projectParamsSchema, body: createActualRecordBodySchema }),
+    validateRequest({
+      params: projectParamsSchema,
+      body: createActualRecordBodySchema
+    }),
     writeAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -691,9 +720,18 @@ export const progressV2RouterFactory = (): Router => {
           taskName: req.body.taskName,
           sectionName: req.body.sectionName,
           reportDate: req.body.reportDate,
-          actualStartDate: req.body.actualStartDate ? new Date(req.body.actualStartDate) : null,
-          actualEndDate: req.body.actualEndDate ? new Date(req.body.actualEndDate) : null,
+          planStartDate: req.body.planStartDate
+            ? new Date(req.body.planStartDate)
+            : null,
+          planEndDate: req.body.planEndDate ? new Date(req.body.planEndDate) : null,
+          actualStartDate: req.body.actualStartDate
+            ? new Date(req.body.actualStartDate)
+            : null,
+          actualEndDate: req.body.actualEndDate
+            ? new Date(req.body.actualEndDate)
+            : null,
           progressPercent: req.body.progressPercent,
+          componentCode: req.body.componentCode,
           weather: req.body.weather,
           highTemperature: req.body.highTemperature,
           lowTemperature: req.body.lowTemperature,
@@ -702,6 +740,7 @@ export const progressV2RouterFactory = (): Router => {
           safetyRecord: req.body.safetyRecord,
           reporter: req.body.reporter,
           remark: req.body.remark,
+          BIM: req.body.BIM,
           creator: actorId,
           updater: actorId
         })
@@ -716,7 +755,10 @@ export const progressV2RouterFactory = (): Router => {
     `${basePath}/actual-records/:recordId`,
     cors,
     allowCrossOriginResourceAccessMiddelware(),
-    validateRequest({ params: actualRecordParamsSchema, body: updateActualRecordBodySchema }),
+    validateRequest({
+      params: actualRecordParamsSchema,
+      body: updateActualRecordBodySchema
+    }),
     writeAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -730,9 +772,20 @@ export const progressV2RouterFactory = (): Router => {
           taskName: req.body.taskName,
           sectionName: req.body.sectionName,
           reportDate: req.body.reportDate,
-          actualStartDate: req.body.actualStartDate ? new Date(req.body.actualStartDate) : undefined,
-          actualEndDate: req.body.actualEndDate ? new Date(req.body.actualEndDate) : undefined,
+          planStartDate: req.body.planStartDate
+            ? new Date(req.body.planStartDate)
+            : undefined,
+          planEndDate: req.body.planEndDate
+            ? new Date(req.body.planEndDate)
+            : undefined,
+          actualStartDate: req.body.actualStartDate
+            ? new Date(req.body.actualStartDate)
+            : undefined,
+          actualEndDate: req.body.actualEndDate
+            ? new Date(req.body.actualEndDate)
+            : undefined,
           progressPercent: req.body.progressPercent,
+          componentCode: req.body.componentCode,
           weather: req.body.weather,
           highTemperature: req.body.highTemperature,
           lowTemperature: req.body.lowTemperature,
@@ -741,6 +794,7 @@ export const progressV2RouterFactory = (): Router => {
           safetyRecord: req.body.safetyRecord,
           reporter: req.body.reporter,
           remark: req.body.remark,
+          BIM: req.body.BIM,
           updater: actorId
         })
         return res.json({ success: true, data: updated })
@@ -785,7 +839,10 @@ export const progressV2RouterFactory = (): Router => {
         const { projectId } = req.params
         const search = req.query.search as string | undefined
         const db = await getProjectDbClient({ projectId })
-        const list = await listProgressV2MilestonesFactory({ db })({ projectId, search })
+        const list = await listProgressV2MilestonesFactory({ db })({
+          projectId,
+          search
+        })
         return res.json({ success: true, data: list })
       } catch (err) {
         return next(err)
@@ -843,9 +900,13 @@ export const progressV2RouterFactory = (): Router => {
           id: milestoneId,
           projectId,
           taskName: req.body.taskName,
-          plannedStart: req.body.plannedStart ? new Date(req.body.plannedStart) : undefined,
+          plannedStart: req.body.plannedStart
+            ? new Date(req.body.plannedStart)
+            : undefined,
           plannedEnd: req.body.plannedEnd ? new Date(req.body.plannedEnd) : undefined,
-          actualStart: req.body.actualStart ? new Date(req.body.actualStart) : undefined,
+          actualStart: req.body.actualStart
+            ? new Date(req.body.actualStart)
+            : undefined,
           actualEnd: req.body.actualEnd ? new Date(req.body.actualEnd) : undefined,
           status: req.body.status,
           milestoneType: req.body.milestoneType,

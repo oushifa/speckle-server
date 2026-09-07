@@ -84,12 +84,13 @@ export type UpdateProgressV2MilestoneParams = {
 
 export const listProgressV2MilestonesFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string; search?: string }): Promise<ProgressV2MilestoneRecord[]> => {
-    let query = tables
-      .projectProgressV2Milestones(deps.db)
-      .where({
-        [ProjectProgressV2Milestones.col.projectId]: params.projectId
-      })
+  async (params: {
+    projectId: string
+    search?: string
+  }): Promise<ProgressV2MilestoneRecord[]> => {
+    let query = tables.projectProgressV2Milestones(deps.db).where({
+      [ProjectProgressV2Milestones.col.projectId]: params.projectId
+    })
 
     if (params.search?.trim()) {
       const s = `%${params.search.trim()}%`
@@ -98,12 +99,17 @@ export const listProgressV2MilestonesFactory =
       })
     }
 
-    return await query.orderBy(ProjectProgressV2Milestones.col.plannedEnd, 'asc').orderBy(ProjectProgressV2Milestones.col.createdAt, 'desc')
+    return await query
+      .orderBy(ProjectProgressV2Milestones.col.plannedEnd, 'asc')
+      .orderBy(ProjectProgressV2Milestones.col.createdAt, 'desc')
   }
 
 export const getProgressV2MilestoneByIdFactory =
   (deps: { db: Knex }) =>
-  async (params: { id: string; projectId: string }): Promise<ProgressV2MilestoneRecord | undefined> => {
+  async (params: {
+    id: string
+    projectId: string
+  }): Promise<ProgressV2MilestoneRecord | undefined> => {
     return await tables
       .projectProgressV2Milestones(deps.db)
       .where({
@@ -115,7 +121,9 @@ export const getProgressV2MilestoneByIdFactory =
 
 export const createProgressV2MilestoneFactory =
   (deps: { db: Knex }) =>
-  async (params: CreateProgressV2MilestoneParams): Promise<ProgressV2MilestoneRecord> => {
+  async (
+    params: CreateProgressV2MilestoneParams
+  ): Promise<ProgressV2MilestoneRecord> => {
     const tagsJson = JSON.stringify(params.tags || ['milestone'])
     const [inserted] = await tables.projectProgressV2Milestones(deps.db).insert(
       {
@@ -130,7 +138,7 @@ export const createProgressV2MilestoneFactory =
         milestoneType: params.milestoneType ?? 'phase',
         responsible: params.responsible ?? null,
         remark: params.remark ?? null,
-        tags: tagsJson as any,
+        tags: tagsJson as string,
         creator: params.creator,
         updater: params.updater
       },
@@ -141,7 +149,9 @@ export const createProgressV2MilestoneFactory =
 
 export const updateProgressV2MilestoneFactory =
   (deps: { db: Knex }) =>
-  async (params: UpdateProgressV2MilestoneParams): Promise<ProgressV2MilestoneRecord | undefined> => {
+  async (
+    params: UpdateProgressV2MilestoneParams
+  ): Promise<ProgressV2MilestoneRecord | undefined> => {
     const updateData: Record<string, unknown> = {
       updater: params.updater,
       updatedAt: new Date()
@@ -152,7 +162,8 @@ export const updateProgressV2MilestoneFactory =
     if (params.actualStart !== undefined) updateData.actualStart = params.actualStart
     if (params.actualEnd !== undefined) updateData.actualEnd = params.actualEnd
     if (params.status !== undefined) updateData.status = params.status
-    if (params.milestoneType !== undefined) updateData.milestoneType = params.milestoneType
+    if (params.milestoneType !== undefined)
+      updateData.milestoneType = params.milestoneType
     if (params.responsible !== undefined) updateData.responsible = params.responsible
     if (params.remark !== undefined) updateData.remark = params.remark
     if (params.tags !== undefined) updateData.tags = JSON.stringify(params.tags)

@@ -53,16 +53,22 @@
         <div>
           <span class="text-foreground-2">工期区间：</span>
           <span class="font-medium text-foreground">
-            {{ annualPlan.startDate?.slice(0, 10) }} ~ {{ annualPlan.endDate?.slice(0, 10) }}
+            {{ annualPlan.startDate?.slice(0, 10) }} ~
+            {{ annualPlan.endDate?.slice(0, 10) }}
           </span>
         </div>
         <div>
           <span class="text-foreground-2">编制人：</span>
-          <span class="font-medium text-foreground">{{ annualPlan.preparedBy || '-' }}</span>
+          <span class="font-medium text-foreground">
+            {{ annualPlan.preparedBy || '-' }}
+          </span>
         </div>
         <div>
           <span class="text-foreground-2">当前计划文件：</span>
-          <span v-if="annualPlan.fileName" class="bg-foundation-page px-2 py-0.5 rounded border border-outline-2 font-mono text-body-xs">
+          <span
+            v-if="annualPlan.fileName"
+            class="bg-foundation-page px-2 py-0.5 rounded border border-outline-2 font-mono text-body-xs"
+          >
             {{ annualPlan.fileName }}
           </span>
           <span v-else class="text-foreground-3">未上传</span>
@@ -71,7 +77,9 @@
     </div>
 
     <!-- Task Tree Table -->
-    <div class="bg-foundation rounded-lg shadow-sm border border-outline-2 overflow-hidden flex flex-col">
+    <div
+      class="bg-foundation rounded-lg shadow-sm border border-outline-2 overflow-hidden flex flex-col"
+    >
       <div
         v-if="isLoadingTasks"
         class="px-4 py-10 text-center text-body-sm text-foreground-2 border-b border-outline-2"
@@ -95,27 +103,21 @@
         class="w-full"
         expand-all-by-default
       >
-        <template #wbs="{ item }">
-          <span class="text-body-sm text-foreground-2">{{ item.wbs }}</span>
-        </template>
-        <!-- 需求3：去掉年度计划任务项点击显示实际进度详情弹窗，纯文本展示 -->
         <template #taskName="{ item }">
-          <span class="text-body-sm font-medium text-foreground">{{ item.taskName }}</span>
+          <span class="text-body-sm font-medium text-foreground">
+            {{ item.taskName || item.name }}
+          </span>
         </template>
         <template #duration="{ item }">
-          <span class="text-body-sm">{{ item.duration || '-' }}</span>
+          <span class="text-body-sm text-center block">{{ item.duration || '-' }}</span>
         </template>
         <template #startDate="{ item }">
-          <span class="text-body-sm">{{ item.startDate || '-' }}</span>
+          <span class="text-body-sm text-center block">
+            {{ item.startDate || '-' }}
+          </span>
         </template>
         <template #endDate="{ item }">
-          <span class="text-body-sm">{{ item.endDate || '-' }}</span>
-        </template>
-        <template #quantity="{ item }">
-          <span class="text-body-sm">{{ item.quantity || '-' }}</span>
-        </template>
-        <template #unit="{ item }">
-          <span class="text-body-sm">{{ item.unit || '-' }}</span>
+          <span class="text-body-sm text-center block">{{ item.endDate || '-' }}</span>
         </template>
       </LayoutTable>
     </div>
@@ -154,36 +156,116 @@ const isImporting = ref(false)
 const annualMppInputRef = ref<HTMLInputElement | null>(null)
 
 const taskColumns = [
-  { id: 'wbs', header: '层级', classes: 'col-span-1' },
-  { id: 'taskName', header: '任务名称', classes: 'col-span-4' },
-  { id: 'duration', header: '工期', classes: 'col-span-1' },
-  { id: 'startDate', header: '开始时间', classes: 'col-span-2' },
-  { id: 'endDate', header: '完成时间', classes: 'col-span-2' },
-  { id: 'quantity', header: '工程量', classes: 'col-span-1' },
-  { id: 'unit', header: '单位', classes: 'col-span-1' }
+  { id: 'taskName', header: '任务名称', classes: 'col-span-6' },
+  { id: 'duration', header: '工期', classes: 'col-span-2 text-center' },
+  { id: 'startDate', header: '开始时间', classes: 'col-span-2 text-center' },
+  { id: 'endDate', header: '完成时间', classes: 'col-span-2 text-center' }
 ]
 
-const buildTaskTree = (taskList: ProgressV2AnnualPlanTask[]): ProgressV2AnnualPlanTask[] => {
-  const taskMap = new Map<string, ProgressV2AnnualPlanTask>()
-  taskList.forEach((t) => {
-    taskMap.set(t.id, { ...t, children: [] })
-  })
-
-  const rootTasks: ProgressV2AnnualPlanTask[] = []
-  taskMap.forEach((task) => {
-    if (task.parentId && taskMap.has(task.parentId)) {
-      const parent = taskMap.get(task.parentId)!
-      parent.children = parent.children || []
-      parent.children.push(task)
-      parent.hasChildren = true
-    } else {
-      rootTasks.push(task)
-    }
-  })
-  return rootTasks
+const parseWbsSegments = (wbs?: string) => {
+  if (!wbs) return []
+  return wbs
+    .split('.')
+    .filter(Boolean)
+    .map((segment) => Number.parseInt(segment, 10))
 }
 
-const treeTasks = computed(() => buildTaskTree(tasks.value))
+const compareWbs = (left?: string, right?: string) => {
+  if (!left && !right) return 0
+  if (left && !right) return -1
+  if (!left && right) return 1
+
+  const leftSegments = parseWbsSegments(left)
+  const rightSegments = parseWbsSegments(right)
+  const maxLength = Math.max(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < maxLength; index++) {
+    const leftSegment = leftSegments[index]
+    const rightSegment = rightSegments[index]
+
+    if (leftSegment === undefined) return -1
+    if (rightSegment === undefined) return 1
+    if (leftSegment !== rightSegment) return leftSegment - rightSegment
+  }
+
+  return 0
+}
+
+const getParentWbs = (wbs?: string) => {
+  if (!wbs) return null
+  const segments = wbs.split('.').filter(Boolean)
+  if (segments.length <= 1) return null
+  return segments.slice(0, -1).join('.')
+}
+
+const getWbsLevel = (wbs?: string, fallbackLevel = 0) => {
+  if (!wbs) return fallbackLevel
+  const segments = wbs.split('.').filter(Boolean)
+  return Math.max(segments.length - 1, 0)
+}
+
+const rebuildTaskTree = (
+  taskList: ProgressV2AnnualPlanTask[]
+): ProgressV2AnnualPlanTask[] => {
+  const orderedItems = [...taskList].sort((left, right) => {
+    const wbsOrder = compareWbs(left.wbs || undefined, right.wbs || undefined)
+    if (wbsOrder !== 0) return wbsOrder
+    return (left.taskName || left.name).localeCompare(
+      right.taskName || right.name,
+      'zh-CN'
+    )
+  })
+
+  const originalParentIds = new Map(
+    orderedItems.map((item) => [item.id, item.parentId || undefined])
+  )
+  const itemMap = new Map(
+    orderedItems.map((item) => [
+      item.id,
+      { ...item, children: [] as ProgressV2AnnualPlanTask[] }
+    ])
+  )
+  const itemByWbs = new Map(
+    orderedItems.flatMap((item) =>
+      item.wbs ? [[item.wbs, itemMap.get(item.id)!] as const] : []
+    )
+  )
+
+  itemMap.forEach((item) => {
+    item.children = []
+    item.parentId = null
+    item.level = getWbsLevel(item.wbs || undefined, item.level)
+  })
+
+  const rootItems: ProgressV2AnnualPlanTask[] = []
+
+  orderedItems.forEach((raw) => {
+    const item = itemMap.get(raw.id)!
+    const wbsParent = getParentWbs(item.wbs || undefined)
+    const originalParentId = originalParentIds.get(item.id)
+    const parent = item.wbs
+      ? wbsParent
+        ? itemByWbs.get(wbsParent)
+        : undefined
+      : originalParentId
+      ? itemMap.get(originalParentId)
+      : undefined
+
+    if (!parent) {
+      rootItems.push(item)
+      return
+    }
+
+    item.parentId = parent.id
+    item.level = parent.level + 1
+    parent.children = [...(parent.children || []), item]
+    parent.hasChildren = true
+  })
+
+  return rootItems
+}
+
+const treeTasks = computed(() => rebuildTaskTree(tasks.value))
 
 const loadData = async () => {
   if (!projectId.value || !annualPlanId.value) return
@@ -199,11 +281,11 @@ const loadData = async () => {
     ])
     annualPlan.value = allPlans.find((p) => p.id === annualPlanId.value) || null
     tasks.value = planTasks
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '加载年度计划详情失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isLoadingTasks.value = false
@@ -234,11 +316,11 @@ const handleAnnualMppChange = async (event: Event) => {
       description: `成功解析并更新 ${res.taskCount} 条年度计划任务`
     })
     await loadData()
-  } catch (err: any) {
+  } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '导入年度计划失败',
-      description: err.message
+      description: err instanceof Error ? err.message : String(err)
     })
   } finally {
     isImporting.value = false
