@@ -118,6 +118,7 @@ const getEnabledModuleNames = () => {
     'rvt-conversion',
     'previews',
     'progress',
+    'progress-v2',
     'project-statistics',
     'quality-acceptance-form',
     'file-management',

@@ -135,23 +135,18 @@
                       label="协同管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
-                </LayoutSidebarMenuGroup>
-
+                   <!-- 进度管理（新版独立模块） -->
                 <LayoutSidebarMenuGroup
                   v-if="
-                    hasMenuPerm('progress-plan') ||
-                    hasMenuPerm('actual-progress') ||
-                    hasMenuPerm('visual-progress')
+                    showWorkspaceLinks &&
+                    (hasMenuPerm('progress-plan') || hasMenuPerm('actual-progress'))
                   "
                   :class="[
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
-                      '/progress/schedule',
-                      '/progress/annual',
-                      '/progress/monthly',
-                      '/progress/actual',
-                      '/progress/milestone',
-                      '/progress/physical'
+                      '/progress-v2/schedule',
+                      '/progress-v2/annual',
+                      '/progress-v2/actual'
                     ]) && 'project-sidebar-group-wrapper-active'
                   ]"
                   title="进度管理"
@@ -165,14 +160,14 @@
                   </template>
                   <NuxtLink
                     v-if="showWorkspaceLinks && hasMenuPerm('progress-plan')"
-                    :to="projectBaseRoutePath + '/progress/schedule'"
+                    :to="projectBaseRoutePath + '/progress-v2/schedule'"
                     @click="isOpenMobile = false"
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
                         'py-2 border-l-4',
-                        isProjectActive('/progress/schedule') ||
-                        isProjectActive('/progress/annual')
+                        isProjectActive('/progress-v2/schedule') ||
+                        isProjectActive('/progress-v2/annual')
                           ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
                           : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
                       ]"
@@ -182,35 +177,18 @@
                   </NuxtLink>
                   <NuxtLink
                     v-if="showWorkspaceLinks && hasMenuPerm('actual-progress')"
-                    :to="projectBaseRoutePath + '/progress/actual'"
+                    :to="projectBaseRoutePath + '/progress-v2/actual'"
                     @click="isOpenMobile = false"
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
                         'py-2 border-l-4',
-                        isProjectActive('/progress/actual') ||
-                        isProjectActive('/progress/milestone')
+                        isProjectActive('/progress-v2/actual')
                           ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
                           : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
                       ]"
                       extra-padding
                       label="进度管理"
-                    ></LayoutSidebarMenuGroupItem>
-                  </NuxtLink>
-                  <NuxtLink
-                    v-if="showWorkspaceLinks && hasMenuPerm('visual-progress')"
-                    :to="projectBaseRoutePath + '/progress/physical'"
-                    @click="isOpenMobile = false"
-                  >
-                    <LayoutSidebarMenuGroupItem
-                      :class="[
-                        'py-2',
-                        isProjectActive('/progress/physical') &&
-                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
-                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
-                      ]"
-                      extra-padding
-                      label="形象进度"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                 </LayoutSidebarMenuGroup>

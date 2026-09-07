@@ -197,7 +197,7 @@
 
         <template #action="{ item }">
           <NuxtLink
-            :to="`/projects/${item.id}/progress/schedule`"
+            :to="`/projects/${item.id}/progress-v2/schedule`"
             class="inline-flex items-center gap-1 text-body-xs font-medium text-primary transition hover:text-primary-focus"
           >
             查看详情
