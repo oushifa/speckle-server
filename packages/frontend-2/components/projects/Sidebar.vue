@@ -167,11 +167,11 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 border-l-4',
-                        isProjectActive('/progress-v2/schedule') ||
-                        isProjectActive('/progress-v2/annual')
-                          ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
-                          : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
+                        'py-2',
+                        (isProjectActive('/progress-v2/schedule') ||
+                          isProjectActive('/progress-v2/annual')) &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="进度计划"
@@ -184,10 +184,10 @@
                   >
                     <LayoutSidebarMenuGroupItem
                       :class="[
-                        'py-2 border-l-4',
-                        isProjectActive('/progress-v2/actual')
-                          ? 'bg-white/10 hover:!bg-white/10 border-blue-400 text-white'
-                          : 'text-white/80 hover:bg-white/5 hover:text-white border-transparent'
+                        'py-2',
+                        isProjectActive('/progress-v2/actual') &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="进度管理"

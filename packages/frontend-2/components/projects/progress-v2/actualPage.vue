@@ -58,6 +58,35 @@
         <FormButton
           v-if="activeTab === 'actual'"
           size="sm"
+          color="outline"
+          :icon-left="Download"
+          :disabled="isLoadingActual || !actualRecords.length"
+          @click="handleExportActualExcel"
+        >
+          导出 Excel
+        </FormButton>
+        <FormButton
+          v-if="activeTab === 'actual'"
+          size="sm"
+          color="outline"
+          :icon-left="Upload"
+          :disabled="isImportingActualExcel"
+          @click="triggerActualExcelImport"
+        >
+          {{ isImportingActualExcel ? '导入中...' : '导入 Excel' }}
+        </FormButton>
+        <input
+          ref="actualImportInputRef"
+          type="file"
+          class="hidden"
+          accept=".xlsx,.xls"
+          aria-label="导入进度填报Excel文件"
+          @change="handleActualExcelImportChange"
+        />
+
+        <FormButton
+          v-if="activeTab === 'actual'"
+          size="sm"
           color="primary"
           :icon-left="Plus"
           @click="openCreateActualDialog"
@@ -219,9 +248,8 @@
               <th class="py-3 px-4">实际开始时间</th>
               <th class="py-3 px-4">实际完成时间</th>
               <th class="py-3 px-4">当前状态</th>
-              <th class="py-3 px-4">标签类型</th>
-              <th class="py-3 px-4">责任人</th>
               <th class="py-3 px-4">备注说明</th>
+              <th class="py-3 px-4 text-center">标签</th>
               <th class="py-3 px-4 text-right">操作</th>
             </tr>
           </thead>
@@ -262,37 +290,52 @@
                   {{ item.status }}
                 </span>
               </td>
-              <td class="py-3 px-4 text-foreground-2">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span
-                    v-if="item.tags?.includes('key')"
-                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-danger-lighter text-danger-darker"
-                  >
-                    <Star class="w-3 h-3 fill-current" />
-                    关键工序
-                  </span>
-                  <span
-                    v-if="item.tags?.includes('milestone')"
-                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-primary-muted text-primary"
-                  >
-                    <Flag class="w-3 h-3 fill-current" />
-                    里程碑
-                  </span>
-                  <span
-                    v-if="
-                      !item.tags?.includes('key') && !item.tags?.includes('milestone')
-                    "
-                    class="text-body-xs text-foreground-2"
-                  >
-                    -
-                  </span>
-                </div>
-              </td>
-              <td class="py-3 px-4 text-foreground-2">
-                {{ item.responsible || '-' }}
-              </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs max-w-xs truncate">
                 {{ item.remark || '-' }}
+              </td>
+              <td class="py-3 px-4 text-foreground-2">
+                <div class="flex items-center justify-center gap-3">
+                  <!-- 关键工序 -->
+                  <button
+                    type="button"
+                    :title="
+                      item.tags?.includes('key') ? '取消关键工序' : '标记为关键工序'
+                    "
+                    class="flex items-center gap-1 px-2 py-1 rounded transition-colors text-xs border"
+                    :class="
+                      item.tags?.includes('key')
+                        ? 'bg-danger/10 text-danger border-danger/40'
+                        : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
+                    "
+                    @click="toggleMilestoneTag(item, 'key')"
+                  >
+                    <Star
+                      class="w-3.5 h-3.5"
+                      :class="item.tags?.includes('key') ? 'fill-current' : ''"
+                    />
+                    <span class="whitespace-nowrap">关键工序</span>
+                  </button>
+                  <!-- 里程碑 -->
+                  <button
+                    type="button"
+                    :title="
+                      item.tags?.includes('milestone') ? '取消里程碑' : '标记为里程碑'
+                    "
+                    class="flex items-center gap-1 px-2 py-1 rounded transition-colors text-xs border"
+                    :class="
+                      item.tags?.includes('milestone')
+                        ? 'bg-primary/10 text-primary border-primary/40'
+                        : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
+                    "
+                    @click="toggleMilestoneTag(item, 'milestone')"
+                  >
+                    <Flag
+                      class="w-3.5 h-3.5"
+                      :class="item.tags?.includes('milestone') ? 'fill-current' : ''"
+                    />
+                    <span class="whitespace-nowrap">里程碑</span>
+                  </button>
+                </div>
               </td>
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1">
@@ -737,30 +780,30 @@
             <button
               type="button"
               :class="[
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-body-xs font-medium transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm border',
                 milestoneForm.isKey
-                  ? 'bg-danger-lighter text-danger-darker border-danger/40'
-                  : 'bg-foundation-page text-foreground-2 border-outline-2 hover:text-foreground'
+                  ? 'bg-danger/10 text-danger border-danger/50'
+                  : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
               ]"
               @click="milestoneForm.isKey = !milestoneForm.isKey"
             >
               <Star :class="['w-4 h-4', milestoneForm.isKey ? 'fill-current' : '']" />
-              <span>关键工序</span>
+              <span class="whitespace-nowrap">关键工序</span>
             </button>
             <button
               type="button"
               :class="[
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-body-xs font-medium transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm border',
                 milestoneForm.isMilestone
-                  ? 'bg-primary-muted text-primary border-primary/40'
-                  : 'bg-foundation-page text-foreground-2 border-outline-2 hover:text-foreground'
+                  ? 'bg-primary/10 text-primary border-primary/50'
+                  : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
               ]"
               @click="milestoneForm.isMilestone = !milestoneForm.isMilestone"
             >
               <Flag
                 :class="['w-4 h-4', milestoneForm.isMilestone ? 'fill-current' : '']"
               />
-              <span>里程碑</span>
+              <span class="whitespace-nowrap">里程碑</span>
             </button>
           </div>
         </div>
@@ -863,7 +906,9 @@ import {
   Star,
   Flag,
   Check,
-  X
+  X,
+  Download,
+  Upload
 } from 'lucide-vue-next'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { CommonConfirmDialog } from '#components'
@@ -876,6 +921,8 @@ import {
   createProgressV2Milestone,
   updateProgressV2Milestone,
   deleteProgressV2Milestone,
+  getProgressV2ActualRecordsExportUrl,
+  importProgressV2ActualRecordsFromExcel,
   type ProgressV2ActualRecord,
   type ProgressV2Milestone
 } from '~/lib/projects/api/progress-v2'
@@ -1009,6 +1056,64 @@ const actualSearchQuery = ref('')
 const actualDialogOpen = ref(false)
 const editingActualRecord = ref<ProgressV2ActualRecord | null>(null)
 const isSavingActual = ref(false)
+
+const actualImportInputRef = ref<HTMLInputElement | null>(null)
+const isImportingActualExcel = ref(false)
+
+const triggerActualExcelImport = () => {
+  actualImportInputRef.value?.click()
+}
+
+const handleActualExcelImportChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  target.value = ''
+  if (!file) return
+
+  isImportingActualExcel.value = true
+  try {
+    const result = await importProgressV2ActualRecordsFromExcel({
+      projectId: projectId.value,
+      file,
+      apiOrigin
+    })
+    const parts = [`共 ${result.totalCount} 行`]
+    if (result.createdCount > 0) parts.push(`新增 ${result.createdCount} 条`)
+    if (result.updatedCount > 0) parts.push(`更新 ${result.updatedCount} 条`)
+    triggerNotification({
+      type: ToastNotificationType.Success,
+      title: '导入成功',
+      description: `${parts.join('、')}。`
+    })
+    if (result.failedRows?.length) {
+      triggerNotification({
+        type: ToastNotificationType.Warning,
+        title: `部分行导入失败（${result.failedRows.length} 行）`,
+        description: result.failedRows.slice(0, 3).join('；')
+      })
+    }
+    await loadActualRecords()
+  } catch (err: unknown) {
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '导入失败',
+      description: err instanceof Error ? err.message : String(err)
+    })
+  } finally {
+    isImportingActualExcel.value = false
+  }
+}
+
+const handleExportActualExcel = () => {
+  if (!projectId.value) return
+  window.open(
+    getProgressV2ActualRecordsExportUrl({
+      projectId: projectId.value,
+      apiOrigin
+    }),
+    '_blank'
+  )
+}
 
 const actualForm = reactive({
   taskName: '',
@@ -1231,6 +1336,36 @@ let milestoneSearchTimer: ReturnType<typeof setTimeout> | null = null
 const debounceLoadMilestones = () => {
   if (milestoneSearchTimer) clearTimeout(milestoneSearchTimer)
   milestoneSearchTimer = setTimeout(loadMilestones, 300)
+}
+
+const toggleMilestoneTag = async (
+  item: ProgressV2Milestone,
+  tag: 'key' | 'milestone'
+) => {
+  if (!projectId.value) return
+  const currentTags: string[] = Array.isArray(item.tags)
+    ? [...item.tags]
+    : typeof item.tags === 'string'
+    ? JSON.parse(item.tags || '[]')
+    : []
+  const hasTag = currentTags.includes(tag)
+  const newTags = hasTag ? currentTags.filter((t) => t !== tag) : [...currentTags, tag]
+  item.tags = newTags
+  try {
+    await updateProgressV2Milestone({
+      projectId: projectId.value,
+      milestoneId: item.id,
+      apiOrigin,
+      data: { tags: newTags }
+    })
+  } catch (err: unknown) {
+    item.tags = currentTags
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '更新标签失败',
+      description: err instanceof Error ? err.message : String(err)
+    })
+  }
 }
 
 const openCreateMilestoneDialog = () => {

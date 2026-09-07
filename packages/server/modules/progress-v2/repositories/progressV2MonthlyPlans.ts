@@ -14,6 +14,7 @@ export const ProjectProgressV2MonthlyPlans = buildTableHelper(
     'preparedBy',
     'remark',
     'tasks',
+    'attachments',
     'createdBy',
     'createdAt',
     'updatedAt'
@@ -33,6 +34,12 @@ export type MonthlyPlanTaskItem = {
   remark?: string | null
 }
 
+export type ProgressV2MonthlyPlanAttachment = {
+  blobId: string
+  fileName: string
+  fileSize?: number | string | null
+}
+
 export type ProgressV2MonthlyPlanRecord = {
   id: string
   projectId: string
@@ -43,6 +50,7 @@ export type ProgressV2MonthlyPlanRecord = {
   preparedBy: string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[] | string
+  attachments: ProgressV2MonthlyPlanAttachment[] | string | null
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -55,6 +63,38 @@ const tables = {
     db<ProgressV2MonthlyPlanRecord>(ProjectProgressV2MonthlyPlans.name)
 }
 
+const normalizeMonthlyPlan = (
+  record?: ProgressV2MonthlyPlanRecord
+): ProgressV2MonthlyPlanRecord | undefined => {
+  if (!record) return undefined
+  let tasks = record.tasks
+  if (typeof tasks === 'string') {
+    try {
+      tasks = JSON.parse(tasks)
+    } catch {
+      tasks = []
+    }
+  }
+
+  let attachments = record.attachments
+  if (typeof attachments === 'string') {
+    try {
+      attachments = JSON.parse(attachments)
+    } catch {
+      attachments = []
+    }
+  }
+  if (!attachments || !Array.isArray(attachments)) {
+    attachments = []
+  }
+
+  return {
+    ...record,
+    tasks: tasks || [],
+    attachments
+  }
+}
+
 export type CreateProgressV2MonthlyPlanParams = {
   projectId: string
   yearMonth: string
@@ -64,6 +104,7 @@ export type CreateProgressV2MonthlyPlanParams = {
   preparedBy?: string | null
   remark?: string | null
   tasks?: MonthlyPlanTaskItem[]
+  attachments?: ProgressV2MonthlyPlanAttachment[] | null
   createdBy: string
 }
 
@@ -76,17 +117,20 @@ export type UpdateProgressV2MonthlyPlanParams = {
   preparedBy?: string | null
   remark?: string | null
   tasks?: MonthlyPlanTaskItem[]
+  attachments?: ProgressV2MonthlyPlanAttachment[] | null
 }
 
 export const listProgressV2MonthlyPlansFactory =
   (deps: { db: Knex }) =>
   async (params: { projectId: string }): Promise<ProgressV2MonthlyPlanRecord[]> => {
-    return await tables
+    const list = await tables
       .projectProgressV2MonthlyPlans(deps.db)
       .where({
         [ProjectProgressV2MonthlyPlans.col.projectId]: params.projectId
       })
       .orderBy(ProjectProgressV2MonthlyPlans.col.yearMonth, 'desc')
+
+    return list.map((item) => normalizeMonthlyPlan(item) as ProgressV2MonthlyPlanRecord)
   }
 
 export const getProgressV2MonthlyPlanByIdFactory =
@@ -95,13 +139,15 @@ export const getProgressV2MonthlyPlanByIdFactory =
     id: string
     projectId: string
   }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
-    return await tables
+    const record = await tables
       .projectProgressV2MonthlyPlans(deps.db)
       .where({
         [ProjectProgressV2MonthlyPlans.col.id]: params.id,
         [ProjectProgressV2MonthlyPlans.col.projectId]: params.projectId
       })
       .first()
+
+    return normalizeMonthlyPlan(record)
   }
 
 export const getProgressV2MonthlyPlanByYearMonthFactory =
@@ -110,13 +156,15 @@ export const getProgressV2MonthlyPlanByYearMonthFactory =
     projectId: string
     yearMonth: string
   }): Promise<ProgressV2MonthlyPlanRecord | undefined> => {
-    return await tables
+    const record = await tables
       .projectProgressV2MonthlyPlans(deps.db)
       .where({
         [ProjectProgressV2MonthlyPlans.col.projectId]: params.projectId,
         [ProjectProgressV2MonthlyPlans.col.yearMonth]: params.yearMonth
       })
       .first()
+
+    return normalizeMonthlyPlan(record)
   }
 
 export const createProgressV2MonthlyPlanFactory =
@@ -125,6 +173,9 @@ export const createProgressV2MonthlyPlanFactory =
     params: CreateProgressV2MonthlyPlanParams
   ): Promise<ProgressV2MonthlyPlanRecord> => {
     const tasksJson = JSON.stringify(params.tasks || [])
+    const attachmentsJson = params.attachments
+      ? JSON.stringify(params.attachments)
+      : null
     const [inserted] = await tables.projectProgressV2MonthlyPlans(deps.db).insert(
       {
         id: generateId(),
@@ -136,11 +187,12 @@ export const createProgressV2MonthlyPlanFactory =
         preparedBy: params.preparedBy ?? null,
         remark: params.remark ?? null,
         tasks: tasksJson as string,
+        attachments: attachmentsJson as string | null,
         createdBy: params.createdBy
       },
       '*'
     )
-    return inserted
+    return normalizeMonthlyPlan(inserted) as ProgressV2MonthlyPlanRecord
   }
 
 export const updateProgressV2MonthlyPlanFactory =
@@ -157,6 +209,11 @@ export const updateProgressV2MonthlyPlanFactory =
     if (params.preparedBy !== undefined) updateData.preparedBy = params.preparedBy
     if (params.remark !== undefined) updateData.remark = params.remark
     if (params.tasks !== undefined) updateData.tasks = JSON.stringify(params.tasks)
+    if (params.attachments !== undefined) {
+      updateData.attachments = params.attachments
+        ? JSON.stringify(params.attachments)
+        : null
+    }
 
     const [updated] = await tables
       .projectProgressV2MonthlyPlans(deps.db)
@@ -166,7 +223,7 @@ export const updateProgressV2MonthlyPlanFactory =
       })
       .update(updateData, '*')
 
-    return updated
+    return normalizeMonthlyPlan(updated)
   }
 
 export const deleteProgressV2MonthlyPlanFactory =

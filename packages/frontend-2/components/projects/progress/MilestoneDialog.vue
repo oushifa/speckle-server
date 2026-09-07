@@ -115,44 +115,36 @@
         <div class="flex items-center gap-3">
           <button
             type="button"
-            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-body-sm font-medium transition-colors"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm border"
             :class="
               form.tags.includes('critical')
-                ? 'border-primary/50 bg-primary/10 text-primary'
-                : 'border-outline-3 bg-foundation text-foreground-2 hover:border-outline-2'
+                ? 'bg-danger/10 text-danger border-danger/50'
+                : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
             "
             @click="toggleTag('critical')"
           >
             <Star
-              class="h-4 w-4"
-              :class="
-                form.tags.includes('critical')
-                  ? 'fill-primary/20 text-primary'
-                  : 'text-foreground-2'
-              "
+              class="w-4 h-4"
+              :class="form.tags.includes('critical') ? 'fill-current' : ''"
             />
-            <span>关键工序</span>
+            <span class="whitespace-nowrap">关键工序</span>
           </button>
 
           <button
             type="button"
-            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-body-sm font-medium transition-colors"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm border"
             :class="
               form.tags.includes('milestone')
-                ? 'border-primary/50 bg-primary/10 text-primary'
-                : 'border-outline-3 bg-foundation text-foreground-2 hover:border-outline-2'
+                ? 'bg-primary/10 text-primary border-primary/50'
+                : 'bg-foundation-page text-foreground-3 border-outline-2 hover:text-foreground-2'
             "
             @click="toggleTag('milestone')"
           >
             <Flag
-              class="h-4 w-4"
-              :class="
-                form.tags.includes('milestone')
-                  ? 'fill-primary/20 text-primary'
-                  : 'text-foreground-2'
-              "
+              class="w-4 h-4"
+              :class="form.tags.includes('milestone') ? 'fill-current' : ''"
             />
-            <span>里程碑</span>
+            <span class="whitespace-nowrap">里程碑</span>
           </button>
         </div>
       </div>

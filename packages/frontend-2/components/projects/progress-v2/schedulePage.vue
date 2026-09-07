@@ -187,7 +187,7 @@
               <th class="py-3 px-4">计划名称</th>
               <th class="py-3 px-4">起止日期</th>
               <th class="py-3 px-4">编制人</th>
-              <th class="py-3 px-4">计划文件</th>
+              <th class="py-3 px-4">附件</th>
               <th class="py-3 px-4">更新时间</th>
               <th class="py-3 px-4 text-right">操作</th>
             </tr>
@@ -215,13 +215,21 @@
                 {{ plan.preparedBy || '-' }}
               </td>
               <td class="py-3 px-4">
-                <span
-                  v-if="plan.fileName"
-                  class="text-body-xs bg-foundation-page px-2 py-0.5 rounded border border-outline-2"
+                <div
+                  v-if="getPlanAttachments(plan).length > 0"
+                  class="flex items-center gap-1.5 flex-wrap"
                 >
-                  {{ plan.fileName }}
-                </span>
-                <span v-else class="text-foreground-3 text-body-xs">未上传MPP</span>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 text-body-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-0.5 rounded transition-colors"
+                    :title="`查看 ${getPlanAttachments(plan).length} 个附件`"
+                    @click="openViewAnnualDialog(plan)"
+                  >
+                    <Paperclip class="w-3 h-3" />
+                    <span>{{ getPlanAttachments(plan).length }} 个附件</span>
+                  </button>
+                </div>
+                <span v-else class="text-foreground-3 text-body-xs">-</span>
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs">
                 {{
@@ -234,6 +242,14 @@
               </td>
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="查看"
+                    @click="openViewAnnualDialog(plan)"
+                  >
+                    <Eye class="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -284,6 +300,7 @@
               <th class="py-3 px-4">计划月份</th>
               <th class="py-3 px-4">计划标题</th>
               <th class="py-3 px-4">任务数</th>
+              <th class="py-3 px-4">附件</th>
               <th class="py-3 px-4">备注说明</th>
               <th class="py-3 px-4">更新时间</th>
               <th class="py-3 px-4 text-right">操作</th>
@@ -304,6 +321,23 @@
               <td class="py-3 px-4 text-foreground-2">
                 {{ plan.tasks?.length || 0 }} 项施工任务
               </td>
+              <td class="py-3 px-4">
+                <div
+                  v-if="getMonthlyAttachments(plan).length > 0"
+                  class="flex items-center gap-1.5 flex-wrap"
+                >
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 text-body-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-0.5 rounded transition-colors"
+                    :title="`查看 ${getMonthlyAttachments(plan).length} 个附件`"
+                    @click="openViewMonthlyDialog(plan)"
+                  >
+                    <Paperclip class="w-3 h-3" />
+                    <span>{{ getMonthlyAttachments(plan).length }} 个附件</span>
+                  </button>
+                </div>
+                <span v-else class="text-foreground-3 text-body-xs">-</span>
+              </td>
               <td class="py-3 px-4 text-foreground-2">
                 {{ plan.remark || '-' }}
               </td>
@@ -318,6 +352,14 @@
               </td>
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="查看"
+                    @click="openViewMonthlyDialog(plan)"
+                  >
+                    <Eye class="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -415,6 +457,60 @@
         </div>
         <div>
           <div class="block text-body-xs font-medium text-foreground-2 mb-1">
+            附件（支持上传多个）
+          </div>
+          <label
+            class="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-outline-2 cursor-pointer transition-colors hover:bg-primary-muted/20 text-body-xs text-foreground-2"
+          >
+            <Paperclip class="w-4 h-4 shrink-0" />
+            <span>点击添加附件（支持多选）</span>
+            <input
+              type="file"
+              multiple
+              class="sr-only"
+              @change="onAnnualAttachmentChange"
+            />
+          </label>
+          <div
+            v-if="annualAttachments.length > 0"
+            class="mt-2 space-y-1.5 max-h-36 overflow-y-auto"
+          >
+            <div
+              v-for="(item, i) in annualAttachments"
+              :key="item.id"
+              class="flex items-center justify-between px-2.5 py-1.5 rounded bg-foundation-page text-body-xs border border-outline-2"
+            >
+              <div class="flex items-center gap-1.5 truncate flex-1 min-w-0 mr-2">
+                <Paperclip class="w-3.5 h-3.5 shrink-0 text-foreground-2" />
+                <span
+                  class="truncate text-foreground font-medium"
+                  :title="item.fileName"
+                >
+                  {{ item.fileName }}
+                </span>
+                <span
+                  v-if="item.fileSize"
+                  class="text-foreground-3 text-body-3xs shrink-0"
+                >
+                  ({{ prettyFileSize(item.fileSize) }})
+                </span>
+              </div>
+              <button
+                type="button"
+                class="p-1 rounded hover:bg-danger/10 text-foreground-2 hover:text-danger transition-colors shrink-0"
+                :title="`移除附件 ${item.fileName}`"
+                @click="removeAnnualAttachment(i)"
+              >
+                <X class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div class="mt-1 text-body-3xs text-foreground-2">
+            附件仅作为计划说明存档，导入任务请在年度计划详情页上传 .mpp 文件。
+          </div>
+        </div>
+        <div>
+          <div class="block text-body-xs font-medium text-foreground-2 mb-1">
             备注说明
           </div>
           <FormTextArea
@@ -434,6 +530,314 @@
           </FormButton>
         </div>
       </form>
+    </LayoutDialog>
+
+    <!-- ── 弹窗: 查看年度计划详情 ── -->
+    <LayoutDialog
+      v-model:open="viewAnnualDialogOpen"
+      :title="`${viewingAnnualPlan?.year || ''} 年度计划详情`"
+      max-width="md"
+    >
+      <div v-if="viewingAnnualPlan" class="space-y-4 py-1 text-body-sm">
+        <div class="space-y-2.5">
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">年份</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{ viewingAnnualPlan.year }} 年
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">计划名称</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{ viewingAnnualPlan.name }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">起止日期</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{
+                viewingAnnualPlan.startDate
+                  ? viewingAnnualPlan.startDate.slice(0, 10)
+                  : '-'
+              }}
+              ~
+              {{
+                viewingAnnualPlan.endDate ? viewingAnnualPlan.endDate.slice(0, 10) : '-'
+              }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">编制人</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{ viewingAnnualPlan.preparedBy || '-' }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 items-start">
+            <span class="text-foreground-2">
+              附件 ({{ getPlanAttachments(viewingAnnualPlan).length }})
+            </span>
+            <div class="col-span-2">
+              <div
+                v-if="getPlanAttachments(viewingAnnualPlan).length > 0"
+                class="space-y-1.5 max-h-48 overflow-y-auto pr-1"
+              >
+                <div
+                  v-for="(att, idx) in getPlanAttachments(viewingAnnualPlan)"
+                  :key="att.blobId || idx"
+                  class="flex items-center justify-between px-2.5 py-1.5 rounded bg-foundation-page border border-outline-2 text-body-xs"
+                >
+                  <div class="flex items-center gap-1.5 truncate flex-1 min-w-0 mr-2">
+                    <Paperclip class="w-3.5 h-3.5 shrink-0 text-foreground-2" />
+                    <span
+                      class="truncate text-foreground font-medium"
+                      :title="att.fileName"
+                    >
+                      {{ att.fileName }}
+                    </span>
+                    <span
+                      v-if="att.fileSize"
+                      class="text-foreground-3 text-body-3xs shrink-0"
+                    >
+                      ({{ prettyFileSize(Number(att.fileSize)) }})
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      class="px-2 py-0.5 rounded text-primary hover:bg-primary/10 transition-colors text-body-xs font-medium"
+                      @click="openAttachmentPreview(att)"
+                    >
+                      预览
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2 py-0.5 rounded text-foreground-2 hover:text-foreground hover:bg-primary-muted/20 transition-colors text-body-xs"
+                      @click="downloadAttachment(att)"
+                    >
+                      下载
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <span v-else class="text-foreground-3">-</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">更新时间</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{
+                viewingAnnualPlan.updatedAt
+                  ? new Date(viewingAnnualPlan.updatedAt).toLocaleString('zh-CN', {
+                      hour12: false
+                    })
+                  : '-'
+              }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">备注</span>
+            <span class="col-span-2 font-medium text-foreground whitespace-pre-wrap">
+              {{ viewingAnnualPlan.remark || '-' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-outline-2">
+          <NuxtLink
+            :to="`/projects/${projectId}/progress-v2/annual/${viewingAnnualPlan.id}`"
+            class="w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-md bg-primary text-primary-contrast hover:bg-primary-hover transition-colors text-body-sm font-medium"
+            @click="viewAnnualDialogOpen = false"
+          >
+            <span>进入年度计划</span>
+            <ChevronRight class="h-4 w-4" />
+          </NuxtLink>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <FormButton
+            color="outline"
+            type="button"
+            @click="viewAnnualDialogOpen = false"
+          >
+            关闭
+          </FormButton>
+        </div>
+      </div>
+    </LayoutDialog>
+
+    <!-- ── 弹窗: 查看月度计划详情 ── -->
+    <LayoutDialog
+      v-model:open="viewMonthlyDialogOpen"
+      :title="`${viewingMonthlyPlan?.yearMonth || ''} 月度计划详情`"
+      max-width="md"
+    >
+      <div v-if="viewingMonthlyPlan" class="space-y-4 text-body-sm">
+        <div class="space-y-2 border-b border-outline-2 pb-3">
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">计划月份</span>
+            <span class="col-span-2 font-semibold text-primary">
+              {{ viewingMonthlyPlan.yearMonth }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">计划标题</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{ viewingMonthlyPlan.title || '-' }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">计划周期</span>
+            <span class="col-span-2 text-foreground">
+              {{
+                viewingMonthlyPlan.startDate
+                  ? viewingMonthlyPlan.startDate.slice(0, 10)
+                  : ''
+              }}
+              ~
+              {{
+                viewingMonthlyPlan.endDate
+                  ? viewingMonthlyPlan.endDate.slice(0, 10)
+                  : ''
+              }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">编制人</span>
+            <span class="col-span-2 text-foreground">
+              {{ viewingMonthlyPlan.preparedBy || '-' }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">施工任务</span>
+            <span class="col-span-2 text-foreground">
+              {{ viewingMonthlyPlan.tasks?.length || 0 }} 项施工任务
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">计划附件</span>
+            <div class="col-span-2">
+              <div
+                v-if="getMonthlyAttachments(viewingMonthlyPlan).length > 0"
+                class="space-y-1.5"
+              >
+                <div
+                  v-for="(att, idx) in getMonthlyAttachments(viewingMonthlyPlan)"
+                  :key="att.blobId || idx"
+                  class="flex items-center justify-between px-2.5 py-1.5 rounded bg-foundation-page border border-outline-2 text-body-xs"
+                >
+                  <div class="flex items-center gap-1.5 truncate flex-1 min-w-0 mr-2">
+                    <Paperclip class="w-3.5 h-3.5 shrink-0 text-foreground-2" />
+                    <span
+                      class="truncate text-foreground font-medium"
+                      :title="att.fileName"
+                    >
+                      {{ att.fileName }}
+                    </span>
+                    <span
+                      v-if="att.fileSize"
+                      class="text-foreground-3 text-body-3xs shrink-0"
+                    >
+                      ({{ prettyFileSize(Number(att.fileSize)) }})
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      class="px-2 py-0.5 rounded text-primary hover:bg-primary/10 transition-colors text-body-xs font-medium"
+                      @click="openAttachmentPreview(att)"
+                    >
+                      预览
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2 py-0.5 rounded text-foreground-2 hover:text-foreground hover:bg-primary-muted/20 transition-colors text-body-xs"
+                      @click="downloadAttachment(att)"
+                    >
+                      下载
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <span v-else class="text-foreground-3">-</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">更新时间</span>
+            <span class="col-span-2 font-medium text-foreground">
+              {{
+                viewingMonthlyPlan.updatedAt
+                  ? new Date(viewingMonthlyPlan.updatedAt).toLocaleString('zh-CN', {
+                      hour12: false
+                    })
+                  : '-'
+              }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <span class="text-foreground-2">备注</span>
+            <span class="col-span-2 font-medium text-foreground whitespace-pre-wrap">
+              {{ viewingMonthlyPlan.remark || '-' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <FormButton
+            color="outline"
+            type="button"
+            @click="viewMonthlyDialogOpen = false"
+          >
+            关闭
+          </FormButton>
+        </div>
+      </div>
+    </LayoutDialog>
+
+    <!-- ── 弹窗: 文件预览 ── -->
+    <LayoutDialog v-model:open="previewDialogOpen" max-width="xl" fullscreen="all">
+      <template #header>
+        <div class="flex items-center gap-2 truncate">
+          <Paperclip class="w-4 h-4 text-primary shrink-0" />
+          <span class="truncate font-medium">
+            {{ currentPreviewAttachment?.fileName || '附件预览' }}
+          </span>
+        </div>
+      </template>
+      <div
+        v-if="currentPreviewAttachment && projectId"
+        class="w-full h-[70dvh] flex flex-col justify-center text-foreground text-body-xs px-2 pb-2"
+      >
+        <CommonFilePreview
+          :blob-id="currentPreviewAttachment.blobId"
+          :project-id="projectId"
+          :file-name="currentPreviewAttachment.fileName"
+          :file-size="
+            currentPreviewAttachment.fileSize
+              ? Number(currentPreviewAttachment.fileSize)
+              : null
+          "
+          class="w-full flex-1 h-full"
+        />
+      </div>
+      <div class="flex justify-end pt-2 border-t border-outline-2 gap-2">
+        <FormButton
+          v-if="currentPreviewAttachment"
+          color="outline"
+          size="sm"
+          type="button"
+          @click="downloadAttachment(currentPreviewAttachment)"
+        >
+          下载原文件
+        </FormButton>
+        <FormButton
+          color="outline"
+          size="sm"
+          type="button"
+          @click="previewDialogOpen = false"
+        >
+          关闭
+        </FormButton>
+      </div>
     </LayoutDialog>
 
     <!-- ── 弹窗 2: 新增/编辑月度计划 ── -->
@@ -522,12 +926,14 @@
 
         <!-- 附件上传 -->
         <div class="space-y-1.5">
-          <div class="block text-body-xs font-medium text-foreground-2">附件</div>
+          <div class="block text-body-xs font-medium text-foreground-2">
+            附件（支持上传多个）
+          </div>
           <label
             class="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-outline-2 cursor-pointer transition-colors hover:bg-primary-muted/20 text-body-xs text-foreground-2"
           >
             <Paperclip class="w-4 h-4 shrink-0" />
-            <span>点击上传附件</span>
+            <span>点击添加附件（支持多选）</span>
             <input
               type="file"
               multiple
@@ -535,20 +941,35 @@
               @change="onMonthlyAttachmentChange"
             />
           </label>
-          <div v-if="monthlyAttachments.length > 0" class="flex flex-col gap-1 mt-1">
+          <div
+            v-if="monthlyAttachments.length > 0"
+            class="mt-2 space-y-1.5 max-h-36 overflow-y-auto"
+          >
             <div
-              v-for="(f, i) in monthlyAttachments"
-              :key="i"
-              class="flex items-center justify-between px-2.5 py-1 rounded bg-foundation-page text-body-xs border border-outline-2"
+              v-for="(item, i) in monthlyAttachments"
+              :key="item.id"
+              class="flex items-center justify-between px-2.5 py-1.5 rounded bg-foundation-page text-body-xs border border-outline-2"
             >
-              <div class="flex items-center gap-1.5 truncate">
+              <div class="flex items-center gap-1.5 truncate flex-1 min-w-0 mr-2">
                 <Paperclip class="w-3.5 h-3.5 shrink-0 text-foreground-2" />
-                <span class="truncate text-foreground">{{ f.name }}</span>
+                <span
+                  class="truncate text-foreground font-medium"
+                  :title="item.fileName"
+                >
+                  {{ item.fileName }}
+                </span>
+                <span
+                  v-if="item.fileSize"
+                  class="text-foreground-3 text-body-3xs shrink-0"
+                >
+                  ({{ prettyFileSize(item.fileSize) }})
+                </span>
               </div>
               <button
                 type="button"
-                class="ml-2 p-0.5 rounded hover:bg-danger/10 text-foreground-2 hover:text-danger transition-colors"
-                @click="monthlyAttachments.splice(i, 1)"
+                class="p-0.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
+                title="移除"
+                @click="removeMonthlyAttachment(i)"
               >
                 <X class="w-3.5 h-3.5" />
               </button>
@@ -604,7 +1025,19 @@
 </template>
 
 <script setup lang="ts">
-import { Download, Upload, Plus, Pencil, Trash2, Paperclip, X } from 'lucide-vue-next'
+import {
+  Download,
+  Upload,
+  Plus,
+  Pencil,
+  Trash2,
+  Paperclip,
+  X,
+  Eye,
+  ChevronRight
+} from 'lucide-vue-next'
+import type { PostBlobResponse } from '~~/lib/core/api/blobStorage'
+import type { Optional } from '@speckle/shared'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { CommonConfirmDialog } from '#components'
 import {
@@ -623,8 +1056,11 @@ import {
   type ProgressV2PlanFile,
   type ProgressV2PlanTask,
   type ProgressV2AnnualPlan,
+  type ProgressV2AnnualPlanAttachment,
   type ProgressV2MonthlyPlan
 } from '~/lib/projects/api/progress-v2'
+import { prettyFileSize } from '~/lib/core/helpers/file'
+import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 
 const route = useRoute()
 const projectId = computed(() => {
@@ -754,7 +1190,13 @@ const rebuildTaskTree = (taskItems: ProgressV2PlanTask[]): ProgressV2PlanTask[] 
   return rootItems
 }
 
-const treeTasks = computed(() => rebuildTaskTree(planTasks.value))
+// MPP 导入的第 0 级（顶层汇总节点）不在任务树中展示，将其子级上提为顶层
+const treeTasks = computed(() => {
+  const nonRoot = planTasks.value.filter(
+    (t) => (t.level ?? getWbsLevel(t.wbs || undefined)) > 0
+  )
+  return rebuildTaskTree(nonRoot)
+})
 
 const loadTotalPlanData = async () => {
   if (!projectId.value) return
@@ -824,9 +1266,51 @@ const handleDownloadPlanFile = () => {
 const isLoadingAnnual = ref(false)
 const annualPlans = ref<ProgressV2AnnualPlan[]>([])
 const annualDialogOpen = ref(false)
+const viewAnnualDialogOpen = ref(false)
+const viewingAnnualPlan = ref<ProgressV2AnnualPlan | null>(null)
 const editingAnnualPlan = ref<ProgressV2AnnualPlan | null>(null)
 const isSavingAnnual = ref(false)
-const annualForm = reactive({
+const previewDialogOpen = ref(false)
+const currentPreviewAttachment = ref<ProgressV2AnnualPlanAttachment | null>(null)
+
+type FormAttachmentItem = {
+  id: string
+  blobId?: string
+  fileName: string
+  fileSize?: number | null
+  file?: File
+}
+const annualAttachments = ref<FormAttachmentItem[]>([])
+
+const { download: downloadBlobFile } = useFileDownload()
+
+const getPlanAttachments = (
+  plan: ProgressV2AnnualPlan | null | undefined
+): ProgressV2AnnualPlanAttachment[] => {
+  if (!plan) return []
+  if (Array.isArray(plan.attachments) && plan.attachments.length > 0) {
+    return plan.attachments
+  }
+  if (plan.blobId && plan.fileName) {
+    return [
+      {
+        blobId: plan.blobId,
+        fileName: plan.fileName,
+        fileSize: plan.fileSize
+      }
+    ]
+  }
+  return []
+}
+
+const annualForm = reactive<{
+  year: string
+  name: string
+  startDate: string
+  endDate: string
+  preparedBy: string
+  remark: string
+}>({
   year: String(new Date().getFullYear()),
   name: '',
   startDate: `${new Date().getFullYear()}-01-01`,
@@ -834,6 +1318,61 @@ const annualForm = reactive({
   preparedBy: '',
   remark: ''
 })
+
+const onAnnualAttachmentChange = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const files = Array.from(target.files || [])
+  if (!files.length) return
+  for (const f of files) {
+    annualAttachments.value.push({
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fileName: f.name,
+      fileSize: f.size,
+      file: f
+    })
+  }
+  target.value = ''
+}
+
+const removeAnnualAttachment = (index: number) => {
+  annualAttachments.value.splice(index, 1)
+}
+
+const openAttachmentPreview = (att: ProgressV2AnnualPlanAttachment) => {
+  currentPreviewAttachment.value = att
+  previewDialogOpen.value = true
+}
+
+const downloadAttachment = async (att: ProgressV2AnnualPlanAttachment) => {
+  if (!projectId.value || !att.blobId) return
+  await downloadBlobFile({
+    blobId: att.blobId,
+    projectId: projectId.value,
+    fileName: att.fileName
+  })
+}
+
+const uploadAnnualAttachment = async (
+  file: File
+): Promise<{ blobId: string; fileName: string; fileSize: number | null }> => {
+  const data = new FormData()
+  data.append('file', file)
+  const uploadPayload = await $fetch<PostBlobResponse>(
+    new URL(`/api/stream/${projectId.value}/blob`, apiOrigin).toString(),
+    { method: 'POST', body: data }
+  )
+  const uploadResults =
+    (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
+  const result = uploadResults.find((r) => r.formKey === 'file')
+  if (!result?.blobId) {
+    throw new Error(result?.uploadError || '文件上传后未返回 blobId')
+  }
+  return {
+    blobId: result.blobId,
+    fileName: result.fileName || file.name,
+    fileSize: result.fileSize || file.size || null
+  }
+}
 
 const loadAnnualPlans = async () => {
   if (!projectId.value) return
@@ -863,7 +1402,13 @@ const openCreateAnnualDialog = () => {
   annualForm.endDate = `${y}-12-31`
   annualForm.preparedBy = ''
   annualForm.remark = ''
+  annualAttachments.value = []
   annualDialogOpen.value = true
+}
+
+const openViewAnnualDialog = (plan: ProgressV2AnnualPlan) => {
+  viewingAnnualPlan.value = plan
+  viewAnnualDialogOpen.value = true
 }
 
 const openEditAnnualDialog = (plan: ProgressV2AnnualPlan) => {
@@ -874,6 +1419,14 @@ const openEditAnnualDialog = (plan: ProgressV2AnnualPlan) => {
   annualForm.endDate = plan.endDate ? plan.endDate.slice(0, 10) : ''
   annualForm.preparedBy = plan.preparedBy || ''
   annualForm.remark = plan.remark || ''
+  const rawAttachments = getPlanAttachments(plan)
+  annualAttachments.value = rawAttachments.map((att, idx) => ({
+    id: att.blobId || `existing-${idx}`,
+    blobId: att.blobId,
+    fileName: att.fileName,
+    fileSize:
+      att.fileSize !== null && att.fileSize !== undefined ? Number(att.fileSize) : null
+  }))
   annualDialogOpen.value = true
 }
 
@@ -881,19 +1434,56 @@ const handleSaveAnnual = async () => {
   if (!projectId.value) return
   isSavingAnnual.value = true
   try {
+    // 遍历上传新添加的文件，已有附件直接保留
+    const finalAttachments: ProgressV2AnnualPlanAttachment[] = []
+    for (const item of annualAttachments.value) {
+      if (item.file) {
+        const uploaded = await uploadAnnualAttachment(item.file)
+        finalAttachments.push({
+          blobId: uploaded.blobId,
+          fileName: uploaded.fileName,
+          fileSize:
+            uploaded.fileSize !== null && uploaded.fileSize !== undefined
+              ? Number(uploaded.fileSize)
+              : null
+        })
+      } else if (item.blobId) {
+        finalAttachments.push({
+          blobId: item.blobId,
+          fileName: item.fileName,
+          fileSize:
+            item.fileSize !== null && item.fileSize !== undefined
+              ? Number(item.fileSize)
+              : null
+        })
+      }
+    }
+
+    const firstFileSize =
+      finalAttachments[0]?.fileSize !== undefined &&
+      finalAttachments[0]?.fileSize !== null
+        ? Number(finalAttachments[0].fileSize)
+        : null
+
+    const payload = {
+      year: Number(annualForm.year),
+      name: annualForm.name,
+      startDate: annualForm.startDate,
+      endDate: annualForm.endDate,
+      preparedBy: annualForm.preparedBy || null,
+      blobId: finalAttachments[0]?.blobId || null,
+      fileName: finalAttachments[0]?.fileName || null,
+      fileSize: firstFileSize,
+      attachments: finalAttachments,
+      remark: annualForm.remark || null
+    }
+
     if (editingAnnualPlan.value) {
       await updateProgressV2AnnualPlan({
         projectId: projectId.value,
         annualPlanId: editingAnnualPlan.value.id,
         apiOrigin,
-        data: {
-          year: Number(annualForm.year),
-          name: annualForm.name,
-          startDate: annualForm.startDate,
-          endDate: annualForm.endDate,
-          preparedBy: annualForm.preparedBy || null,
-          remark: annualForm.remark || null
-        }
+        data: payload
       })
       triggerNotification({
         type: ToastNotificationType.Success,
@@ -904,14 +1494,7 @@ const handleSaveAnnual = async () => {
       await createProgressV2AnnualPlan({
         projectId: projectId.value,
         apiOrigin,
-        data: {
-          year: Number(annualForm.year),
-          name: annualForm.name,
-          startDate: annualForm.startDate,
-          endDate: annualForm.endDate,
-          preparedBy: annualForm.preparedBy || null,
-          remark: annualForm.remark || null
-        }
+        data: payload
       })
       triggerNotification({
         type: ToastNotificationType.Success,
@@ -936,9 +1519,11 @@ const handleSaveAnnual = async () => {
 const isLoadingMonthly = ref(false)
 const monthlyPlans = ref<ProgressV2MonthlyPlan[]>([])
 const monthlyDialogOpen = ref(false)
+const viewMonthlyDialogOpen = ref(false)
+const viewingMonthlyPlan = ref<ProgressV2MonthlyPlan | null>(null)
 const editingMonthlyPlan = ref<ProgressV2MonthlyPlan | null>(null)
 const isSavingMonthly = ref(false)
-const monthlyAttachments = ref<File[]>([])
+const monthlyAttachments = ref<FormAttachmentItem[]>([])
 
 const monthlyForm = reactive({
   yearMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
@@ -951,6 +1536,12 @@ const monthlyForm = reactive({
   preparedBy: '',
   remark: ''
 })
+
+const getMonthlyAttachments = (
+  plan: ProgressV2MonthlyPlan
+): ProgressV2AnnualPlanAttachment[] => {
+  return (plan.attachments as ProgressV2AnnualPlanAttachment[]) || []
+}
 
 const onYearMonthChange = (ym: string) => {
   if (!editingMonthlyPlan.value && ym) {
@@ -968,10 +1559,26 @@ const onYearMonthChange = (ym: string) => {
 
 const onMonthlyAttachmentChange = (e: Event) => {
   const target = e.target as HTMLInputElement
-  if (target.files) {
-    monthlyAttachments.value.push(...Array.from(target.files))
-    target.value = ''
+  const files = Array.from(target.files || [])
+  if (!files.length) return
+  for (const f of files) {
+    monthlyAttachments.value.push({
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      fileName: f.name,
+      fileSize: f.size,
+      file: f
+    })
   }
+  target.value = ''
+}
+
+const removeMonthlyAttachment = (index: number) => {
+  monthlyAttachments.value.splice(index, 1)
+}
+
+const openViewMonthlyDialog = (plan: ProgressV2MonthlyPlan) => {
+  viewingMonthlyPlan.value = plan
+  viewMonthlyDialogOpen.value = true
 }
 
 const loadMonthlyPlans = async () => {
@@ -1015,7 +1622,14 @@ const openCreateMonthlyDialog = () => {
 
 const openEditMonthlyDialog = (plan: ProgressV2MonthlyPlan) => {
   editingMonthlyPlan.value = plan
-  monthlyAttachments.value = []
+  const rawAttachments = getMonthlyAttachments(plan)
+  monthlyAttachments.value = rawAttachments.map((att, idx) => ({
+    id: att.blobId || `existing-monthly-${idx}`,
+    blobId: att.blobId,
+    fileName: att.fileName,
+    fileSize:
+      att.fileSize !== null && att.fileSize !== undefined ? Number(att.fileSize) : null
+  }))
   monthlyForm.yearMonth = plan.yearMonth
   monthlyForm.title = plan.title || ''
   monthlyForm.startDate = plan.startDate ? plan.startDate.slice(0, 10) : ''
@@ -1029,6 +1643,30 @@ const handleSaveMonthly = async () => {
   if (!projectId.value) return
   isSavingMonthly.value = true
   try {
+    const finalAttachments: ProgressV2AnnualPlanAttachment[] = []
+    for (const item of monthlyAttachments.value) {
+      if (item.file) {
+        const uploaded = await uploadAnnualAttachment(item.file)
+        finalAttachments.push({
+          blobId: uploaded.blobId,
+          fileName: uploaded.fileName,
+          fileSize:
+            uploaded.fileSize !== null && uploaded.fileSize !== undefined
+              ? Number(uploaded.fileSize)
+              : null
+        })
+      } else if (item.blobId) {
+        finalAttachments.push({
+          blobId: item.blobId,
+          fileName: item.fileName,
+          fileSize:
+            item.fileSize !== null && item.fileSize !== undefined
+              ? Number(item.fileSize)
+              : null
+        })
+      }
+    }
+
     if (editingMonthlyPlan.value) {
       await updateProgressV2MonthlyPlan({
         projectId: projectId.value,
@@ -1039,6 +1677,7 @@ const handleSaveMonthly = async () => {
           startDate: monthlyForm.startDate || null,
           endDate: monthlyForm.endDate || null,
           preparedBy: monthlyForm.preparedBy || null,
+          attachments: finalAttachments,
           remark: monthlyForm.remark
         }
       })
@@ -1057,6 +1696,7 @@ const handleSaveMonthly = async () => {
           startDate: monthlyForm.startDate || null,
           endDate: monthlyForm.endDate || null,
           preparedBy: monthlyForm.preparedBy || null,
+          attachments: finalAttachments,
           remark: monthlyForm.remark
         }
       })

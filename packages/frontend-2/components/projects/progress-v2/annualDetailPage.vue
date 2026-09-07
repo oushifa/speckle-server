@@ -265,7 +265,13 @@ const rebuildTaskTree = (
   return rootItems
 }
 
-const treeTasks = computed(() => rebuildTaskTree(tasks.value))
+// MPP 导入的第 0 级（顶层汇总节点）不在任务树中展示，将其子级上提为顶层
+const treeTasks = computed(() => {
+  const nonRoot = tasks.value.filter(
+    (t) => (t.level ?? getWbsLevel(t.wbs || undefined)) > 0
+  )
+  return rebuildTaskTree(nonRoot)
+})
 
 const loadData = async () => {
   if (!projectId.value || !annualPlanId.value) return

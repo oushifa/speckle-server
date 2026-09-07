@@ -56,6 +56,12 @@ import {
   importProgressV2AnnualPlanTasksFromBlobFactory,
   exportProgressV2PlanFileWithSysTaskIdFactory
 } from '@/modules/progress-v2/services/progressV2MppImport'
+import {
+  importProgressV2ActualRecordsFromBuffer,
+  buildProgressV2ActualRecordsExportBuffer
+} from '@/modules/progress-v2/services/progressV2ExcelImport'
+import { createBusboy } from '@/modules/blobstorage/rest/busboy'
+import type Busboy from 'busboy'
 
 // ── Schemas ──
 const projectParamsSchema = z.object({
@@ -89,12 +95,22 @@ const planFileBodySchema = z.object({
   fileSize: z.number().nullable().optional()
 })
 
+const annualAttachmentSchema = z.object({
+  blobId: z.string().min(1),
+  fileName: z.string().min(1),
+  fileSize: z.number().nullable().optional()
+})
+
 const createAnnualPlanBodySchema = z.object({
   year: z.number().int(),
   name: z.string().min(1),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   preparedBy: z.string().nullable().optional(),
+  blobId: z.string().nullable().optional(),
+  fileName: z.string().nullable().optional(),
+  fileSize: z.number().nullable().optional(),
+  attachments: z.array(annualAttachmentSchema).optional(),
   remark: z.string().nullable().optional()
 })
 
@@ -104,6 +120,10 @@ const updateAnnualPlanBodySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   preparedBy: z.string().nullable().optional(),
+  blobId: z.string().nullable().optional(),
+  fileName: z.string().nullable().optional(),
+  fileSize: z.number().nullable().optional(),
+  attachments: z.array(annualAttachmentSchema).optional(),
   remark: z.string().nullable().optional()
 })
 
@@ -114,7 +134,8 @@ const createMonthlyPlanBodySchema = z.object({
   endDate: z.string().nullable().optional(),
   preparedBy: z.string().nullable().optional(),
   remark: z.string().nullable().optional(),
-  tasks: z.array(z.any()).optional()
+  tasks: z.array(z.any()).optional(),
+  attachments: z.array(annualAttachmentSchema).optional()
 })
 
 const updateMonthlyPlanBodySchema = z.object({
@@ -123,7 +144,8 @@ const updateMonthlyPlanBodySchema = z.object({
   endDate: z.string().nullable().optional(),
   preparedBy: z.string().nullable().optional(),
   remark: z.string().nullable().optional(),
-  tasks: z.array(z.any()).optional()
+  tasks: z.array(z.any()).optional(),
+  attachments: z.array(annualAttachmentSchema).optional()
 })
 
 const createActualRecordBodySchema = z.object({
@@ -398,6 +420,10 @@ export const progressV2RouterFactory = (): Router => {
           startDate: new Date(req.body.startDate),
           endDate: new Date(req.body.endDate),
           preparedBy: req.body.preparedBy,
+          blobId: req.body.blobId ?? null,
+          fileName: req.body.fileName ?? null,
+          fileSize: req.body.fileSize ?? null,
+          attachments: req.body.attachments,
           remark: req.body.remark,
           createdBy: actorId
         })
@@ -451,6 +477,10 @@ export const progressV2RouterFactory = (): Router => {
           startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
           endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
           preparedBy: req.body.preparedBy,
+          blobId: req.body.blobId,
+          fileName: req.body.fileName,
+          fileSize: req.body.fileSize,
+          attachments: req.body.attachments,
           remark: req.body.remark
         })
         return res.json({ success: true, data: updated })
@@ -593,6 +623,7 @@ export const progressV2RouterFactory = (): Router => {
           preparedBy: req.body.preparedBy,
           remark: req.body.remark,
           tasks: req.body.tasks,
+          attachments: req.body.attachments,
           createdBy: actorId
         })
         return res.status(201).json({ success: true, data: item })
@@ -645,7 +676,8 @@ export const progressV2RouterFactory = (): Router => {
           endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
           preparedBy: req.body.preparedBy,
           remark: req.body.remark,
-          tasks: req.body.tasks
+          tasks: req.body.tasks,
+          attachments: req.body.attachments
         })
         return res.json({ success: true, data: updated })
       } catch (err) {
@@ -819,6 +851,134 @@ export const progressV2RouterFactory = (): Router => {
           projectId
         })
         return res.json({ success })
+      } catch (err) {
+        return next(err)
+      }
+    }
+  )
+
+  // 进度填报 Excel 导出（含数据 ID 列，用于导入时按 id 更新）
+  router.get(
+    `${basePath}/actual-records/export-excel`,
+    cors,
+    allowCrossOriginResourceAccessMiddelware(),
+    validateRequest({ params: projectParamsSchema }),
+    readAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { projectId } = req.params
+        const db = await getProjectDbClient({ projectId })
+        const records = await listProgressV2ActualRecordsFactory({ db })({ projectId })
+        const getStream = getStreamFactory({ db })
+        const stream = await getStream({ streamId: projectId })
+        const projectName = stream?.name || projectId
+        const buffer = await buildProgressV2ActualRecordsExportBuffer(
+          records as unknown as Array<Record<string, unknown>>
+        )
+        const safeName = projectName.replace(/[\\/:*?"<>|]/g, '_')
+        const encodedFileName = encodeURIComponent(`${safeName}-进度填报.xlsx`)
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename*=UTF-8''${encodedFileName}`
+        )
+        return res.send(buffer)
+      } catch (err) {
+        return next(err)
+      }
+    }
+  )
+
+  // 进度填报 Excel 导入（按数据 ID 新增/更新，构件编码用于反查 BIM 关联）
+  router.post(
+    `${basePath}/actual-records/import-excel`,
+    cors,
+    allowCrossOriginResourceAccessMiddelware(),
+    validateRequest({ params: projectParamsSchema }),
+    writeAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { projectId } = req.params
+        const actorId = req.context?.userId || 'unknown'
+
+        let busboy: Busboy.Busboy
+        try {
+          busboy = createBusboy(req)
+        } catch (err) {
+          return res
+            .status(400)
+            .json({ error: err instanceof Error ? err.message : '无法解析上传文件' })
+        }
+
+        let isFinished = false
+        let fileProcessed = false
+
+        busboy.on('file', (name, file) => {
+          if (fileProcessed) {
+            file.resume()
+            return
+          }
+          fileProcessed = true
+
+          const chunks: Buffer[] = []
+          file.on('data', (chunk) => {
+            chunks.push(chunk)
+          })
+
+          file.on('end', async () => {
+            try {
+              const buffer = Buffer.concat(chunks)
+              if (buffer.length === 0) {
+                throw new Error('上传的 Excel 文件为空')
+              }
+
+              const db = await getProjectDbClient({ projectId })
+              const result = await importProgressV2ActualRecordsFromBuffer({
+                db,
+                projectId,
+                buffer,
+                actorId
+              })
+
+              isFinished = true
+              return res.status(200).json({
+                success: true,
+                totalCount: result.totalCount,
+                createdCount: result.createdCount,
+                updatedCount: result.updatedCount,
+                failedRows: result.failedRows.map(
+                  (fr) => `第 ${fr.rowNumber} 行: ${fr.error}`
+                )
+              })
+            } catch (e) {
+              isFinished = true
+              return res.status(400).json({
+                error: e instanceof Error ? e.message : String(e)
+              })
+            }
+          })
+        })
+
+        busboy.on('error', (err: unknown) => {
+          if (!isFinished) {
+            isFinished = true
+            return res
+              .status(400)
+              .json({ error: err instanceof Error ? err.message : String(err) })
+          }
+        })
+
+        busboy.on('finish', () => {
+          if (!fileProcessed && !isFinished) {
+            isFinished = true
+            return res.status(400).json({ error: '没有上传文件' })
+          }
+        })
+
+        req.pipe(busboy)
       } catch (err) {
         return next(err)
       }

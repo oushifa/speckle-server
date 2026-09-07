@@ -90,17 +90,17 @@
           <div class="flex items-center gap-2">
             <span
               v-if="item.tags?.includes('critical')"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-outline-3 bg-foundation text-body-xs font-medium text-foreground-2 shadow-xs"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-danger/40 bg-danger/10 text-danger font-medium"
             >
-              <Star class="h-3.5 w-3.5 text-foreground-2" />
-              <span>关键工序</span>
+              <Star class="h-3.5 w-3.5 fill-current" />
+              <span class="whitespace-nowrap">关键工序</span>
             </span>
             <span
               v-if="item.tags?.includes('milestone')"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-outline-3 bg-foundation text-body-xs font-medium text-foreground-2 shadow-xs"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-primary/40 bg-primary/10 text-primary font-medium"
             >
-              <Flag class="h-3.5 w-3.5 text-foreground-2" />
-              <span>里程碑</span>
+              <Flag class="h-3.5 w-3.5 fill-current" />
+              <span class="whitespace-nowrap">里程碑</span>
             </span>
             <span
               v-if="!item.tags || item.tags.length === 0"

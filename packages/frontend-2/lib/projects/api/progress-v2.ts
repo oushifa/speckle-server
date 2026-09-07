@@ -42,6 +42,12 @@ export type ProgressV2PlanTask = {
   children?: ProgressV2PlanTask[]
 }
 
+export type ProgressV2AnnualPlanAttachment = {
+  blobId: string
+  fileName: string
+  fileSize?: number | string | null
+}
+
 export type ProgressV2AnnualPlan = {
   id: string
   projectId: string
@@ -53,6 +59,7 @@ export type ProgressV2AnnualPlan = {
   blobId: string | null
   fileName: string | null
   fileSize: number | string | null
+  attachments?: ProgressV2AnnualPlanAttachment[]
   remark: string | null
   createdBy: string
   createdAt: string
@@ -110,6 +117,7 @@ export type ProgressV2MonthlyPlan = {
   preparedBy?: string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[]
+  attachments?: ProgressV2AnnualPlanAttachment[]
   createdBy: string
   createdAt: string
   updatedAt: string
@@ -311,6 +319,10 @@ export async function createProgressV2AnnualPlan(params: {
     startDate: string
     endDate: string
     preparedBy?: string | null
+    blobId?: string | null
+    fileName?: string | null
+    fileSize?: number | null
+    attachments?: ProgressV2AnnualPlanAttachment[] | null
     remark?: string | null
   }
 }) {
@@ -339,6 +351,10 @@ export async function updateProgressV2AnnualPlan(params: {
     startDate: string
     endDate: string
     preparedBy: string | null
+    blobId: string | null
+    fileName: string | null
+    fileSize: number | null
+    attachments: ProgressV2AnnualPlanAttachment[] | null
     remark: string | null
   }>
 }) {
@@ -492,6 +508,7 @@ export async function createProgressV2MonthlyPlan(params: {
     preparedBy?: string | null
     remark?: string | null
     tasks?: MonthlyPlanTaskItem[]
+    attachments?: ProgressV2AnnualPlanAttachment[] | null
   }
 }) {
   const { projectId, apiOrigin, data } = params
@@ -520,6 +537,7 @@ export async function updateProgressV2MonthlyPlan(params: {
     preparedBy?: string | null
     remark?: string | null
     tasks?: MonthlyPlanTaskItem[]
+    attachments?: ProgressV2AnnualPlanAttachment[] | null
   }
 }) {
   const { projectId, monthlyPlanId, apiOrigin, data } = params
@@ -676,6 +694,49 @@ export async function deleteProgressV2ActualRecord(params: {
       { method: 'DELETE' }
     )
     return payload.success
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export function getProgressV2ActualRecordsExportUrl(params: {
+  projectId: string
+  apiOrigin: string
+}): string {
+  return new URL(
+    `/api/v1/projects/${params.projectId}/progress-v2/actual-records/export-excel`,
+    params.apiOrigin
+  ).toString()
+}
+
+export async function importProgressV2ActualRecordsFromExcel(params: {
+  projectId: string
+  file: File
+  apiOrigin: string
+}): Promise<{
+  totalCount: number
+  createdCount: number
+  updatedCount: number
+  failedRows: string[]
+}> {
+  const { projectId, file, apiOrigin } = params
+  const formData = new FormData()
+  formData.append('file', file)
+  try {
+    const payload = await $fetch<{
+      success: boolean
+      totalCount: number
+      createdCount: number
+      updatedCount: number
+      failedRows: string[]
+    }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/actual-records/import-excel`,
+        apiOrigin
+      ).toString(),
+      { method: 'POST', body: formData }
+    )
+    return payload
   } catch (error) {
     throw new Error(parseUnknownError(error))
   }
