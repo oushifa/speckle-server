@@ -135,7 +135,9 @@
                       label="协同管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
-                   <!-- 进度管理（新版独立模块） -->
+                </LayoutSidebarMenuGroup>
+
+                <!-- 进度管理（新版独立模块） -->
                 <LayoutSidebarMenuGroup
                   v-if="
                     showWorkspaceLinks &&
