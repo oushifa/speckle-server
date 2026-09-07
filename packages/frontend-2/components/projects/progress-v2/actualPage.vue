@@ -130,13 +130,16 @@
                 {{ formatYmd(rec.actualEndDate) }}
               </td>
               <td class="py-3 px-4 text-center">
-                <span
+                <button
                   v-if="getRecordBimCount(rec) > 0"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs font-medium bg-success-lighter text-success-darker border border-success-lighter"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-body-xs font-medium bg-success-lighter text-success-darker border border-success-lighter hover:bg-success/20 transition-colors cursor-pointer"
+                  title="点击查看关联构件"
+                  @click="openRowBimDrawer(rec)"
                 >
                   <Check class="w-3 h-3" />
-                  已关联 ({{ getRecordBimCount(rec) }}件)
-                </span>
+                  <span>已关联 ({{ getRecordBimCount(rec) }}件)</span>
+                </button>
                 <span
                   v-else
                   class="inline-flex items-center px-2 py-0.5 rounded text-body-xs bg-foundation-page text-foreground-2 border border-outline-2"
@@ -155,21 +158,14 @@
               </td>
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1">
-                  <!-- 只有进度管理才有关联BIM的操作，点击按钮打开全局唯一的BIM构件选择抽屉 -->
                   <button
                     type="button"
-                    :class="[
-                      'p-1.5 rounded transition-colors',
-                      getRecordBimCount(rec) > 0
-                        ? 'text-primary bg-primary/10 border border-primary/30'
-                        : 'text-foreground-2 hover:text-primary hover:bg-primary/10'
-                    ]"
-                    title="关联/查看BIM模型构件"
-                    @click="openRowBimDrawer(rec)"
+                    class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title="查看详情"
+                    @click="openViewActualDialog(rec)"
                   >
-                    <Box class="h-4 w-4" />
+                    <Eye class="h-4 w-4" />
                   </button>
-
                   <button
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
@@ -503,6 +499,150 @@
       </form>
     </LayoutDialog>
 
+    <!-- ── 弹窗 3: 查看进度情况详情 ── -->
+    <LayoutDialog
+      v-model:open="viewActualDialogOpen"
+      title="进度情况详情"
+      max-width="md"
+    >
+      <div v-if="viewingActualRecord" class="space-y-4 py-2 text-body-sm">
+        <!-- 任务名称 -->
+        <div class="space-y-1">
+          <div class="text-body-xs font-medium text-foreground-2">施工任务名称</div>
+          <div
+            class="font-medium text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3"
+          >
+            {{ viewingActualRecord.taskName || '-' }}
+          </div>
+        </div>
+
+        <!-- 构件编码 -->
+        <div class="space-y-1">
+          <div class="text-body-xs font-medium text-foreground-2">构件编码</div>
+          <div
+            class="font-mono text-foreground-2 bg-foundation-page px-3 py-2 rounded-md border border-outline-3 break-all"
+          >
+            {{ viewingActualRecord.componentCode || '-' }}
+          </div>
+        </div>
+
+        <!-- 计划起止时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">计划开始时间</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ formatYmd(viewingActualRecord.planStartDate) }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">计划结束时间</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ formatYmd(viewingActualRecord.planEndDate) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 实际起止时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">实际开始时间</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ formatYmd(viewingActualRecord.actualStartDate) }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">实际结束时间</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ formatYmd(viewingActualRecord.actualEndDate) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- BIM关联状态 -->
+        <div class="space-y-1">
+          <div class="text-body-xs font-medium text-foreground-2">BIM模型关联</div>
+          <div
+            class="flex items-center justify-between bg-foundation-page px-3 py-2 rounded-md border border-outline-3"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                v-if="getRecordBimCount(viewingActualRecord) > 0"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs font-medium bg-success-lighter text-success-darker border border-success-lighter"
+              >
+                <Check class="w-3 h-3" />
+                已关联 {{ getRecordBimCount(viewingActualRecord) }} 个模型构件
+              </span>
+              <span v-else class="text-foreground-2 text-body-xs">未关联模型构件</span>
+            </div>
+            <button
+              v-if="getRecordBimCount(viewingActualRecord) > 0"
+              type="button"
+              class="inline-flex items-center gap-1 text-primary text-body-xs hover:underline cursor-pointer"
+              @click="openRowBimDrawer(viewingActualRecord)"
+            >
+              <Box class="w-3.5 h-3.5" />
+              <span>查看关联构件</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 填报人 & 填报时间 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">填报人</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ viewingActualRecord.reporter || '-' }}
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-body-xs font-medium text-foreground-2">填报日期</div>
+            <div
+              class="text-foreground bg-foundation-page px-3 py-2 rounded-md border border-outline-3 text-body-xs"
+            >
+              {{ viewingActualRecord.reportDate || '-' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 备注 -->
+        <div class="space-y-1">
+          <div class="text-body-xs font-medium text-foreground-2">备注说明</div>
+          <div
+            class="text-foreground-2 bg-foundation-page px-3 py-2 rounded-md border border-outline-3 min-h-[48px] whitespace-pre-wrap text-body-xs"
+          >
+            {{ viewingActualRecord.remark || '无' }}
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-outline-2">
+          <FormButton color="secondary" @click="viewActualDialogOpen = false">
+            关闭
+          </FormButton>
+          <FormButton
+            @click="
+              () => {
+                const rec = viewingActualRecord
+                viewActualDialogOpen = false
+                if (rec) openEditActualDialog(rec)
+              }
+            "
+          >
+            编辑
+          </FormButton>
+        </div>
+      </div>
+    </LayoutDialog>
+
     <!-- ── 弹窗 2: 新增/编辑里程碑 ── -->
     <LayoutDialog
       v-model:open="milestoneDialogOpen"
@@ -670,6 +810,7 @@ import {
   Plus,
   Search,
   Box,
+  Eye,
   Pencil,
   Trash2,
   Star,
@@ -908,6 +1049,14 @@ let actualSearchTimer: ReturnType<typeof setTimeout> | null = null
 const debounceLoadActual = () => {
   if (actualSearchTimer) clearTimeout(actualSearchTimer)
   actualSearchTimer = setTimeout(loadActualRecords, 300)
+}
+
+const viewActualDialogOpen = ref(false)
+const viewingActualRecord = ref<ProgressV2ActualRecord | null>(null)
+
+const openViewActualDialog = (rec: ProgressV2ActualRecord) => {
+  viewingActualRecord.value = rec
+  viewActualDialogOpen.value = true
 }
 
 const openCreateActualDialog = () => {
