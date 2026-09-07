@@ -167,6 +167,7 @@
 import { gql } from '@apollo/client/core'
 import { useQuery } from '@vue/apollo-composable'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
+import { extractComponentCode } from '~/lib/viewer/helpers/componentCode'
 import { SelectionExtension } from '@speckle/viewer'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import { getHeaderAndSubheaderForSpeckleObject } from '~/lib/object-sidebar/helpers'
@@ -209,15 +210,17 @@ type ModelOption = {
   name: string
 }
 
-type ModelObjectSelectionGroup = {
+export type ModelObjectSelectionGroup = {
   modelId: string
   applicationIds: string[]
+  componentCodes?: string[]
 }
 
 type ViewerTreeNodeLike = {
   model?: {
     id?: string
     raw?: SpeckleObject
+    subtreeId?: number
   }
   children?: ViewerTreeNodeLike[]
 }
@@ -228,6 +231,7 @@ type ViewerTreeLike = {
   }
   findId: (id: string) => ViewerTreeNodeLike[] | null
   findApplicationId?: (applicationId: string) => ViewerTreeNodeLike[] | null
+  getComponentCode?: (node: unknown) => string | null
 }
 
 type ViewerResourceItemLike = {
@@ -275,6 +279,9 @@ const modelIdsModel = defineModel<string[]>('model_ids', {
 const selectionsModel = defineModel<ModelObjectSelectionGroup[]>('selections', {
   default: () => []
 })
+const componentCodesModel = defineModel<string[]>('component_codes', {
+  default: () => []
+})
 const open = defineModel<boolean>('open', { default: false })
 
 const leftControls = ref()
@@ -286,6 +293,7 @@ const draftSelectionByModelId = ref<Record<string, Set<string>>>({})
 const applicationIdByBimId = ref<Record<string, string>>({})
 const modelIdByBimId = ref<Record<string, string>>({})
 const bimIdsBySelectionKey = ref<Record<string, string[]>>({})
+const componentCodeBySelectionKey = ref<Record<string, string>>({})
 const selectedObjectLabelMap = ref<Record<string, { title: string; subTitle: string }>>(
   {}
 )
@@ -493,14 +501,26 @@ const selectedObjectsFromViewer = computed(() => {
 
 const draftGroups = computed(() =>
   filteredModelIds.value
-    .map((modelId) => ({
-      modelId,
-      applicationIds: Array.from(draftSelectionByModelId.value[modelId] || [])
-    }))
+    .map((modelId) => {
+      const appIds = Array.from(draftSelectionByModelId.value[modelId] || [])
+      const codes = appIds
+        .map((appId) => componentCodeBySelectionKey.value[selectionKey(modelId, appId)])
+        .filter((c): c is string => typeof c === 'string' && c.length > 0)
+      return {
+        modelId,
+        applicationIds: appIds,
+        componentCodes: codes
+      }
+    })
     .filter((group) => group.applicationIds.length > 0)
 )
 
-const upsertObjectMetadata = (modelId: string, bimId: string, obj: SpeckleObject) => {
+const upsertObjectMetadata = (
+  modelId: string,
+  bimId: string,
+  obj: SpeckleObject,
+  node?: ViewerTreeNodeLike | null
+) => {
   const normalizedModelId = normalizeString(modelId)
   if (!normalizedModelId || !obj?.id) return
 
@@ -529,6 +549,21 @@ const upsertObjectMetadata = (modelId: string, bimId: string, obj: SpeckleObject
     currentBimIds.push(normalizedBimId)
   }
   bimIdsBySelectionKey.value[key] = currentBimIds
+
+  // 按照 Viewer 获取规则提取构件编码
+  const state = viewerState.value
+  const tree = state
+    ? (getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object) as
+        | ViewerTreeLike
+        | undefined)
+    : undefined
+  const extractedCode = extractComponentCode(obj, tree, node)
+  if (extractedCode) {
+    componentCodeBySelectionKey.value[key] = extractedCode
+    componentCodeBySelectionKey.value[
+      selectionKey(normalizedModelId, normalizedBimId)
+    ] = extractedCode
+  }
 
   if (header || subheader) {
     selectedObjectLabelMap.value[key] = {
@@ -562,9 +597,9 @@ const indexViewerTreeMetadata = () => {
     const raw = node.model?.raw
     const nodeObjectId = getNodeObjectId(node.model?.id)
 
-    if (raw?.id) upsertObjectMetadata(modelId, raw.id, raw)
+    if (raw?.id) upsertObjectMetadata(modelId, raw.id, raw, node)
     if (raw && nodeObjectId && nodeObjectId !== raw.id) {
-      upsertObjectMetadata(modelId, nodeObjectId, raw)
+      upsertObjectMetadata(modelId, nodeObjectId, raw, node)
     }
 
     ;(node.children || []).forEach((child) => visit(child, modelId))
@@ -623,7 +658,7 @@ const applyDraftSelectionToViewer = () => {
         ) {
           return
         }
-        upsertObjectMetadata(group.modelId, raw.id, raw)
+        upsertObjectMetadata(group.modelId, raw.id, raw, node)
         objectsById.set(raw.id, raw)
       })
     })
@@ -670,8 +705,10 @@ let skipRestore = false
 
 const submitSelection = () => {
   skipRestore = true
-  selectionsModel.value = draftGroups.value
+  const groups = draftGroups.value
+  selectionsModel.value = groups
   modelIdsModel.value = filteredModelIds.value
+  componentCodesModel.value = groups.flatMap((g) => g.componentCodes || [])
   open.value = false
   viewerState.value = null
 }
@@ -773,6 +810,13 @@ watch(selectedObjectsFromViewer, (objects) => {
 
   indexViewerTreeMetadata()
 
+  const state = viewerState.value
+  const tree = state
+    ? (getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object) as
+        | ViewerTreeLike
+        | undefined)
+    : undefined
+
   const grouped = objects.reduce<Record<string, Set<string>>>((acc, obj) => {
     if (!obj?.id) return acc
 
@@ -781,7 +825,8 @@ watch(selectedObjectsFromViewer, (objects) => {
       getApplicationIdString(obj) || applicationIdByBimId.value[obj.id]
     if (!modelId || !applicationId) return acc
 
-    upsertObjectMetadata(modelId, obj.id, obj)
+    const node = tree && obj.id ? tree.findId(obj.id)?.[0] : null
+    upsertObjectMetadata(modelId, obj.id, obj, node)
     if (!acc[modelId]) acc[modelId] = new Set()
     acc[modelId].add(applicationId)
     return acc

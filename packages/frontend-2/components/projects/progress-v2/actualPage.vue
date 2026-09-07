@@ -393,8 +393,8 @@
                 <Box class="w-4 h-4 shrink-0 text-primary" />
                 <span>
                   {{
-                    actualFormPickedCodes.length > 0
-                      ? `已选 ${actualFormPickedCodes.length} 个模型构件`
+                    actualFormSelectedCount > 0
+                      ? `已选 ${actualFormSelectedCount} 个模型构件`
                       : '从BIM模型中选择构件'
                   }}
                 </span>
@@ -712,6 +712,7 @@ const formatYmd = (value?: string | null) => {
 type ModelObjectGroup = {
   modelId: string
   applicationIds?: string[]
+  componentCodes?: string[]
 }
 
 const getRecordBimCount = (rec: ProgressV2ActualRecord) => {
@@ -749,13 +750,13 @@ const getRecordModelIds = (rec: ProgressV2ActualRecord): string[] => {
 
 const getRecordSelections = (
   rec: ProgressV2ActualRecord
-): Array<{ modelId: string; applicationIds: string[] }> => {
+): Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }> => {
   if (!rec.BIM) return []
   try {
     const raw = rec.BIM
     const list = (
       Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : []
-    ) as Array<{ modelId: string; applicationIds: string[] }>
+    ) as Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }>
     return Array.isArray(list) ? list : []
   } catch {
     return []
@@ -765,9 +766,9 @@ const getRecordSelections = (
 // ── 列表行级 BIM 抽屉控制（单例按需挂载） ──
 const activeRowForBim = ref<ProgressV2ActualRecord | null>(null)
 const rowBimDrawerOpen = ref(false)
-const rowBimDraftSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>(
-  []
-)
+const rowBimDraftSelections = ref<
+  Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }>
+>([])
 const rowBimDraftModelIds = ref<string[]>([])
 
 const openRowBimDrawer = (rec: ProgressV2ActualRecord) => {
@@ -782,7 +783,8 @@ const onRowBimDrawerOpenChange = async (isOpen: boolean) => {
   if (!isOpen && activeRowForBim.value && projectId.value) {
     const rec = activeRowForBim.value
     const newSelections = rowBimDraftSelections.value
-    const allCodes = newSelections.flatMap((g) => g.applicationIds || [])
+    const allAppIds = newSelections.flatMap((g) => g.applicationIds || [])
+    const extractedCodes = newSelections.flatMap((g) => g.componentCodes || [])
     try {
       await updateProgressV2ActualRecord({
         projectId: projectId.value,
@@ -790,13 +792,14 @@ const onRowBimDrawerOpenChange = async (isOpen: boolean) => {
         apiOrigin,
         data: {
           BIM: newSelections,
-          componentCode: allCodes.length > 0 ? allCodes.join(', ') : rec.componentCode
+          componentCode:
+            extractedCodes.length > 0 ? extractedCodes.join(', ') : rec.componentCode
         }
       })
       triggerNotification({
         type: ToastNotificationType.Success,
         title: '关联已更新',
-        description: `已关联 ${allCodes.length} 个模型构件`
+        description: `已关联 ${allAppIds.length} 个模型构件`
       })
       await loadActualRecords()
     } catch (err: unknown) {
@@ -831,19 +834,30 @@ const actualForm = reactive({
   remark: ''
 })
 
-const actualFormSelections = ref<Array<{ modelId: string; applicationIds: string[] }>>(
-  []
-)
+const actualFormSelections = ref<
+  Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }>
+>([])
+
+const actualFormSelectedCount = computed(() => {
+  return actualFormSelections.value.reduce(
+    (acc, g) => acc + (g.applicationIds?.length || 0),
+    0
+  )
+})
 
 const actualFormPickedCodes = computed(() => {
-  return actualFormSelections.value.flatMap((g) => g.applicationIds || [])
+  return actualFormSelections.value.flatMap((g) => g.componentCodes || [])
 })
 
 const onActualFormSelectionsChange = (
-  newSelections: Array<{ modelId: string; applicationIds: string[] }>
+  newSelections: Array<{
+    modelId: string
+    applicationIds: string[]
+    componentCodes?: string[]
+  }>
 ) => {
   actualFormSelections.value = newSelections || []
-  const codes = actualFormPickedCodes.value
+  const codes = (newSelections || []).flatMap((g) => g.componentCodes || [])
   if (codes.length > 0) {
     actualForm.componentCode = codes.join(', ')
   }
@@ -851,11 +865,20 @@ const onActualFormSelectionsChange = (
 
 const removePickedComponent = (code: string) => {
   actualFormSelections.value = actualFormSelections.value
-    .map((g) => ({
-      ...g,
-      applicationIds: (g.applicationIds || []).filter((id) => id !== code)
-    }))
-    .filter((g) => g.applicationIds.length > 0)
+    .map((g) => {
+      const appIds = g.applicationIds || []
+      const codes = g.componentCodes || []
+      const idx = codes.indexOf(code)
+      if (idx !== -1) {
+        return {
+          ...g,
+          applicationIds: appIds.filter((_, i) => i !== idx),
+          componentCodes: codes.filter((_, i) => i !== idx)
+        }
+      }
+      return g
+    })
+    .filter((g) => (g.applicationIds || []).length > 0)
 
   const remaining = actualFormPickedCodes.value
   actualForm.componentCode = remaining.join(', ')
