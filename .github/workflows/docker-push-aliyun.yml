@@ -57,6 +57,8 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_REPO }}:server-${{ needs.gen-tag.outputs.image_tag }}
+          provenance: false
+          sbom: false
           cache-from: type=gha,scope=aliyun-server
           cache-to: type=gha,mode=max,scope=aliyun-server
 
@@ -85,5 +87,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_REPO }}:frontend-${{ needs.gen-tag.outputs.image_tag }}
+          provenance: false
+          sbom: false
           cache-from: type=gha,scope=aliyun-frontend
           cache-to: type=gha,mode=max,scope=aliyun-frontend
