@@ -120,7 +120,7 @@
                 {{ rec.taskName }}
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs font-mono">
-                {{ rec.componentCode || '-' }}
+                {{ rec.componentCode || getRecordComponentCodesText(rec) || '-' }}
               </td>
               <td class="py-3 px-4 text-foreground-2 text-body-xs text-center">
                 {{ formatYmd(rec.planStartDate) }} ~ {{ formatYmd(rec.planEndDate) }}
@@ -135,7 +135,7 @@
                   type="button"
                   class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-body-xs font-medium bg-success-lighter text-success-darker border border-success-lighter hover:bg-success/20 transition-colors cursor-pointer"
                   title="点击查看关联构件"
-                  @click="openRowBimDrawer(rec)"
+                  @click="openRowBimView(rec)"
                 >
                   <Check class="w-3 h-3" />
                   <span>已关联 ({{ getRecordBimCount(rec) }}件)</span>
@@ -348,32 +348,11 @@
           <FormTextInput
             v-model="actualForm.componentCode"
             name="actual-componentCode"
-            placeholder="请输入构件编码"
+            placeholder="请输入构件编码（需要时可手动填写）"
             color="foundation"
           />
 
-          <!-- 已选构件标签 -->
-          <div
-            v-if="actualFormPickedCodes.length > 0"
-            class="flex flex-wrap gap-1.5 mt-1"
-          >
-            <span
-              v-for="code in actualFormPickedCodes"
-              :key="code"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs bg-primary/10 text-primary border border-primary/30"
-            >
-              {{ code }}
-              <button
-                type="button"
-                class="hover:opacity-75"
-                @click="removePickedComponent(code)"
-              >
-                <X class="w-3 h-3" />
-              </button>
-            </span>
-          </div>
-
-          <!-- 只有进度管理才有关联BIM的操作：从BIM模型中选择构件（调用 CommonModelObjectMultiModelSelectDrawer） -->
+          <!-- 从BIM模型中选择构件 -->
           <CommonModelObjectMultiModelSelectDrawer
             v-if="actualDialogOpen"
             v-model:selections="actualFormSelections"
@@ -397,6 +376,25 @@
               </button>
             </template>
           </CommonModelObjectMultiModelSelectDrawer>
+
+          <!-- 已选 BIM 构件编码标签 -->
+          <div v-if="actualFormPickedCodes.length > 0" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="code in actualFormPickedCodes"
+              :key="code"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-body-xs bg-primary/10 text-primary border border-primary/30 font-mono"
+            >
+              {{ code }}
+              <button
+                type="button"
+                class="hover:opacity-75"
+                :title="'移除 ' + code"
+                @click="removePickedComponent(code)"
+              >
+                <X class="w-3 h-3" />
+              </button>
+            </span>
+          </div>
         </div>
 
         <!-- 计划开始时间 + 计划结束时间 -->
@@ -522,7 +520,11 @@
           <div
             class="font-mono text-foreground-2 bg-foundation-page px-3 py-2 rounded-md border border-outline-3 break-all"
           >
-            {{ viewingActualRecord.componentCode || '-' }}
+            {{
+              viewingActualRecord.componentCode ||
+              getRecordComponentCodesText(viewingActualRecord) ||
+              '-'
+            }}
           </div>
         </div>
 
@@ -586,7 +588,7 @@
               v-if="getRecordBimCount(viewingActualRecord) > 0"
               type="button"
               class="inline-flex items-center gap-1 text-primary text-body-xs hover:underline cursor-pointer"
-              @click="openRowBimDrawer(viewingActualRecord)"
+              @click="openRowBimView(viewingActualRecord)"
             >
               <Box class="w-3.5 h-3.5" />
               <span>查看关联构件</span>
@@ -782,15 +784,60 @@
       </form>
     </LayoutDialog>
 
-    <!-- ── 列表行操作栏共用 BIM 关联抽屉（按需挂载，避免列表循环请求） ── -->
-    <CommonModelObjectMultiModelSelectDrawer
-      v-if="rowBimDrawerOpen && activeRowForBim"
-      v-model:open="rowBimDrawerOpen"
-      v-model:model_ids="rowBimDraftModelIds"
-      v-model:selections="rowBimDraftSelections"
-      :project-id="projectId"
-      @update:open="onRowBimDrawerOpenChange"
-    />
+    <!-- ── 列表行 BIM 关联查看抽屉（只读，按需挂载） ── -->
+    <LayoutDrawer
+      v-if="activeRowForBimView"
+      v-model:open="rowBimViewDrawerOpen"
+      placement="right"
+      width="95%"
+      body-classes="p-4"
+      @update:open="onRowBimViewOpenChange"
+    >
+      <template #title>
+        关联构件查看
+        <span v-if="activeRowForBimView" class="text-body-sm text-foreground-2">
+          | {{ activeRowForBimView.taskName }}
+        </span>
+      </template>
+      <div class="flex flex-col gap-3 h-[88vh]">
+        <!-- 关联构件编码清单 -->
+        <div class="shrink-0 rounded-lg border border-outline-2 bg-foundation-page p-3">
+          <div class="text-body-sm font-medium text-foreground">
+            已关联 {{ rowBimViewCount }} 个构件（{{ rowBimViewModelCount }} 个模型）
+          </div>
+          <div v-if="rowBimViewCodes.length" class="mt-2 flex flex-wrap gap-1.5">
+            <span
+              v-for="code in rowBimViewCodes"
+              :key="code"
+              class="inline-flex items-center px-2 py-0.5 rounded text-body-xs bg-primary/10 text-primary border border-primary/30 font-mono"
+            >
+              {{ code }}
+            </span>
+          </div>
+          <div v-else class="mt-2 text-body-xs text-foreground-2">未解析到构件编码</div>
+          <div
+            v-if="rowBimViewMissingCodeCount > 0"
+            class="mt-2 text-body-3xs text-foreground-2"
+          >
+            另有
+            {{ rowBimViewMissingCodeCount }}
+            个构件未解析到编码，可在右侧属性面板查看详情
+          </div>
+        </div>
+        <!-- 只读 Viewer：高亮已关联构件 -->
+        <div class="relative grow min-h-0">
+          <CommonModelPropsViewer
+            v-if="rowBimViewModelIds.length"
+            :project-id="projectId"
+            :model-ids="rowBimViewModelIds"
+            :filter-application-ids="rowBimViewApplicationIds"
+          />
+          <div v-else class="flex h-full items-center justify-center text-foreground-2">
+            未找到关联模型
+          </div>
+        </div>
+      </div>
+    </LayoutDrawer>
 
     <!-- ── 二次确认删除弹窗 (CommonConfirmDialog) ── -->
     <CommonConfirmDialog
@@ -873,22 +920,6 @@ const getRecordBimCount = (rec: ProgressV2ActualRecord) => {
   }
 }
 
-const getRecordModelIds = (rec: ProgressV2ActualRecord): string[] => {
-  if (!rec.BIM) return []
-  try {
-    const raw = rec.BIM
-    const list = (
-      Array.isArray(raw) ? raw : typeof raw === 'string' ? JSON.parse(raw) : []
-    ) as ModelObjectGroup[]
-    if (!Array.isArray(list)) return []
-    return Array.from(
-      new Set(list.map((g: ModelObjectGroup) => g.modelId).filter(Boolean))
-    )
-  } catch {
-    return []
-  }
-}
-
 const getRecordSelections = (
   rec: ProgressV2ActualRecord
 ): Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }> => {
@@ -904,56 +935,72 @@ const getRecordSelections = (
   }
 }
 
-// ── 列表行级 BIM 抽屉控制（单例按需挂载） ──
-const activeRowForBim = ref<ProgressV2ActualRecord | null>(null)
-const rowBimDrawerOpen = ref(false)
-const rowBimDraftSelections = ref<
-  Array<{ modelId: string; applicationIds: string[]; componentCodes?: string[] }>
->([])
-const rowBimDraftModelIds = ref<string[]>([])
-
-const openRowBimDrawer = (rec: ProgressV2ActualRecord) => {
-  activeRowForBim.value = rec
-  rowBimDraftSelections.value = JSON.parse(JSON.stringify(getRecordSelections(rec)))
-  rowBimDraftModelIds.value = [...getRecordModelIds(rec)]
-  rowBimDrawerOpen.value = true
+// 汇总记录关联的构件编码（用于列表「构件编码」列在无手填编码时回退展示）
+const getRecordComponentCodesText = (rec: ProgressV2ActualRecord) => {
+  const groups = getRecordSelections(rec)
+  return groups
+    .flatMap((g) => g.componentCodes || [])
+    .filter((c) => c && c.trim())
+    .join(', ')
 }
 
-const onRowBimDrawerOpenChange = async (isOpen: boolean) => {
-  // 当用户在抽屉中点击确定完成选择（Drawer 关闭）时执行保存
-  if (!isOpen && activeRowForBim.value && projectId.value) {
-    const rec = activeRowForBim.value
-    const newSelections = rowBimDraftSelections.value
-    const allAppIds = newSelections.flatMap((g) => g.applicationIds || [])
-    const extractedCodes = newSelections.flatMap((g) => g.componentCodes || [])
-    try {
-      await updateProgressV2ActualRecord({
-        projectId: projectId.value,
-        recordId: rec.id,
-        apiOrigin,
-        data: {
-          BIM: newSelections,
-          componentCode:
-            extractedCodes.length > 0 ? extractedCodes.join(', ') : rec.componentCode
-        }
-      })
-      triggerNotification({
-        type: ToastNotificationType.Success,
-        title: '关联已更新',
-        description: `已关联 ${allAppIds.length} 个模型构件`
-      })
-      await loadActualRecords()
-    } catch (err: unknown) {
-      triggerNotification({
-        type: ToastNotificationType.Danger,
-        title: '更新BIM关联失败',
-        description: (err as Error)?.message || '操作失败'
-      })
-    } finally {
-      activeRowForBim.value = null
-    }
-  }
+// ── 列表行级 BIM 关联查看（只读） ──
+const activeRowForBimView = ref<ProgressV2ActualRecord | null>(null)
+const rowBimViewDrawerOpen = ref(false)
+
+const openRowBimView = (rec: ProgressV2ActualRecord) => {
+  activeRowForBimView.value = rec
+  rowBimViewDrawerOpen.value = true
 }
+
+const onRowBimViewOpenChange = (isOpen: boolean) => {
+  if (!isOpen) activeRowForBimView.value = null
+}
+
+const rowBimViewGroups = computed<ModelObjectGroup[]>(() =>
+  activeRowForBimView.value ? getRecordSelections(activeRowForBimView.value) : []
+)
+
+const rowBimViewModelIds = computed<string[]>(() =>
+  Array.from(new Set(rowBimViewGroups.value.map((g) => g.modelId).filter(Boolean)))
+)
+
+const rowBimViewApplicationIds = computed<string[]>(() =>
+  rowBimViewGroups.value.flatMap((g) => g.applicationIds || [])
+)
+
+const rowBimViewCodes = computed<string[]>(() => {
+  const seen = new Set<string>()
+  const result: string[] = []
+  rowBimViewGroups.value.forEach((g) => {
+    ;(g.componentCodes || []).forEach((code) => {
+      const normalized = code.trim()
+      if (normalized && !seen.has(normalized)) {
+        seen.add(normalized)
+        result.push(normalized)
+      }
+    })
+  })
+  return result
+})
+
+const rowBimViewCount = computed(() =>
+  rowBimViewGroups.value.reduce(
+    (total, g) => total + (g.applicationIds?.length || 0),
+    0
+  )
+)
+
+const rowBimViewModelCount = computed(() => rowBimViewModelIds.value.length)
+
+// 已选构件中有多少未解析到构件编码（按条数估算）
+const rowBimViewMissingCodeCount = computed(() => {
+  const codeEntries = rowBimViewGroups.value.reduce(
+    (total, g) => total + (g.componentCodes?.length || 0),
+    0
+  )
+  return Math.max(0, rowBimViewCount.value - codeEntries)
+})
 
 // ── 进度管理（实际填报） ──
 const isLoadingActual = ref(false)
@@ -997,11 +1044,8 @@ const onActualFormSelectionsChange = (
     componentCodes?: string[]
   }>
 ) => {
+  // 仅记录 BIM 选择，不再自动回填「构件编码」输入框（手动填写与 BIM 选择相互独立）
   actualFormSelections.value = newSelections || []
-  const codes = (newSelections || []).flatMap((g) => g.componentCodes || [])
-  if (codes.length > 0) {
-    actualForm.componentCode = codes.join(', ')
-  }
 }
 
 const removePickedComponent = (code: string) => {
@@ -1020,9 +1064,6 @@ const removePickedComponent = (code: string) => {
       return g
     })
     .filter((g) => (g.applicationIds || []).length > 0)
-
-  const remaining = actualFormPickedCodes.value
-  actualForm.componentCode = remaining.join(', ')
 }
 
 const loadActualRecords = async () => {
