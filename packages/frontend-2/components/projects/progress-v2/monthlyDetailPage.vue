@@ -14,7 +14,12 @@
         </NuxtLink>
         <span>/</span>
         <span class="font-semibold text-foreground">
-          {{ annualPlan?.name || '年度计划详情' }}
+          {{
+            monthlyPlan?.title ||
+            (monthlyPlan?.yearMonth
+              ? `${monthlyPlan.yearMonth} 月度计划详情`
+              : '月度计划详情')
+          }}
         </span>
       </div>
 
@@ -22,59 +27,65 @@
       <div class="flex items-center gap-3">
         <FormButton
           v-if="
-            hasFunctionalPerm('annual-plan:create') ||
-            hasFunctionalPerm('annual-plan:import') ||
+            hasFunctionalPerm('monthly-plan:create') ||
+            hasFunctionalPerm('monthly-plan:import') ||
             hasFunctionalPerm('progress-plan:create')
           "
           size="sm"
           color="primary"
           :icon-left="Upload"
           :disabled="isImporting"
-          @click="triggerAnnualMppImport"
+          @click="triggerMonthlyMppImport"
         >
-          {{ isImporting ? '上传中...' : '导入 / 更新 年度MPP计划' }}
+          {{ isImporting ? '上传中...' : '导入 / 更新 月度MPP计划' }}
         </FormButton>
         <input
-          ref="annualMppInputRef"
+          ref="monthlyMppInputRef"
           type="file"
           class="hidden"
           accept=".mpp"
-          aria-label="导入年度进度计划文件"
-          @change="handleAnnualMppChange"
+          aria-label="导入月度进度计划文件"
+          @change="handleMonthlyMppChange"
         />
       </div>
     </div>
 
-    <!-- Annual Plan Metadata Bar -->
+    <!-- Monthly Plan Metadata Bar -->
     <div
-      v-if="annualPlan"
+      v-if="monthlyPlan"
       class="bg-foundation rounded-lg p-4 border border-outline-2 flex flex-wrap items-center justify-between gap-4 text-body-sm shadow-xs"
     >
       <div class="flex flex-wrap items-center gap-6">
         <div>
-          <span class="text-foreground-2">计划年度：</span>
-          <span class="font-semibold text-primary">{{ annualPlan.year }}年</span>
+          <span class="text-foreground-2">计划月份：</span>
+          <span class="font-semibold text-primary">{{ monthlyPlan.yearMonth }}</span>
         </div>
         <div>
+          <span class="text-foreground-2">计划标题：</span>
+          <span class="font-medium text-foreground">
+            {{ monthlyPlan.title || '-' }}
+          </span>
+        </div>
+        <div v-if="monthlyPlan.startDate || monthlyPlan.endDate">
           <span class="text-foreground-2">工期区间：</span>
           <span class="font-medium text-foreground">
-            {{ annualPlan.startDate?.slice(0, 10) }} ~
-            {{ annualPlan.endDate?.slice(0, 10) }}
+            {{ monthlyPlan.startDate?.slice(0, 10) || '-' }} ~
+            {{ monthlyPlan.endDate?.slice(0, 10) || '-' }}
           </span>
         </div>
         <div>
           <span class="text-foreground-2">编制人：</span>
           <span class="font-medium text-foreground">
-            {{ annualPlan.preparedBy || '-' }}
+            {{ monthlyPlan.preparedBy || '-' }}
           </span>
         </div>
         <div>
           <span class="text-foreground-2">当前计划文件：</span>
           <span
-            v-if="annualPlan.fileName"
+            v-if="monthlyPlan.fileName"
             class="bg-foundation-page px-2 py-0.5 rounded border border-outline-2 font-mono text-body-xs"
           >
-            {{ annualPlan.fileName }}
+            {{ monthlyPlan.fileName }}
           </span>
           <span v-else class="text-foreground-3">未上传</span>
         </div>
@@ -89,16 +100,16 @@
         v-if="isLoadingTasks"
         class="px-4 py-10 text-center text-body-sm text-foreground-2 border-b border-outline-2"
       >
-        正在加载年度任务树...
+        正在加载月度任务树...
       </div>
       <div
         v-else-if="!treeTasks.length"
         class="px-4 py-10 text-center text-body-sm text-foreground-2 border-b border-outline-2"
       >
         {{
-          annualPlan?.fileName
+          monthlyPlan?.fileName
             ? '当前已上传计划文件，未解析出任务项。'
-            : '当前年度计划还没有任务，请点击右上角导入该年度的 `.mpp` 文件。'
+            : '当前月度计划还没有任务，请点击右上角导入该月份的 `.mpp` 文件。'
         }}
       </div>
       <LayoutTable
@@ -134,11 +145,11 @@ import { ArrowLeft, Upload } from 'lucide-vue-next'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { useCustomPermissions } from '~/lib/auth/composables/customPermissions'
 import {
-  listProgressV2AnnualPlans,
-  uploadProgressV2AnnualPlanFile,
-  getProgressV2AnnualPlanTasks,
-  type ProgressV2AnnualPlan,
-  type ProgressV2AnnualPlanTask
+  listProgressV2MonthlyPlans,
+  uploadProgressV2MonthlyPlanFile,
+  getProgressV2MonthlyPlanTasks,
+  type ProgressV2MonthlyPlan,
+  type ProgressV2MonthlyPlanTask
 } from '~/lib/projects/api/progress-v2'
 
 const route = useRoute()
@@ -147,7 +158,7 @@ const projectId = computed(() => {
   return typeof id === 'string' ? id : ''
 })
 
-const annualPlanId = computed(() => {
+const monthlyPlanId = computed(() => {
   const pid = route.params.planId
   return typeof pid === 'string' ? pid : ''
 })
@@ -156,11 +167,11 @@ const apiOrigin = useApiOrigin()
 const { triggerNotification } = useGlobalToast()
 const { hasFunctionalPerm } = useCustomPermissions()
 
-const annualPlan = ref<ProgressV2AnnualPlan | null>(null)
-const tasks = ref<ProgressV2AnnualPlanTask[]>([])
+const monthlyPlan = ref<ProgressV2MonthlyPlan | null>(null)
+const tasks = ref<ProgressV2MonthlyPlanTask[]>([])
 const isLoadingTasks = ref(false)
 const isImporting = ref(false)
-const annualMppInputRef = ref<HTMLInputElement | null>(null)
+const monthlyMppInputRef = ref<HTMLInputElement | null>(null)
 
 const taskColumns = [
   { id: 'taskName', header: '任务名称', classes: 'col-span-6' },
@@ -212,8 +223,8 @@ const getWbsLevel = (wbs?: string, fallbackLevel = 0) => {
 }
 
 const rebuildTaskTree = (
-  taskList: ProgressV2AnnualPlanTask[]
-): ProgressV2AnnualPlanTask[] => {
+  taskList: ProgressV2MonthlyPlanTask[]
+): ProgressV2MonthlyPlanTask[] => {
   const orderedItems = [...taskList].sort((left, right) => {
     const wbsOrder = compareWbs(left.wbs || undefined, right.wbs || undefined)
     if (wbsOrder !== 0) return wbsOrder
@@ -229,7 +240,7 @@ const rebuildTaskTree = (
   const itemMap = new Map(
     orderedItems.map((item) => [
       item.id,
-      { ...item, children: [] as ProgressV2AnnualPlanTask[] }
+      { ...item, children: [] as ProgressV2MonthlyPlanTask[] }
     ])
   )
   const itemByWbs = new Map(
@@ -244,7 +255,7 @@ const rebuildTaskTree = (
     item.level = getWbsLevel(item.wbs || undefined, item.level)
   })
 
-  const rootItems: ProgressV2AnnualPlanTask[] = []
+  const rootItems: ProgressV2MonthlyPlanTask[] = []
 
   orderedItems.forEach((raw) => {
     const item = itemMap.get(raw.id)!
@@ -281,23 +292,23 @@ const treeTasks = computed(() => {
 })
 
 const loadData = async () => {
-  if (!projectId.value || !annualPlanId.value) return
+  if (!projectId.value || !monthlyPlanId.value) return
   isLoadingTasks.value = true
   try {
     const [allPlans, planTasks] = await Promise.all([
-      listProgressV2AnnualPlans({ projectId: projectId.value, apiOrigin }),
-      getProgressV2AnnualPlanTasks({
+      listProgressV2MonthlyPlans({ projectId: projectId.value, apiOrigin }),
+      getProgressV2MonthlyPlanTasks({
         projectId: projectId.value,
-        annualPlanId: annualPlanId.value,
+        monthlyPlanId: monthlyPlanId.value,
         apiOrigin
       })
     ])
-    annualPlan.value = allPlans.find((p) => p.id === annualPlanId.value) || null
+    monthlyPlan.value = allPlans.find((p) => p.id === monthlyPlanId.value) || null
     tasks.value = planTasks
   } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: '加载年度计划详情失败',
+      title: '加载月度计划详情失败',
       description: err instanceof Error ? err.message : String(err)
     })
   } finally {
@@ -305,11 +316,11 @@ const loadData = async () => {
   }
 }
 
-const triggerAnnualMppImport = () => {
-  annualMppInputRef.value?.click()
+const triggerMonthlyMppImport = () => {
+  monthlyMppInputRef.value?.click()
 }
 
-const handleAnnualMppChange = async (event: Event) => {
+const handleMonthlyMppChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   target.value = ''
@@ -317,22 +328,22 @@ const handleAnnualMppChange = async (event: Event) => {
 
   isImporting.value = true
   try {
-    const res = await uploadProgressV2AnnualPlanFile({
+    const res = await uploadProgressV2MonthlyPlanFile({
       projectId: projectId.value,
-      annualPlanId: annualPlanId.value,
+      monthlyPlanId: monthlyPlanId.value,
       file,
       apiOrigin
     })
     triggerNotification({
       type: ToastNotificationType.Success,
-      title: '导入年度计划成功',
-      description: `成功解析并更新 ${res.taskCount} 条年度计划任务`
+      title: '导入月度计划成功',
+      description: `成功解析并更新 ${res.taskCount} 条月度计划任务`
     })
     await loadData()
   } catch (err: unknown) {
     triggerNotification({
       type: ToastNotificationType.Danger,
-      title: '导入年度计划失败',
+      title: '导入月度计划失败',
       description: err instanceof Error ? err.message : String(err)
     })
   } finally {

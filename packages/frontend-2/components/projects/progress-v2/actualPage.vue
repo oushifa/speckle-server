@@ -56,7 +56,11 @@
         />
 
         <FormButton
-          v-if="activeTab === 'actual'"
+          v-if="
+            activeTab === 'actual' &&
+            (hasFunctionalPerm('actual-progress:export') ||
+              hasFunctionalPerm('actual-progress:view'))
+          "
           size="sm"
           color="outline"
           :icon-left="Download"
@@ -66,7 +70,11 @@
           导出 Excel
         </FormButton>
         <FormButton
-          v-if="activeTab === 'actual'"
+          v-if="
+            activeTab === 'actual' &&
+            (hasFunctionalPerm('actual-progress:import') ||
+              hasFunctionalPerm('actual-progress:create'))
+          "
           size="sm"
           color="outline"
           :icon-left="Upload"
@@ -85,7 +93,7 @@
         />
 
         <FormButton
-          v-if="activeTab === 'actual'"
+          v-if="activeTab === 'actual' && hasFunctionalPerm('actual-progress:create')"
           size="sm"
           color="primary"
           :icon-left="Plus"
@@ -94,7 +102,10 @@
           新增填报
         </FormButton>
         <FormButton
-          v-else
+          v-else-if="
+            activeTab === 'milestone' &&
+            hasFunctionalPerm('milestone-management:create')
+          "
           size="sm"
           color="primary"
           :icon-left="Plus"
@@ -129,7 +140,7 @@
               class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
             >
               <th class="py-3 px-4">施工任务名称</th>
-              <th class="py-3 px-4">构件编码</th>
+              <th class="py-3 px-4">序号码</th>
               <th class="py-3 px-4 text-center">计划起止时间</th>
               <th class="py-3 px-4 text-center">实际起止时间</th>
               <th class="py-3 px-4 text-center">关联状态</th>
@@ -196,6 +207,7 @@
                     <Eye class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="hasFunctionalPerm('actual-progress:edit')"
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
                     title="编辑"
@@ -204,6 +216,7 @@
                     <Pencil class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="hasFunctionalPerm('actual-progress:delete')"
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
                     title="删除"
@@ -340,6 +353,7 @@
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1">
                   <button
+                    v-if="hasFunctionalPerm('milestone-management:edit')"
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
                     title="编辑"
@@ -348,6 +362,7 @@
                     <Pencil class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="hasFunctionalPerm('milestone-management:delete')"
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
                     title="删除"
@@ -385,13 +400,13 @@
           />
         </div>
 
-        <!-- 构件编码 + 从BIM模型中选择构件 -->
+        <!-- 序号码 + 从BIM模型中选择构件 -->
         <div class="space-y-1.5">
-          <div class="block text-body-xs font-medium text-foreground-2">构件编码</div>
+          <div class="block text-body-xs font-medium text-foreground-2">序号码</div>
           <FormTextInput
             v-model="actualForm.componentCode"
             name="actual-componentCode"
-            placeholder="请输入构件编码（需要时可手动填写）"
+            placeholder="请输入序号码（需要时可手动填写）"
             color="foundation"
           />
 
@@ -420,7 +435,7 @@
             </template>
           </CommonModelObjectMultiModelSelectDrawer>
 
-          <!-- 已选 BIM 构件编码标签 -->
+          <!-- 已选 BIM 序号码标签 -->
           <div v-if="actualFormPickedCodes.length > 0" class="flex flex-wrap gap-1.5">
             <span
               v-for="code in actualFormPickedCodes"
@@ -557,9 +572,9 @@
           </div>
         </div>
 
-        <!-- 构件编码 -->
+        <!-- 序号码 -->
         <div class="space-y-1">
-          <div class="text-body-xs font-medium text-foreground-2">构件编码</div>
+          <div class="text-body-xs font-medium text-foreground-2">序号码</div>
           <div
             class="font-mono text-foreground-2 bg-foundation-page px-3 py-2 rounded-md border border-outline-3 break-all"
           >
@@ -670,7 +685,7 @@
         </div>
 
         <div class="flex justify-end gap-2 pt-2 border-t border-outline-2">
-          <FormButton color="secondary" @click="viewActualDialogOpen = false">
+          <FormButton color="outline" @click="viewActualDialogOpen = false">
             关闭
           </FormButton>
           <FormButton
@@ -843,7 +858,7 @@
         </span>
       </template>
       <div class="flex flex-col gap-3 h-[88vh]">
-        <!-- 关联构件编码清单 -->
+        <!-- 关联构件序号码清单 -->
         <div class="shrink-0 rounded-lg border border-outline-2 bg-foundation-page p-3">
           <div class="text-body-sm font-medium text-foreground">
             已关联 {{ rowBimViewCount }} 个构件（{{ rowBimViewModelCount }} 个模型）
@@ -857,14 +872,14 @@
               {{ code }}
             </span>
           </div>
-          <div v-else class="mt-2 text-body-xs text-foreground-2">未解析到构件编码</div>
+          <div v-else class="mt-2 text-body-xs text-foreground-2">未解析到序号码</div>
           <div
             v-if="rowBimViewMissingCodeCount > 0"
             class="mt-2 text-body-3xs text-foreground-2"
           >
             另有
             {{ rowBimViewMissingCodeCount }}
-            个构件未解析到编码，可在右侧属性面板查看详情
+            个构件未解析到序号码，可在右侧属性面板查看详情
           </div>
         </div>
         <!-- 只读 Viewer：高亮已关联构件 -->
@@ -912,6 +927,7 @@ import {
 } from 'lucide-vue-next'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 import { CommonConfirmDialog } from '#components'
+import { useCustomPermissions } from '~/lib/auth/composables/customPermissions'
 import {
   listProgressV2ActualRecords,
   createProgressV2ActualRecord,
@@ -935,6 +951,7 @@ const projectId = computed(() => {
 
 const apiOrigin = useApiOrigin()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const activeTab = ref<'actual' | 'milestone'>('actual')
 
@@ -982,7 +999,7 @@ const getRecordSelections = (
   }
 }
 
-// 汇总记录关联的构件编码（用于列表「构件编码」列在无手填编码时回退展示）
+// 汇总记录关联的构件的序号码（用于列表「序号码」列在无手填编码时回退展示）
 const getRecordComponentCodesText = (rec: ProgressV2ActualRecord) => {
   const groups = getRecordSelections(rec)
   return groups
@@ -1040,7 +1057,7 @@ const rowBimViewCount = computed(() =>
 
 const rowBimViewModelCount = computed(() => rowBimViewModelIds.value.length)
 
-// 已选构件中有多少未解析到构件编码（按条数估算）
+// 已选构件中有多少未解析到序号码（按条数估算）
 const rowBimViewMissingCodeCount = computed(() => {
   const codeEntries = rowBimViewGroups.value.reduce(
     (total, g) => total + (g.componentCodes?.length || 0),
@@ -1149,7 +1166,7 @@ const onActualFormSelectionsChange = (
     componentCodes?: string[]
   }>
 ) => {
-  // 仅记录 BIM 选择，不再自动回填「构件编码」输入框（手动填写与 BIM 选择相互独立）
+  // 仅记录 BIM 选择，不再自动回填「序号码」输入框（手动填写与 BIM 选择相互独立）
   actualFormSelections.value = newSelections || []
 }
 

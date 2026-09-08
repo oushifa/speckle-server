@@ -14,15 +14,25 @@ const ROUTE_MENU_MAPPING: Record<string, string> = {
 }
 
 // 定义项目内各子页面路由与菜单 ID 的对应关系
-const PROJECT_SUBPATH_MENU_MAPPING: Record<string, string> = {
+const PROJECT_SUBPATH_MENU_MAPPING: Record<string, string | string[]> = {
   'file-management': 'source-file-management',
   'model-list': 'file-management',
   'workbench/discussions': 'collaborative-management',
-  'progress/schedule': 'progress-plan',
-  'progress/annual': 'progress-plan',
-  'progress/actual': 'actual-progress',
-  'progress/milestone': 'actual-progress',
+  'progress/schedule': ['schedule-plan', 'progress-plan'],
+  'progress/annual': ['annual-plan', 'progress-plan'],
+  'progress/monthly': ['monthly-plan'],
+  'progress/actual': ['actual-progress'],
+  'progress/milestone': ['milestone-management', 'actual-progress'],
   'progress/physical': 'visual-progress',
+  'progress-v2/schedule': [
+    'schedule-plan',
+    'annual-plan',
+    'monthly-plan',
+    'progress-plan'
+  ],
+  'progress-v2/annual': ['annual-plan', 'schedule-plan', 'progress-plan'],
+  'progress-v2/monthly': ['monthly-plan', 'schedule-plan', 'progress-plan'],
+  'progress-v2/actual': ['actual-progress', 'milestone-management'],
   'quality-acceptance': 'quality-check',
   'work-valuation/BOQ': 'bill-management',
   'work-valuation/monthly-measurement': 'monthly-valuation',
@@ -50,9 +60,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
     )
 
     if (matchedSubpathKey) {
-      const requiredMenuId = PROJECT_SUBPATH_MENU_MAPPING[matchedSubpathKey]
+      const requiredMenu = PROJECT_SUBPATH_MENU_MAPPING[matchedSubpathKey]
+      const isAllowed = Array.isArray(requiredMenu)
+        ? requiredMenu.some((id) => hasMenuPerm(id))
+        : hasMenuPerm(requiredMenu)
 
-      if (!hasMenuPerm(requiredMenuId)) {
+      if (!isAllowed) {
         const { triggerNotification } = useGlobalToast()
         triggerNotification({
           type: ToastNotificationType.Warning,

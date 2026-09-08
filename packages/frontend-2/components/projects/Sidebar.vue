@@ -141,7 +141,12 @@
                 <LayoutSidebarMenuGroup
                   v-if="
                     showWorkspaceLinks &&
-                    (hasMenuPerm('progress-plan') || hasMenuPerm('actual-progress'))
+                    (hasMenuPerm('schedule-plan') ||
+                      hasMenuPerm('annual-plan') ||
+                      hasMenuPerm('monthly-plan') ||
+                      hasMenuPerm('progress-plan') ||
+                      hasMenuPerm('actual-progress') ||
+                      hasMenuPerm('milestone-management'))
                   "
                   :class="[
                     'project-sidebar-group-wrapper',
@@ -161,7 +166,13 @@
                     <IconProgress class="size-4 text-white" />
                   </template>
                   <NuxtLink
-                    v-if="showWorkspaceLinks && hasMenuPerm('progress-plan')"
+                    v-if="
+                      showWorkspaceLinks &&
+                      (hasMenuPerm('schedule-plan') ||
+                        hasMenuPerm('annual-plan') ||
+                        hasMenuPerm('monthly-plan') ||
+                        hasMenuPerm('progress-plan'))
+                    "
                     :to="projectBaseRoutePath + '/progress-v2/schedule'"
                     @click="isOpenMobile = false"
                   >
@@ -178,7 +189,11 @@
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink
-                    v-if="showWorkspaceLinks && hasMenuPerm('actual-progress')"
+                    v-if="
+                      showWorkspaceLinks &&
+                      (hasMenuPerm('actual-progress') ||
+                        hasMenuPerm('milestone-management'))
+                    "
                     :to="projectBaseRoutePath + '/progress-v2/actual'"
                     @click="isOpenMobile = false"
                   >

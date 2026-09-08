@@ -14,6 +14,9 @@ export const COMPONENT_CODE_ALIASES = [
   'elementcode'
 ]
 
+// BIM 关联以「序号码」为关联标识（与 Viewer WorldTree 的 bimId 规则一致）
+export const COMPONENT_SERIAL_ALIASES = ['序号码', '序号', 'serialnumber']
+
 export const normalizeCodeText = (value: string) => {
   return value.toLowerCase().replace(/[\s_.:/\\()[\]{}（）-]/g, '')
 }
@@ -87,9 +90,10 @@ export const flattenObjectEntries = (
 }
 
 /**
- * 参考 Viewer 获取构件编码的逻辑：
- * 1. 优先从构件自身属性中查找 '构件编码', '构件编号', 'componentcode', 'elementcode'
- * 2. 若无，通过 WorldTree 计算 '分类对象代码' + '空间代码' + '分部分项代码' + '序号码'
+ * 提取构件关联使用的编码。
+ * BIM 关联以「序号码」(serialNum / bimId) 为关联标识（与 Viewer WorldTree 规则一致），
+ * 因此优先取序号码；当构件没有序号码时回退到完整构件编码
+ * （构件自身的 '构件编码'/'构件编号'，或通过 WorldTree 计算的 分类对象代码+空间代码+分部分项代码+序号码）。
  */
 export const extractComponentCode = (
   obj: SpeckleObject | null | undefined,
@@ -102,31 +106,41 @@ export const extractComponentCode = (
   if (!obj) return null
 
   const entries = flattenObjectEntries(obj)
+  const normalizedSerialAliases = COMPONENT_SERIAL_ALIASES.map(normalizeCodeText)
   const normalizedAliases = COMPONENT_CODE_ALIASES.map(normalizeCodeText)
 
-  // 1. 精确匹配
-  const exactMatch = entries.find((entry) => {
-    const keyNorm = normalizeCodeText(entry.key)
-    const pathNorm = normalizeCodeText(entry.path)
-    return normalizedAliases.some((alias) => keyNorm === alias || pathNorm === alias)
-  })
-  if (exactMatch) {
-    const val = formatCodeDisplayValue(exactMatch.value, exactMatch.units)
-    if (val && val !== '-') return val.trim()
+  const findMatch = (aliases: string[]) => {
+    const exactMatch = entries.find((entry) => {
+      const keyNorm = normalizeCodeText(entry.key)
+      const pathNorm = normalizeCodeText(entry.path)
+      return aliases.some((alias) => keyNorm === alias || pathNorm === alias)
+    })
+    if (exactMatch) {
+      const val = formatCodeDisplayValue(exactMatch.value, exactMatch.units)
+      if (val && val !== '-') return val.trim()
+    }
+
+    const fuzzyMatch = entries.find((entry) => {
+      const keyNorm = normalizeCodeText(entry.key)
+      const pathNorm = normalizeCodeText(entry.path)
+      return aliases.some(
+        (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
+      )
+    })
+    if (fuzzyMatch) {
+      const val = formatCodeDisplayValue(fuzzyMatch.value, fuzzyMatch.units)
+      if (val && val !== '-') return val.trim()
+    }
+    return null
   }
 
-  // 2. 模糊匹配
-  const fuzzyMatch = entries.find((entry) => {
-    const keyNorm = normalizeCodeText(entry.key)
-    const pathNorm = normalizeCodeText(entry.path)
-    return normalizedAliases.some(
-      (alias) => keyNorm.includes(alias) || pathNorm.includes(alias)
-    )
-  })
-  if (fuzzyMatch) {
-    const val = formatCodeDisplayValue(fuzzyMatch.value, fuzzyMatch.units)
-    if (val && val !== '-') return val.trim()
-  }
+  // 1. 优先取序号码（BIM 关联标识）
+  const serialMatch = findMatch(normalizedSerialAliases)
+  if (serialMatch) return serialMatch
+
+  // 2. 回退到构件自身编码
+  const codeMatch = findMatch(normalizedAliases)
+  if (codeMatch) return codeMatch
 
   // 3. 通过 WorldTree 获取 (拼接 分类对象代码 + 空间代码 + 分部分项代码 + 序号码)
   const targetNode =

@@ -50,6 +50,11 @@
       <div class="flex flex-wrap items-center gap-3">
         <template v-if="activeTab === 'total'">
           <FormButton
+            v-if="
+              hasFunctionalPerm('schedule-plan:create') ||
+              hasFunctionalPerm('schedule-plan:import') ||
+              hasFunctionalPerm('progress-plan:import')
+            "
             size="sm"
             color="primary"
             :icon-left="Upload"
@@ -59,6 +64,10 @@
             {{ isImporting ? '上传中...' : '导入 / 更新 计划' }}
           </FormButton>
           <FormButton
+            v-if="
+              hasFunctionalPerm('schedule-plan:download') ||
+              hasFunctionalPerm('progress-plan:download')
+            "
             size="sm"
             color="outline"
             :icon-left="Download"
@@ -78,6 +87,10 @@
         </template>
         <template v-else-if="activeTab === 'annual'">
           <FormButton
+            v-if="
+              hasFunctionalPerm('annual-plan:create') ||
+              hasFunctionalPerm('progress-plan:create')
+            "
             size="sm"
             color="primary"
             :icon-left="Plus"
@@ -88,6 +101,10 @@
         </template>
         <template v-else-if="activeTab === 'monthly'">
           <FormButton
+            v-if="
+              hasFunctionalPerm('monthly-plan:create') ||
+              hasFunctionalPerm('progress-plan:create')
+            "
             size="sm"
             color="primary"
             :icon-left="Plus"
@@ -251,6 +268,10 @@
                     <Eye class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="
+                      hasFunctionalPerm('annual-plan:edit') ||
+                      hasFunctionalPerm('progress-plan:edit')
+                    "
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
                     title="编辑"
@@ -259,6 +280,10 @@
                     <Pencil class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="
+                      hasFunctionalPerm('annual-plan:delete') ||
+                      hasFunctionalPerm('progress-plan:delete')
+                    "
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
                     title="删除"
@@ -313,10 +338,20 @@
               class="border-b border-outline-2 hover:bg-primary-muted/20 transition-colors"
             >
               <td class="py-3 px-4 font-semibold text-primary">
-                {{ plan.yearMonth }}
+                <NuxtLink
+                  :to="`/projects/${projectId}/progress-v2/monthly/${plan.id}`"
+                  class="font-semibold text-primary hover:underline"
+                >
+                  {{ plan.yearMonth }}
+                </NuxtLink>
               </td>
               <td class="py-3 px-4 font-medium text-foreground">
-                {{ plan.title || '-' }}
+                <NuxtLink
+                  :to="`/projects/${projectId}/progress-v2/monthly/${plan.id}`"
+                  class="font-medium text-foreground hover:text-primary transition-colors"
+                >
+                  {{ plan.title || '-' }}
+                </NuxtLink>
               </td>
               <td class="py-3 px-4 text-foreground-2">
                 {{ plan.tasks?.length || 0 }} 项施工任务
@@ -361,14 +396,22 @@
                     <Eye class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="
+                      hasFunctionalPerm('monthly-plan:edit') ||
+                      hasFunctionalPerm('progress-plan:edit')
+                    "
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="编辑任务"
+                    title="编辑"
                     @click="openEditMonthlyDialog(plan)"
                   >
                     <Pencil class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="
+                      hasFunctionalPerm('monthly-plan:delete') ||
+                      hasFunctionalPerm('progress-plan:delete')
+                    "
                     type="button"
                     class="p-1.5 rounded text-foreground-2 hover:text-danger hover:bg-danger/10 transition-colors"
                     title="删除"
@@ -781,6 +824,17 @@
           </div>
         </div>
 
+        <div class="pt-3 border-t border-outline-2">
+          <NuxtLink
+            :to="`/projects/${projectId}/progress-v2/monthly/${viewingMonthlyPlan.id}`"
+            class="w-full flex items-center justify-center gap-1.5 py-2 px-4 rounded-md bg-primary text-primary-contrast hover:bg-primary-hover transition-colors text-body-sm font-medium"
+            @click="viewMonthlyDialogOpen = false"
+          >
+            <span>进入月度计划</span>
+            <ChevronRight class="h-4 w-4" />
+          </NuxtLink>
+        </div>
+
         <div class="flex justify-end pt-1">
           <FormButton
             color="outline"
@@ -1061,6 +1115,7 @@ import {
 } from '~/lib/projects/api/progress-v2'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
+import { useCustomPermissions } from '~/lib/auth/composables/customPermissions'
 
 const route = useRoute()
 const projectId = computed(() => {
@@ -1070,6 +1125,7 @@ const projectId = computed(() => {
 
 const apiOrigin = useApiOrigin()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const activeTab = ref<'total' | 'annual' | 'monthly'>('total')
 

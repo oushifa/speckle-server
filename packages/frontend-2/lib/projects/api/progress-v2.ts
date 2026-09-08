@@ -115,12 +115,44 @@ export type ProgressV2MonthlyPlan = {
   startDate?: string | null
   endDate?: string | null
   preparedBy?: string | null
+  blobId?: string | null
+  fileName?: string | null
+  fileSize?: number | string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[]
   attachments?: ProgressV2AnnualPlanAttachment[]
-  createdBy: string
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ProgressV2MonthlyPlanTask = {
+  id: string
+  projectId: string
+  monthlyPlanId: string
+  externalId: string | null
+  sysTaskId: string | null
+  quantity: string | null
+  unit: string | null
+  wbs: string | null
+  name: string
+  taskName?: string
+  parentId: string | null
+  level: number
+  sortOrder: number
+  duration: string | null
+  planStart: string | null
+  planEnd: string | null
+  startDate?: string | null
+  endDate?: string | null
+  predecessor: string | null
+  BIM?: unknown | null
+  creator: string
+  updater: string
   createdAt: string
   updatedAt: string
+  hasChildren?: boolean
+  children?: ProgressV2MonthlyPlanTask[]
 }
 
 export type ProgressV2ActualRecord = {
@@ -570,6 +602,115 @@ export async function deleteProgressV2MonthlyPlan(params: {
       { method: 'DELETE' }
     )
     return payload.success
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function getProgressV2MonthlyPlan(params: {
+  projectId: string
+  monthlyPlanId: string
+  apiOrigin: string
+}): Promise<ProgressV2MonthlyPlan | null> {
+  const { projectId, monthlyPlanId, apiOrigin } = params
+  try {
+    const payload = await $fetch<{
+      success: boolean
+      data: ProgressV2MonthlyPlan
+    }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/monthly-plans/${monthlyPlanId}`,
+        apiOrigin
+      ).toString(),
+      { method: 'GET', cache: 'no-store' }
+    )
+    if (!payload.data) return null
+    return {
+      ...payload.data,
+      tasks:
+        typeof payload.data.tasks === 'string'
+          ? JSON.parse(payload.data.tasks)
+          : payload.data.tasks || []
+    }
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function uploadProgressV2MonthlyPlanFile(
+  params: {
+    projectId: string
+    monthlyPlanId: string
+    file: File
+    apiOrigin: string
+  },
+  callbacks?: { onProgress?: (percentage: number) => void }
+) {
+  const { projectId, monthlyPlanId, file, apiOrigin } = params
+  const { onProgress } = callbacks || {}
+  const data = new FormData()
+  data.append('file', file)
+
+  try {
+    onProgress?.(10)
+    const uploadPayload = await $fetch<PostBlobResponse>(
+      new URL(`/api/stream/${projectId}/blob`, apiOrigin).toString(),
+      { method: 'POST', body: data }
+    )
+    const uploadResults =
+      (uploadPayload as Optional<PostBlobResponse>)?.uploadResults || []
+    const result = uploadResults.find((r) => r.formKey === 'file')
+    if (!result?.blobId) throw new Error('上传文件到对象存储失败')
+
+    onProgress?.(50)
+    const payload = await $fetch<{
+      success: boolean
+      data: { monthlyPlanId: string; taskCount: number }
+    }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/monthly-plans/${monthlyPlanId}/plan-file`,
+        apiOrigin
+      ).toString(),
+      {
+        method: 'POST',
+        body: {
+          blobId: result.blobId,
+          fileName: result.fileName || file.name,
+          fileType: 'mpp',
+          fileSize: result.fileSize || file.size || null
+        }
+      }
+    )
+    onProgress?.(100)
+    return payload.data
+  } catch (error) {
+    throw new Error(parseUnknownError(error))
+  }
+}
+
+export async function getProgressV2MonthlyPlanTasks(params: {
+  projectId: string
+  monthlyPlanId: string
+  apiOrigin: string
+}): Promise<ProgressV2MonthlyPlanTask[]> {
+  const { projectId, monthlyPlanId, apiOrigin } = params
+  try {
+    const payload = await $fetch<{
+      success: boolean
+      data: ProgressV2MonthlyPlanTask[]
+    }>(
+      new URL(
+        `/api/v1/projects/${projectId}/progress-v2/monthly-plans/${monthlyPlanId}/tasks`,
+        apiOrigin
+      ).toString(),
+      { method: 'GET', cache: 'no-store' }
+    )
+    return (payload.data || []).map((t) => ({
+      ...t,
+      taskName: t.name,
+      startDate: t.planStart ? t.planStart.slice(0, 10) : '',
+      endDate: t.planEnd ? t.planEnd.slice(0, 10) : ''
+    }))
   } catch (error) {
     throw new Error(parseUnknownError(error))
   }

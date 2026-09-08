@@ -312,13 +312,21 @@ const buildComponentCodeToBimNodesMap = async (
           (classCode && (serialNum || sectionCode)
             ? `${classCode}${effectiveSpaceCode}${sectionCode}${serialNum}`
             : '')
-        if (!fullCode) continue
 
-        if (!codeMap.has(fullCode)) codeMap.set(fullCode, [])
-        codeMap.get(fullCode)!.push({
-          modelId: commitToBranchMap.get(cid) || cid,
-          applicationId
-        })
+        // BIM 关联以「序号码」为准（与前端 Viewer bimId 规则一致），
+        // 同时保留完整构件编码作为兼容键，兼容历史数据与手动填写的构件编码。
+        const keys = new Set<string>()
+        if (serialNum.trim()) keys.add(serialNum.trim())
+        if (fullCode) keys.add(fullCode)
+        if (!keys.size) continue
+
+        for (const key of keys) {
+          if (!codeMap.has(key)) codeMap.set(key, [])
+          codeMap.get(key)!.push({
+            modelId: commitToBranchMap.get(cid) || cid,
+            applicationId
+          })
+        }
       }
     }
   } catch (err) {
@@ -363,7 +371,12 @@ const parseImportRows = (workbook: WorkBook): ImportActualRecordRow[] => {
   const headerRow = matrix[0].map((cell: string | number | null) => normalizeCell(cell))
   const idIndex = findHeaderIndex(headerRow, ['数据id', '数据ID', 'id', 'ID'])
   const taskNameIndex = findHeaderIndex(headerRow, ['任务名称', '施工任务名称', '任务'])
-  const componentCodeIndex = findHeaderIndex(headerRow, ['构件编码', '构件编号'])
+  const componentCodeIndex = findHeaderIndex(headerRow, [
+    '序号码',
+    '序号',
+    '构件编码',
+    '构件编号'
+  ])
   const reportDateIndex = findHeaderIndex(headerRow, ['填报日期', '日期'])
   const planStartIndex = findHeaderIndex(headerRow, ['计划开始时间', '计划开始日期'])
   const planEndIndex = findHeaderIndex(headerRow, ['计划结束时间', '计划结束日期'])
@@ -565,19 +578,38 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
 // 导出
 // ---------------------------------------------------------------------------
 
+// 从记录的 BIM JSON 中提取关联构件的序号码（BIM 关联以序号码为标识）
+const serializeBimCodes = (bim: unknown): string => {
+  if (!bim) return ''
+  let groups: Array<{ componentCodes?: string[] }> = []
+  try {
+    groups = Array.isArray(bim)
+      ? (bim as Array<{ componentCodes?: string[] }>)
+      : typeof bim === 'string'
+      ? (JSON.parse(bim) as Array<{ componentCodes?: string[] }>)
+      : []
+  } catch {
+    groups = []
+  }
+  const codes = groups
+    .flatMap((g) => g.componentCodes || [])
+    .map((c) => (c || '').trim())
+    .filter(Boolean)
+  return Array.from(new Set(codes)).join(', ')
+}
+
 export const buildProgressV2ActualRecordsExportBuffer = async (
   records: Array<Record<string, unknown>>
 ): Promise<Buffer> => {
   const headers = [
     '数据ID',
     '任务名称',
-    '构件编码',
+    '序号码',
     '填报日期',
     '计划开始时间',
     '计划结束时间',
     '实际开始时间',
     '实际结束时间',
-    '进度百分比',
     '填报人',
     '备注'
   ]
@@ -592,13 +624,12 @@ export const buildProgressV2ActualRecordsExportBuffer = async (
   const rows = records.map((r) => [
     (r.id as string) || '',
     (r.taskName as string) || '',
-    (r.componentCode as string) || '',
+    serializeBimCodes(r.BIM) || (r.componentCode as string) || '',
     (r.reportDate as string) || '',
     formatDate(r.planStartDate),
     formatDate(r.planEndDate),
     formatDate(r.actualStartDate),
     formatDate(r.actualEndDate),
-    r.progressPercent ?? '',
     (r.reporter as string) || '',
     (r.remark as string) || ''
   ])

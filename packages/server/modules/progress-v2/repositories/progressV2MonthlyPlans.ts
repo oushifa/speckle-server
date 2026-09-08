@@ -12,6 +12,9 @@ export const ProjectProgressV2MonthlyPlans = buildTableHelper(
     'startDate',
     'endDate',
     'preparedBy',
+    'blobId',
+    'fileName',
+    'fileSize',
     'remark',
     'tasks',
     'attachments',
@@ -48,6 +51,9 @@ export type ProgressV2MonthlyPlanRecord = {
   startDate: Date | null
   endDate: Date | null
   preparedBy: string | null
+  blobId: string | null
+  fileName: string | null
+  fileSize: number | string | null
   remark: string | null
   tasks: MonthlyPlanTaskItem[] | string
   attachments: ProgressV2MonthlyPlanAttachment[] | string | null
@@ -115,6 +121,9 @@ export type UpdateProgressV2MonthlyPlanParams = {
   startDate?: Date | null
   endDate?: Date | null
   preparedBy?: string | null
+  blobId?: string | null
+  fileName?: string | null
+  fileSize?: number | string | null
   remark?: string | null
   tasks?: MonthlyPlanTaskItem[]
   attachments?: ProgressV2MonthlyPlanAttachment[] | null
@@ -207,6 +216,9 @@ export const updateProgressV2MonthlyPlanFactory =
     if (params.startDate !== undefined) updateData.startDate = params.startDate
     if (params.endDate !== undefined) updateData.endDate = params.endDate
     if (params.preparedBy !== undefined) updateData.preparedBy = params.preparedBy
+    if (params.blobId !== undefined) updateData.blobId = params.blobId
+    if (params.fileName !== undefined) updateData.fileName = params.fileName
+    if (params.fileSize !== undefined) updateData.fileSize = params.fileSize
     if (params.remark !== undefined) updateData.remark = params.remark
     if (params.tasks !== undefined) updateData.tasks = JSON.stringify(params.tasks)
     if (params.attachments !== undefined) {

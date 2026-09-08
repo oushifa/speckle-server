@@ -39,6 +39,7 @@ import {
   listProgressV2MonthlyPlansFactory,
   updateProgressV2MonthlyPlanFactory
 } from '@/modules/progress-v2/repositories/progressV2MonthlyPlans'
+import { listProgressV2MonthlyPlanTasksFactory } from '@/modules/progress-v2/repositories/progressV2MonthlyPlanTasks'
 import {
   createProgressV2ActualRecordFactory,
   deleteProgressV2ActualRecordFactory,
@@ -54,6 +55,7 @@ import {
 import {
   importProgressV2PlanTasksFromBlobFactory,
   importProgressV2AnnualPlanTasksFromBlobFactory,
+  importProgressV2MonthlyPlanTasksFromBlobFactory,
   exportProgressV2PlanFileWithSysTaskIdFactory
 } from '@/modules/progress-v2/services/progressV2MppImport'
 import {
@@ -701,6 +703,76 @@ export const progressV2RouterFactory = (): Router => {
           projectId
         })
         return res.json({ success })
+      } catch (err) {
+        return next(err)
+      }
+    }
+  )
+
+  // 月度计划上传/更新 .mpp 文件并解析任务树
+  router.post(
+    `${basePath}/monthly-plans/:monthlyPlanId/plan-file`,
+    cors,
+    allowCrossOriginResourceAccessMiddelware(),
+    validateRequest({ params: monthlyPlanParamsSchema, body: planFileBodySchema }),
+    writeAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { projectId, monthlyPlanId } = req.params
+        const actorId = req.context?.userId || 'unknown'
+        const db = await getProjectDbClient({ projectId })
+        const storage = await getProjectObjectStorage({ projectId })
+
+        // 1. 更新 monthly plan 的文件信息
+        await updateProgressV2MonthlyPlanFactory({ db })({
+          id: monthlyPlanId,
+          projectId,
+          blobId: req.body.blobId,
+          fileName: req.body.fileName,
+          fileSize: req.body.fileSize ?? null
+        })
+
+        // 2. 解析 MPP 并写入 monthly plan tasks
+        const tasks = await importProgressV2MonthlyPlanTasksFromBlobFactory({
+          db,
+          storage: storage.private
+        })({
+          projectId,
+          monthlyPlanId,
+          blobId: req.body.blobId,
+          fileName: req.body.fileName,
+          actorId
+        })
+
+        return res.status(201).json({
+          success: true,
+          data: {
+            monthlyPlanId,
+            taskCount: tasks.length
+          }
+        })
+      } catch (err) {
+        return next(err)
+      }
+    }
+  )
+
+  // 获取月度计划的任务树
+  router.get(
+    `${basePath}/monthly-plans/:monthlyPlanId/tasks`,
+    cors,
+    allowCrossOriginResourceAccessMiddelware(),
+    validateRequest({ params: monthlyPlanParamsSchema }),
+    readAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { projectId, monthlyPlanId } = req.params
+        const db = await getProjectDbClient({ projectId })
+        const tasks = await listProgressV2MonthlyPlanTasksFactory({ db })({
+          projectId,
+          monthlyPlanId
+        })
+        return res.json({ success: true, data: tasks })
       } catch (err) {
         return next(err)
       }

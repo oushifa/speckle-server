@@ -1059,10 +1059,12 @@ const projectMenuTree = [
     id: 'progress-mg',
     label: '进度管理',
     children: [
-      { id: 'progress-plan', label: '进度计划' },
+      { id: 'schedule-plan', label: '总进度计划' },
+      { id: 'annual-plan', label: '年度计划' },
+      { id: 'monthly-plan', label: '月度计划' },
       { id: 'actual-progress', label: '进度管理' },
-      { id: 'visual-progress', label: '形象进度' },
-      { id: 'monthly-plan', label: '月度计划' }
+      { id: 'milestone-management', label: '里程碑管理' },
+      { id: 'visual-progress', label: '形象进度' }
     ]
   },
   {

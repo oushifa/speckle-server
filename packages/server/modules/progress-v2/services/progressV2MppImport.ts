@@ -11,6 +11,10 @@ import {
   type ProgressV2AnnualPlanTaskRecord
 } from '@/modules/progress-v2/repositories/progressV2AnnualPlanTasks'
 import {
+  replaceProgressV2MonthlyPlanTasksFactory,
+  type ProgressV2MonthlyPlanTaskRecord
+} from '@/modules/progress-v2/repositories/progressV2MonthlyPlanTasks'
+import {
   runProgressPlanExtractorOnFile,
   exportProgressPlanFileWithSysTaskIdFactory
 } from '@/modules/progress/services/mppTaskImport'
@@ -115,6 +119,44 @@ export const importProgressV2AnnualPlanTasksFromBlobFactory =
       return await replaceProgressV2AnnualPlanTasksFactory({ db: deps.db })({
         projectId: params.projectId,
         annualPlanId: params.annualPlanId,
+        tasks: extractedTasks.map((t) => ({
+          ...t,
+          planStart: t.planStart ? new Date(t.planStart) : null,
+          planEnd: t.planEnd ? new Date(t.planEnd) : null,
+          creator: params.actorId,
+          updater: params.actorId
+        }))
+      })
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  }
+
+/**
+ * 导入月度计划 MPP 任务
+ */
+export const importProgressV2MonthlyPlanTasksFromBlobFactory =
+  (deps: { db: Knex; storage: ObjectStorage }) =>
+  async (params: {
+    projectId: string
+    monthlyPlanId: string
+    blobId: string
+    fileName: string
+    actorId: string
+  }): Promise<ProgressV2MonthlyPlanTaskRecord[]> => {
+    const { tempDir, tempFilePath } = await createTempMppFile({
+      db: deps.db,
+      storage: deps.storage,
+      projectId: params.projectId,
+      blobId: params.blobId,
+      fileName: params.fileName
+    })
+
+    try {
+      const extractedTasks = await runProgressPlanExtractorOnFile(tempFilePath)
+      return await replaceProgressV2MonthlyPlanTasksFactory({ db: deps.db })({
+        projectId: params.projectId,
+        monthlyPlanId: params.monthlyPlanId,
         tasks: extractedTasks.map((t) => ({
           ...t,
           planStart: t.planStart ? new Date(t.planStart) : null,
