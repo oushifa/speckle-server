@@ -453,9 +453,22 @@ export default {
     }
   },
   Model: {
-    async commentThreads(parent, args) {
+    async commentThreads(parent, args, ctx) {
       const projectId = parent.streamId
       const projectDb = await getProjectDbClient({ projectId })
+
+      // limit=0 means the caller only wants the count (model list badges do exactly this)
+      // and the page query short-circuits to an empty page anyway. Use the batched loader
+      // so a list of N models costs 1 query instead of N distinct-count subqueries.
+      if (args.limit === 0) {
+        return {
+          totalCount: await ctx.loaders
+            .forRegion({ db: projectDb })
+            .branches.getCommentThreadCount.load(parent.id),
+          items: [],
+          cursor: null
+        }
+      }
 
       const getPaginatedBranchComments = getPaginatedBranchCommentsFactory({
         getPaginatedBranchCommentsPage: getPaginatedBranchCommentsPageFactory({

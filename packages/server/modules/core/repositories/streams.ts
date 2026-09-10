@@ -1143,6 +1143,67 @@ export const grantStreamPermissionsFactory =
   }
 
 /**
+ * Batched variant of grantStreamPermissionsFactory for granting the same role to one user
+ * across many projects: one query for the existing roles plus a single multi-row upsert,
+ * instead of 2-3 round trips per project. It intentionally returns nothing - callers that
+ * need the updated stream rows must fetch them separately.
+ */
+export const grantStreamPermissionsBatchFactory =
+  (deps: { db: Knex }) =>
+  async (grants: { streamId: string; userId: string; role: StreamRoles }[]) => {
+    if (!grants.length) return
+
+    const userIds = [...new Set(grants.map((g) => g.userId))]
+    const streamIds = [...new Set(grants.map((g) => g.streamId))]
+
+    const existingRoles = await tables
+      .streamAcl(deps.db)
+      .whereIn(StreamAcl.col.userId, userIds)
+      .whereIn(StreamAcl.col.resourceId, streamIds)
+
+    const existingByKey = new Map(
+      existingRoles.map((r) => [`${r.userId}:${r.resourceId}`, r.role as StreamRoles])
+    )
+
+    // Same "a project needs at least one owner" guard as grantStreamPermissionsFactory
+    for (const grant of grants) {
+      const currentRole = existingByKey.get(`${grant.userId}:${grant.streamId}`)
+      if (currentRole === Roles.Stream.Owner && grant.role !== Roles.Stream.Owner) {
+        const [countObj] = await tables
+          .streamAcl(deps.db)
+          .where({
+            resourceId: grant.streamId,
+            role: Roles.Stream.Owner
+          })
+          .count()
+        if (parseInt(countObj.count as string) === 1)
+          throw new StreamAccessUpdateError(
+            'A project needs at least one project owner',
+            {
+              info: { streamId: grant.streamId, userId: grant.userId }
+            }
+          )
+      }
+    }
+
+    // upserts the existing roles (sets new ones!) in a single statement
+    const query =
+      tables
+        .streamAcl(deps.db)
+        .insert(
+          grants.map((g) => ({
+            userId: g.userId,
+            resourceId: g.streamId,
+            role: g.role
+          }))
+        )
+        .toString() +
+      ' on conflict on constraint stream_acl_pkey do update set role=excluded.role'
+
+    await deps.db.raw(query)
+  }
+
+/**
  * Convenience wrapper around grantStreamPermissions, renaming streams -> projects
  */
 export const grantProjectPermissionsFactory = (

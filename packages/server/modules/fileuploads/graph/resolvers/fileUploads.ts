@@ -806,12 +806,16 @@ export default {
         getModelUploadsTotalCount: getModelUploadsTotalCountFactory({ db: projectDb })
       })
 
-      return await getModelUploads({
-        modelId: parent.id,
-        projectId: parent.streamId,
-        limit: args.input?.limit ?? 25,
-        cursor: args.input?.cursor
-      })
+      // Model list cards select only `items` from this field, so defer the count query
+      return await getModelUploads(
+        {
+          modelId: parent.id,
+          projectId: parent.streamId,
+          limit: args.input?.limit ?? 25,
+          cursor: args.input?.cursor
+        },
+        { lazyTotalCount: true }
+      )
     }
   },
   FileUpload: {

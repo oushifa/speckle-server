@@ -83,6 +83,20 @@ export type GetPaginatedProjectModelsItems = (
   cursor: string | null
 }>
 
+/**
+ * Page of models that also carries the total count when it could be derived from the same
+ * query (count(*) over ()). totalCount is absent when the page came back empty, in which
+ * case callers must fall back to a dedicated count query.
+ */
+export type GetPaginatedProjectModelsItemsWithCount = (
+  projectId: string,
+  params: ProjectModelsArgs
+) => Promise<{
+  items: Branch[]
+  cursor: string | null
+  totalCount?: number
+}>
+
 export type GetPaginatedProjectModelsTotalCount = (
   projectId: string,
   params: ProjectModelsArgs

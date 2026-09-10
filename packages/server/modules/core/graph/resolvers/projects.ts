@@ -38,6 +38,7 @@ import {
   createStreamFactory,
   updateStreamFactory,
   revokeStreamPermissionsFactory,
+  grantStreamPermissionsBatchFactory,
   grantStreamPermissionsFactory,
   getOnboardingBaseStreamFactory,
   getUserStreamsPageFactory,
@@ -197,6 +198,7 @@ const updateStreamRoleAndNotify = updateStreamRoleAndNotifyFactory({
 const getUserStreams = getUserStreamsPageFactory({ db })
 const getUserStreamsCount = getUserStreamsCountFactory({ db })
 const grantStreamPermissions = grantStreamPermissionsFactory({ db })
+const grantStreamPermissionsBatch = grantStreamPermissionsBatchFactory({ db })
 const getDepartmentUserIds = getDepartmentUserIdsFactory({ db })
 const throwIfRateLimited = throwIfRateLimitedFactory({
   rateLimiterEnabled: isRateLimiterEnabled()
@@ -612,23 +614,34 @@ const resolvers: Resolvers = {
 
       // 同部门用户创建的项目若无成员角色（或仅有历史 reviewer 角色），
       // 自动授予 contributor（可查看可编辑）；admin 全量模式不写入 ACL
-      const items = isAdmin
-        ? streams
-        : await Promise.all(
-            streams.map(async (stream) => {
-              if (
-                stream.role === Roles.Stream.Owner ||
-                stream.role === Roles.Stream.Contributor
-              )
-                return stream
-              await grantStreamPermissions({
-                streamId: stream.id,
-                userId: ctx.userId!,
-                role: Roles.Stream.Contributor
-              })
-              return { ...stream, role: Roles.Stream.Contributor }
-            })
+      //
+      // 批量执行：读一次现有角色 + 一次多行 upsert，替代原先"每个项目各 2-3 条查询"。
+      // 授权结果仍会在返回前落库，语义与原实现一致。
+      let items = streams
+      if (!isAdmin) {
+        const toGrant = streams.filter(
+          (stream) =>
+            stream.role !== Roles.Stream.Owner &&
+            stream.role !== Roles.Stream.Contributor
+        )
+
+        if (toGrant.length) {
+          await grantStreamPermissionsBatch(
+            toGrant.map((stream) => ({
+              streamId: stream.id,
+              userId: ctx.userId!,
+              role: Roles.Stream.Contributor
+            }))
           )
+
+          const grantedIds = new Set(toGrant.map((stream) => stream.id))
+          items = streams.map((stream) =>
+            grantedIds.has(stream.id)
+              ? { ...stream, role: Roles.Stream.Contributor }
+              : stream
+          )
+        }
+      }
 
       return {
         totalCount,

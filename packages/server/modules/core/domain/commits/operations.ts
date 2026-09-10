@@ -232,9 +232,15 @@ export type GetBranchCommitsTotalCount = (
 export type GetPaginatedBranchCommits = (
   params: PaginatedBranchCommitsParams & {
     filter?: Nullable<ModelVersionsFilter>
-  }
+  },
+  /**
+   * With `lazyTotalCount`, `totalCount` comes back as a thunk and the count query only
+   * runs if the field is actually resolved (graphql-js' default field resolver invokes
+   * function values). Omit it to keep the eager behaviour.
+   */
+  options?: Partial<{ lazyTotalCount: boolean }>
 ) => Promise<{
-  totalCount: number
+  totalCount: number | (() => Promise<number>)
   items: CommitWithStreamBranchId[]
   cursor: string | null
 }>

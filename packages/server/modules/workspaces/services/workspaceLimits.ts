@@ -1,22 +1,28 @@
-import type { GetPaginatedProjectModelsTotalCount } from '@/modules/core/domain/branches/operations'
 import type { QueryAllProjects } from '@/modules/core/domain/projects/operations'
 import type { GetWorkspaceModelCount } from '@/modules/workspaces/domain/operations'
 
-// TODO: Optimize with single model count query per regional db
 export const getWorkspaceModelCountFactory =
   (deps: {
     queryAllProjects: QueryAllProjects
-    getPaginatedProjectModelsTotalCount: GetPaginatedProjectModelsTotalCount
+    /**
+     * Batched: resolves the model count of many projects at once, so the caller can do one
+     * query per regional db instead of one query per project.
+     */
+    getProjectModelsCounts: (
+      projectIds: string[]
+    ) => Promise<{ streamId: string; count: number }[]>
   }): GetWorkspaceModelCount =>
   async ({ workspaceId }) => {
-    let modelCount = 0
+    const projectIds: string[] = []
 
     for await (const projects of deps.queryAllProjects({ workspaceId })) {
       for (const project of projects) {
-        modelCount =
-          modelCount + (await deps.getPaginatedProjectModelsTotalCount(project.id, {}))
+        projectIds.push(project.id)
       }
     }
 
-    return modelCount
+    if (!projectIds.length) return 0
+
+    const counts = await deps.getProjectModelsCounts(projectIds)
+    return counts.reduce((acc, curr) => acc + curr.count, 0)
   }

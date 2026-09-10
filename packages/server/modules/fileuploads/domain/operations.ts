@@ -131,8 +131,16 @@ export type GetModelUploadsTotalCount = (
   params: GetModelUploadsBaseArgs
 ) => Promise<number>
 
-export type GetModelUploads = (params: GetModelUploadsArgs) => Promise<{
+export type GetModelUploads = (
+  params: GetModelUploadsArgs,
+  /**
+   * With `lazyTotalCount`, `totalCount` comes back as a thunk and the count query only
+   * runs if the field is actually resolved (graphql-js' default field resolver invokes
+   * function values). Omit it to keep the eager behaviour.
+   */
+  options?: Partial<{ lazyTotalCount: boolean }>
+) => Promise<{
   items: FileUploadRecord[]
-  totalCount: number
+  totalCount: number | (() => Promise<number>)
   cursor: string | null
 }>

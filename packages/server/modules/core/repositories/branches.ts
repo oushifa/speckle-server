@@ -41,6 +41,7 @@ import type {
   GetModelTreeItemsFilteredTotalCount,
   GetModelTreeItemsTotalCount,
   GetPaginatedProjectModelsItems,
+  GetPaginatedProjectModelsItemsWithCount,
   GetPaginatedProjectModelsTotalCount,
   GetPaginatedStreamBranchesPage,
   GetProjectModelById,
@@ -307,13 +308,27 @@ export const getBranchLatestCommitsFactory =
 
 const getPaginatedProjectModelsBaseQueryFactory =
   (deps: { db: Knex }) =>
-  <T>(projectId: string, params: ProjectModelsArgs) => {
+  <T>(
+    projectId: string | string[],
+    params: ProjectModelsArgs,
+    options?: Partial<{ withTotalCount: boolean }>
+  ) => {
     const { filter } = params
+
+    // count(*) over () is evaluated after GROUP BY/HAVING but before ORDER BY/LIMIT, so it
+    // yields the full grouped total on every row of the page - letting one query serve both
+    // the page and its totalCount.
+    const columns: (string | Knex.Raw)[] = options?.withTotalCount
+      ? [...Branches.cols, deps.db.raw(`count(*) over () as "totalCount"`)]
+      : [...Branches.cols]
 
     const q = tables
       .branches(deps.db)
-      .select<T>(Branches.cols)
-      .where(Branches.col.streamId, projectId)
+      .select<T>(columns)
+      .whereIn(
+        Branches.col.streamId,
+        Array.isArray(projectId) ? projectId : [projectId]
+      )
       .leftJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
       .leftJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
       .groupBy(Branches.col.id)
@@ -421,6 +436,44 @@ export const getPaginatedProjectModelsItemsFactory =
     }
   }
 
+/**
+ * Same page as getPaginatedProjectModelsItemsFactory, but the count rides along as a window
+ * function instead of costing a second execution of the whole grouped query. totalCount is
+ * left undefined when the page is empty (limit 0 / cursor past the end / no matches), so the
+ * caller can fall back to getPaginatedProjectModelsTotalCountFactory.
+ */
+export const getPaginatedProjectModelsItemsWithCountFactory =
+  (deps: { db: Knex }): GetPaginatedProjectModelsItemsWithCount =>
+  async (projectId: string, params: ProjectModelsArgs) => {
+    const { cursor, limit } = params
+    if ((params.filter?.ids && !params.filter.ids.length) || limit === 0) {
+      // empty ids: return empty array!
+      return { items: [], cursor: null }
+    }
+
+    const q = getPaginatedProjectModelsBaseQueryFactory(deps)<
+      (BranchRecord & { totalCount: string })[]
+    >(projectId, params, { withTotalCount: true })
+    q.limit(clamp(limit || 25, 1, getMaximumProjectModelsPerPage())).orderBy(
+      Branches.col.updatedAt,
+      'desc'
+    )
+
+    if (cursor) q.andWhere(Branches.col.updatedAt, '<', cursor)
+
+    const rows = (await q) as (BranchRecord & { totalCount: string })[]
+    const items: BranchRecord[] = rows.map((row) => {
+      const { totalCount, ...branch } = row
+      return branch
+    })
+
+    return {
+      items,
+      cursor: rows.length > 0 ? rows[rows.length - 1].updatedAt.toISOString() : null,
+      totalCount: rows.length ? parseInt(rows[0].totalCount) : undefined
+    }
+  }
+
 export const getPaginatedProjectModelsTotalCountFactory =
   (deps: { db: Knex }): GetPaginatedProjectModelsTotalCount =>
   async (projectId: string, params: ProjectModelsArgs) => {
@@ -434,6 +487,31 @@ export const getPaginatedProjectModelsTotalCountFactory =
 
     const [res] = await q
     return parseInt(res?.count || '0')
+  }
+
+/**
+ * Batched equivalent of calling getPaginatedProjectModelsTotalCountFactory(projectId, {})
+ * for many projects: one query instead of one per project. The per-model predicate of the
+ * paginated base query (drop 'globals', drop an empty 'main') has to be evaluated per
+ * branch, so branches are grouped in a subquery first and then counted per project.
+ */
+export const getProjectModelsCountsFactory =
+  (deps: { db: Knex }) =>
+  async (projectIds: string[]): Promise<{ streamId: string; count: number }[]> => {
+    if (!projectIds.length) return []
+
+    const inner = getPaginatedProjectModelsBaseQueryFactory(deps)<{
+      id: string
+      streamId: string
+    }>(projectIds, {})
+
+    const rows = (await deps.db
+      .from(inner.as('sq1'))
+      .select('sq1.streamId')
+      .count<{ streamId: string; count: string }[]>({ count: '*' })
+      .groupBy('sq1.streamId')) as unknown as { streamId: string; count: string }[]
+
+    return rows.map((r) => ({ streamId: r.streamId, count: parseInt(r.count) }))
   }
 
 export const getPaginatedProjectFoldersFactory =
@@ -651,6 +729,31 @@ export const getFolderModelsFactory =
       .select<BranchRecord[]>(`${Branches.name}.*`)
       .innerJoin(ModelFolderModels.name, ModelFolderModels.col.modelId, Branches.col.id)
       .where(ModelFolderModels.col.folderId, folderId)
+      .andWhere(Branches.col.streamId, projectId)
+      .orderBy(Branches.col.updatedAt, 'desc')
+  }
+
+/**
+ * Batched variant of getFolderModelsFactory: resolves the models of many folders in one
+ * query instead of one query per folder. The folderId is selected as well so callers can
+ * group the rows back per folder. Ordering (updatedAt desc) matches getFolderModelsFactory.
+ */
+export const getFolderModelsByFolderIdsFactory =
+  (deps: { db: Knex }) =>
+  async (
+    projectId: string,
+    folderIds: string[]
+  ): Promise<(BranchRecord & { folderId: string })[]> => {
+    if (!folderIds.length) return []
+
+    return await tables
+      .branches(deps.db)
+      .select<(BranchRecord & { folderId: string })[]>(
+        `${Branches.name}.*`,
+        `${ModelFolderModels.col.folderId} as folderId`
+      )
+      .innerJoin(ModelFolderModels.name, ModelFolderModels.col.modelId, Branches.col.id)
+      .whereIn(ModelFolderModels.col.folderId, folderIds)
       .andWhere(Branches.col.streamId, projectId)
       .orderBy(Branches.col.updatedAt, 'desc')
   }

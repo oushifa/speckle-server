@@ -43,6 +43,7 @@ import {
   getBranchCommitCountsFactory,
   getBranchesByIdsFactory,
   getBranchLatestCommitsFactory,
+  getFolderModelsByFolderIdsFactory,
   getStreamBranchCountsFactory,
   getStreamBranchesByNameFactory
 } from '@/modules/core/repositories/branches'
@@ -118,6 +119,7 @@ const dataLoadersDefinition = defineRequestDataloaders(
     const getBranchLatestCommits = getBranchLatestCommitsFactory({ db })
     const getStreamBranchCounts = getStreamBranchCountsFactory({ db })
     const getBranchCommitCounts = getBranchCommitCountsFactory({ db })
+    const getFolderModelsByFolderIds = getFolderModelsByFolderIdsFactory({ db })
     const getCommits = getCommitsFactory({ db })
     const getSpecificBranchCommits = getSpecificBranchCommitsFactory({ db })
     const getCommitBranches = getCommitBranchesFactory({ db })
@@ -419,6 +421,43 @@ const dataLoadersDefinition = defineRequestDataloaders(
             })
           },
           { cacheKeyFn: (key) => `${key.branchId}:${key.commitId}` }
+        )
+      },
+      modelFolders: {
+        /**
+         * Batched Folder.models. Keys are [projectId, folderId] tuples; a single request
+         * normally resolves every folder of one project at once, so this collapses
+         * "one query per folder" into one query per distinct project.
+         */
+        getModelsByFolderId: createLoader<[string, string], BranchRecord[], string>(
+          async (keys) => {
+            const folderIdsByProject = new Map<string, string[]>()
+            for (const [projectId, folderId] of keys) {
+              const folderIds = folderIdsByProject.get(projectId)
+              if (folderIds) folderIds.push(folderId)
+              else folderIdsByProject.set(projectId, [folderId])
+            }
+
+            const rows: (BranchRecord & { folderId: string })[] = []
+            for (const [projectId, folderIds] of folderIdsByProject) {
+              rows.push(...(await getFolderModelsByFolderIds(projectId, folderIds)))
+            }
+
+            const branchesByKey = new Map<string, BranchRecord[]>()
+            for (const row of rows) {
+              const { folderId, ...branch } = row
+              const key = `${branch.streamId}:${folderId}`
+              const existing = branchesByKey.get(key)
+              if (existing) existing.push(branch)
+              else branchesByKey.set(key, [branch])
+            }
+
+            return keys.map(
+              ([projectId, folderId]) =>
+                branchesByKey.get(`${projectId}:${folderId}`) ?? []
+            )
+          },
+          { cacheKeyFn: simpleTupleCacheKey }
         )
       },
       commits: {

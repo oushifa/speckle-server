@@ -1,5 +1,6 @@
+import type { Knex } from 'knex'
 import { db } from '@/db/knex'
-import { getPaginatedProjectModelsTotalCountFactory } from '@/modules/core/repositories/branches'
+import { getProjectModelsCountsFactory } from '@/modules/core/repositories/branches'
 import { getExplicitProjects } from '@/modules/core/repositories/streams'
 import { getWorkspacePlanFactory } from '@/modules/gatekeeper/repositories/billing'
 import { defineModuleLoaders } from '@/modules/loaders'
@@ -56,17 +57,26 @@ export default defineModuleLoaders(async () => {
       )
     },
     getWorkspaceModelCount: async ({ workspaceId }) => {
-      // TODO: Dataloader that has to dynamically pick regional dbs?
       return await getWorkspaceModelCountFactory({
         queryAllProjects: queryAllProjectsFactory({
           getExplicitProjects: getExplicitProjects({ db })
         }),
-        getPaginatedProjectModelsTotalCount: async (projectId, params) => {
-          const regionDb = await getProjectDbClient({ projectId })
-          return await getPaginatedProjectModelsTotalCountFactory({ db: regionDb })(
-            projectId,
-            params
-          )
+        // Projects can live in different regions, so group the ids by regional db and run
+        // one batched count per db instead of one query per project.
+        getProjectModelsCounts: async (projectIds) => {
+          const projectIdsByDb = new Map<Knex, string[]>()
+          for (const projectId of projectIds) {
+            const regionDb = await getProjectDbClient({ projectId })
+            const ids = projectIdsByDb.get(regionDb)
+            if (ids) ids.push(projectId)
+            else projectIdsByDb.set(regionDb, [projectId])
+          }
+
+          const counts: { streamId: string; count: number }[] = []
+          for (const [regionDb, ids] of projectIdsByDb) {
+            counts.push(...(await getProjectModelsCountsFactory({ db: regionDb })(ids)))
+          }
+          return counts
         }
       })({ workspaceId })
     },

@@ -54,7 +54,8 @@ export const getPaginatedBranchCommitsFactory =
     getBranchCommitsTotalCount: GetBranchCommitsTotalCount
   }): GetPaginatedBranchCommits =>
   async (
-    params: PaginatedBranchCommitsParams & { filter?: Nullable<ModelVersionsFilter> }
+    params: PaginatedBranchCommitsParams & { filter?: Nullable<ModelVersionsFilter> },
+    options?: Partial<{ lazyTotalCount: boolean }>
   ) => {
     if (params.limit && params.limit > 100)
       throw new BadRequestError(
@@ -76,7 +77,14 @@ export const getPaginatedBranchCommitsFactory =
     }
 
     const priorityIdsOnly = loadPriorityIds && params.filter?.priorityIdsOnly
-    const [results, totalCount, priorityCommits] = await Promise.all([
+    const priorityCommitsPromise = priorityCommitPromise || Promise.resolve([])
+    // Only invoked when the count is actually needed, so a lazy caller never issues it
+    const totalCountRequest = () =>
+      !priorityIdsOnly
+        ? deps.getBranchCommitsTotalCount(params)
+        : priorityCommitsPromise.then((commits) => commits.length)
+
+    const [results, priorityCommits, eagerTotalCount] = await Promise.all([
       !priorityIdsOnly
         ? deps.getPaginatedBranchCommitsItems({
             ...params,
@@ -87,12 +95,8 @@ export const getPaginatedBranchCommitsFactory =
             }
           })
         : { commits: [], cursor: null },
-      !priorityIdsOnly
-        ? deps.getBranchCommitsTotalCount(params)
-        : (priorityCommitPromise || Promise.resolve([])).then(
-            (commits) => commits.length
-          ),
-      priorityCommitPromise || Promise.resolve([])
+      priorityCommitsPromise,
+      options?.lazyTotalCount ? null : totalCountRequest()
     ])
 
     const newItems = [...priorityCommits, ...results.commits].slice(0, params.limit)
@@ -100,7 +104,9 @@ export const getPaginatedBranchCommitsFactory =
       newItems.length > 0 ? newItems[newItems.length - 1].createdAt.toISOString() : null
 
     return {
-      totalCount,
+      totalCount: options?.lazyTotalCount
+        ? totalCountRequest
+        : (eagerTotalCount as number),
       cursor: newCursor,
       items: newItems
     }

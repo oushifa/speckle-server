@@ -106,17 +106,21 @@ export const getModelUploadsFactory =
     getModelUploadsItems: GetModelUploadsItems
     getModelUploadsTotalCount: GetModelUploadsTotalCount
   }): GetModelUploads =>
-  async (params) => {
-    const [{ items, cursor }, totalCount] = await Promise.all([
+  async (params, options) => {
+    // Only invoked when the count is actually needed, so a lazy caller never issues it
+    const totalCountRequest = () => deps.getModelUploadsTotalCount(params)
+    const [{ items, cursor }, eagerTotalCount] = await Promise.all([
       params.limit === 0
         ? { items: [], cursor: null }
         : deps.getModelUploadsItems(params),
-      deps.getModelUploadsTotalCount(params)
+      options?.lazyTotalCount ? null : totalCountRequest()
     ])
 
     return {
       items,
-      totalCount,
+      totalCount: options?.lazyTotalCount
+        ? totalCountRequest
+        : (eagerTotalCount as number),
       cursor
     }
   }

@@ -59,8 +59,9 @@ import { getEventBus } from '@/modules/shared/services/eventBus'
 import { getTotalSeatsCountByPlanFactory } from '@/modules/gatekeeper/services/subscriptions'
 import { getExplicitProjects } from '@/modules/core/repositories/streams'
 import { getWorkspaceModelCountFactory } from '@/modules/workspaces/services/workspaceLimits'
+import type { Knex } from 'knex'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
-import { getPaginatedProjectModelsTotalCountFactory } from '@/modules/core/repositories/branches'
+import { getProjectModelsCountsFactory } from '@/modules/core/repositories/branches'
 import { withOperationLogging } from '@/observability/domain/businessLogging'
 import { queryAllProjectsFactory } from '@/modules/core/services/projects'
 
@@ -232,12 +233,24 @@ export default FF_GATEKEEPER_MODULE_ENABLED
             queryAllProjects: queryAllProjectsFactory({
               getExplicitProjects: getExplicitProjects({ db })
             }),
-            getPaginatedProjectModelsTotalCount: async (projectId, params) => {
-              const regionDb = await getProjectDbClient({ projectId })
-              return await getPaginatedProjectModelsTotalCountFactory({ db: regionDb })(
-                projectId,
-                params
-              )
+            // Projects can live in different regions, so group the ids by regional db
+            // and run one batched count per db instead of one query per project.
+            getProjectModelsCounts: async (projectIds) => {
+              const projectIdsByDb = new Map<Knex, string[]>()
+              for (const projectId of projectIds) {
+                const regionDb = await getProjectDbClient({ projectId })
+                const ids = projectIdsByDb.get(regionDb)
+                if (ids) ids.push(projectId)
+                else projectIdsByDb.set(regionDb, [projectId])
+              }
+
+              const counts: { streamId: string; count: number }[] = []
+              for (const [regionDb, ids] of projectIdsByDb) {
+                counts.push(
+                  ...(await getProjectModelsCountsFactory({ db: regionDb })(ids))
+                )
+              }
+              return counts
             }
           })({ workspaceId })
         }

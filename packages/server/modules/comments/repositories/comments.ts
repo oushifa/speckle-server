@@ -299,7 +299,11 @@ export const getBranchCommentCountsFactory =
         )
       })
       .innerJoin(Comments.name, Comments.col.id, CommentLinks.col.commentId)
-      .count()
+      // Distinct comments, NOT join rows: comment_links carries no unique constraint and
+      // the same comment can be linked to several commits of the same branch, so a plain
+      // count(*) over-counts. This matches getPaginatedBranchCommentsTotalCount (which
+      // counts `select distinct <comment>`) so both report the same number.
+      .countDistinct({ count: Comments.col.id })
       .groupBy(Branches.col.id)
 
     if (threadsOnly) {

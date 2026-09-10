@@ -25,14 +25,13 @@ import {
   deleteFolderFactory,
   deleteBranchByIdFactory,
   getBranchByIdFactory,
-  getFolderModelsFactory,
   getModelFoldersFactory,
   getModelTreeItemsFactory,
   getModelTreeItemsFilteredFactory,
   getModelTreeItemsFilteredTotalCountFactory,
   getModelTreeItemsTotalCountFactory,
   getPaginatedProjectFoldersFactory,
-  getPaginatedProjectModelsItemsFactory,
+  getPaginatedProjectModelsItemsWithCountFactory,
   getPaginatedProjectModelsTotalCountFactory,
   removeModelFromFolderFactory,
   getStreamBranchByNameFactory,
@@ -123,9 +122,10 @@ export default {
       }
 
       const getPaginatedProjectModels = getPaginatedProjectModelsFactory({
-        getPaginatedProjectModelsItems: getPaginatedProjectModelsItemsFactory({
-          db: projectDB
-        }),
+        getPaginatedProjectModelsItemsWithCount:
+          getPaginatedProjectModelsItemsWithCountFactory({
+            db: projectDB
+          }),
         getPaginatedProjectModelsTotalCount: getPaginatedProjectModelsTotalCountFactory(
           {
             db: projectDB
@@ -277,12 +277,16 @@ export default {
         }),
         getBranchCommitsTotalCount: getBranchCommitsTotalCountFactory({ db: projectDB })
       })
-      return await getPaginatedBranchCommits({
-        branchId: parent.id,
-        cursor: args.cursor,
-        limit: args.limit,
-        filter: args.filter
-      })
+      // Callers such as lastVersion select only `items`, so defer the count query
+      return await getPaginatedBranchCommits(
+        {
+          branchId: parent.id,
+          cursor: args.cursor,
+          limit: args.limit,
+          filter: args.filter
+        },
+        { lazyTotalCount: true }
+      )
     },
     async folders(parent: { streamId: string; id: string }) {
       const projectDB = await getProjectDbClient({ projectId: parent.streamId })
@@ -327,10 +331,12 @@ export default {
   Folder: {
     projectId: (parent: { streamId: string }) => parent.streamId,
     parentId: (parent: { parentFolderId: string | null }) => parent.parentFolderId,
-    async models(parent: { streamId: string; id: string }) {
+    async models(parent: { streamId: string; id: string }, _args, ctx) {
       const projectDB = await getProjectDbClient({ projectId: parent.streamId })
-      const getFolderModels = getFolderModelsFactory({ db: projectDB })
-      return await getFolderModels(parent.streamId, parent.id)
+      // Batched: resolves every folder's models in one query instead of one per folder
+      return await ctx.loaders
+        .forRegion({ db: projectDB })
+        .modelFolders.getModelsByFolderId.load([parent.streamId, parent.id])
     }
   },
   Mutation: {

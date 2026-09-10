@@ -14,7 +14,7 @@ import type {
   GetModelTreeItemsFiltered,
   GetModelTreeItemsFilteredTotalCount,
   GetModelTreeItemsTotalCount,
-  GetPaginatedProjectModelsItems,
+  GetPaginatedProjectModelsItemsWithCount,
   GetPaginatedProjectModelsTotalCount,
   GetPaginatedStreamBranches,
   GetPaginatedStreamBranchesPage,
@@ -49,14 +49,20 @@ export const getPaginatedStreamBranchesFactory =
 
 export const getPaginatedProjectModelsFactory =
   (deps: {
-    getPaginatedProjectModelsItems: GetPaginatedProjectModelsItems
+    getPaginatedProjectModelsItemsWithCount: GetPaginatedProjectModelsItemsWithCount
     getPaginatedProjectModelsTotalCount: GetPaginatedProjectModelsTotalCount
   }) =>
   async (projectId: string, params: ProjectModelsArgs) => {
-    const [totalCount, itemsStruct] = await Promise.all([
-      deps.getPaginatedProjectModelsTotalCount(projectId, params),
-      deps.getPaginatedProjectModelsItems(projectId, params)
-    ])
+    const itemsStruct = await deps.getPaginatedProjectModelsItemsWithCount(
+      projectId,
+      params
+    )
+
+    // The window count comes back with the page, so the separate count query (a second full
+    // execution of the grouped query) is only needed when the page was empty.
+    const totalCount =
+      itemsStruct.totalCount ??
+      (await deps.getPaginatedProjectModelsTotalCount(projectId, params))
 
     return {
       ...itemsStruct,
