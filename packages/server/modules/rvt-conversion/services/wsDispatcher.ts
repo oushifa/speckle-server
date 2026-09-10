@@ -7,6 +7,7 @@ import {
 } from '@/modules/rvt-conversion/services/logging'
 import { listOpenRvtWorkers } from '@/modules/rvt-conversion/services/workerRegistry'
 import {
+  getTrackedRvtConversionTask,
   trackRvtConversionTask,
   untrackRvtConversionTask
 } from '@/modules/rvt-conversion/services/taskRegistry'
@@ -18,6 +19,9 @@ import {
 import { broadcastJobToCluster } from '@/modules/rvt-conversion/services/clusterDispatcher'
 
 const rvtDispatcherLogger = createRvtConvertLogger('ws-dispatcher')
+
+/** 停止（删除）转换任务时下发给 Worker 的消息类型 */
+const RVT_WORKER_DELETE_MESSAGE_TYPE = 'delete'
 
 export type DispatchRvtConversionJobPayload = {
   job: RvtConversionJob
@@ -84,6 +88,36 @@ const buildStartConversionPayload = (params: {
   versionMessage: params.job.versionMessage,
   sourceApplication: params.job.sourceApplication
 })
+
+/**
+ * 向 Worker 发送删除（停止转换）指令。
+ * Worker 侧收到 {"type":"delete","taskId":"xxx"} 后会终止该任务的转换进程并清理临时文件。
+ */
+const sendDeleteTaskToWorker = (params: {
+  workerId: string
+  socket: WebSocket
+  taskId: string
+}) =>
+  new Promise<void>((resolve, reject) => {
+    try {
+      params.socket.send(
+        JSON.stringify({
+          type: RVT_WORKER_DELETE_MESSAGE_TYPE,
+          taskId: params.taskId
+        }),
+        (error) => {
+          if (error) return reject(error)
+          resolve()
+        }
+      )
+    } catch (error) {
+      reject(
+        error instanceof Error
+          ? error
+          : new Error('Failed to send delete message to RVT worker.')
+      )
+    }
+  })
 
 const sendStartConversionToWorker = (params: {
   job: RvtConversionJob
@@ -348,4 +382,85 @@ export const dispatchRvtConversionJob = async (
       ? error
       : new Error('Failed to dispatch RVT conversion job over cluster broadcast.')
   }
+}
+
+/**
+ * 通知 Worker 停止（删除）指定的转换任务：{"type":"delete","taskId":"..."}
+ *
+ * - 优先下发给派发时记录的目标 Worker：本机连接的直接走 WebSocket，其他节点的通过 Redis 集群广播；
+ * - 没有派发记录时退化为广播给所有本机在线 Worker。
+ */
+export const dispatchRvtConversionCancellation = async (params: {
+  taskId: string
+  fileType?: string | null
+}): Promise<{ localWorkerIds: string[]; clusterWorkerIds: string[] }> => {
+  const trackedTask = getTrackedRvtConversionTask(params.taskId)
+  const targetWorkerIds = trackedTask?.workerIds?.length ? trackedTask.workerIds : []
+  const localOpenWorkers = listOpenRvtWorkers()
+
+  const localTargets = targetWorkerIds.length
+    ? localOpenWorkers.filter((worker) => targetWorkerIds.includes(worker.workerId))
+    : localOpenWorkers
+
+  const localWorkerIds: string[] = []
+  await Promise.allSettled(
+    localTargets.map(async (worker) => {
+      try {
+        await sendDeleteTaskToWorker({
+          workerId: worker.workerId,
+          socket: worker.socket,
+          taskId: params.taskId
+        })
+        localWorkerIds.push(worker.workerId)
+
+        rvtDispatcherLogger.info(
+          { taskId: params.taskId, workerId: worker.workerId },
+          'RVT_CONVERT delete message sent to local worker'
+        )
+      } catch (error) {
+        rvtDispatcherLogger.error(
+          { err: error, taskId: params.taskId, workerId: worker.workerId },
+          'RVT_CONVERT failed to send delete message to local worker'
+        )
+      }
+    })
+  )
+
+  const clusterWorkers = await listClusterWorkers().catch(() => [])
+  const remoteTargetIds = (
+    targetWorkerIds.length
+      ? targetWorkerIds
+      : clusterWorkers.map((worker) => worker.workerId)
+  ).filter(
+    (workerId) => !localOpenWorkers.some((worker) => worker.workerId === workerId)
+  )
+
+  let clusterWorkerIds: string[] = []
+  if (remoteTargetIds.length) {
+    try {
+      clusterWorkerIds = await broadcastJobToCluster({
+        targetWorkerIds: remoteTargetIds,
+        targetFileType: params.fileType || 'all',
+        payload: {
+          type: RVT_WORKER_DELETE_MESSAGE_TYPE,
+          taskId: params.taskId
+        }
+      })
+
+      rvtDispatcherLogger.info(
+        { taskId: params.taskId, remoteTargetIds, clusterWorkerIds },
+        'RVT_CONVERT delete message broadcast to cluster workers'
+      )
+    } catch (error) {
+      rvtDispatcherLogger.warn(
+        { err: error, taskId: params.taskId, remoteTargetIds },
+        'RVT_CONVERT delete message cluster broadcast failed'
+      )
+    }
+  }
+
+  untrackRvtConversionTask(params.taskId)
+  void untrackClusterTask(params.taskId).catch(() => undefined)
+
+  return { localWorkerIds, clusterWorkerIds }
 }

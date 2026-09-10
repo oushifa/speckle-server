@@ -4,7 +4,10 @@ export const BackgroundJobStatus = {
   Queued: 'queued',
   Processing: 'processing', // this status does not exist in db
   Succeeded: 'succeeded',
-  Failed: 'failed'
+  Failed: 'failed',
+  // 任务被主动取消（例如模型在转换过程中被删除）。
+  // 该状态不会再被导入服务拾取，也不会出现在管理面板的队列/已暂停列表中。
+  Cancelled: 'cancelled'
 } as const
 
 export type BackgroundJobStatus =

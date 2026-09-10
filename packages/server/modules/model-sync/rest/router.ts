@@ -41,12 +41,15 @@ import {
 } from '@/modules/model-sync/services/speckleUploads'
 import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
 import { enrichTasksWithQueuePosition } from '@/modules/model-sync/services/queuePosition'
+import { stopModelSyncTaskFactory } from '@/modules/model-sync/services/stop'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
 const globalRouteBase = '/api/v1/model-sync/tasks'
+// 模型删除前调用：停止该模型当前阶段的转换 / 同步
+const stopRouteBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/stop'
 
 const modelSyncErrHandler = (
   err: unknown,
@@ -182,6 +185,7 @@ export const modelSyncRouterFactory = () => {
   const router = Router()
 
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(stopRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(projectRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(
     `${globalRouteBase}/events`,
@@ -403,6 +407,38 @@ export const modelSyncRouterFactory = () => {
 
         const enrichedTasks = await enrichTasksWithQueuePosition(tasks)
         res.json({ data: enrichedTasks.map(serializeTask) })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  router.post(
+    stopRouteBase,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const modelId = req.params.modelId
+        const userId = req.context.userId
+        await requireVersionCreate(req, projectId)
+
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated.' })
+        }
+
+        const reason =
+          typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
+
+        const result = await stopModelSyncTaskFactory()({
+          projectId,
+          modelId,
+          userId,
+          reason: reason || undefined
+        })
+
+        res.json({ data: result })
       } catch (err) {
         next(err)
       }
@@ -1003,5 +1039,6 @@ export const modelSyncRouterFactory = () => {
   router.use(globalRouteBase, modelSyncErrHandler)
   router.use(projectRouteBase, modelSyncErrHandler)
   router.use(routeBase, modelSyncErrHandler)
+  router.use(stopRouteBase, modelSyncErrHandler)
   return router
 }

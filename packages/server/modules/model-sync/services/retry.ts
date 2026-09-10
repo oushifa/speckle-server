@@ -2,7 +2,10 @@ import type {
   ModelSyncTaskStatus,
   ProjectModelSyncTaskRecord
 } from '@/modules/model-sync/repositories/tasks'
-import type { ModelSyncTaskErrorCode } from '@/modules/model-sync/services/errors'
+import {
+  MODEL_SYNC_CANCELLED_ERROR_CODE,
+  type ModelSyncTaskErrorCode
+} from '@/modules/model-sync/services/errors'
 
 export type ModelSyncRetryEntryPoint = 'speckle' | 'sync' | 'transform'
 
@@ -36,12 +39,23 @@ export const getRetryStatusForEntryPoint = (
   }
 }
 
+/** 任务是否已被主动取消（例如模型在转换/同步过程中被删除） */
+export const isModelSyncTaskCancelled = (
+  task: Pick<ProjectModelSyncTaskRecord, 'status' | 'errorCode'> | null | undefined
+): boolean =>
+  !!task &&
+  task.status === 'failed' &&
+  task.errorCode === MODEL_SYNC_CANCELLED_ERROR_CODE
+
 export const resolveRetryEntryPoint = (
   task: Pick<
     ProjectModelSyncTaskRecord,
     'status' | 'errorCode' | 'assetId' | 'assetName' | 'transformTaskId' | 'versionId'
   >
 ): ModelSyncRetryEntryPoint | null => {
+  // 已取消的任务不再自动重试
+  if (isModelSyncTaskCancelled(task)) return null
+
   switch (task.status) {
     case 'speckle_converting':
       return 'speckle'

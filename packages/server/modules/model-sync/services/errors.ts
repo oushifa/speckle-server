@@ -1,6 +1,10 @@
 export const MODEL_SYNC_AUTO_RETRY_LIMIT = 5
 export const MODEL_SYNC_AUTO_RETRY_INTERVAL_MS = 30 * 1000
 
+/** 任务被主动取消（模型在转换/同步过程中被删除）时写入的错误码 */
+export const MODEL_SYNC_CANCELLED_ERROR_CODE = 'TASK_CANCELLED' as const
+export const MODEL_SYNC_CANCELLED_MESSAGE = '模型已删除，任务已停止'
+
 export type ModelSyncTaskErrorCode =
   | 'MISSING_FILE_UPLOAD_ID'
   | 'FILE_UPLOAD_NOT_FOUND'
@@ -18,6 +22,8 @@ export type ModelSyncTaskErrorCode =
   | 'DTP_TRANSFORM_FAILED'
   | 'DTP_TRANSFORM_TIMEOUT'
   | 'UPSTREAM_TEMPORARY_ERROR'
+  | 'DTP_ASSET_DELETE_FAILED'
+  | 'TASK_CANCELLED'
   | 'UNKNOWN'
 
 export class ModelSyncTaskError extends Error {

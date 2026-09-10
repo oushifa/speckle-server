@@ -148,7 +148,11 @@ export const getDtpUploadConfigFactory =
     const uploadToken = result?.uploadToken
 
     if (!uploadUrl || !uploadPathPrefix || !uploadToken) {
-      throw new ModelSyncTaskError('DTP_UPLOAD_CONFIG_FAILED', '中海上传配置不完整', false)
+      throw new ModelSyncTaskError(
+        'DTP_UPLOAD_CONFIG_FAILED',
+        '中海上传配置不完整',
+        false
+      )
     }
 
     return {
@@ -169,8 +173,9 @@ export const uploadBufferToDtpFactory =
     buffer: Buffer
   }): Promise<DtpUploadResult> => {
     const token = await deps.loginToDtp(params.mobile)
-    const { uploadUrl, uploadPathPrefix, uploadToken } =
-      await deps.getDtpUploadConfig(token)
+    const { uploadUrl, uploadPathPrefix, uploadToken } = await deps.getDtpUploadConfig(
+      token
+    )
     const chunkPlan = resolveChunkPlan(params.buffer.length)
     const assetName = buildAssetName(params.fileName)
     const path = `${uploadPathPrefix}${params.fileName}`
@@ -202,9 +207,14 @@ export const uploadBufferToDtpFactory =
         },
         body: formData
       }).catch((error) => {
-        throw new ModelSyncTaskError('DTP_UPLOAD_REQUEST_FAILED', '上传中海模型失败', true, {
-          cause: error
-        })
+        throw new ModelSyncTaskError(
+          'DTP_UPLOAD_REQUEST_FAILED',
+          '上传中海模型失败',
+          true,
+          {
+            cause: error
+          }
+        )
       })
 
       if (!response.ok) {
@@ -240,7 +250,11 @@ export const uploadBufferToDtpFactory =
     }
 
     if (!finalResult) {
-      throw new ModelSyncTaskError('DTP_UPLOAD_RESULT_INVALID', '中海上传未返回最终结果', false)
+      throw new ModelSyncTaskError(
+        'DTP_UPLOAD_RESULT_INVALID',
+        '中海上传未返回最终结果',
+        false
+      )
     }
 
     return finalResult
@@ -267,9 +281,14 @@ export const triggerDtpModelTransformFactory =
         apiVersion: MODEL_TRANSFORM_API_VERSION
       })
     }).catch((error) => {
-      throw new ModelSyncTaskError('DTP_UPLOAD_REQUEST_FAILED', '触发中海模型转换失败', true, {
-        cause: error
-      })
+      throw new ModelSyncTaskError(
+        'DTP_UPLOAD_REQUEST_FAILED',
+        '触发中海模型转换失败',
+        true,
+        {
+          cause: error
+        }
+      )
     })
 
     if (!response.ok) {
@@ -291,6 +310,62 @@ export const triggerDtpModelTransformFactory =
     }
 
     return taskId
+  }
+
+/**
+ * 删除中海（DTP）侧的模型资产：
+ * DELETE /v1/daas/asset/model/delete/{assetId}
+ * 删除资产会同时中断该资产正在进行的转换/同步流程。
+ */
+export const deleteDtpModelAssetFactory =
+  () =>
+  async (params: { mobile: string; assetId: string }): Promise<void> => {
+    const assetId = params.assetId.trim()
+    if (!assetId) return
+
+    const token = await loginToDtpFactory()(params.mobile)
+    const response = await fetch(
+      `${THIRD_PARTY_API_BASE}/v1/daas/asset/model/delete/${encodeURIComponent(
+        assetId
+      )}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      }
+    ).catch((error) => {
+      throw new ModelSyncTaskError(
+        'DTP_ASSET_DELETE_FAILED',
+        '删除中海模型资产失败',
+        true,
+        { cause: error }
+      )
+    })
+
+    if (!response.ok) {
+      throw new ModelSyncTaskError(
+        'DTP_ASSET_DELETE_FAILED',
+        `删除中海模型资产失败 (${response.status})`,
+        response.status >= 500
+      )
+    }
+
+    // 中海接口即使 HTTP 200 也可能通过 success=false 表示业务失败
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      msg?: string
+      messages?: string
+    } | null
+
+    if (body && body.success === false) {
+      throw new ModelSyncTaskError(
+        'DTP_ASSET_DELETE_FAILED',
+        body.msg || body.messages || '删除中海模型资产失败',
+        false
+      )
+    }
   }
 
 export const pollDtpModelTransformUntilFinishedFactory =

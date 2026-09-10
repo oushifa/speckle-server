@@ -52,6 +52,7 @@ import {
 } from '@/modules/model-sync/services/errors'
 import { emitModelSyncTaskUpdated } from '@/modules/model-sync/services/events'
 import {
+  deleteDtpModelAssetFactory,
   loginToDtpFactory,
   getDtpUploadConfigFactory,
   pollDtpModelTransformUntilFinishedFactory,
@@ -60,10 +61,12 @@ import {
 } from '@/modules/model-sync/services/dtp'
 import {
   getRetryStatusForEntryPoint,
+  isModelSyncTaskCancelled,
   resolveRetryEntryPoint,
   type ModelSyncRetryEntryPoint
 } from '@/modules/model-sync/services/retry'
 import { getEventBus } from '@/modules/shared/services/eventBus'
+import { moduleLogger } from '@/observability/logging'
 
 const sleep = async (ms: number) =>
   await new Promise((resolve) => setTimeout(resolve, ms))
@@ -74,6 +77,18 @@ const TerminalFileUploadStatuses = new Set<FileUploadConvertedStatus>([
 ])
 const TerminalProgressPhases = new Set(['completed', 'failed'])
 const PostConversionLockTimeoutMs = 30 * 60 * 1000
+
+const modelSyncTaskRunnerLogger = moduleLogger.child({
+  module: 'model-sync-task-runner'
+})
+
+/** 内部信号：任务已被取消（例如模型在转换/同步过程中被删除），用于中止当前编排流程 */
+class ModelSyncTaskCancelledSignal extends Error {
+  public constructor() {
+    super('Model sync task cancelled')
+    this.name = 'ModelSyncTaskCancelledSignal'
+  }
+}
 
 const streamToBuffer = async (stream: NodeJS.ReadableStream) => {
   const chunks: Buffer[] = []
@@ -129,6 +144,7 @@ export const runModelSyncTaskFactory =
     })
     const triggerTransform = triggerDtpModelTransformFactory()
     const pollTransform = pollDtpModelTransformUntilFinishedFactory()
+    const deleteDtpAsset = deleteDtpModelAssetFactory()
     const updateCommitAndNotify = updateCommitAndNotifyFactory({
       getCommit: getCommitFactory({ db: projectDb }),
       getStream: getStreamFactory({ db: projectDb }),
@@ -141,7 +157,26 @@ export const runModelSyncTaskFactory =
       markCommitBranchUpdated: markCommitBranchUpdatedFactory({ db: projectDb })
     })
 
+    const loadTask = async () =>
+      await getTask({
+        projectId: params.projectId,
+        modelId: params.modelId,
+        taskId: params.taskId
+      })
+
+    /** 任务是否已被取消（模型在转换/同步过程中被删除） */
+    const isTaskCancelled = async () => isModelSyncTaskCancelled(await loadTask())
+
+    const assertNotCancelled = async () => {
+      if (await isTaskCancelled()) {
+        throw new ModelSyncTaskCancelledSignal()
+      }
+    }
+
     const patchTask = async (patch: Parameters<typeof updateTask>[0]['patch']) => {
+      // 取消后不再回写状态，避免覆盖取消标记、继续后续阶段
+      await assertNotCancelled()
+
       const updated = await updateTask({
         projectId: params.projectId,
         modelId: params.modelId,
@@ -154,13 +189,6 @@ export const runModelSyncTaskFactory =
       if (updated) emitModelSyncTaskUpdated(updated)
       return updated
     }
-
-    const loadTask = async () =>
-      await getTask({
-        projectId: params.projectId,
-        modelId: params.modelId,
-        taskId: params.taskId
-      })
 
     const withPostConversionLock = async <T>(callback: () => Promise<T>) => {
       const taskName = `model-sync-post-conversion:${params.projectId}:${params.modelId}:${params.taskId}`
@@ -381,6 +409,29 @@ export const runModelSyncTaskFactory =
       return user.email
     }
 
+    /** 删除中海资产（best-effort）：任务被取消后用于兜底清理已经创建的资产 */
+    const deleteDtpAssetQuietly = async (paramsToDelete: {
+      assetId?: string | null
+      mobile?: string | null
+    }) => {
+      const assetId = paramsToDelete.assetId?.trim()
+      if (!assetId) return
+
+      try {
+        const mobile = paramsToDelete.mobile || (await ensureUserEmail())
+        await deleteDtpAsset({ mobile, assetId })
+        modelSyncTaskRunnerLogger.info(
+          { assetId },
+          '已删除被取消任务对应的中海 DTP 资产'
+        )
+      } catch (error) {
+        modelSyncTaskRunnerLogger.warn(
+          { err: error, assetId },
+          '删除被取消任务对应的中海 DTP 资产失败'
+        )
+      }
+    }
+
     const runSpeckleStage = async (
       task: NonNullable<Awaited<ReturnType<typeof loadTask>>>
     ) => {
@@ -472,6 +523,15 @@ export const runModelSyncTaskFactory =
         fileName: upload.fileName,
         buffer: fileBuffer
       })
+
+      // 上传过程中模型可能已被删除：刚创建的 DTP 资产需要立即清理并终止同步
+      if (await isTaskCancelled()) {
+        await deleteDtpAssetQuietly({
+          mobile,
+          assetId: dtpResult.assetId
+        })
+        throw new ModelSyncTaskCancelledSignal()
+      }
 
       await patchTask({
         versionId,
@@ -571,6 +631,9 @@ export const runModelSyncTaskFactory =
         const assetId = latestTask.assetId
         const assetName = latestTask.assetName
 
+        // 模型已删除时不再回写构件同步信息
+        await assertNotCancelled()
+
         if (versionId && seedId && assetId && assetName) {
           await updateCommitAndNotify(
             {
@@ -627,46 +690,82 @@ export const runModelSyncTaskFactory =
         await runFromEntryPoint(task, entryPoint)
         return
       } catch (error) {
-        const { message, errorCode, retriable } = normalizeModelSyncTaskError(error)
-        const nextRetryCount: number = task.retryCount + 1
-        const canAutoRetry = retriable && nextRetryCount <= MODEL_SYNC_AUTO_RETRY_LIMIT
+        try {
+          // 任务已被取消（模型已删除）：停止编排、不再自动重试，并清理已创建的 DTP 资产
+          const cancelledTask = await loadTask()
+          if (
+            error instanceof ModelSyncTaskCancelledSignal ||
+            isModelSyncTaskCancelled(cancelledTask)
+          ) {
+            await deleteDtpAssetQuietly({ assetId: cancelledTask?.assetId })
+            modelSyncTaskRunnerLogger.info(
+              {
+                projectId: params.projectId,
+                modelId: params.modelId,
+                taskId: params.taskId
+              },
+              '模型同步任务已取消，后台编排流程终止'
+            )
+            return
+          }
 
-        await patchTask({
-          status: 'failed',
-          progressPercent: null,
-          progressPhase: null,
-          progressMessage: canAutoRetry
-            ? `将在 ${Math.round(
-                MODEL_SYNC_AUTO_RETRY_INTERVAL_MS / 1000
-              )} 秒后自动重试`
-            : null,
-          error: message,
-          errorCode,
-          retriable: canAutoRetry
-        })
+          const { message, errorCode, retriable } = normalizeModelSyncTaskError(error)
+          const nextRetryCount: number = task.retryCount + 1
+          const canAutoRetry =
+            retriable && nextRetryCount <= MODEL_SYNC_AUTO_RETRY_LIMIT
 
-        if (!canAutoRetry) {
-          return
-        }
-
-        await sleep(MODEL_SYNC_AUTO_RETRY_INTERVAL_MS)
-        const retryStatus = getRetryStatusForEntryPoint(entryPoint)
-        task =
-          (await patchTask({
-            status: retryStatus,
-            retryCount: nextRetryCount,
-            error: null,
-            errorCode: null,
-            retriable: false,
-            progressPercent: retryStatus === 'speckle_converting' ? 0 : null,
+          await patchTask({
+            status: 'failed',
+            progressPercent: null,
             progressPhase: null,
-            progressMessage:
-              retryStatus === 'triggering_model_transform'
-                ? '准备重新发起模型转换'
-                : retryStatus === 'syncing_dtp_model'
-                ? '准备重新同步 DTP 模型'
-                : '准备重新等待模型转换'
-          })) || (await loadTask())
+            progressMessage: canAutoRetry
+              ? `将在 ${Math.round(
+                  MODEL_SYNC_AUTO_RETRY_INTERVAL_MS / 1000
+                )} 秒后自动重试`
+              : null,
+            error: message,
+            errorCode,
+            retriable: canAutoRetry
+          })
+
+          if (!canAutoRetry) {
+            return
+          }
+
+          await sleep(MODEL_SYNC_AUTO_RETRY_INTERVAL_MS)
+
+          // 等待自动重试期间模型可能已被删除
+          const taskBeforeRetry = await loadTask()
+          if (!taskBeforeRetry || isModelSyncTaskCancelled(taskBeforeRetry)) {
+            await deleteDtpAssetQuietly({ assetId: taskBeforeRetry?.assetId })
+            return
+          }
+
+          const retryStatus = getRetryStatusForEntryPoint(entryPoint)
+          task =
+            (await patchTask({
+              status: retryStatus,
+              retryCount: nextRetryCount,
+              error: null,
+              errorCode: null,
+              retriable: false,
+              progressPercent: retryStatus === 'speckle_converting' ? 0 : null,
+              progressPhase: null,
+              progressMessage:
+                retryStatus === 'triggering_model_transform'
+                  ? '准备重新发起模型转换'
+                  : retryStatus === 'syncing_dtp_model'
+                  ? '准备重新同步 DTP 模型'
+                  : '准备重新等待模型转换'
+            })) || (await loadTask())
+        } catch (retryError) {
+          if (retryError instanceof ModelSyncTaskCancelledSignal) {
+            const latestTask = await loadTask()
+            await deleteDtpAssetQuietly({ assetId: latestTask?.assetId })
+            return
+          }
+          throw retryError
+        }
       }
     }
   }
