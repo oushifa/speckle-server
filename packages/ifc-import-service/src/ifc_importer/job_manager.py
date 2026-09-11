@@ -28,6 +28,7 @@ from ifc_importer.repository import (
 
 IDLE_TIMEOUT = 1
 MAX_SUBPROCESS_OUTPUT_CHARS = 4000
+DEFAULT_JOB_TIMEOUT_SECONDS = 3600  # 默认 60 分钟 (3600 秒)
 
 
 def _find_job_processor_script() -> str:
@@ -135,8 +136,23 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
 
         start = time.time()
         duration = 0
+
+        # 支持通过环境变量直接调整单次任务超时上限
+        env_limit_sec = None
+        if env_sec := os.getenv("IFC_JOB_TIMEOUT_SECONDS"):
+            with contextlib.suppress(ValueError):
+                env_limit_sec = int(env_sec)
+        elif env_min := os.getenv("FILE_IMPORT_TIME_LIMIT_MIN"):
+            with contextlib.suppress(ValueError):
+                env_limit_sec = int(env_min) * 60
+
+        base_timeout = (
+            env_limit_sec
+            if env_limit_sec and env_limit_sec > 0
+            else DEFAULT_JOB_TIMEOUT_SECONDS
+        )
         job_timeout = max(
-            1800,
+            base_timeout,
             max(job.payload.time_out_seconds, job.remaining_compute_budget_seconds),
         )
 
@@ -146,6 +162,16 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
         metrics.HOST_APP = "ifc"
 
         job_id = job.id
+        # 若微服务配置的超时比当前任务剩余预算更大，自动将数据库预算放宽同步
+        if job_timeout > job.remaining_compute_budget_seconds:
+            with contextlib.suppress(Exception):
+                await connection.execute(
+                    'UPDATE background_jobs SET "remainingComputeBudgetSeconds" = $1'
+                    " WHERE id = $2",
+                    job_timeout,
+                    job_id,
+                )
+
         job_status = JobStatus.QUEUED
         ex: Exception | None = None
         attempt = job.attempt

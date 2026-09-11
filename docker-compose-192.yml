@@ -276,6 +276,7 @@ services:
       LOG_LEVEL: 'info'
       LOG_PRETTY: 'true'
       FILEIMPORT_QUEUE_POSTGRES_URL: 'postgresql://speckle:speckle@postgres/speckle'
+      FILE_IMPORT_TIME_LIMIT_MIN: '60'
     depends_on:
       - speckle-server
       - postgres
