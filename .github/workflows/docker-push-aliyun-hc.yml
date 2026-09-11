@@ -1,9 +1,9 @@
 name: Build & Push to Aliyun ACR (hc-server)
 
-# 推送到 hc-server 分支时, 自动编译后端并推送到阿里云 hc 镜像仓库。
-# 产物:
-#   registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server:<时间戳>
-# 时间戳 = 北京时间(Asia/Shanghai)的 YYYYMMDDHHMMSS, 与本机旧脚本命名规则一致。
+# 每次 push 到 hc-server 分支时, 自动编译以下镜像并推送到阿里云 hc 仓库:
+#   registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server:server-<时间戳>   后端
+#   registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server:ifc-<时间戳>      IFC 导入服务
+# 时间戳 = 北京时间(Asia/Shanghai)的 YYYYMMDDHHMMSS, 前后端两个镜像共用同一个时间戳。
 on:
   push:
     branches: [ hc-server ]
@@ -17,18 +17,25 @@ env:
   IMAGE_REPO: registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server
 
 jobs:
-  build-push-server:
-    name: Build & push server
+  # 生成一次统一的时间戳, 供两个镜像共用。
+  gen-tag:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
-      - uses: actions/checkout@v4
-
       - id: tag
         name: Generate timestamp tag
         run: |
           TAG="$(TZ='Asia/Shanghai' date +'%Y%m%d%H%M%S')"
           echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "当前版本时间戳: $TAG"
+
+  build-push-server:
+    name: Build & push server
+    needs: gen-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Login to Aliyun ACR
         uses: docker/login-action@v3
@@ -47,8 +54,38 @@ jobs:
           file: packages/server/Dockerfile.hc
           push: true
           tags: |
-            ${{ env.IMAGE_REPO }}:${{ steps.tag.outputs.image_tag }}
+            ${{ env.IMAGE_REPO }}:server-${{ needs.gen-tag.outputs.image_tag }}
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aliyun-hc-server
           cache-to: type=gha,mode=max,scope=aliyun-hc-server
+
+  build-push-ifc:
+    name: Build & push ifc-import-service
+    needs: gen-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Aliyun ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ifc image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/ifc-import-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPO }}:ifc-${{ needs.gen-tag.outputs.image_tag }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aliyun-hc-ifc
+          cache-to: type=gha,mode=max,scope=aliyun-hc-ifc
