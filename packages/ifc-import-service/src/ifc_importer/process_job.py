@@ -1,21 +1,29 @@
+import gc
+import multiprocessing
+import os
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import time
-from typing import cast
+from typing import Any, cast
 
 import requests
 from gql import gql
+from ifcopenshell import file as ifc_file_type
+from ifcopenshell import ifcopenshell_wrapper
+from ifcopenshell.geom import iterator as ifc_geom_iterator
+from ifcopenshell.geom import settings as ifc_geom_settings
 from ifcopenshell.ifcopenshell_wrapper import TriangulationElement
 from speckleifc.converter.geometry_converter import geometry_to_speckle
-from speckleifc.ifc_geometry_processing import create_geometry_iterator, open_ifc
+from speckleifc.ifc_geometry_processing import open_ifc
 from speckleifc.importer import ImportJob
 from specklepy.core.api.inputs.version_inputs import CreateVersionInput
 from specklepy.core.api.operations import send
 from specklepy.transports.server import ServerTransport
 
 from ifc_importer.client import setup_client
+from ifc_importer.disk_cache import GeometryDiskCache, LazyGeometryList
 from ifc_importer.domain import (
     FileimportError,
     FileimportPayload,
@@ -24,6 +32,60 @@ from ifc_importer.domain import (
 )
 
 ProgressCallback = Callable[[int | None, str | None, str | None, bool], None]
+
+
+def create_bounded_geometry_iterator(
+    ifc_file: ifc_file_type,
+    concurrency: int | None = None,
+    linear_deflection: float | None = None,
+) -> tuple[ifc_geom_iterator, int]:
+    """Create geometry iterator with bounded concurrency and deflection."""
+    if concurrency is None:
+        env_concurrency = os.getenv("IFC_CONCURRENCY")
+        if env_concurrency:
+            try:
+                concurrency = max(1, int(env_concurrency))
+            except ValueError:
+                concurrency = None
+        if concurrency is None:
+            cpu_num = multiprocessing.cpu_count()
+            # 默认受控多线程：2 ~ 4 线程，充分利用多核并行，同时避免全核打满冲顶内存
+            concurrency = min(4, max(2, cpu_num // 2))
+
+    if linear_deflection is None:
+        env_deflection = os.getenv("IFC_MESHER_LINEAR_DEFLECTION")
+        if env_deflection:
+            try:
+                linear_deflection = float(env_deflection)
+            except ValueError:
+                linear_deflection = None
+        if linear_deflection is None:
+            linear_deflection = 0.5  # 略微放宽，极大削减海量微小曲面细分面数
+
+    settings = ifc_geom_settings()
+    settings.set("triangulation-type", ifcopenshell_wrapper.TRIANGLE_MESH)
+    settings.set("weld-vertices", False)
+    settings.set("use-world-coords", True)
+    settings.set("no-wire-intersection-check", True)
+    settings.set("use-material-names", True)
+    settings.set("mesher-linear-deflection", linear_deflection)
+
+    return ifc_geom_iterator(settings, ifc_file, concurrency), concurrency
+
+
+class DiskBackedGeometryMap:
+    """Dict-like proxy mapping geometry IDs to LazyGeometryList."""
+
+    def __init__(self, disk_cache: GeometryDiskCache) -> None:
+        self.disk_cache = disk_cache
+
+    def get(self, geometry_id: int, default: Any = None) -> Any:
+        if self.disk_cache.has(geometry_id):
+            return LazyGeometryList(geometry_id, self.disk_cache)
+        return default if default is not None else []
+
+    def __contains__(self, geometry_id: int) -> bool:
+        return self.disk_cache.has(geometry_id)
 
 
 class ProgressReporter:
@@ -92,6 +154,7 @@ class ProgressReporter:
 @dataclass
 class ProgressImportJob(ImportJob):
     progress_callback: ProgressCallback | None = None
+    disk_cache: GeometryDiskCache | None = None
     root_elements_total: int = field(default=1, init=False)
     converted_root_elements: int = field(default=0, init=False)
     geometry_estimate_total: int = field(default=1, init=False)
@@ -101,6 +164,9 @@ class ProgressImportJob(ImportJob):
         self.geometry_estimate_total = max(
             1, len(self.ifc_file.by_type("IfcProduct", False))
         )
+        if self.disk_cache:
+            # 替换为流式磁盘代理映射，避免几百万面几何在内存中常驻
+            self.cached_display_values = DiskBackedGeometryMap(self.disk_cache)  # type: ignore
 
     def convert_element(self, step_element) -> object:
         result = super().convert_element(step_element)
@@ -122,7 +188,7 @@ class ProgressImportJob(ImportJob):
         return result
 
     def pre_process_geometry(self) -> None:
-        iterator = create_geometry_iterator(self.ifc_file)
+        iterator, concurrency = create_bounded_geometry_iterator(self.ifc_file)
         if not iterator.initialize():
             raise ValueError("Failed to find any geometry in file")
 
@@ -131,9 +197,12 @@ class ProgressImportJob(ImportJob):
             self.progress_callback(
                 30,
                 "preprocessing_geometry",
-                "Pre-processing IFC geometry",
+                f"Pre-processing IFC geometry (threads: {concurrency})",
                 True,
             )
+
+        batch: list[tuple[int, list[Any]]] = []
+        batch_size = 50
 
         while True:
             shape = cast(TriangulationElement, iterator.get())
@@ -144,7 +213,14 @@ class ProgressImportJob(ImportJob):
                 display_value = geometry_to_speckle(
                     shape, self._render_material_manager
                 )
-                self.cached_display_values[geometry_id] = display_value
+                if self.disk_cache:
+                    batch.append((geometry_id, display_value))
+                    if len(batch) >= batch_size:
+                        self.disk_cache.put_batch(batch)
+                        batch.clear()
+                        gc.collect()
+                else:
+                    self.cached_display_values[geometry_id] = display_value
             except Exception as ex:
                 raise ValueError(
                     f"Failed to convert geometry with id: {geometry_id}"
@@ -168,6 +244,11 @@ class ProgressImportJob(ImportJob):
 
             if not iterator.next():
                 break
+
+        if self.disk_cache and batch:
+            self.disk_cache.put_batch(batch)
+            batch.clear()
+            gc.collect()
 
 
 def _download_blob(
@@ -235,17 +316,22 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
         ifc_file = open_ifc(str(local_file))
 
         parse_start = time()
-        import_job = ProgressImportJob(
-            ifc_file=ifc_file, progress_callback=progress_reporter.report
-        )
-        data = import_job.convert()
-        progress_reporter.report(
-            88,
-            "uploading_model_object",
-            "Uploading converted model",
-            True,
-        )
-        root_id = send(data, transports=[remote_transport], use_default_cache=False)
+        cache_db_path = workdir / "geom_cache.sqlite"
+        with GeometryDiskCache(cache_db_path) as disk_cache:
+            import_job = ProgressImportJob(
+                ifc_file=ifc_file,
+                disk_cache=disk_cache,
+                progress_callback=progress_reporter.report,
+            )
+            data = import_job.convert()
+            progress_reporter.report(
+                88,
+                "uploading_model_object",
+                "Uploading converted model",
+                True,
+            )
+            root_id = send(data, transports=[remote_transport], use_default_cache=False)
+
         progress_reporter.report(
             96,
             "creating_version",
@@ -286,3 +372,4 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
         FileimportResult(outcome=outcome).model_dump_json(by_alias=True),
         encoding="utf-8",
     )
+
