@@ -292,6 +292,231 @@ describe('External API @external', () => {
     })
   })
 
+  describe('Progress V2 Data Endpoints', () => {
+    const manualCodeRecordId = 'v2act_man1'
+    const resolvedCodeRecordId = 'v2act_res1'
+    const milestoneRecordId = 'v2ms_ok1'
+    const nonMilestoneRecordId = 'v2ms_no1'
+    const linkedApplicationId = 'progress_v2_app_id_1'
+    const linkedBimCode = '14-94.04.01.00.00.1NB01010101CB1-77'
+
+    before(async () => {
+      process.env.EXTERNAL_API_TOKEN = testToken
+
+      // 1. 进度填报记录：一条已存构件编码，一条仅关联构件 ID（需服务端反查完整编码）
+      await db('project_progress_v2_actual_records').insert([
+        {
+          id: manualCodeRecordId,
+          projectId,
+          taskName: '地下一层顶板钢筋绑扎',
+          reportDate: '2026-09-02',
+          planStartDate: new Date('2026-09-01T00:00:00.000Z'),
+          planEndDate: new Date('2026-09-10T00:00:00.000Z'),
+          actualStartDate: new Date('2026-09-02T00:00:00.000Z'),
+          actualEndDate: new Date('2026-09-12T00:00:00.000Z'),
+          progressPercent: 60,
+          componentCode: 'CB1-99',
+          reporter: '李工',
+          remark: '受降雨影响顺延一天',
+          BIM: JSON.stringify([
+            {
+              modelId: 'test_model_v2_1',
+              applicationIds: ['progress_v2_app_id_manual'],
+              componentCodes: ['CB1-99']
+            }
+          ]),
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: resolvedCodeRecordId,
+          projectId,
+          taskName: '地下一层顶板混凝土浇筑',
+          reportDate: '2026-09-05',
+          planStartDate: new Date('2026-09-04T00:00:00.000Z'),
+          planEndDate: new Date('2026-09-08T00:00:00.000Z'),
+          actualStartDate: null,
+          actualEndDate: null,
+          progressPercent: 0,
+          componentCode: null,
+          reporter: '李工',
+          remark: null,
+          BIM: JSON.stringify([
+            {
+              modelId: 'test_model_v2_1',
+              applicationIds: [linkedApplicationId]
+            }
+          ]),
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ])
+
+      // 2. 关联构件对象（用于反查第三方完整构件编码）
+      await db('objects').insert({
+        id: 'progress_v2_object_1',
+        streamId: projectId,
+        speckleType: 'Objects.Data.DataObject',
+        data: JSON.stringify({
+          id: 'progress_v2_object_1',
+          applicationId: linkedApplicationId,
+          properties: {
+            'Property Sets': {
+              文字: {
+                构件编码: linkedBimCode
+              }
+            }
+          }
+        })
+      })
+
+      // 3. 里程碑：一条带 milestone 标签，一条仅带 key 标签（应被过滤）
+      await db('project_progress_v2_milestones').insert([
+        {
+          id: milestoneRecordId,
+          projectId,
+          taskName: '主体结构封顶',
+          plannedStart: new Date('2026-10-01T00:00:00.000Z'),
+          plannedEnd: new Date('2026-10-31T00:00:00.000Z'),
+          actualStart: new Date('2026-10-03T00:00:00.000Z'),
+          actualEnd: null,
+          status: '进行中',
+          milestoneType: 'phase',
+          responsible: '张工',
+          remark: '受材料到场时间影响',
+          tags: JSON.stringify(['milestone']),
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: nonMilestoneRecordId,
+          projectId,
+          taskName: '关键节点（非里程碑标签）',
+          plannedStart: new Date('2026-11-01T00:00:00.000Z'),
+          plannedEnd: new Date('2026-11-10T00:00:00.000Z'),
+          actualStart: null,
+          actualEnd: null,
+          status: '未开始',
+          milestoneType: 'phase',
+          responsible: '张工',
+          remark: null,
+          tags: JSON.stringify(['key']),
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ])
+    })
+
+    after(async () => {
+      delete process.env.EXTERNAL_API_TOKEN
+
+      await db('project_progress_v2_actual_records')
+        .whereIn('id', [manualCodeRecordId, resolvedCodeRecordId])
+        .del()
+      await db('project_progress_v2_milestones')
+        .whereIn('id', [milestoneRecordId, nonMilestoneRecordId])
+        .del()
+      await db('objects').where('id', 'progress_v2_object_1').del()
+    })
+
+    it('gets project progress records with the required progress info fields', async () => {
+      const response = await request(app)
+        .get(`/api/v1/external/projects/${projectId}/progress-v2/actual-records`)
+        .set('x-external-token', testToken)
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(projectId)
+      expect(response.body.progressRecords).to.be.an('array')
+      expect(response.body.totalCount).to.equal(response.body.progressRecords.length)
+
+      const record = response.body.progressRecords.find(
+        (item: any) => item.id === manualCodeRecordId
+      )
+      expect(record).to.exist
+      expect(record.taskName).to.equal('地下一层顶板钢筋绑扎')
+      expect(record.componentCode).to.equal('CB1-99')
+      expect(record.componentCodes).to.deep.equal(['CB1-99'])
+      expect(record.planStartDate).to.equal('2026-09-01T00:00:00.000Z')
+      expect(record.planEndDate).to.equal('2026-09-10T00:00:00.000Z')
+      expect(record.actualStartDate).to.equal('2026-09-02T00:00:00.000Z')
+      expect(record.actualEndDate).to.equal('2026-09-12T00:00:00.000Z')
+      expect(record.remark).to.equal('受降雨影响顺延一天')
+    })
+
+    it('resolves component codes of linked BIM elements for progress records', async () => {
+      const response = await request(app)
+        .get(`/api/v1/external/projects/${projectId}/progress-v2/actual-records`)
+        .set('x-external-token', testToken)
+        .query({ search: '混凝土浇筑' })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.progressRecords).to.have.lengthOf(1)
+
+      const record = response.body.progressRecords[0]
+      expect(record.id).to.equal(resolvedCodeRecordId)
+      expect(record.componentCode).to.equal(null)
+      expect(record.componentCodes).to.deep.equal([linkedBimCode])
+      expect(record.planStartDate).to.equal('2026-09-04T00:00:00.000Z')
+      expect(record.actualStartDate).to.equal(null)
+      expect(record.actualEndDate).to.equal(null)
+    })
+
+    it('returns only milestones tagged with milestone', async () => {
+      const response = await request(app)
+        .get(`/api/v1/external/projects/${projectId}/progress-v2/milestones`)
+        .set('x-external-token', testToken)
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(projectId)
+      expect(response.body.milestones).to.be.an('array')
+      expect(response.body.totalCount).to.equal(response.body.milestones.length)
+
+      const ids = response.body.milestones.map((item: { id: string }) => item.id)
+      expect(ids).to.include(milestoneRecordId)
+      expect(ids).to.not.include(nonMilestoneRecordId)
+
+      const milestone = response.body.milestones.find(
+        (item: any) => item.id === milestoneRecordId
+      )
+      expect(milestone.taskName).to.equal('主体结构封顶')
+      expect(milestone.plannedStart).to.equal('2026-10-01T00:00:00.000Z')
+      expect(milestone.plannedEnd).to.equal('2026-10-31T00:00:00.000Z')
+      expect(milestone.actualStart).to.equal('2026-10-03T00:00:00.000Z')
+      expect(milestone.actualEnd).to.equal(null)
+      expect(milestone.status).to.equal('进行中')
+      expect(milestone.remark).to.equal('受材料到场时间影响')
+      expect(milestone.tags).to.include('milestone')
+    })
+
+    it('returns 401 for progress v2 endpoints without a valid token', async () => {
+      const progressResponse = await request(app).get(
+        `/api/v1/external/projects/${projectId}/progress-v2/actual-records`
+      )
+      expect(progressResponse.status).to.equal(401)
+
+      const milestoneResponse = await request(app).get(
+        `/api/v1/external/projects/${projectId}/progress-v2/milestones`
+      )
+      expect(milestoneResponse.status).to.equal(401)
+    })
+
+    it('returns 404 for progress v2 endpoints when the project does not exist', async () => {
+      const response = await request(app)
+        .get(`/api/v1/external/projects/not_existing_project/progress-v2/milestones`)
+        .set('x-external-token', testToken)
+
+      expect(response.status).to.equal(404)
+    })
+  })
+
   describe('Presigned Blob Downloads', () => {
     const testBlobId = 'test_blob_id_999'
 

@@ -18,6 +18,8 @@ import {
   type ProgressTaskSnapshotStatus
 } from '@/modules/progress/repositories/progressTaskSnapshots'
 import { listProgressActualRecordsFactory } from '@/modules/progress/repositories/progressActualRecords'
+import { listProgressV2ActualRecordsFactory } from '@/modules/progress-v2/repositories/progressV2ActualRecords'
+import { listProgressV2MilestonesFactory } from '@/modules/progress-v2/repositories/progressV2Milestones'
 import {
   getQualityAcceptanceFormsFactory,
   countQualityAcceptanceFormsFactory
@@ -720,6 +722,106 @@ const buildBimCodesLookup = async (
 }
 
 // ==========================================
+// 进度管理 V2（进度信息 / 里程碑信息）序列化辅助逻辑
+// ==========================================
+type ExternalBimEntry = {
+  modelId: string
+  applicationIds: string[]
+  componentCodes: string[]
+}
+
+const toIsoStringOrNull = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  }
+
+  const parsed = new Date(String(value))
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+}
+
+// 解析进度记录上存储的 BIM 关联（兼容 JSONB 数组与 JSON 字符串两种形态）
+const parseBimEntries = (raw: unknown): ExternalBimEntry[] => {
+  let list: unknown = raw
+  if (typeof list === 'string') {
+    try {
+      list = JSON.parse(list)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(list)) return []
+
+  const normalizeList = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value
+          .map((item) => (typeof item === 'string' ? item.trim() : ''))
+          .filter(Boolean)
+      : []
+
+  return list
+    .filter((entry) => !!entry && typeof entry === 'object')
+    .map((entry: any) => ({
+      modelId: typeof entry.modelId === 'string' ? entry.modelId : '',
+      applicationIds: normalizeList(entry.applicationIds),
+      componentCodes: normalizeList(entry.componentCodes)
+    }))
+}
+
+// 汇总一条进度记录的构件编码：手填编码 + 关联构件已存编码 + 反查得到的完整编码
+const collectRecordComponentCodes = (
+  manualCode: string | null | undefined,
+  bimEntries: ExternalBimEntry[],
+  bimCodesLookup: Map<string, string>
+): string[] => {
+  const codes: string[] = []
+  const seen = new Set<string>()
+  const push = (raw?: string | null) => {
+    const code = typeof raw === 'string' ? raw.trim() : ''
+    if (!code || seen.has(code)) return
+    seen.add(code)
+    codes.push(code)
+  }
+
+  push(manualCode)
+  bimEntries.forEach((entry) => {
+    entry.componentCodes.forEach(push)
+    // 关联构件未存储编码时，按构件 ID 反查第三方完整构件编码
+    if (!entry.componentCodes.length) {
+      entry.applicationIds.forEach((appId) => push(bimCodesLookup.get(appId)))
+    }
+  })
+
+  return codes
+}
+
+// 解析里程碑标签（兼容 JSONB 数组、JSON 字符串与逗号分隔字符串）
+const parseMilestoneTags = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+  }
+  if (typeof raw !== 'string' || !raw.trim()) return []
+
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('[')) {
+    try {
+      return parseMilestoneTags(JSON.parse(trimmed))
+    } catch {
+      return []
+    }
+  }
+
+  return trimmed
+    .split(/[,，;；、\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+const MILESTONE_TAG = 'milestone'
+
+// ==========================================
 // 外部 REST API 路由器工厂
 // ==========================================
 export const externalRouterFactory = (): Router => {
@@ -1205,6 +1307,112 @@ export const externalRouterFactory = (): Router => {
         projectId,
         modelId,
         results
+      })
+    }
+  )
+
+  // 7. 获取进度信息（进度管理实际填报记录：任务名称 / 构件编码 / 计划与实际起止时间 / 备注）
+  app.get(
+    '/api/v1/external/projects/:projectId/progress-v2/actual-records',
+    requireExternalToken,
+    async (req, res) => {
+      const { projectId } = req.params
+      const project = await getStream({ streamId: projectId })
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' })
+      }
+
+      const search = req.query.search ? String(req.query.search) : undefined
+      const projectDb = await getProjectDbClient({ projectId })
+      const records = await listProgressV2ActualRecordsFactory({ db: projectDb })({
+        projectId,
+        search
+      })
+
+      const parsedRecords = records.map((record) => ({
+        record,
+        bimEntries: parseBimEntries(record.BIM as unknown)
+      }))
+
+      // 仅对未存储构件编码的关联构件做一次反查，避免无谓的模型数据扫描
+      const unresolvedAppIds = new Set<string>()
+      parsedRecords.forEach(({ bimEntries }) => {
+        bimEntries.forEach((entry) => {
+          if (entry.componentCodes.length) return
+          entry.applicationIds.forEach((appId) => unresolvedAppIds.add(appId))
+        })
+      })
+
+      const bimCodesLookup = unresolvedAppIds.size
+        ? await buildBimCodesLookup(projectDb, projectId, [...unresolvedAppIds])
+        : new Map<string, string>()
+
+      const progressRecords = parsedRecords.map(({ record, bimEntries }) => ({
+        id: record.id,
+        projectId: record.projectId,
+        taskName: record.taskName,
+        componentCode: record.componentCode || null,
+        componentCodes: collectRecordComponentCodes(
+          record.componentCode,
+          bimEntries,
+          bimCodesLookup
+        ),
+        planStartDate: toIsoStringOrNull(record.planStartDate),
+        planEndDate: toIsoStringOrNull(record.planEndDate),
+        actualStartDate: toIsoStringOrNull(record.actualStartDate),
+        actualEndDate: toIsoStringOrNull(record.actualEndDate),
+        remark: record.remark || null
+      }))
+
+      return res.status(200).json({
+        projectId,
+        totalCount: progressRecords.length,
+        progressRecords
+      })
+    }
+  )
+
+  // 8. 获取里程碑信息（仅返回标签包含 milestone 的里程碑）
+  app.get(
+    '/api/v1/external/projects/:projectId/progress-v2/milestones',
+    requireExternalToken,
+    async (req, res) => {
+      const { projectId } = req.params
+      const project = await getStream({ streamId: projectId })
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found.' })
+      }
+
+      const search = req.query.search ? String(req.query.search) : undefined
+      const projectDb = await getProjectDbClient({ projectId })
+      const milestones = await listProgressV2MilestonesFactory({ db: projectDb })({
+        projectId,
+        search
+      })
+
+      const milestoneItems = milestones
+        .filter((milestone) =>
+          parseMilestoneTags(milestone.tags).some(
+            (tag) => tag.toLowerCase() === MILESTONE_TAG
+          )
+        )
+        .map((milestone) => ({
+          id: milestone.id,
+          projectId: milestone.projectId,
+          taskName: milestone.taskName,
+          plannedStart: toIsoStringOrNull(milestone.plannedStart),
+          plannedEnd: toIsoStringOrNull(milestone.plannedEnd),
+          actualStart: toIsoStringOrNull(milestone.actualStart),
+          actualEnd: toIsoStringOrNull(milestone.actualEnd),
+          status: milestone.status || null,
+          remark: milestone.remark || null,
+          tags: parseMilestoneTags(milestone.tags)
+        }))
+
+      return res.status(200).json({
+        projectId,
+        totalCount: milestoneItems.length,
+        milestones: milestoneItems
       })
     }
   )

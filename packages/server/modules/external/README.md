@@ -1,6 +1,6 @@
 # 外部数据获取 API 使用说明文档
 
-本模块作为 Speckle Server 的外部 API 管理模块，提供给第三方系统获取项目的项目信息、进度计划、实际进度、质量验收等数据。
+本模块作为 Speckle Server 的外部 API 管理模块，提供给第三方系统获取项目的项目信息、进度计划、实际进度、进度信息（进度管理填报记录）、里程碑信息、质量验收等数据。
 
 ---
 
@@ -447,6 +447,121 @@ EXTERNAL_API_TOKEN=your_secure_external_api_token_here
       "error": "Invalid request: componentCodes is required and must be an array."
     }
     ```
+
+---
+
+### 6. 获取进度信息（进度管理填报记录）
+
+获取项目「进度管理」中登记的全部进度填报记录（按填报日期倒序），即第三方系统所需的进度信息：任务名称、构件编码、计划开始/结束时间、实际开始/结束时间与备注。
+
+> [!NOTE]
+> 本节与下一节（里程碑信息）的独立完整文档见 [`进度与里程碑查询api.md`](./进度与里程碑查询api.md)。
+
+- **URL**：`/api/v1/external/projects/:projectId/progress-v2/actual-records`
+- **Method**：`GET`
+- **Query Parameters**：
+  - `search` _(optional)_：模糊搜索关键字（匹配任务名称、填报人）。
+- **Headers**：
+  ```http
+  x-external-token: your_secure_external_api_token_here
+  ```
+- **响应示例 (`200 OK`)**：
+  ```json
+  {
+    "projectId": "project_id_1", // 项目唯一标识符 ID
+    "totalCount": 1, // 进度信息记录总数
+    "progressRecords": [
+      {
+        "id": "record_id_1", // 进度填报记录唯一标识符 ID
+        "projectId": "project_id_1", // 关联的项目 ID
+        "taskName": "地下一层顶板钢筋绑扎", // 任务名称
+        "componentCode": "CB1-99", // 记录上手填/导入的构件编码（序号码），可为空
+        "componentCodes": [
+          // 该记录关联的全部构件编码（去重）：手填编码 + 关联构件已存编码 + 按构件 ID 反查得到的第三方完整构件编码
+          "CB1-99",
+          "14-94.04.01.00.00.1NB01010101CB1-99"
+        ],
+        "planStartDate": "2026-09-01T00:00:00.000Z", // 计划开始时间（ISO 8601 格式时间戳，可为 null）
+        "planEndDate": "2026-09-10T00:00:00.000Z", // 计划结束时间（ISO 8601 格式时间戳，可为 null）
+        "actualStartDate": "2026-09-02T00:00:00.000Z", // 实际开始时间（ISO 8601 格式时间戳，可为 null）
+        "actualEndDate": "2026-09-12T00:00:00.000Z", // 实际结束时间（ISO 8601 格式时间戳，可为 null）
+        "remark": "受降雨影响顺延一天" // 备注说明
+      }
+    ]
+  }
+  ```
+
+#### 字段说明
+
+| 字段名                 | 类型           | 说明                                                                                                                                                                         |
+| :--------------------- | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **projectId**          | string         | 项目唯一标识符 ID                                                                                                                                                            |
+| **totalCount**         | number         | 进度信息记录总数                                                                                                                                                             |
+| **progressRecords**    | Array          | 进度信息记录数组，每条记录包含：                                                                                                                                             |
+| ├─ **id**              | string         | 进度填报记录唯一标识符 ID                                                                                                                                                    |
+| ├─ **projectId**       | string         | 关联的项目 ID                                                                                                                                                                |
+| ├─ **taskName**        | string         | 任务名称                                                                                                                                                                     |
+| ├─ **componentCode**   | string \| null | 记录上手填/导入的构件编码（序号码）                                                                                                                                          |
+| ├─ **componentCodes**  | string[]       | 该记录关联的全部构件编码（已去重）。优先取记录上的构件编码与关联构件已存编码，缺失时按构件 ID 反查到第三方完整构件编码（格式为 `分类对象代码+空间代码+分部分项代码+序号码`） |
+| ├─ **planStartDate**   | string \| null | 计划开始时间（ISO 8601 格式时间戳）                                                                                                                                          |
+| ├─ **planEndDate**     | string \| null | 计划结束时间（ISO 8601 格式时间戳）                                                                                                                                          |
+| ├─ **actualStartDate** | string \| null | 实际开始时间（ISO 8601 格式时间戳）                                                                                                                                          |
+| ├─ **actualEndDate**   | string \| null | 实际结束时间（ISO 8601 格式时间戳）                                                                                                                                          |
+| └─ **remark**          | string \| null | 备注说明                                                                                                                                                                     |
+
+---
+
+### 7. 获取里程碑信息
+
+获取项目「进度管理」中的里程碑信息（**仅返回标签（tags）中包含 `milestone` 的记录**，按计划结束时间升序）：
+
+- **URL**：`/api/v1/external/projects/:projectId/progress-v2/milestones`
+- **Method**：`GET`
+- **Query Parameters**：
+  - `search` _(optional)_：模糊搜索关键字（匹配里程碑名称、负责人）。
+- **Headers**：
+  ```http
+  x-external-token: your_secure_external_api_token_here
+  ```
+- **响应示例 (`200 OK`)**：
+  ```json
+  {
+    "projectId": "project_id_1", // 项目唯一标识符 ID
+    "totalCount": 1, // 里程碑记录总数
+    "milestones": [
+      {
+        "id": "milestone_id_1", // 里程碑唯一标识符 ID
+        "projectId": "project_id_1", // 关联的项目 ID
+        "taskName": "主体结构封顶", // 里程碑（任务）名称
+        "plannedStart": "2026-10-01T00:00:00.000Z", // 计划开始时间（ISO 8601 格式时间戳，可为 null）
+        "plannedEnd": "2026-10-31T00:00:00.000Z", // 计划结束时间（ISO 8601 格式时间戳，可为 null）
+        "actualStart": "2026-10-03T00:00:00.000Z", // 实际开始时间（ISO 8601 格式时间戳，可为 null）
+        "actualEnd": null, // 实际结束时间（ISO 8601 格式时间戳，可为 null）
+        "status": "进行中", // 当前状态（如 '未开始' / '进行中' / '按期完成' / '逾期完成' / '已逾期'）
+        "remark": "受材料到场时间影响", // 备注说明
+        "tags": ["milestone"] // 标签集合（仅返回包含 milestone 标签的记录）
+      }
+    ]
+  }
+  ```
+
+#### 字段说明
+
+| 字段名              | 类型           | 说明                                                                 |
+| :------------------ | :------------- | :------------------------------------------------------------------- |
+| **projectId**       | string         | 项目唯一标识符 ID                                                    |
+| **totalCount**      | number         | 符合条件的里程碑记录总数                                             |
+| **milestones**      | Array          | 里程碑记录数组，每条记录包含：                                       |
+| ├─ **id**           | string         | 里程碑唯一标识符 ID                                                  |
+| ├─ **projectId**    | string         | 关联的项目 ID                                                        |
+| ├─ **taskName**     | string         | 里程碑（任务）名称                                                   |
+| ├─ **plannedStart** | string \| null | 计划开始时间（ISO 8601 格式时间戳）                                  |
+| ├─ **plannedEnd**   | string \| null | 计划结束时间（ISO 8601 格式时间戳）                                  |
+| ├─ **actualStart**  | string \| null | 实际开始时间（ISO 8601 格式时间戳）                                  |
+| ├─ **actualEnd**    | string \| null | 实际结束时间（ISO 8601 格式时间戳）                                  |
+| ├─ **status**       | string \| null | 当前状态（'未开始' / '进行中' / '按期完成' / '逾期完成' / '已逾期'） |
+| ├─ **remark**       | string \| null | 备注说明                                                             |
+| └─ **tags**         | string[]       | 标签集合，仅返回包含 `milestone` 标签的记录                          |
 
 ---
 
