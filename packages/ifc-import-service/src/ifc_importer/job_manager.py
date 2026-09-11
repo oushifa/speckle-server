@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import contextlib
+import os
 import sys
 import tempfile
 import time
@@ -27,7 +28,37 @@ from ifc_importer.repository import (
 
 IDLE_TIMEOUT = 1
 MAX_SUBPROCESS_OUTPUT_CHARS = 4000
-JOB_PROCESSOR_SCRIPT = str(Path(__file__).resolve().parents[2] / "job_processor.py")
+
+
+def _find_job_processor_script() -> str:
+    """Find the path of job_processor.py in Docker, local dev, or CLI."""
+    # 1. 显式环境变量指定
+    env_path = os.getenv("JOB_PROCESSOR_SCRIPT")
+    if env_path and Path(env_path).is_file():
+        return str(Path(env_path).resolve())
+
+    # 2. main.py 启动入口同级目录 (在 Docker 容器中通常为 /app/job_processor.py)
+    if sys.argv and sys.argv[0]:
+        argv_target = Path(sys.argv[0]).resolve().parent / "job_processor.py"
+        if argv_target.is_file():
+            return str(argv_target)
+
+    # 3. 当前工作目录
+    cwd_target = Path.cwd() / "job_processor.py"
+    if cwd_target.is_file():
+        return str(cwd_target.resolve())
+
+    # 4. 源码树目录 (开发环境: src/ifc_importer -> packages/ifc-import-service)
+    src_parent = Path(__file__).resolve().parents[2] / "job_processor.py"
+    if src_parent.is_file():
+        return str(src_parent)
+
+    # 5. Docker 镜像标准部署路径
+    container_target = Path("/app/job_processor.py")
+    if container_target.is_file():
+        return str(container_target)
+
+    return "job_processor.py"
 
 
 def _truncate_process_output(output: bytes | None) -> str | None:
@@ -47,14 +78,14 @@ def _truncate_process_output(output: bytes | None) -> str | None:
     )
 
 
-class JobPausedException(Exception):
+class JobPausedError(Exception):
     """Raised when the job is paused by an administrator."""
 
     pass
 
 
 async def _watch_job_paused(job_id: str, poll_interval: float = 1.0) -> None:
-    """Watch if job status in DB is changed to paused using an independent connection."""
+    """Watch if job status in DB is paused using an independent connection."""
     conn = None
     try:
         conn = await setup_connection()
@@ -105,7 +136,8 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
         start = time.time()
         duration = 0
         job_timeout = max(
-            1800, max(job.payload.time_out_seconds, job.remaining_compute_budget_seconds)
+            1800,
+            max(job.payload.time_out_seconds, job.remaining_compute_budget_seconds),
         )
 
         # Forcefully reset metrics,
@@ -145,13 +177,16 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     remaining_compute_budget_seconds=job.remaining_compute_budget_seconds,
                     job_timeout=job_timeout,
                 )
-                job_payload = base64.b64encode(
-                    job.payload.model_dump_json().encode()
+                job_payload = base64.b64encode(job.payload.model_dump_json().encode())
+                # subprocess: use same interpreter
+                # so ifc_importer from site-packages is found
+                processor_script = _find_job_processor_script()
+                logger.info(
+                    "launching job processor subprocess", script=processor_script
                 )
-                # subprocess: use same interpreter so ifc_importer from site-packages is found
                 process = await asyncio.create_subprocess_exec(
                     sys.executable,
-                    JOB_PROCESSOR_SCRIPT,
+                    processor_script,
                     temp_dir,
                     job_payload.decode(),
                     stdout=asyncio.subprocess.PIPE,
@@ -172,12 +207,14 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         process.kill()
                         with contextlib.suppress(Exception):
                             await process.communicate()
-                        raise JobPausedException("Job was paused by administrator")
+                        raise JobPausedError("Job was paused by administrator")
 
                     if communicate_task in done:
                         stdout, stderr = communicate_task.result()
                     else:
-                        raise TimeoutError(f"Job reached timeout of {job_timeout} seconds")
+                        raise TimeoutError(
+                            f"Job reached timeout of {job_timeout} seconds"
+                        )
                 except TimeoutError as te:
                     process.kill()
                     stdout, stderr = await process.communicate()
@@ -247,10 +284,10 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 )
                 job_status = JobStatus.SUCCEEDED
 
-            except JobPausedException:
+            except JobPausedError:
                 job_status = JobStatus.PAUSED
                 logger.info(
-                    "job {job_id} was paused by administrator, terminating process immediately",
+                    "job {job_id} was paused by administrator, terminating immediately",
                     job_id=job_id,
                 )
             except Exception as e:
@@ -260,7 +297,7 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 try:
                     if job_status == JobStatus.PAUSED:
                         logger.info(
-                            "Skipping budget deduction and failure reporting for paused job {job_id}",
+                            "Skipping budget deduction for paused job {job_id}",
                             job_id=job_id,
                         )
                     else:
@@ -279,7 +316,9 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                             subprocess_stderr=subprocess_stderr,
                         )
                         if speckle_client is None:
-                            await set_job_status(connection, logger, job_id, JobStatus.FAILED)
+                            await set_job_status(
+                                connection, logger, job_id, JobStatus.FAILED
+                            )
                         else:
                             try:
                                 _ = speckle_client.file_import.finish_file_import_job(
