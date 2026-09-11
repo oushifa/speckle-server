@@ -303,6 +303,29 @@ export const runModelSyncTaskFactory =
 
       // 1. 处理微服务后台队列格式 (IFC / SKP / DXF) 重试
       if (QUEUE_SUPPORTED_FILE_TYPES.has(normFileType)) {
+        const queueKnex = getQueueDb()
+        const existingJob = await queueKnex('background_jobs')
+          .whereRaw("payload ->> 'blobId' = ?", [fileUploadId])
+          .first()
+
+        // 若任务正在排队或正在转换处理中，切勿重置，以免破坏正在运行的微服务转换流程
+        if (
+          existingJob &&
+          (existingJob.status === 'processing' || existingJob.status === 'queued')
+        ) {
+          return
+        }
+
+        const shouldResetForRetry =
+          TerminalFileUploadStatuses.has(
+            upload.convertedStatus as FileUploadConvertedStatus
+          ) ||
+          (existingJob && existingJob.status === 'error')
+
+        if (!shouldResetForRetry && existingJob) {
+          return
+        }
+
         const resetUpload = await updateFileUpload({
           id: upload.id,
           upload: {
@@ -320,17 +343,18 @@ export const runModelSyncTaskFactory =
           file: resetUpload
         })
 
-        const queueKnex = getQueueDb()
-        const existingJob = await queueKnex('background_jobs')
-          .whereRaw("payload ->> 'blobId' = ?", [fileUploadId])
-          .first()
         if (existingJob) {
-          await queueKnex('background_jobs').where({ id: existingJob.id }).update({
-            status: 'queued',
-            attempt: 0,
-            remainingComputeBudgetSeconds: 1200,
-            updatedAt: new Date()
-          })
+          await queueKnex('background_jobs')
+            .where({ id: existingJob.id })
+            .update({
+              status: 'queued',
+              attempt: 0,
+              remainingComputeBudgetSeconds: Math.max(
+                1800,
+                existingJob.remainingComputeBudgetSeconds || 1800
+              ),
+              updatedAt: new Date()
+            })
         }
         return
       }

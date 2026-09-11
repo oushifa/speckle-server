@@ -680,6 +680,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
+import { useApiOrigin } from '~~/composables/env'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -688,6 +689,7 @@ definePageMeta({
 
 const { triggerNotification } = useGlobalToast()
 const authToken = useAuthCookie()
+const apiOrigin = useApiOrigin()
 
 const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {}
@@ -811,8 +813,7 @@ const formatTime = (isoString?: string) => {
 const fetchWorkersData = async () => {
   workersLoading.value = true
   try {
-    const res = await fetch('/api/v1/rvt/workers', {
-      credentials: 'include',
+    const res = await fetch(`${apiOrigin}/api/v1/rvt/workers`, {
       headers: {
         ...getAuthHeaders()
       }
@@ -838,9 +839,8 @@ const fetchQueueData = async () => {
   loading.value = true
   try {
     const res = await fetch(
-      `/api/v1/admin/file-import-queues?fileType=${activeTab.value}`,
+      `${apiOrigin}/api/v1/admin/file-import-queues?fileType=${activeTab.value}`,
       {
-        credentials: 'include',
         headers: {
           ...getAuthHeaders()
         }
@@ -867,8 +867,7 @@ const fetchQueueData = async () => {
 // 刷新全量摘要信息
 const fetchAllSummaries = async () => {
   try {
-    const res = await fetch('/api/v1/admin/file-import-queues', {
-      credentials: 'include',
+    const res = await fetch(`${apiOrigin}/api/v1/admin/file-import-queues`, {
       headers: {
         ...getAuthHeaders()
       }
@@ -907,10 +906,9 @@ const confirmPauseJob = async () => {
   actionLoading.value = true
   try {
     const res = await fetch(
-      `/api/v1/admin/file-import-queues/${targetJob.value.id}/pause`,
+      `${apiOrigin}/api/v1/admin/file-import-queues/${targetJob.value.id}/pause`,
       {
         method: 'POST',
-        credentials: 'include',
         headers: {
           ...getAuthHeaders()
         }
@@ -948,10 +946,9 @@ const confirmResumeJob = async () => {
   actionLoading.value = true
   try {
     const res = await fetch(
-      `/api/v1/admin/file-import-queues/${targetJob.value.id}/resume`,
+      `${apiOrigin}/api/v1/admin/file-import-queues/${targetJob.value.id}/resume`,
       {
         method: 'POST',
-        credentials: 'include',
         headers: {
           ...getAuthHeaders()
         }
@@ -984,14 +981,13 @@ const submitReorder = async (newJobs: ConversionJobItem[]) => {
   try {
     const jobIds = newJobs.map((j) => j.id)
     const res = await fetch(
-      `/api/v1/admin/file-import-queues/${activeTab.value}/reorder`,
+      `${apiOrigin}/api/v1/admin/file-import-queues/${activeTab.value}/reorder`,
       {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
-        credentials: 'include',
         body: JSON.stringify({ jobIds })
       }
     )

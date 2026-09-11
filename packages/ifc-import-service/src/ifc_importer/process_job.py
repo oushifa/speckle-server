@@ -48,9 +48,8 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 concurrency = None
         if concurrency is None:
-            cpu_num = multiprocessing.cpu_count()
-            # 默认受控多线程：2 ~ 4 线程，充分利用多核并行，同时避免全核打满冲顶内存
-            concurrency = min(4, max(2, cpu_num // 2))
+            # 默认全核打满并发，同时受控于 IFC_CONCURRENCY 环境变量
+            concurrency = max(1, multiprocessing.cpu_count())
 
     if linear_deflection is None:
         env_deflection = os.getenv("IFC_MESHER_LINEAR_DEFLECTION")

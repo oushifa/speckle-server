@@ -27,6 +27,7 @@ from ifc_importer.repository import (
 
 IDLE_TIMEOUT = 1
 MAX_SUBPROCESS_OUTPUT_CHARS = 4000
+JOB_PROCESSOR_SCRIPT = str(Path(__file__).resolve().parents[2] / "job_processor.py")
 
 
 def _truncate_process_output(output: bytes | None) -> str | None:
@@ -48,38 +49,63 @@ def _truncate_process_output(output: bytes | None) -> str | None:
 
 class JobPausedException(Exception):
     """Raised when the job is paused by an administrator."""
+
     pass
 
 
-async def _watch_job_paused(connection, job_id: str, poll_interval: float = 1.0) -> None:
-    """Watch if job status in DB is changed to paused."""
-    while True:
-        await asyncio.sleep(poll_interval)
-        try:
-            row = await connection.fetchrow(
+async def _watch_job_paused(job_id: str, poll_interval: float = 1.0) -> None:
+    """Watch if job status in DB is changed to paused using an independent connection."""
+    conn = None
+    try:
+        conn = await setup_connection()
+        while True:
+            await asyncio.sleep(poll_interval)
+            row = await conn.fetchrow(
                 "SELECT status FROM background_jobs WHERE id = $1", job_id
             )
             if row and row["status"] == JobStatus.PAUSED.value:
                 return
-        except Exception:
-            pass
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+    finally:
+        if conn and not conn.is_closed():
+            with contextlib.suppress(Exception):
+                await conn.close()
 
 
 async def job_manager(logger: structlog.stdlib.BoundLogger):
     parser = "speckle_ifc"
     logger = logger.bind(parser=parser)
-    connection = await setup_connection()
+    connection = None
     logger.info("job processor started")
+
     while True:
-        job = await get_next_job(connection)
-        if not job:
-            await asyncio.sleep(IDLE_TIMEOUT)
+        try:
+            if connection is None or connection.is_closed():
+                connection = await setup_connection()
+
+            job = await get_next_job(connection)
+            if not job:
+                await asyncio.sleep(IDLE_TIMEOUT)
+                continue
+        except Exception as conn_err:
+            logger.error(
+                "Failed to query next job from queue database, reconnecting in 2s...",
+                exc_info=conn_err,
+            )
+            if connection and not connection.is_closed():
+                with contextlib.suppress(Exception):
+                    await connection.close()
+            connection = None
+            await asyncio.sleep(2)
             continue
 
         start = time.time()
         duration = 0
         job_timeout = max(
-            1, min(job.payload.time_out_seconds, job.remaining_compute_budget_seconds)
+            1800, max(job.payload.time_out_seconds, job.remaining_compute_budget_seconds)
         )
 
         # Forcefully reset metrics,
@@ -97,12 +123,11 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
         subprocess_stderr: str | None = None
 
         # this will create a new temp directory and also delete it,
-        #  when the with block closes
+        # when the with block closes
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 speckle_client = setup_client(job.payload)
 
-                # i do not get this why are we handling this here?
                 if attempt > job.max_attempt:
                     raise Exception(
                         "Job exceeded max retry attempts after previous failures whose "
@@ -126,15 +151,13 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 # subprocess: use same interpreter so ifc_importer from site-packages is found
                 process = await asyncio.create_subprocess_exec(
                     sys.executable,
-                    "job_processor.py",
+                    JOB_PROCESSOR_SCRIPT,
                     temp_dir,
                     job_payload.decode(),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                watch_task = asyncio.create_task(
-                    _watch_job_paused(connection, job_id)
-                )
+                watch_task = asyncio.create_task(_watch_job_paused(job_id))
                 communicate_task = asyncio.create_task(process.communicate())
                 try:
                     done, pending = await asyncio.wait(
@@ -166,8 +189,7 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     ) from te
                 subprocess_stdout = _truncate_process_output(stdout)
                 subprocess_stderr = _truncate_process_output(stderr)
-                # this should never happen, as the job processor is handling errors
-                # when the process is killed with a timeout we raise a TimeoutError
+
                 exit_code = process.returncode
                 if exit_code != 0:
                     extra_details = []
@@ -187,7 +209,6 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         extra_details.append(f"stdout: {subprocess_stdout}")
                     details = f" {' | '.join(extra_details)}" if extra_details else ""
                     raise Exception(f"Job exited without a result.{details}")
-                # temp_dir.join("result.json")
 
                 outcome = FileimportResult.model_validate_json(
                     result_path.read_text()
@@ -202,16 +223,7 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     )
                     raise Exception(outcome.reason)
 
-                # except TimeoutError as te:
-                #     print(te)
-
-                # handler = job_handler(speckle_client, job.payload, logger)
-                # this will raise a TimeoutError if handler does not complete in time
-                # version, download_duration, parse_duration = await asyncio.wait_for(
-                #     handler, timeout=job_timeout
-                # )
                 version_id = outcome.version_id
-
                 duration = time.time() - start
                 logger.info(
                     "Finished parsing job after {duration}s,"
@@ -223,7 +235,6 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 _ = speckle_client.file_import.finish_file_import_job(
                     FileImportSuccessInput(
                         project_id=job.payload.project_id,
-                        # the blob id identifies the "job" here
                         job_id=job.payload.blob_id,
                         result=FileImportResult(
                             parser=parser,
@@ -234,10 +245,6 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                         ),
                     )
                 )
-                # the server is responsible for moving successful
-                # jobs to the succeeded state
-                # mark it as succeeded so we do not enter any error
-                # handling routines on finalisation
                 job_status = JobStatus.SUCCEEDED
 
             except JobPausedException:
@@ -246,70 +253,63 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     "job {job_id} was paused by administrator, terminating process immediately",
                     job_id=job_id,
                 )
-            # raised if the task is canceled
             except Exception as e:
-                #
                 ex = e
                 job_status = JobStatus.FAILED
             finally:
-                if job_status == JobStatus.PAUSED:
-                    logger.info("Skipping budget deduction and failure reporting for paused job {job_id}", job_id=job_id)
-                else:
-                    if duration <= 0:
-                        # it probably failed before we calculated the duration,
-                        # so calculate it now
-                        duration = time.time() - start
-                        await deduct_from_compute_budget(
-                            connection, logger, job_id, floor(duration)
+                try:
+                    if job_status == JobStatus.PAUSED:
+                        logger.info(
+                            "Skipping budget deduction and failure reporting for paused job {job_id}",
+                            job_id=job_id,
                         )
-
-                if job_status == JobStatus.FAILED:
-                    # we should be reporting the failure to the server
-                    original_failure_reason = str(ex) if ex else None
-                    logger.error(
-                        "job processing failed",
-                        exc_info=ex,
-                        subprocess_stdout=subprocess_stdout,
-                        subprocess_stderr=subprocess_stderr,
-                    )
-                    if speckle_client is None:
-                        # If auth/client setup fails, we cannot report via GraphQL.
-                        # Mark the queue job as failed to avoid crashing/retrying forever.
-                        await set_job_status(connection, logger, job_id, JobStatus.FAILED)
-                        continue
-                    try:
-                        _ = speckle_client.file_import.finish_file_import_job(
-                            FileImportErrorInput(
-                                project_id=job.payload.project_id,
-                                # the blob id identifies the job to the server
-                                job_id=job.payload.blob_id,
-                                reason=str(ex),
-                                result=FileImportResult(
-                                    parser=parser,
-                                    version_id=None,
-                                    download_duration_seconds=0,
-                                    duration_seconds=time.time() - start,
-                                    parse_duration_seconds=0,
-                                ),
+                    else:
+                        if duration <= 0:
+                            duration = time.time() - start
+                            await deduct_from_compute_budget(
+                                connection, logger, job_id, floor(duration)
                             )
-                        )
-                        # the server is responsible for moving failed jobs to the
-                        # failed state
-                        # so the worker does not have to do anything further
-                    except Exception as report_ex:
+
+                    if job_status == JobStatus.FAILED:
+                        original_failure_reason = str(ex) if ex else None
                         logger.error(
-                            "failed to report job failure",
-                            exc_info=report_ex,
-                            original_failure_reason=original_failure_reason,
+                            "job processing failed",
+                            exc_info=ex,
                             subprocess_stdout=subprocess_stdout,
                             subprocess_stderr=subprocess_stderr,
                         )
-                        # somehow we're in a weird state,
-                        # let's return the job to the queued state
-                        # where it will get picked up again until one of total timeout,
-                        # max attempts, or exhausted compute budget is reached
-                        # The server is responsible for garbage collecting jobs
-                        # which have reached these error conditions and moving
-                        # them to a failed status.
-                        await return_job_to_queued(connection, logger, job_id)
-                # SUCCEEDED: do nothing, loop will continue after finally
+                        if speckle_client is None:
+                            await set_job_status(connection, logger, job_id, JobStatus.FAILED)
+                        else:
+                            try:
+                                _ = speckle_client.file_import.finish_file_import_job(
+                                    FileImportErrorInput(
+                                        project_id=job.payload.project_id,
+                                        job_id=job.payload.blob_id,
+                                        reason=str(ex),
+                                        result=FileImportResult(
+                                            parser=parser,
+                                            version_id=None,
+                                            download_duration_seconds=0,
+                                            duration_seconds=time.time() - start,
+                                            parse_duration_seconds=0,
+                                        ),
+                                    )
+                                )
+                            except Exception as report_ex:
+                                logger.error(
+                                    "failed to report job failure",
+                                    exc_info=report_ex,
+                                    original_failure_reason=original_failure_reason,
+                                    subprocess_stdout=subprocess_stdout,
+                                    subprocess_stderr=subprocess_stderr,
+                                )
+                                await return_job_to_queued(connection, logger, job_id)
+                except Exception as final_err:
+                    logger.error(
+                        "Error during job cleanup or status update", exc_info=final_err
+                    )
+                    if connection and not connection.is_closed():
+                        with contextlib.suppress(Exception):
+                            await connection.close()
+                    connection = None
