@@ -332,6 +332,16 @@ const buildDisplayParameters = (
   return out
 }
 
+const parseRevitUniqueIdHexSuffix = (appId?: string): string | undefined => {
+  if (!appId || typeof appId !== 'string') return undefined
+  const parts = appId.trim().split('-')
+  if (parts.length < 2) return undefined
+  const suffix = parts[parts.length - 1]
+  if (!/^[0-9a-fA-F]{1,8}$/.test(suffix)) return undefined
+  const parsed = parseInt(suffix, 16)
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : undefined
+}
+
 export const getSyncElementIds = (
   raw: Record<string, unknown>,
   _sourceFileType?: SourceFileType,
@@ -342,7 +352,18 @@ export const getSyncElementIds = (
     applicationId = undefined
   }
 
-  let elementId = pickIdString(raw.elementId, raw.elementID)
+  const properties = isObject(raw.properties) ? raw.properties : undefined
+  const parameters = isObject(raw.parameters) ? raw.parameters : undefined
+
+  let elementId = pickIdString(
+    raw.elementId,
+    raw.elementID,
+    properties?.elementId,
+    properties?.elementID,
+    parameters?.elementId,
+    parameters?.elementID,
+    parseRevitUniqueIdHexSuffix(applicationId)
+  )
   if (speckleObjectId && elementId === speckleObjectId) {
     elementId = undefined
   }

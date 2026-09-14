@@ -234,4 +234,73 @@ describe('Model custom label export', () => {
       }
     ])
   })
+
+  it('extracts elementId from raw.properties.elementId or revit uniqueId suffix', () => {
+    const payload = buildModelCustomLabelPayload({
+      modelSeedId: 'seed-props',
+      modelName: 'props-test',
+      versionCreatedAt: '2026-05-18T00:00:00.000Z',
+      rootId: 'root-1',
+      objectMap: new Map([
+        [
+          'root-1',
+          {
+            id: 'root-1',
+            childrenIds: ['obj-1', 'obj-2'],
+            raw: {
+              elements: [{ referencedId: 'obj-1' }, { referencedId: 'obj-2' }]
+            }
+          }
+        ],
+        [
+          'obj-1',
+          {
+            id: 'obj-1',
+            childrenIds: [],
+            raw: {
+              applicationId: 'b5e6a1bb-53d4-4786-9605-392660652267-00051cc0',
+              properties: {
+                elementId: '335040'
+              },
+              parameters: {
+                Category: '楼板'
+              }
+            }
+          }
+        ],
+        [
+          'obj-2',
+          {
+            id: 'obj-2',
+            childrenIds: [],
+            raw: {
+              applicationId: '2d99307a-66cd-4439-b173-5c88d252416e-000022f9',
+              parameters: {
+                Category: '等高线'
+              }
+            }
+          }
+        ]
+      ])
+    })
+
+    expect(payload.elements).to.deep.equal([
+      {
+        id: '335040',
+        applicationId: 'b5e6a1bb-53d4-4786-9605-392660652267-00051cc0',
+        elementId: '335040',
+        parameters: {
+          Category: '楼板'
+        }
+      },
+      {
+        id: '8953',
+        applicationId: '2d99307a-66cd-4439-b173-5c88d252416e-000022f9',
+        elementId: '8953',
+        parameters: {
+          Category: '等高线'
+        }
+      }
+    ])
+  })
 })
