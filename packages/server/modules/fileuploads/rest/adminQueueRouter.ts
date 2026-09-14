@@ -108,21 +108,52 @@ export const adminQueueRouterFactory = (): Router => {
 
         const rows: BackgroundJobRecord[] = await query.orderBy('createdAt', 'asc')
 
-        // 2. 查询失败的任务（最近 50 条）
-        let failedQuery = queueKnex('background_jobs')
-          .select('*')
+        // 解析失败列表的分页参数（默认第 1 页，每页 10 条）
+        const failedPage = Math.max(
+          1,
+          parseInt(
+            typeof req.query.failedPage === 'string' ? req.query.failedPage : '1',
+            10
+          ) || 1
+        )
+        const failedPageSize = Math.max(
+          1,
+          Math.min(
+            100,
+            parseInt(
+              typeof req.query.failedPageSize === 'string'
+                ? req.query.failedPageSize
+                : '10',
+              10
+            ) || 10
+          )
+        )
+
+        // 2. 查询失败的任务总数与分页数据
+        let failedBaseQuery = queueKnex('background_jobs')
           .whereRaw('lower("jobType") = ?', ['fileimport'])
           .where('status', 'failed')
 
         if (fileType) {
-          failedQuery = failedQuery.whereRaw("lower(payload ->> 'fileType') = ?", [
-            fileType
-          ])
+          failedBaseQuery = failedBaseQuery.whereRaw(
+            "lower(payload ->> 'fileType') = ?",
+            [fileType]
+          )
         }
 
-        const failedRows: BackgroundJobRecord[] = await failedQuery
+        const countRow = await failedBaseQuery
+          .clone()
+          .count<{ count: string | number }>('* as count')
+          .first()
+        const failedTotal = Number(countRow?.count || 0)
+
+        const failedOffset = (failedPage - 1) * failedPageSize
+        const failedRows: BackgroundJobRecord[] = await failedBaseQuery
+          .clone()
+          .select('*')
           .orderBy('updatedAt', 'desc')
-          .limit(50)
+          .offset(failedOffset)
+          .limit(failedPageSize)
 
         // 收集所有的 projectId 和 modelId 进行批量补充名称信息
         const projectIds = new Set<string>()
@@ -367,7 +398,13 @@ export const adminQueueRouterFactory = (): Router => {
           activeJob,
           queuedJobs,
           pausedJobs,
-          failedJobs
+          failedJobs,
+          failedPagination: {
+            page: failedPage,
+            pageSize: failedPageSize,
+            total: failedTotal,
+            totalPages: Math.ceil(failedTotal / failedPageSize) || 1
+          }
         })
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err)
