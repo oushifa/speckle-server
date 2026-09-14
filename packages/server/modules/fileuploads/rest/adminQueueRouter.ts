@@ -1,5 +1,7 @@
+import os from 'os'
 import { Router, type RequestHandler, type Request, type Response } from 'express'
 import { db } from '@/db/knex'
+import type { Knex } from 'knex'
 import { Roles } from '@speckle/shared'
 import { configureClient } from '@/knexfile'
 import { getFileImporterQueuePostgresUrl } from '@/modules/shared/helpers/envHelper'
@@ -20,6 +22,53 @@ const requireServerAdmin: RequestHandler = (req, res, next) => {
     return res.status(403).json({ error: '仅超级管理员有权限访问此接口' })
   }
   return next()
+}
+
+async function ensureSettingsTable(knexClient: Knex): Promise<void> {
+  const hasTable = await knexClient.schema.hasTable('file_import_settings')
+  if (!hasTable) {
+    await knexClient.schema.createTable('file_import_settings', (table) => {
+      table.string('key', 64).primary()
+      table.text('value').notNullable()
+      table.timestamp('updated_at', { useTz: true }).defaultTo(knexClient.fn.now())
+    })
+    await knexClient('file_import_settings')
+      .insert({
+        key: 'ifc_concurrency',
+        value: '4'
+      })
+      .onConflict('key')
+      .ignore()
+  }
+}
+
+async function getIfcConcurrency(knexClient: Knex): Promise<number> {
+  try {
+    await ensureSettingsTable(knexClient)
+    const row = await knexClient('file_import_settings')
+      .where({ key: 'ifc_concurrency' })
+      .first()
+    if (row?.value) {
+      const val = parseInt(row.value, 10)
+      if (!isNaN(val) && val >= 1) return val
+    }
+  } catch (e) {
+    logger.warn({ err: e }, '获取 ifc_concurrency 配置失败，使用默认值 4')
+  }
+  return 4
+}
+
+async function setIfcConcurrency(knexClient: Knex, concurrency: number): Promise<void> {
+  await ensureSettingsTable(knexClient)
+  await knexClient('file_import_settings')
+    .insert({
+      key: 'ifc_concurrency',
+      value: String(concurrency),
+      // eslint-disable-next-line camelcase
+      updated_at: new Date()
+    })
+    .onConflict('key')
+    .merge()
 }
 
 export type ConversionJobItem = {
@@ -679,6 +728,64 @@ export const adminQueueRouterFactory = (): Router => {
         const errorMsg = err instanceof Error ? err.message : String(err)
         logger.error({ err, jobId }, '重试模型转换任务失败')
         return res.status(500).json({ error: '重试模型转换任务失败: ' + errorMsg })
+      }
+    }
+  )
+  /**
+   * 获取当前模型转换服务全局设置（如并发线程数）
+   * GET /api/v1/admin/file-import-queues/settings
+   */
+  router.get(
+    '/api/v1/admin/file-import-queues/settings',
+    requireServerAdmin,
+    async (_req: Request, res: Response) => {
+      try {
+        const queueKnex = getQueueDb()
+        const cpuCount = os.cpus()?.length || 4
+        const ifcConcurrency = await getIfcConcurrency(queueKnex)
+        const recommendedConcurrency = Math.min(
+          8,
+          Math.max(2, cpuCount >= 8 ? 6 : cpuCount >= 4 ? 4 : 2)
+        )
+        return res.json({
+          ifcConcurrency,
+          cpuCount,
+          recommendedConcurrency
+        })
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        logger.error({ err }, '获取模型转换设置失败')
+        return res.status(500).json({ error: '获取模型转换设置失败: ' + errorMsg })
+      }
+    }
+  )
+
+  /**
+   * 更新模型转换服务全局设置
+   * PUT /api/v1/admin/file-import-queues/settings
+   */
+  router.put(
+    '/api/v1/admin/file-import-queues/settings',
+    requireServerAdmin,
+    async (req: Request, res: Response) => {
+      try {
+        const { ifcConcurrency } = req.body || {}
+        const concurrency = parseInt(String(ifcConcurrency), 10)
+        if (isNaN(concurrency) || concurrency < 1 || concurrency > 32) {
+          return res.status(400).json({ error: '并发线程数必须是 1 到 32 之间的整数' })
+        }
+        const queueKnex = getQueueDb()
+        await setIfcConcurrency(queueKnex, concurrency)
+        logger.info({ concurrency }, '管理员修改了 IFC 转换并发线程设置')
+        return res.json({
+          success: true,
+          ifcConcurrency: concurrency,
+          message: `IFC 转换并发线程数已成功更新为 ${concurrency} 线程`
+        })
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        logger.error({ err }, '保存模型转换设置失败')
+        return res.status(500).json({ error: '保存模型转换设置失败: ' + errorMsg })
       }
     }
   )

@@ -210,6 +210,27 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                 logger.info(
                     "launching job processor subprocess", script=processor_script
                 )
+
+                # 动态查询管理员在控制台配置的并发线程数
+                sub_env = os.environ.copy()
+                try:
+                    setting_row = await connection.fetchrow(
+                        "SELECT value FROM file_import_settings"
+                        " WHERE key = 'ifc_concurrency'"
+                    )
+                    if setting_row and setting_row["value"]:
+                        active_concurrency = str(int(setting_row["value"]))
+                        sub_env["IFC_CONCURRENCY"] = active_concurrency
+                        logger.info(
+                            "Using configured IFC concurrency",
+                            concurrency=active_concurrency,
+                        )
+                except Exception as setting_err:
+                    logger.debug(
+                        "Failed to read ifc_concurrency from settings table",
+                        exc_info=setting_err,
+                    )
+
                 process = await asyncio.create_subprocess_exec(
                     sys.executable,
                     processor_script,
@@ -217,6 +238,7 @@ async def job_manager(logger: structlog.stdlib.BoundLogger):
                     job_payload.decode(),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    env=sub_env,
                 )
                 watch_task = asyncio.create_task(_watch_job_paused(job_id))
                 communicate_task = asyncio.create_task(process.communicate())

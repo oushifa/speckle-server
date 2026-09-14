@@ -52,9 +52,9 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 concurrency = None
         if concurrency is None:
-            # 默认采用受控小并发（最大 2 线程）
-            # 彻底消除打满全核导致的大模型几何多线程 OOM 风险
-            concurrency = min(2, max(1, multiprocessing.cpu_count()))
+            # 默认采用更充沛的多线程算力（最大 6 线程，建议 4~6 线程）
+            # 配合 SQLite 磁盘缓存，在安全内存水位下大幅提升并行三角化吞吐
+            concurrency = min(6, max(2, multiprocessing.cpu_count() - 1))
 
     if linear_deflection is None:
         env_deflection = os.getenv("IFC_MESHER_LINEAR_DEFLECTION")
@@ -74,6 +74,10 @@ def create_bounded_geometry_iterator(
     settings.set("no-wire-intersection-check", True)
     settings.set("use-material-names", True)
     settings.set("mesher-linear-deflection", linear_deflection)
+    # 性能关键优化 1：开启相同几何形状复用，避免海量相同构件重复进行昂贵拓扑计算
+    settings.set("permissive-shape-reuse", True)
+    # 性能关键优化 2：优化圆弧分段数至 12（默认 16），显著加快管线/圆柱实体处理
+    settings.set("circle-segments", 12)
 
     return ifc_geom_iterator(settings, ifc_file, concurrency), concurrency
 
@@ -244,8 +248,8 @@ class ProgressImportJob(ImportJob):
         result = super().convert_element(step_element)
         if step_element.is_a("IfcRoot"):
             self.converted_root_elements += 1
-            # 每转换 200 个构件，主动触发垃圾回收，避免大量临时属性字典堆积
-            if self.converted_root_elements % 200 == 0:
+            # 适度降低全代 GC 频次（每 1000 个构件），减少 stop-the-world 阻塞耗时
+            if self.converted_root_elements % 1000 == 0:
                 gc.collect()
             if self.progress_callback:
                 progress_ratio = self.converted_root_elements / self.root_elements_total
@@ -277,7 +281,7 @@ class ProgressImportJob(ImportJob):
             )
 
         batch: list[tuple[int, list[Any]]] = []
-        batch_size = 50
+        batch_size = 200
 
         try:
             while True:
@@ -294,7 +298,9 @@ class ProgressImportJob(ImportJob):
                         if len(batch) >= batch_size:
                             self.disk_cache.put_batch(batch)
                             batch.clear()
-                            gc.collect()
+                            # 仅在每 1000 个构件时轻量 GC，大幅消减全堆扫描时间
+                            if self.geometries_count % 1000 == 0:
+                                gc.collect()
                     else:
                         self.cached_display_values[geometry_id] = display_value
                 except Exception as ex:
