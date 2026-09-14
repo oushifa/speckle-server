@@ -32,6 +32,7 @@ class GeometryDiskCache:
                 """
                 CREATE TABLE IF NOT EXISTS geometries (
                     id INTEGER PRIMARY KEY,
+                    item_count INTEGER NOT NULL DEFAULT 0,
                     data BLOB NOT NULL
                 );
                 """
@@ -40,10 +41,12 @@ class GeometryDiskCache:
     def put(self, geometry_id: int, display_value: list[Base]) -> None:
         """Store the display value (list of Meshes) for a geometry ID."""
         data_bytes = pickle.dumps(display_value, protocol=pickle.HIGHEST_PROTOCOL)
+        count = len(display_value)
         with self._conn:
             self._conn.execute(
-                "INSERT OR REPLACE INTO geometries (id, data) VALUES (?, ?);",
-                (geometry_id, data_bytes),
+                "INSERT OR REPLACE INTO geometries (id, item_count, data)"
+                " VALUES (?, ?, ?);",
+                (geometry_id, count, data_bytes),
             )
 
     def put_batch(self, items: list[tuple[int, list[Base]]]) -> None:
@@ -53,13 +56,15 @@ class GeometryDiskCache:
         records = [
             (
                 geom_id,
+                len(val),
                 pickle.dumps(val, protocol=pickle.HIGHEST_PROTOCOL),
             )
             for geom_id, val in items
         ]
         with self._conn:
             self._conn.executemany(
-                "INSERT OR REPLACE INTO geometries (id, data) VALUES (?, ?);",
+                "INSERT OR REPLACE INTO geometries (id, item_count, data)"
+                " VALUES (?, ?, ?);",
                 records,
             )
 
@@ -82,6 +87,15 @@ class GeometryDiskCache:
             self._conn.commit()
             return pickle.loads(row[0])
         return []
+
+    def get_count(self, geometry_id: int) -> int:
+        """Return the count of items for a geometry without deserializing the BLOB."""
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "SELECT item_count FROM geometries WHERE id = ?;", (geometry_id,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
 
     def has(self, geometry_id: int) -> bool:
         """Check if geometry exists in cache."""
@@ -115,38 +129,46 @@ class GeometryDiskCache:
 
 
 class LazyGeometryList(list):
-    """A lazy-loading list proxy for DataObject.displayValue.
+    """A lazy-loading, memory-releasing list proxy for DataObject.displayValue.
 
     Satisfies isinstance(..., list) check in specklepy.
     Defers deserializing large Meshes from SQLite disk cache until BaseObjectSerializer
-    traverses the attribute during send(), and releases them immediately.
+    traverses the attribute during send(), yields them one-by-one, and frees memory.
     """
 
-    def __init__(self, geometry_id: int, disk_cache: GeometryDiskCache) -> None:
+    def __init__(
+        self, geometry_id: int, disk_cache: GeometryDiskCache, item_count: int = 0
+    ) -> None:
         super().__init__()
         self._geometry_id = geometry_id
         self._disk_cache = disk_cache
-        self._loaded = False
-
-    def _ensure_loaded(self) -> None:
-        if not self._loaded:
-            self._loaded = True
-            items = self._disk_cache.pop(self._geometry_id)
-            self.extend(items)
+        self._item_count = item_count
+        self._consumed = False
 
     def __iter__(self) -> Any:
-        self._ensure_loaded()
-        return super().__iter__()
+        if self._consumed:
+            return iter([])
+        self._consumed = True
+        items = self._disk_cache.pop(self._geometry_id)
+        while items:
+            # 即用即扔：yield 出一个后立即移除，断开局部强引用
+            # 便于 GC 即时回收已序列化网格，避免堆积
+            yield items.pop(0)
 
     def __len__(self) -> int:
-        self._ensure_loaded()
-        return super().__len__()
+        if self._consumed:
+            return 0
+        if self._item_count > 0:
+            return self._item_count
+        return self._disk_cache.get_count(self._geometry_id)
 
     def __getitem__(self, idx: Any) -> Any:
-        self._ensure_loaded()
-        return super().__getitem__(idx)
+        items = self._disk_cache.get(self._geometry_id)
+        return items[idx]
 
     def __bool__(self) -> bool:
-        if self._loaded:
-            return super().__len__() > 0
+        if self._consumed:
+            return False
+        if self._item_count > 0:
+            return True
         return self._disk_cache.has(self._geometry_id)

@@ -91,9 +91,13 @@ export const onFileImportResultFactory =
       progressPercent:
         jobResult.status === JobResultStatus.Success ? 100 : fileInfo.progressPercent,
       progressPhase:
-        jobResult.status === JobResultStatus.Success ? 'completed' : 'failed',
+        jobResult.status === JobResultStatus.Success
+          ? 'completed'
+          : fileInfo.progressPhase || 'failed',
       progressMessage:
-        jobResult.status === JobResultStatus.Success ? null : jobResult.reason
+        jobResult.status === JobResultStatus.Success
+          ? null
+          : fileInfo.progressMessage || jobResult.reason
     }
 
     if (deps.FF_NEXT_GEN_FILE_IMPORTER_ENABLED) {

@@ -1,6 +1,9 @@
+import contextlib
 import gc
+import math
 import multiprocessing
 import os
+import threading
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -21,6 +24,7 @@ from speckleifc.importer import ImportJob
 from specklepy.core.api.inputs.version_inputs import CreateVersionInput
 from specklepy.core.api.operations import send
 from specklepy.transports.server import ServerTransport
+from specklepy.transports.server.batch_sender import BatchSender
 
 from ifc_importer.client import setup_client
 from ifc_importer.disk_cache import GeometryDiskCache, LazyGeometryList
@@ -48,7 +52,8 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 concurrency = None
         if concurrency is None:
-            # 默认采用受控小并发（最大 2 线程），彻底消除打满全核导致的大模型几何多线程 OOM 风险
+            # 默认采用受控小并发（最大 2 线程）
+            # 彻底消除打满全核导致的大模型几何多线程 OOM 风险
             concurrency = min(2, max(1, multiprocessing.cpu_count()))
 
     if linear_deflection is None:
@@ -59,7 +64,8 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 linear_deflection = None
         if linear_deflection is None:
-            linear_deflection = 1.0  # 适度放宽细分容差，削减 40%~60% 的微小面，大幅减轻内存负担
+            # 适度放宽细分容差，削减 40%~60% 的微小面，大幅减轻内存负担
+            linear_deflection = 1.0
 
     settings = ifc_geom_settings()
     settings.set("triangulation-type", ifcopenshell_wrapper.TRIANGLE_MESH)
@@ -80,11 +86,78 @@ class DiskBackedGeometryMap:
 
     def get(self, geometry_id: int, default: Any = None) -> Any:
         if self.disk_cache.has(geometry_id):
-            return LazyGeometryList(geometry_id, self.disk_cache)
+            item_count = self.disk_cache.get_count(geometry_id)
+            return LazyGeometryList(geometry_id, self.disk_cache, item_count)
         return default if default is not None else []
 
     def __contains__(self, geometry_id: int) -> bool:
         return self.disk_cache.has(geometry_id)
+
+
+class ProgressBatchSender(BatchSender):
+    """Memory-controlled batch sender with concurrency limit and dynamic upload
+    progress reporting.
+    """
+
+    def __init__(
+        self,
+        server_url: str,
+        stream_id: str,
+        token: str,
+        max_batch_size_mb: float = 0.5,
+        max_batch_length: int = 2000,
+        batch_buffer_length: int = 2,
+        thread_count: int = 1,
+        on_batch_sent: Callable[[int, int], None] | None = None,
+    ) -> None:
+        super().__init__(
+            server_url,
+            stream_id,
+            token,
+            max_batch_size_mb=max_batch_size_mb,
+            max_batch_length=max_batch_length,
+            batch_buffer_length=batch_buffer_length,
+            thread_count=thread_count,
+        )
+        self._on_batch_sent = on_batch_sent
+        self._sent_batches_count = 0
+        self._sent_objects_count = 0
+        self._lock = threading.Lock()
+
+    def _bg_send_batch(self, session: requests.Session, batch: Any) -> None:
+        super()._bg_send_batch(session, batch)
+        with self._lock:
+            self._sent_batches_count += 1
+            self._sent_objects_count += len(batch)
+            b_cnt = self._sent_batches_count
+            o_cnt = self._sent_objects_count
+        if self._on_batch_sent:
+            with contextlib.suppress(Exception):
+                self._on_batch_sent(b_cnt, o_cnt)
+
+
+class ProgressServerTransport(ServerTransport):
+    """ServerTransport with memory-conservative batching and progress reporting."""
+
+    def __init__(
+        self,
+        stream_id: str,
+        account: Any = None,
+        client: Any = None,
+        on_batch_sent: Callable[[int, int], None] | None = None,
+    ) -> None:
+        super().__init__(stream_id, client=client, account=account)
+        if self.account is not None:
+            self._batch_sender = ProgressBatchSender(
+                self.url,
+                self.stream_id,
+                self.account.token,
+                max_batch_size_mb=0.5,
+                max_batch_length=2000,
+                batch_buffer_length=2,
+                thread_count=1,
+                on_batch_sent=on_batch_sent,
+            )
 
 
 class ProgressReporter:
@@ -256,6 +329,17 @@ class ProgressImportJob(ImportJob):
             del iterator
             gc.collect()
 
+    def dispose(self) -> None:
+        """Explicitly break references to C++ ifc_file and internal structures."""
+        self.ifc_file = None
+        if hasattr(self, "elements") and isinstance(self.elements, dict):
+            self.elements.clear()
+        if hasattr(self, "tree"):
+            self.tree = None
+        self.disk_cache = None
+        self.cached_display_values = None
+        self.progress_callback = None
+
 
 def _download_blob(
     payload: FileimportPayload,
@@ -317,8 +401,6 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
             28, "opening_ifc", "Opening IFC file", True
         )
 
-        account = client.account
-        remote_transport = ServerTransport(project.id, account=account)
         ifc_file = open_ifc(str(local_file))
 
         parse_start = time()
@@ -330,13 +412,47 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
                 progress_callback=progress_reporter.report,
             )
             data = import_job.convert()
+
+            # 关键优化 1：构件树已构建完成，立即销毁 IfcOpenShell C++ 对象与底噪内存
+            import_job.dispose()
+            del import_job
+            del ifc_file
+            gc.collect()
+
+            # 关键优化 2：上传细粒度进度实时动态推进 (88% -> 95%)
+            def on_batch_uploaded(batch_index: int, objects_sent: int) -> None:
+                step = int(math.sqrt(batch_index * 2))
+                percent = min(95, 88 + step)
+                msg = (
+                    f"Uploading converted model (batch {batch_index},"
+                    f" {objects_sent} objects sent)"
+                )
+                progress_reporter.report(
+                    percent,
+                    "uploading_model_object",
+                    msg,
+                    True,
+                )
+
+            account = client.account
+            remote_transport = ProgressServerTransport(
+                project.id, account=account, on_batch_sent=on_batch_uploaded
+            )
+
             progress_reporter.report(
                 88,
                 "uploading_model_object",
-                "Uploading converted model",
+                "Uploading converted model (starting upload)",
                 True,
             )
             root_id = send(data, transports=[remote_transport], use_default_cache=False)
+
+            progress_reporter.report(
+                95,
+                "uploading_model_object",
+                "Uploading converted model (objects upload finished)",
+                True,
+            )
 
         progress_reporter.report(
             96,
