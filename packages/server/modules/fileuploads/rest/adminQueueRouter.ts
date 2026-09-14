@@ -35,11 +35,35 @@ export type ConversionJobItem = {
   status: string
   createdAt: string
   updatedAt: string
+  startedAt?: string | null
   attempt: number
   maxAttempt: number
   queuePosition?: number | null
+  progressPhase?: string | null
   progressPercent?: number | null
   progressMessage?: string | null
+}
+
+export type FailedConversionJobItem = {
+  id: string
+  jobType: string
+  fileType: string
+  fileName: string
+  projectId: string
+  projectName: string
+  modelId: string
+  modelName: string
+  blobId: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  failedAt: string
+  attempt: number
+  maxAttempt: number
+  failedPhase?: string | null
+  failedPercent?: number | null
+  failedProgressMessage?: string | null
+  errorMessage?: string | null
 }
 
 type BackgroundJobRecord = {
@@ -57,7 +81,7 @@ export const adminQueueRouterFactory = (): Router => {
   const router = Router()
 
   /**
-   * 获取指定类型（或全部类型）的模型转换队列状态
+   * 获取指定类型（或全部类型）的模型转换队列状态及失败历史
    * GET /api/v1/admin/file-import-queues?fileType=ifc
    */
   router.get(
@@ -72,6 +96,7 @@ export const adminQueueRouterFactory = (): Router => {
 
         const queueKnex = getQueueDb()
 
+        // 1. 查询活跃、排队和暂停中的任务
         let query = queueKnex('background_jobs')
           .select('*')
           .whereRaw('lower("jobType") = ?', ['fileimport'])
@@ -81,50 +106,27 @@ export const adminQueueRouterFactory = (): Router => {
           query = query.whereRaw("lower(payload ->> 'fileType') = ?", [fileType])
         }
 
-        const rows = await query.orderBy('createdAt', 'asc')
+        const rows: BackgroundJobRecord[] = await query.orderBy('createdAt', 'asc')
 
-        if (!rows.length) {
-          return res.json({
-            fileType,
-            activeJob: null,
-            queuedJobs: [],
-            pausedJobs: []
-          })
+        // 2. 查询失败的任务（最近 50 条）
+        let failedQuery = queueKnex('background_jobs')
+          .select('*')
+          .whereRaw('lower("jobType") = ?', ['fileimport'])
+          .where('status', 'failed')
+
+        if (fileType) {
+          failedQuery = failedQuery.whereRaw("lower(payload ->> 'fileType') = ?", [
+            fileType
+          ])
         }
+
+        const failedRows: BackgroundJobRecord[] = await failedQuery
+          .orderBy('updatedAt', 'desc')
+          .limit(50)
 
         // 收集所有的 projectId 和 modelId 进行批量补充名称信息
         const projectIds = new Set<string>()
         const modelIds = new Set<string>()
-
-        for (const row of rows) {
-          const payload =
-            typeof row.payload === 'string'
-              ? JSON.parse(row.payload)
-              : row.payload || {}
-          if (payload.projectId) projectIds.add(payload.projectId)
-          if (payload.modelId) modelIds.add(payload.modelId)
-        }
-
-        const projectMap = new Map<string, string>()
-        const modelMap = new Map<string, string>()
-
-        if (projectIds.size > 0) {
-          const projects = await db('streams')
-            .select('id', 'name')
-            .whereIn('id', Array.from(projectIds))
-          for (const p of projects) {
-            projectMap.set(p.id, p.name)
-          }
-        }
-
-        if (modelIds.size > 0) {
-          const models = await db('branches')
-            .select('id', 'name')
-            .whereIn('id', Array.from(modelIds))
-          for (const m of models) {
-            modelMap.set(m.id, m.name)
-          }
-        }
 
         const parsePayload = (
           rawPayload: unknown
@@ -155,14 +157,83 @@ export const adminQueueRouterFactory = (): Router => {
           return {}
         }
 
-        // 查询最新的 project_model_sync_tasks 进度以展示更精细的 progressMessage
-        const fileUploadIds = rows
+        const allRows = [...rows, ...failedRows]
+        for (const row of allRows) {
+          const payload = parsePayload(row.payload)
+          if (payload.projectId) projectIds.add(payload.projectId)
+          if (payload.modelId) modelIds.add(payload.modelId)
+        }
+
+        const projectMap = new Map<string, string>()
+        const modelMap = new Map<string, string>()
+
+        if (projectIds.size > 0) {
+          const projects = await db('streams')
+            .select('id', 'name')
+            .whereIn('id', Array.from(projectIds))
+          for (const p of projects) {
+            projectMap.set(p.id, p.name)
+          }
+        }
+
+        if (modelIds.size > 0) {
+          const models = await db('branches')
+            .select('id', 'name')
+            .whereIn('id', Array.from(modelIds))
+          for (const m of models) {
+            modelMap.set(m.id, m.name)
+          }
+        }
+
+        // 收集全部关联的 fileUploadId (blobId)
+        const fileUploadIds = allRows
           .map((r: BackgroundJobRecord) => {
             const p = parsePayload(r.payload)
             return p.blobId || null
           })
           .filter((id): id is string => Boolean(id))
 
+        // 3. 联合优先查询 file_uploads 表（Worker 真实写入进度的源头表）
+        const fileUploadProgressMap = new Map<
+          string,
+          {
+            percent: number | null
+            phase: string | null
+            message: string | null
+            status: number | null
+            errorMessage: string | null
+            lastUpdate: string | null
+          }
+        >()
+
+        if (fileUploadIds.length > 0) {
+          const uploads = await db('file_uploads')
+            .select(
+              'id',
+              'convertedStatus',
+              'convertedMessage',
+              'convertedLastUpdate',
+              'progressPercent',
+              'progressPhase',
+              'progressMessage'
+            )
+            .whereIn('id', fileUploadIds)
+
+          for (const u of uploads) {
+            fileUploadProgressMap.set(u.id, {
+              percent: u.progressPercent,
+              phase: u.progressPhase,
+              message: u.progressMessage,
+              status: u.convertedStatus,
+              errorMessage: u.convertedMessage,
+              lastUpdate: u.convertedLastUpdate
+                ? new Date(u.convertedLastUpdate).toISOString()
+                : null
+            })
+          }
+        }
+
+        // 备用：查询 project_model_sync_tasks 进度
         const taskProgressMap = new Map<
           string,
           { percent: number | null; message: string | null }
@@ -189,7 +260,20 @@ export const adminQueueRouterFactory = (): Router => {
           const pId = payload.projectId || ''
           const mId = payload.modelId || ''
           const blobId = payload.blobId || ''
-          const progressInfo = blobId ? taskProgressMap.get(blobId) : null
+          const uploadInfo = blobId ? fileUploadProgressMap.get(blobId) : null
+          const syncTaskInfo = blobId ? taskProgressMap.get(blobId) : null
+
+          const percent = uploadInfo?.percent ?? syncTaskInfo?.percent ?? null
+          const phase = uploadInfo?.phase ?? null
+          const message = uploadInfo?.message ?? syncTaskInfo?.message ?? null
+
+          // 核心修正：对于处于 processing 状态的任务，开始/重试时间取 row.updatedAt，真实反映 Worker 开始执行的时间
+          const startedAt =
+            row.status === 'processing'
+              ? row.updatedAt
+                ? new Date(row.updatedAt).toISOString()
+                : new Date(row.createdAt).toISOString()
+              : null
 
           return {
             id: row.id,
@@ -204,11 +288,56 @@ export const adminQueueRouterFactory = (): Router => {
             status: row.status,
             createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : '',
             updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : '',
+            startedAt,
             attempt: row.attempt,
             maxAttempt: row.maxAttempt,
             queuePosition: queuePos ?? null,
-            progressPercent: progressInfo?.percent ?? null,
-            progressMessage: progressInfo?.message ?? null
+            progressPhase: phase,
+            progressPercent: percent,
+            progressMessage: message
+          }
+        }
+
+        const formatFailedJob = (row: BackgroundJobRecord): FailedConversionJobItem => {
+          const payload = parsePayload(row.payload)
+          const pId = payload.projectId || ''
+          const mId = payload.modelId || ''
+          const blobId = payload.blobId || ''
+          const uploadInfo = blobId ? fileUploadProgressMap.get(blobId) : null
+          const syncTaskInfo = blobId ? taskProgressMap.get(blobId) : null
+
+          const percent = uploadInfo?.percent ?? syncTaskInfo?.percent ?? null
+          const phase = uploadInfo?.phase ?? null
+          const message = uploadInfo?.message ?? syncTaskInfo?.message ?? null
+          const errorMsg =
+            uploadInfo?.errorMessage ||
+            (typeof (row as Record<string, unknown>).error === 'string'
+              ? ((row as Record<string, unknown>).error as string)
+              : null) ||
+            '模型转换异常终止'
+
+          return {
+            id: row.id,
+            jobType: row.jobType,
+            fileType: (payload.fileType || '').toLowerCase(),
+            fileName: payload.fileName || '',
+            projectId: pId,
+            projectName: projectMap.get(pId) || pId || '未知项目',
+            modelId: mId,
+            modelName: modelMap.get(mId) || payload.fileName || mId || '未知模型',
+            blobId,
+            status: row.status,
+            createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : '',
+            updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : '',
+            failedAt: row.updatedAt
+              ? new Date(row.updatedAt).toISOString()
+              : new Date(row.createdAt).toISOString(),
+            attempt: row.attempt,
+            maxAttempt: row.maxAttempt,
+            failedPhase: phase,
+            failedPercent: percent,
+            failedProgressMessage: message,
+            errorMessage: errorMsg
           }
         }
 
@@ -222,7 +351,6 @@ export const adminQueueRouterFactory = (): Router => {
             if (!activeJob) {
               activeJob = formatJob(row)
             } else {
-              // 容错处理：若有多条 processing，优先放入 queued 或列表
               queuedJobs.push(formatJob(row, queueIdx++))
             }
           } else if (row.status === 'queued') {
@@ -232,11 +360,14 @@ export const adminQueueRouterFactory = (): Router => {
           }
         }
 
+        const failedJobs: FailedConversionJobItem[] = failedRows.map(formatFailedJob)
+
         return res.json({
           fileType,
           activeJob,
           queuedJobs,
-          pausedJobs
+          pausedJobs,
+          failedJobs
         })
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err)
@@ -428,6 +559,89 @@ export const adminQueueRouterFactory = (): Router => {
         const errorMsg = err instanceof Error ? err.message : String(err)
         logger.error({ err, fileType }, '调整转换队列顺序失败')
         return res.status(500).json({ error: '调整转换队列顺序失败: ' + errorMsg })
+      }
+    }
+  )
+
+  /**
+   * 重试失败的模型转换（重置后排入等待队列首位）
+   * POST /api/v1/admin/file-import-queues/:jobId/retry
+   */
+  router.post(
+    '/api/v1/admin/file-import-queues/:jobId/retry',
+    requireServerAdmin,
+    async (req: Request, res: Response) => {
+      const { jobId } = req.params
+      const queueKnex = getQueueDb()
+
+      try {
+        const job = await queueKnex('background_jobs').where({ id: jobId }).first()
+        if (!job) {
+          return res.status(404).json({ error: '未找到指定的转换任务' })
+        }
+
+        const payload =
+          typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload || {}
+        const fileType = (payload.fileType || '').toLowerCase()
+
+        // 核心：重试进入等待队列首位，排在最早排队任务之前
+        const minQueued = await queueKnex('background_jobs')
+          .min('createdAt as minCreatedAt')
+          .whereRaw('lower("jobType") = ?', ['fileimport'])
+          .where('status', 'queued')
+          .whereRaw("lower(payload ->> 'fileType') = ?", [fileType])
+          .first()
+
+        let targetCreatedAt: Date
+        if (minQueued?.minCreatedAt) {
+          targetCreatedAt = new Date(new Date(minQueued.minCreatedAt).getTime() - 1000)
+        } else {
+          targetCreatedAt = new Date()
+        }
+
+        // 重置任务状态为 queued，attempt 计数置 0，更新时间为现在
+        await queueKnex('background_jobs').where({ id: jobId }).update({
+          status: 'queued',
+          attempt: 0,
+          createdAt: targetCreatedAt,
+          updatedAt: queueKnex.fn.now()
+        })
+
+        if (payload.blobId) {
+          // 清空底层 file_uploads 的失败标记与错误信息，重置进度
+          await db('file_uploads')
+            .where({ id: payload.blobId })
+            .update({
+              convertedStatus: 0,
+              convertedMessage: null,
+              progressPercent: 0,
+              progressPhase: null,
+              progressMessage: '等待转换 (已重试)',
+              convertedLastUpdate: db.fn.now()
+            })
+            .catch(() => {})
+
+          // 同步重置 project_model_sync_tasks
+          await db('project_model_sync_tasks')
+            .where({ fileUploadId: payload.blobId })
+            .update({
+              status: 'speckle_converting',
+              progressPercent: 0,
+              progressMessage: '排队中，当前处于队列第 1 位',
+              updatedAt: db.fn.now()
+            })
+            .catch(() => {})
+        }
+
+        logger.info({ jobId, fileType }, '管理员重试了失败的模型转换任务')
+        return res.json({
+          success: true,
+          message: '模型转换任务已重置，已排入等待队列首位'
+        })
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        logger.error({ err, jobId }, '重试模型转换任务失败')
+        return res.status(500).json({ error: '重试模型转换任务失败: ' + errorMsg })
       }
     }
   )

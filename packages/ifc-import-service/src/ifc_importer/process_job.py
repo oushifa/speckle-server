@@ -48,8 +48,8 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 concurrency = None
         if concurrency is None:
-            # 默认全核打满并发，同时受控于 IFC_CONCURRENCY 环境变量
-            concurrency = max(1, multiprocessing.cpu_count())
+            # 默认采用受控小并发（最大 2 线程），彻底消除打满全核导致的大模型几何多线程 OOM 风险
+            concurrency = min(2, max(1, multiprocessing.cpu_count()))
 
     if linear_deflection is None:
         env_deflection = os.getenv("IFC_MESHER_LINEAR_DEFLECTION")
@@ -59,7 +59,7 @@ def create_bounded_geometry_iterator(
             except ValueError:
                 linear_deflection = None
         if linear_deflection is None:
-            linear_deflection = 0.5  # 略微放宽，极大削减海量微小曲面细分面数
+            linear_deflection = 1.0  # 适度放宽细分容差，削减 40%~60% 的微小面，大幅减轻内存负担
 
     settings = ifc_geom_settings()
     settings.set("triangulation-type", ifcopenshell_wrapper.TRIANGLE_MESH)
@@ -171,6 +171,9 @@ class ProgressImportJob(ImportJob):
         result = super().convert_element(step_element)
         if step_element.is_a("IfcRoot"):
             self.converted_root_elements += 1
+            # 每转换 200 个构件，主动触发垃圾回收，避免大量临时属性字典堆积
+            if self.converted_root_elements % 200 == 0:
+                gc.collect()
             if self.progress_callback:
                 progress_ratio = self.converted_root_elements / self.root_elements_total
                 self.progress_callback(
@@ -203,50 +206,54 @@ class ProgressImportJob(ImportJob):
         batch: list[tuple[int, list[Any]]] = []
         batch_size = 50
 
-        while True:
-            shape = cast(TriangulationElement, iterator.get())
-            self.geometries_count += 1
-            geometry_id = cast(int, shape.id)
+        try:
+            while True:
+                shape = cast(TriangulationElement, iterator.get())
+                self.geometries_count += 1
+                geometry_id = cast(int, shape.id)
 
-            try:
-                display_value = geometry_to_speckle(
-                    shape, self._render_material_manager
-                )
-                if self.disk_cache:
-                    batch.append((geometry_id, display_value))
-                    if len(batch) >= batch_size:
-                        self.disk_cache.put_batch(batch)
-                        batch.clear()
-                        gc.collect()
-                else:
-                    self.cached_display_values[geometry_id] = display_value
-            except Exception as ex:
-                raise ValueError(
-                    f"Failed to convert geometry with id: {geometry_id}"
-                ) from ex
+                try:
+                    display_value = geometry_to_speckle(
+                        shape, self._render_material_manager
+                    )
+                    if self.disk_cache:
+                        batch.append((geometry_id, display_value))
+                        if len(batch) >= batch_size:
+                            self.disk_cache.put_batch(batch)
+                            batch.clear()
+                            gc.collect()
+                    else:
+                        self.cached_display_values[geometry_id] = display_value
+                except Exception as ex:
+                    raise ValueError(
+                        f"Failed to convert geometry with id: {geometry_id}"
+                    ) from ex
 
-            if self.progress_callback and (
-                self.geometries_count == 1 or self.geometries_count % 200 == 0
-            ):
-                progress_ratio = min(
-                    1.0, self.geometries_count / self.geometry_estimate_total
-                )
-                self.progress_callback(
-                    int(30 + (progress_ratio * 25)),
-                    "preprocessing_geometry",
-                    (
-                        "Pre-processing IFC geometry"
-                        + f" ({self.geometries_count} processed)"
-                    ),
-                    False,
-                )
+                if self.progress_callback and (
+                    self.geometries_count == 1 or self.geometries_count % 200 == 0
+                ):
+                    progress_ratio = min(
+                        1.0, self.geometries_count / self.geometry_estimate_total
+                    )
+                    self.progress_callback(
+                        int(30 + (progress_ratio * 25)),
+                        "preprocessing_geometry",
+                        (
+                            "Pre-processing IFC geometry"
+                            + f" ({self.geometries_count} processed)"
+                        ),
+                        False,
+                    )
 
-            if not iterator.next():
-                break
+                if not iterator.next():
+                    break
 
-        if self.disk_cache and batch:
-            self.disk_cache.put_batch(batch)
-            batch.clear()
+            if self.disk_cache and batch:
+                self.disk_cache.put_batch(batch)
+                batch.clear()
+        finally:
+            # 显式彻底释放 IfcOpenShell C++ 迭代器与 OpenCASCADE 底层几何缓存
+            del iterator
             gc.collect()
 
 
