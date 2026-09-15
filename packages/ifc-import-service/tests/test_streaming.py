@@ -12,6 +12,7 @@ from ifc_importer.disk_cache import GeometryDiskCache
 from ifc_importer.process_job import (
     DiskBackedGeometryMap,
     create_bounded_geometry_iterator,
+    resolve_upload_tuning,
 )
 
 
@@ -116,7 +117,7 @@ def test_lazy_geometry_list_streaming_serialization():
             lazy_list = geom_map.get(42)
             assert isinstance(lazy_list, list)
             assert bool(lazy_list) is True
-            assert lazy_list._loaded is False  # Still not read from disk!
+            assert lazy_list._consumed is False  # Still not read from disk!
 
             # Construct DataObject
             data_obj = DataObject(
@@ -124,7 +125,7 @@ def test_lazy_geometry_list_streaming_serialization():
                 properties={"Type": "Exterior"},
                 displayValue=lazy_list,
             )
-            assert lazy_list._loaded is False  # Constructing did not load!
+            assert lazy_list._consumed is False  # Constructing did not load!
 
             # Serialize via BaseObjectSerializer
             transport = MockTransport()
@@ -132,7 +133,7 @@ def test_lazy_geometry_list_streaming_serialization():
             root_id, serialized_dict = serializer.traverse_base(data_obj)
 
             # Verification
-            assert lazy_list._loaded is True  # Loaded on serialization demand
+            assert lazy_list._consumed is True  # Loaded on serialization demand
             assert cache.count() == 0  # Reclaimed from disk cache
             assert len(serialized_dict["displayValue"]) == 1
             assert serialized_dict["displayValue"][0]["speckle_type"] == "reference"
@@ -153,9 +154,73 @@ def test_bounded_concurrency_config():
     del os.environ["IFC_MESHER_LINEAR_DEFLECTION"]
 
 
+UPLOAD_TUNING_ENV = (
+    "IFC_UPLOAD_BATCH_MB",
+    "IFC_UPLOAD_BATCH_LENGTH",
+    "IFC_UPLOAD_BATCH_BUFFER",
+    "IFC_UPLOAD_THREADS",
+)
+
+
+def test_disk_cache_total_bytes():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_path = Path(temp_dir) / "total_bytes.sqlite"
+        with GeometryDiskCache(db_path) as cache:
+            assert cache.total_bytes() == 0
+            mesh = Mesh(
+                vertices=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                faces=[3, 0, 1, 2],
+                units="m",
+            )
+            cache.put(1, [mesh])
+            first = cache.total_bytes()
+            assert first > 0
+
+            cache.put(2, [mesh])
+            assert cache.total_bytes() == first * 2
+
+            # Popping reclaims the row; callers snapshot the total before upload.
+            cache.pop(1)
+            assert cache.total_bytes() == first
+
+
+def test_upload_tuning_config():
+    for key in UPLOAD_TUNING_ENV:
+        os.environ.pop(key, None)
+
+    defaults = resolve_upload_tuning()
+    assert defaults.max_batch_size_mb == 8.0
+    assert defaults.max_batch_length == 2000
+    assert defaults.batch_buffer_length == 3
+    assert defaults.thread_count == 4
+
+    os.environ["IFC_UPLOAD_BATCH_MB"] = "12.5"
+    os.environ["IFC_UPLOAD_BATCH_LENGTH"] = "500"
+    os.environ["IFC_UPLOAD_BATCH_BUFFER"] = "5"
+    os.environ["IFC_UPLOAD_THREADS"] = "2"
+
+    overridden = resolve_upload_tuning()
+    assert overridden.max_batch_size_mb == 12.5
+    assert overridden.max_batch_length == 500
+    assert overridden.batch_buffer_length == 5
+    assert overridden.thread_count == 2
+
+    # Invalid or out-of-range values fall back to safe minimums/defaults.
+    os.environ["IFC_UPLOAD_BATCH_MB"] = "not-a-number"
+    os.environ["IFC_UPLOAD_THREADS"] = "0"
+    guarded = resolve_upload_tuning()
+    assert guarded.max_batch_size_mb == 8.0
+    assert guarded.thread_count == 1
+
+    for key in UPLOAD_TUNING_ENV:
+        os.environ.pop(key, None)
+
+
 if __name__ == "__main__":
     test_disk_cache_basic_operations()
     test_disk_cache_batch_put()
+    test_disk_cache_total_bytes()
     test_lazy_geometry_list_streaming_serialization()
     test_bounded_concurrency_config()
+    test_upload_tuning_config()
     print("All unit tests passed successfully!")

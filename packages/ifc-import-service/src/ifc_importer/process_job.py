@@ -1,6 +1,5 @@
 import contextlib
 import gc
-import math
 import multiprocessing
 import os
 import threading
@@ -98,6 +97,73 @@ class DiskBackedGeometryMap:
         return self.disk_cache.has(geometry_id)
 
 
+# 上传阶段调优默认值。
+# specklepy 的 BatchSender 对每一个批次都会先发一次 /api/diff 存在性检查，
+# 再发一次 /objects 上传，因此批次数量直接决定串行 HTTP 往返次数。
+# 服务端单请求上限为 MAX_OBJECT_UPLOAD_FILE_SIZE_MB（默认 100MB），
+# 早期 0.5MB / 单线程的保守配置会把模型切成数千个批次，成为上传阶段的主要瓶颈。
+DEFAULT_UPLOAD_BATCH_MB = 8.0
+DEFAULT_UPLOAD_BATCH_LENGTH = 2000
+DEFAULT_UPLOAD_BATCH_BUFFER = 3
+DEFAULT_UPLOAD_THREADS = 4
+
+
+@dataclass(frozen=True)
+class UploadTuning:
+    """上传阶段可调参数（可通过环境变量覆盖）。"""
+
+    max_batch_size_mb: float = DEFAULT_UPLOAD_BATCH_MB
+    max_batch_length: int = DEFAULT_UPLOAD_BATCH_LENGTH
+    batch_buffer_length: int = DEFAULT_UPLOAD_BATCH_BUFFER
+    thread_count: int = DEFAULT_UPLOAD_THREADS
+
+
+def _env_float(name: str, default: float, minimum: float) -> float:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        return max(minimum, float(raw))
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int, minimum: int) -> int:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        return max(minimum, int(raw))
+    except ValueError:
+        return default
+
+
+def resolve_upload_tuning() -> UploadTuning:
+    """解析上传批次与并发配置。
+
+    更大的批次成倍减少 HTTP 往返次数（每批含一次 diff + 一次上传），
+    batch_buffer_length 则限制在途批次数量，把峰值内存控制在安全范围内。
+
+    环境变量：
+      - IFC_UPLOAD_BATCH_MB：单个批次的最大未压缩体积（默认 8.0）
+      - IFC_UPLOAD_BATCH_LENGTH：单个批次的最大对象数（默认 2000）
+      - IFC_UPLOAD_BATCH_BUFFER：发送队列长度（默认 3）
+      - IFC_UPLOAD_THREADS：上传线程数（默认 4）
+    """
+    return UploadTuning(
+        max_batch_size_mb=_env_float(
+            "IFC_UPLOAD_BATCH_MB", DEFAULT_UPLOAD_BATCH_MB, 0.1
+        ),
+        max_batch_length=_env_int(
+            "IFC_UPLOAD_BATCH_LENGTH", DEFAULT_UPLOAD_BATCH_LENGTH, 1
+        ),
+        batch_buffer_length=_env_int(
+            "IFC_UPLOAD_BATCH_BUFFER", DEFAULT_UPLOAD_BATCH_BUFFER, 1
+        ),
+        thread_count=_env_int("IFC_UPLOAD_THREADS", DEFAULT_UPLOAD_THREADS, 1),
+    )
+
+
 class ProgressBatchSender(BatchSender):
     """Memory-controlled batch sender with concurrency limit and dynamic upload
     progress reporting.
@@ -108,11 +174,11 @@ class ProgressBatchSender(BatchSender):
         server_url: str,
         stream_id: str,
         token: str,
-        max_batch_size_mb: float = 0.5,
-        max_batch_length: int = 2000,
-        batch_buffer_length: int = 2,
-        thread_count: int = 1,
-        on_batch_sent: Callable[[int, int], None] | None = None,
+        max_batch_size_mb: float = DEFAULT_UPLOAD_BATCH_MB,
+        max_batch_length: int = DEFAULT_UPLOAD_BATCH_LENGTH,
+        batch_buffer_length: int = DEFAULT_UPLOAD_BATCH_BUFFER,
+        thread_count: int = DEFAULT_UPLOAD_THREADS,
+        on_batch_sent: Callable[[int, int, int], None] | None = None,
     ) -> None:
         super().__init__(
             server_url,
@@ -126,6 +192,7 @@ class ProgressBatchSender(BatchSender):
         self._on_batch_sent = on_batch_sent
         self._sent_batches_count = 0
         self._sent_objects_count = 0
+        self._sent_bytes_count = 0
         self._lock = threading.Lock()
 
     def _bg_send_batch(self, session: requests.Session, batch: Any) -> None:
@@ -133,33 +200,37 @@ class ProgressBatchSender(BatchSender):
         with self._lock:
             self._sent_batches_count += 1
             self._sent_objects_count += len(batch)
+            self._sent_bytes_count += sum(len(obj[1]) for obj in batch)
             b_cnt = self._sent_batches_count
             o_cnt = self._sent_objects_count
+            by_cnt = self._sent_bytes_count
         if self._on_batch_sent:
             with contextlib.suppress(Exception):
-                self._on_batch_sent(b_cnt, o_cnt)
+                self._on_batch_sent(b_cnt, o_cnt, by_cnt)
 
 
 class ProgressServerTransport(ServerTransport):
-    """ServerTransport with memory-conservative batching and progress reporting."""
+    """ServerTransport with configurable batching and progress reporting."""
 
     def __init__(
         self,
         stream_id: str,
         account: Any = None,
         client: Any = None,
-        on_batch_sent: Callable[[int, int], None] | None = None,
+        on_batch_sent: Callable[[int, int, int], None] | None = None,
+        tuning: UploadTuning | None = None,
     ) -> None:
         super().__init__(stream_id, client=client, account=account)
         if self.account is not None:
+            resolved = tuning or resolve_upload_tuning()
             self._batch_sender = ProgressBatchSender(
                 self.url,
                 self.stream_id,
                 self.account.token,
-                max_batch_size_mb=0.5,
-                max_batch_length=2000,
-                batch_buffer_length=2,
-                thread_count=1,
+                max_batch_size_mb=resolved.max_batch_size_mb,
+                max_batch_length=resolved.max_batch_length,
+                batch_buffer_length=resolved.batch_buffer_length,
+                thread_count=resolved.thread_count,
                 on_batch_sent=on_batch_sent,
             )
 
@@ -425,19 +496,28 @@ def process_job(workdir_path: str, job_payload_json: str) -> None:
             del ifc_file
             gc.collect()
 
-            # 关键优化 2：上传细粒度进度实时动态推进 (88% -> 95%)
-            def on_batch_uploaded(batch_index: int, objects_sent: int) -> None:
-                step = int(math.sqrt(batch_index * 2))
-                percent = min(95, 88 + step)
+            # 关键优化 2：上传进度按已发送字节数线性推进 (88% -> 94%，完成时为 95%)
+            # 以磁盘缓存中的几何体总字节数作为分母，进度在整个上传过程中单调推进；
+            # 旧实现 sqrt(batch_index * 2) 会在第 25 个批次就顶到 95%，
+            # 之后数千个批次里进度条都不再变化。
+            total_upload_bytes = max(1, disk_cache.total_bytes())
+
+            def on_batch_uploaded(
+                batch_index: int, objects_sent: int, bytes_sent: int
+            ) -> None:
+                ratio = min(1.0, bytes_sent / total_upload_bytes)
+                percent = min(94, 88 + int(round(ratio * 6)))
                 msg = (
                     f"Uploading converted model (batch {batch_index},"
-                    f" {objects_sent} objects sent)"
+                    f" {objects_sent} objects, {bytes_sent / 1_000_000:.1f} MB sent)"
                 )
+                # force=False：交给 ProgressReporter 做 0.75s / 2% 节流，
+                # 避免每个批次都发一次 GraphQL mutation（数千次额外的串行往返）。
                 progress_reporter.report(
                     percent,
                     "uploading_model_object",
                     msg,
-                    True,
+                    False,
                 )
 
             account = client.account

@@ -110,6 +110,18 @@ class GeometryDiskCache:
         row = cursor.fetchone()
         return row[0] if row else 0
 
+    def total_bytes(self) -> int:
+        """Return the total pickled payload size of the stored geometries.
+
+        Callers snapshot this once before uploading, so the value stays a stable
+        denominator for upload progress even though rows are reclaimed from the
+        cache as geometries are consumed during serialization.
+        """
+        cursor = self._conn.cursor()
+        cursor.execute("SELECT COALESCE(SUM(length(data)), 0) FROM geometries;")
+        row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
     def close(self) -> None:
         """Close connection and clean up database files."""
         with contextlib.suppress(Exception):
