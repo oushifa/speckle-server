@@ -33,6 +33,16 @@ from ifc_importer.domain import (
     FileimportResult,
     FileimportSuccess,
 )
+from ifc_importer.geometry_slimming import (
+    GeometrySlimming,
+    resolve_geometry_slimming,
+    slim_meshes,
+)
+from ifc_importer.instancing import (
+    GeometryInstancer,
+    InstancingConfig,
+    resolve_instancing_config,
+)
 
 ProgressCallback = Callable[[int | None, str | None, str | None, bool], None]
 
@@ -41,8 +51,14 @@ def create_bounded_geometry_iterator(
     ifc_file: ifc_file_type,
     concurrency: int | None = None,
     linear_deflection: float | None = None,
+    use_world_coords: bool = True,
 ) -> tuple[ifc_geom_iterator, int]:
-    """Create geometry iterator with bounded concurrency and deflection."""
+    """Create geometry iterator with bounded concurrency and deflection.
+
+    ``use_world_coords=False`` keeps meshes in definition space and exposes the
+    placement through ``shape.transformation``; that is what the instancing path
+    needs. It is deliberately opt-in because it changes the output structure.
+    """
     if concurrency is None:
         env_concurrency = os.getenv("IFC_CONCURRENCY")
         if env_concurrency:
@@ -69,7 +85,7 @@ def create_bounded_geometry_iterator(
     settings = ifc_geom_settings()
     settings.set("triangulation-type", ifcopenshell_wrapper.TRIANGLE_MESH)
     settings.set("weld-vertices", False)
-    settings.set("use-world-coords", True)
+    settings.set("use-world-coords", use_world_coords)
     settings.set("no-wire-intersection-check", True)
     settings.set("use-material-names", True)
     settings.set("mesher-linear-deflection", linear_deflection)
@@ -302,6 +318,11 @@ class ProgressReporter:
 class ProgressImportJob(ImportJob):
     progress_callback: ProgressCallback | None = None
     disk_cache: GeometryDiskCache | None = None
+    geometry_slimming: GeometrySlimming = field(
+        default_factory=resolve_geometry_slimming
+    )
+    instancing: InstancingConfig = field(default_factory=resolve_instancing_config)
+    instancer: GeometryInstancer | None = field(default=None, init=False)
     root_elements_total: int = field(default=1, init=False)
     converted_root_elements: int = field(default=0, init=False)
     geometry_estimate_total: int = field(default=1, init=False)
@@ -314,6 +335,16 @@ class ProgressImportJob(ImportJob):
         if self.disk_cache:
             # 替换为流式磁盘代理映射，避免几百万面几何在内存中常驻
             self.cached_display_values = DiskBackedGeometryMap(self.disk_cache)  # type: ignore
+            if self.instancing.enabled:
+                # 几何复用（IfcRepresentationMap）是 IFC 体积膨胀的主因：
+                # 同一份几何定义只序列化一次，实例只保存 4x4 放置矩阵。
+                self.instancer = GeometryInstancer(
+                    ifc_file=self.ifc_file,
+                    disk_cache=self.disk_cache,
+                    render_material_manager=self._render_material_manager,
+                    config=self.instancing,
+                    slimming=self.geometry_slimming,
+                )
 
     def convert_element(self, step_element) -> object:
         result = super().convert_element(step_element)
@@ -338,7 +369,10 @@ class ProgressImportJob(ImportJob):
         return result
 
     def pre_process_geometry(self) -> None:
-        iterator, concurrency = create_bounded_geometry_iterator(self.ifc_file)
+        # 实例化需要「局部坐标 + 4x4 放置矩阵」，因此关闭世界坐标烘焙
+        iterator, concurrency = create_bounded_geometry_iterator(
+            self.ifc_file, use_world_coords=self.instancer is None
+        )
         if not iterator.initialize():
             raise ValueError("Failed to find any geometry in file")
 
@@ -361,9 +395,16 @@ class ProgressImportJob(ImportJob):
                 geometry_id = cast(int, shape.id)
 
                 try:
-                    display_value = geometry_to_speckle(
-                        shape, self._render_material_manager
-                    )
+                    if self.instancer is not None:
+                        # 复用几何 -> InstanceDefinitionProxy + InstanceProxy；
+                        # 其余构件由 instancer 内部烘焙世界坐标（与原行为一致）
+                        display_value = self.instancer.convert(shape)
+                    else:
+                        display_value = geometry_to_speckle(
+                            shape, self._render_material_manager
+                        )
+                        if self.geometry_slimming.enabled:
+                            slim_meshes(display_value, self.geometry_slimming)
                     if self.disk_cache:
                         batch.append((geometry_id, display_value))
                         if len(batch) >= batch_size:
@@ -406,6 +447,18 @@ class ProgressImportJob(ImportJob):
             del iterator
             gc.collect()
 
+    def _convert_project_tree(self):
+        tree = super()._convert_project_tree()
+        if self.instancer is not None:
+            self.instancer.attach(tree)
+            print(
+                "Instance reuse: "
+                f"{self.instancer.instanced_elements} instanced element(s), "
+                f"{self.instancer.definition_count} shared definition(s), "
+                f"{self.instancer.inlined_elements} inlined element(s)"
+            )
+        return tree
+
     def dispose(self) -> None:
         """Explicitly break references to C++ ifc_file and internal structures."""
         self.ifc_file = None
@@ -416,6 +469,7 @@ class ProgressImportJob(ImportJob):
         self.disk_cache = None
         self.cached_display_values = None
         self.progress_callback = None
+        self.instancer = None
 
 
 def _download_blob(
