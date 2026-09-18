@@ -43,19 +43,33 @@ export const buildAutoSafetyMeasureCode = (baseDate: number | string): string =>
   `AQWM-${dayjs(Number(baseDate)).format('YYYYMM')}-${AUTO_SAFETY_MEASURE_SEQUENCE}`
 
 /**
+ * 业务按北京时间（UTC+8）理解"年月"：前端生成月初/月末用的都是浏览器本地时间。
+ * 这里显式按北京时间计算，**不能依赖运行服务器的时区**——线上容器通常是 UTC，
+ * 开发机常是 +08:00，用服务器时区算出来的月初会差 8 小时，同月单据依然对不上。
+ */
+export const BUSINESS_TZ_OFFSET_MS = 8 * 60 * 60 * 1000
+
+/**
  * 把月度验工的 baseDate 归一化为"当月月初"，与手工安全文明措施费的存储口径对齐。
  *
  * ⚠️ 必须归一化，否则 0 期数据在同月的手工单据里完全看不到：
  *  - 月度验工存的是 `endOf('month')`，即 **月末 23:59:59.999**
- *  - 手工安全文明措施费存的是 **月初 00:00:00**
- *  - 累加只比较 `baseDate`（相等时才比较 `code`），同月时月末恒大于月初，
+ *  - 手工安全文明措施费存的是 `dayjs('YYYY-MM').valueOf()`，即 **月初 00:00:00**
+ *  - 累计只比较 `baseDate`（相等时才比较 `code`），同月时月末恒大于月初，
  *    导致隐藏记录被判为"比本单更晚"而排除，只有更晚月份的单据才看得到。
  *  - 归一化到月初后，同月走 `code` 比较，而自动生成的 `000` 序号恒小于手工单据。
+ *
+ * 实现要点：用 UTC getter 读出"北京时间墙上时钟"的年月，再用 `Date.UTC` 求月初、
+ * 最后平移回真实时间戳。全程只用 UTC 算术，因此结果与服务器时区无关。
  */
 export const normalizeSafetyMeasureBaseDate = (
   monthlyMeasurementBaseDate: number | string
-): string =>
-  String(dayjs(Number(monthlyMeasurementBaseDate)).startOf('month').valueOf())
+): string => {
+  const base = Number(monthlyMeasurementBaseDate)
+  const shifted = new Date(base + BUSINESS_TZ_OFFSET_MS)
+  const monthStartAsUtc = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), 1)
+  return String(monthStartAsUtc - BUSINESS_TZ_OFFSET_MS)
+}
 
 export type BoqItemLike = {
   id: string

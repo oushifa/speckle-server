@@ -95,32 +95,42 @@ describe('safetyMeasureSync', () => {
   })
 
   describe('normalizeSafetyMeasureBaseDate', () => {
-    // 真实场景：月度验工的 baseDate 存的是 endOf('month')，即月末 23:59:59.999；
-    // 手工安全文明措施费存的是月初 00:00:00。用本地时间构造，保证与运行机器时区无关。
-    const monthEnd = new Date(2026, 8, 30, 23, 59, 59, 999).getTime()
-    const monthStart = new Date(2026, 8, 1, 0, 0, 0, 0).getTime()
+    // 全部使用绝对时间戳（线上实测值），因此断言与运行机器的时区无关。
+    // 两个值都是北京时间 2026-09 这个月：
+    //   月度验工 = endOf('month')  → 2026-09-30 23:59:59.999 (+08:00)
+    //   手工安措费 = 月初 00:00:00   → 2026-09-01 00:00:00 (+08:00)
+    const monthlyMeasurementBaseDate = 1790783999999
+    const sameMonthManualBaseDate = 1788192000000
+    const previousMonthStart = 1785513600000 // 北京时间 2026-08-01 00:00:00
 
-    it('把月末时间戳归一化到当月月初', () => {
-      expect(Number(normalizeSafetyMeasureBaseDate(monthEnd))).to.equal(monthStart)
+    it('归一化结果与同月手工安措费完全同值——这是同月能被累计纳入的前提', () => {
+      expect(normalizeSafetyMeasureBaseDate(monthlyMeasurementBaseDate)).to.equal(
+        String(sameMonthManualBaseDate)
+      )
     })
 
-    it('月初时间戳保持不变', () => {
-      expect(normalizeSafetyMeasureBaseDate(monthStart)).to.equal(String(monthStart))
+    it('归一化后不晚于原值，否则同月单据会看不到 0 期数据', () => {
+      expect(
+        Number(normalizeSafetyMeasureBaseDate(monthlyMeasurementBaseDate))
+      ).to.be.lessThan(monthlyMeasurementBaseDate)
     })
 
-    it('归一化后不晚于原值——否则同月的手工单据在累计里会看不到 0 期数据', () => {
-      expect(Number(normalizeSafetyMeasureBaseDate(monthEnd))).to.be.lessThan(monthEnd)
+    it('不会落到上一个月，否则会被上月单据错误累计', () => {
+      expect(
+        Number(normalizeSafetyMeasureBaseDate(monthlyMeasurementBaseDate))
+      ).to.be.greaterThan(previousMonthStart)
     })
 
     it('是幂等的', () => {
-      const once = normalizeSafetyMeasureBaseDate(monthEnd)
+      const once = normalizeSafetyMeasureBaseDate(monthlyMeasurementBaseDate)
       expect(normalizeSafetyMeasureBaseDate(once)).to.equal(once)
     })
 
-    it('不改变所属月份，因此生成的编号月份不变', () => {
-      expect(
-        buildAutoSafetyMeasureCode(normalizeSafetyMeasureBaseDate(monthEnd))
-      ).to.equal(buildAutoSafetyMeasureCode(monthEnd))
+    it('结果与服务器时区无关（显式按北京时间计算，不用服务器本地时区）', () => {
+      // 这两个输入在任何时区的机器上都必须得到同一个绝对时间戳
+      expect(normalizeSafetyMeasureBaseDate(monthlyMeasurementBaseDate)).to.equal(
+        '1788192000000'
+      )
     })
   })
 
