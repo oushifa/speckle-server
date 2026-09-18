@@ -619,7 +619,10 @@
             <div
               class="p-4 border border-outline-3 rounded-lg bg-foundation-2 space-y-3 flex flex-col justify-between"
             >
-              <span class="text-xs font-semibold text-foreground-2">总监意见</span>
+              <span class="text-xs font-semibold text-foreground-2">
+                总监意见
+                <span v-if="requiresContractOpinion" class="text-red-500">*</span>
+              </span>
               <textarea
                 v-model="details.contractOpinion"
                 placeholder="请输入总监审核意见"
@@ -1681,9 +1684,7 @@
                 <td class="border border-black p-4 w-full h-44 valign-top relative">
                   <div class="font-bold mb-2">审核意见：</div>
                   <div class="text-gray-700 italic text-[11px] min-h-[60px] pl-4">
-                    {{
-                      details.contractOpinion || details.supervisionOpinion || '同意。'
-                    }}
+                    {{ details.contractOpinion || '' }}
                   </div>
                   <div class="flex justify-end space-y-1">
                     <div class="flex flex-col gap-6">
@@ -2282,6 +2283,34 @@ const canEditSupervisionOpinion = computed(() => {
     stepName.includes('专业工程师') ||
     stepName === '安全监理审核' ||
     stepName === '专业工程师审核'
+  )
+})
+
+/**
+ * 当前用户是否处于「总监理工程师（总监）」节点：
+ * 该节点下【总监意见】为必填（与后端 PUT 接口的校验口径保持一致）
+ */
+const requiresContractOpinion = computed(() => {
+  if (isReadOnly.value || isAdminOperationMode.value) return false
+  const currentUserId = userId.value
+  if (!currentUserId) return false
+  if (!flowInstance.value || flowInstance.value.status !== 'PENDING') return false
+
+  const pendingStep = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
+  if (!pendingStep) return false
+
+  const stepName = (pendingStep.name || '').trim()
+  if (!stepName.includes('总监') && !stepName.includes('总监理工程师')) return false
+
+  const approverIds = (pendingStep.approverIds || []).filter(Boolean)
+  const approverUsers = (pendingStep.approvers || [])
+    .map((u: any) => u?.id)
+    .filter(Boolean)
+
+  return (
+    (!approverIds.length && !approverUsers.length) ||
+    approverIds.includes(currentUserId) ||
+    approverUsers.includes(currentUserId)
   )
 })
 
@@ -2887,6 +2916,15 @@ onUnmounted(() => {
 // 保存所有修改（包括数量和意见）
 const saveAllData = async (silent = false) => {
   if (!projectId.value || !measurementId.value || !treeRows.value.length) return false
+  // 当前用户是「总监理工程师（总监）」节点时，总监意见为必填
+  if (requiresContractOpinion.value && !(details.value.contractOpinion || '').trim()) {
+    triggerNotification({
+      title: '保存失败',
+      description: '请填写【总监意见】后再保存或审批。',
+      type: ToastNotificationType.Danger
+    })
+    return false
+  }
   saving.value = true
   try {
     const payloadItems = treeRows.value

@@ -896,6 +896,24 @@ const approvalTemplates: ApprovalTemplate[] = [
       '工程管理部经办人',
       '工程管理部审核人'
     ]
+  },
+  {
+    id: 'MONTHLY_INSPECTION_TEMPLATE_1',
+    name: '月度验工（模版1）',
+    categoryId: 'MONTHLY_INSPECTION',
+    description: '标准月度验工审批流程模板（共10个节点，默认均为或签）',
+    roles: [
+      '施工单位',
+      '施工监理经办人',
+      '施工监理总监',
+      '现场指挥部经办人',
+      '现场指挥',
+      '投资监理经办人',
+      '投资监理总监',
+      '合约管理部经办人',
+      '合约管理部负责人',
+      '分管领导'
+    ]
   }
 ]
 

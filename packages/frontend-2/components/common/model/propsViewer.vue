@@ -23,7 +23,7 @@
 import { until } from '@vueuse/core'
 import { timeoutAt, TIME_MS, TimeoutError } from '@speckle/shared'
 import { resourceBuilder } from '@speckle/shared/viewer/route'
-import { SelectionExtension, ViewerEvent } from '@speckle/viewer'
+import { FilteringExtension, SelectionExtension, ViewerEvent } from '@speckle/viewer'
 import { writableAsyncComputed } from '~/lib/common/composables/async'
 import type { SpeckleObject } from '~/lib/viewer/helpers/sceneExplorer'
 import type {
@@ -139,16 +139,34 @@ function setViewerFilterValue(target: unknown, value: unknown): void {
   }
 }
 
+/**
+ * State key used by the viewer's `FilteringExtension` for the isolation this component
+ * applies. Keeping it separate from the shared `manual-isolation` key means the
+ * deterministic re-apply below never mixes with the incremental manual-isolation
+ * bookkeeping (which is what made the ghost state unstable in multi-model viewers).
+ */
+const ISOLATION_STATE_KEY = 'common-model-props-isolation'
+
+/** Whether this component currently has an isolation applied by itself */
+let hasAppliedIsolation = false
+
 const applyFilters = () => {
   const state = setupViewerState.value
   if (!state) return
 
   const bimIds = normalizedFilterBims.value
   const appIds = normalizedFilterApplicationIds.value
+  const extension = state.viewer.instance.getExtension(FilteringExtension)
 
-  // Without filters there's nothing to isolate/select - don't wipe the user's
-  // current selection or isolation state
-  if (!bimIds.length && !appIds.length) return
+  // Without filters there's nothing to isolate/select - only clear the isolation we
+  // applied ourselves and don't wipe the user's own selection/isolation state
+  if (!bimIds.length && !appIds.length) {
+    if (hasAppliedIsolation) {
+      extension?.resetFilters()
+      hasAppliedIsolation = false
+    }
+    return
+  }
 
   const objectsById = new Map<string, SpeckleObject>()
   const tree = getMaybeRefValue(state.viewer.metadata.worldTree as unknown as object)
@@ -179,7 +197,37 @@ const applyFilters = () => {
   }
 
   const objectIds = Array.from(objectsById.keys())
-  setViewerFilterValue(state.ui.filters.isolatedObjectIds, objectIds)
+  const selectionExtension = state.viewer.instance.getExtension(SelectionExtension)
+
+  // Applying filters resets all materials, which also drops the selection highlight.
+  // Clear the selection up-front (so its original materials are restored) and re-apply
+  // it afterwards, keeping the selected objects highlighted on top of the isolation.
+  const hadSelection = (selectionExtension?.getSelectedObjects().length || 0) > 0
+  if (hadSelection) selectionExtension?.clearSelection()
+
+  // Fully recompute the isolation every time (instead of incrementally isolating just the
+  // delta) so that models that finish loading later can't lose their ghost state.
+  extension?.resetFilters()
+  if (objectIds.length) {
+    // Isolate the selected objects: everything that is NOT selected ends up ghosted
+    // (rendered semi-transparent) by the viewer.
+    extension?.isolateObjects(objectIds, ISOLATION_STATE_KEY, true, true)
+    hasAppliedIsolation = true
+  } else {
+    hasAppliedIsolation = false
+  }
+
+  if (objectIds.length) {
+    selectionExtension?.selectObjects(objectIds)
+  } else if (hadSelection) {
+    // Nothing matched (anymore) - don't leave a stale highlight behind
+    selectionExtension?.clearSelection()
+  }
+
+  // Keep the shared UI state in sync (selection sidebar, props panel, ...).
+  // NOTE: we intentionally don't write `isolatedObjectIds` here - that ref drives the
+  // viewer's incremental manual-isolation watcher, which would override the
+  // deterministic isolation applied above.
   setViewerFilterValue(
     state.ui.filters.selectedObjects,
     Array.from(objectsById.values())
@@ -249,6 +297,8 @@ onBeforeUnmount(() => {
   if (!state) return
   // The viewer is a per-session singleton; reset the transient selection/isolation we may
   // have applied so it doesn't leak into the next viewer-bearing component that mounts.
+  state.viewer.instance.getExtension(FilteringExtension)?.resetFilters()
+  hasAppliedIsolation = false
   state.ui.filters.isolatedObjectIds.value = []
   state.ui.filters.hiddenObjectIds.value = []
   state.ui.filters.selectedObjects.value = []

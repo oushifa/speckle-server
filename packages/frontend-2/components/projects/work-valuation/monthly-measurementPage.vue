@@ -47,22 +47,44 @@
               >
                 {{ item.code }}
               </button>
-              <div v-if="item.approveStatus === 'APPROVED'" class="flex items-center space-x-1">
+              <div
+                v-if="item.approveStatus === 'APPROVED'"
+                class="flex items-center space-x-1"
+              >
                 <!-- 计价结果状态 -->
                 <span
                   class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
                   :class="{
-                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement,
-                    'bg-primary-muted text-primary border-primary': item.syncStatusSettlement === 'LOADING',
-                    'bg-success-lighter text-success-darker border-success': item.syncStatusSettlement === 'SUCCESS',
-                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusSettlement === 'ERROR'
+                    'bg-foundation-3 text-foreground-2 border-outline-3':
+                      item.syncStatusSettlement === 'NONE' ||
+                      !item.syncStatusSettlement,
+                    'bg-primary-muted text-primary border-primary':
+                      item.syncStatusSettlement === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success':
+                      item.syncStatusSettlement === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger':
+                      item.syncStatusSettlement === 'ERROR'
                   }"
                   v-tippy="getSyncIndicatorTooltip(item, 'settlement')"
                 >
-                  <ArrowPathIcon v-if="item.syncStatusSettlement === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
-                  <CloudIcon v-else-if="item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement" class="h-2.5 w-2.5" />
-                  <CheckIcon v-else-if="item.syncStatusSettlement === 'SUCCESS'" class="h-2.5 w-2.5" />
-                  <ExclamationTriangleIcon v-else-if="item.syncStatusSettlement === 'ERROR'" class="h-2.5 w-2.5" />
+                  <ArrowPathIcon
+                    v-if="item.syncStatusSettlement === 'LOADING'"
+                    class="h-2.5 w-2.5 animate-spin"
+                  />
+                  <CloudIcon
+                    v-else-if="
+                      item.syncStatusSettlement === 'NONE' || !item.syncStatusSettlement
+                    "
+                    class="h-2.5 w-2.5"
+                  />
+                  <CheckIcon
+                    v-else-if="item.syncStatusSettlement === 'SUCCESS'"
+                    class="h-2.5 w-2.5"
+                  />
+                  <ExclamationTriangleIcon
+                    v-else-if="item.syncStatusSettlement === 'ERROR'"
+                    class="h-2.5 w-2.5"
+                  />
                   <span>计价</span>
                 </span>
 
@@ -70,17 +92,37 @@
                 <span
                   class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
                   :class="{
-                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail,
-                    'bg-primary-muted text-primary border-primary': item.syncStatusPaymentDetail === 'LOADING',
-                    'bg-success-lighter text-success-darker border-success': item.syncStatusPaymentDetail === 'SUCCESS',
-                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusPaymentDetail === 'ERROR'
+                    'bg-foundation-3 text-foreground-2 border-outline-3':
+                      item.syncStatusPaymentDetail === 'NONE' ||
+                      !item.syncStatusPaymentDetail,
+                    'bg-primary-muted text-primary border-primary':
+                      item.syncStatusPaymentDetail === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success':
+                      item.syncStatusPaymentDetail === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger':
+                      item.syncStatusPaymentDetail === 'ERROR'
                   }"
                   v-tippy="getSyncIndicatorTooltip(item, 'paymentDetail')"
                 >
-                  <ArrowPathIcon v-if="item.syncStatusPaymentDetail === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
-                  <CloudIcon v-else-if="item.syncStatusPaymentDetail === 'NONE' || !item.syncStatusPaymentDetail" class="h-2.5 w-2.5" />
-                  <CheckIcon v-else-if="item.syncStatusPaymentDetail === 'SUCCESS'" class="h-2.5 w-2.5" />
-                  <ExclamationTriangleIcon v-else-if="item.syncStatusPaymentDetail === 'ERROR'" class="h-2.5 w-2.5" />
+                  <ArrowPathIcon
+                    v-if="item.syncStatusPaymentDetail === 'LOADING'"
+                    class="h-2.5 w-2.5 animate-spin"
+                  />
+                  <CloudIcon
+                    v-else-if="
+                      item.syncStatusPaymentDetail === 'NONE' ||
+                      !item.syncStatusPaymentDetail
+                    "
+                    class="h-2.5 w-2.5"
+                  />
+                  <CheckIcon
+                    v-else-if="item.syncStatusPaymentDetail === 'SUCCESS'"
+                    class="h-2.5 w-2.5"
+                  />
+                  <ExclamationTriangleIcon
+                    v-else-if="item.syncStatusPaymentDetail === 'ERROR'"
+                    class="h-2.5 w-2.5"
+                  />
                   <span>支付单</span>
                 </span>
 
@@ -88,17 +130,37 @@
                 <span
                   class="inline-flex items-center space-x-0.5 rounded px-1 py-0.5 text-[9px] border leading-none"
                   :class="{
-                    'bg-foundation-3 text-foreground-2 border-outline-3': item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool,
-                    'bg-primary-muted text-primary border-primary': item.syncStatusPaymentPool === 'LOADING',
-                    'bg-success-lighter text-success-darker border-success': item.syncStatusPaymentPool === 'SUCCESS',
-                    'bg-danger-lighter text-danger-darker border-danger': item.syncStatusPaymentPool === 'ERROR'
+                    'bg-foundation-3 text-foreground-2 border-outline-3':
+                      item.syncStatusPaymentPool === 'NONE' ||
+                      !item.syncStatusPaymentPool,
+                    'bg-primary-muted text-primary border-primary':
+                      item.syncStatusPaymentPool === 'LOADING',
+                    'bg-success-lighter text-success-darker border-success':
+                      item.syncStatusPaymentPool === 'SUCCESS',
+                    'bg-danger-lighter text-danger-darker border-danger':
+                      item.syncStatusPaymentPool === 'ERROR'
                   }"
                   v-tippy="getSyncIndicatorTooltip(item, 'paymentPool')"
                 >
-                  <ArrowPathIcon v-if="item.syncStatusPaymentPool === 'LOADING'" class="h-2.5 w-2.5 animate-spin" />
-                  <CloudIcon v-else-if="item.syncStatusPaymentPool === 'NONE' || !item.syncStatusPaymentPool" class="h-2.5 w-2.5" />
-                  <CheckIcon v-else-if="item.syncStatusPaymentPool === 'SUCCESS'" class="h-2.5 w-2.5" />
-                  <ExclamationTriangleIcon v-else-if="item.syncStatusPaymentPool === 'ERROR'" class="h-2.5 w-2.5" />
+                  <ArrowPathIcon
+                    v-if="item.syncStatusPaymentPool === 'LOADING'"
+                    class="h-2.5 w-2.5 animate-spin"
+                  />
+                  <CloudIcon
+                    v-else-if="
+                      item.syncStatusPaymentPool === 'NONE' ||
+                      !item.syncStatusPaymentPool
+                    "
+                    class="h-2.5 w-2.5"
+                  />
+                  <CheckIcon
+                    v-else-if="item.syncStatusPaymentPool === 'SUCCESS'"
+                    class="h-2.5 w-2.5"
+                  />
+                  <ExclamationTriangleIcon
+                    v-else-if="item.syncStatusPaymentPool === 'ERROR'"
+                    class="h-2.5 w-2.5"
+                  />
                   <span>申报池</span>
                 </span>
               </div>
@@ -203,9 +265,12 @@
               >
                 <TrashIcon class="h-4 w-4" />
               </button>
-              <!-- 触发同步按钮 -->              
-               <button
-                v-if="item.approveStatus === 'APPROVED' && hasFunctionalPerm('monthly-valuation:publish')"
+              <!-- 触发同步按钮 -->
+              <button
+                v-if="
+                  item.approveStatus === 'APPROVED' &&
+                  hasFunctionalPerm('monthly-valuation:publish')
+                "
                 class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 :title="getSyncDebugButtonTooltip(item)"
                 :disabled="isSyncDebugButtonDisabled(item)"
@@ -214,7 +279,10 @@
                 <BugAntIcon class="h-4 w-4" />
               </button>
               <button
-                v-if="item.approveStatus === 'APPROVED' && hasFunctionalPerm('monthly-valuation:publish')"
+                v-if="
+                  item.approveStatus === 'APPROVED' &&
+                  hasFunctionalPerm('monthly-valuation:publish')
+                "
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus disabled:cursor-not-allowed disabled:opacity-40"
                 v-tippy="getSyncButtonTooltip(item)"
                 :disabled="isSyncButtonDisabled(item)"
@@ -326,9 +394,9 @@
               class="w-full text-xs"
             >
               <template #something-selected="{ value }">
-                <span class="truncate text-foreground text-xs">{{
-                  (value as any)?.label || '请选择支付节点'
-                }}</span>
+                <span class="truncate text-foreground text-xs">
+                  {{ (value as any)?.label || '请选择支付节点' }}
+                </span>
               </template>
               <template #option="{ item }">
                 <span class="truncate text-xs">{{ (item as any)?.label }}</span>
@@ -348,10 +416,14 @@
               class="w-full text-xs"
             >
               <template #something-selected="{ value }">
-                <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
+                <span class="truncate text-foreground text-xs">
+                  {{ (value as any)?.label || '不关联' }}
+                </span>
               </template>
               <template #option="{ item }">
-                <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
+                <span class="truncate text-xs">
+                  {{ (item as any)?.label || '不关联' }}
+                </span>
               </template>
             </FormSelectBase>
           </div>
@@ -373,7 +445,6 @@
         </div>
       </div>
     </LayoutDialog>
-
 
     <div v-if="flowDetailDrawerOpen" class="fixed inset-0 z-50 flex justify-end">
       <button class="absolute inset-0 bg-black/40" @click="closeFlowDrawer" />
@@ -560,15 +631,42 @@
       @confirm="confirmDeleteItem"
     />
 
-    <!-- 送审确认弹窗 -->
-    <CommonConfirmDialog
+    <!-- 送审确认弹窗（0 期需确认是否并入安全文明措施费） -->
+    <LayoutDialog
       v-model:open="submitConfirmOpen"
-      title="确认送审"
-      text="是否要发起月度验工送审"
-      confirm-text="确认"
-      :loading="actionLoadingId === submitTargetItem?.id"
-      @confirm="confirmSubmitItem"
-    />
+      max-width="lg"
+      prevent-close-on-click-outside
+      :buttons="submitConfirmButtons"
+    >
+      <template #header>确认送审</template>
+      <div class="space-y-4 text-sm">
+        <div class="text-foreground-2">
+          是否要发起月度验工送审？
+          <span
+            v-if="submitTargetItem"
+            class="mt-1 block font-semibold text-foreground"
+          >
+            单据编码：
+            <span class="font-mono">{{ submitTargetItem.code }}</span>
+          </span>
+        </div>
+
+        <div v-if="submitMergeLoading" class="text-body-xs text-foreground-2">
+          正在读取安全文明措施费并入配置...
+        </div>
+        <SafetyMeasureMergeField
+          v-else-if="submitMergeApplicable"
+          v-model:include-safety-measure="submitIncludeSafetyMeasure"
+          v-model:safety-section-ids="submitSafetySectionIds"
+          :project-id="projectId"
+          round-name="0"
+        />
+
+        <div v-if="submitMergeError" class="text-body-sm text-danger">
+          {{ submitMergeError }}
+        </div>
+      </div>
+    </LayoutDialog>
 
     <!-- 同步数据确认弹窗 -->
     <CommonConfirmDialog
@@ -604,6 +702,7 @@ import {
   CheckIcon
 } from '@heroicons/vue/24/outline'
 import type { LayoutDialogButton } from '@speckle/ui-components'
+import SafetyMeasureMergeField from '~/components/projects/work-valuation/SafetyMeasureMergeField.vue'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
@@ -872,6 +971,12 @@ const submitFinalConfirmOpen = ref(false)
 const submitTargetItem = ref<any>(null)
 const submitRemark = ref('')
 const submitFlowLoading = ref(false)
+// 0 期发起送审时，确认是否并入安全文明措施费
+const submitMergeApplicable = ref(false)
+const submitIncludeSafetyMeasure = ref(false)
+const submitSafetySectionIds = ref<string[]>([])
+const submitMergeLoading = ref(false)
+const submitMergeError = ref('')
 const activeSubmitFlow = ref<ActiveApprovalFlow | null>(null)
 const flowDetailDrawerOpen = ref(false)
 const flowDetailLoading = ref(false)
@@ -1053,7 +1158,9 @@ const selectedMeasureValue = computed({
     const id = createForm.value.safetyMeasureId
     if (!id) return { id: 'none', label: '不关联' }
     const found = availableSafetyMeasures.value.find((m) => m.id === id)
-    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+    return found
+      ? { id: found.id, label: formatMeasureLabel(found) }
+      : { id: 'none', label: '不关联' }
   },
   set: (val: any) => {
     createForm.value.safetyMeasureId = val?.id === 'none' ? null : val?.id
@@ -1172,6 +1279,11 @@ const resetSubmitState = () => {
   submitRemark.value = ''
   submitFlowLoading.value = false
   activeSubmitFlow.value = null
+  submitMergeApplicable.value = false
+  submitIncludeSafetyMeasure.value = false
+  submitSafetySectionIds.value = []
+  submitMergeLoading.value = false
+  submitMergeError.value = ''
 }
 
 const loadActiveSubmitFlow = async () => {
@@ -1187,11 +1299,44 @@ const loadActiveSubmitFlow = async () => {
   )
 }
 
+// 0 期发起送审时读取当前的并入配置，供用户确认/修改
+const loadSubmitMergeConfig = async (measurementId: string) => {
+  if (!projectId.value) return
+  submitMergeLoading.value = true
+  try {
+    const apiOrigin = useApiOrigin()
+    const data = await $fetch<{
+      includeSafetyMeasure?: boolean
+      safetySectionIds?: string[] | null
+    }>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId}`
+    )
+    submitIncludeSafetyMeasure.value = Boolean(data?.includeSafetyMeasure)
+    submitSafetySectionIds.value = Array.isArray(data?.safetySectionIds)
+      ? [...data.safetySectionIds]
+      : []
+  } catch {
+    // 读取失败时保持默认"不并入"，并明确提示，避免用户误以为已并入
+    triggerNotification({
+      title: '读取失败',
+      description: '读取安全文明措施费并入配置失败，请关闭后重试再发起送审',
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    submitMergeLoading.value = false
+  }
+}
+
 const triggerSubmitItem = (item: any) => {
   if (isSubmitted(item)) return
   resetSubmitState()
   submitTargetItem.value = item
+  // 0 期需要确认是否并入安全文明措施费；其他期数保持原有送审流程
+  submitMergeApplicable.value = String(item?.roundName ?? '').trim() === '0'
   submitConfirmOpen.value = true
+  if (submitMergeApplicable.value) {
+    void loadSubmitMergeConfig(item.id)
+  }
 }
 
 const editItem = (item: any) => {
@@ -1306,6 +1451,27 @@ const createDialogButtons = computed((): LayoutDialogButton[] => [
   }
 ])
 
+const submitConfirmButtons = computed((): LayoutDialogButton[] => [
+  {
+    text: '取消',
+    props: { color: 'outline' },
+    onClick: () => {
+      resetSubmitState()
+    }
+  },
+  {
+    text: '确认',
+    props: {
+      color: 'primary',
+      loading: actionLoadingId.value === submitTargetItem.value?.id
+    },
+    disabled: actionLoadingId.value === submitTargetItem.value?.id,
+    onClick: () => {
+      confirmSubmitItem().catch(() => undefined)
+    }
+  }
+])
+
 const confirmSubmitItem = async () => {
   if (!submitTargetItem.value || !projectId.value) return
   actionLoadingId.value = submitTargetItem.value.id
@@ -1324,7 +1490,8 @@ const confirmSubmitItem = async () => {
     if (!paymentRequestData?.reqContractorOpinion?.trim()) {
       triggerNotification({
         title: '校验失败',
-        description: '支付申请理由陈述在送审时为必填，请先填写并保存工程费用支付申请单中的该项！',
+        description:
+          '支付申请理由陈述在送审时为必填，请先填写并保存工程费用支付申请单中的该项！',
         type: ToastNotificationType.Danger
       })
       actionLoadingId.value = null
@@ -1332,10 +1499,14 @@ const confirmSubmitItem = async () => {
       return
     }
 
-    if (!paymentRequestData?.contractorPayAmt || Number(paymentRequestData.contractorPayAmt) <= 0) {
+    if (
+      !paymentRequestData?.contractorPayAmt ||
+      Number(paymentRequestData.contractorPayAmt) <= 0
+    ) {
       triggerNotification({
         title: '校验失败',
-        description: '本次申请支付金额在送审时为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+        description:
+          '本次申请支付金额在送审时为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
         type: ToastNotificationType.Danger
       })
       actionLoadingId.value = null
@@ -1347,6 +1518,29 @@ const confirmSubmitItem = async () => {
     if (!activeFlow) {
       throw new Error('未找到当前已启用的月度验工审批流程，请先到审批流程设置中启用')
     }
+
+    // 0 期：先把"是否并入安全文明措施费"的确认结果落库，再发起送审
+    if (submitMergeApplicable.value) {
+      if (submitIncludeSafetyMeasure.value && !submitSafetySectionIds.value.length) {
+        submitMergeError.value = '已选择并入安全文明措施费，请至少选择一个分部工程'
+        actionLoadingId.value = null
+        return
+      }
+      submitMergeError.value = ''
+      await $fetch(
+        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/safety-measure-merge`,
+        {
+          method: 'POST',
+          body: {
+            includeSafetyMeasure: submitIncludeSafetyMeasure.value,
+            safetySectionIds: submitIncludeSafetyMeasure.value
+              ? submitSafetySectionIds.value
+              : []
+          }
+        }
+      )
+    }
+
     await $fetch(
       `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${submitTargetItem.value.id}/submit`,
       {
@@ -1426,7 +1620,10 @@ const getSyncDebugButtonTooltip = (item: any) => {
   return `调试同步 body: ${typesToDebug.map(getSyncTypeLabel).join('、')}`
 }
 
-const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail' | 'paymentPool') => {
+const getSyncIndicatorTooltip = (
+  item: any,
+  type: 'settlement' | 'paymentDetail' | 'paymentPool'
+) => {
   if (!item) return ''
   const statusField =
     type === 'settlement'
@@ -1440,7 +1637,7 @@ const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail'
       : type === 'paymentDetail'
       ? 'syncErrorPaymentDetail'
       : 'syncErrorPaymentPool'
-  
+
   const status = item[statusField]
   const error = item[errorField]
 
@@ -1466,7 +1663,9 @@ const getSyncIndicatorTooltip = (item: any, type: 'settlement' | 'paymentDetail'
 const getSyncConfirmText = (item: any) => {
   if (!item) return ''
   const typesToSync = getSyncTypesToSync(item)
-  return `确认要将该月度验工的【${typesToSync.map(getSyncTypeLabel).join('、')}】数据同步至全面预算管理系统吗？`
+  return `确认要将该月度验工的【${typesToSync
+    .map(getSyncTypeLabel)
+    .join('、')}】数据同步至全面预算管理系统吗？`
 }
 
 const triggerSyncItem = (item: any) => {
@@ -1590,7 +1789,7 @@ const debugSyncItem = (item: any) => {
 const confirmSyncItem = async () => {
   if (!syncTargetItem.value || !projectId.value) return
   const item = syncTargetItem.value
-  
+
   const typesToSync = getSyncTypesToSync(item)
 
   if (typesToSync.length === 0) {
@@ -1628,12 +1827,14 @@ const confirmSyncItem = async () => {
         type: ToastNotificationType.Success
       })
     } else {
-      const failedNames = failures.map((f) => {
-        if (f.type === 'settlement') return '计价结果'
-        if (f.type === 'paymentDetail') return '中间支付单'
-        return '待支付申报池'
-      }).join('、')
-      
+      const failedNames = failures
+        .map((f) => {
+          if (f.type === 'settlement') return '计价结果'
+          if (f.type === 'paymentDetail') return '中间支付单'
+          return '待支付申报池'
+        })
+        .join('、')
+
       triggerNotification({
         title: '部分同步失败',
         description: `${failedNames} 同步失败，其余已成功同步。`,
@@ -2021,8 +2222,6 @@ const formatDateTime = (value?: string | number | null) => {
   if (!value) return '-'
   const num = Number(value)
   const parsed = Number.isNaN(num) ? value : num
-  return dayjs(parsed).isValid()
-    ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss')
-    : '-'
+  return dayjs(parsed).isValid() ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 </script>

@@ -37,6 +37,7 @@ import {
   publish
 } from '@/modules/shared/utils/subscriptions'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
+import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 
 const normalizeApprovalFlowResourceType = (resourceType?: string | null) => {
   if (resourceType === 'MODEL') return 'MODEL'
@@ -600,6 +601,7 @@ export default {
       if (!uniqueInstanceIds.length) return 0
 
       let transferredCount = 0
+      const transferredInstanceIds: string[] = []
       await db.transaction(async (trx) => {
         const getInstanceById = getApprovalFlowInstanceByIdFactory({ db: trx })
         const getCurrentStep = getApprovalFlowCurrentStepFactory({ db: trx })
@@ -608,10 +610,12 @@ export default {
 
         for (const instanceId of uniqueInstanceIds) {
           const instance = await getInstanceById({ id: instanceId })
-          if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending) continue
+          if (!instance || instance.status !== ApprovalFlowInstanceStatus.Pending)
+            continue
 
           const currentStep = await getCurrentStep(instanceId)
-          if (!currentStep || currentStep.status !== ApprovalFlowStepStatus.Pending) continue
+          if (!currentStep || currentStep.status !== ApprovalFlowStepStatus.Pending)
+            continue
 
           const previousApproverIds = currentStep.approverIds || []
           const nextApproverIds = [args.input.assigneeId]
@@ -638,8 +642,16 @@ export default {
             }
           })
           transferredCount++
+          transferredInstanceIds.push(instanceId)
         }
       })
+
+      for (const instanceId of transferredInstanceIds) {
+        scheduleApprovalFlowTodoSync({
+          instanceId,
+          reason: 'approval-flow-transferred-assignee'
+        })
+      }
 
       if (transferredCount > 0) await publishApprovalFlowTodoCountUpdated()
       return transferredCount

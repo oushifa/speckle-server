@@ -81,26 +81,6 @@
                 </NuxtLink>
 
                 <NuxtLink
-                  v-if="showWorkspaceLinks"
-                  to="/drawings"
-                  @click="isOpenMobile = false"
-                >
-                  <LayoutSidebarMenuGroupItem
-                    :class="[
-                      'py-2 mb-1',
-                      isActive('/drawings') && 'bg-slate-400 hover:!bg-slate-400',
-                      'text-white',
-                      'hover:bg-slate-300'
-                    ]"
-                    label="图纸库"
-                  >
-                    <template #icon>
-                      <IconFile class="size-4 text-white" />
-                    </template>
-                  </LayoutSidebarMenuGroupItem>
-                </NuxtLink>
-
-                <NuxtLink
                   v-if="showWorkspaceLinks && hasMenuPerm('ent-progress')"
                   to="/progress"
                   @click="isOpenMobile = false"
@@ -212,7 +192,9 @@
                 v-if="hasMenuPerm('ent-permission')"
                 :class="[
                   'project-sidebar-group-wrapper',
-                  (isActive('/permission/roles') || isActive('/permission/users') || isActive('/permission/logs')) &&
+                  (isActive('/permission/roles') ||
+                    isActive('/permission/users') ||
+                    isActive('/permission/logs')) &&
                     'project-sidebar-group-wrapper-active'
                 ]"
                 title="权限管理"
@@ -224,10 +206,7 @@
                 <template #title-icon>
                   <IconSettings class="size-4 text-white" />
                 </template>
-                <NuxtLink
-                  to="/permission/roles"
-                  @click="isOpenMobile = false"
-                >
+                <NuxtLink to="/permission/roles" @click="isOpenMobile = false">
                   <LayoutSidebarMenuGroupItem
                     :class="[
                       'py-2',
@@ -239,10 +218,7 @@
                     label="角色配置"
                   ></LayoutSidebarMenuGroupItem>
                 </NuxtLink>
-                <NuxtLink
-                  to="/permission/logs"
-                  @click="isOpenMobile = false"
-                >
+                <NuxtLink to="/permission/logs" @click="isOpenMobile = false">
                   <LayoutSidebarMenuGroupItem
                     :class="[
                       'py-2',
@@ -254,10 +230,7 @@
                     label="操作日志"
                   ></LayoutSidebarMenuGroupItem>
                 </NuxtLink>
-                <NuxtLink
-                  to="/permission/users"
-                  @click="isOpenMobile = false"
-                >
+                <NuxtLink to="/permission/users" @click="isOpenMobile = false">
                   <LayoutSidebarMenuGroupItem
                     :class="[
                       'py-2',

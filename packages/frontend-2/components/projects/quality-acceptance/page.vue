@@ -104,6 +104,18 @@
           <template #acceptanceContent="{ item }">
             <span class="text-sm text-foreground">{{ item.acceptanceContent }}</span>
           </template>
+          <template #serialCodes="{ item }">
+            <div v-if="item.serialCodes.length" class="flex flex-wrap gap-1">
+              <span
+                v-for="code in item.serialCodes"
+                :key="code"
+                class="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] text-primary"
+              >
+                {{ code }}
+              </span>
+            </div>
+            <span v-else class="text-foreground">-</span>
+          </template>
           <template #workVolume="{ item }">
             <span class="text-sm text-foreground">
               {{ formatWorkVolume(item.workVolume) }}
@@ -294,7 +306,9 @@
               </span>
             </button>
           </div>
-          <div class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+          <div
+            class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2"
+          >
             <CommonFilePreview
               v-if="selectedPreviewAttachment"
               :blob-id="selectedPreviewAttachment.id"
@@ -362,6 +376,7 @@ import type {
   QualityAcceptanceCreateInput,
   QualityAcceptanceForm
 } from './types'
+import { getBimSerialCodes } from './types'
 import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
 import {
   createQualityAcceptanceFormMutation,
@@ -383,6 +398,7 @@ import dayjs from 'dayjs'
 type AcceptanceRow = QualityAcceptanceForm & {
   associationStatus: '已关联' | '未关联'
   inspectorName: string
+  serialCodes: string[]
 }
 
 const route = useRoute()
@@ -418,8 +434,9 @@ watch(
 
 const columns = [
   { id: 'acceptancePart', header: '区域部位', classes: 'col-span-1' },
-  { id: 'inspectionLotNumber', header: '检验批编号', classes: 'col-span-2' },
+  { id: 'inspectionLotNumber', header: '检验批编号', classes: 'col-span-1' },
   { id: 'acceptanceContent', header: '检验批内容', classes: 'col-span-2' },
+  { id: 'serialCodes', header: '构件序号码', classes: 'col-span-1' },
   { id: 'actualFinishDate', header: '验收日期', classes: 'col-span-1 font-medium' },
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
   { id: 'unit', header: '单位', classes: 'col-span-1' },
@@ -516,11 +533,7 @@ type QualityAcceptanceFormNode = NonNullable<
 
 const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
   (formsResult.value?.items || [])
-    .filter(
-      (
-        item: any
-      ): item is any => !!item
-    )
+    .filter((item: any): item is any => !!item)
     .map((item: any) => {
       const bimRaw = (
         item as unknown as {
@@ -581,12 +594,8 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
       }
     })
 )
-const totalCount = computed(
-  () => formsResult.value?.totalCount || 0
-)
-const nextCursor = computed(
-  () => formsResult.value?.cursor || null
-)
+const totalCount = computed(() => formsResult.value?.totalCount || 0)
+const nextCursor = computed(() => formsResult.value?.cursor || null)
 const inspectorNameMap = computed(() => {
   const map = new Map<string, string>()
   for (const item of formsResult.value?.items || []) {
@@ -613,7 +622,8 @@ const tableItems = computed<AcceptanceRow[]>(() =>
   acceptanceForms.value.map((item) => ({
     ...item,
     associationStatus: hasValidBimAssociation(item.BIM) ? '已关联' : '未关联',
-    inspectorName: inspectorNameMap.value.get(item.id) || '-'
+    inspectorName: inspectorNameMap.value.get(item.id) || '-',
+    serialCodes: getBimSerialCodes(item.BIM)
   }))
 )
 const notify = (title: string, type: ToastNotificationType, description?: string) => {
@@ -771,7 +781,8 @@ const onAttachmentNameClick = (item: AcceptanceRow, blobId: string) => {
 }
 
 const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined => {
-  if (!selectedPreviewAttachment.value || !hasFunctionalPerm('quality-check:download')) return undefined
+  if (!selectedPreviewAttachment.value || !hasFunctionalPerm('quality-check:download'))
+    return undefined
   return [
     {
       text: selectedPreviewAttachment.value.fileSize
@@ -790,11 +801,15 @@ const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined =>
   ]
 })
 
-const canEditItem = (item: AcceptanceRow) => !item.approveStatus && !item.occupiedMeasurementId
+const canEditItem = (item: AcceptanceRow) =>
+  !item.approveStatus && !item.occupiedMeasurementId
 
 const canDeleteItem = (item: AcceptanceRow) => {
   const status = (item.approveStatus || '').toUpperCase()
-  return (status === 'REJECTED' || status === 'CANCELED' || !status) && !item.occupiedMeasurementId
+  return (
+    (status === 'REJECTED' || status === 'CANCELED' || !status) &&
+    !item.occupiedMeasurementId
+  )
 }
 
 const selectedAssociationModelIds = computed(() => {

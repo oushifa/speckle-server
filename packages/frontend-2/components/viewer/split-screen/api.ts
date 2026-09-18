@@ -4,6 +4,7 @@ export type DrawingsProject = {
   id: string
   name: string
   type: string
+  projectId?: string
 }
 
 export type DrawingsModel = {
@@ -87,7 +88,7 @@ export type SaveSplitScreenConfigPayload = {
   sectionBox?: Record<string, unknown> | null
 }
 
-let projectCache: DrawingsProject | null = null
+const projectCache = new Map<string, DrawingsProject>()
 
 export function useViewerSplitScreenApi() {
   const apiOrigin = useApiOrigin()
@@ -102,21 +103,30 @@ export function useViewerSplitScreenApi() {
       }
     })
 
-  const getProject = async () => {
-    if (projectCache) return projectCache
+  // 图纸库为项目级功能，所有图纸接口均按业务项目隔离
+  const drawingsBase = (projectId: string) => `/api/projects/${projectId}/drawings`
 
-    const res = await request<{ data: DrawingsProject }>('/api/v1/drawings/project')
-    projectCache = res.data
-    return projectCache
+  const getProject = async (projectId: string) => {
+    const cached = projectCache.get(projectId)
+    if (cached) return cached
+
+    const res = await request<{ data: DrawingsProject }>(
+      `${drawingsBase(projectId)}/project`
+    )
+    projectCache.set(projectId, res.data)
+    return res.data
   }
 
-  const fetchModels = async (params?: {
-    search?: string
-    page?: number
-    pageSize?: number
-  }) =>
+  const fetchModels = async (
+    projectId: string,
+    params?: {
+      search?: string
+      page?: number
+      pageSize?: number
+    }
+  ) =>
     await request<{ data: DrawingsModel[]; total?: number }>(
-      '/api/v1/drawings/models',
+      `${drawingsBase(projectId)}/models`,
       {
         params: {
           search: params?.search?.trim() || undefined,
@@ -127,11 +137,12 @@ export function useViewerSplitScreenApi() {
     )
 
   const fetchVersions = async (
+    projectId: string,
     modelId: string,
     params?: { limit?: number; cursor?: DrawingsVersionCursor | null }
   ) =>
     await request<{ data: DrawingsVersion[]; cursor: DrawingsVersionCursor | null }>(
-      `/api/v1/drawings/models/${modelId}/versions`,
+      `${drawingsBase(projectId)}/models/${modelId}/versions`,
       {
         params: {
           limit: params?.limit || 20,
@@ -141,10 +152,10 @@ export function useViewerSplitScreenApi() {
       }
     )
 
-  const fetchVersionFile = async (versionId: string) =>
+  const fetchVersionFile = async (projectId: string, versionId: string) =>
     (
       await request<{ data: DrawingsVersionFile }>(
-        `/api/v1/drawings/versions/${versionId}/file`
+        `${drawingsBase(projectId)}/versions/${versionId}/file`
       )
     ).data
 

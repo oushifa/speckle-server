@@ -1,20 +1,20 @@
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex min-w-0 flex-col gap-4">
     <!-- Header & Toolbar -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-heading-lg text-foreground mt-3">清单管理</h1>
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-3">
+        <div class="flex min-w-0 items-center gap-2">
           <FormTextInput
             v-model="searchQuery"
             name="search"
             placeholder="搜索清单"
-            class="w-64"
+            class="w-40 sm:w-64"
           />
           <FormButton color="subtle" :icon-left="MagnifyingGlassIcon" hide-text />
         </div>
         <FormButton
-          v-if="hasFunctionalPerm('bill-management:export')"
+          v-if="canExport"
           color="outline"
           :icon-left="ArrowDownTrayIcon"
           :disabled="boqItemsLoading || exportingExcel || !allItems.length"
@@ -23,7 +23,7 @@
           导出Excel
         </FormButton>
         <FormButton
-          v-if="hasFunctionalPerm('bill-management:import')"
+          v-if="canImportOrUpload"
           color="outline"
           :icon-left="ArrowUpTrayIcon"
           :disabled="rowMutationLoading || importingExcel"
@@ -32,7 +32,7 @@
           导入Excel
         </FormButton>
         <FormButton
-          v-if="!canInitializeBoq && hasFunctionalPerm('bill-management:download')"
+          v-if="canDownloadTemplate"
           color="outline"
           :icon-left="DocumentTextIcon"
           @click="handleDownloadTemplate"
@@ -40,7 +40,7 @@
           清单模板
         </FormButton>
         <FormButton
-          v-if="canInitializeBoq && hasFunctionalPerm('bill-management:create')"
+          v-if="canInitialize"
           color="primary"
           :icon-left="PlusIcon"
           :disabled="createBoqItemLoading"
@@ -60,9 +60,9 @@
       </div>
     </div>
 
-    <!-- Tree Table Container -->
+    <!-- Tree Table Container：固定可视高度并独立滚动，保证低分辨率下横向滚动条始终可见 -->
     <div
-      class="w-full overflow-x-auto rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm"
+      class="w-full min-w-0 max-w-full min-h-[12rem] max-h-[calc(100dvh_-_16rem)] overflow-auto overscroll-x-contain rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm"
     >
       <table class="w-full text-xs text-left min-w-[1520px] border-collapse">
         <thead
@@ -86,10 +86,13 @@
               工程量(含变更)
             </th>
             <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-              复核单价
+              复核单价（元）
             </th>
-            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">复核总价</th>
+            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+              复核总价（元）
+            </th>
             <th
+              v-if="hasAnyRowAction"
               class="py-2.5 px-3 w-[110px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
             >
               操作
@@ -100,7 +103,7 @@
         <!-- Loading State -->
         <tbody v-if="isInitialLoading" class="divide-y divide-outline-3 font-normal">
           <tr>
-            <td colspan="13" class="py-12 text-center text-foreground-2">
+            <td :colspan="tableColumnCount" class="py-12 text-center text-foreground-2">
               <div class="flex items-center justify-center gap-2">
                 <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
                 <span>加载清单数据中...</span>
@@ -115,8 +118,17 @@
           class="divide-y divide-outline-3 font-normal"
         >
           <tr>
-            <td colspan="13" class="py-12 text-center text-foreground-2 italic">
-              暂无清单数据
+            <td
+              :colspan="tableColumnCount"
+              class="py-12 text-center text-foreground-2 italic"
+            >
+              <span class="block">暂无清单数据</span>
+              <span
+                v-if="canCreate"
+                class="not-italic block mt-1 text-xs text-foreground-3"
+              >
+                您可以点击“初始化清单”按钮创建清单根节点
+              </span>
             </td>
           </tr>
         </tbody>
@@ -147,12 +159,16 @@
                 </button>
                 <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
                 <button
+                  v-if="canEdit"
                   type="button"
                   class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
                   @click="openEditDialog(row.item)"
                 >
                   {{ row.item.code }}
                 </button>
+                <span v-else class="font-mono font-medium text-foreground truncate">
+                  {{ row.item.code }}
+                </span>
               </div>
             </td>
 
@@ -198,7 +214,7 @@
             <!-- 复核量（可编辑） -->
             <td class="py-1 px-2 text-right bg-primary/5">
               <div
-                v-if="row.item.type === 'ITEM'"
+                v-if="row.item.type === 'ITEM' && canEdit"
                 class="flex items-center justify-end relative"
               >
                 <input
@@ -225,13 +241,19 @@
                   @keydown.enter=";($event.target as HTMLInputElement).blur()"
                 />
               </div>
+              <span
+                v-else-if="row.item.type === 'ITEM'"
+                class="font-mono text-foreground block text-right pr-1"
+              >
+                {{ getInlineReviewQuantity(row.item) || '-' }}
+              </span>
               <span v-else class="text-foreground-3 block text-center">-</span>
             </td>
 
             <!-- 变更/签证量（可编辑） -->
             <td class="py-1 px-2 text-right bg-primary/5">
               <div
-                v-if="row.item.type === 'ITEM'"
+                v-if="row.item.type === 'ITEM' && canEdit"
                 class="flex items-center justify-end relative"
               >
                 <input
@@ -258,6 +280,12 @@
                   @keydown.enter=";($event.target as HTMLInputElement).blur()"
                 />
               </div>
+              <span
+                v-else-if="row.item.type === 'ITEM'"
+                class="font-mono text-foreground block text-right pr-1"
+              >
+                {{ getInlineChangeQuantity(row.item) || '-' }}
+              </span>
               <span v-else class="text-foreground-3 block text-center">-</span>
             </td>
 
@@ -271,7 +299,7 @@
             <!-- 复核单价（可编辑） -->
             <td class="py-1 px-2 text-right bg-primary/5">
               <div
-                v-if="row.item.type === 'ITEM'"
+                v-if="row.item.type === 'ITEM' && canEdit"
                 class="flex items-center justify-end relative"
               >
                 <input
@@ -298,6 +326,12 @@
                   @keydown.enter=";($event.target as HTMLInputElement).blur()"
                 />
               </div>
+              <span
+                v-else-if="row.item.type === 'ITEM'"
+                class="font-mono text-foreground block text-right pr-1"
+              >
+                {{ getInlineReviewPrice(row.item) || '-' }}
+              </span>
               <span v-else class="text-foreground-3 block text-center">-</span>
             </td>
 
@@ -310,11 +344,12 @@
 
             <!-- 操作 -->
             <td
+              v-if="hasAnyRowAction"
               class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
             >
               <div class="flex items-center justify-end gap-1.5">
                 <FormButton
-                  v-if="hasFunctionalPerm('bill-management:edit')"
+                  v-if="canEdit"
                   color="outline"
                   size="sm"
                   hide-text
@@ -323,7 +358,7 @@
                   @click.stop="handleEditItem(row.item)"
                 />
                 <FormButton
-                  v-if="hasFunctionalPerm('bill-management:delete')"
+                  v-if="canDelete"
                   color="outline"
                   size="sm"
                   hide-text
@@ -332,7 +367,7 @@
                   @click.stop="handleDeleteItem(row.item)"
                 />
                 <FormButton
-                  v-if="hasFunctionalPerm('bill-management:create')"
+                  v-if="canCreate"
                   color="outline"
                   size="sm"
                   hide-text
@@ -426,6 +461,7 @@
               {{ item }}
             </template>
           </FormSelectBase>
+          <!-- 合同工程量/综合单价/合价：手动新增默认0，编辑时取原值，均不可编辑 -->
           <div class="grid grid-cols-2 gap-3">
             <FormTextInput
               v-model="boqDialogQuantityInput"
@@ -434,9 +470,8 @@
               type="number"
               step="any"
               show-label
-              show-required
-              :rules="[isRequired]"
-              placeholder="请输入工程量"
+              disabled
+              placeholder="手动新增默认0"
             />
             <FormTextInput
               v-model="boqDialogPriceInput"
@@ -445,9 +480,18 @@
               type="number"
               step="any"
               show-label
-              show-required
-              :rules="[isRequired]"
-              placeholder="请输入综合单价"
+              disabled
+              placeholder="手动新增默认0"
+            />
+            <FormTextInput
+              v-model="boqDialogAmountInput"
+              name="boq-amount"
+              label="合价（元）"
+              type="number"
+              step="any"
+              show-label
+              disabled
+              placeholder="工程量×综合单价"
             />
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -549,6 +593,23 @@ const importingExcel = ref(false)
 const authToken = useAuthCookie()
 const apiOrigin = useApiOrigin()
 
+const notify = (title: string, type: ToastNotificationType, description?: string) => {
+  triggerNotification({
+    title,
+    description,
+    type
+  })
+}
+
+// 功能权限不足时的统一提示
+const notifyNoPermission = (actionLabel: string) => {
+  notify(
+    '无操作权限',
+    ToastNotificationType.Warning,
+    `您没有清单管理的「${actionLabel}」权限，请联系管理员分配。`
+  )
+}
+
 const updateDebouncedSearch = useDebounceFn((query: string) => {
   debouncedSearchQuery.value = query.trim()
 }, 300)
@@ -632,11 +693,34 @@ const rowMutationLoading = computed(
     deleteBoqItemLoading.value
 )
 
+// ── 清单管理（bill-management）功能权限：新增/编辑/删除/上传/下载/打印/导入/导出 ──
+const canCreate = computed(() => hasFunctionalPerm('bill-management:create'))
+const canEdit = computed(() => hasFunctionalPerm('bill-management:edit'))
+const canDelete = computed(() => hasFunctionalPerm('bill-management:delete'))
+const canDownload = computed(() => hasFunctionalPerm('bill-management:download'))
+const canExport = computed(() => hasFunctionalPerm('bill-management:export'))
+// 上传与导入共用同一个 Excel 入口，权限位互相独立，任一满足即展示入口
+const canImportOrUpload = computed(
+  () =>
+    hasFunctionalPerm('bill-management:import') ||
+    hasFunctionalPerm('bill-management:upload')
+)
+// 初始化清单按钮：仅有新增权限且清单为空时展示
+const canInitialize = computed(() => canInitializeBoq.value && canCreate.value)
+// 清单模板（下载）：无新增权限或清单非空时，按下载权限展示
+const canDownloadTemplate = computed(() => canDownload.value && !canInitialize.value)
+// 行操作列：无任何行级操作权限时整列隐藏
+const hasAnyRowAction = computed(
+  () => canCreate.value || canEdit.value || canDelete.value
+)
+const tableColumnCount = computed(() => (hasAnyRowAction.value ? 13 : 12))
+
 const refreshBoq = async () => {
   await boqItemsRefetch()
 }
 
 const initializeBoq = async () => {
+  if (!canCreate.value) return notifyNoPermission('新增')
   if (!canInitializeBoq.value || createBoqItemLoading.value) return
   const projectName = boqItemsResult.value?.project?.name?.trim() || '项目'
   await createBoqItem({
@@ -677,6 +761,7 @@ const boqDialogName = ref('')
 const boqDialogUnit = ref('')
 const boqDialogQuantity = ref('')
 const boqDialogPrice = ref('')
+const boqDialogAmount = ref('')
 const boqDialogReviewQuantity = ref('')
 const boqDialogChangeQuantity = ref('')
 const boqDialogReviewPrice = ref('')
@@ -687,13 +772,6 @@ const boqDialogNumericError = ref('')
 const itemById = computed(() => {
   return new Map(allItems.value.map((item) => [item.id, item]))
 })
-const notify = (title: string, type: ToastNotificationType, description?: string) => {
-  triggerNotification({
-    title,
-    description,
-    type
-  })
-}
 
 // 树形表格展开与平铺
 const expandedRows = ref<Set<string>>(new Set())
@@ -876,6 +954,7 @@ const computeItemReviewAmount = (item: BoqTreeItem): number | null => {
 
 const saveInlineReview = async (item: BoqTreeItem) => {
   if (item.type !== 'ITEM') return
+  if (!canEdit.value) return notifyNoPermission('编辑')
   const currentEdit = inlineEditValues[item.id]
   if (!currentEdit) return
 
@@ -984,11 +1063,13 @@ const formatBoqImportErrorMessage = (error: unknown) => {
 }
 
 const triggerImportExcel = () => {
+  if (!canImportOrUpload.value) return notifyNoPermission('上传/导入')
   if (importingExcel.value) return
   boqImportInputRef.value?.click()
 }
 
 const handleExportExcel = async () => {
+  if (!canExport.value) return notifyNoPermission('导出')
   if (exportingExcel.value) return
   exportingExcel.value = true
   try {
@@ -1024,6 +1105,7 @@ const handleExportExcel = async () => {
 }
 
 const handleDownloadTemplate = async () => {
+  if (!canDownload.value) return notifyNoPermission('下载')
   try {
     const res = await $fetch<Blob>(
       `${apiOrigin}/api/v1/projects/${projectId.value}/boq/export-excel?template=true`,
@@ -1055,6 +1137,7 @@ const handleDownloadTemplate = async () => {
 }
 
 const handleImportFileChange = async (event: Event) => {
+  if (!canImportOrUpload.value) return notifyNoPermission('上传/导入')
   if (importingExcel.value) return
   const input = event.target as HTMLInputElement | null
   const file = input?.files?.[0]
@@ -1107,6 +1190,14 @@ const boqDialogPriceInput = computed({
   get: () => `${boqDialogPrice.value ?? ''}`,
   set: (val: string | number) => {
     boqDialogPrice.value = `${val ?? ''}`
+  }
+})
+
+// 合价（元）由合同工程量 × 综合单价得出，输入框仅展示、不可编辑
+const boqDialogAmountInput = computed({
+  get: () => `${boqDialogAmount.value ?? ''}`,
+  set: (val: string | number) => {
+    boqDialogAmount.value = `${val ?? ''}`
   }
 })
 
@@ -1213,6 +1304,7 @@ const boqDialogTitle = computed(() => {
 })
 
 const openEditDialog = (item: BoqTreeItem) => {
+  if (!canEdit.value) return notifyNoPermission('编辑')
   boqDialogMode.value = 'edit'
   boqDialogTarget.value = item
   boqDialogCodeError.value = ''
@@ -1227,10 +1319,17 @@ const openEditDialog = (item: BoqTreeItem) => {
   }
   boqDialogName.value = item.name
   boqDialogUnit.value = item.unit || ''
-  boqDialogQuantity.value =
-    item.quantity === null || item.quantity === undefined ? '' : `${item.quantity}`
-  boqDialogPrice.value =
-    item.price === null || item.price === undefined ? '' : `${item.price}`
+  // 合同工程量/综合单价/合价只读展示：取原值，缺失时按0展示
+  const itemQuantity =
+    item.quantity === null || item.quantity === undefined ? 0 : Number(item.quantity)
+  const itemPrice =
+    item.price === null || item.price === undefined ? 0 : Number(item.price)
+  boqDialogQuantity.value = `${itemQuantity}`
+  boqDialogPrice.value = `${itemPrice}`
+  boqDialogAmount.value =
+    item.amount === null || item.amount === undefined
+      ? `${Number((itemQuantity * itemPrice).toFixed(2))}`
+      : `${item.amount}`
   boqDialogReviewQuantity.value =
     item.reviewQuantity !== null && item.reviewQuantity !== undefined
       ? `${item.reviewQuantity}`
@@ -1251,6 +1350,7 @@ const openEditDialog = (item: BoqTreeItem) => {
 }
 
 const openDeleteDialog = (item: BoqTreeItem) => {
+  if (!canDelete.value) return notifyNoPermission('删除')
   boqDialogMode.value = 'delete'
   boqDialogTarget.value = item
   boqDialogCodeError.value = ''
@@ -1260,6 +1360,7 @@ const openDeleteDialog = (item: BoqTreeItem) => {
   boqDialogUnit.value = ''
   boqDialogQuantity.value = ''
   boqDialogPrice.value = ''
+  boqDialogAmount.value = ''
   boqDialogReviewQuantity.value = ''
   boqDialogChangeQuantity.value = ''
   boqDialogReviewPrice.value = ''
@@ -1268,6 +1369,7 @@ const openDeleteDialog = (item: BoqTreeItem) => {
 }
 
 const openAddChildDialog = (item: BoqTreeItem) => {
+  if (!canCreate.value) return notifyNoPermission('新增')
   if (!childTypeMap[item.type]) return
   boqDialogMode.value = 'addChild'
   boqDialogTarget.value = item
@@ -1276,8 +1378,10 @@ const openAddChildDialog = (item: BoqTreeItem) => {
   boqDialogCode.value = ''
   boqDialogName.value = ''
   boqDialogUnit.value = ''
-  boqDialogQuantity.value = ''
-  boqDialogPrice.value = ''
+  // 手动新增：合同工程量/综合单价/合价固定为0（不可编辑）
+  boqDialogQuantity.value = '0'
+  boqDialogPrice.value = '0'
+  boqDialogAmount.value = '0'
   boqDialogReviewQuantity.value = ''
   boqDialogChangeQuantity.value = ''
   boqDialogReviewPrice.value = ''
@@ -1321,6 +1425,17 @@ const submitBoqDialog = async () => {
   const target = boqDialogTarget.value
   if (!target) return
 
+  // 提交前二次校验功能权限，避免绕过按钮隐藏直接调用
+  if (boqDialogMode.value === 'delete' && !canDelete.value) {
+    return notifyNoPermission('删除')
+  }
+  if (boqDialogMode.value === 'edit' && !canEdit.value) {
+    return notifyNoPermission('编辑')
+  }
+  if (boqDialogMode.value === 'addChild' && !canCreate.value) {
+    return notifyNoPermission('新增')
+  }
+
   if (boqDialogMode.value === 'delete') {
     await deleteBoqItem({
       input: {
@@ -1362,6 +1477,7 @@ const submitBoqDialog = async () => {
   let nextUnit: string | null = null
   let nextQuantity: number | null = null
   let nextPrice: number | null = null
+  let nextAmount: number | null = null
   let nextReviewQuantity: number | null = null
   let nextChangeQuantity: number | null = null
   let nextReviewPrice: number | null = null
@@ -1369,20 +1485,21 @@ const submitBoqDialog = async () => {
   boqDialogNumericError.value = ''
   if (isItemDetailsRequired.value) {
     const unitInput = boqDialogUnit.value.trim()
-    const quantityInput = boqDialogQuantity.value.trim()
-    const priceInput = boqDialogPrice.value.trim()
-    if (!unitInput.length || !quantityInput.length || !priceInput.length) return
+    if (!unitInput.length) return
 
-    const quantity = Number.parseFloat(quantityInput)
-    const price = Number.parseFloat(priceInput)
-    if (Number.isNaN(quantity) || Number.isNaN(price)) {
-      boqDialogNumericError.value = '工程量和综合单价必须为数字'
+    // 合同工程量/综合单价/合价均为只读，缺失时按0处理
+    const quantity = Number.parseFloat(boqDialogQuantity.value.trim() || '0')
+    const price = Number.parseFloat(boqDialogPrice.value.trim() || '0')
+    const amount = Number.parseFloat(boqDialogAmount.value.trim() || '0')
+    if (Number.isNaN(quantity) || Number.isNaN(price) || Number.isNaN(amount)) {
+      boqDialogNumericError.value = '合同工程量、综合单价和合价必须为数字'
       return
     }
 
     nextUnit = unitInput
     nextQuantity = quantity
     nextPrice = price
+    nextAmount = Number(amount.toFixed(2))
 
     if (boqDialogReviewQuantity.value.trim().length) {
       const parsed = Number.parseFloat(boqDialogReviewQuantity.value.trim())
@@ -1409,6 +1526,11 @@ const submitBoqDialog = async () => {
           unit: nextUnit,
           quantity: nextQuantity,
           price: nextPrice,
+          // 合价只读：原值为空时按工程量×综合单价补齐，已有值保持不变
+          amount:
+            target.amount === null || target.amount === undefined
+              ? nextAmount
+              : undefined,
           reviewQuantity: nextReviewQuantity,
           changeQuantity: nextChangeQuantity,
           reviewPrice: nextReviewPrice
@@ -1435,6 +1557,7 @@ const submitBoqDialog = async () => {
         unit: nextUnit,
         quantity: nextQuantity,
         price: nextPrice,
+        amount: nextAmount,
         reviewQuantity: nextReviewQuantity,
         changeQuantity: nextChangeQuantity,
         reviewPrice: nextReviewPrice
@@ -1469,10 +1592,7 @@ const boqDialogButtons = computed<LayoutDialogButton[]>(() => [
           ((showChildTypeSelect.value && !boqDialogChildType.value) ||
             !boqDialogCode.value.trim().length ||
             !boqDialogName.value.trim().length ||
-            (isItemDetailsRequired.value &&
-              (!boqDialogUnit.value.trim().length ||
-                !boqDialogQuantity.value.trim().length ||
-                !boqDialogPrice.value.trim().length)) ||
+            (isItemDetailsRequired.value && !boqDialogUnit.value.trim().length) ||
             !!boqDialogNumericError.value.length ||
             !!boqDialogCodeError.value.length))
     },

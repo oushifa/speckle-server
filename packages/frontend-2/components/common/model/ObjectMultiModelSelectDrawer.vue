@@ -214,6 +214,11 @@ export type ModelObjectSelectionGroup = {
   modelId: string
   applicationIds: string[]
   componentCodes?: string[]
+  /**
+   * 与 applicationIds 按位对齐的构件编码（序号码优先）。
+   * 未解析到编码的位置以 null 占位，便于调用方按位回写 BIM.bimIds。
+   */
+  componentCodesAligned?: (string | null)[]
 }
 
 type ViewerTreeNodeLike = {
@@ -503,13 +508,18 @@ const draftGroups = computed(() =>
   filteredModelIds.value
     .map((modelId) => {
       const appIds = Array.from(draftSelectionByModelId.value[modelId] || [])
-      const codes = appIds
-        .map((appId) => componentCodeBySelectionKey.value[selectionKey(modelId, appId)])
-        .filter((c): c is string => typeof c === 'string' && c.length > 0)
+      const alignedCodes = appIds.map(
+        (appId) =>
+          componentCodeBySelectionKey.value[selectionKey(modelId, appId)] || null
+      )
+      const codes = alignedCodes.filter(
+        (c): c is string => typeof c === 'string' && c.length > 0
+      )
       return {
         modelId,
         applicationIds: appIds,
-        componentCodes: codes
+        componentCodes: codes,
+        componentCodesAligned: alignedCodes
       }
     })
     .filter((group) => group.applicationIds.length > 0)

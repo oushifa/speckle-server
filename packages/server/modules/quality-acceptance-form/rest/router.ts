@@ -6,6 +6,7 @@ import { validateRequest } from 'zod-express'
 import type Busboy from 'busboy'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
+import type { Knex } from 'knex'
 import { db } from '@/db/knex'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
@@ -17,6 +18,10 @@ import {
   importQualityAcceptanceFormsFactory,
   normalizeBIM
 } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
+import {
+  normalizeSectionIds,
+  resolveSafetyMeasureBoqItemIds
+} from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import {
   getQualityAcceptanceFormsFactory,
   countQualityAcceptanceFormsFactory
@@ -1080,6 +1085,69 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     }
   )
 
+  // 0 期并入安全文明措施费：解析前端传入的并入参数
+  // includeSafetyMeasure === undefined 表示"前端未提供该字段"。
+  // 编辑时按"保持原值"处理，避免其他入口的编辑请求意外清空已配置的并入。
+  const parseSafetyMeasureMergeInput = (body: Record<string, unknown>) => {
+    const raw = body.includeSafetyMeasure
+    const includeSafetyMeasure =
+      raw === undefined || raw === null ? undefined : Boolean(raw)
+    const safetySectionIds = Array.isArray(body.safetySectionIds)
+      ? body.safetySectionIds.filter(
+          (item): item is string => typeof item === 'string' && Boolean(item.trim())
+        )
+      : undefined
+    return { includeSafetyMeasure, safetySectionIds }
+  }
+
+  // 0 期并入安全文明措施费：校验（防重复计量 + 必须选分部工程）
+  const assertSafetyMeasureMergeAllowed = async (params: {
+    projectDb: Knex
+    projectId: string
+    baseDate: number
+    measurementId?: string | null
+    includeSafetyMeasure: boolean
+    safetySectionIds: string[]
+  }) => {
+    const {
+      projectDb,
+      projectId,
+      baseDate,
+      measurementId,
+      includeSafetyMeasure,
+      safetySectionIds
+    } = params
+    if (!includeSafetyMeasure) return
+    if (!safetySectionIds.length) {
+      throw new BadRequestError('并入安全文明措施费时，必须至少选择一个分部工程')
+    }
+
+    // 同期不允许"既有手工安全文明措施费、又有月度验工并入"，否则两本账重复计量
+    const manualMeasure = await projectDb('safety_measures')
+      .where('project_id', projectId)
+      .whereNull('sourceMeasurementId')
+      .andWhere('baseDate', String(baseDate))
+      .first()
+    if (manualMeasure) {
+      throw new BadRequestError(
+        `同期已存在安全文明措施费单据 ${manualMeasure.code}，不能再并入月度验工`
+      )
+    }
+
+    // 同期只允许一张并入单，否则安全文明措施费的累计会重复累加
+    const otherMeasurement = await projectDb('monthly_measurements')
+      .where('project_id', projectId)
+      .andWhere('includeSafetyMeasure', true)
+      .andWhere('baseDate', String(baseDate))
+      .andWhereNot('id', measurementId || '')
+      .first()
+    if (otherMeasurement) {
+      throw new BadRequestError(
+        `同期月度验工 ${otherMeasurement.code} 已经并入安全文明措施费，不能重复并入`
+      )
+    }
+  }
+
   // 5.2 创建月度验工
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements',
@@ -1100,6 +1168,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       const projectDb = await getProjectDbClient({ projectId })
+
+      const mergeInput = parseSafetyMeasureMergeInput(body)
+      const includeSafetyMeasure = mergeInput.includeSafetyMeasure ?? false
+      const safetySectionIds = mergeInput.safetySectionIds ?? []
+      await assertSafetyMeasureMergeAllowed({
+        projectDb,
+        projectId,
+        baseDate,
+        includeSafetyMeasure,
+        safetySectionIds
+      })
 
       // 自动生成编码 YG-YYYY-XXX
       const yearStr = dayjs(baseDate).format('YYYY')
@@ -1151,7 +1230,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           remark: item.remark ?? undefined
         })),
         excludedAcceptanceIds: body.excludedAcceptanceIds || [],
-        safetyMeasureId: body.safetyMeasureId || null
+        safetyMeasureId: body.safetyMeasureId || null,
+        safetySectionIds: includeSafetyMeasure ? safetySectionIds : []
       })
 
       // 获取当前项目合同编号
@@ -1161,7 +1241,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .first()
       const projectContractCode = project?.contractCode || ''
 
-      // 存入新加字段 roundName, startDate, endDate, contractCode, safetyMeasureId
+      // 存入新加字段 roundName, startDate, endDate, contractCode, safetyMeasureId, paymentPhase, detailedDescription
+      const paymentPhase = body.paymentPhase?.trim() || null
+      const detailedDescription = body.detailedDescription?.trim() || null
       await projectDb('monthly_measurements')
         .where('id', created.measurement.id)
         .update({
@@ -1169,7 +1251,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           startDate: startDate ? String(startDate) : null,
           endDate: endDate ? String(endDate) : null,
           contractCode: projectContractCode,
-          safetyMeasureId: body.safetyMeasureId || null
+          safetyMeasureId: body.safetyMeasureId || null,
+          includeSafetyMeasure,
+          safetySectionIds: includeSafetyMeasure
+            ? JSON.stringify(safetySectionIds)
+            : null,
+          paymentPhase,
+          detailedDescription
         })
 
       const prepaymentItemsSnapshot = await projectDb('prepayment_items')
@@ -1198,7 +1286,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         startDate: startDate ? String(startDate) : null,
         endDate: endDate ? String(endDate) : null,
         contractCode: projectContractCode,
-        safetyMeasureId: body.safetyMeasureId || null
+        safetyMeasureId: body.safetyMeasureId || null,
+        includeSafetyMeasure,
+        safetySectionIds: includeSafetyMeasure ? safetySectionIds : null,
+        paymentPhase,
+        detailedDescription
       })
     }
   )
@@ -1227,6 +1319,21 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         return res.status(404).json({ error: '月度验工不存在' })
       }
 
+      const mergeInput = parseSafetyMeasureMergeInput(body)
+      // 未提供该字段的客户端（如详情页编辑）保持原值，避免误清空
+      const includeSafetyMeasure =
+        mergeInput.includeSafetyMeasure ?? Boolean(existing.includeSafetyMeasure)
+      const safetySectionIds =
+        mergeInput.safetySectionIds ?? normalizeSectionIds(existing.safetySectionIds)
+      await assertSafetyMeasureMergeAllowed({
+        projectDb,
+        projectId,
+        baseDate,
+        measurementId: id,
+        includeSafetyMeasure,
+        safetySectionIds
+      })
+
       const binding = await db('approval_flow_bindings')
         .where('subjectKey', `monthly_measurements:${id}`)
         .select('status')
@@ -1246,11 +1353,22 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const baseDateChanged = newBaseDate !== oldBaseDate
       const windowChanged = startDate !== oldStartDate || endDate !== oldEndDate
       const safetyMeasureIdChanged = body.safetyMeasureId !== existing.safetyMeasureId
+      // 并入开关或所选分部工程变化时，需要重建明细以重算 isSafetyMeasure
+      const existingSectionIds = normalizeSectionIds(existing.safetySectionIds)
+      const safetyMeasureMergeChanged =
+        includeSafetyMeasure !== Boolean(existing.includeSafetyMeasure) ||
+        (includeSafetyMeasure &&
+          JSON.stringify(safetySectionIds) !== JSON.stringify(existingSectionIds))
 
       const excludedIds = new Set(body.excludedAcceptanceIds || [])
       let selectedRows: any[]
 
-      if (baseDateChanged || windowChanged || safetyMeasureIdChanged) {
+      if (
+        baseDateChanged ||
+        windowChanged ||
+        safetyMeasureIdChanged ||
+        safetyMeasureMergeChanged
+      ) {
         const currentPinnedIds = Array.from(
           new Set(
             existingItems
@@ -1273,7 +1391,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           endDate,
           excludedAcceptanceIds: body.excludedAcceptanceIds || [],
           pinnedAcceptanceIds: currentPinnedIds,
-          currentMeasurementId: id
+          currentMeasurementId: id,
+          safetySectionIds: includeSafetyMeasure ? safetySectionIds : []
         })
 
         // 获取安全文明措施费非汇总清单项数据
@@ -1369,6 +1488,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             boqParentId: row.boqParentId,
             boqDepth: row.boqDepth,
             isSummaryRow: row.isSummaryRow,
+            isSafetyMeasure: Boolean(row.isSafetyMeasure),
             sortIndex: row.sortIndex,
             uom: row.uom,
             price: row.price,
@@ -1446,7 +1566,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const now = new Date()
       const nextItems =
-        baseDateChanged || windowChanged || safetyMeasureIdChanged
+        baseDateChanged ||
+        windowChanged ||
+        safetyMeasureIdChanged ||
+        safetyMeasureMergeChanged
           ? selectedRows
           : selectedRows.map((row: any) => {
               const custom = customValues2.get(row.boqItemId) as any
@@ -1460,6 +1583,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
                 boqParentId: row.boqParentId,
                 boqDepth: row.boqDepth,
                 isSummaryRow: row.isSummaryRow,
+                isSafetyMeasure: Boolean(row.isSafetyMeasure),
                 sortIndex: row.sortIndex,
                 uom: row.uom,
                 price: row.price,
@@ -1495,8 +1619,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           roundName: roundName || null,
           startDate: startDate ? String(startDate) : null,
           endDate: endDate ? String(endDate) : null,
-          safetyMeasureId: body.safetyMeasureId || null
+          safetyMeasureId: body.safetyMeasureId || null,
+          paymentPhase:
+            body.paymentPhase !== undefined
+              ? body.paymentPhase?.trim() || null
+              : existing.paymentPhase,
+          detailedDescription:
+            body.detailedDescription !== undefined
+              ? body.detailedDescription?.trim() || null
+              : existing.detailedDescription
         })
+        // 并入开关/分部工程用非类型化更新写入（jsonb 需序列化，与新建保持一致）
+        await trx('monthly_measurements')
+          .where('id', id)
+          .update({
+            includeSafetyMeasure,
+            safetySectionIds: includeSafetyMeasure
+              ? JSON.stringify(safetySectionIds)
+              : null,
+            updatedAt: new Date()
+          })
         await deleteMonthlyMeasurementItemsByMeasurementIdFactory({ db: trx })(id)
         await insertMonthlyMeasurementItemsFactory({ db: trx })(nextItems)
 
@@ -1680,6 +1822,86 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       return res.status(200).json({ success: true })
+    }
+  )
+
+  // 6.6 设置月度验工的"是否并入安全文明措施费"（0 期在发起送审时调用）
+  //     只更新并入配置与清单项标记，不重建明细，避免冲掉已录入的各方数量。
+  app.post(
+    '/api/v1/projects/:projectId/monthly-measurements/:id/safety-measure-merge',
+    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    async (req: Request, res: Response) => {
+      const { projectId, id } = req.params
+      const body = req.body || {}
+      const projectDb = await getProjectDbClient({ projectId })
+
+      const measurement = await getMonthlyMeasurementByIdFactory({ db: projectDb })(id)
+      if (!measurement || measurement.project_id !== projectId) {
+        return res.status(404).json({ error: '月度验工不存在' })
+      }
+
+      // 以单据自身状态判断是否可编辑。
+      // 注意：不能用 approval_flow_bindings.status —— 流程被"重置未送审"后 binding 会残留
+      // CANCELED，会误判为已送审。
+      const isDraft =
+        !measurement.approveStatus ||
+        measurement.approveStatus === 'START' ||
+        measurement.approveStatus === 'RETURNED'
+      if (!isDraft) {
+        throw new BadRequestError('已送审，不可修改安全文明措施费并入配置')
+      }
+
+      const mergeInput = parseSafetyMeasureMergeInput(body)
+      const include = mergeInput.includeSafetyMeasure ?? false
+      const sectionIds = mergeInput.safetySectionIds ?? []
+
+      await assertSafetyMeasureMergeAllowed({
+        projectDb,
+        projectId,
+        baseDate: Number(measurement.baseDate),
+        measurementId: id,
+        includeSafetyMeasure: include,
+        safetySectionIds: sectionIds
+      })
+
+      const boqItems = await projectDb('boq_items')
+        .where('projectId', projectId)
+        .select('id', 'parentId', 'type')
+      const safetyBoqItemIds = Array.from(
+        resolveSafetyMeasureBoqItemIds({
+          boqItems,
+          sectionIds: include ? sectionIds : []
+        })
+      )
+
+      const now = new Date()
+      await projectDb.transaction(async (trx) => {
+        await trx('monthly_measurements')
+          .where('id', id)
+          .update({
+            includeSafetyMeasure: include,
+            safetySectionIds: include ? JSON.stringify(sectionIds) : null,
+            updatedAt: now
+          })
+
+        // 幂等打标：先全部清除，再按命中集合置位
+        await trx('monthly_measurement_items')
+          .where('measurementId', id)
+          .update({ isSafetyMeasure: false, updatedAt: now })
+        if (safetyBoqItemIds.length) {
+          await trx('monthly_measurement_items')
+            .where('measurementId', id)
+            .whereIn('boqItemId', safetyBoqItemIds)
+            .update({ isSafetyMeasure: true, updatedAt: now })
+        }
+      })
+
+      return res.status(200).json({
+        success: true,
+        includeSafetyMeasure: include,
+        safetySectionIds: include ? sectionIds : [],
+        safetyItemCount: safetyBoqItemIds.length
+      })
     }
   )
 
@@ -3126,6 +3348,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 安全文明措施费 (Safety Measures) REST APIs
   // -------------------------------------------------------------
 
+  // 由月度验工自动生成的隐藏记录：对外完全隐藏，不可编辑/删除/送审。
+  // 它只作为安全文明措施费"累计完成数"的数据来源。
+  const assertSafetyMeasureNotAutoGenerated = async (
+    projectDb: Knex,
+    measureId: string
+  ) => {
+    const row = await projectDb('safety_measures')
+      .where('id', measureId)
+      .select('sourceMeasurementId')
+      .first()
+    if (row?.sourceMeasurementId) {
+      throw new BadRequestError(
+        '该安全文明措施费由月度验工自动生成，不支持编辑、删除或送审'
+      )
+    }
+  }
+
   const checkSafetyWritePermission = async (
     projectDb: any,
     measureId: string,
@@ -3296,8 +3535,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const projectDb = await getProjectDbClient({ projectId })
 
       // 分页查询安全文明措施费主表
+      // 排除 sourceMeasurementId 非空的记录：它们由月度验工自动生成，完全隐藏，
+      // 仅参与累计金额统计（见下方 allMeasures，故意不加此过滤）
       const q = projectDb('safety_measures')
         .where('project_id', projectId)
+        .whereNull('sourceMeasurementId')
         .orderBy('updatedAt', 'desc')
         .orderBy('id', 'desc')
         .limit(limit + 1)
@@ -3456,8 +3698,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
       )
 
-      // 统计总数
-      const countQ = projectDb('safety_measures').where('project_id', projectId)
+      // 统计总数（与列表口径一致，排除由月度验工自动生成的隐藏记录）
+      const countQ = projectDb('safety_measures')
+        .where('project_id', projectId)
+        .whereNull('sourceMeasurementId')
       if (search) {
         countQ.andWhere((qb) => {
           qb.whereILike('code', `%${search}%`).orWhereILike('unit', `%${search}%`)
@@ -3492,6 +3736,11 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         .first()
 
       if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
+      // 由月度验工自动生成的隐藏记录对外不可见
+      if (measure.sourceMeasurementId) {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
 
@@ -3577,6 +3826,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const measure = await projectDb('safety_measures').where('id', id).first()
       if (!measure) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+      // 由月度验工自动生成的隐藏记录对外不可见
+      if (measure.sourceMeasurementId) {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
 
@@ -3890,6 +4143,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const { projectId, id } = req.params
       const projectDb = await getProjectDbClient({ projectId })
 
+      // 由月度验工自动生成的隐藏记录对外不可见
+      const autoGeneratedOwner = await projectDb('safety_measures')
+        .where('id', id)
+        .select('sourceMeasurementId')
+        .first()
+      if (autoGeneratedOwner?.sourceMeasurementId) {
+        return res.status(404).json({ error: '安全文明措施费单据不存在' })
+      }
+
       const details = await projectDb('safety_measure_details')
         .where('safetyMeasureId', id)
         .first()
@@ -3947,6 +4209,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       const projectDb = await getProjectDbClient({ projectId })
+
+      // 同期若已由月度验工并入安全文明措施费，则不允许再手工新建（防重复计量）。
+      // 注意这里判断的是"月度验工的并入配置"，而不是"是否已生成隐藏记录"：
+      // 隐藏记录在月度验工被撤销后会保留为 CANCELED，若按它判断会永久阻断同期手工新建。
+      const mergedMeasurement = await projectDb('monthly_measurements')
+        .where('project_id', projectId)
+        .andWhere('includeSafetyMeasure', true)
+        .andWhere('baseDate', String(baseDate))
+        .first()
+      if (mergedMeasurement) {
+        return res.status(400).json({
+          error: `同期月度验工 ${mergedMeasurement.code} 已配置并入安全文明措施费，无需手工新建。如需改为单独发起，请先关闭该月度验工的并入开关。`
+        })
+      }
 
       // 获取项目的默认承包人作为默认施工单位
       let defaultUnit = '上海建工集团股份有限公司'
@@ -4128,6 +4404,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (!measure) {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
+      await assertSafetyMeasureNotAutoGenerated(projectDb, id)
 
       // 根据当前流转节点进行角色和修改权限的鉴权
       let currentRole:
@@ -4141,6 +4418,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         | 'contract' = 'contractor'
       const isDraft = !measure.approveStatus || measure.approveStatus === 'START'
 
+      // 当前待办节点名称，用于合同/总监类角色的细分校验
+      let pendingStepName = ''
+
       if (!isDraft && measure.flowInstanceId) {
         const pendingStep = await db('approval_flow_instance_steps')
           .where('instanceId', measure.flowInstanceId)
@@ -4149,6 +4429,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           .first()
         if (pendingStep) {
           const stepName = (pendingStep.name || '').trim()
+          pendingStepName = stepName
           const matchRole = (role: string) => {
             if (role === 'supervision') {
               return (
@@ -4240,6 +4521,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       // 保存明细行数量与金额（只更新有权更新的角色列）
       const itemsPayload = body.items || []
       const detailPayload = body.details || {}
+
+      // 总监理工程师（总监）节点：总监意见为必填，后端兜底防止绕过前端校验
+      const isSupervisionChiefStep =
+        pendingStepName.includes('总监') || pendingStepName.includes('总监理工程师')
+      if (
+        currentRole === 'contract' &&
+        isSupervisionChiefStep &&
+        !String(detailPayload.contractOpinion || '').trim()
+      ) {
+        return res.status(400).json({ error: '请填写【总监意见】后再保存或审批' })
+      }
 
       await projectDb.transaction(async (trx) => {
         // 更新明细数量与金额
@@ -4382,6 +4674,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (!measure) {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
+      await assertSafetyMeasureNotAutoGenerated(projectDb, id)
 
       const binding = await db('approval_flow_bindings')
         .where('subjectKey', `safety_measures:${id}`)
@@ -4447,6 +4740,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (!measure) {
         return res.status(404).json({ error: '安全文明措施费单据不存在' })
       }
+      await assertSafetyMeasureNotAutoGenerated(projectDb, id)
 
       const binding = await db('approval_flow_bindings')
         .where('subjectKey', `safety_measures:${id}`)

@@ -1048,6 +1048,11 @@ const projectMenuTree = [
     children: [{ id: 'source-file-management', label: '源文件管理' }]
   },
   {
+    id: 'drawings-mg',
+    label: '图纸库',
+    children: [{ id: 'drawings-library', label: '图纸库' }]
+  },
+  {
     id: 'model-mg',
     label: '模型管理',
     children: [

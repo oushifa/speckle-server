@@ -1,9 +1,5 @@
 <template>
   <div class="h-full">
-    <Portal to="navigation">
-      <div>数智南北</div>
-    </Portal>
-
     <input
       ref="createFileInput"
       type="file"
@@ -360,6 +356,7 @@ import { FormButton, FormTextInput, LayoutDialog } from '@speckle/ui-components'
 import { useDebounceFn } from '@vueuse/core'
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { useApiOrigin } from '~~/composables/env'
+import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 type DrawingsModel = {
@@ -391,7 +388,25 @@ useHead({
 })
 
 const apiOrigin = useApiOrigin()
+const authCookie = useAuthCookie()
+const route = useRoute()
 const { triggerNotification } = useGlobalToast()
+
+// 图纸库为项目级功能，接口按当前业务项目隔离
+const projectId = computed(() => route.params.id as string)
+
+async function request<T>(path: string, options?: Parameters<typeof $fetch<T>>[1]) {
+  return await $fetch<T>(
+    `${apiOrigin}/api/projects/${projectId.value}/drawings${path}`,
+    {
+      ...options,
+      headers: {
+        ...(options?.headers || {}),
+        ...(authCookie.value ? { Authorization: `Bearer ${authCookie.value}` } : {})
+      }
+    }
+  )
+}
 
 const searchQuery = ref('')
 const currentPage = ref(1)
@@ -424,18 +439,16 @@ const getErrorMessage = (e: unknown) => {
 }
 
 const loadModels = async () => {
+  if (!projectId.value) return
   loading.value = true
   try {
-    const res = await $fetch<{ data: DrawingsModel[]; total?: number }>(
-      `${apiOrigin}/api/v1/drawings/models`,
-      {
-        params: {
-          search: searchQuery.value.trim() || undefined,
-          page: currentPage.value,
-          pageSize: pageSize.value
-        }
+    const res = await request<{ data: DrawingsModel[]; total?: number }>('/models', {
+      params: {
+        search: searchQuery.value.trim() || undefined,
+        page: currentPage.value,
+        pageSize: pageSize.value
       }
-    )
+    })
     models.value = res.data || []
     totalRecords.value = typeof res.total === 'number' ? res.total : models.value.length
   } catch (e) {
@@ -489,7 +502,9 @@ const openPreview = (url: string | null) => {
 }
 
 const getPreviewUrl = (versionId: string) => {
-  return `${apiOrigin}/preview/drawdings/commits/${versionId}`
+  // 图纸统一存储在共享的 drawdings 项目中
+  const streamId = versionsModel.value?.projectId || 'drawdings'
+  return `${apiOrigin}/preview/${streamId}/commits/${versionId}`
 }
 
 const openVersionPreview = (versionId: string) => {
@@ -513,7 +528,7 @@ const submitCreateWithFile = async (file: File) => {
     const body = new FormData()
     body.append('file', file)
     if (name) body.append('name', name)
-    await $fetch(`${apiOrigin}/api/v1/drawings/models/upload`, { method: 'POST', body })
+    await request('/models/upload', { method: 'POST', body })
     await loadModels()
   } catch (e) {
     triggerNotification({
@@ -546,7 +561,7 @@ const submitUploadVersionWithFile = async (m: DrawingsModel, file: File) => {
   try {
     const body = new FormData()
     body.append('file', file)
-    await $fetch(`${apiOrigin}/api/v1/drawings/models/${m.id}/versions`, {
+    await request(`/models/${m.id}/versions`, {
       method: 'POST',
       body
     })
@@ -603,7 +618,7 @@ const submitDeleteModel = async () => {
   if (!deleteModelTarget.value) return
   mutating.value = true
   try {
-    await $fetch(`${apiOrigin}/api/v1/drawings/models/${deleteModelTarget.value.id}`, {
+    await request(`/models/${deleteModelTarget.value.id}`, {
       method: 'DELETE'
     })
     deleteModelDialogOpen.value = false
@@ -658,10 +673,10 @@ const loadVersionsPage = async () => {
   if (!versionsModel.value) return
   versionsLoading.value = true
   try {
-    const res = await $fetch<{
+    const res = await request<{
       data: Array<Omit<DrawingsVersion, '_editMessage'>>
       cursor: VersionCursor | null
-    }>(`${apiOrigin}/api/v1/drawings/models/${versionsModel.value.id}/versions`, {
+    }>(`/models/${versionsModel.value.id}/versions`, {
       params: {
         limit: 10,
         cursorId: versionsCursor.value?.id || undefined,
@@ -700,7 +715,7 @@ const saveVersionMessage = async (v: DrawingsVersion) => {
   if (mutating.value) return
   mutating.value = true
   try {
-    await $fetch(`${apiOrigin}/api/v1/drawings/versions/${v.id}`, {
+    await request(`/versions/${v.id}`, {
       method: 'PATCH',
       body: { message: v._editMessage }
     })
@@ -745,12 +760,9 @@ const submitDeleteVersion = async () => {
   if (!deleteVersionTarget.value) return
   mutating.value = true
   try {
-    await $fetch(
-      `${apiOrigin}/api/v1/drawings/versions/${deleteVersionTarget.value.id}`,
-      {
-        method: 'DELETE'
-      }
-    )
+    await request(`/versions/${deleteVersionTarget.value.id}`, {
+      method: 'DELETE'
+    })
     deleteVersionDialogOpen.value = false
     deleteVersionTarget.value = null
     await reloadVersions()

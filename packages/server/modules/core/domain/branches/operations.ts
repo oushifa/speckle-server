@@ -150,6 +150,10 @@ export type StoreBranch = (params: {
   description: string | null
   streamId: string
   authorId: string
+  /**
+   * 图纸库（drawings）专用：归属的业务项目 id。
+   */
+  projectId?: string | null
 }) => Promise<Branch>
 
 export type CreateBranchAndNotify = (

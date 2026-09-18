@@ -134,8 +134,8 @@ export const bopItemRouterFactory = (): Router => {
           '复核量',
           '变更/签证量',
           '工程量（含签证变更）',
-          '复核单价',
-          '复核总价'
+          '复核单价（元）',
+          '复核总价（元）'
         ]
 
         const idToCodeMap = new Map(items.map((i) => [i.id, i.code]))

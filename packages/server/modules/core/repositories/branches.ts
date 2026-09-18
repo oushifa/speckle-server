@@ -938,15 +938,17 @@ export const createBranchFactory =
     description: string | null
     streamId: string
     authorId: string
+    projectId?: string | null
   }) => {
-    const { streamId, authorId, name, description } = params
+    const { streamId, authorId, name, description, projectId } = params
 
     const branch: Omit<BranchRecord, 'createdAt' | 'updatedAt'> = {
       id: generateBranchId(),
       streamId,
       authorId,
       name: name.toLowerCase(),
-      description
+      description,
+      ...(projectId ? { projectId } : {})
     }
 
     validateBranchName(branch.name)

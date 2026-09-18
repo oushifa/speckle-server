@@ -217,7 +217,8 @@ import {
 } from '@vueuse/core'
 import { type Nullable, isNonNullable } from '@speckle/shared'
 import { useFunctionRunsStatusSummary } from '~/lib/automate/composables/runStatus'
-import { projectsRoute } from '~~/lib/common/helpers/route'
+import { projectRoute } from '~~/lib/common/helpers/route'
+import { useViewerBackRoute } from '~/lib/viewer/composables/backRoute'
 import { useAreSavedViewsEnabled } from '~/lib/viewer/composables/savedViews/general'
 import {
   Camera,
@@ -229,7 +230,6 @@ import {
 } from 'lucide-vue-next'
 import { useViewerPanelsUtilities } from '~/lib/viewer/composables/setup/panels'
 import type { ActivePanel } from '~/lib/viewer/helpers/sceneExplorer'
-import { useSettingsMenuState } from '~/lib/settings/composables/menu'
 import { useViewerSplitScreenState } from '~/lib/viewer/composables/setup/splitScreen'
 
 // TODO: Refactor all of this event business and just read/write panels state directly
@@ -253,6 +253,7 @@ const {
   filters: { hasAnyFiltersApplied }
 } = useInjectedViewerInterfaceState()
 const {
+  projectId,
   ui: {
     panels: { active: activePanel, modelsSubView }
   }
@@ -378,21 +379,22 @@ const toggleActivePanel = (panel: ActivePanel) => {
   onPanelButtonClick(panel)
 }
 
-const settingsMenuState = useSettingsMenuState()
-const exitSettingsRoute = computed(() => {
-  return settingsMenuState.value.previousRoute || projectsRoute
-})
+const viewerBackRoute = useViewerBackRoute()
 
 const goBackToPreviousPage = async () => {
   resetSplitScreen()
 
-  // if (import.meta.client && window.history.length > 1) {
-  //   router.back()
-  //   return
-  // }
+  // Return to the page the viewer was entered from. `window.history.back()` isn't usable
+  // here, because using the viewer pushes hash-only entries onto its own history.
+  const backRoute = viewerBackRoute.value
+  if (backRoute) {
+    await router.push(() => backRoute)
+    return
+  }
 
-  // await router.push(() => projectsRoute)
-  await router.push(() => exitSettingsRoute.value)
+  // No entry page recorded (e.g. the viewer was opened through a direct link) - fall back
+  // to the project the model belongs to
+  await router.push(() => projectRoute(projectId.value))
 }
 
 const forceClosePanel = () => {

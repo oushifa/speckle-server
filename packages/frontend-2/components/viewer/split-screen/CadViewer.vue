@@ -7,7 +7,9 @@
   >
     <canvas ref="canvasRef" class="block h-full w-full" />
 
-    <div class="absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-3">
+    <div
+      class="absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-3"
+    >
       <div
         class="max-w-[70%] truncate rounded-lg border border-outline-2 bg-foundation/90 px-3 py-1.5 text-body-xs text-foreground shadow-sm backdrop-blur-sm"
       >
@@ -26,7 +28,9 @@
       v-if="!drawing && !loading"
       class="absolute inset-0 flex items-center justify-center px-6 text-center"
     >
-      <div class="max-w-sm rounded-2xl border border-dashed border-outline-2 bg-foundation/70 px-6 py-8">
+      <div
+        class="max-w-sm rounded-2xl border border-dashed border-outline-2 bg-foundation/70 px-6 py-8"
+      >
         <div class="text-body font-medium text-foreground">左屏 CAD 预览</div>
         <div class="mt-2 text-body-sm text-foreground-2">
           请在分屏面板中选择图纸库里的模型版本，加载后会在这里显示 CAD 内容。
@@ -39,9 +43,14 @@
       class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-foundation/70 backdrop-blur-sm"
     >
       <div class="h-1.5 w-48 overflow-hidden rounded-full bg-outline-3">
-        <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" />
+        <div
+          class="h-full rounded-full bg-primary transition-all"
+          :style="{ width: `${progress}%` }"
+        />
       </div>
-      <div class="text-body-xs text-foreground-2">加载中 {{ Math.round(progress) }}%</div>
+      <div class="text-body-xs text-foreground-2">
+        加载中 {{ Math.round(progress) }}%
+      </div>
     </div>
 
     <div
@@ -125,6 +134,9 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 const api = useViewerSplitScreenApi()
+const route = useRoute()
+// 图纸库接口按业务项目隔离，viewer 始终位于 /projects/:id 下
+const ownerProjectId = computed(() => route.params.id as string)
 const loading = ref(false)
 const progress = ref(0)
 const error = ref<string | null>(null)
@@ -146,7 +158,9 @@ let targetHighlightPoint: Vector3 | null = null
 let currentHighlightPoint: Vector3 | null = null
 
 const projectedHighlightMarker = ref<{ x: number; y: number } | null>(null)
-const projectedCalibrationMarkers = ref<Array<{ index: 1 | 2 | 3; x: number; y: number }>>([])
+const projectedCalibrationMarkers = ref<
+  Array<{ index: 1 | 2 | 3; x: number; y: number }>
+>([])
 
 const disposeCurrentModel = () => {
   if (!currentModel) return
@@ -286,7 +300,11 @@ const fitToModel = () => {
 
   perspectiveCamera.near = Math.max(0.1, distance / 1000)
   perspectiveCamera.far = Math.max(100000, distance * 100)
-  perspectiveCamera.position.set(center.x + distance, center.y + distance, center.z + distance)
+  perspectiveCamera.position.set(
+    center.x + distance,
+    center.y + distance,
+    center.z + distance
+  )
   perspectiveCamera.lookAt(center)
   perspectiveCamera.updateProjectionMatrix()
 
@@ -309,7 +327,8 @@ const getCameraState = (): ViewerSplitScreenCameraState | null => {
       y: controls.target.y,
       z: controls.target.z
     },
-    projection: activeCamera instanceof OrthographicCamera ? 'orthographic' : 'perspective'
+    projection:
+      activeCamera instanceof OrthographicCamera ? 'orthographic' : 'perspective'
   }
 
   if (activeCamera instanceof PerspectiveCamera) {
@@ -339,7 +358,10 @@ const applyCameraState = (cameraState: ViewerSplitScreenCameraState | null) => {
   )
   controls.target.set(cameraState.target.x, cameraState.target.y, cameraState.target.z)
 
-  if (activeCamera instanceof PerspectiveCamera && typeof cameraState.fov === 'number') {
+  if (
+    activeCamera instanceof PerspectiveCamera &&
+    typeof cameraState.fov === 'number'
+  ) {
     activeCamera.fov = cameraState.fov
   }
   if (typeof cameraState.zoom === 'number') {
@@ -390,11 +412,14 @@ const pickPointFromEvent = (e: MouseEvent) => {
   )
 
   const raycaster = new Raycaster()
-  ;(raycaster.params as { Line?: { threshold: number }; Points?: { threshold: number } }).Line = {
+  ;(
+    raycaster.params as { Line?: { threshold: number }; Points?: { threshold: number } }
+  ).Line = {
     threshold: 4
   }
-  ;(raycaster.params as { Line?: { threshold: number }; Points?: { threshold: number } }).Points =
-    { threshold: 8 }
+  ;(
+    raycaster.params as { Line?: { threshold: number }; Points?: { threshold: number } }
+  ).Points = { threshold: 8 }
   raycaster.setFromCamera(ndc, activeCamera as never)
 
   const projectToScreen = (worldPoint: Vector3) => {
@@ -424,7 +449,8 @@ const pickPointFromEvent = (e: MouseEvent) => {
             1,
             Math.max(
               0,
-              ((pointer.x - segmentStart.x) * abX + (pointer.y - segmentStart.y) * abY) /
+              ((pointer.x - segmentStart.x) * abX +
+                (pointer.y - segmentStart.y) * abY) /
                 lengthSquared
             )
           )
@@ -570,7 +596,9 @@ const withResolvedBlobId = async <T>(
 
     if (!shouldRetry) throw error
 
-    const file = await api.fetchVersionFile(drawing.versionId)
+    if (!ownerProjectId.value) throw error
+
+    const file = await api.fetchVersionFile(ownerProjectId.value, drawing.versionId)
     if (!file.blobId || file.blobId === drawing.blobId) throw error
 
     return await loader(file.blobId)

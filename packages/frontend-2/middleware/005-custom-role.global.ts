@@ -16,6 +16,7 @@ const ROUTE_MENU_MAPPING: Record<string, string> = {
 // 定义项目内各子页面路由与菜单 ID 的对应关系
 const PROJECT_SUBPATH_MENU_MAPPING: Record<string, string | string[]> = {
   'file-management': 'source-file-management',
+  drawings: 'drawings-library',
   'model-list': 'file-management',
   'workbench/discussions': 'collaborative-management',
   'progress/schedule': ['schedule-plan', 'progress-plan'],

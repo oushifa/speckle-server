@@ -1,0 +1,9 @@
+{
+  "entries": [
+    {
+      "projectId": "请替换为项目ID",
+      "monthlyMeasurementId": "请替换为已审批通过的0期月度验工ID",
+      "sections": ["请替换为分部工程的 code（或 id）", "可以有多个"]
+    }
+  ]
+}

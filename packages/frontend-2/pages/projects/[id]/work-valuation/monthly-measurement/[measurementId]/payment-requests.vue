@@ -97,7 +97,9 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -106,7 +108,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-nowrap">施工</span>
               <input
                 type="text"
@@ -115,7 +119,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="contractorDateDisplay"
@@ -154,7 +160,12 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="currentStepName === '施工监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span
+                  v-if="currentStepName === '施工监理总监'"
+                  class="text-red-500 mr-0.5 font-bold"
+                >
+                  *
+                </span>
                 施工监理意见
               </span>
               <textarea
@@ -166,7 +177,9 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -175,7 +188,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-nowrap">总监</span>
               <input
                 type="text"
@@ -184,7 +199,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="supervisionDateDisplay"
@@ -223,7 +240,12 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="isHeadquartersApprovalStep" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span
+                  v-if="isHeadquartersApprovalStep"
+                  class="text-red-500 mr-0.5 font-bold"
+                >
+                  *
+                </span>
                 现场指挥部意见
               </span>
               <textarea
@@ -235,7 +257,9 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -244,7 +268,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-nowrap">现场指挥</span>
               <input
                 type="text"
@@ -253,7 +279,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center text-[10px] font-semibold"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="headquartersDateDisplay"
@@ -292,7 +320,12 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="currentStepName === '投资监理总监'" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span
+                  v-if="currentStepName === '投资监理总监'"
+                  class="text-red-500 mr-0.5 font-bold"
+                >
+                  *
+                </span>
                 投资监理意见
               </span>
               <textarea
@@ -304,7 +337,9 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -313,7 +348,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-nowrap">总监</span>
               <input
                 type="text"
@@ -322,7 +359,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="investmentDateDisplay"
@@ -361,7 +400,12 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="currentStepName === '合约管理部负责人'" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span
+                  v-if="currentStepName === '合约管理部负责人'"
+                  class="text-red-500 mr-0.5 font-bold"
+                >
+                  *
+                </span>
                 合约管理部意见
               </span>
               <textarea
@@ -373,7 +417,9 @@
             </div>
           </div>
           <div class="space-y-2 pt-2 border-t border-outline-3 border-dashed">
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">经办人</span>
               <input
                 type="text"
@@ -382,7 +428,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-nowrap">负责人</span>
               <input
                 type="text"
@@ -391,7 +439,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="contractDateDisplay"
@@ -428,7 +478,12 @@
             </div>
             <div class="space-y-1">
               <span class="text-[10px] text-foreground-2 font-medium block">
-                <span v-if="currentStepName === '分管领导'" class="text-red-500 mr-0.5 font-bold">*</span>
+                <span
+                  v-if="currentStepName === '分管领导'"
+                  class="text-red-500 mr-0.5 font-bold"
+                >
+                  *
+                </span>
                 分管领导意见
               </span>
               <textarea
@@ -443,7 +498,9 @@
             <div class="flex items-center gap-1.5 text-xs text-foreground-2">
               <span class="shrink-0 w-10">&nbsp;</span>
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10 text-[10px] text-nowrap">分管领导</span>
               <input
                 type="text"
@@ -452,7 +509,9 @@
                 class="flex-grow text-xs bg-foundation border border-outline-3 rounded px-1.5 py-0.5 opacity-65 cursor-not-allowed text-center text-[11px]"
               />
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden">
+            <div
+              class="flex items-center gap-1.5 text-xs text-foreground-2 overflow-hidden"
+            >
               <span class="shrink-0 w-10">日期</span>
               <input
                 :value="leaderDateDisplay"
@@ -709,9 +768,17 @@
             <tr>
               <td colspan="6" class="print-cell !p-0">
                 <div class="grid grid-cols-4">
-                  <div class="border-r border-black p-2">合同编号：{{ projectContractCode }}</div>
-                  <div class="border-r border-black p-2">上期末累计付款：{{ formatMoney(paymentRequest.lastCumulativePayment) }}</div>
-                  <div class="border-r border-black p-2">合同金额：{{ formatMoney(paymentRequest.contractAmount) }}</div>
+                  <div class="border-r border-black p-2">
+                    合同编号：{{ projectContractCode }}
+                  </div>
+                  <div class="border-r border-black p-2">
+                    上期末累计付款：{{
+                      formatMoney(paymentRequest.lastCumulativePayment)
+                    }}
+                  </div>
+                  <div class="border-r border-black p-2">
+                    合同金额：{{ formatMoney(paymentRequest.contractAmount) }}
+                  </div>
                   <div class="p-2">附件：{{ printAttachmentNames }}</div>
                 </div>
               </td>
@@ -872,6 +939,9 @@ type MonthlyMeasurementNode = {
   id: string
   code: string
   baseDate: string
+  startDate?: string | number | null
+  endDate?: string | number | null
+  safetyMeasureId?: string | null
   approveStatus?: string | null
   flowInstanceId?: string | null
   currentStepName?: string | null
@@ -1028,7 +1098,9 @@ const headquartersApprovalStepNames = [
 ] as const
 
 const isHeadquartersApprovalStep = computed(() =>
-  headquartersApprovalStepNames.includes(currentStepName.value as (typeof headquartersApprovalStepNames)[number])
+  headquartersApprovalStepNames.includes(
+    currentStepName.value as (typeof headquartersApprovalStepNames)[number]
+  )
 )
 
 const getPartyAmounts = (partyKey: string) => {
@@ -1138,7 +1210,9 @@ const applicantUnitName = computed(() => {
 })
 const route = useRoute()
 const isAdminOperationMode = computed(() => route.query.adminMode === '1')
-const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+const isReadOnly = computed(
+  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+)
 
 const projectManagerName = computed(() => {
   const value = coverProjectResult.value?.project?.responsible
@@ -1595,7 +1669,13 @@ const formatDate = (value: any) => {
 
 // 深度监听月度验工单 props 变化
 watch(
-  () => props.item?.id,
+  () => [
+    props.item?.id,
+    props.item?.baseDate,
+    props.item?.startDate,
+    props.item?.endDate,
+    props.item?.safetyMeasureId
+  ],
   () => {
     if (props.item?.id) {
       void loadTab3Data()

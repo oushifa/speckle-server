@@ -1,8 +1,8 @@
-import type { Router, Request, Response, NextFunction } from 'express'
+import type { Router, Request, Response, NextFunction, RequestHandler } from 'express'
 import cors from 'cors'
 import { z } from 'zod'
 import { allowCrossOriginResourceAccessMiddelware } from '@/modules/shared/middleware/security'
-import { ensureError } from '@speckle/shared'
+import { ensureError, Roles } from '@speckle/shared'
 import { resolveStatusCode } from '@/modules/core/rest/defaultErrorHandler'
 import { DRAWINGS_PROJECT } from '@/modules/core/drawings/constants'
 import { getServerOrigin } from '@/modules/shared/helpers/envHelper'
@@ -45,6 +45,12 @@ import { createObjectFactory } from '@/modules/core/services/objects/management'
 import { VersionEvents } from '@/modules/core/domain/commits/events'
 import { ModelEvents } from '@/modules/core/domain/branches/events'
 import { getEventBus } from '@/modules/shared/services/eventBus'
+import { authMiddlewareCreator } from '@/modules/shared/middleware'
+import {
+  streamReadPermissionsPipelineFactory,
+  streamWritePermissionsPipelineFactory
+} from '@/modules/shared/authz'
+import { getStreamFactory } from '@/modules/core/repositories/streams'
 
 const drawingsErrHandler = (
   err: unknown,
@@ -56,13 +62,6 @@ const drawingsErrHandler = (
   const error = ensureError(err)
   const status = resolveStatusCode(error)
   res.status(status).json({ error: error.message })
-}
-
-const requireUserMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.context.auth || !req.context.userId) {
-    return res.status(401).json({ error: 'User not authenticated' })
-  }
-  next()
 }
 
 const createModelBodySchema = z.object({
@@ -188,10 +187,36 @@ const rankBlobCandidates = (candidates: BlobMetadataCandidate[]) => {
 }
 
 export default (app: Router) => {
-  const route = '/api/v1/drawings'
+  // 图纸库数据统一存储在共享的 drawings 存储项目中，
+  // 通过 branches.projectId 关联到具体业务项目，实现按项目隔离。
+  const route = '/api/projects/:projectId/drawings'
 
   const ensureDrawingsProject = ensureDrawingsProjectFactory({ db })
   const processNewFileStream = processNewFileStreamFactory()
+  const getStream = getStreamFactory({ db })
+
+  const withAdminOverride = (middleware: RequestHandler): RequestHandler => {
+    return async (req, res, next) => {
+      if (req.context?.role === Roles.Server.Admin) return next()
+      return middleware(req, res, next)
+    }
+  }
+
+  const requireProjectRead = withAdminOverride(async (req, res, next) => {
+    await authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream }))(
+      req,
+      res,
+      next
+    )
+  })
+
+  const requireProjectWrite = withAdminOverride(async (req, res, next) => {
+    await authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream }))(
+      req,
+      res,
+      next
+    )
+  })
 
   app.options(`${route}/*`, cors(), allowCrossOriginResourceAccessMiddelware())
 
@@ -199,6 +224,7 @@ export default (app: Router) => {
 
   app.get(
     `${route}/project`,
+    requireProjectRead,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         await ensureDrawingsProject()
@@ -212,7 +238,9 @@ export default (app: Router) => {
           data: {
             id: DRAWINGS_PROJECT.id,
             name: project?.name || DRAWINGS_PROJECT.name,
-            type: DRAWINGS_PROJECT.type
+            type: DRAWINGS_PROJECT.type,
+            // 当前图纸库归属的业务项目
+            projectId: req.params.projectId
           }
         })
       } catch (e) {
@@ -223,8 +251,10 @@ export default (app: Router) => {
 
   app.get(
     `${route}/models`,
+    requireProjectRead,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
+        const ownerProjectId = req.params.projectId
         const { search, page, pageSize } = listModelsQuerySchema.parse(req.query)
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
 
@@ -249,6 +279,7 @@ export default (app: Router) => {
           .leftJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
           .leftJoin(Commits.name, Commits.col.id, BranchCommits.col.commitId)
           .where(`${Branches.name}.streamId`, DRAWINGS_PROJECT.id)
+          .where(`${Branches.name}.projectId`, ownerProjectId)
           .whereNot(`${Branches.name}.name`, 'globals')
           .whereNot(`${Branches.name}.name`, 'main')
           .groupBy(
@@ -269,6 +300,7 @@ export default (app: Router) => {
           const countQuery = projectDb(Branches.name)
             .count<{ total: string }[]>({ total: '*' })
             .where(`${Branches.name}.streamId`, DRAWINGS_PROJECT.id)
+            .where(`${Branches.name}.projectId`, ownerProjectId)
             .whereNot(`${Branches.name}.name`, 'globals')
             .whereNot(`${Branches.name}.name`, 'main')
 
@@ -312,21 +344,25 @@ export default (app: Router) => {
 
   app.post(
     `${route}/models`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         await ensureDrawingsProject()
         const body = createModelBodySchema.parse(req.body)
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
 
         const getStreamBranchByName = getStreamBranchByNameFactory({ db: projectDb })
         const existing = await getStreamBranchByName(DRAWINGS_PROJECT.id, body.name)
-        if (existing) return res.status(409).json({ error: 'Model already exists' })
+        if (existing && existing.projectId === ownerProjectId) {
+          return res.status(409).json({ error: 'Model already exists' })
+        }
 
         const createBranch = createBranchFactory({ db: projectDb })
         const model = await createBranch({
           streamId: DRAWINGS_PROJECT.id,
+          projectId: ownerProjectId,
           name: body.name,
           description: body.description ?? null,
           authorId: userId
@@ -346,10 +382,11 @@ export default (app: Router) => {
 
   app.post(
     `${route}/models/upload`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         await ensureDrawingsProject()
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
 
@@ -402,7 +439,11 @@ export default (app: Router) => {
         const createBranch = createBranchFactory({ db: projectDb })
         const model = await createBranch({
           streamId: DRAWINGS_PROJECT.id,
-          name: existing ? `${modelName}-${Date.now()}` : modelName,
+          projectId: ownerProjectId,
+          name:
+            existing && existing.projectId === ownerProjectId
+              ? `${modelName}-${Date.now()}`
+              : modelName,
           description: fields.description?.trim() || null,
           authorId: userId
         })
@@ -457,10 +498,11 @@ export default (app: Router) => {
 
   app.patch(
     `${route}/models/:modelId`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         const body = updateModelBodySchema.parse(req.body)
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
 
@@ -468,7 +510,9 @@ export default (app: Router) => {
         const existing = await getBranchById(req.params.modelId, {
           streamId: DRAWINGS_PROJECT.id
         })
-        if (!existing) return res.status(404).json({ error: 'Model not found' })
+        if (!existing || existing.projectId !== ownerProjectId) {
+          return res.status(404).json({ error: 'Model not found' })
+        }
 
         const updateBranch = updateBranchFactory({ db: projectDb })
         const updated = await updateBranch(req.params.modelId, {
@@ -496,16 +540,19 @@ export default (app: Router) => {
 
   app.delete(
     `${route}/models/:modelId`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
         const getBranchById = getBranchByIdFactory({ db: projectDb })
         const existing = await getBranchById(req.params.modelId, {
           streamId: DRAWINGS_PROJECT.id
         })
-        if (!existing) return res.status(404).json({ error: 'Model not found' })
+        if (!existing || existing.projectId !== ownerProjectId) {
+          return res.status(404).json({ error: 'Model not found' })
+        }
 
         const deleteBranchById = deleteBranchByIdFactory({ db: projectDb })
         const deletedCount = await deleteBranchById(existing.id)
@@ -533,10 +580,11 @@ export default (app: Router) => {
 
   app.post(
     `${route}/models/:modelId/versions`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         await ensureDrawingsProject()
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
 
@@ -544,6 +592,7 @@ export default (app: Router) => {
           .select([Branches.col.id, Branches.col.streamId])
           .where(Branches.col.id, req.params.modelId)
           .andWhere(Branches.col.streamId, DRAWINGS_PROJECT.id)
+          .andWhere(Branches.col.projectId, ownerProjectId)
           .first()
         if (!branch) return res.status(404).json({ error: 'Model not found' })
 
@@ -627,8 +676,10 @@ export default (app: Router) => {
 
   app.get(
     `${route}/models/:modelId/versions`,
+    requireProjectRead,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
+        const ownerProjectId = req.params.projectId
         const { limit, cursorCreatedAt, cursorId } = listVersionsQuerySchema.parse(
           req.query
         )
@@ -638,6 +689,7 @@ export default (app: Router) => {
           .select([Branches.col.id, Branches.col.streamId])
           .where(Branches.col.id, req.params.modelId)
           .andWhere(Branches.col.streamId, DRAWINGS_PROJECT.id)
+          .andWhere(Branches.col.projectId, ownerProjectId)
           .first()
         if (!branch) return res.status(404).json({ error: 'Model not found' })
 
@@ -695,9 +747,21 @@ export default (app: Router) => {
 
   app.get(
     `${route}/versions/:versionId/file`,
+    requireProjectRead,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
+        const ownerProjectId = req.params.projectId
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
+
+        const branch = await projectDb(Branches.name)
+          .select([Branches.col.id])
+          .innerJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
+          .where(BranchCommits.col.commitId, req.params.versionId)
+          .andWhere(Branches.col.streamId, DRAWINGS_PROJECT.id)
+          .andWhere(Branches.col.projectId, ownerProjectId)
+          .first()
+        if (!branch) return res.status(404).json({ error: 'Version not found' })
+
         const getCommit = getCommitFactory({ db: projectDb })
         const commit = await getCommit(req.params.versionId, {
           streamId: DRAWINGS_PROJECT.id
@@ -792,12 +856,22 @@ export default (app: Router) => {
 
   app.patch(
     `${route}/versions/:versionId`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         const body = updateVersionBodySchema.parse(req.body)
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
+
+        const branch = await projectDb(Branches.name)
+          .select([Branches.col.id])
+          .innerJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
+          .where(BranchCommits.col.commitId, req.params.versionId)
+          .andWhere(Branches.col.streamId, DRAWINGS_PROJECT.id)
+          .andWhere(Branches.col.projectId, ownerProjectId)
+          .first()
+        if (!branch) return res.status(404).json({ error: 'Version not found' })
 
         const getCommit = getCommitFactory({ db: projectDb })
         const existing = await getCommit(req.params.versionId, {
@@ -841,11 +915,21 @@ export default (app: Router) => {
 
   app.delete(
     `${route}/versions/:versionId`,
-    requireUserMiddleware,
+    requireProjectWrite,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const userId = req.context.userId!
+        const ownerProjectId = req.params.projectId
         const projectDb = await getProjectDbClient({ projectId: DRAWINGS_PROJECT.id })
+
+        const branch = await projectDb(Branches.name)
+          .select([Branches.col.id])
+          .innerJoin(BranchCommits.name, BranchCommits.col.branchId, Branches.col.id)
+          .where(BranchCommits.col.commitId, req.params.versionId)
+          .andWhere(Branches.col.streamId, DRAWINGS_PROJECT.id)
+          .andWhere(Branches.col.projectId, ownerProjectId)
+          .first()
+        if (!branch) return res.status(404).json({ error: 'Version not found' })
 
         const getCommit = getCommitFactory({ db: projectDb })
         const existing = await getCommit(req.params.versionId, {

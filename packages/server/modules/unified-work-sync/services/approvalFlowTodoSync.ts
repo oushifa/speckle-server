@@ -1,12 +1,15 @@
 import axios from 'axios'
 import { db } from '@/db/knex'
 import {
+  ApprovalFlowActions,
   ApprovalFlowInstances,
   ApprovalFlowInstanceSteps,
   Streams,
   Users
 } from '@/modules/core/dbSchema'
+import { ApprovalFlowActionType } from '@/modules/flow/repositories/approvalFlows'
 import {
+  getUnifiedWorkSyncAccount,
   getUnifiedWorkSyncHost,
   getUnifiedWorkSyncPassword,
   getUnifiedWorkSyncRouterId,
@@ -24,6 +27,7 @@ const SYNC_DEBOUNCE_MS = 500
 const SYNC_RETRY_DELAY_MS = 2000
 const TOKEN_CACHE_MS = 20 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 60 * 1000
+const START_STEP_INDEX = 0
 
 const pendingSyncTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -71,15 +75,27 @@ type InstanceSnapshot = {
   userMap: Map<string, UserRow>
   flowName: string | null
   templateId: string | null
+  /**
+   * Task ids for approvers that were once assigned to a step but got replaced by
+   * an admin transfer. They must still be removed from the unified work platform.
+   */
+  historicalApproverTaskIds: string[]
+}
+
+type UnifiedWorkReviewer = {
+  user: string
+  status: string
 }
 
 type UnifiedWorkPushPayload = {
   systemCode: string
   taskId: string
   title: string
+  creator: string
   assignee: string
-  reviewer: string
+  reviewer: UnifiedWorkReviewer[]
   createTime: string
+  reviewTime: string
   route: string
   extraData: Record<string, unknown>
 }
@@ -92,21 +108,16 @@ const getSyncConfig = () => ({
   token: getUnifiedWorkSyncToken(),
   username: getUnifiedWorkSyncUsername(),
   password: getUnifiedWorkSyncPassword(),
-  routerId: getUnifiedWorkSyncRouterId()
+  routerId: getUnifiedWorkSyncRouterId(),
+  account: getUnifiedWorkSyncAccount()
 })
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 
-const formatDateTime = (date: Date | null | undefined) => {
+const toIsoString = (date: Date | null | undefined) => {
   if (!date) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  return date.toISOString()
 }
 
 const extractToken = (value: unknown): string => {
@@ -117,6 +128,11 @@ const extractToken = (value: unknown): string => {
   for (const key of directKeys) {
     const token = value[key]
     if (typeof token === 'string' && token.trim()) return token.trim()
+    // The platform nests the token as { token: { accessToken, ... } }
+    if (isRecord(token)) {
+      const nestedToken = extractToken(token)
+      if (nestedToken) return nestedToken
+    }
   }
 
   const nestedKeys = ['data', 'result', 'payload']
@@ -237,20 +253,23 @@ const getAuthToken = async () => {
 const buildTaskId = (instanceId: string, stepIndex: number, assigneeId: string) =>
   `SPK-${instanceId}-S${stepIndex}-${assigneeId}`
 
+/**
+ * Maps a local user onto the unified work platform account name.
+ *
+ * The platform account name lives in the local `email` column (the column keeps
+ * its legacy name, but the value is the account name, not an email address), so
+ * the value is used as-is without splitting on `@`.
+ */
 const resolveExternalUserCode = (user: UserRow | undefined | null) => {
   if (!user) return ''
 
-  const email = user.email?.trim()
-  if (email) {
-    const localPart = email.split('@')[0]?.trim()
-    if (localPart) return localPart
-    return email
-  }
+  const account = user.email?.trim()
+  if (account) return account
 
   const name = user.name?.trim()
   if (name) return name
 
-  return user.id
+  return ''
 }
 
 const getFormResource = (resourceId: string | null | undefined) => {
@@ -368,17 +387,68 @@ const loadInstanceSnapshot = async (
       ? flowSnapshot.templateId.trim()
       : null
 
+  // Admin transfers replace a step's approverIds, so the previous approver's task
+  // id is no longer derivable from the step rows. Recover them from the action log.
+  const transferActions = await db<{
+    stepId: string | null
+    metadata: Record<string, unknown> | null
+  }>(ApprovalFlowActions.name)
+    .select('stepId', 'metadata')
+    .where('instanceId', instanceId)
+    .where('action', ApprovalFlowActionType.TransferredAssignee)
+
+  const stepIndexById = new Map(steps.map((step) => [step.id, step.stepIndex]))
+  const historicalApproverTaskIds = Array.from(
+    new Set(
+      transferActions.flatMap((action) => {
+        const stepIndex = action.stepId ? stepIndexById.get(action.stepId) : undefined
+        if (stepIndex === undefined) return []
+
+        const metadata = isRecord(action.metadata) ? action.metadata : null
+        const fromApproverIds = Array.isArray(metadata?.fromApproverIds)
+          ? metadata.fromApproverIds
+          : []
+
+        return fromApproverIds
+          .filter((approverId): approverId is string => typeof approverId === 'string')
+          .map((approverId) => buildTaskId(instanceId, stepIndex, approverId))
+      })
+    )
+  )
+
   return {
     instance,
     steps,
     projectName: project?.name || null,
     userMap: new Map(users.map((user) => [user.id, user])),
     flowName: flowName || null,
-    templateId: templateId || null
+    templateId: templateId || null,
+    historicalApproverTaskIds
   }
 }
 
 const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
+  const candidateTaskIds = Array.from(
+    new Set([
+      // Step 0 is the synthetic "start" step (already approved on creation), it is
+      // never pushed as a todo, so it is not a removal candidate either.
+      ...snapshot.steps
+        .filter((step) => step.stepIndex !== START_STEP_INDEX)
+        .flatMap((step) =>
+          (step.approverIds || []).map((approverId) =>
+            buildTaskId(snapshot.instance.id, step.stepIndex, approverId)
+          )
+        ),
+      ...snapshot.historicalApproverTaskIds
+    ])
+  )
+
+  const config = getSyncConfig()
+  // Todos are assigned per local user: `reviewer[].user` is the current approver
+  // and `creator` is the flow initiator. `account` is only a fallback for the
+  // creator when the initiator has no mappable unified work account.
+  const account = config.account || config.username
+
   const currentStep =
     snapshot.steps.find((step) => step.status === 'PENDING') ||
     snapshot.steps.find((step) => step.stepIndex === snapshot.instance.currentStep) ||
@@ -387,15 +457,7 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
   if (!currentStep || snapshot.instance.status !== 'PENDING') {
     return {
       desiredItems: [] as UnifiedWorkPushPayload[],
-      candidateTaskIds: Array.from(
-        new Set(
-          snapshot.steps.flatMap((step) =>
-            (step.approverIds || []).map((approverId) =>
-              buildTaskId(snapshot.instance.id, step.stepIndex, approverId)
-            )
-          )
-        )
-      )
+      candidateTaskIds
     }
   }
 
@@ -420,23 +482,62 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
   const title = buildTaskTitle(snapshot)
   const route = buildRoute(snapshot)
   const creatorUser = snapshot.userMap.get(snapshot.instance.createdBy)
-  const createTime = formatDateTime(
-    currentStep.startedAt || snapshot.instance.createdAt
-  )
+  // Whoever initiated the flow owns the todo's creator field. `config.account`
+  // (UNIFIED_WORK_SYNC_ACCOUNT) is a last-resort fallback so a push still goes out.
+  const mappedCreatorAccount = resolveExternalUserCode(creatorUser)
+  const creatorAccount = mappedCreatorAccount || account
+  if (!mappedCreatorAccount) {
+    unifiedWorkSyncLogger.warn(
+      {
+        instanceId: snapshot.instance.id,
+        createdBy: snapshot.instance.createdBy,
+        fallbackAccount: account || null
+      },
+      '[WORK_SYNC] Flow initiator has no unified work account mapping, falling back to the configured account'
+    )
+  }
+  const pendingSince = currentStep.startedAt || snapshot.instance.createdAt
+  const createTime = toIsoString(pendingSince)
+  const reviewTime = createTime
   const desiredItems: UnifiedWorkPushPayload[] = []
 
   for (const assigneeId of pendingAssigneeIds) {
     const assigneeUser = snapshot.userMap.get(assigneeId)
-    const assignee = resolveExternalUserCode(assigneeUser)
-    if (!assignee) continue
+    // The todo must be assigned to the actual approver of the current step.
+    const mappedApproverAccount = resolveExternalUserCode(assigneeUser)
+    const approverAccount = mappedApproverAccount || account
+    if (!mappedApproverAccount) {
+      unifiedWorkSyncLogger.warn(
+        {
+          instanceId: snapshot.instance.id,
+          currentStep: currentStep.stepIndex,
+          approverId: assigneeId,
+          fallbackAccount: account || null
+        },
+        '[WORK_SYNC] Approver has no unified work account mapping, falling back to the configured account'
+      )
+    }
+    if (!approverAccount) {
+      unifiedWorkSyncLogger.warn(
+        {
+          instanceId: snapshot.instance.id,
+          currentStep: currentStep.stepIndex,
+          approverId: assigneeId
+        },
+        '[WORK_SYNC] Skip unified work item because no approver account could be resolved at all'
+      )
+      continue
+    }
 
     desiredItems.push({
-      systemCode: getSyncConfig().systemCode,
+      systemCode: config.systemCode,
       taskId: buildTaskId(snapshot.instance.id, currentStep.stepIndex, assigneeId),
       title,
-      assignee,
-      reviewer: assignee,
+      creator: creatorAccount,
+      assignee: approverAccount,
+      reviewer: [{ user: approverAccount, status: 'pending' }],
       createTime,
+      reviewTime,
       route,
       extraData: {
         projectId: snapshot.instance.projectId,
@@ -450,20 +551,13 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
         dueAt: currentStep.dueAt ? currentStep.dueAt.getTime() : null,
         status: snapshot.instance.status,
         creatorId: snapshot.instance.createdBy,
-        creatorAccount: resolveExternalUserCode(creatorUser)
+        creatorAccount,
+        approverId: assigneeId,
+        approverName: assigneeUser?.name || null,
+        approverAccount
       }
     })
   }
-
-  const candidateTaskIds = Array.from(
-    new Set(
-      snapshot.steps.flatMap((step) =>
-        (step.approverIds || []).map((approverId) =>
-          buildTaskId(snapshot.instance.id, step.stepIndex, approverId)
-        )
-      )
-    )
-  )
 
   return {
     desiredItems,
@@ -489,6 +583,13 @@ const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) 
   )
   return response.data
 }
+
+/**
+ * The platform answers `{ payload: { success: boolean } }`: HTTP 200 with
+ * `success: false` means the task was not there in the first place.
+ */
+const isRemoveSuccess = (data: unknown) =>
+  isRecord(data) && isRecord(data.payload) && data.payload.success === true
 
 const pushUnifiedWorkItem = async (params: {
   token: string
@@ -575,21 +676,35 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
     return
   }
 
+  let removedCount = 0
   for (const taskId of removableTaskIds) {
     try {
       const res = await removeUnifiedWorkItem({
         token,
         taskId
       })
-      unifiedWorkSyncLogger.info(
-        {
-          instanceId: params.instanceId,
-          reason: params.reason,
-          taskId,
-          responseData: res
-        },
-        '[WORK_SYNC] Successfully removed unified work item'
-      )
+      if (isRemoveSuccess(res)) {
+        removedCount += 1
+        unifiedWorkSyncLogger.info(
+          {
+            instanceId: params.instanceId,
+            reason: params.reason,
+            taskId,
+            responseData: res
+          },
+          '[WORK_SYNC] Successfully removed unified work item'
+        )
+      } else {
+        unifiedWorkSyncLogger.debug(
+          {
+            instanceId: params.instanceId,
+            reason: params.reason,
+            taskId,
+            responseData: res
+          },
+          '[WORK_SYNC] Unified work item was already absent, nothing to remove'
+        )
+      }
     } catch (err) {
       const errorDetails = formatErrorDetails(err)
       unifiedWorkSyncLogger.error(
@@ -643,7 +758,8 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       instanceId: params.instanceId,
       reason: params.reason,
       pushCount: desiredItems.length,
-      removeCount: removableTaskIds.length,
+      removeCount: removedCount,
+      attemptedRemoveCount: removableTaskIds.length,
       pushedTaskIds: desiredItems.map((item) => item.taskId),
       removedTaskIds: removableTaskIds
     },

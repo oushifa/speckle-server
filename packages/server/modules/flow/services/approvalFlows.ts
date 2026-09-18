@@ -38,6 +38,7 @@ import {
   updateQualityAcceptanceApproveStatusByIdsFactory
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
+import { syncSafetyMeasureFromMonthlyMeasurement } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import { BadRequestError } from '@/modules/shared/errors'
 import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 import type { Knex } from 'knex'
@@ -353,6 +354,15 @@ const updateResourceByHookAction = async (params: {
 
       const nextApproveStatus = monthlyPayload.approveStatus
       if (typeof nextApproveStatus !== 'string') return
+
+      // 0 期并入安全文明措施费：把审批结果同步到隐藏的安全文明措施费记录
+      //（APPROVED 生成/刷新，REJECTED/CANCELED 作废，其余状态不动）
+      await syncSafetyMeasureFromMonthlyMeasurement({
+        db: params.trx,
+        measurementId: parsed.formId,
+        status: nextApproveStatus
+      })
+
       const measurementItems = await getMonthlyMeasurementItemsFactory({
         db: params.trx
       })(parsed.formId)

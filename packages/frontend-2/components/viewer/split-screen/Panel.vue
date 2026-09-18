@@ -533,7 +533,7 @@ const refreshModels = async () => {
   setLastError(null)
 
   try {
-    const res = await api.fetchModels({
+    const res = await api.fetchModels(projectId.value, {
       search: search.value,
       page: 1,
       pageSize: 20
@@ -566,7 +566,7 @@ const selectModel = async (modelId: string) => {
   setLastError(null)
 
   try {
-    const res = await api.fetchVersions(modelId, { limit: 20 })
+    const res = await api.fetchVersions(projectId.value, modelId, { limit: 20 })
     versions.value = res.data || []
   } catch (error) {
     setLastError(error instanceof Error ? error.message : '版本列表加载失败')
@@ -580,8 +580,8 @@ const selectVersion = async (model: DrawingsModel, version: DrawingsVersion) => 
   setLastError(null)
 
   try {
-    const project = await api.getProject()
-    const file = await api.fetchVersionFile(version.id)
+    const project = await api.getProject(projectId.value)
+    const file = await api.fetchVersionFile(projectId.value, version.id)
 
     pickerDrawing.value = {
       projectId: project.id,

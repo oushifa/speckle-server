@@ -698,6 +698,7 @@ export const Branches = buildTableHelper('branches', [
   'name',
   'description',
   'approveStatus',
+  'projectId',
   'createdAt',
   'updatedAt'
 ])

@@ -470,7 +470,13 @@
               <button
                 v-if="hasFunctionalPerm('monthly-valuation:download')"
                 class="text-primary hover:underline font-medium"
-                @click="downloadBlobWithAuth({ blobId: attachment.blobId, fileName: attachment.name || attachment.blobId, projectId: props.projectId })"
+                @click="
+                  downloadBlobWithAuth({
+                    blobId: attachment.blobId,
+                    fileName: attachment.name || attachment.blobId,
+                    projectId: props.projectId
+                  })
+                "
               >
                 下载
               </button>
@@ -516,19 +522,16 @@
               props.item?.baseDate
                 ? dayjs(Number(props.item.baseDate)).format('YYYY年MM月')
                 : ''
-            }} &nbsp;&nbsp;&nbsp;&nbsp;
+            }}
+            &nbsp;&nbsp;&nbsp;&nbsp;
             {{ props.item?.roundName ? `第${props.item.roundName}期` : '' }}
           </div>
 
           <!-- 3. 信息行 -->
           <table class="print-meta-table">
             <tr>
-              <td class="print-meta-left">
-                承包人（签章）：{{ projectContractor }}
-              </td>
-              <td class="print-meta-center">
-                合同编号：{{ projectContractCode }}
-              </td>
+              <td class="print-meta-left">承包人（签章）：{{ projectContractor }}</td>
+              <td class="print-meta-center">合同编号：{{ projectContractCode }}</td>
               <td class="print-meta-right">单位：元</td>
             </tr>
           </table>
@@ -552,48 +555,103 @@
               <tr v-for="row in displayRows" :key="row.boqItemId" class="print-tr">
                 <td class="print-td text-center font-mono">{{ row.displayIndex }}</td>
                 <td class="print-td text-center font-mono">{{ row.boqCode }}</td>
-                <td class="print-td text-left truncate-cell" :title="row.boqName">{{ row.boqName }}</td>
-                <td class="print-td text-right font-mono">{{ formatMoney(row.contractAmount) }}</td>
-                <td class="print-td text-right font-mono">{{ formatMoney(row.investmentAmount) }}</td>
-                <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
-                <td class="print-td text-right font-mono">{{ formatMoney(getDerivedPay(row).leaderPayAmt) }}</td>
-                <td class="print-td text-right font-mono">{{ formatMoney(row.cumulativeAmount) }}</td>
+                <td class="print-td text-left truncate-cell" :title="row.boqName">
+                  {{ row.boqName }}
+                </td>
+                <td class="print-td text-right font-mono">
+                  {{ formatMoney(row.contractAmount) }}
+                </td>
+                <td class="print-td text-right font-mono">
+                  {{ formatMoney(row.investmentAmount) }}
+                </td>
+                <td class="print-td text-right font-mono">
+                  {{ formatMoney(row.cumulativeAmount) }}
+                </td>
+                <td class="print-td text-right font-mono">
+                  {{ formatMoney(getDerivedPay(row).leaderPayAmt) }}
+                </td>
+                <td class="print-td text-right font-mono">
+                  {{ formatMoney(row.cumulativeAmount) }}
+                </td>
               </tr>
 
               <!-- 合计 -->
               <tr class="print-tr print-total-row">
                 <td class="print-td text-center font-mono">{{ chapterSumIndex }}</td>
-                <td class="print-td text-left font-semibold" colspan="2">合计 1-{{ chapterRowCount }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.contractAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.investmentAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.cumulativeAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.leaderPayAmt) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(chapterSums.cumulativePayAmt) }}</td>
+                <td class="print-td text-left font-semibold" colspan="2">
+                  合计 1-{{ chapterRowCount }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(chapterSums.contractAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(chapterSums.investmentAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(chapterSums.cumulativeAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(chapterSums.leaderPayAmt) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(chapterSums.cumulativePayAmt) }}
+                </td>
               </tr>
 
               <!-- 预付款等 extra rows -->
-              <template v-for="(row, idx) in extraPayRows" :key="row.item.prepaymentItemId">
+              <template
+                v-for="(row, idx) in extraPayRows"
+                :key="row.item.prepaymentItemId"
+              >
                 <tr class="print-tr">
-                  <td class="print-td text-center font-mono">{{ chapterSumIndex + idx + 1 }}</td>
-                  <td v-if="row.rowspan > 0" class="print-td text-center font-mono" :rowspan="row.rowspan">{{ row.item.category || '-' }}</td>
-                  <td class="print-td text-left truncate-cell">{{ row.item.name || '-' }}</td>
+                  <td class="print-td text-center font-mono">
+                    {{ chapterSumIndex + idx + 1 }}
+                  </td>
+                  <td
+                    v-if="row.rowspan > 0"
+                    class="print-td text-center font-mono"
+                    :rowspan="row.rowspan"
+                  >
+                    {{ row.item.category || '-' }}
+                  </td>
+                  <td class="print-td text-left truncate-cell">
+                    {{ row.item.name || '-' }}
+                  </td>
                   <td class="print-td text-center font-mono">-</td>
                   <td class="print-td text-center font-mono">-</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativeAmount(row.item)) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(row.item.leaderPayAmt) }}</td>
-                  <td class="print-td text-right font-mono">{{ formatMoney(getExtraCumulativeAmount(row.item)) }}</td>
+                  <td class="print-td text-right font-mono">
+                    {{ formatMoney(getExtraCumulativeAmount(row.item)) }}
+                  </td>
+                  <td class="print-td text-right font-mono">
+                    {{ formatMoney(row.item.leaderPayAmt) }}
+                  </td>
+                  <td class="print-td text-right font-mono">
+                    {{ formatMoney(getExtraCumulativeAmount(row.item)) }}
+                  </td>
                 </tr>
               </template>
 
               <!-- 本期实际支付款 -->
               <tr class="print-tr print-actual-pay-row">
                 <td class="print-td text-center font-mono">{{ actualPayIndex }}</td>
-                <td class="print-td text-left font-semibold" colspan="2">本期实际支付款</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.contractAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.investmentAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.cumulativeAmount) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.leaderPayAmt) }}</td>
-                <td class="print-td text-right font-semibold font-mono">{{ formatMoney(totalSums.cumulativePayAmt) }}</td>
+                <td class="print-td text-left font-semibold" colspan="2">
+                  本期实际支付款
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(totalSums.contractAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(totalSums.investmentAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(totalSums.cumulativeAmount) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(totalSums.leaderPayAmt) }}
+                </td>
+                <td class="print-td text-right font-semibold font-mono">
+                  {{ formatMoney(totalSums.cumulativePayAmt) }}
+                </td>
               </tr>
 
               <!-- 备注标题 -->
@@ -618,10 +676,18 @@
 
           <!-- 5. 签字区 -->
           <div class="print-sign-area">
-            <div class="print-sign-col">分管领导：{{ getPaymentDetailAuditUser('leader') }}</div>
-            <div class="print-sign-col">复核：{{ getPaymentDetailAuditUser('contract') }}</div>
-            <div class="print-sign-col">制表：{{ getPaymentDetailAuditUser('investment') }}</div>
-            <div class="print-sign-col">日期：{{ getPaymentDetailAuditDate(paymentDetails.interimSignDate) }}</div>
+            <div class="print-sign-col">
+              分管领导：{{ getPaymentDetailAuditUser('leader') }}
+            </div>
+            <div class="print-sign-col">
+              复核：{{ getPaymentDetailAuditUser('contract') }}
+            </div>
+            <div class="print-sign-col">
+              制表：{{ getPaymentDetailAuditUser('investment') }}
+            </div>
+            <div class="print-sign-col">
+              日期：{{ getPaymentDetailAuditDate(paymentDetails.interimSignDate) }}
+            </div>
           </div>
         </div>
       </div>
@@ -632,7 +698,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
-import { PaperClipIcon, ArrowDownTrayIcon, XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+import {
+  PaperClipIcon,
+  ArrowDownTrayIcon,
+  XMarkIcon,
+  PrinterIcon
+} from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
@@ -646,6 +717,9 @@ type MonthlyMeasurementNode = {
   id: string
   code: string
   baseDate: string
+  startDate?: string | number | null
+  endDate?: string | number | null
+  safetyMeasureId?: string | null
   approveStatus?: string | null
   flowInstanceId?: string | null
   currentStepName?: string | null
@@ -734,15 +808,36 @@ const sumPaymentRows = (rows: any[]) => {
     cumulativePayAmt: 0
   }
   rows.forEach((row) => {
-    sums.contractAmount = preciseAdd(sums.contractAmount, Number(row.contractAmount || 0))
-    sums.investmentAmount = preciseAdd(sums.investmentAmount, Number(row.investmentAmount || 0))
-    sums.cumulativeAmount = preciseAdd(sums.cumulativeAmount, Number(row.cumulativeAmount || 0))
+    sums.contractAmount = preciseAdd(
+      sums.contractAmount,
+      Number(row.contractAmount || 0)
+    )
+    sums.investmentAmount = preciseAdd(
+      sums.investmentAmount,
+      Number(row.investmentAmount || 0)
+    )
+    sums.cumulativeAmount = preciseAdd(
+      sums.cumulativeAmount,
+      Number(row.cumulativeAmount || 0)
+    )
     const pay = getDerivedPay(row)
-    sums.contractorPayAmt = preciseAdd(sums.contractorPayAmt, Number(pay.contractorPayAmt || 0))
-    sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(pay.investmentPayAmt || 0))
-    sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(pay.contractPayAmt || 0))
+    sums.contractorPayAmt = preciseAdd(
+      sums.contractorPayAmt,
+      Number(pay.contractorPayAmt || 0)
+    )
+    sums.investmentPayAmt = preciseAdd(
+      sums.investmentPayAmt,
+      Number(pay.investmentPayAmt || 0)
+    )
+    sums.contractPayAmt = preciseAdd(
+      sums.contractPayAmt,
+      Number(pay.contractPayAmt || 0)
+    )
     sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(pay.leaderPayAmt || 0))
-    sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, Number(row.cumulativeAmount || 0))
+    sums.cumulativePayAmt = preciseAdd(
+      sums.cumulativePayAmt,
+      Number(row.cumulativeAmount || 0)
+    )
   })
   return sums
 }
@@ -784,9 +879,18 @@ const totalSums = computed(() => {
   for (const extra of extraPayItems.value) {
     const extraCumulativeAmount = getExtraCumulativeAmount(extra)
     sums.cumulativeAmount = preciseAdd(sums.cumulativeAmount, extraCumulativeAmount)
-    sums.contractorPayAmt = preciseAdd(sums.contractorPayAmt, Number(extra.contractorPayAmt || 0))
-    sums.investmentPayAmt = preciseAdd(sums.investmentPayAmt, Number(extra.investmentPayAmt || 0))
-    sums.contractPayAmt = preciseAdd(sums.contractPayAmt, Number(extra.contractPayAmt || 0))
+    sums.contractorPayAmt = preciseAdd(
+      sums.contractorPayAmt,
+      Number(extra.contractorPayAmt || 0)
+    )
+    sums.investmentPayAmt = preciseAdd(
+      sums.investmentPayAmt,
+      Number(extra.investmentPayAmt || 0)
+    )
+    sums.contractPayAmt = preciseAdd(
+      sums.contractPayAmt,
+      Number(extra.contractPayAmt || 0)
+    )
     sums.leaderPayAmt = preciseAdd(sums.leaderPayAmt, Number(extra.leaderPayAmt || 0))
     sums.cumulativePayAmt = preciseAdd(sums.cumulativePayAmt, extraCumulativeAmount)
   }
@@ -866,7 +970,9 @@ const paymentSaving = ref(false)
 
 const route = useRoute()
 const isAdminOperationMode = computed(() => route.query.adminMode === '1')
-const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+const isReadOnly = computed(
+  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+)
 
 const permissions = computed(() => {
   const result = {
@@ -1179,7 +1285,13 @@ const formatDate = (value: any) => {
 
 // 深度监听月度验工单 props 变化
 watch(
-  () => props.item?.id,
+  () => [
+    props.item?.id,
+    props.item?.baseDate,
+    props.item?.startDate,
+    props.item?.endDate,
+    props.item?.safetyMeasureId
+  ],
   () => {
     if (props.item?.id) {
       void loadAggregatedItems()
@@ -1196,13 +1308,14 @@ watch(
     margin: 10mm;
   }
 
-  :global(html), :global(body) {
+  :global(html),
+  :global(body) {
     height: auto !important;
     overflow: visible !important;
   }
 
-  :global(body.is-printing [id="__nuxt"]),
-  :global(body.is-printing [id="__layout"]) {
+  :global(body.is-printing [id='__nuxt']),
+  :global(body.is-printing [id='__layout']) {
     display: none !important;
   }
 
@@ -1220,7 +1333,8 @@ watch(
     padding: 0;
     background: #fff;
     color: #000;
-    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+    font-family: SimSun, 'Songti SC', STSong, 'PingFang SC', 'Microsoft YaHei', Arial,
+      sans-serif;
   }
 
   .print-container {

@@ -84,6 +84,27 @@
                   </LayoutSidebarMenuGroupItem>
                 </NuxtLink>
 
+                <NuxtLink
+                  v-if="showWorkspaceLinks && hasMenuPerm('drawings-library')"
+                  :to="projectBaseRoutePath + '/drawings'"
+                  @click="isOpenMobile = false"
+                >
+                  <LayoutSidebarMenuGroupItem
+                    :class="[
+                      'project-sidebar-top-item',
+                      'py-3',
+                      isProjectActive('/drawings') &&
+                        'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                      'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ]"
+                    label="图纸库"
+                  >
+                    <template #icon>
+                      <IconDocs class="size-4 text-white" />
+                    </template>
+                  </LayoutSidebarMenuGroupItem>
+                </NuxtLink>
+
                 <LayoutSidebarMenuGroup
                   v-if="
                     hasMenuPerm('file-management') ||

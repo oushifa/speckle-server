@@ -13,6 +13,18 @@
         </button>
       </div>
 
+      <!-- 本期并入安全文明措施费的提示 -->
+      <div
+        v-if="safetyMeasureItemCount > 0"
+        class="flex-shrink-0 mb-3 rounded border border-warning bg-warning-lighter px-3 py-2 text-[11px] leading-5 text-warning-darker"
+      >
+        本期已并入安全文明措施费，共
+        <span class="font-semibold">{{ safetyMeasureItemCount }}</span>
+        项清单（下表中标记为「安措费」）。月度验工审批通过后，这些清单项的
+        <span class="font-semibold">投资监理</span>
+        量会计入安全文明措施费的累计完成数。
+      </div>
+
       <!-- 25列三层表头树形清单表格 -->
       <div class="flex-grow min-h-0 overflow-auto rounded border border-outline-3">
         <table class="w-full text-xs text-left min-w-[2200px] border-collapse">
@@ -293,6 +305,15 @@
                     </button>
 
                     <span class="truncate" :title="row.boqName">{{ row.boqName }}</span>
+
+                    <!-- 安全文明措施费标识（只读）：本期并入时由分部工程推导 -->
+                    <span
+                      v-if="!row.isSummaryRow && row.isSafetyMeasure"
+                      class="ml-1.5 px-1 py-0.2 rounded bg-warning-lighter text-warning-darker text-[9px] scale-90 origin-left"
+                      title="该清单项属于安全文明措施费，审批通过后计入其累计完成数"
+                    >
+                      安措费
+                    </span>
 
                     <!-- 关联质量验收的 Badge -->
                     <span
@@ -624,7 +645,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, onMounted } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import dayjs from 'dayjs'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import { ChevronLeftIcon } from '@heroicons/vue/24/outline'
@@ -637,6 +658,9 @@ type MonthlyMeasurementNode = {
   id: string
   code: string
   baseDate: string
+  startDate?: string | number | null
+  endDate?: string | number | null
+  safetyMeasureId?: string | null
   approveStatus?: string | null
   flowInstanceId?: string | null
   currentStepName?: string | null
@@ -668,6 +692,11 @@ const treeSaving = ref(false)
 const rowById = shallowRef<Map<string, any>>(new Map())
 const rowsByDepth = shallowRef<Map<number, any[]>>(new Map())
 const hasChildrenSet = shallowRef<Set<string>>(new Set())
+
+// 本期并入安全文明措施费的叶子清单项数量（0 表示本期未并入）
+const safetyMeasureItemCount = computed(
+  () => treeRows.value.filter((row) => !row.isSummaryRow && row.isSafetyMeasure).length
+)
 
 const buildTreeIndex = (rows: any[]) => {
   const byId = new Map<string, any>()
@@ -1153,9 +1182,21 @@ const saveTreeItems = async () => {
   }
 }
 
-onMounted(() => {
-  void loadTreeData()
-})
+watch(
+  () => [
+    props.item?.id,
+    props.item?.baseDate,
+    props.item?.startDate,
+    props.item?.endDate,
+    props.item?.safetyMeasureId
+  ],
+  () => {
+    if (props.item?.id) {
+      void loadTreeData()
+    }
+  },
+  { immediate: true }
+)
 
 const expandedAcceptanceIds = ref<Set<string>>(new Set())
 const toggleExpandAcceptance = (boqItemId: string) => {

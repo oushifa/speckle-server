@@ -1,3 +1,5 @@
+name: speckle-server
+
 services:
   # Actual Speckle Server dependencies
 

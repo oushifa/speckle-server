@@ -165,6 +165,10 @@ export type BranchRecord = {
   name: string
   description: Nullable<string>
   approveStatus?: Nullable<string>
+  /**
+   * 图纸库（drawings）专用：标识该 branch 归属的业务项目 id。普通模型 branch 为空。
+   */
+  projectId?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }
@@ -186,11 +190,13 @@ export type QualityAcceptanceFormRecord = {
   workVolume?: Nullable<number>
   unit?: Nullable<string>
   BIMelement?: Nullable<string[]>
-  BIM?: Nullable<Array<{
-    modelId: string
-    applicationIds: string[]
-    bimIds: (string | null)[]
-  }>>
+  BIM?: Nullable<
+    Array<{
+      modelId: string
+      applicationIds: string[]
+      bimIds: (string | null)[]
+    }>
+  >
   timeZone?: Nullable<string>
   approveStatus?: Nullable<string>
   occupiedMeasurementId?: Nullable<string>
@@ -214,6 +220,10 @@ export type MonthlyMeasurementRecord = {
   paymentPhase?: Nullable<string>
   detailedDescription?: Nullable<string>
   safetyMeasureId?: Nullable<string>
+  /** 本期月度验工是否并入安全文明措施费（0 期特例用） */
+  includeSafetyMeasure?: boolean
+  /** 并入时选中的分部工程 id（jsonb） */
+  safetySectionIds?: Nullable<string[]>
   createdAt: Date
   updatedAt: Date
 }
@@ -326,6 +336,8 @@ export type MonthlyMeasurementItemRecord = {
   lastCumulativeQty?: Nullable<number>
   yearlyCumulativeQty?: Nullable<number>
   lastCumulativePay?: Nullable<number>
+  /** 该清单项是否属于安全文明措施费（由分部工程推导） */
+  isSafetyMeasure?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -343,6 +355,8 @@ export type SafetyMeasureRecord = {
   approveStatus?: Nullable<string>
   flowInstanceId?: Nullable<string>
   creator?: Nullable<string>
+  /** 由哪张月度验工自动生成；为 null 表示手工单据 */
+  sourceMeasurementId?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }

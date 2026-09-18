@@ -93,16 +93,43 @@
           :disabled="true"
           placeholder="选择清单项后自动填充"
         />
-        <div
-          class="md:col-span-2"
-          :class="props.readonly ? 'pointer-events-none opacity-80' : ''"
-        >
-          <CommonModelObjectMultiSelectDrawer
-            v-model:model_id="bimModelId"
-            v-model:application_ids="applicationIds"
+        <div class="md:col-span-2 space-y-2">
+          <div class="text-body-sm font-medium">构件序号码</div>
+          <CommonModelObjectMultiModelSelectDrawer
+            v-model:model_ids="bimModelIds"
+            v-model:selections="bimSelections"
             :project-id="props.projectId"
+            :disabled="props.loading || props.readonly"
             placeholder="点击选择构件"
           />
+          <!-- 已选构件序号码标签 -->
+          <div v-if="bimSerialCodes.length" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="code in bimSerialCodes"
+              :key="code"
+              class="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-body-xs text-primary"
+            >
+              {{ code }}
+              <button
+                v-if="!props.readonly"
+                type="button"
+                class="hover:opacity-75"
+                :title="`移除 ${code}`"
+                @click="removeSerialCode(code)"
+              >
+                <X class="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+          <div
+            v-else-if="bimSelectionCount > 0"
+            class="text-body-3xs text-foreground-2"
+          >
+            已关联 {{ bimSelectionCount }} 个构件，但未解析到序号码
+          </div>
+          <div v-else-if="props.readonly" class="text-body-xs text-foreground-2">
+            未关联构件
+          </div>
         </div>
         <div class="md:col-span-2 space-y-2">
           <div class="text-body-sm font-medium">附件上传</div>
@@ -202,10 +229,17 @@
       :buttons="previewDialogButtons"
     >
       <template #header>
-        {{ selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览' }}
+        {{
+          selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览'
+        }}
       </template>
-      <div v-if="selectedPreviewAttachment" class="flex flex-col gap-y-3 h-[70vh] md:h-[75vh]">
-        <div class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+      <div
+        v-if="selectedPreviewAttachment"
+        class="flex flex-col gap-y-3 h-[70vh] md:h-[75vh]"
+      >
+        <div
+          class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2"
+        >
           <CommonFilePreview
             :blob-id="selectedPreviewAttachment.id"
             :project-id="props.projectId || ''"
@@ -222,16 +256,21 @@
 
 <script setup lang="ts">
 import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/vue/24/outline'
-import { Paperclip } from 'lucide-vue-next'
+import { Paperclip, X } from 'lucide-vue-next'
 import type { LayoutDialogButton } from '@speckle/ui-components'
-import type { QualityAcceptanceCreateInput, QualityAcceptanceAttachment } from './types'
+import type {
+  BimSelectionGroup,
+  QualityAcceptanceCreateInput,
+  QualityAcceptanceAttachment
+} from './types'
+import { getAlignedBimSerialCodes } from './types'
 import BoqTreeSelect from '~/components/common/checklist/BoqTreeSelect.vue'
 import { useAttachments, useFileDownload } from '~/lib/core/composables/fileUpload'
 import { isSuccessfullyUploaded } from '~/lib/core/api/blobStorage'
 import { useServerFileUploadLimit } from '~/lib/common/composables/serverInfo'
 import { UniqueFileTypeSpecifier, prettyFileSize } from '~/lib/core/helpers/file'
 import { acceptedFileExtensions } from '@speckle/shared/blobs'
-import { CommonModelObjectMultiSelectDrawer } from '#components'
+import { CommonModelObjectMultiModelSelectDrawer } from '#components'
 
 const props = withDefaults(
   defineProps<{
@@ -282,8 +321,11 @@ const selectedChecklistId = ref<string | null>(null)
 const actualStartDateInput = ref('')
 const actualFinishDateInput = ref('')
 const workVolumeInput = ref('')
-const bimProjectId = ref<string | null>(null)
-const bimModelId = ref<string | null>(null)
+const bimModelIds = ref<string[]>([])
+const bimSelections = ref<BimSelectionGroup[]>([])
+// 已保存的序号码快照（key: modelId::applicationId）。抽屉重新解析失败时回退使用，
+// 避免编辑保存时把存量序号码清空。
+const persistedSerialCodeByComponent = ref<Record<string, string>>({})
 const errorMessage = ref('')
 const { maxSizeInBytes } = useServerFileUploadLimit()
 const { onFilesSelected, uploads, onUploadDelete, blobIds } = useAttachments({
@@ -294,18 +336,61 @@ const acceptValue = [
   ...acceptedFileExtensions.map((fileExtension) => `.${fileExtension}`)
 ].join(',')
 
-const applicationIds = computed<string[]>({
-  get: () => form.value.BIM?.[0]?.applicationIds || [],
-  set: (value) => {
-    form.value.BIM = [
-      {
-        modelId: bimModelId.value || '',
-        bimIds: (value || []).map(() => null),
-        applicationIds: value || []
-      }
-    ]
+// 与 applicationIds 按位对齐的序号码；抽屉回传 componentCodesAligned，
+// 从已保存数据回填时由 bimIds 推导，二者缺失时按位回退到紧凑编码数组，
+// 最后回退到已保存的序号码快照（抽屉解析不到时不丢数据）。
+const componentKey = (modelId: string, applicationId: string) =>
+  `${modelId}::${applicationId}`
+
+const getGroupAlignedSerialCodes = (group: BimSelectionGroup): (string | null)[] =>
+  group.applicationIds.map((applicationId, index) => {
+    const code =
+      group.componentCodesAligned?.[index] ?? group.componentCodes?.[index] ?? null
+    return (
+      code ||
+      persistedSerialCodeByComponent.value[
+        componentKey(group.modelId || '', applicationId)
+      ] ||
+      null
+    )
+  })
+
+const bimSelectionCount = computed(() =>
+  bimSelections.value.reduce(
+    (count, group) => count + (group.applicationIds?.length || 0),
+    0
+  )
+)
+
+const bimSerialCodes = computed(() => {
+  const seen = new Set<string>()
+  const codes: string[] = []
+  for (const group of bimSelections.value) {
+    for (const code of getGroupAlignedSerialCodes(group)) {
+      if (!code || seen.has(code)) continue
+      seen.add(code)
+      codes.push(code)
+    }
   }
+  return codes
 })
+
+const removeSerialCode = (code: string) => {
+  bimSelections.value = bimSelections.value
+    .map((group) => {
+      const aligned = getGroupAlignedSerialCodes(group)
+      const index = aligned.indexOf(code)
+      if (index === -1) return group
+      const alignedNext = aligned.filter((_, i) => i !== index)
+      return {
+        ...group,
+        applicationIds: group.applicationIds.filter((_, i) => i !== index),
+        componentCodes: alignedNext.filter((item): item is string => !!item),
+        componentCodesAligned: alignedNext
+      }
+    })
+    .filter((group) => group.applicationIds.length > 0)
+}
 
 const onChecklistSelected = (
   items: Array<{ id: string; code: string; name: string; unit: string }>
@@ -329,7 +414,9 @@ const attachmentIdToDelete = ref<string | null>(null)
 
 const { download } = useFileDownload()
 
-const handleDownloadExistingAttachment = async (attachment: QualityAcceptanceAttachment) => {
+const handleDownloadExistingAttachment = async (
+  attachment: QualityAcceptanceAttachment
+) => {
   if (!props.projectId) return
   try {
     await download({
@@ -420,8 +507,9 @@ const resetForm = () => {
   actualStartDateInput.value = ''
   actualFinishDateInput.value = ''
   workVolumeInput.value = ''
-  bimProjectId.value = null
-  bimModelId.value = null
+  bimModelIds.value = []
+  bimSelections.value = []
+  persistedSerialCodeByComponent.value = {}
   uploads.value = []
   existingAttachments.value = []
   selectedPreviewAttachment.value = null
@@ -439,10 +527,32 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
   actualStartDateInput.value = formatDateInput(data.actualStartDate)
   actualFinishDateInput.value = formatDateInput(data.actualFinishDate)
   workVolumeInput.value = `${data.workVolume || ''}`
-  bimProjectId.value = null
-  bimModelId.value = data.BIM?.[0]?.modelId || null
+  const serialCodeMap: Record<string, string> = {}
+  bimSelections.value = (data.BIM || [])
+    .map((entry) => {
+      const modelId = entry.modelId || ''
+      const aligned = getAlignedBimSerialCodes(entry)
+      const applicationIds = [...(entry.applicationIds || [])]
+      applicationIds.forEach((applicationId, index) => {
+        const code = aligned[index]
+        if (code) serialCodeMap[componentKey(modelId, applicationId)] = code
+      })
+      return {
+        modelId,
+        applicationIds,
+        componentCodes: aligned.filter((code): code is string => !!code),
+        componentCodesAligned: aligned
+      }
+    })
+    .filter((group) => group.applicationIds.length > 0)
+  persistedSerialCodeByComponent.value = serialCodeMap
+  bimModelIds.value = Array.from(
+    new Set(bimSelections.value.map((group) => group.modelId).filter(Boolean))
+  )
   uploads.value = []
-  existingAttachments.value = props.initialAttachments ? [...props.initialAttachments] : []
+  existingAttachments.value = props.initialAttachments
+    ? [...props.initialAttachments]
+    : []
   selectedPreviewAttachment.value = null
   previewDialogOpen.value = false
   errorMessage.value = ''
@@ -492,36 +602,19 @@ const submit = () => {
     workVolume,
     actualFinishDate,
     attachments: Array.from(
-      new Set([
-        ...existingAttachments.value.map((a) => a.id),
-        ...blobIds.value
-      ])
+      new Set([...existingAttachments.value.map((a) => a.id), ...blobIds.value])
     ),
-    BIM:
-      form.value.BIM && form.value.BIM[0] && form.value.BIM[0].applicationIds.length
-        ? [
-            {
-              modelId: form.value.BIM[0].modelId || '',
-              bimIds: form.value.BIM[0].applicationIds.map(() => null),
-              applicationIds: form.value.BIM[0].applicationIds
-            }
-          ]
-        : null,
+    BIM: bimSelections.value.length
+      ? bimSelections.value.map((group) => ({
+          modelId: group.modelId || '',
+          applicationIds: [...group.applicationIds],
+          bimIds: getGroupAlignedSerialCodes(group)
+        }))
+      : null,
     timeZone: form.value.timeZone.trim()
   })
   open.value = false
 }
-
-watch(bimModelId, (modelId) => {
-  if (!form.value.BIM && !modelId) return
-  form.value.BIM = [
-    {
-      modelId: modelId || '',
-      bimIds: (form.value.BIM?.[0]?.applicationIds || []).map(() => null),
-      applicationIds: form.value.BIM?.[0]?.applicationIds || []
-    }
-  ]
-})
 
 const dialogButtons = computed((): LayoutDialogButton[] => {
   if (props.readonly) {

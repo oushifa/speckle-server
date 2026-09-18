@@ -4,6 +4,7 @@ import type {
   QualityAcceptanceFormRecord
 } from '@/modules/core/helpers/types'
 import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
+import { resolveSafetyMeasureBoqItemIds } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import { BadRequestError } from '@/modules/shared/errors'
 import cryptoRandomString from 'crypto-random-string'
 import dayjs from 'dayjs'
@@ -23,6 +24,8 @@ type MonthlyMeasurementPreviewItem = {
   sourceAcceptances: QualityAcceptanceFormRecord[]
   isSummaryRow: boolean
   sortIndex: number
+  /** 该清单项是否属于安全文明措施费（由所选分部工程推导，0 期并入时使用） */
+  isSafetyMeasure: boolean
   reviewPrice?: number | null
   reviewQuantity?: number | null
   changeQuantity?: number | null
@@ -154,6 +157,8 @@ export const buildMonthlyMeasurementPreviewFactory =
     excludedAcceptanceIds?: string[]
     pinnedAcceptanceIds?: string[]
     currentMeasurementId?: string | null
+    /** 0 期并入安全文明措施费时选中的分部工程 id */
+    safetySectionIds?: string[]
   }) => {
     const [allAcceptanceForms, pinnedForms, boqItems] = await Promise.all([
       deps.getQualityAcceptanceFormsBeforeBaseDate({
@@ -259,6 +264,11 @@ export const buildMonthlyMeasurementPreviewFactory =
     }
 
     const previewById = new Map<string, MonthlyMeasurementPreviewItem>()
+    // 属于安全文明措施费的清单项集合（与手工新建安全文明措施费同一套算法）
+    const safetyHit = resolveSafetyMeasureBoqItemIds({
+      boqItems: includedItems,
+      sectionIds: params.safetySectionIds || []
+    })
     for (const item of includedItems) {
       const groupedItem = grouped.get(item.id)
       const reviewPrice = toNullableNumber(item.reviewPrice)
@@ -291,6 +301,7 @@ export const buildMonthlyMeasurementPreviewFactory =
         sourceAcceptanceIds: groupedItem?.sourceAcceptanceIds || [],
         sourceAcceptances: groupedItem?.sourceAcceptances || [],
         isSummaryRow: parentIds.has(item.id),
+        isSafetyMeasure: safetyHit.has(item.id),
         sortIndex: 0,
         reviewPrice,
         reviewQuantity,
@@ -392,6 +403,7 @@ type CreateMeasurementDeps = {
     endDate?: number | null
     excludedAcceptanceIds?: string[]
     currentMeasurementId?: string | null
+    safetySectionIds?: string[]
   }) => Promise<{ baseDate: number; items: MonthlyMeasurementPreviewItem[] }>
   createMeasurement: (
     payload: MonthlyMeasurementRecord
@@ -416,13 +428,16 @@ export const createMonthlyMeasurementFromPreviewFactory =
     }>
     excludedAcceptanceIds?: string[]
     safetyMeasureId?: string | null
+    /** 0 期并入安全文明措施费时选中的分部工程 id */
+    safetySectionIds?: string[]
   }) => {
     const preview = await deps.buildPreview({
       projectId: params.projectId,
       baseDate: params.baseDate,
       startDate: params.startDate,
       endDate: params.endDate,
-      excludedAcceptanceIds: params.excludedAcceptanceIds
+      excludedAcceptanceIds: params.excludedAcceptanceIds,
+      safetySectionIds: params.safetySectionIds
     })
     const rows = preview.items
     if (!rows.length) {
@@ -538,6 +553,7 @@ export const createMonthlyMeasurementFromPreviewFactory =
         boqParentId: row.boqParentId,
         boqDepth: row.boqDepth,
         isSummaryRow: row.isSummaryRow,
+        isSafetyMeasure: row.isSafetyMeasure,
         sortIndex: row.sortIndex,
         uom: row.uom,
         price: row.price,

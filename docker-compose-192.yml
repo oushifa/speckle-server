@@ -227,6 +227,11 @@ services:
       SUPER_REGISTER_TOKEN: 'srj-super-admin-register'
       ADMIN_OVERRIDE_ENABLED: 'true'
       SDUI_URL: 'http://192.168.154.28:8082'
+      UNIFIED_WORK_SYNC_HOST: 'http://192.168.154.29:40181'
+      UNIFIED_WORK_SYNC_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoic3lzdGVtIiwicm91dGVySWQiOiJuYnRkIiwiaWF0IjoxNzg5NTQ0ODI5LCJleHAiOjQ5NDUzMDQ4Mjl9.ecPael0SEBBuor95vTwlsPdfp5Jg1aKhdwQMfZxEc8o'
+      UNIFIED_WORK_SYNC_ROUTER_ID: 'nbtd'
+      UNIFIED_WORK_SYNC_SYSTEM_CODE: 'BIM'
+      UNIFIED_WORK_SYNC_ACCOUNT: 'taijun1'
     depends_on:
       - postgres
       - redis

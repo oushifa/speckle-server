@@ -301,7 +301,11 @@ export function getUnifiedWorkSyncRouterId() {
 }
 
 export function getUnifiedWorkSyncSystemCode() {
-  return process.env['UNIFIED_WORK_SYNC_SYSTEM_CODE']?.trim() || 'SPECKLE'
+  return process.env['UNIFIED_WORK_SYNC_SYSTEM_CODE']?.trim() || 'BIM'
+}
+
+export function getUnifiedWorkSyncAccount() {
+  return process.env['UNIFIED_WORK_SYNC_ACCOUNT']?.trim() || ''
 }
 
 export function enableMixpanel() {

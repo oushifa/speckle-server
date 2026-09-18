@@ -9,7 +9,10 @@ import {
   getQualityAcceptanceFormByIdFactory,
   updateQualityAcceptanceFormFactory
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
-import type { BimElementEntry, BIM } from '@/modules/quality-acceptance-form/helpers/types'
+import type {
+  BimElementEntry,
+  BIM
+} from '@/modules/quality-acceptance-form/helpers/types'
 import { BadRequestError } from '@/modules/shared/errors'
 
 export const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
@@ -65,9 +68,7 @@ const normalizeOptionalString = (value?: string | null) => {
   return trimmed.length ? trimmed : null
 }
 
-const normalizeOptionalDateValue = (
-  value?: string | number | null
-): string | null => {
+const normalizeOptionalDateValue = (value?: string | number | null): string | null => {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return null
@@ -104,36 +105,49 @@ export const normalizeBIM = (
     const normalized = bim
       .map((entry): BimElementEntry | null => {
         const modelId = typeof entry.modelId === 'string' ? entry.modelId.trim() : ''
-        
+
         let applicationIds = Array.isArray(entry.applicationIds)
-          ? entry.applicationIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
+          ? entry.applicationIds.filter(
+              (id): id is string => typeof id === 'string' && !!id.trim()
+            )
           : []
-        
-        const rawBimIds = Array.isArray(entry.bimIds)
-          ? entry.bimIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
-          : []
+
+        const rawBimIdsInput = Array.isArray(entry.bimIds) ? entry.bimIds : []
+        const nonEmptyBimIds = rawBimIdsInput.filter(
+          (id): id is string => typeof id === 'string' && !!id.trim()
+        )
 
         // 如果只有 bimIds，则将 applicationIds 赋值为和 bimIds 相同，以完成在数据库的结构对齐
-        if (applicationIds.length === 0 && rawBimIds.length > 0) {
-          applicationIds = [...rawBimIds]
+        const applicationIdsFromBimIds =
+          applicationIds.length === 0 && nonEmptyBimIds.length > 0
+        if (applicationIdsFromBimIds) {
+          applicationIds = [...nonEmptyBimIds]
         }
 
-        // 最终的 bimIds 长度对齐 applicationIds
-        const bimIds: (string | null)[] = applicationIds.map((appId, idx) => {
-          const raw = rawBimIds[idx]
-          return typeof raw === 'string' && raw.trim() ? raw.trim() : appId
+        // 最终的 bimIds 与 applicationIds 按位对齐，承载构件序号码；未提供序号码的
+        // 位置保留 null，不能用 applicationId 兜底，否则导出/外部接口会把对象 ID
+        // 当成构件序号码。
+        const bimIdsSource = applicationIdsFromBimIds ? applicationIds : rawBimIdsInput
+        const bimIds: (string | null)[] = applicationIds.map((_, idx) => {
+          const raw = bimIdsSource[idx]
+          return typeof raw === 'string' && raw.trim() ? raw.trim() : null
         })
 
         return { modelId, applicationIds, bimIds }
       })
-      .filter((e): e is BimElementEntry => e !== null && (e.applicationIds.length > 0 || e.bimIds.length > 0))
+      .filter(
+        (e): e is BimElementEntry =>
+          e !== null && (e.applicationIds.length > 0 || e.bimIds.length > 0)
+      )
 
     if (normalized.length > 0) return normalized
   }
 
   // 兼容旧 BIMelement 字段（字符串数组），但不再支持单独的 modelId 格式
   if (Array.isArray(legacyBimElement) && legacyBimElement.length > 0) {
-    const ids = legacyBimElement.filter((id): id is string => typeof id === 'string' && !!id.trim())
+    const ids = legacyBimElement.filter(
+      (id): id is string => typeof id === 'string' && !!id.trim()
+    )
     if (ids.length > 0) {
       return [{ modelId: '', applicationIds: ids, bimIds: ids.map(() => null) }]
     }
@@ -197,10 +211,7 @@ export const createQualityAcceptanceFormEntryFactory =
           ? null
           : params.input.workVolume,
       unit: normalizeOptionalString(params.input.unit) ?? boqItem?.unit ?? null,
-      BIM: normalizeBIM(
-        params.input.BIM ?? null,
-        params.input.BIMelement ?? null
-      ),
+      BIM: normalizeBIM(params.input.BIM ?? null, params.input.BIMelement ?? null),
       timeZone: normalizeOptionalString(params.input.timeZone),
       approveStatus: normalizeApproveStatus(params.input.approveStatus),
       createdAt: now,
@@ -208,9 +219,13 @@ export const createQualityAcceptanceFormEntryFactory =
     })
 
     if (flowId) {
-      const definition = await getApprovalFlowDefinitionByIdFactory({ db: deps.db })(flowId)
+      const definition = await getApprovalFlowDefinitionByIdFactory({ db: deps.db })(
+        flowId
+      )
       if (!definition || !definition.isActive || definition.resourceType !== 'FORMS') {
-        throw new BadRequestError('No active FORMS flow definition found for this form.')
+        throw new BadRequestError(
+          'No active FORMS flow definition found for this form.'
+        )
       }
 
       try {
@@ -242,9 +257,14 @@ export const importQualityAcceptanceFormsFactory =
     actorUserId?: string | null
     creator?: string | null
   }): Promise<ImportQualityAcceptanceFormResult> => {
-    const createQualityAcceptanceFormEntry = createQualityAcceptanceFormEntryFactory(deps)
-    const getQualityAcceptanceFormById = getQualityAcceptanceFormByIdFactory({ db: deps.projectDb })
-    const updateQualityAcceptanceForm = updateQualityAcceptanceFormFactory({ db: deps.projectDb })
+    const createQualityAcceptanceFormEntry =
+      createQualityAcceptanceFormEntryFactory(deps)
+    const getQualityAcceptanceFormById = getQualityAcceptanceFormByIdFactory({
+      db: deps.projectDb
+    })
+    const updateQualityAcceptanceForm = updateQualityAcceptanceFormFactory({
+      db: deps.projectDb
+    })
 
     let createdCount = 0
     const createdItems: ImportQualityAcceptanceFormResult['createdItems'] = []
@@ -263,7 +283,9 @@ export const importQualityAcceptanceFormsFactory =
           })
           if (existing) {
             if (existing.occupiedMeasurementId) {
-              throw new BadRequestError(`该质量验收单(ID: ${existing.id})已被月度验工关联，不可通过导入修改`)
+              throw new BadRequestError(
+                `该质量验收单(ID: ${existing.id})已被月度验工关联，不可通过导入修改`
+              )
             }
             isUpdate = true
             recordId = existing.id

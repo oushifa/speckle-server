@@ -526,9 +526,9 @@
     </LayoutDialog>
 
     <!-- 验工三维模型查看弹窗 -->
-    <LayoutDialog v-model:open="modelViewerOpen" max-width="xl">
+    <LayoutDialog v-model:open="modelViewerOpen" max-width="xl" fullscreen="all">
       <template #header>月度验工模型查看</template>
-      <div class="h-[500px] w-full relative">
+      <div class="h-full min-h-[500px] w-full relative">
         <div
           v-if="acceptanceFormsLoading"
           class="h-full w-full flex items-center justify-center text-sm text-foreground-2"
@@ -1333,6 +1333,9 @@ type MonthlyMeasurementNode = {
   id: string
   code: string
   baseDate: string
+  startDate?: string | number | null
+  endDate?: string | number | null
+  safetyMeasureId?: string | null
   approveStatus?: string | null
   flowInstanceId?: string | null
   currentStepName?: string | null
@@ -2149,7 +2152,13 @@ const executeAssociateSafetyMeasure = async () => {
 }
 
 watch(
-  () => props.item?.id,
+  () => [
+    props.item?.id,
+    props.item?.baseDate,
+    props.item?.startDate,
+    props.item?.endDate,
+    props.item?.safetyMeasureId
+  ],
   () => {
     if (props.item?.id) {
       void loadAggregatedItems()
