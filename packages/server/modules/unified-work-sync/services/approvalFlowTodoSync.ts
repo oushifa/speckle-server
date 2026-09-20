@@ -8,6 +8,7 @@ import {
   Users
 } from '@/modules/core/dbSchema'
 import { ApprovalFlowActionType } from '@/modules/flow/repositories/approvalFlows'
+import { buildAbsoluteFrontendUrlFromPath } from '@/modules/core/helpers/routeHelper'
 import {
   getUnifiedWorkSyncAccount,
   getUnifiedWorkSyncHost,
@@ -303,6 +304,24 @@ const buildRoute = (snapshot: InstanceSnapshot) => {
   return '/flow'
 }
 
+/**
+ * Single-page route in the frontend where the approver can handle the flow.
+ * Kept in sync with `pages/flow/detail/[id].vue`.
+ */
+export const buildApprovalFlowHandleRoute = (instanceId: string) =>
+  `/flow/detail/${instanceId}`
+
+const buildApprovalFlowHandleLink = (instanceId: string) => {
+  const route = buildApprovalFlowHandleRoute(instanceId)
+  try {
+    return buildAbsoluteFrontendUrlFromPath(route)
+  } catch {
+    // FRONTEND_ORIGIN missing/misconfigured - keep the relative route instead of
+    // failing the whole sync
+    return route
+  }
+}
+
 const buildTaskTitle = (snapshot: InstanceSnapshot) => {
   const { instance, projectName, flowName } = snapshot
   const formDataTitle =
@@ -540,6 +559,10 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
       reviewTime,
       route,
       extraData: {
+        // Marks which system this todo originates from (BIM)
+        source: config.systemCode,
+        // Absolute URL to our single flow-handling page
+        link: buildApprovalFlowHandleLink(snapshot.instance.id),
         projectId: snapshot.instance.projectId,
         projectName: snapshot.projectName,
         resourceType: snapshot.instance.resourceType,

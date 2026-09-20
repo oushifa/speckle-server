@@ -43,7 +43,18 @@
         </span>
       </template>
       <template #extra>
-        <span class="text-body-xs text-foreground-2">#{{ selectedInstance?.id }}</span>
+        <div class="flex items-center gap-3">
+          <span class="text-body-xs text-foreground-2">
+            #{{ selectedInstance?.id }}
+          </span>
+          <NuxtLink
+            v-if="selectedInstance"
+            :to="`/flow/detail/${selectedInstance.id}`"
+            class="text-body-xs text-primary"
+          >
+            前往处理页
+          </NuxtLink>
+        </div>
       </template>
 
       <div v-if="selectedInstance" class="flex gap-4 h-full">
