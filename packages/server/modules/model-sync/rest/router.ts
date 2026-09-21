@@ -499,7 +499,52 @@ export const modelSyncRouterFactory = () => {
           userId
         })
 
-        res.json({ data: result })
+        // 源模型本身还没同步过中海（没有 seedId）时，用刚复制过来的源文件
+        // 自动发起一次中海同步，保证导入模型无需手动点同步。
+        let syncTask: ReturnType<typeof serializeTask> | null = null
+        if (!result.seedId && result.sourceFileId) {
+          const projectDb = await getProjectDbClient({ projectId })
+          const getActiveTask = getActiveProjectModelSyncTaskFactory({ db: projectDb })
+          const existingTask = await getActiveTask({ projectId, modelId })
+
+          if (existingTask) {
+            syncTask = serializeTask(existingTask)
+          } else {
+            const latestUpload = await getLatestModelFileUploadFactory({
+              db: projectDb
+            })({ projectId, modelId })
+
+            if (
+              latestUpload?.id &&
+              latestUpload.fileName &&
+              latestUpload.uploadComplete
+            ) {
+              const task = await createProjectModelSyncTaskFactory({ db: projectDb })({
+                projectId,
+                modelId,
+                fileId: latestUpload.id,
+                fileUploadId: latestUpload.id,
+                versionId: latestUpload.convertedCommitId || versionId || null,
+                fileName: latestUpload.fileName,
+                fileType: latestUpload.fileType,
+                fileSize: latestUpload.fileSize || null,
+                status: 'speckle_converting',
+                creator: userId,
+                updater: userId
+              })
+              emitModelSyncTaskUpdated(task)
+              runTaskInBackground({
+                projectId,
+                modelId,
+                taskId: task.id,
+                userId
+              })
+              syncTask = serializeTask(task)
+            }
+          }
+        }
+
+        res.json({ data: { ...result, syncTask } })
       } catch (err) {
         next(err)
       }
