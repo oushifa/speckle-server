@@ -112,6 +112,17 @@ export type ActualProgressRecord = {
     applicationIds: string[]
     bimIds: (string | null)[]
   }> | null
+  /** 该记录关联到的全部构件编码（已去重，含开始 / 完成 / 工程细项三类关联） */
+  componentCodes?: string[]
+  /** 构件编码与 modelId / applicationId 的对应关系明细 */
+  bimComponents?: Array<{
+    scope: 'start' | 'finish' | 'task'
+    modelId: string
+    applicationId: string
+    componentCode: string | null
+    taskName?: string
+    linkedPlanTaskId?: string | null
+  }>
   remark: string
   highTemperature: string
   lowTemperature: string

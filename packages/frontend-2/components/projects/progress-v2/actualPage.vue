@@ -777,6 +777,30 @@
           </div>
         </div>
 
+        <!-- 当前状态（下拉单选） -->
+        <div class="space-y-1.5">
+          <div class="block text-body-xs font-medium text-foreground-2">当前状态</div>
+          <FormSelectBase
+            v-model="milestoneStatusSelection"
+            :items="milestoneStatusOptions"
+            name="ms-status"
+            label="当前状态"
+            :show-label="false"
+            placeholder="请选择当前状态"
+            by="value"
+            class="w-full"
+          >
+            <template #something-selected="{ value }">
+              <span class="truncate text-foreground">
+                {{ (value as any)?.label || '请选择当前状态' }}
+              </span>
+            </template>
+            <template #option="{ item }">
+              <span class="truncate">{{ (item as any)?.label }}</span>
+            </template>
+          </FormSelectBase>
+        </div>
+
         <!-- 备注 -->
         <div class="space-y-1.5">
           <div class="block text-body-xs font-medium text-foreground-2">备注</div>
@@ -1318,15 +1342,42 @@ const milestoneDialogOpen = ref(false)
 const editingMilestone = ref<ProgressV2Milestone | null>(null)
 const isSavingMilestone = ref(false)
 
+const MILESTONE_STATUS_OPTIONS = [
+  { value: '未开始', label: '未开始' },
+  { value: '进行中', label: '进行中' },
+  { value: '已完成', label: '已完成' }
+] as const
+
+type MilestoneStatus = (typeof MILESTONE_STATUS_OPTIONS)[number]['value']
+
+const milestoneStatusOptions = [...MILESTONE_STATUS_OPTIONS]
+const DEFAULT_MILESTONE_STATUS: MilestoneStatus = '未开始'
+
+// 兼容历史数据：按期完成/已完成 -> 已完成，其余非未开始状态归入进行中
+const normalizeMilestoneStatus = (status?: string | null): MilestoneStatus => {
+  if (!status) return DEFAULT_MILESTONE_STATUS
+  if (status.includes('完成')) return '已完成'
+  if (status === '未开始') return '未开始'
+  return '进行中'
+}
+
 const milestoneForm = reactive({
   taskName: '',
   plannedStart: '',
   plannedEnd: '',
   actualStart: '',
   actualEnd: '',
+  status: DEFAULT_MILESTONE_STATUS as MilestoneStatus,
   remark: '',
   isKey: false,
   isMilestone: false
+})
+
+const milestoneStatusSelection = computed({
+  get: () => milestoneStatusOptions.find((o) => o.value === milestoneForm.status),
+  set: (val: { value?: string } | null) => {
+    if (val?.value) milestoneForm.status = val.value as MilestoneStatus
+  }
 })
 
 const loadMilestones = async () => {
@@ -1392,6 +1443,7 @@ const openCreateMilestoneDialog = () => {
   milestoneForm.plannedEnd = ''
   milestoneForm.actualStart = ''
   milestoneForm.actualEnd = ''
+  milestoneForm.status = DEFAULT_MILESTONE_STATUS
   milestoneForm.remark = ''
   milestoneForm.isKey = false
   milestoneForm.isMilestone = true
@@ -1405,6 +1457,7 @@ const openEditMilestoneDialog = (m: ProgressV2Milestone) => {
   milestoneForm.plannedEnd = m.plannedEnd ? m.plannedEnd.slice(0, 10) : ''
   milestoneForm.actualStart = m.actualStart ? m.actualStart.slice(0, 10) : ''
   milestoneForm.actualEnd = m.actualEnd ? m.actualEnd.slice(0, 10) : ''
+  milestoneForm.status = normalizeMilestoneStatus(m.status)
   milestoneForm.remark = m.remark || ''
   const tagList = Array.isArray(m.tags)
     ? m.tags
@@ -1430,7 +1483,7 @@ const handleSaveMilestone = async () => {
       plannedEnd: milestoneForm.plannedEnd || null,
       actualStart: milestoneForm.actualStart || null,
       actualEnd: milestoneForm.actualEnd || null,
-      status: milestoneForm.actualEnd ? '已完成' : '进行中',
+      status: milestoneForm.status,
       milestoneType: 'phase',
       responsible: null,
       remark: milestoneForm.remark || null,

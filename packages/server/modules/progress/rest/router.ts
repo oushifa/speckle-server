@@ -14,7 +14,6 @@ import {
   deleteProgressActualRecordFactory,
   getProgressActualRecordFactory,
   listProgressActualRecordsFactory,
-  type ProgressActualRecord,
   updateProgressActualRecordFactory
 } from '@/modules/progress/repositories/progressActualRecords'
 import {
@@ -66,6 +65,12 @@ import {
   importProgressPlanTasksFromBlobFactory
 } from '@/modules/progress/services/mppTaskImport'
 import { importProgressActualRecordsFromBlobFactory } from '@/modules/progress/services/actualRecordExcelImport'
+import { buildComponentCodeLookup } from '@/modules/progress/services/componentCodeLookup'
+import {
+  buildStoredComponentCodeMap,
+  collectUnresolvedApplicationIds,
+  serializeActualRecord
+} from '@/modules/progress/services/progressActualRecordSerializer'
 import {
   rebuildAllProgressSnapshotsFactory,
   syncActualRecordDerivedDataFactory,
@@ -714,16 +719,6 @@ const serializeSinglePlanTask = (task: ProgressPlanTaskRecord) =>
     }
   })
 
-const buildWeekDay = (reportDate: string) => {
-  const match = reportDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return ''
-
-  const [, year, month, day] = match
-  const date = new Date(Number(year), Math.max(0, Number(month) - 1), Number(day))
-  const dayMap = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  return Number.isNaN(date.getTime()) ? '' : dayMap[date.getDay()]
-}
-
 const serializeMonthlyPlanTask = (task: MonthlyPlanTaskRecord) => ({
   id: task.id,
   monthlyPlanId: task.monthlyPlanId,
@@ -845,57 +840,6 @@ const syncMissingMonthlyTasksFromActual = async (
       await trx('project_progress_monthly_plan_tasks').insert(tasksToInsert)
       await syncAllPlanTasksBimFromMonthlyPlans(projectId, trx)
     }
-  }
-}
-
-const serializeActualRecord = (record: ProgressActualRecord) => {
-  const [year = '', month = '', day = ''] = record.reportDate.split('-')
-  const startBIM = record.startBIM || record.BIM
-  const finishBIM = record.finishBIM
-
-  return {
-    id: record.id,
-    projectId: record.projectId,
-    taskName: record.taskName,
-    year,
-    month,
-    day,
-    weekDay: buildWeekDay(record.reportDate),
-    reportDate: record.reportDate,
-    startElementCodes: record.startElementCodes || '',
-    finishElementCodes: record.finishElementCodes || '',
-    startBIM: startBIM || [],
-    finishBIM: finishBIM || [],
-    remark: record.remark || '',
-    highTemperature: record.highTemperature || '',
-    lowTemperature: record.lowTemperature || '',
-    morningWeather: record.morningWeather || '',
-    afternoonWeather: record.afternoonWeather || '',
-    nightCondition: record.nightCondition || '',
-    constructionRecord: record.constructionRecord || '',
-    qualityRecord: record.qualityRecord || '',
-    safetyRecord: record.safetyRecord || '',
-    mortarConcreteSampleRecord: record.mortarConcreteSampleRecord || '',
-    materialEquipmentRecord: record.materialEquipmentRecord || '',
-    siteAppearanceRecord: record.siteAppearanceRecord || '',
-    overtimeRecord: record.overtimeRecord || '',
-    otherRecord: record.otherRecord || '',
-    siteLeader: record.siteLeader || '',
-    reporter: record.reporter || '',
-    constructionLog: record.constructionLog || '',
-    yearMonth: record.yearMonth || '',
-    tasks: record.tasks
-      ? typeof record.tasks === 'string'
-        ? JSON.parse(record.tasks)
-        : record.tasks
-      : [],
-    workers: record.workers
-      ? typeof record.workers === 'string'
-        ? JSON.parse(record.workers)
-        : record.workers
-      : [],
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString()
   }
 }
 
@@ -1376,7 +1320,25 @@ const buildRoute = (router: Router) => {
           projectId
         })
 
-        return res.status(200).json({ data: records.map(serializeActualRecord) })
+        // 关联构件未存储构件编码时，按构件 ID 反查完整构件编码（仅反查缺失的部分）
+        const storedComponentCodes = buildStoredComponentCodeMap(records)
+        const unresolvedApplicationIds = collectUnresolvedApplicationIds(
+          records,
+          storedComponentCodes
+        )
+        const componentCodeLookup = unresolvedApplicationIds.length
+          ? await buildComponentCodeLookup(
+              projectDb,
+              projectId,
+              unresolvedApplicationIds
+            )
+          : new Map<string, string>()
+
+        return res.status(200).json({
+          data: records.map((record) =>
+            serializeActualRecord(record, componentCodeLookup)
+          )
+        })
       } catch (err) {
         next(err)
       }

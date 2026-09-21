@@ -327,6 +327,7 @@ const updated = await updateProgressPlanTaskBimAssociation({
 
 - 获取实际进度台账
 - 返回 `开始构件` 和 `完成构件` 两套多模型结果
+- 返回关联构件的「构件编码」，以及构件编码与 `modelId` / `applicationId` 的对应关系明细
 
 返回字段重点：
 
@@ -336,6 +337,70 @@ const updated = await updateProgressPlanTaskBimAssociation({
 - `finishSelections`
 - `startElementCodes`
 - `finishElementCodes`
+- `componentCodes`：该记录关联到的全部构件编码（已去重），来源包括开始构件、完成构件与工程细项 BIM 关联
+- `bimComponents`：构件编码与 `modelId` / `applicationId` 的对应关系明细
+
+构件编码返回结构：
+
+```json
+{
+  "startBIM": [
+    {
+      "modelId": "modelA",
+      "applicationIds": ["app-1", "app-2"],
+      "bimIds": ["CB-01", null],
+      "componentCodes": ["CB-01", "分类对象代码+空间代码+分部分项代码+序号码"],
+      "components": [
+        { "modelId": "modelA", "applicationId": "app-1", "componentCode": "CB-01" },
+        {
+          "modelId": "modelA",
+          "applicationId": "app-2",
+          "componentCode": "分类对象代码+空间代码+分部分项代码+序号码"
+        }
+      ]
+    }
+  ],
+  "finishBIM": [],
+  "tasks": [
+    {
+      "taskName": "二层墙体",
+      "selections": [
+        {
+          "modelId": "modelA",
+          "applicationIds": ["app-3"],
+          "componentCodes": ["CB-03"],
+          "components": [
+            { "modelId": "modelA", "applicationId": "app-3", "componentCode": "CB-03" }
+          ]
+        }
+      ]
+    }
+  ],
+  "componentCodes": ["CB-01", "CB-03"],
+  "bimComponents": [
+    {
+      "scope": "start",
+      "modelId": "modelA",
+      "applicationId": "app-1",
+      "componentCode": "CB-01"
+    },
+    {
+      "scope": "task",
+      "modelId": "modelA",
+      "applicationId": "app-3",
+      "componentCode": "CB-03",
+      "taskName": "二层墙体",
+      "linkedPlanTaskId": null
+    }
+  ]
+}
+```
+
+说明：
+
+- `componentCodes` 与 `componentCodes[]` 优先取记录上已存储的构件编码（`bimIds` / `componentCodes`），缺失时服务端按构件 ID（`applicationId` / Revit UniqueId / 对象 ID）在项目模型中反查完整构件编码（`分类对象代码 + 空间代码 + 分部分项代码 + 序号码`），反查不到时为 `null`。
+- 反查仅针对未存储编码的关联构件触发，不影响接口常规查询性能。
+- `bimComponents[].scope` 取值：`start`（今日开始施工构件）、`finish`（今日完成构件）、`task`（工程细项 BIM 关联）。
 
 前端调用：
 
