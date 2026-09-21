@@ -44,12 +44,16 @@ import { enrichTasksWithQueuePosition } from '@/modules/model-sync/services/queu
 import { stopModelSyncTaskFactory } from '@/modules/model-sync/services/stop'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
+import { attachImportedModelSourceFactory } from '@/modules/core/services/streams/modelLibraryImport'
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
 const globalRouteBase = '/api/v1/model-sync/tasks'
 // 模型删除前调用：停止该模型当前阶段的转换 / 同步
 const stopRouteBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/stop'
+// 从模型库导入后：把源文件 / 中海同步标识 / 自定义属性补齐到导入模型
+const importLibrarySourceRouteBase =
+  '/api/v1/projects/:projectId/models/:modelId/import-library-source'
 
 const modelSyncErrHandler = (
   err: unknown,
@@ -187,6 +191,11 @@ export const modelSyncRouterFactory = () => {
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(stopRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(projectRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    importLibrarySourceRouteBase,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
   router.options(
     `${globalRouteBase}/events`,
     cors(),
@@ -436,6 +445,58 @@ export const modelSyncRouterFactory = () => {
           modelId,
           userId,
           reason: reason || undefined
+        })
+
+        res.json({ data: result })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  /**
+   * 从模型库导入模型后的收尾接口：把源模型的源文件 / 中海同步标识 / 自定义属性
+   * 复制到刚导入的模型上，解决「导入模型没有中海同步」「源文件无法下载导出」问题。
+   */
+  router.post(
+    importLibrarySourceRouteBase,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const modelId = req.params.modelId
+        const userId = req.context.userId
+        await requireVersionCreate(req, projectId)
+
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated.' })
+        }
+
+        const sourceProjectId =
+          typeof req.body?.sourceProjectId === 'string'
+            ? req.body.sourceProjectId.trim()
+            : ''
+        const sourceModelId =
+          typeof req.body?.sourceModelId === 'string'
+            ? req.body.sourceModelId.trim()
+            : ''
+        if (!sourceProjectId || !sourceModelId) {
+          throw new BadRequestError('sourceProjectId and sourceModelId are required')
+        }
+
+        await requireProjectRead(req, sourceProjectId)
+
+        const versionId =
+          typeof req.body?.versionId === 'string' ? req.body.versionId.trim() : ''
+
+        const result = await attachImportedModelSourceFactory()({
+          sourceProjectId,
+          sourceModelId,
+          targetProjectId: projectId,
+          targetModelId: modelId,
+          targetVersionId: versionId || null,
+          userId
         })
 
         res.json({ data: result })
@@ -1040,5 +1101,6 @@ export const modelSyncRouterFactory = () => {
   router.use(projectRouteBase, modelSyncErrHandler)
   router.use(routeBase, modelSyncErrHandler)
   router.use(stopRouteBase, modelSyncErrHandler)
+  router.use(importLibrarySourceRouteBase, modelSyncErrHandler)
   return router
 }

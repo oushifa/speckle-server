@@ -78,6 +78,19 @@ const TerminalFileUploadStatuses = new Set<FileUploadConvertedStatus>([
 const TerminalProgressPhases = new Set(['completed', 'failed'])
 const PostConversionLockTimeoutMs = 30 * 60 * 1000
 
+/**
+ * 中海（DTP）同步阶段的进度百分比基线，与前端进度条展示保持一致：
+ * 获取上传信息成功 65% -> 上传文件到中海 70% -> 触发中海转换 80% -> 轮询每轮 +2%（上限 99%）
+ */
+const DtpSyncStageProgress = {
+  uploadConfigReady: 65,
+  uploadingToDtp: 70,
+  triggeringTransform: 80,
+  pollingTransformStart: 80,
+  pollingTransformStep: 2,
+  pollingTransformMax: 99
+} as const
+
 const modelSyncTaskRunnerLogger = moduleLogger.child({
   module: 'model-sync-task-runner'
 })
@@ -527,9 +540,9 @@ export const runModelSyncTaskFactory =
         assetName: null,
         transformTaskId: null,
         status: 'syncing_dtp_model',
-        progressPercent: null,
+        progressPercent: DtpSyncStageProgress.uploadConfigReady,
         progressPhase: null,
-        progressMessage: '正在同步 DTP 模型',
+        progressMessage: '正在获取中海上传信息',
         error: null,
         errorCode: null,
         retriable: false
@@ -545,7 +558,19 @@ export const runModelSyncTaskFactory =
       const dtpResult = await uploadToDtp({
         mobile,
         fileName: upload.fileName,
-        buffer: fileBuffer
+        buffer: fileBuffer,
+        onConfigReady: async () => {
+          await patchTask({
+            progressPercent: DtpSyncStageProgress.uploadConfigReady,
+            progressMessage: '已获取中海上传信息，准备上传模型'
+          })
+        },
+        onUploadStart: async () => {
+          await patchTask({
+            progressPercent: DtpSyncStageProgress.uploadingToDtp,
+            progressMessage: '正在上传模型到中海'
+          })
+        }
       })
 
       // 上传过程中模型可能已被删除：刚创建的 DTP 资产需要立即清理并终止同步
@@ -563,7 +588,7 @@ export const runModelSyncTaskFactory =
         assetId: dtpResult.assetId,
         assetName: dtpResult.assetName,
         status: 'syncing_external_ids',
-        progressPercent: null,
+        progressPercent: DtpSyncStageProgress.uploadingToDtp,
         progressPhase: null,
         progressMessage: '正在同步外部 ID',
         error: null,
@@ -595,7 +620,7 @@ export const runModelSyncTaskFactory =
       await patchTask({
         transformTaskId: null,
         status: 'triggering_model_transform',
-        progressPercent: null,
+        progressPercent: DtpSyncStageProgress.triggeringTransform,
         progressPhase: null,
         progressMessage: '正在触发模型转换',
         error: null,
@@ -612,14 +637,25 @@ export const runModelSyncTaskFactory =
       await patchTask({
         transformTaskId,
         status: 'polling_model_transform',
-        progressPercent: null,
+        progressPercent: DtpSyncStageProgress.pollingTransformStart,
         progressPhase: null,
         progressMessage: '正在等待模型转换完成'
       })
 
       await pollTransform({
         mobile,
-        transformTaskId
+        transformTaskId,
+        onAttempt: async ({ attempt }) => {
+          // 每次轮询 +2%，上限 99%，成功后由最终阶段置为 100%
+          await patchTask({
+            progressPercent: Math.min(
+              DtpSyncStageProgress.pollingTransformMax,
+              DtpSyncStageProgress.pollingTransformStart +
+                attempt * DtpSyncStageProgress.pollingTransformStep
+            ),
+            progressMessage: `正在等待模型转换完成（第 ${attempt} 次轮询）`
+          })
+        }
       })
     }
 

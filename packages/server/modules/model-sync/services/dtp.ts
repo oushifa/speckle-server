@@ -171,14 +171,22 @@ export const uploadBufferToDtpFactory =
     mobile: string
     fileName: string
     buffer: Buffer
+    /** 获取到中海上传配置（上传信息）后的回调 */
+    onConfigReady?: () => Promise<void> | void
+    /** 即将开始向中海上传文件时的回调 */
+    onUploadStart?: () => Promise<void> | void
   }): Promise<DtpUploadResult> => {
     const token = await deps.loginToDtp(params.mobile)
     const { uploadUrl, uploadPathPrefix, uploadToken } = await deps.getDtpUploadConfig(
       token
     )
+    await params.onConfigReady?.()
+
     const chunkPlan = resolveChunkPlan(params.buffer.length)
     const assetName = buildAssetName(params.fileName)
     const path = `${uploadPathPrefix}${params.fileName}`
+
+    await params.onUploadStart?.()
 
     let finalResult: DtpUploadResult | null = null
 
@@ -375,12 +383,16 @@ export const pollDtpModelTransformUntilFinishedFactory =
     transformTaskId: string
     waitMs?: number
     maxAttempts?: number
+    /** 每次轮询中海转换状态前的回调（attempt 从 1 开始） */
+    onAttempt?: (params: { attempt: number }) => Promise<void> | void
   }) => {
     const token = await loginToDtpFactory()(params.mobile)
     const waitMs = params.waitMs || 10000
     const maxAttempts = params.maxAttempts || 180
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await params.onAttempt?.({ attempt: attempt + 1 })
+
       const response = await fetch(
         `${THIRD_PARTY_API_BASE}/v1/daas/pipeline/task/${params.transformTaskId}`,
         {
