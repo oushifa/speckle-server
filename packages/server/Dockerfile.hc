@@ -79,6 +79,25 @@ RUN --mount=type=cache,target=/speckle-server/node_modules/.cache \
 # 9. 构建环境验证
 RUN java -version && javac -version && node -v && yarn -v
 
+# 10. 瘦身：删除运行期确定用不到的大目录，降低镜像体积与跨海推送耗时
+# 注意：运行期 `yarn cli` 依赖 tsx 执行 TS 源码，因此不能裁剪 devDependencies，
+# 只删除确定不会被加载的内容：yarn 压缩包缓存、构建期缓存、浏览器测试框架。
+RUN du -sh /speckle-server/.yarn/cache /speckle-server/node_modules 2>/dev/null || true \
+    ; rm -rf /speckle-server/.yarn/cache \
+    /speckle-server/node_modules/.cache \
+    /speckle-server/packages/server/node_modules/.cache \
+    /speckle-server/packages/shared/node_modules/.cache \
+    /speckle-server/packages/objectloader/node_modules/.cache \
+    /speckle-server/node_modules/puppeteer \
+    /speckle-server/node_modules/puppeteer-core \
+    /speckle-server/node_modules/@playwright \
+    /speckle-server/node_modules/playwright \
+    /speckle-server/node_modules/playwright-core \
+    /speckle-server/node_modules/cypress \
+    /root/.cache/Cypress /root/.cache/ms-playwright /root/.npm/_cacache \
+    || true
+RUN du -sh /speckle-server /speckle-server/node_modules 2>/dev/null || true
+
 
 ############################
 # PRODUCTION STAGE
@@ -95,7 +114,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update -y && apt-get install -y --no-install-recommends \
     libvips \
     ca-certificates \
-    openjdk-17-jdk-headless \
+    openjdk-17-jre-headless \
     tini \
     && rm -rf /var/lib/apt/lists/*
 
@@ -115,7 +134,7 @@ ENV NODE_ENV=${NODE_ENV} \
     SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
     FF_RHINO_FILE_IMPORTER_ENABLED=true
 
-# 6. 生产环境验证
-RUN java -version && javac -version
+# 6. 生产环境验证（运行期只需 java）
+RUN java -version
 
 ENTRYPOINT ["tini", "--", "sh", "-lc", "yarn cli db migrate latest && node --import=./esmLoader.js ./bin/www"]
