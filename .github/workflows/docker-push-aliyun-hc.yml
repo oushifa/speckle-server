@@ -4,9 +4,11 @@ name: Build & Push to Aliyun ACR (hc-server)
 #   registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server:server-<时间戳>   后端
 #   registry.cn-hangzhou.aliyuncs.com/lengyingxi/hc-speckle-server:ifc-<时间戳>      IFC 导入服务
 # 时间戳 = 北京时间(Asia/Shanghai)的 YYYYMMDDHHMMSS, 前后端两个镜像共用同一个时间戳。
+# 自动编译已改由服务器侧定时任务执行(见 deploy/auto-build.sh),
+# 服务器在国内且有 docker 层缓存, 比 GitHub 海外 runner 快很多。
+# 这里保留手动触发, 作为备用/应急手段。
 on:
-  push:
-    branches: [ hc-server ]
+  workflow_dispatch:
 
 concurrency:
   group: aliyun-build-hc-${{ github.ref }}
