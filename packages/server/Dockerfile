@@ -59,6 +59,25 @@ RUN yarn workspaces foreach -A --include '{@speckle/shared,@speckle/objectloader
 # 验证（确认 javac 存在）
 RUN java -version && javac -version && node -v && yarn -v
 
+# ===== 瘦身：删除运行时确定用不到的大目录，降低镜像体积与推送耗时 =====
+# 注意：运行时 `yarn cli` 依赖 tsx 执行 TS 源码，因此不能裁剪 devDependencies，
+# 这里只删除确定不会被加载的内容：yarn 压缩包缓存、构建期缓存、浏览器测试框架。
+RUN du -sh /speckle-server/.yarn/cache /speckle-server/node_modules 2>/dev/null || true \
+    ; rm -rf /speckle-server/.yarn/cache \
+    /speckle-server/node_modules/.cache \
+    /speckle-server/packages/server/node_modules/.cache \
+    /speckle-server/packages/shared/node_modules/.cache \
+    /speckle-server/packages/objectloader/node_modules/.cache \
+    /speckle-server/node_modules/puppeteer \
+    /speckle-server/node_modules/puppeteer-core \
+    /speckle-server/node_modules/@playwright \
+    /speckle-server/node_modules/playwright \
+    /speckle-server/node_modules/playwright-core \
+    /speckle-server/node_modules/cypress \
+    /root/.cache/Cypress /root/.cache/ms-playwright /root/.npm/_cacache \
+    || true
+RUN du -sh /speckle-server /speckle-server/node_modules 2>/dev/null || true
+
 
 ############################
 # PRODUCTION STAGE
@@ -67,11 +86,12 @@ FROM node:22-bookworm-slim AS production-stage
 
 WORKDIR /speckle-server
 
-# 运行依赖（sharp runtime + Java JDK）
+# 运行依赖（sharp runtime + Java 运行时）
+# 只用 JRE 即可：运行期只执行 java（rhino/ifc 导入），不需要 javac，体积比 JDK 小很多
 RUN apt-get update -y && apt-get install -y \
     libvips \
     ca-certificates \
-    openjdk-17-jdk-headless \
+    openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # tini
@@ -92,7 +112,7 @@ ENV NODE_ENV=${NODE_ENV} \
     SPECKLE_SERVER_VERSION=${SPECKLE_SERVER_VERSION} \
     FF_RHINO_FILE_IMPORTER_ENABLED=true
 
-# 验证（确保 runtime 也有 javac）
-RUN java -version && javac -version
+# 验证（运行期只需 java）
+RUN java -version
 
 ENTRYPOINT ["tini", "--", "sh", "-lc", "yarn cli db migrate latest && node --import=./esmLoader.js ./bin/www"]

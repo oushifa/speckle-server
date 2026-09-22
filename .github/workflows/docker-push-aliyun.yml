@@ -5,10 +5,10 @@ name: Build & Push to Aliyun ACR
 #   registry.cn-hangzhou.aliyuncs.com/lengyingxi/speckle-server:server-<时间戳>
 #   registry.cn-hangzhou.aliyuncs.com/lengyingxi/speckle-server:frontend-<时间戳>
 # 时间戳 = 北京时间(Asia/Shanghai)的 YYYYMMDDHHMMSS, 与本机 build.sh 命名规则一致。
-# 自动编译已改由服务器侧定时任务执行(见 deploy/auto-build.sh):
-# 服务器在国内, 复用 docker 层缓存, 推送阿里云快得多。
-# 这里保留手动触发, 作为备用/应急手段。
+# 推送到 main 时自动编译推送; 同时支持在 Actions 页面手动触发。
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 # 同一时间只保留最新一次构建:连续 push 时自动取消旧任务, 避免浪费。
@@ -69,7 +69,7 @@ jobs:
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aliyun-server
-          cache-to: type=gha,mode=max,scope=aliyun-server
+          cache-to: type=gha,mode=min,scope=aliyun-server
 
   build-push-frontend:
     name: Build & push frontend
@@ -99,4 +99,4 @@ jobs:
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aliyun-frontend
-          cache-to: type=gha,mode=max,scope=aliyun-frontend
+          cache-to: type=gha,mode=min,scope=aliyun-frontend
