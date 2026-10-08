@@ -290,6 +290,205 @@ describe('External API @external', () => {
         targetCompCode
       ])
     })
+
+    it('resolves component codes with the space code of the component own model', async () => {
+      const modelAId = 'spcmdl_a01'
+      const modelBId = 'spcmdl_b01'
+      const commitAId = 'spcmt_a001'
+      const commitBId = 'spcmt_b001'
+      const rootAId = 'space_code_root_a'
+      const rootBId = 'space_code_root_b'
+      const projectInfoAId = 'space_code_info_a'
+      const projectInfoBId = 'space_code_info_b'
+      const componentAId = 'space_code_component_a'
+      const componentBId = 'space_code_component_b'
+      const decoyInfoId = '00_space_code_decoy'
+
+      const appIdA = 'space-code-app-a'
+      const appIdB = 'space-code-app-b'
+      const codeA = '14-94.04.01.00.00.1NB01020101CB1-28'
+      const codeB = '14-94.01.05.00.00.1NB01010102E01'
+
+      // 1. 两个模型（branch + 最新版本）
+      await db('branches').insert([
+        {
+          id: modelAId,
+          streamId: projectId,
+          projectId,
+          name: '空间代码模型A',
+          authorId: user.id
+        },
+        {
+          id: modelBId,
+          streamId: projectId,
+          projectId,
+          name: '空间代码模型B',
+          authorId: user.id
+        }
+      ])
+      await db('commits').insert([
+        { id: commitAId, referencedObject: rootAId, createdAt: new Date() },
+        { id: commitBId, referencedObject: rootBId, createdAt: new Date() }
+      ])
+      await db('branch_commits').insert([
+        { branchId: modelAId, commitId: commitAId },
+        { branchId: modelBId, commitId: commitBId }
+      ])
+
+      const projectInfoNode = (spaceCode: string, appId: string) => ({
+        name: '项目信息 - 项目信息',
+        category: '项目信息',
+        applicationId: appId,
+        properties: {
+          Parameters: {
+            'Instance Parameters': {
+              文字: {
+                空间代码: {
+                  name: '空间代码',
+                  value: spaceCode,
+                  internalDefinitionName: 'e70ae2df-29dc-4dcb-ae62-275b2b0a00fe'
+                }
+              }
+            }
+          }
+        }
+      })
+
+      const componentNode = (
+        appId: string,
+        classCode: string,
+        sectionCode: string,
+        serialNumber: string
+      ) => ({
+        applicationId: appId,
+        properties: {
+          'Property Sets': {
+            文字: { 序号码: { name: '序号码', value: serialNumber } }
+          },
+          'Element Type Property Sets': {
+            文字: {
+              分类对象代码: { name: '分类对象代码', value: classCode },
+              分部分项代码: { name: '分部分项代码', value: sectionCode }
+            }
+          }
+        }
+      })
+
+      // 2. 每个模型各有自己的「项目信息」节点；另有一个带空间代码的干扰节点，
+      //    它不属于任何模型，用来确保不再走「全项目取第一个」的旧口径
+      await db('objects').insert([
+        {
+          id: rootAId,
+          streamId: projectId,
+          speckleType: 'Speckle.Core.Models.Collections.Collection',
+          data: JSON.stringify({
+            __closure: { [projectInfoAId]: 1, [componentAId]: 1 }
+          })
+        },
+        {
+          id: rootBId,
+          streamId: projectId,
+          speckleType: 'Speckle.Core.Models.Collections.Collection',
+          data: JSON.stringify({
+            __closure: { [projectInfoBId]: 1, [componentBId]: 1 }
+          })
+        },
+        {
+          id: projectInfoAId,
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify(projectInfoNode('NB0102', 'space-code-info-app-a'))
+        },
+        {
+          id: projectInfoBId,
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify(projectInfoNode('NB0101', 'space-code-info-app-b'))
+        },
+        {
+          id: componentAId,
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify(
+            componentNode(appIdA, '14-94.04.01.00.00.1', '0101', 'CB1-28')
+          )
+        },
+        {
+          id: componentBId,
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify(
+            componentNode(appIdB, '14-94.01.05.00.00.1', '0102', 'E01')
+          )
+        },
+        {
+          id: decoyInfoId,
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify({ 分类对象代码: 'DECOY', 空间代码: 'DECOY' })
+        }
+      ])
+
+      // 3. 两个模型下各一张验收单
+      await db('quality_acceptance_forms').insert([
+        {
+          id: 'qa_form_space_a',
+          project_id: projectId,
+          name: '模型A验收单',
+          creator: user.id,
+          BIM: JSON.stringify([
+            { modelId: modelAId, applicationIds: [appIdA], bimIds: ['CB1-28'] }
+          ]),
+          attachments: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: 'qa_form_space_b',
+          project_id: projectId,
+          name: '模型B验收单',
+          creator: user.id,
+          BIM: JSON.stringify([
+            { modelId: modelBId, applicationIds: [appIdB], bimIds: ['E01'] }
+          ]),
+          attachments: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ])
+
+      // 4. 模型 A 的构件用 A 自己的空间代码（NB0102）才能命中
+      const responseA = await request(app)
+        .post(`/api/v1/external/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          model_id: modelAId,
+          componentCodes: [codeA, codeB]
+        })
+
+      expect(responseA.status).to.equal(200)
+      expect(responseA.body.results[0].forms).to.have.lengthOf(1)
+      expect(responseA.body.results[0].forms[0].id).to.equal('qa_form_space_a')
+      expect(responseA.body.results[0].forms[0].BIM[0].bimCodes).to.deep.equal([codeA])
+      expect(responseA.body.results[1].forms).to.have.lengthOf(0)
+
+      // 5. 模型 B 同理，用 B 自己的空间代码（NB0101）命中
+      const responseB = await request(app)
+        .post(`/api/v1/external/quality-acceptance/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          model_id: modelBId,
+          componentCodes: [codeA, codeB]
+        })
+
+      expect(responseB.status).to.equal(200)
+      expect(responseB.body.results[0].forms).to.have.lengthOf(0)
+      expect(responseB.body.results[1].forms).to.have.lengthOf(1)
+      expect(responseB.body.results[1].forms[0].id).to.equal('qa_form_space_b')
+      expect(responseB.body.results[1].forms[0].BIM[0].bimCodes).to.deep.equal([codeB])
+    })
   })
 
   describe('Progress V2 Data Endpoints', () => {

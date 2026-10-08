@@ -68,7 +68,7 @@ import { importProgressActualRecordsFromBlobFactory } from '@/modules/progress/s
 import { buildComponentCodeLookup } from '@/modules/progress/services/componentCodeLookup'
 import {
   buildStoredComponentCodeMap,
-  collectUnresolvedApplicationIds,
+  collectUnresolvedComponentEntries,
   serializeActualRecord
 } from '@/modules/progress/services/progressActualRecordSerializer'
 import {
@@ -1322,15 +1322,15 @@ const buildRoute = (router: Router) => {
 
         // 关联构件未存储构件编码时，按构件 ID 反查完整构件编码（仅反查缺失的部分）
         const storedComponentCodes = buildStoredComponentCodeMap(records)
-        const unresolvedApplicationIds = collectUnresolvedApplicationIds(
+        const unresolvedComponentEntries = collectUnresolvedComponentEntries(
           records,
           storedComponentCodes
         )
-        const componentCodeLookup = unresolvedApplicationIds.length
+        const componentCodeLookup = unresolvedComponentEntries.length
           ? await buildComponentCodeLookup(
               projectDb,
               projectId,
-              unresolvedApplicationIds
+              unresolvedComponentEntries
             )
           : new Map<string, string>()
 

@@ -694,17 +694,16 @@ export const externalRouterFactory = (): Router => {
       ])
 
       const serializedTasks = serializePlanTasksWithAggregation(tasks, snapshots)
-      const allAppIds = new Set<string>()
-      serializedTasks.forEach((task) => {
-        ;(task.BIM || []).forEach((entry) => {
-          entry.applicationIds.forEach((id) => allAppIds.add(id))
-        })
-      })
 
       const bimCodesLookup = await buildComponentCodeLookup(
         projectDb,
         projectId,
-        Array.from(allAppIds)
+        serializedTasks.flatMap((task) =>
+          (task.BIM || []).map((entry) => ({
+            modelId: entry.modelId,
+            applicationIds: entry.applicationIds
+          }))
+        )
       )
 
       const enrichedTasks = serializedTasks.map((task) => {
@@ -747,20 +746,15 @@ export const externalRouterFactory = (): Router => {
       })
       const recordsSerialized = records.map(serializeActualRecord)
 
-      const allAppIds = new Set<string>()
-      recordsSerialized.forEach((rec) => {
-        ;(rec.startBIM || []).forEach((entry: any) => {
-          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
-        })
-        ;(rec.finishBIM || []).forEach((entry: any) => {
-          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
-        })
-      })
-
       const bimCodesLookup = await buildComponentCodeLookup(
         projectDb,
         projectId,
-        Array.from(allAppIds)
+        recordsSerialized.flatMap((rec) =>
+          [...(rec.startBIM || []), ...(rec.finishBIM || [])].map((entry: any) => ({
+            modelId: entry.modelId,
+            applicationIds: entry.applicationIds
+          }))
+        )
       )
 
       const enrichedRecords = recordsSerialized.map((rec) => {
@@ -831,18 +825,15 @@ export const externalRouterFactory = (): Router => {
         }
       })
 
-      const allAppIds = new Set<string>()
-      items.forEach(({ form }) => {
-        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
-        bim.forEach((entry: any) => {
-          entry.applicationIds.forEach((id: any) => allAppIds.add(id))
-        })
-      })
-
       const bimCodesLookup = await buildComponentCodeLookup(
         projectDb,
         projectId,
-        Array.from(allAppIds)
+        items.flatMap(({ form }) =>
+          (normalizeBIM(form.BIM, form.BIMelement) || []).map((entry: any) => ({
+            modelId: entry.modelId,
+            applicationIds: entry.applicationIds
+          }))
+        )
       )
 
       const enrichedItems = items.map(({ form, attachments }) => {
@@ -1016,30 +1007,34 @@ export const externalRouterFactory = (): Router => {
         return bim.some((entry: any) => entry.modelId === modelId)
       })
 
-      // 按项目 ID 分配 applicationIds 查表建立 bimCodesLookup
-      const appIdsByProject = new Map<string, Set<string>>()
+      // 按项目分组收集待反查构件（携带 modelId，构件自身没有空间代码时按所属模型回退）
+      const entriesByProject = new Map<
+        string,
+        Array<{ modelId: string; applicationIds: string[] }>
+      >()
       for (const form of targetForms) {
         const pId = form.project_id || projectId
         if (!pId) continue
 
-        let appSet = appIdsByProject.get(pId)
-        if (!appSet) {
-          appSet = new Set<string>()
-          appIdsByProject.set(pId, appSet)
-        }
-
         const bim = normalizeBIM(form.BIM, form.BIMelement) || []
         bim.forEach((entry: any) => {
-          if (!modelId || entry.modelId === modelId) {
-            ;(entry.applicationIds || []).forEach((id: any) => appSet!.add(id))
-          }
+          if (modelId && entry.modelId !== modelId) return
+
+          const applicationIds = (entry.applicationIds || []).filter(
+            (id: any) => typeof id === 'string' && !!id
+          )
+          if (!applicationIds.length) return
+
+          const entries = entriesByProject.get(pId) || []
+          entries.push({ modelId: entry.modelId, applicationIds })
+          entriesByProject.set(pId, entries)
         })
       }
 
       const projectBimCodesLookups = new Map<string, Map<string, string>>()
-      for (const [pId, appIdsSet] of appIdsByProject.entries()) {
+      for (const [pId, entries] of entriesByProject.entries()) {
         const pDb = await getProjectDbClient({ projectId: pId })
-        const lookup = await buildComponentCodeLookup(pDb, pId, Array.from(appIdsSet))
+        const lookup = await buildComponentCodeLookup(pDb, pId, entries)
         projectBimCodesLookups.set(pId, lookup)
       }
 
@@ -1155,16 +1150,17 @@ export const externalRouterFactory = (): Router => {
       }))
 
       // 仅对未存储构件编码的关联构件做一次反查，避免无谓的模型数据扫描
-      const unresolvedAppIds = new Set<string>()
-      parsedRecords.forEach(({ bimEntries }) => {
-        bimEntries.forEach((entry) => {
-          if (entry.componentCodes.length) return
-          entry.applicationIds.forEach((appId) => unresolvedAppIds.add(appId))
-        })
-      })
+      const unresolvedEntries = parsedRecords.flatMap(({ bimEntries }) =>
+        bimEntries
+          .filter((entry) => !entry.componentCodes.length)
+          .map((entry) => ({
+            modelId: entry.modelId,
+            applicationIds: entry.applicationIds
+          }))
+      )
 
-      const bimCodesLookup = unresolvedAppIds.size
-        ? await buildComponentCodeLookup(projectDb, projectId, [...unresolvedAppIds])
+      const bimCodesLookup = unresolvedEntries.length
+        ? await buildComponentCodeLookup(projectDb, projectId, unresolvedEntries)
         : new Map<string, string>()
 
       const progressRecords = parsedRecords.map(({ record, bimEntries }) => ({

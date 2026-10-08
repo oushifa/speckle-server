@@ -436,7 +436,8 @@ const columns = [
   { id: 'acceptancePart', header: '区域部位', classes: 'col-span-1' },
   { id: 'inspectionLotNumber', header: '检验批编号', classes: 'col-span-1' },
   { id: 'acceptanceContent', header: '检验批内容', classes: 'col-span-2' },
-  { id: 'serialCodes', header: '构件序号码', classes: 'col-span-1' },
+  // 构件序号码列已按需求隐藏，如需恢复放开下面一行即可
+  // { id: 'serialCodes', header: '构件序号码', classes: 'col-span-1' },
   { id: 'actualFinishDate', header: '验收日期', classes: 'col-span-1 font-medium' },
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
   { id: 'unit', header: '单位', classes: 'col-span-1' },

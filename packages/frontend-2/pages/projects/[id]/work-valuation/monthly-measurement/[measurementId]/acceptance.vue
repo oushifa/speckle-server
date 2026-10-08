@@ -1986,9 +1986,13 @@ const getBlobDownloadUrl = (blobId: string) => {
   return `${apiOrigin}/api/stream/${props.projectId}/blob/${blobId}`
 }
 
-const formatMoney = (value: number | null | undefined) => {
-  if (value === null || value === undefined || !Number.isFinite(value)) return '0.00'
-  return value.toLocaleString('zh-CN', {
+// 后端 numeric 列经 pg 驱动返回的是字符串（如 "1234.5600"），
+// 必须先 Number() 转换，否则数字字符串会被判为非法值而显示成 0.00（单价列就属于这种情况）
+const formatMoney = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined || value === '') return '0.00'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '0.00'
+  return num.toLocaleString('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })

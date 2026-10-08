@@ -444,6 +444,13 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
   const importRows = []
   const codesInFile = new Set<string>()
 
+  // 复核相关列：表头不存在 → undefined（导入时保持原值不动），
+  // 表头存在但单元格为空 → null（视为明确置空），避免把"空"当成"没传"而回填合同值
+  const readReviewColumnValue = (
+    headerIndex: number,
+    value: number | null
+  ): number | null | undefined => (headerIndex < 0 ? undefined : value)
+
   for (let index = 0; index < matrix.length - 1; index++) {
     const row = matrix[index + 1]
     const rowNumber = index + 2
@@ -539,10 +546,19 @@ const parseImportRows = (sheet: XLSX.WorkSheet) => {
       quantity: type === 'ITEM' ? quantity : null,
       price: type === 'ITEM' ? price : null,
       amount: amount ?? null,
-      reviewQuantity: type === 'ITEM' ? reviewQuantity : null,
-      changeQuantity: type === 'ITEM' ? changeQuantity : null,
-      reviewPrice: type === 'ITEM' ? reviewPrice : null,
-      reviewAmount: reviewAmount ?? null
+      reviewQuantity: readReviewColumnValue(
+        reviewQuantityIndex,
+        type === 'ITEM' ? reviewQuantity : null
+      ),
+      changeQuantity: readReviewColumnValue(
+        changeQuantityIndex,
+        type === 'ITEM' ? changeQuantity : null
+      ),
+      reviewPrice: readReviewColumnValue(
+        reviewPriceIndex,
+        type === 'ITEM' ? reviewPrice : null
+      ),
+      reviewAmount: readReviewColumnValue(reviewAmountIndex, reviewAmount)
     })
   }
 

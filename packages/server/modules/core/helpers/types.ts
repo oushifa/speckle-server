@@ -405,6 +405,8 @@ export type SafetyMeasureItemRecord = {
   engineeringAmount?: Nullable<number>
   contractDeptQty?: Nullable<number>
   contractDeptAmount?: Nullable<number>
+  /** 明细行备注：流程结束前由当前节点审批人填写 */
+  remark?: Nullable<string>
   createdAt: Date
   updatedAt: Date
 }

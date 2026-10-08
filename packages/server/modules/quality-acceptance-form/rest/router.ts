@@ -2743,6 +2743,12 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         existingItems.map((it: any) => [it.boqItemId, it])
       )
 
+      // 备注统一裁剪并限制长度，避免超长写入
+      const normalizeRemark = (value: unknown) => {
+        const text = String(value ?? '').trim()
+        return text ? text.slice(0, 255) : null
+      }
+
       const fieldRoleMap = [
         { key: 'contractorQty', role: 'contractor' as const },
         { key: 'supervisionQty', role: 'supervision' as const },
@@ -2793,7 +2799,26 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
       }
 
-      await updateMonthlyMeasurementItemsBatchFactory({ db: projectDb })(id, items)
+      // 备注与角色列无关：流程结束前，当前节点审批人（草稿期为创建人所在节点）均可填写
+      const remarkChanged = items.some((item: any) => {
+        if (!Object.prototype.hasOwnProperty.call(item, 'remark')) return false
+        const prev = existingMap.get(item.boqItemId) || {}
+        return normalizeRemark(item.remark) !== normalizeRemark(prev.remark)
+      })
+
+      if (remarkChanged) {
+        await checkEditableBeforeFlowEnd(projectDb, id, userId)
+      }
+
+      const itemsToUpdate = items.map((item: any) => {
+        if (!Object.prototype.hasOwnProperty.call(item, 'remark')) return item
+        return { ...item, remark: normalizeRemark(item.remark) }
+      })
+
+      await updateMonthlyMeasurementItemsBatchFactory({ db: projectDb })(
+        id,
+        itemsToUpdate
+      )
 
       // 更新主表更新时间
       await projectDb('monthly_measurements')
@@ -4549,6 +4574,12 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         for (const it of itemsPayload) {
           const updateFields: Record<string, any> = {}
           const price = Number(it.price || 0)
+
+          // 备注与角色列无关：流程结束前，当前节点审批人（草稿期为创建人）均可填写
+          if (Object.prototype.hasOwnProperty.call(it, 'remark')) {
+            const remark = String(it.remark ?? '').trim()
+            updateFields.remark = remark ? remark.slice(0, 255) : null
+          }
 
           if (currentRole === 'contractor') {
             updateFields.contractorQty = Number(it.contractorQty || 0)

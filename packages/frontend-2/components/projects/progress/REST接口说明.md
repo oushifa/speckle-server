@@ -398,7 +398,8 @@ const updated = await updateProgressPlanTaskBimAssociation({
 
 说明：
 
-- `componentCodes` 与 `componentCodes[]` 优先取记录上已存储的构件编码（`bimIds` / `componentCodes`），缺失时服务端按构件 ID（`applicationId` / Revit UniqueId / 对象 ID）在项目模型中反查完整构件编码（`分类对象代码 + 空间代码 + 分部分项代码 + 序号码`），反查不到时为 `null`。
+- `componentCodes` 与嵌套的 `componentCodes[]` 优先取记录上已存储的构件编码（`bimIds` / `componentCodes`）；缺失时服务端按构件 ID（`applicationId` / Revit UniqueId / 对象 ID）在项目模型中反查。
+- 反查口径与外部查询接口一致：优先取构件自身的「构件编码」，缺失时按 `分类对象代码 + 空间代码 + 分部分项代码 + 序号码` 拼接（如 `14-94.01.05.00.00.1NB01010102E01`）；均无匹配时为 `null`。
 - 反查仅针对未存储编码的关联构件触发，不影响接口常规查询性能。
 - `bimComponents[].scope` 取值：`start`（今日开始施工构件）、`finish`（今日完成构件）、`task`（工程细项 BIM 关联）。
 

@@ -26,6 +26,39 @@ Start the development server on http://localhost:8081
 yarn dev
 ```
 
+### Develop against a remote server
+
+If you don't want to run the whole stack locally (server, postgres, redis, ...), you can run the
+frontend locally and let a small dev proxy forward all backend traffic to a remote Speckle server.
+This keeps the browser on a single origin, so cookies, redirects, file uploads/downloads and
+GraphQL subscriptions (WebSockets) behave exactly like they do behind the production ingress.
+
+```bash
+# from the repo root
+yarn dev:frontend-2:remote
+# or from this package
+yarn dev:remote
+```
+
+Then open **http://127.0.0.1:8081** (not `:3001` - that's the internal `nuxt dev` port).
+
+Topology:
+
+```
+browser -> http://127.0.0.1:8081 (dev proxy, tools/dev-remote-proxy.mjs)
+              |- /graphql, /api/**, /auth/**, /objects/**, /preview/**, /static/**, ...
+              |     -> http://47.100.77.97:64482   (remote server, HTTP + WebSocket)
+              '- everything else
+                    -> http://127.0.0.1:3001       (local `nuxt dev`, HTTP + Vite HMR WebSocket)
+```
+
+The remote server, ports and the proxied path prefixes are configured in `.env.remote`
+(`DEV_PROXY_TARGET`, `DEV_PROXY_PORT`, `DEV_PROXY_FRONTEND`, `DEV_PROXY_BACKEND_PATHS`,
+`DEV_PROXY_LOCAL_PATHS`). Set `DEV_PROXY_VERBOSE=1` there to log every proxied request.
+
+Note: `/authn/**` are frontend pages and stay local, while `/auth/**` endpoints go to the remote
+server - prefix matching happens on path segment boundaries, so the two never collide.
+
 ### Typed GraphQL
 
 Type your queries & fragments using the `graphql()` helper from `~~/lib/common/generated/gql` and then run `yarn gqlgen` (or `yarn gqlgen:watch` to run it in watch mode) to generated TS typing information for these GQL documents.

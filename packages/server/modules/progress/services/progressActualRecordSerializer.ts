@@ -2,6 +2,7 @@ import type {
   BimElementEntry,
   ProgressActualRecord
 } from '@/modules/progress/repositories/progressActualRecords'
+import type { ComponentCodeLookupInput } from '@/modules/progress/services/componentCodeLookup'
 
 /**
  * 实际进度记录序列化。
@@ -248,12 +249,24 @@ export const buildStoredComponentCodeMap = (
   return lookup
 }
 
-// 汇总需要反查构件编码的 applicationId：记录上已存编码的构件无需反查
-export const collectUnresolvedApplicationIds = (
+// 汇总需要反查构件编码的构件：按 modelId 分组（记录上已存编码的构件无需反查）
+export const collectUnresolvedComponentEntries = (
   records: ProgressActualRecord[],
   storedComponentCodes: ComponentCodeLookup = new Map()
-) => {
-  const applicationIds = new Set<string>()
+): ComponentCodeLookupInput[] => {
+  const applicationIdsByModelId = new Map<string, string[]>()
+  const seenApplicationIds = new Set<string>()
+
+  const push = (modelId: unknown, applicationId: unknown) => {
+    if (typeof applicationId !== 'string' || !applicationId) return
+    if (seenApplicationIds.has(applicationId)) return
+
+    seenApplicationIds.add(applicationId)
+    const key = typeof modelId === 'string' ? modelId : ''
+    const list = applicationIdsByModelId.get(key) || []
+    list.push(applicationId)
+    applicationIdsByModelId.set(key, list)
+  }
 
   records.forEach((record) => {
     const bimEntries = [
@@ -265,20 +278,31 @@ export const collectUnresolvedApplicationIds = (
       const bimIds = Array.isArray(entry.bimIds) ? entry.bimIds : []
       ;(entry.applicationIds || []).forEach((applicationId, idx) => {
         const storedCode = typeof bimIds[idx] === 'string' ? bimIds[idx]!.trim() : ''
-        if (applicationId && !storedCode) applicationIds.add(applicationId)
+        if (storedCode) return
+        push(entry.modelId, applicationId)
       })
     })
 
     parseJsonArray<ActualRecordTask>(record.tasks).forEach((task) => {
       ;(task?.selections || []).forEach((selection) => {
         ;(selection?.applicationIds || []).forEach((applicationId) => {
-          if (applicationId && !storedComponentCodes.has(applicationId)) {
-            applicationIds.add(applicationId)
-          }
+          if (storedComponentCodes.has(applicationId)) return
+          push(selection?.modelId, applicationId)
         })
       })
     })
   })
 
-  return Array.from(applicationIds)
+  return Array.from(applicationIdsByModelId.entries()).map(
+    ([modelId, applicationIds]) => ({ modelId, applicationIds })
+  )
 }
+
+// 汇总需要反查构件编码的 applicationId（扁平形态）
+export const collectUnresolvedApplicationIds = (
+  records: ProgressActualRecord[],
+  storedComponentCodes: ComponentCodeLookup = new Map()
+) =>
+  collectUnresolvedComponentEntries(records, storedComponentCodes).flatMap(
+    (entry) => entry.applicationIds || []
+  )

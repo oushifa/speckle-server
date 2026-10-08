@@ -467,26 +467,31 @@ export const updateBoqItemFactory =
       changeQuantity === undefined
         ? toNullableNumber(item.changeQuantity)
         : changeQuantity
+    // 复核单价不再回退到综合单价：undefined = 未传（保持原值），null = 置空
     const finalReviewPrice =
-      reviewPrice === undefined
-        ? toNullableNumber(item.reviewPrice) ??
-          (price !== undefined ? price : toNullableNumber(item.price))
-        : reviewPrice
+      reviewPrice === undefined ? toNullableNumber(item.reviewPrice) : reviewPrice
 
-    let finalReviewAmount: number | null = null
+    const reviewInputsProvided =
+      reviewQuantity !== undefined ||
+      changeQuantity !== undefined ||
+      reviewPrice !== undefined
+
+    let finalReviewAmount: number | null
     if (reviewAmount !== undefined) {
       finalReviewAmount = reviewAmount
-    } else if (
-      finalReviewQuantity !== null ||
-      finalChangeQuantity !== null ||
-      finalReviewPrice !== null
-    ) {
-      const totalQty = (finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0)
-      const p =
-        finalReviewPrice ??
-        (price !== undefined ? price : toNullableNumber(item.price)) ??
-        0
-      finalReviewAmount = Number((p * totalQty).toFixed(2))
+    } else if (reviewInputsProvided) {
+      // 复核总价只在复核单价与「复核量/变更量」都有值时才计算；
+      // 缺量或缺单价都不再臆造 0，直接置空
+      finalReviewAmount =
+        finalReviewPrice !== null &&
+        (finalReviewQuantity !== null || finalChangeQuantity !== null)
+          ? Number(
+              (
+                finalReviewPrice *
+                ((finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0))
+              ).toFixed(2)
+            )
+          : null
     } else {
       finalReviewAmount = toNullableNumber(item.reviewAmount)
     }
@@ -577,22 +582,20 @@ export const updateBoqItemReviewFactory =
         ? toNullableNumber(item.changeQuantity)
         : changeQuantity
     const finalReviewPrice =
-      reviewPrice === undefined
-        ? toNullableNumber(item.reviewPrice) ?? toNullableNumber(item.price)
-        : reviewPrice
+      reviewPrice === undefined ? toNullableNumber(item.reviewPrice) : reviewPrice
 
-    let finalReviewAmount: number | null = null
-    if (
-      finalReviewQuantity !== null ||
-      finalChangeQuantity !== null ||
-      finalReviewPrice !== null
-    ) {
-      const totalQty = (finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0)
-      const p = finalReviewPrice ?? toNullableNumber(item.price) ?? 0
-      finalReviewAmount = Number((p * totalQty).toFixed(2))
-    } else {
-      finalReviewAmount = null
-    }
+    // 复核总价 = 复核单价 × (复核量 + 变更量)；
+    // 复核单价或量缺一即为空，不再回退到综合单价、也不用 0 兜底
+    const finalReviewAmount =
+      finalReviewPrice !== null &&
+      (finalReviewQuantity !== null || finalChangeQuantity !== null)
+        ? Number(
+            (
+              finalReviewPrice *
+              ((finalReviewQuantity ?? 0) + (finalChangeQuantity ?? 0))
+            ).toFixed(2)
+          )
+        : null
 
     const updatedRecord: Partial<BoqItemRecord> = {
       reviewQuantity: finalReviewQuantity === null ? null : String(finalReviewQuantity),
@@ -734,10 +737,13 @@ export const importBoqItemsFactory =
             quantity: row.quantity ?? null,
             price: row.price ?? null,
             amount: row.amount ?? null,
-            reviewQuantity: row.reviewQuantity ?? undefined,
-            changeQuantity: row.changeQuantity ?? undefined,
-            reviewPrice: row.reviewPrice ?? undefined,
-            reviewAmount: row.reviewAmount ?? undefined
+            // 复核字段直接透传：undefined = 文件里没有该列（保持原值）；
+            // null = 列存在但单元格为空（置空）。不要再把 null 变成 undefined，
+            // 否则会被 updateBoqItem 当成"没传"而回填综合单价/算出 0。
+            reviewQuantity: row.reviewQuantity,
+            changeQuantity: row.changeQuantity,
+            reviewPrice: row.reviewPrice,
+            reviewAmount: row.reviewAmount
           })
           updatedCount += 1
           progressed = true
@@ -754,6 +760,7 @@ export const importBoqItemsFactory =
           quantity: row.quantity ?? null,
           price: row.price ?? null,
           amount: row.amount ?? null,
+          // 新建清单项保留既有默认口径：未提供复核量/复核单价时默认取合同工程量/综合单价
           reviewQuantity: row.reviewQuantity ?? undefined,
           changeQuantity: row.changeQuantity ?? undefined,
           reviewPrice: row.reviewPrice ?? undefined,

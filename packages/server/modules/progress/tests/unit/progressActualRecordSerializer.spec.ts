@@ -3,6 +3,7 @@ import type { ProgressActualRecord } from '@/modules/progress/repositories/progr
 import {
   buildBimEntryDetails,
   collectUnresolvedApplicationIds,
+  collectUnresolvedComponentEntries,
   serializeActualRecord
 } from '@/modules/progress/services/progressActualRecordSerializer'
 
@@ -106,6 +107,33 @@ describe('progressActualRecordSerializer', () => {
       ])
 
       expect(ids).to.deep.equal(['app-2', 'app-3'])
+    })
+  })
+
+  describe('collectUnresolvedComponentEntries', () => {
+    it('groups unresolved components by their own modelId', () => {
+      const entries = collectUnresolvedComponentEntries([
+        buildRecord({
+          startBIM: [
+            {
+              modelId: 'model-a',
+              applicationIds: ['app-1', 'app-2'],
+              bimIds: ['CB-01', null]
+            }
+          ],
+          tasks: [
+            {
+              taskName: '四平路工作井',
+              selections: [{ modelId: 'model-b', applicationIds: ['app-3'] }]
+            }
+          ]
+        })
+      ])
+
+      expect(entries).to.deep.equal([
+        { modelId: 'model-a', applicationIds: ['app-2'] },
+        { modelId: 'model-b', applicationIds: ['app-3'] }
+      ])
     })
   })
 

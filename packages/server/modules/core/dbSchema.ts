@@ -1071,6 +1071,7 @@ export const SafetyMeasureItems = buildTableHelper('safety_measure_items', [
   'engineeringAmount',
   'contractDeptQty',
   'contractDeptAmount',
+  'remark',
   'createdAt',
   'updatedAt'
 ])

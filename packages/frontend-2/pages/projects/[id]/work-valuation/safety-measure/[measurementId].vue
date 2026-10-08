@@ -433,11 +433,19 @@
                     {{ formatMoney(row.remainingAmount) }}
                   </td>
 
-                  <!-- 备注 -->
-                  <td
-                    class="px-2 py-2 text-center text-foreground-2 truncate max-w-[100px]"
-                  >
-                    {{ row.isSummaryRow ? '-' : row.remark || '-' }}
+                  <!-- 备注：流程结束前，当前节点审批人均可填写 -->
+                  <td class="px-2 py-1 border-r border-outline-3 w-40">
+                    <input
+                      v-if="!row.isSummaryRow"
+                      v-model="row.remark"
+                      type="text"
+                      maxlength="100"
+                      placeholder="请输入备注"
+                      aria-label="备注"
+                      :disabled="!canEditRemark"
+                      class="w-full bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 text-[11px]"
+                    />
+                    <span v-else class="text-center text-foreground-2">-</span>
                   </td>
                 </tr>
 
@@ -1784,13 +1792,13 @@
             </thead>
             <tbody>
               <tr
-                v-for="row in treeRows"
+                v-for="row in printTreeRows"
                 :key="row.boqItemId"
                 class="border-b border-black"
                 :class="{ 'font-medium bg-gray-50': row.isSummaryRow }"
               >
                 <td class="text-center border-r border-black">
-                  {{ getRowIndex(row) }}
+                  {{ getPrintRowIndex(row) }}
                 </td>
                 <td class="text-center font-mono border-r border-black">
                   {{ row.boqCode }}
@@ -1825,31 +1833,31 @@
                 </td>
                 <td class="text-center">{{ row.remark || '-' }}</td>
               </tr>
-              <!-- 总价合计行 -->
+              <!-- 总价合计行（口径：仅统计打印中可见的清单项） -->
               <tr class="font-bold border-b border-black bg-gray-100">
                 <td class="text-center border-r border-black"></td>
                 <td class="text-center border-r border-black"></td>
                 <td class="text-left pl-3 border-r border-black">总价</td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatMoney(totalSums.contractAmount) }}
+                  {{ formatMoney(printTotalSums.contractAmount) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatMoney(totalSums.contractorAmount) }}
+                  {{ formatMoney(printTotalSums.contractorAmount) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatMoney(totalSums.supervisionAmount) }}
+                  {{ formatMoney(printTotalSums.supervisionAmount) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatQty(totalSums.cumulativeQty) }}
+                  {{ formatQty(printTotalSums.cumulativeQty) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatMoney(totalSums.cumulativeAmount) }}
+                  {{ formatMoney(printTotalSums.cumulativeAmount) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatQty(totalSums.remainingQty) }}
+                  {{ formatQty(printTotalSums.remainingQty) }}
                 </td>
                 <td class="text-right pr-3 font-mono border-r border-black">
-                  {{ formatMoney(totalSums.remainingAmount) }}
+                  {{ formatMoney(printTotalSums.remainingAmount) }}
                 </td>
                 <td class="text-center">-</td>
               </tr>
@@ -2325,6 +2333,12 @@ const isEditable = computed(() => {
   )
 })
 
+/**
+ * 备注列可编辑条件：流程结束前，当前节点审批人均可填写（与角色列无关）。
+ * 草稿期由创建人填写，后端 checkSafetyWritePermission 同口径校验。
+ */
+const canEditRemark = computed(() => isEditable.value)
+
 const isTodoUser = computed(() => {
   if (isReadOnly.value || isAdminOperationMode.value) return false
   if (flowInstance.value?.status !== 'PENDING') return false
@@ -2594,6 +2608,57 @@ const totalSums = computed(() => {
   const leaves = treeRows.value.filter((row) => !row.isSummaryRow)
   return calculateSums(leaves)
 })
+
+/**
+ * 明细表打印专用：仅保留「施工单位上报数量」或「监理单位审核数量」不为 0 的清单项。
+ * 父级（汇总）行自身数量为 0、但其下存在可见子项时一并保留，以维持层级结构。
+ */
+const hasPrintQty = (row: any) =>
+  Number(row.contractorQty || 0) !== 0 || Number(row.supervisionQty || 0) !== 0
+
+const printTreeRows = computed(() => {
+  const visibleIds = new Set<string>()
+
+  // 1. 叶子清单项：本期施工单位或监理单位数量不为 0 才打印
+  treeRows.value.forEach((row) => {
+    if (!row.isSummaryRow && hasPrintQty(row)) {
+      visibleIds.add(row.boqItemId)
+    }
+  })
+
+  // 2. 向上补齐父级行，保证可见子项的层级标题不丢失
+  Array.from(visibleIds).forEach((id) => {
+    let parentId = rowById.value.get(id)?.boqParentId
+    while (parentId) {
+      const parent = rowById.value.get(parentId)
+      if (!parent) break
+      visibleIds.add(parentId)
+      parentId = parent.boqParentId
+    }
+  })
+
+  return treeRows.value.filter((row) => visibleIds.has(row.boqItemId))
+})
+
+// 打印合计行口径：只累计打印页面上可见的叶子清单项
+const printTotalSums = computed(() =>
+  calculateSums(printTreeRows.value.filter((row) => !row.isSummaryRow))
+)
+
+// 打印时序号按可见行重新连续编号
+const printRowIndexMap = computed(() => {
+  const map = new Map<string, number>()
+  let seq = 0
+  printTreeRows.value.forEach((row) => {
+    if (!row.isSummaryRow) {
+      seq += 1
+      map.set(row.boqItemId, seq)
+    }
+  })
+  return map
+})
+
+const getPrintRowIndex = (row: any) => printRowIndexMap.value.get(row.boqItemId) ?? ''
 
 const hasChildren = (row: any) => hasChildrenSet.value.has(row.boqItemId)
 const toggleExpand = (row: any) => {
@@ -2936,7 +3001,8 @@ const saveAllData = async (silent = false) => {
         supervisionQty: Number(row.supervisionQty || 0),
         headquartersQty: Number(row.headquartersQty || 0),
         engineeringQty: Number(row.engineeringQty || 0),
-        contractDeptQty: Number(row.contractDeptQty || 0)
+        contractDeptQty: Number(row.contractDeptQty || 0),
+        remark: String(row.remark ?? '').trim()
       }))
 
     await $fetch(

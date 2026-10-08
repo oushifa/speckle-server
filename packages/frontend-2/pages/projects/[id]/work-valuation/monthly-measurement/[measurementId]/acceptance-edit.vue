@@ -150,7 +150,7 @@
                 rowspan="2"
                 class="px-2 py-1 border-r border-outline-3 text-right pr-3"
               >
-                本年完成工作量
+                金额（元）
               </th>
               <!-- 累计完成数 -->
               <th
@@ -163,13 +163,13 @@
                 rowspan="2"
                 class="px-2 py-1 border-r border-outline-3 text-right pr-3 text-success-darker"
               >
-                累计完成工作量
+                金额（元）
               </th>
               <th
                 rowspan="2"
                 class="px-2 py-1 border-r border-outline-3 text-right pr-3"
               >
-                合同累计完成比例%
+                完成率%
               </th>
             </tr>
             <!-- 行 3 -->
@@ -487,9 +487,7 @@
                 <td
                   class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
                 >
-                  {{
-                    formatQty((row.yearlyCumulativeQty || 0) + (row.investmentQty || 0))
-                  }}
+                  {{ formatQty(getYearlyCompletedQty(row)) }}
                 </td>
                 <!-- 工作量 -->
                 <td
@@ -503,9 +501,7 @@
                 <td
                   class="px-2 py-2 text-right border-r border-outline-3 font-mono pr-3"
                 >
-                  {{
-                    formatQty((row.lastCumulativeQty || 0) + (row.investmentQty || 0))
-                  }}
+                  {{ formatQty(getCumulativeCompletedQty(row)) }}
                 </td>
                 <!-- 累计完成工作量 -->
                 <td
@@ -520,11 +516,19 @@
                   {{ getCumulativeRate(row) }}%
                 </td>
 
-                <!-- 10. 备注 -->
-                <td
-                  class="px-2 py-2 text-center text-foreground-2 truncate max-w-[100px]"
-                >
-                  {{ row.remark || '-' }}
+                <!-- 10. 备注：流程结束前，当前节点审批人均可填写 -->
+                <td class="px-2 py-1 border-r border-outline-3 w-32">
+                  <input
+                    v-if="!row.isSummaryRow"
+                    v-model="row.remark"
+                    type="text"
+                    maxlength="100"
+                    placeholder="请输入备注"
+                    aria-label="备注"
+                    :disabled="!canEditRemark"
+                    class="w-full bg-foundation border border-outline-3 rounded px-1 py-0.5 focus:outline-none focus:border-primary disabled:opacity-60 text-[11px]"
+                  />
+                  <span v-else class="text-center text-foreground-2">-</span>
                 </td>
               </tr>
 
@@ -815,6 +819,12 @@ const isCurrentApprover = computed(() => {
   return false
 })
 
+/**
+ * 备注列可编辑条件：流程结束前，当前节点审批人均可填写（与角色列无关）。
+ * 草稿期由创建人填写，后端 checkEditableBeforeFlowEnd 同口径校验。
+ */
+const canEditRemark = computed(() => isCurrentApprover.value)
+
 // 寻找子树 ID
 const getSubtreeItemIds = (rootId: string, allItems: any[]): Set<string> => {
   const childMap = new Map<string, string[]>()
@@ -874,11 +884,22 @@ const toSafeNumber = (value: any) => {
   return Number.isFinite(num) ? num : 0
 }
 
+// 后端 numeric 列经 pg 驱动返回的是字符串（如 "120.5000"），
+// 直接相加会变成字符串拼接（"120.500030.2500"），必须先转成数字再相加
+const getYearlyCompletedQty = (row: any) => {
+  if (!row) return 0
+  return toSafeNumber(row.yearlyCumulativeQty) + toSafeNumber(row.investmentQty)
+}
+
+const getCumulativeCompletedQty = (row: any) => {
+  if (!row) return 0
+  return toSafeNumber(row.lastCumulativeQty) + toSafeNumber(row.investmentQty)
+}
+
 const getCumulativeRate = (row: any) => {
   const contractQty = toSafeNumber(row.pendingTotalQty)
   if (contractQty <= 0) return '0.00'
-  const cumulativeQty =
-    toSafeNumber(row.lastCumulativeQty) + toSafeNumber(row.investmentQty)
+  const cumulativeQty = getCumulativeCompletedQty(row)
   return ((cumulativeQty / contractQty) * 100).toFixed(2)
 }
 
@@ -1136,7 +1157,8 @@ const saveTreeItems = async () => {
           Number(row.contractorQty || 0) !== Number(orig.contractorQty || 0) ||
           Number(row.supervisionQty || 0) !== Number(orig.supervisionQty || 0) ||
           Number(row.headquartersQty || 0) !== Number(orig.headquartersQty || 0) ||
-          Number(row.investmentQty || 0) !== Number(orig.investmentQty || 0)
+          Number(row.investmentQty || 0) !== Number(orig.investmentQty || 0) ||
+          String(row.remark ?? '').trim() !== String(orig.remark ?? '').trim()
         )
       })
 
@@ -1155,7 +1177,8 @@ const saveTreeItems = async () => {
       contractorQty: Number(row.contractorQty || 0),
       supervisionQty: Number(row.supervisionQty || 0),
       headquartersQty: Number(row.headquartersQty || 0),
-      investmentQty: Number(row.investmentQty || 0)
+      investmentQty: Number(row.investmentQty || 0),
+      remark: String(row.remark ?? '').trim()
     }))
 
     await $fetch(

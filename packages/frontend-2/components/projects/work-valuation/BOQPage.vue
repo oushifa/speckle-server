@@ -502,7 +502,7 @@
               type="number"
               step="any"
               show-label
-              placeholder="默认取合同量"
+              placeholder="请输入复核量"
             />
             <FormTextInput
               v-model="boqDialogChangeQuantityInput"
@@ -511,7 +511,7 @@
               type="number"
               step="any"
               show-label
-              placeholder="默认0"
+              placeholder="请输入变更/签证量"
             />
           </div>
           <div class="grid grid-cols-2 gap-3">
@@ -522,7 +522,7 @@
               type="number"
               step="any"
               show-label
-              placeholder="默认取综合单价"
+              placeholder="请输入复核单价"
             />
             <div
               class="flex flex-col justify-center bg-foundation-2 p-2.5 rounded border border-outline-3"
@@ -538,7 +538,10 @@
           >
             <span class="text-xs text-primary font-medium">复核总价预估</span>
             <span class="text-base font-mono font-semibold text-primary">
-              {{ formatNumber(dialogCalculatedReviewAmount, 2) }} 元
+              <template v-if="dialogCalculatedReviewAmount !== null">
+                {{ formatNumber(dialogCalculatedReviewAmount, 2) }} 元
+              </template>
+              <template v-else>-</template>
             </span>
           </div>
           <div v-if="boqDialogNumericError" class="text-body-3xs text-danger">
@@ -867,7 +870,8 @@ const getInlineReviewQuantity = (item: BoqTreeItem): string => {
   if (item.reviewQuantity !== null && item.reviewQuantity !== undefined) {
     return `${item.reviewQuantity}`
   }
-  return item.quantity !== null && item.quantity !== undefined ? `${item.quantity}` : ''
+  // 不再兜底显示合同工程量：未录入复核量时如实显示为空
+  return ''
 }
 
 const getInlineChangeQuantity = (item: BoqTreeItem): string => {
@@ -881,7 +885,8 @@ const getInlineChangeQuantity = (item: BoqTreeItem): string => {
   if (item.changeQuantity !== null && item.changeQuantity !== undefined) {
     return `${item.changeQuantity}`
   }
-  return '0'
+  // 不再兜底显示 0：未录入变更/签证量时如实显示为空
+  return ''
 }
 
 const getInlineReviewPrice = (item: BoqTreeItem): string => {
@@ -895,7 +900,8 @@ const getInlineReviewPrice = (item: BoqTreeItem): string => {
   if (item.reviewPrice !== null && item.reviewPrice !== undefined) {
     return `${item.reviewPrice}`
   }
-  return item.price !== null && item.price !== undefined ? `${item.price}` : ''
+  // 不再兜底显示综合单价：未录入复核单价时如实显示为空
+  return ''
 }
 
 const onInlineInput = (
@@ -1228,9 +1234,11 @@ const dialogCalculatedTotalQty = computed(() => {
   return Number((rq + cq).toFixed(6))
 })
 
-const dialogCalculatedReviewAmount = computed(() => {
-  const rp =
-    Number.parseFloat(boqDialogReviewPrice.value || boqDialogPrice.value || '0') || 0
+const dialogCalculatedReviewAmount = computed<number | null>(() => {
+  const raw = boqDialogReviewPrice.value.trim()
+  if (!raw.length) return null
+  const rp = Number.parseFloat(raw)
+  if (Number.isNaN(rp)) return null
   return Number((rp * dialogCalculatedTotalQty.value).toFixed(2))
 })
 
@@ -1333,18 +1341,14 @@ const openEditDialog = (item: BoqTreeItem) => {
   boqDialogReviewQuantity.value =
     item.reviewQuantity !== null && item.reviewQuantity !== undefined
       ? `${item.reviewQuantity}`
-      : item.quantity !== null && item.quantity !== undefined
-      ? `${item.quantity}`
       : ''
   boqDialogChangeQuantity.value =
     item.changeQuantity !== null && item.changeQuantity !== undefined
       ? `${item.changeQuantity}`
-      : '0'
+      : ''
   boqDialogReviewPrice.value =
     item.reviewPrice !== null && item.reviewPrice !== undefined
       ? `${item.reviewPrice}`
-      : item.price !== null && item.price !== undefined
-      ? `${item.price}`
       : ''
   boqDialogOpen.value = true
 }
