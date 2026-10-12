@@ -668,6 +668,128 @@ describe('External API @external', () => {
       expect(record.actualEndDate).to.equal(null)
     })
 
+    it('returns progress records by component codes (manual codes and resolved codes)', async () => {
+      const response = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          componentCodes: ['CB1-99', linkedBimCode, 'CB1-NOT-EXIST']
+        })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(projectId)
+      expect(response.body.modelId).to.equal(null)
+      // 结果按请求的 componentCodes 顺序返回
+      expect(response.body.results).to.have.lengthOf(3)
+
+      const manualResult = response.body.results[0]
+      expect(manualResult.componentCode).to.equal('CB1-99')
+      expect(manualResult.progressRecords).to.have.lengthOf(1)
+      expect(manualResult.progressRecords[0].id).to.equal(manualCodeRecordId)
+      expect(manualResult.progressRecords[0].taskName).to.equal('地下一层顶板钢筋绑扎')
+      expect(manualResult.progressRecords[0].componentCodes).to.deep.equal(['CB1-99'])
+      expect(manualResult.progressRecords[0].planStartDate).to.equal(
+        '2026-09-01T00:00:00.000Z'
+      )
+      expect(manualResult.progressRecords[0].actualEndDate).to.equal(
+        '2026-09-12T00:00:00.000Z'
+      )
+      expect(manualResult.progressRecords[0].remark).to.equal('受降雨影响顺延一天')
+
+      const resolvedResult = response.body.results[1]
+      expect(resolvedResult.componentCode).to.equal(linkedBimCode)
+      expect(resolvedResult.progressRecords).to.have.lengthOf(1)
+      expect(resolvedResult.progressRecords[0].id).to.equal(resolvedCodeRecordId)
+      expect(resolvedResult.progressRecords[0].componentCode).to.equal(null)
+      expect(resolvedResult.progressRecords[0].componentCodes).to.deep.equal([
+        linkedBimCode
+      ])
+
+      const missingResult = response.body.results[2]
+      expect(missingResult.componentCode).to.equal('CB1-NOT-EXIST')
+      expect(missingResult.progressRecords).to.deep.equal([])
+    })
+
+    it('supports the projectId path variant and model_id filtering', async () => {
+      const matched = await request(app)
+        .post(`/api/v1/external/projects/${projectId}/progress/by-component-codes`)
+        .set('x-external-token', testToken)
+        .send({ componentCodes: [linkedBimCode], model_id: 'test_model_v2_1' })
+
+      expect(matched.status).to.equal(200)
+      expect(matched.body.projectId).to.equal(projectId)
+      expect(matched.body.modelId).to.equal('test_model_v2_1')
+      expect(matched.body.results[0].progressRecords).to.have.lengthOf(1)
+      expect(matched.body.results[0].progressRecords[0].id).to.equal(
+        resolvedCodeRecordId
+      )
+
+      // 指定了其它模型时，BIM 反查得到的编码不应再命中
+      const unmatched = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          model_id: 'another_model',
+          componentCodes: [linkedBimCode]
+        })
+
+      expect(unmatched.status).to.equal(200)
+      expect(unmatched.body.results[0].progressRecords).to.deep.equal([])
+    })
+
+    it('supports full traversal when project_id is omitted', async () => {
+      const response = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({ componentCodes: ['CB1-99'] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.projectId).to.equal(null)
+
+      const recordIds = response.body.results[0].progressRecords.map(
+        (item: { id: string }) => item.id
+      )
+      expect(recordIds).to.include(manualCodeRecordId)
+    })
+
+    it('returns 400 when componentCodes is missing or not an array for progress query', async () => {
+      const missing = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({})
+
+      expect(missing.status).to.equal(400)
+      expect(missing.body.error).to.include('componentCodes')
+
+      const notArray = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({ componentCodes: 'CB1-99' })
+
+      expect(notArray.status).to.equal(400)
+    })
+
+    it('returns 401 for the progress by-component-codes endpoint without a valid token', async () => {
+      const response = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .send({ componentCodes: ['CB1-99'] })
+
+      expect(response.status).to.equal(401)
+    })
+
+    it('returns 404 for the progress by-component-codes endpoint when the project does not exist', async () => {
+      const response = await request(app)
+        .post(
+          '/api/v1/external/projects/not_existing_project/progress/by-component-codes'
+        )
+        .set('x-external-token', testToken)
+        .send({ componentCodes: ['CB1-99'] })
+
+      expect(response.status).to.equal(404)
+    })
+
     it('returns only milestones tagged with milestone', async () => {
       const response = await request(app)
         .get(`/api/v1/external/projects/${projectId}/progress-v2/milestones`)

@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return */
+import { compressComponentCodeRanges } from '@/modules/shared/utils/componentCodeRange'
+import { parseProgressV2ComponentCodes } from '@/modules/progress-v2/services/progressV2ComponentCodes'
 import {
   createProgressV2ActualRecordFactory,
   getProgressV2ActualRecordByIdFactory,
@@ -55,12 +57,6 @@ const parseExcelDate = (raw: unknown, rowNumber: number): string => {
 
 const findHeaderIndex = (headerRow: string[], keys: string[]) =>
   headerRow.findIndex((cell) => keys.includes(cell))
-
-const splitCodes = (value: string) =>
-  value
-    .split(/[,，;；、\n\r\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
 
 // ---------------------------------------------------------------------------
 // BIM 构造编码 → {modelId, applicationIds} 反查映射
@@ -509,10 +505,11 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
 
     for (const row of rows) {
       try {
-        const codes = row.componentCode ? splitCodes(row.componentCode) : []
+        const { codes, value: componentCodeValue } = parseProgressV2ComponentCodes(
+          row.componentCode,
+          row.rowNumber
+        )
         const BIM = codes.length ? resolveBimFromCodes(codes, bimMap) : null
-        const componentCodeValue =
-          codes.length > 0 ? codes.join(', ') : row.componentCode
 
         const planStartDate = row.planStartDate ? new Date(row.planStartDate) : null
         const planEndDate = row.planEndDate ? new Date(row.planEndDate) : null
@@ -595,7 +592,8 @@ const serializeBimCodes = (bim: unknown): string => {
     .flatMap((g) => g.componentCodes || [])
     .map((c) => (c || '').trim())
     .filter(Boolean)
-  return Array.from(new Set(codes)).join(', ')
+  // 连续序号码压缩回 `CB1-10~CB1-20` 写法，导出再导入时保持与台账一致的紧凑形式
+  return compressComponentCodeRanges(Array.from(new Set(codes)))
 }
 
 export const buildProgressV2ActualRecordsExportBuffer = async (

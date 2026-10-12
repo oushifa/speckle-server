@@ -19,6 +19,7 @@ import {
 } from '@/modules/progress/repositories/progressTaskSnapshots'
 import { listProgressActualRecordsFactory } from '@/modules/progress/repositories/progressActualRecords'
 import { buildComponentCodeLookup } from '@/modules/progress/services/componentCodeLookup'
+import { buildComponentCodeLookupWithIndexFactory } from '@/modules/progress/services/componentCodeIndex'
 import { listProgressV2ActualRecordsFactory } from '@/modules/progress-v2/repositories/progressV2ActualRecords'
 import { listProgressV2MilestonesFactory } from '@/modules/progress-v2/repositories/progressV2Milestones'
 import {
@@ -615,6 +616,32 @@ const collectRecordComponentCodes = (
   return codes
 }
 
+/**
+ * 进度记录的对外序列化（「进度信息」的字段口径）。
+ *
+ * 按项目查询与按构件编码查询共用这一份映射，避免两个接口的字段含义漂移。
+ */
+const serializeProgressV2Record = (
+  record: any,
+  bimEntries: ExternalBimEntry[],
+  bimCodesLookup: Map<string, string>
+) => ({
+  id: record.id,
+  projectId: record.projectId,
+  taskName: record.taskName,
+  componentCode: record.componentCode || null,
+  componentCodes: collectRecordComponentCodes(
+    record.componentCode,
+    bimEntries,
+    bimCodesLookup
+  ),
+  planStartDate: toIsoStringOrNull(record.planStartDate),
+  planEndDate: toIsoStringOrNull(record.planEndDate),
+  actualStartDate: toIsoStringOrNull(record.actualStartDate),
+  actualEndDate: toIsoStringOrNull(record.actualEndDate),
+  remark: record.remark || null
+})
+
 // 解析里程碑标签（兼容 JSONB 数组、JSON 字符串与逗号分隔字符串）
 const parseMilestoneTags = (raw: unknown): string[] => {
   if (Array.isArray(raw)) {
@@ -818,10 +845,14 @@ export const externalRouterFactory = (): Router => {
         const attachments = (form.attachments || []).map((blobId) =>
           generatePresignedDownloadUrl(req, projectId, blobId)
         )
+        const processAttachments = (form.processAttachments || []).map((blobId) =>
+          generatePresignedDownloadUrl(req, projectId, blobId)
+        )
 
         return {
           form,
-          attachments
+          attachments,
+          processAttachments
         }
       })
 
@@ -836,7 +867,7 @@ export const externalRouterFactory = (): Router => {
         )
       )
 
-      const enrichedItems = items.map(({ form, attachments }) => {
+      const enrichedItems = items.map(({ form, attachments, processAttachments }) => {
         const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
         const enrichedBIM = normalizedBIM.map((entry: any) => {
           const bimCodes = entry.applicationIds.map(
@@ -866,6 +897,7 @@ export const externalRouterFactory = (): Router => {
           BIM: enrichedBIM,
           approveStatus: form.approveStatus,
           attachments,
+          processAttachments,
           createdAt: form.createdAt.toISOString(),
           updatedAt: form.updatedAt.toISOString()
         }
@@ -985,6 +1017,17 @@ export const externalRouterFactory = (): Router => {
       const modelId =
         typeof rawModelId === 'string' && rawModelId.trim() ? rawModelId.trim() : null
 
+      // 空请求直接返回：否则仍会为「没有任何待查编码」的调用做全量反查与序列化
+      if (!componentCodes.length) {
+        return res.status(200).json({ projectId, modelId, results: [] })
+      }
+
+      const requestedCodeSet = new Set<string>(
+        componentCodes.filter(
+          (code: unknown): code is string => typeof code === 'string'
+        )
+      )
+
       let forms: any[] = []
       if (projectId) {
         const project = await getStream({ streamId: projectId })
@@ -1000,23 +1043,27 @@ export const externalRouterFactory = (): Router => {
         forms = await db('quality_acceptance_forms').select('*')
       }
 
+      // BIM 只归一化一次，后面筛选 / 收集构件 / 序列化三处复用，
+      // 避免同一张表单反复 normalizeBIM（递归 + 逐条 trim）
+      const formsWithBim = forms.map((form: any) => ({
+        form,
+        bim: normalizeBIM(form.BIM, form.BIMelement) || []
+      }))
+
       // 若指定了 modelId，筛选出包含对应 modelId 构件记录的表单
-      const targetForms = forms.filter((form: any) => {
-        if (!modelId) return true
-        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
-        return bim.some((entry: any) => entry.modelId === modelId)
-      })
+      const targetForms = formsWithBim.filter(({ bim }) =>
+        modelId ? bim.some((entry: any) => entry.modelId === modelId) : true
+      )
 
       // 按项目分组收集待反查构件（携带 modelId，构件自身没有空间代码时按所属模型回退）
       const entriesByProject = new Map<
         string,
         Array<{ modelId: string; applicationIds: string[] }>
       >()
-      for (const form of targetForms) {
+      for (const { form, bim } of targetForms) {
         const pId = form.project_id || projectId
         if (!pId) continue
 
-        const bim = normalizeBIM(form.BIM, form.BIMelement) || []
         bim.forEach((entry: any) => {
           if (modelId && entry.modelId !== modelId) return
 
@@ -1034,24 +1081,24 @@ export const externalRouterFactory = (): Router => {
       const projectBimCodesLookups = new Map<string, Map<string, string>>()
       for (const [pId, entries] of entriesByProject.entries()) {
         const pDb = await getProjectDbClient({ projectId: pId })
-        const lookup = await buildComponentCodeLookup(pDb, pId, entries)
+        // 索引切片新鲜的模型直接查 component_code_index（完全不碰 objects），
+        // 切片缺失/落后者自动回退到实时解析
+        const lookup = await buildComponentCodeLookupWithIndexFactory({ db: pDb })({
+          projectId: pId,
+          entries
+        })
         projectBimCodesLookups.set(pId, lookup)
       }
 
       const formMap = new Map<string, any[]>()
-      for (const form of targetForms) {
+      for (const { form, bim } of targetForms) {
         const pId = form.project_id || projectId
         const bimCodesLookup =
           (pId ? projectBimCodesLookups.get(pId) : null) || new Map()
 
-        const attachments = (form.attachments || []).map((blobId: string) =>
-          generatePresignedDownloadUrl(req, pId, blobId)
-        )
-
-        const normalizedBIM = normalizeBIM(form.BIM, form.BIMelement) || []
         const filteredBIM = modelId
-          ? normalizedBIM.filter((entry: any) => entry.modelId === modelId)
-          : normalizedBIM
+          ? bim.filter((entry: any) => entry.modelId === modelId)
+          : bim
 
         const enrichedBIM = filteredBIM.map((entry: any) => {
           const bimCodes = entry.applicationIds.map(
@@ -1062,6 +1109,27 @@ export const externalRouterFactory = (): Router => {
             bimCodes
           }
         })
+
+        // 先判断这张表单是否命中请求的编码：没命中就整张跳过。
+        // 附件签名（每附件一次 HMAC）与表单 JSON 组装都不便宜，而 formMap
+        // 只会被请求的编码读取，跳过不影响响应内容。
+        const matchedCodes: string[] = []
+        const seenCodes = new Set<string>()
+        for (const entry of enrichedBIM) {
+          for (const code of entry.bimCodes) {
+            if (!code || seenCodes.has(code) || !requestedCodeSet.has(code)) continue
+            seenCodes.add(code)
+            matchedCodes.push(code)
+          }
+        }
+        if (!matchedCodes.length) continue
+
+        const attachments = (form.attachments || []).map((blobId: string) =>
+          generatePresignedDownloadUrl(req, pId, blobId)
+        )
+        const processAttachments = (form.processAttachments || []).map(
+          (blobId: string) => generatePresignedDownloadUrl(req, pId, blobId)
+        )
 
         const serializedForm = {
           id: form.id,
@@ -1082,6 +1150,7 @@ export const externalRouterFactory = (): Router => {
           BIM: enrichedBIM,
           approveStatus: form.approveStatus,
           attachments,
+          processAttachments,
           createdAt: form.createdAt
             ? typeof form.createdAt === 'string'
               ? form.createdAt
@@ -1094,16 +1163,7 @@ export const externalRouterFactory = (): Router => {
             : null
         }
 
-        const formBimCodes = new Set<string>()
-        for (const entry of enrichedBIM) {
-          for (const code of entry.bimCodes) {
-            if (code) {
-              formBimCodes.add(code)
-            }
-          }
-        }
-
-        for (const code of formBimCodes) {
+        for (const code of matchedCodes) {
           let list = formMap.get(code)
           if (!list) {
             list = []
@@ -1163,22 +1223,9 @@ export const externalRouterFactory = (): Router => {
         ? await buildComponentCodeLookup(projectDb, projectId, unresolvedEntries)
         : new Map<string, string>()
 
-      const progressRecords = parsedRecords.map(({ record, bimEntries }) => ({
-        id: record.id,
-        projectId: record.projectId,
-        taskName: record.taskName,
-        componentCode: record.componentCode || null,
-        componentCodes: collectRecordComponentCodes(
-          record.componentCode,
-          bimEntries,
-          bimCodesLookup
-        ),
-        planStartDate: toIsoStringOrNull(record.planStartDate),
-        planEndDate: toIsoStringOrNull(record.planEndDate),
-        actualStartDate: toIsoStringOrNull(record.actualStartDate),
-        actualEndDate: toIsoStringOrNull(record.actualEndDate),
-        remark: record.remark || null
-      }))
+      const progressRecords = parsedRecords.map(({ record, bimEntries }) =>
+        serializeProgressV2Record(record, bimEntries, bimCodesLookup)
+      )
 
       return res.status(200).json({
         projectId,
@@ -1229,6 +1276,158 @@ export const externalRouterFactory = (): Router => {
         projectId,
         totalCount: milestoneItems.length,
         milestones: milestoneItems
+      })
+    }
+  )
+
+  // 9. 根据构件编码查询进度信息（进度管理填报记录）
+  app.post(
+    [
+      '/api/v1/external/projects/:projectId/progress/by-component-codes',
+      '/api/v1/external/progress/by-component-codes'
+    ],
+    requireExternalToken,
+    async (req, res) => {
+      const { componentCodes } = req.body
+      if (!componentCodes || !Array.isArray(componentCodes)) {
+        return res.status(400).json({
+          error: 'Invalid request: componentCodes is required and must be an array.'
+        })
+      }
+
+      const rawProjectId =
+        req.body.projectId ||
+        req.body.project_id ||
+        req.query.projectId ||
+        req.query.project_id ||
+        (req.params.projectId && req.params.projectId !== ':projectId'
+          ? req.params.projectId
+          : null)
+      const projectId =
+        typeof rawProjectId === 'string' && rawProjectId.trim()
+          ? rawProjectId.trim()
+          : null
+
+      const rawModelId =
+        req.body.modelId || req.body.model_id || req.query.modelId || req.query.model_id
+      const modelId =
+        typeof rawModelId === 'string' && rawModelId.trim() ? rawModelId.trim() : null
+
+      // 空请求直接返回：否则仍会为「没有任何待查编码」的调用做全量反查与序列化
+      if (!componentCodes.length) {
+        return res.status(200).json({ projectId, modelId, results: [] })
+      }
+
+      const requestedCodeSet = new Set<string>(
+        componentCodes.filter(
+          (code: unknown): code is string => typeof code === 'string'
+        )
+      )
+
+      let records: any[] = []
+      if (projectId) {
+        const project = await getStream({ streamId: projectId })
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found.' })
+        }
+        const projectDb = await getProjectDbClient({ projectId })
+        records = await listProgressV2ActualRecordsFactory({ db: projectDb })({
+          projectId
+        })
+      } else {
+        records = await db('project_progress_v2_actual_records').select('*')
+      }
+
+      // BIM 只解析一次；指定 modelId 时仅保留该模型下的构件关联
+      const parsedRecords = records.map((record: any) => {
+        const bimEntries = parseBimEntries(record.BIM)
+        return {
+          record,
+          bimEntries: modelId
+            ? bimEntries.filter((entry) => entry.modelId === modelId)
+            : bimEntries
+        }
+      })
+
+      // 仅对未存储构件编码的关联构件做一次反查，避免无谓的模型数据扫描
+      const entriesByProject = new Map<
+        string,
+        Array<{ modelId: string; applicationIds: string[] }>
+      >()
+      for (const { record, bimEntries } of parsedRecords) {
+        const pId = record.projectId || projectId
+        if (!pId) continue
+
+        bimEntries.forEach((entry) => {
+          if (entry.componentCodes.length) return
+
+          const applicationIds = entry.applicationIds.filter((id) => !!id)
+          if (!applicationIds.length) return
+
+          const entries = entriesByProject.get(pId) || []
+          entries.push({ modelId: entry.modelId, applicationIds })
+          entriesByProject.set(pId, entries)
+        })
+      }
+
+      const projectBimCodesLookups = new Map<string, Map<string, string>>()
+      for (const [pId, entries] of entriesByProject.entries()) {
+        const pDb = await getProjectDbClient({ projectId: pId })
+        // 索引切片新鲜的模型直接查 component_code_index（完全不碰 objects），
+        // 切片缺失/落后者自动回退到实时解析
+        const lookup = await buildComponentCodeLookupWithIndexFactory({ db: pDb })({
+          projectId: pId,
+          entries
+        })
+        projectBimCodesLookups.set(pId, lookup)
+      }
+
+      const recordMap = new Map<string, any[]>()
+      for (const { record, bimEntries } of parsedRecords) {
+        const pId = record.projectId || projectId
+        const bimCodesLookup =
+          (pId ? projectBimCodesLookups.get(pId) : null) || new Map<string, string>()
+
+        // 先判断这条进度记录是否命中请求的编码：没命中就整条跳过，
+        // 记录序列化只会被请求的编码读取，跳过不影响响应内容
+        const matchedCodes: string[] = []
+        const seenCodes = new Set<string>()
+        for (const code of collectRecordComponentCodes(
+          record.componentCode,
+          bimEntries,
+          bimCodesLookup
+        )) {
+          if (seenCodes.has(code) || !requestedCodeSet.has(code)) continue
+          seenCodes.add(code)
+          matchedCodes.push(code)
+        }
+        if (!matchedCodes.length) continue
+
+        const serializedRecord = serializeProgressV2Record(
+          record,
+          bimEntries,
+          bimCodesLookup
+        )
+
+        for (const code of matchedCodes) {
+          let list = recordMap.get(code)
+          if (!list) {
+            list = []
+            recordMap.set(code, list)
+          }
+          list.push(serializedRecord)
+        }
+      }
+
+      const results = componentCodes.map((code: string) => ({
+        componentCode: code,
+        progressRecords: recordMap.get(code) || []
+      }))
+
+      return res.status(200).json({
+        projectId,
+        modelId,
+        results
       })
     }
   )

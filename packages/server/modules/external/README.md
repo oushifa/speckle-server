@@ -324,6 +324,10 @@ EXTERNAL_API_TOKEN=your_secure_external_api_token_here
           // 该验收表单下挂载的图片、PDF 等附件安全下载链接列表
           "http://localhost:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_888?expires=1686389623000&signature=a59f518e3..."
         ],
+        "processAttachments": [
+          // 该验收表单「过程文件」附件的安全下载链接列表
+          "http://localhost:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_999?expires=1686389623000&signature=b71c209f4..."
+        ],
         "createdAt": "2026-06-05T10:00:00.000Z", // 表单创建时间
         "updatedAt": "2026-06-05T18:00:00.000Z" // 表单最近更新时间
       }
@@ -355,11 +359,12 @@ EXTERNAL_API_TOKEN=your_secure_external_api_token_here
 | ├─ **BIM**                 | Array          | 关联的 BIM 模型构件集合（结构同上，含 modelId、applicationIds、bimIds 及 bimCodes 字段）                                              |
 | ├─ **approveStatus**       | string \| null | 绑定的审批流月度验工审核状态（如 'PENDING' 审批中 / 'APPROVED' 审批通过 / 'REJECTED' 被退回 / 'CANCELED' 被撤销，为空表示表单未送审） |
 | ├─ **attachments**         | string[]       | 该验收表单下挂载的图片、PDF 等附件安全下载链接列表                                                                                    |
+| ├─ **processAttachments**  | string[]       | 该验收表单「过程文件」附件的安全下载链接列表                                                                                          |
 | ├─ **createdAt**           | string         | 表单创建时间                                                                                                                          |
 | └─ **updatedAt**           | string         | 表单更新时间                                                                                                                          |
 
 > [!NOTE]
-> 在返回的 `items` 中，原来的 `attachments` 附件 ID 列表已由服务器自动解析，转换为了包含 **24 小时有效期限和数字防伪签名** 的免登录绝对下载链接。
+> 在返回的 `items` 中，原来的 `attachments` / `processAttachments` 附件 ID 列表已由服务器自动解析，转换为了包含 **24 小时有效期限和数字防伪签名** 的免登录绝对下载链接。
 
 ### 5. 根据构件编码查询质量验收信息
 
@@ -424,6 +429,9 @@ EXTERNAL_API_TOKEN=your_secure_external_api_token_here
             "approveStatus": "APPROVED",
             "attachments": [
               "http://localhost:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_888?expires=1686389623000&signature=a59f518e3..."
+            ],
+            "processAttachments": [
+              "http://localhost:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_999?expires=1686389623000&signature=b71c209f4..."
             ],
             "createdAt": "2026-06-05T10:00:00.000Z",
             "updatedAt": "2026-06-05T18:00:00.000Z"
@@ -562,6 +570,105 @@ EXTERNAL_API_TOKEN=your_secure_external_api_token_here
 | ├─ **status**       | string \| null | 当前状态（'未开始' / '进行中' / '按期完成' / '逾期完成' / '已逾期'） |
 | ├─ **remark**       | string \| null | 备注说明                                                             |
 | └─ **tags**         | string[]       | 标签集合，仅返回包含 `milestone` 标签的记录                          |
+
+---
+
+### 8. 根据构件编码查询进度信息
+
+根据传入的构件编码数组（`componentCodes`），查询该构件关联的进度信息（项目「进度管理」中登记的进度填报记录）。支持通过 `project_id` 和 `model_id` 进行条件限定；若不提供 `project_id`，则自动执行全库全量遍历查询。
+
+> [!NOTE]
+> 本节的独立完整文档见 [`构件进度查询api.md`](./构件进度查询api.md)，可与 [`构件查询api.md`](./构件查询api.md)（按构件编码查询质量验收信息）对照使用。
+
+- **URL**：
+  - `/api/v1/external/progress/by-component-codes` _(推荐)_
+  - `/api/v1/external/projects/:projectId/progress/by-component-codes` _(兼顾带 projectId 路径)_
+- **Method**：`POST`
+- **Headers**：（选其一提供有效的 API Token）
+  - `x-external-token: your_secure_external_api_token_here`
+  - `Authorization: Bearer your_secure_external_api_token_here`
+- **Request Body (JSON)**：
+
+  ```json
+  {
+    "project_id": "project_id_1", // (可选) 限定项目 ID，不传则全量遍历
+    "model_id": "model_id_1", // (可选) 限定模型/版本 ID，不传则不限模型
+    "componentCodes": [
+      // (必填) 构件编码数组
+      "class_space_sec_CB-01",
+      "class_space_sec_CB-02"
+    ]
+  }
+  ```
+
+- **响应示例 (`200 OK`)**：
+
+  ```json
+  {
+    "projectId": "project_id_1", // 若请求未传则为 null
+    "modelId": "model_id_1", // 若请求未传则为 null
+    "results": [
+      // 每个构件编码对应的进度填报记录列表
+      {
+        "componentCode": "class_space_sec_CB-01",
+        "progressRecords": [
+          {
+            "id": "record_id_1",
+            "projectId": "project_id_1",
+            "taskName": "地下一层顶板钢筋绑扎",
+            "componentCode": "CB1-99",
+            "componentCodes": ["CB1-99", "14-94.04.01.00.00.1NB01010101CB1-99"],
+            "planStartDate": "2026-09-01T00:00:00.000Z",
+            "planEndDate": "2026-09-10T00:00:00.000Z",
+            "actualStartDate": "2026-09-02T00:00:00.000Z",
+            "actualEndDate": "2026-09-12T00:00:00.000Z",
+            "remark": "受降雨影响顺延一天"
+          }
+        ]
+      },
+      {
+        "componentCode": "class_space_sec_CB-02",
+        "progressRecords": [] // 该构件没有关联的进度填报记录
+      }
+    ]
+  }
+  ```
+
+#### 字段说明
+
+| 字段名                                         | 类型           | 说明                                                                                                                                                      |
+| :--------------------------------------------- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **projectId**                                  | string \| null | 请求中传入的项目 ID，全量查询时返回 `null`                                                                                                                |
+| **modelId**                                    | string \| null | 请求中传入的模型 ID，未限定模型时返回 `null`                                                                                                              |
+| **results**                                    | Array          | 查询结果列表，按输入的 `componentCodes` 顺序依次返回                                                                                                      |
+| ├─ **componentCode**                           | string         | 构件编码                                                                                                                                                  |
+| └─ **progressRecords**                         | Array          | 该构件关联的进度填报记录数组，每条记录字段如下：                                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **id**              | string         | 进度填报记录唯一标识符 ID                                                                                                                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **projectId**       | string         | 记录关联的项目 ID                                                                                                                                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **taskName**        | string         | 任务名称                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **componentCode**   | string \| null | 记录上手填/导入的构件编码（通常为序号码），未填写时为 `null`                                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **componentCodes**  | string[]       | 该记录关联的全部构件编码（已去重）。取值顺序为：记录上的构件编码 → 关联 BIM 构件已存储的编码 → 按构件 ID 反查得到的第三方完整构件编码，均无匹配时为空数组 |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **planStartDate**   | string \| null | 计划开始时间（ISO 8601 格式时间戳）                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **planEndDate**     | string \| null | 计划结束时间（ISO 8601 格式时间戳）                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **actualStartDate** | string \| null | 实际开始时间（ISO 8601 格式时间戳）                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **actualEndDate**   | string \| null | 实际结束时间（ISO 8601 格式时间戳）                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;└─ **remark**          | string \| null | 备注说明                                                                                                                                                  |
+
+> [!NOTE] > **匹配规则**：记录上直接存储的构件编码、关联 BIM 构件已保存的构件编码、以及按构件 ID 反查得到的完整构件编码，任一与请求编码一致即视为命中。传入 `model_id` 时仅 BIM 关联构件按模型过滤，记录上手填的编码与模型无关。
+
+- **错误响应示例**：
+  - **401 Unauthorized（缺少或无效 Token）**：
+    ```json
+    {
+      "error": "Unauthorized: Invalid or missing external API token."
+    }
+    ```
+  - **400 Bad Request（未传 componentCodes 或非数组）**：
+    ```json
+    {
+      "error": "Invalid request: componentCodes is required and must be an array."
+    }
+    ```
 
 ---
 

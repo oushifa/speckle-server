@@ -99,6 +99,9 @@ x-external-token: your_secure_external_api_token_here
           "attachments": [
             "http://your-server-domain:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_888?expires=1686389623000&signature=a59f518e3..."
           ],
+          "processAttachments": [
+            "http://your-server-domain:3000/api/v1/external/projects/project_id_1/blobs/blob_file_id_999?expires=1686389623000&signature=b71c209f4..."
+          ],
           "createdAt": "2026-06-05T10:00:00.000Z",
           "updatedAt": "2026-06-05T18:00:00.000Z"
         }
@@ -139,6 +142,7 @@ x-external-token: your_secure_external_api_token_here
 | &nbsp;&nbsp;&nbsp;&nbsp;├─ **`BIM`**                 | `Array`          | 关联的 BIM 模型构件集合（含 `modelId`, `applicationIds`, `bimIds`, `bimCodes`） |
 | &nbsp;&nbsp;&nbsp;&nbsp;├─ **`approveStatus`**       | `string \| null` | 审批流状态 (`PENDING` / `APPROVED` / `REJECTED` / `CANCELED`)                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;├─ **`attachments`**         | `Array<string>`  | 表单附件安全免登录下载绝对 URL 列表 (24 小时有效)                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;├─ **`processAttachments`**  | `Array<string>`  | 表单「过程文件」安全免登录下载绝对 URL 列表 (24 小时有效)                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;├─ **`createdAt`**           | `string`         | 表单创建时间 (ISO 8601)                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;└─ **`updatedAt`**           | `string`         | 表单更新时间 (ISO 8601)                                                         |
 
