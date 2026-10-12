@@ -85,7 +85,9 @@ const resolvers = {
         ReturnType<typeof getProjectDbClient>
       >
       if (!projectDb) return []
-      const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(parent.id)
+      const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(
+        parent.id
+      )
       return items.map((item) => ({ ...item, _projectDb: projectDb }))
     }
   },
@@ -174,7 +176,14 @@ const resolvers = {
   MonthlyMeasurementMutations: {
     preview: async (
       _parent: unknown,
-      args: { input: { projectId: string; baseDate: string; excludedAcceptanceIds?: string[]; pinnedAcceptanceIds?: string[] } },
+      args: {
+        input: {
+          projectId: string
+          baseDate: string
+          excludedAcceptanceIds?: string[]
+          pinnedAcceptanceIds?: string[]
+        }
+      },
       ctx: GraphQLContext
     ) => {
       if (!hasServerAdminOverride(ctx)) {
@@ -190,7 +199,9 @@ const resolvers = {
         getQualityAcceptanceFormsBeforeBaseDate:
           getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
         getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
-        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
+        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({
+          db: projectDb
+        })
       })
 
       return await buildPreview({
@@ -232,7 +243,9 @@ const resolvers = {
         getQualityAcceptanceFormsBeforeBaseDate:
           getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
         getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
-        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
+        getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({
+          db: projectDb
+        })
       })
       const createMonthlyMeasurement = createMonthlyMeasurementFromPreviewFactory({
         db: projectDb,
@@ -348,7 +361,9 @@ const resolvers = {
         subjectTable: MONTHLY_MEASUREMENT_TABLE,
         subjectId: args.input.id
       })
-      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(
+        subjectKey
+      )
       if (binding && binding.projectId === args.input.projectId) {
         if (binding.status === 'IN_REVIEW') {
           throw new BadRequestError(
@@ -408,7 +423,9 @@ const resolvers = {
           getQualityAcceptanceFormsBeforeBaseDate:
             getQualityAcceptanceFormsBeforeBaseDateFactory({ db: projectDb }),
           getProjectBoqItems: getProjectBoqItemsFactory({ db: projectDb }),
-          getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({ db: projectDb })
+          getQualityAcceptanceFormsByIds: getQualityAcceptanceFormsByIdsFactory({
+            db: projectDb
+          })
         })
         const preview = await buildPreview({
           projectId: args.input.projectId,
@@ -442,7 +459,9 @@ const resolvers = {
             price: row.price,
             pendingTotalQty: row.pendingTotalQty,
             approvedCumulativeQty: row.approvedCumulativeQty,
-            measuredQty: Number.isNaN(measuredQty) ? row.measuredQtyDefault : measuredQty,
+            measuredQty: Number.isNaN(measuredQty)
+              ? row.measuredQtyDefault
+              : measuredQty,
             remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
             sourceAcceptanceIds: row.sourceAcceptanceIds,
             createdAt: nowTs,
@@ -487,7 +506,13 @@ const resolvers = {
               price: row.price,
               pendingTotalQty: row.pendingTotalQty,
               approvedCumulativeQty: row.approvedCumulativeQty,
-              measuredQty: Number.isNaN(measuredQty) ? (row as MonthlyMeasurementItemRecord & { measuredQtyDefault?: number }).measuredQtyDefault ?? 0 : measuredQty,
+              measuredQty: Number.isNaN(measuredQty)
+                ? (
+                    row as MonthlyMeasurementItemRecord & {
+                      measuredQtyDefault?: number
+                    }
+                  ).measuredQtyDefault ?? 0
+                : measuredQty,
               remark: row.isSummaryRow ? null : custom?.remark?.trim() || null,
               sourceAcceptanceIds: row.sourceAcceptanceIds,
               createdAt: now,
@@ -551,7 +576,9 @@ const resolvers = {
         subjectTable: MONTHLY_MEASUREMENT_TABLE,
         subjectId: args.input.id
       })
-      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(
+        subjectKey
+      )
       if (binding && binding.projectId === args.input.projectId) {
         if (binding.status === 'IN_REVIEW') {
           throw new BadRequestError(

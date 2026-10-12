@@ -185,6 +185,7 @@ export type QualityAcceptanceFormRecord = {
   actualFinishDate?: Nullable<string>
   inspector?: Nullable<string>
   attachments?: Nullable<string[]>
+  processAttachments?: Nullable<string[]>
   creator?: Nullable<string>
   project_id?: Nullable<string>
   workVolume?: Nullable<number>

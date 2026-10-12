@@ -1655,6 +1655,7 @@ export type CreateQualityAcceptanceFormInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['ID']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -2278,6 +2279,7 @@ export type ImportQualityAcceptanceFormItemInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   rowNumber: Scalars['Int']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -4448,6 +4450,7 @@ export type QualityAcceptanceForm = {
   inspectorId?: Maybe<Scalars['ID']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   occupiedMeasurementId?: Maybe<Scalars['ID']['output']>;
+  processAttachments: Array<BlobMetadata>;
   projectId?: Maybe<Scalars['ID']['output']>;
   timeZone?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
@@ -6034,6 +6037,7 @@ export type UpdateQualityAcceptanceFormInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['ID']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -7885,7 +7889,7 @@ export type ResolversTypes = {
   ProjectVersionsUpdatedMessage: ResolverTypeWrapper<Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversTypes['Version']> }>;
   ProjectVersionsUpdatedMessageType: ProjectVersionsUpdatedMessageType;
   ProjectVisibility: ProjectVisibility;
-  QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector'> & { BIM?: Maybe<Array<ResolversTypes['BimElementEntry']>>, attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']> }>;
+  QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector' | 'processAttachments'> & { BIM?: Maybe<Array<ResolversTypes['BimElementEntry']>>, attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']>, processAttachments: Array<ResolversTypes['BlobMetadata']> }>;
   QualityAcceptanceFormCollection: ResolverTypeWrapper<Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversTypes['QualityAcceptanceForm']> }>;
   QualityAcceptanceImportResult: ResolverTypeWrapper<QualityAcceptanceImportResult>;
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
@@ -8363,7 +8367,7 @@ export type ResolversParentTypes = {
   ProjectUpdatedMessage: Omit<ProjectUpdatedMessage, 'project'> & { project?: Maybe<ResolversParentTypes['Project']> };
   ProjectVersionsPreviewGeneratedMessage: ProjectVersionsPreviewGeneratedMessage;
   ProjectVersionsUpdatedMessage: Omit<ProjectVersionsUpdatedMessage, 'version'> & { version?: Maybe<ResolversParentTypes['Version']> };
-  QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector'> & { BIM?: Maybe<Array<ResolversParentTypes['BimElementEntry']>>, attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']> };
+  QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector' | 'processAttachments'> & { BIM?: Maybe<Array<ResolversParentTypes['BimElementEntry']>>, attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']>, processAttachments: Array<ResolversParentTypes['BlobMetadata']> };
   QualityAcceptanceFormCollection: Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversParentTypes['QualityAcceptanceForm']> };
   QualityAcceptanceImportResult: QualityAcceptanceImportResult;
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
@@ -10249,6 +10253,7 @@ export type QualityAcceptanceFormResolvers<ContextType = GraphQLContext, ParentT
   inspectorId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   occupiedMeasurementId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  processAttachments?: Resolver<Array<ResolversTypes['BlobMetadata']>, ParentType, ContextType>;
   projectId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   unit?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

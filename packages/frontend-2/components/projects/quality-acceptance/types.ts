@@ -64,6 +64,8 @@ export type QualityAcceptanceForm = {
   actualFinishDate: number
   inspector: string
   attachments: QualityAcceptanceAttachment[]
+  /** 过程文件：与附件并列的第二组附件 */
+  processAttachments: QualityAcceptanceAttachment[]
   creator: string
   workVolume: number
   unit: string
@@ -77,8 +79,9 @@ export type QualityAcceptanceForm = {
 
 export type QualityAcceptanceCreateInput = Omit<
   QualityAcceptanceForm,
-  'id' | 'createdAt' | 'updatedAt' | 'attachments'
+  'id' | 'createdAt' | 'updatedAt' | 'attachments' | 'processAttachments'
 > & {
   attachments: string[]
+  processAttachments: string[]
   flowId?: string
 }

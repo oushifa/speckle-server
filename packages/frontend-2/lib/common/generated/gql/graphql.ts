@@ -1625,6 +1625,7 @@ export type CreateQualityAcceptanceFormInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['ID']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -2246,6 +2247,7 @@ export type ImportQualityAcceptanceFormItemInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   rowNumber: Scalars['Int']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -4416,6 +4418,7 @@ export type QualityAcceptanceForm = {
   inspectorId?: Maybe<Scalars['ID']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   occupiedMeasurementId?: Maybe<Scalars['ID']['output']>;
+  processAttachments: Array<BlobMetadata>;
   projectId?: Maybe<Scalars['ID']['output']>;
   timeZone?: Maybe<Scalars['String']['output']>;
   unit?: Maybe<Scalars['String']['output']>;
@@ -6000,6 +6003,7 @@ export type UpdateQualityAcceptanceFormInput = {
   inspectionLotNumber?: InputMaybe<Scalars['String']['input']>;
   inspector?: InputMaybe<Scalars['ID']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
   projectId: Scalars['ID']['input'];
   timeZone?: InputMaybe<Scalars['String']['input']>;
   unit?: InputMaybe<Scalars['String']['input']>;
@@ -12679,6 +12683,7 @@ export type QualityAcceptanceFormFieldArgs = {
   inspectorId: {},
   name: {},
   occupiedMeasurementId: {},
+  processAttachments: {},
   projectId: {},
   timeZone: {},
   unit: {},

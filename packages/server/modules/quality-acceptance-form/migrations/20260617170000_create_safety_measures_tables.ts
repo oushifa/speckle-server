@@ -21,8 +21,14 @@ export async function up(knex: Knex): Promise<void> {
       table.string('approveStatus').nullable()
       table.string('flowInstanceId', 10).nullable()
       table.string('creator').nullable()
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
 
       table.unique(['project_id', 'code'], 'safety_measures_project_code_unique')
       table.index(['project_id'], 'safety_measures_project_idx')
@@ -34,27 +40,36 @@ export async function up(knex: Knex): Promise<void> {
   if (!hasSafetyMeasureDetails) {
     await knex.schema.createTable(safetyMeasureDetailsTable, (table) => {
       table.string('id', 10).primary()
-      table.string('safetyMeasureId', 10).notNullable().index('safety_measure_details_measure_idx')
+      table
+        .string('safetyMeasureId', 10)
+        .notNullable()
+        .index('safety_measure_details_measure_idx')
       table.jsonb('attachments').nullable()
-      
+
       table.text('supervisionOpinion').nullable()
       table.string('supervisionAuditor').nullable()
       table.timestamp('supervisionDate', { useTz: true }).nullable()
-      
+
       table.text('headquartersOpinion').nullable()
       table.string('headquartersAuditor').nullable()
       table.timestamp('headquartersDate', { useTz: true }).nullable()
-      
+
       table.text('engineeringOpinion').nullable()
       table.string('engineeringAuditor').nullable()
       table.timestamp('engineeringDate', { useTz: true }).nullable()
-      
+
       table.text('contractOpinion').nullable()
       table.string('contractAuditor').nullable()
       table.timestamp('contractDate', { useTz: true }).nullable()
-      
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
+
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
     })
   }
 
@@ -63,7 +78,10 @@ export async function up(knex: Knex): Promise<void> {
   if (!hasSafetyMeasureItems) {
     await knex.schema.createTable(safetyMeasureItemsTable, (table) => {
       table.string('id', 10).primary()
-      table.string('safetyMeasureId', 10).notNullable().index('safety_measure_items_measure_idx')
+      table
+        .string('safetyMeasureId', 10)
+        .notNullable()
+        .index('safety_measure_items_measure_idx')
       table.string('boqItemId', 10).notNullable().index('safety_measure_items_boq_idx')
       table.string('boqCode').nullable()
       table.string('boqName').nullable()
@@ -75,26 +93,35 @@ export async function up(knex: Knex): Promise<void> {
       table.float('price').nullable()
       table.float('contractQty').nullable()
       table.float('contractAmount').nullable()
-      
+
       table.float('contractorQty').nullable().defaultTo(0)
       table.float('contractorAmount').nullable().defaultTo(0)
-      
+
       table.float('supervisionQty').nullable().defaultTo(0)
       table.float('supervisionAmount').nullable().defaultTo(0)
-      
+
       table.float('headquartersQty').nullable().defaultTo(0)
       table.float('headquartersAmount').nullable().defaultTo(0)
-      
+
       table.float('engineeringQty').nullable().defaultTo(0)
       table.float('engineeringAmount').nullable().defaultTo(0)
-      
+
       table.float('contractDeptQty').nullable().defaultTo(0)
       table.float('contractDeptAmount').nullable().defaultTo(0)
-      
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
 
-      table.unique(['safetyMeasureId', 'boqItemId'], 'safety_measure_items_measure_boq_unique')
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+
+      table.unique(
+        ['safetyMeasureId', 'boqItemId'],
+        'safety_measure_items_measure_boq_unique'
+      )
     })
   }
 }

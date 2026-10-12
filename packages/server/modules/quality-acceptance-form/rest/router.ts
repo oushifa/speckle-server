@@ -1,6 +1,11 @@
 import { Router, type RequestHandler } from 'express'
 import type { Request, Response } from 'express'
-import { preciseAdd, preciseMul } from '@/modules/shared/helpers/preciseMath'
+import {
+  compressComponentCodeRanges,
+  expandComponentCodeRange,
+  findInvalidComponentCodeRanges
+} from '@/modules/shared/utils/componentCodeRange'
+import { preciseAdd, preciseMul, wanToYuan } from '@/modules/shared/helpers/preciseMath'
 import { z } from 'zod'
 import { validateRequest } from 'zod-express'
 import type Busboy from 'busboy'
@@ -24,7 +29,8 @@ import {
 } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import {
   getQualityAcceptanceFormsFactory,
-  countQualityAcceptanceFormsFactory
+  countQualityAcceptanceFormsFactory,
+  normalizeQualityAcceptanceFormsSort
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
@@ -222,19 +228,19 @@ const calculatePaymentRequestAmounts = async (
       const headquartersQty = Number(item.headquartersQty || 0)
       const investmentQty = Number(item.investmentQty || 0)
 
-      const contractorAmt = contractorQty * price
-      const supervisionAmt = supervisionQty * price
-      const headquartersAmt = headquartersQty * price
-      const investmentAmt = investmentQty * price
+      const contractorAmt = preciseMul(contractorQty, price)
+      const supervisionAmt = preciseMul(supervisionQty, price)
+      const headquartersAmt = preciseMul(headquartersQty, price)
+      const investmentAmt = preciseMul(investmentQty, price)
       const contractAmt = investmentAmt
       const leaderAmt = investmentAmt
 
-      contractorPayAmtSum += contractorAmt
-      supervisionPayAmtSum += supervisionAmt
-      headquartersPayAmtSum += headquartersAmt
-      investmentPayAmtSum += investmentAmt
-      contractPayAmtSum += contractAmt
-      leaderPayAmtSum += leaderAmt
+      contractorPayAmtSum = preciseAdd(contractorPayAmtSum, contractorAmt)
+      supervisionPayAmtSum = preciseAdd(supervisionPayAmtSum, supervisionAmt)
+      headquartersPayAmtSum = preciseAdd(headquartersPayAmtSum, headquartersAmt)
+      investmentPayAmtSum = preciseAdd(investmentPayAmtSum, investmentAmt)
+      contractPayAmtSum = preciseAdd(contractPayAmtSum, contractAmt)
+      leaderPayAmtSum = preciseAdd(leaderPayAmtSum, leaderAmt)
     }
   }
 
@@ -244,10 +250,10 @@ const calculatePaymentRequestAmounts = async (
     const contractAmt = Number(extra.contractPayAmt || 0)
     const leaderAmt = Number(extra.leaderPayAmt || 0)
 
-    contractorPayAmtSum += contractorAmt
-    investmentPayAmtSum += investmentAmt
-    contractPayAmtSum += contractAmt
-    leaderPayAmtSum += leaderAmt
+    contractorPayAmtSum = preciseAdd(contractorPayAmtSum, contractorAmt)
+    investmentPayAmtSum = preciseAdd(investmentPayAmtSum, investmentAmt)
+    contractPayAmtSum = preciseAdd(contractPayAmtSum, contractAmt)
+    leaderPayAmtSum = preciseAdd(leaderPayAmtSum, leaderAmt)
   }
 
   const round2 = (num: number) => Math.round(num * 100) / 100
@@ -292,6 +298,73 @@ const getLeaderPayAmtSum = async (
   }
 
   return sum
+}
+
+/**
+ * 计算费用支付申请单（Tab 3）上的「合同金额」与「上期末累计付款」。
+ *
+ * ⚠️ 中间支付单里存的是**万元**，这两个字段对外是**元**，
+ * 换算与累加必须走 wanToYuan / preciseAdd：
+ * 直接写 `x * 10000` 会产生 230284474.99999999 之类的浮点尾差
+ * （例如 23028.4475 * 10000 === 230284474.99999997），
+ * 该值会直接渲染进前端的 input[type=number]，用户可见。
+ */
+const calculateContractAndCumulativePayment = async (
+  projectDb: any,
+  projectId: string,
+  measurementId: string
+): Promise<{ contractAmount: number; lastCumulativePayment: number }> => {
+  const measurement = await getMonthlyMeasurementByIdFactory({ db: projectDb })(
+    measurementId
+  )
+  if (!measurement) {
+    return { contractAmount: 0, lastCumulativePayment: 0 }
+  }
+
+  const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(
+    measurementId
+  )
+  const boqItems = await projectDb('boq_items')
+    .where('projectId', projectId)
+    .select('id', 'amount')
+  const boqAmountMap = new Map<string, number | null>()
+  for (const boq of boqItems) {
+    boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+  }
+
+  let contractAmount = 0
+  for (const item of items) {
+    if (!item.isSummaryRow) {
+      const price = Number(item.price || 0)
+      const boqAmt = boqAmountMap.get(item.boqItemId)
+      if (boqAmt !== undefined && boqAmt !== null) {
+        contractAmount += boqAmt
+      } else {
+        contractAmount += Number(item.pendingTotalQty || 0) * price
+      }
+    }
+  }
+  contractAmount = Math.round(contractAmount * 100) / 100
+
+  // 历史已付款：所有历史已审批通过的月度支付单的进度款之和（万元折合元）
+  const approvedPayments: Array<{ interimPayProgress: number | string | null }> =
+    await projectDb('monthly_payment_details')
+      .join(
+        'monthly_measurements',
+        'monthly_payment_details.measurementId',
+        'monthly_measurements.id'
+      )
+      .where('monthly_measurements.project_id', projectId)
+      .andWhere('monthly_measurements.approveStatus', 'APPROVED')
+      .andWhere('monthly_measurements.id', '!=', measurementId)
+      .select('monthly_payment_details.interimPayProgress')
+
+  const lastCumulativePayment = approvedPayments.reduce(
+    (sum, p) => preciseAdd(sum, wanToYuan(p.interimPayProgress || 0)),
+    0
+  )
+
+  return { contractAmount, lastCumulativePayment }
 }
 
 const getEffectiveExtraPayAmt = (item: {
@@ -367,6 +440,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const search = req.query.search ? String(req.query.search).trim() : null
       const cursor = req.query.cursor ? String(req.query.cursor).trim() : null
       const limit = req.query.limit ? Number(req.query.limit) : 25
+      const { sortBy, sortOrder } = normalizeQualityAcceptanceFormsSort({
+        sortBy: req.query.sortBy ? String(req.query.sortBy).trim() : null,
+        sortOrder: req.query.sortOrder ? String(req.query.sortOrder).trim() : null
+      })
 
       const projectDb = await getProjectDbClient({ projectId })
 
@@ -376,7 +453,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           projectId,
           search,
           cursor,
-          limit
+          limit,
+          sortBy,
+          sortOrder
         }),
         countQualityAcceptanceFormsFactory({ db: projectDb })({
           projectId,
@@ -398,9 +477,16 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
       const userMap = new Map<string, any>(users.map((u: any) => [u.id, u]))
 
-      // 3. 批量加载附件信息
+      // 3. 批量加载附件信息 (附件 + 过程文件共用一次批量查询)
       const allBlobIds = Array.from(
-        new Set(items.flatMap((item: any) => item.attachments || []).filter(Boolean))
+        new Set(
+          items
+            .flatMap((item: any) => [
+              ...(item.attachments || []),
+              ...(item.processAttachments || [])
+            ])
+            .filter(Boolean)
+        )
       )
       let blobs: any[] = []
       if (allBlobIds.length > 0) {
@@ -410,19 +496,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         })
       }
       const blobMap = new Map<string, any>(blobs.map((b: any) => [b.id, b]))
+      const mapBlobIds = (blobIds: string[] | null | undefined) =>
+        (blobIds || []).map((bid: string) => blobMap.get(bid)).filter(Boolean)
 
       // 4. 拼装 payload
       const payloadItems = items.map((item: any) => {
-        const itemAttachments = (item.attachments || [])
-          .map((bid: string) => blobMap.get(bid))
-          .filter(Boolean)
-
         return {
           ...item,
           projectId: item.project_id,
           inspector: userMap.get(item.inspector) || null,
           creator: userMap.get(item.creator) || null,
-          attachments: itemAttachments,
+          attachments: mapBlobIds(item.attachments),
+          processAttachments: mapBlobIds(item.processAttachments),
           BIM: normalizeBIM(item.BIM, item.BIMelement)
         }
       })
@@ -2303,50 +2388,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const details = await getMonthlyPaymentRequestsFactory({ db: projectDb })(id)
 
       // 自动计算合同金额与累计已付款
-      const measurement = await getMonthlyMeasurementByIdFactory({ db: projectDb })(id)
-      let contractAmount = 0
-      let lastCumulativePayment = 0
-
-      if (measurement) {
-        const items = await getMonthlyMeasurementItemsFactory({ db: projectDb })(id)
-        const boqItems = await projectDb('boq_items')
-          .where('projectId', projectId)
-          .select('id', 'amount')
-        const boqAmountMap = new Map<string, number | null>()
-        for (const boq of boqItems) {
-          boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
-        }
-
-        for (const item of items) {
-          if (!item.isSummaryRow) {
-            const price = Number(item.price || 0)
-            const boqAmt = boqAmountMap.get(item.boqItemId)
-            if (boqAmt !== undefined && boqAmt !== null) {
-              contractAmount += boqAmt
-            } else {
-              contractAmount += Number(item.pendingTotalQty || 0) * price
-            }
-          }
-        }
-        contractAmount = Math.round(contractAmount * 100) / 100
-
-        // 历史已付款：所有历史已审批通过的月度支付单的进度款之和
-        const approvedPayments = await projectDb('monthly_payment_details')
-          .join(
-            'monthly_measurements',
-            'monthly_payment_details.measurementId',
-            'monthly_measurements.id'
-          )
-          .where('monthly_measurements.project_id', projectId)
-          .andWhere('monthly_measurements.approveStatus', 'APPROVED')
-          .andWhere('monthly_measurements.id', '!=', id)
-          .select('monthly_payment_details.interimPayProgress')
-
-        lastCumulativePayment = approvedPayments.reduce(
-          (sum, p) => sum + Number(p.interimPayProgress || 0) * 10000,
-          0
-        ) // 万元折合元
-      }
+      const { contractAmount, lastCumulativePayment } =
+        await calculateContractAndCumulativePayment(projectDb, projectId, id)
 
       let requestAttachments: Array<{ blobId: string; name: string }> = []
       if (
@@ -2546,6 +2589,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       const latestAmts = await calculatePaymentRequestAmounts(projectDb, id)
+      const { contractAmount, lastCumulativePayment } =
+        await calculateContractAndCumulativePayment(projectDb, projectId, id)
       const getFinalAmt = (detailsVal: any, defaultVal: number) => {
         if (detailsVal === null || detailsVal === undefined) {
           return defaultVal
@@ -2558,6 +2603,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           ? {
               ...updated,
               requestAttachments,
+              contractAmount,
+              lastCumulativePayment,
               contractorPayAmt: getFinalAmt(
                 updated.contractorPayAmt,
                 latestAmts.contractorPayAmt
@@ -3648,7 +3695,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             Number(it.contractorAmount) ||
             0
           const currentSum = measureTotalAmountMap.get(it.safetyMeasureId) || 0
-          measureTotalAmountMap.set(it.safetyMeasureId, currentSum + amt)
+          measureTotalAmountMap.set(it.safetyMeasureId, preciseAdd(currentSum, amt))
         }
       }
 
@@ -3683,7 +3730,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
                 Number(m.baseDate) < Number(item.baseDate) ||
                 (Number(m.baseDate) === Number(item.baseDate) && m.code <= item.code))
             if (isApproved) {
-              cumulativeAmount += measureTotalAmountMap.get(m.id) || 0
+              cumulativeAmount = preciseAdd(
+                cumulativeAmount,
+                measureTotalAmountMap.get(m.id) || 0
+              )
             }
           }
 
@@ -4895,118 +4945,6 @@ const getStatusText = (status: string | null | undefined) => {
   }
 }
 
-const expandSerialRange = (rangeStr: string): string[] => {
-  rangeStr = rangeStr.trim()
-  const tildeRegex = /[~～]/
-  if (!tildeRegex.test(rangeStr)) {
-    return [rangeStr]
-  }
-  const parts = rangeStr.split(tildeRegex).map((p) => p.trim())
-  if (parts.length !== 2) {
-    return [rangeStr]
-  }
-  const [start, end] = parts
-  const startMatch = start.match(/^(.*?)(\d+)$/)
-  const endMatch = end.match(/^(.*?)(\d+)$/)
-  if (!startMatch || !endMatch) {
-    return [start, end]
-  }
-  const prefix = startMatch[1]
-  const startNumStr = startMatch[2]
-  const endNumStr = endMatch[2]
-
-  if (endMatch[1] !== '' && prefix !== endMatch[1]) {
-    return [start, end]
-  }
-
-  const startNum = parseInt(startNumStr, 10)
-  const endNum = parseInt(endNumStr, 10)
-  if (startNum > endNum) {
-    return [start, end]
-  }
-  const width = startNumStr.length
-  const results: string[] = []
-  for (let i = startNum; i <= endNum; i++) {
-    const numStr = String(i).padStart(width, '0')
-    results.push(prefix + numStr)
-  }
-  return results
-}
-
-const compressSerialNumbers = (numbers: string[]): string => {
-  if (!numbers || numbers.length === 0) return ''
-
-  type Parsed = {
-    original: string
-    prefix: string
-    num: number
-    width: number
-  }
-  const parsedItems: Parsed[] = []
-  const nonParsable: string[] = []
-
-  for (const numStr of numbers) {
-    const trimmed = numStr.trim()
-    if (!trimmed) continue
-    const match = trimmed.match(/^(.*?)(\d+)$/)
-    if (match) {
-      parsedItems.push({
-        original: trimmed,
-        prefix: match[1],
-        num: parseInt(match[2], 10),
-        width: match[2].length
-      })
-    } else {
-      nonParsable.push(trimmed)
-    }
-  }
-
-  type GroupKey = string
-  const groups = new Map<GroupKey, Parsed[]>()
-  for (const item of parsedItems) {
-    const key = `${item.prefix}::${item.width}`
-    if (!groups.has(key)) {
-      groups.set(key, [])
-    }
-    groups.get(key)!.push(item)
-  }
-
-  const resultSegments: string[] = []
-
-  for (const [key, items] of groups.entries()) {
-    const lastColonIdx = key.lastIndexOf('::')
-    const prefix = key.substring(0, lastColonIdx)
-    const width = parseInt(key.substring(lastColonIdx + 2), 10)
-
-    const uniqueNums = Array.from(new Set(items.map((it) => it.num))).sort(
-      (a, b) => a - b
-    )
-
-    let k = 0
-    while (k < uniqueNums.length) {
-      let endIdx = k
-      while (
-        endIdx + 1 < uniqueNums.length &&
-        uniqueNums[endIdx + 1] === uniqueNums[endIdx] + 1
-      ) {
-        endIdx++
-      }
-
-      const formatNum = (n: number) => prefix + String(n).padStart(width, '0')
-      if (endIdx > k) {
-        const endNumStr = String(uniqueNums[endIdx]).padStart(width, '0')
-        resultSegments.push(`${formatNum(uniqueNums[k])}~${endNumStr}`)
-      } else {
-        resultSegments.push(formatNum(uniqueNums[k]))
-      }
-      k = endIdx + 1
-    }
-  }
-
-  resultSegments.push(...nonParsable)
-  return resultSegments.join(', ')
-}
-
 const getBimIdsString = (bim: any) => {
   if (!bim) return ''
   let bimArr = bim
@@ -5020,7 +4958,7 @@ const getBimIdsString = (bim: any) => {
   if (!Array.isArray(bimArr)) return ''
   const ids = bimArr.flatMap((entry: any) => entry.bimIds || [])
   const validIds = ids.filter((id: any) => typeof id === 'string' && !!id.trim())
-  return compressSerialNumbers(validIds)
+  return compressComponentCodeRanges(validIds)
 }
 
 const parseExcelDate = (raw: any): number | null => {
@@ -5176,15 +5114,13 @@ const parseImportRows = (
         .split(/[,，;；、]/)
         .map((s: string) => s.trim())
         .filter(Boolean)
-      const tildeRegex = /[~～]/
-      for (const part of rawBimIds) {
-        if (tildeRegex.test(part) && part.split(tildeRegex).length > 2) {
-          throw new Error(
-            `第 ${rowNumber} 行关联构件ID中包含错误的连写方式：'${part}'，连写只能包含一个波浪号`
-          )
-        }
+      const invalidRangePart = findInvalidComponentCodeRanges(rawBimIds)[0]
+      if (invalidRangePart) {
+        throw new Error(
+          `第 ${rowNumber} 行关联构件ID中包含错误的连写方式：'${invalidRangePart}'，连写只能包含一个波浪号`
+        )
       }
-      const bimIds = rawBimIds.flatMap(expandSerialRange)
+      const bimIds = rawBimIds.flatMap((part) => expandComponentCodeRange(part))
       if (bimIds.length > 0) {
         const bimEntryMap = new Map<
           string,

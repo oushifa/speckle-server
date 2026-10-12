@@ -7,6 +7,29 @@ const tables = {
   forms: (db: Knex) => db<QualityAcceptanceFormRecord>(QualityAcceptanceForms.name)
 }
 
+export const QUALITY_ACCEPTANCE_FORMS_SORT_FIELDS = [
+  'updatedAt',
+  'actualFinishDate'
+] as const
+
+export type QualityAcceptanceFormsSortField =
+  (typeof QUALITY_ACCEPTANCE_FORMS_SORT_FIELDS)[number]
+
+export type SortOrder = 'asc' | 'desc'
+
+export const normalizeQualityAcceptanceFormsSort = (params: {
+  sortBy?: string | null
+  sortOrder?: string | null
+}): { sortBy: QualityAcceptanceFormsSortField; sortOrder: SortOrder } => {
+  const sortBy = QUALITY_ACCEPTANCE_FORMS_SORT_FIELDS.includes(
+    params.sortBy as QualityAcceptanceFormsSortField
+  )
+    ? (params.sortBy as QualityAcceptanceFormsSortField)
+    : 'updatedAt'
+  const sortOrder: SortOrder = params.sortOrder === 'asc' ? 'asc' : 'desc'
+  return { sortBy, sortOrder }
+}
+
 export const getQualityAcceptanceFormsFactory =
   (deps: { db: Knex }) =>
   async (params: {
@@ -14,13 +37,23 @@ export const getQualityAcceptanceFormsFactory =
     cursor?: string | null
     limit?: number | null
     search?: string | null
+    sortBy?: QualityAcceptanceFormsSortField | null
+    sortOrder?: SortOrder | null
   }) => {
     const limit = clamp(params.limit || 25, 1, 100)
+    const { sortBy, sortOrder } = normalizeQualityAcceptanceFormsSort(params)
+    const sortColumn =
+      sortBy === 'actualFinishDate'
+        ? QualityAcceptanceForms.col.actualFinishDate
+        : QualityAcceptanceForms.col.updatedAt
+    const idColumn = QualityAcceptanceForms.col.id
+
     const q = tables
       .forms(deps.db)
       .where(QualityAcceptanceForms.col.project_id, params.projectId)
-      .orderBy(QualityAcceptanceForms.col.updatedAt, 'desc')
-      .orderBy(QualityAcceptanceForms.col.id, 'desc')
+      // 验收日期可能为空，空值始终排在最后
+      .orderByRaw(`?? ${sortOrder} nulls last`, [sortColumn])
+      .orderByRaw(`?? ${sortOrder}`, [idColumn])
       .limit(limit + 1)
 
     if (params.search) {
@@ -40,20 +73,47 @@ export const getQualityAcceptanceFormsFactory =
     }
 
     if (params.cursor) {
-      const [cursorDateRaw, cursorId] = params.cursor.split('|')
-      if (cursorDateRaw && cursorId) {
-        const cursorDate = new Date(cursorDateRaw)
-        q.andWhere((w) => {
-          w.where(QualityAcceptanceForms.col.updatedAt, '<', cursorDate).orWhere(
-            (w2) => {
-              w2.where(QualityAcceptanceForms.col.updatedAt, '=', cursorDate).andWhere(
-                QualityAcceptanceForms.col.id,
-                '<',
+      const separatorIndex = params.cursor.lastIndexOf('|')
+      const cursorRaw =
+        separatorIndex >= 0 ? params.cursor.slice(0, separatorIndex) : params.cursor
+      const cursorId =
+        separatorIndex >= 0 ? params.cursor.slice(separatorIndex + 1) : ''
+      // 升序时后续数据更大，降序时后续数据更小
+      const comparator = sortOrder === 'asc' ? '>' : '<'
+
+      if (cursorId) {
+        if (sortBy === 'actualFinishDate') {
+          const numericCursor = cursorRaw === '' ? null : Number(cursorRaw)
+          if (numericCursor === null || Number.isFinite(numericCursor)) {
+            q.andWhere((w) => {
+              if (numericCursor === null) {
+                // 游标位于空值区间，只继续取空值记录
+                w.whereNull(sortColumn).andWhere(idColumn, comparator, cursorId)
+                return
+              }
+              w.where(sortColumn, comparator, numericCursor).orWhere((w2) => {
+                w2.where(sortColumn, '=', numericCursor).andWhere(
+                  idColumn,
+                  comparator,
+                  cursorId
+                )
+              })
+              // 空值排在最后，非空游标之后仍可能跟一批空值记录
+              w.orWhereNull(sortColumn)
+            })
+          }
+        } else {
+          const cursorDate = new Date(cursorRaw)
+          q.andWhere((w) => {
+            w.where(sortColumn, comparator, cursorDate).orWhere((w2) => {
+              w2.where(sortColumn, '=', cursorDate).andWhere(
+                idColumn,
+                comparator,
                 cursorId
               )
-            }
-          )
-        })
+            })
+          })
+        }
       }
     }
 
@@ -62,15 +122,28 @@ export const getQualityAcceptanceFormsFactory =
     const trimmed = hasMore ? items.slice(0, limit) : items
     const last = trimmed[trimmed.length - 1]
 
+    let cursor: string | null = null
+    if (hasMore && last) {
+      if (sortBy === 'actualFinishDate') {
+        const rawValue =
+          last.actualFinishDate === null || last.actualFinishDate === undefined
+            ? ''
+            : String(last.actualFinishDate)
+        cursor = `${rawValue}|${last.id}`
+      } else {
+        cursor = `${new Date(last.updatedAt).toISOString()}|${last.id}`
+      }
+    }
+
     return {
       items: trimmed,
-      cursor:
-        hasMore && last ? `${new Date(last.updatedAt).toISOString()}|${last.id}` : null
+      cursor
     }
   }
 
 export const getQualityAcceptanceFormByIdFactory =
-  (deps: { db: Knex }) => async (params: { formId: string; projectId?: string | null }) => {
+  (deps: { db: Knex }) =>
+  async (params: { formId: string; projectId?: string | null }) => {
     const q = tables.forms(deps.db).where(QualityAcceptanceForms.col.id, params.formId)
     if (params.projectId) {
       q.andWhere(QualityAcceptanceForms.col.project_id, params.projectId)

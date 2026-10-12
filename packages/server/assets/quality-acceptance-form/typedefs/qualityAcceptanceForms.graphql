@@ -24,6 +24,7 @@ type QualityAcceptanceForm {
   inspector: LimitedUser
   inspectorId: ID
   attachments: [BlobMetadata!]!
+  processAttachments: [BlobMetadata!]!
   creator: LimitedUser
   creatorId: ID
   projectId: ID
@@ -63,6 +64,7 @@ input CreateQualityAcceptanceFormInput {
   actualFinishDate: BigInt
   inspector: ID
   attachments: [String!]
+  processAttachments: [String!]
   workVolume: Float
   unit: String
   BIM: [BimElementEntryInput!]
@@ -89,6 +91,7 @@ input UpdateQualityAcceptanceFormInput {
   actualFinishDate: BigInt
   inspector: ID
   attachments: [String!]
+  processAttachments: [String!]
   workVolume: Float
   unit: String
   BIM: [BimElementEntryInput!]
@@ -109,6 +112,7 @@ input ImportQualityAcceptanceFormItemInput {
   actualFinishDate: BigInt
   inspector: ID
   attachments: [String!]
+  processAttachments: [String!]
   workVolume: Float
   unit: String
   BIM: [BimElementEntryInput!]

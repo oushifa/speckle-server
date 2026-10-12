@@ -13,6 +13,7 @@ import type {
   BimElementEntry,
   BIM
 } from '@/modules/quality-acceptance-form/helpers/types'
+import { isQualityAcceptanceFormStatusLocked } from '@/modules/quality-acceptance-form/helpers/formLock'
 import { BadRequestError } from '@/modules/shared/errors'
 
 export const QUALITY_ACCEPTANCE_FORM_TABLE = 'quality_acceptance_forms'
@@ -31,6 +32,7 @@ export type CreateQualityAcceptanceFormInput = {
   actualFinishDate?: string | number | null
   inspector?: string | null
   attachments?: string[] | null
+  processAttachments?: string[] | null
   workVolume?: number | null
   unit?: string | null
   BIM?: BIM | null
@@ -204,6 +206,7 @@ export const createQualityAcceptanceFormEntryFactory =
       actualFinishDate: normalizeOptionalDateValue(params.input.actualFinishDate),
       inspector: normalizeOptionalString(params.input.inspector),
       attachments: normalizeAttachments(params.input.attachments),
+      processAttachments: normalizeAttachments(params.input.processAttachments),
       creator: params.creator ?? params.actorUserId ?? null,
       ['project_id']: projectId,
       workVolume:
@@ -282,6 +285,11 @@ export const importQualityAcceptanceFormsFactory =
             projectId: params.projectId
           })
           if (existing) {
+            if (isQualityAcceptanceFormStatusLocked(existing)) {
+              throw new BadRequestError(
+                `该质量验收单(ID: ${existing.id})处于查验中或已查验状态，不可通过导入修改`
+              )
+            }
             if (existing.occupiedMeasurementId) {
               throw new BadRequestError(
                 `该质量验收单(ID: ${existing.id})已被月度验工关联，不可通过导入修改`

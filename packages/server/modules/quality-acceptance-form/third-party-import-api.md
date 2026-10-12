@@ -67,6 +67,13 @@
 - 不支持 BIM/构件关联导入
 - 不支持幂等更新，当前行为是纯创建
 
+## 更新限制
+
+当请求体带 `id`（验收单 ID）且命中同一项目内已存在的验收单时，服务端按更新处理。以下情况该行会进入 `failedRows`，原单据不会被修改：
+
+- 单据处于查验中（`PENDING`）或已查验（`APPROVED`）状态
+- 单据已被月度验工占用
+
 ## 成功响应
 
 ```json
@@ -93,7 +100,7 @@
   "failedRows": [
     {
       "rowNumber": 3,
-        "error": "BOQ item abc0000000 not found in project."
+      "error": "BOQ item abc0000000 not found in project."
     }
   ]
 }

@@ -1,7 +1,10 @@
 import type { Resolvers } from '@/modules/core/graph/generated/graphql'
 import { db } from '@/db/knex'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
-import { buildApprovalBindingSubjectKey, getApprovalFlowBindingBySubjectKeyFactory } from '@/modules/flow/repositories/approvalBindings'
+import {
+  buildApprovalBindingSubjectKey,
+  getApprovalFlowBindingBySubjectKeyFactory
+} from '@/modules/flow/repositories/approvalBindings'
 import { getApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers'
 import {
   countQualityAcceptanceFormsFactory,
@@ -27,9 +30,32 @@ import {
   normalizeBIM,
   QUALITY_ACCEPTANCE_FORM_TABLE
 } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
+import {
+  isQualityAcceptanceFormStatusLocked,
+  QUALITY_ACCEPTANCE_LOCKED_BY_STATUS_MESSAGE,
+  QUALITY_ACCEPTANCE_OCCUPIED_MESSAGE
+} from '@/modules/quality-acceptance-form/helpers/formLock'
 
 const hasServerAdminOverride = (ctx: GraphQLContext) =>
   adminOverrideEnabled() && ctx.role === Roles.Server.Admin
+
+/** 把表单上存的 blob id 数组还原成 BlobMetadata（附件 / 过程文件共用） */
+const resolveQualityAcceptanceBlobMetadata = async (params: {
+  blobIds?: string[] | null
+  projectId?: string | null
+}) => {
+  const blobIds = params.blobIds || []
+  const projectId = params.projectId
+  if (!blobIds.length || !projectId) return []
+
+  const projectDb = await getProjectDbClient({ projectId })
+  const blobs = await getBlobsFactory({ db: projectDb })({
+    blobIds,
+    streamId: projectId
+  })
+  const blobsById = keyBy(blobs, (blob) => blob.id)
+  return blobIds.map((blobId) => blobsById[blobId] || null).filter(isNonNullable)
+}
 
 type CreateQualityAcceptanceFormArgs = {
   projectId: string
@@ -44,6 +70,7 @@ type CreateQualityAcceptanceFormArgs = {
   actualFinishDate?: string | null
   inspector?: string | null
   attachments?: string[] | null
+  processAttachments?: string[] | null
   workVolume?: number | null
   unit?: string | null
   BIM?: BIM | null
@@ -85,30 +112,27 @@ const resolvers = {
     },
     creatorId: (parent: { creator?: string | null }) => parent.creator || null,
     projectId: (parent: { project_id?: string | null }) => parent.project_id || null,
-    BIM: (parent: {
-      BIM?: BIM | null
-      BIMelement?: string[] | null
-    }) => normalizeBIM(parent.BIM, parent.BIMelement),
-    BIMelement: (parent: {
-      BIM?: BIM | null
-      BIMelement?: string[] | null
-    }) => normalizeBIM(parent.BIM, parent.BIMelement)?.flatMap((e) => e.applicationIds) || null,
-    attachments: async (parent: {
+    BIM: (parent: { BIM?: BIM | null; BIMelement?: string[] | null }) =>
+      normalizeBIM(parent.BIM, parent.BIMelement),
+    BIMelement: (parent: { BIM?: BIM | null; BIMelement?: string[] | null }) =>
+      normalizeBIM(parent.BIM, parent.BIMelement)?.flatMap((e) => e.applicationIds) ||
+      null,
+    attachments: (parent: {
       attachments?: string[] | null
       project_id?: string | null
-    }) => {
-      const blobIds = parent.attachments || []
-      const projectId = parent.project_id
-      if (!blobIds.length || !projectId) return []
-
-      const projectDb = await getProjectDbClient({ projectId })
-      const blobs = await getBlobsFactory({ db: projectDb })({
-        blobIds,
-        streamId: projectId
-      })
-      const blobsById = keyBy(blobs, (blob) => blob.id)
-      return blobIds.map((blobId) => blobsById[blobId] || null).filter(isNonNullable)
-    },
+    }) =>
+      resolveQualityAcceptanceBlobMetadata({
+        blobIds: parent.attachments,
+        projectId: parent.project_id
+      }),
+    processAttachments: (parent: {
+      processAttachments?: string[] | null
+      project_id?: string | null
+    }) =>
+      resolveQualityAcceptanceBlobMetadata({
+        blobIds: parent.processAttachments,
+        projectId: parent.project_id
+      }),
     occupiedMeasurementId: (parent: { occupiedMeasurementId?: string | null }) =>
       parent.occupiedMeasurementId || null
   },
@@ -239,6 +263,7 @@ const resolvers = {
           actualFinishDate?: string | null
           inspector?: string | null
           attachments?: string[] | null
+          processAttachments?: string[] | null
           workVolume?: number | null
           unit?: string | null
           BIM?: BIM | null
@@ -262,7 +287,9 @@ const resolvers = {
         subjectTable: QUALITY_ACCEPTANCE_FORM_TABLE,
         subjectId: args.input.id
       })
-      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(subjectKey)
+      const binding = await getApprovalFlowBindingBySubjectKeyFactory({ db })(
+        subjectKey
+      )
       if (binding && binding.projectId === args.input.projectId) {
         if (binding.status === 'IN_REVIEW') {
           throw new BadRequestError(
@@ -288,8 +315,12 @@ const resolvers = {
       const existingForm = await projectDb(QUALITY_ACCEPTANCE_FORM_TABLE)
         .where('id', args.input.id)
         .first()
+      // 查验中 / 已查验：不可编辑（含附件）
+      if (existingForm && isQualityAcceptanceFormStatusLocked(existingForm)) {
+        throw new BadRequestError(QUALITY_ACCEPTANCE_LOCKED_BY_STATUS_MESSAGE)
+      }
       if (existingForm?.occupiedMeasurementId) {
-        throw new BadRequestError('该质量验收单已被月度验工关联，不可修改')
+        throw new BadRequestError(QUALITY_ACCEPTANCE_OCCUPIED_MESSAGE)
       }
 
       const updated = await updateQualityAcceptanceFormFactory({ db: projectDb })(
@@ -305,13 +336,11 @@ const resolvers = {
           actualFinishDate: args.input.actualFinishDate ?? null,
           inspector: args.input.inspector ?? null,
           attachments: args.input.attachments ?? null,
+          processAttachments: args.input.processAttachments ?? null,
           ['project_id']: args.input.projectId,
           workVolume: args.input.workVolume ?? null,
           unit: args.input.unit ?? null,
-          BIM: normalizeBIM(
-            args.input.BIM ?? null,
-            args.input.BIMelement ?? null
-          ),
+          BIM: normalizeBIM(args.input.BIM ?? null, args.input.BIMelement ?? null),
           timeZone: args.input.timeZone ?? null,
           approveStatus: normalizeApproveStatus(args.input.approveStatus)
         }

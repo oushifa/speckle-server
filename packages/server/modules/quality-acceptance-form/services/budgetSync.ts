@@ -2,6 +2,7 @@ import type { Knex } from 'knex'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import { BadRequestError } from '@/modules/shared/errors'
+import { preciseAdd, wanToYuan } from '@/modules/shared/helpers/preciseMath'
 
 // ==========================================
 // 辅助方法：读取环境变量配置并获取 API Base URL 与 Token
@@ -45,7 +46,9 @@ const getBaseSyncData = async (params: {
     throw new BadRequestError('项目不存在')
   }
 
-  const measurement = await projectDb('monthly_measurements').where({ id: measurementId }).first()
+  const measurement = await projectDb('monthly_measurements')
+    .where({ id: measurementId })
+    .first()
   if (!measurement) {
     throw new BadRequestError('月度验工单不存在')
   }
@@ -54,8 +57,12 @@ const getBaseSyncData = async (params: {
     throw new BadRequestError('只有已通过审核的月度验工单才可以同步数据')
   }
 
-  const paymentDetails = await projectDb('monthly_payment_details').where({ measurementId }).first()
-  const paymentRequests = await projectDb('monthly_payment_requests').where({ measurementId }).first()
+  const paymentDetails = await projectDb('monthly_payment_details')
+    .where({ measurementId })
+    .first()
+  const paymentRequests = await projectDb('monthly_payment_requests')
+    .where({ measurementId })
+    .first()
 
   return { project, measurement, paymentDetails, paymentRequests }
 }
@@ -79,7 +86,8 @@ const buildSettlementInfoSyncPreview = async (params: {
 
   const constructionUnitName = project.constructionUnit
     ? (
-        await params.db('departments')
+        await params
+          .db('departments')
           .where({ id: project.constructionUnit })
           .select('name')
           .first()
@@ -91,7 +99,8 @@ const buildSettlementInfoSyncPreview = async (params: {
       ? Number(project.contractPrice).toFixed(4)
       : '0.0000'
 
-  const [{ total }] = await params.projectDb('monthly_measurement_items')
+  const [{ total }] = await params
+    .projectDb('monthly_measurement_items')
     .where('measurementId', params.measurementId)
     .andWhere('isSummaryRow', false)
     .select(
@@ -334,9 +343,12 @@ const buildIntermediatePaymentSyncPreview = async (params: {
     })
   })
 
-  const thisPaymentInYuan = Number(paymentDetails?.interimPayProgress || 0) * 10000
-  const lastCumulativePaymentInYuan = Number(paymentRequests?.lastCumulativePayment || 0)
-  const accuPaymentInYuan = lastCumulativePaymentInYuan + thisPaymentInYuan
+  const thisPaymentInYuan = wanToYuan(paymentDetails?.interimPayProgress || 0)
+  const lastCumulativePaymentInYuan = preciseAdd(
+    paymentRequests?.lastCumulativePayment || 0,
+    0
+  )
+  const accuPaymentInYuan = preciseAdd(lastCumulativePaymentInYuan, thisPaymentInYuan)
 
   const baseDateTs = Number(measurement.baseDate)
   const year = dayjs(baseDateTs).format('YYYY')
@@ -391,15 +403,16 @@ const buildPaymentPoolSyncPreview = async (params: {
     .where('measurementId', measurementId)
     .andWhere('isSummaryRow', false)
     .select(
-      projectDb.raw(
-        'SUM(COALESCE("investmentQty", 0) * COALESCE("price", 0)) as total'
-      )
+      projectDb.raw('SUM(COALESCE("investmentQty", 0) * COALESCE("price", 0)) as total')
     )
   const settlementTotalAmount = Number(total || 0).toFixed(2)
 
-  const thisPaymentInYuan = Number(paymentDetails?.interimPayProgress || 0) * 10000
-  const lastCumulativePaymentInYuan = Number(paymentRequests?.lastCumulativePayment || 0)
-  const accuPaymentInYuan = lastCumulativePaymentInYuan + thisPaymentInYuan
+  const thisPaymentInYuan = wanToYuan(paymentDetails?.interimPayProgress || 0)
+  const lastCumulativePaymentInYuan = preciseAdd(
+    paymentRequests?.lastCumulativePayment || 0,
+    0
+  )
+  const accuPaymentInYuan = preciseAdd(lastCumulativePaymentInYuan, thisPaymentInYuan)
 
   const baseDateTs = Number(measurement.baseDate)
   const year = dayjs(baseDateTs).format('YYYY')
@@ -445,7 +458,7 @@ const buildPaymentPoolSyncPreview = async (params: {
     Confirmed: thisPaymentInYuan,
     Estimated: 0.0,
     ConstructionAmount: thisPaymentInYuan,
-    RuralLaborsSalary: Number(paymentDetails?.migrantWorkerSalary || 0) * 10000,
+    RuralLaborsSalary: wanToYuan(paymentDetails?.migrantWorkerSalary || 0),
     MaterialAmount: 0.0,
     ProphaseAmount: 0.0,
     ProphaseLineMigrationAmount: 0.0,
@@ -517,19 +530,35 @@ export const syncSettlementInfoToBudget = async (params: {
 
     const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
     if (!isSuccess) {
-      throw new Error(resData?.messages || resData?.message || '验工计价接口返回失败状态')
+      throw new Error(
+        resData?.messages || resData?.message || '验工计价接口返回失败状态'
+      )
     }
-    return { success: true, message: resData?.messages || resData?.message || '计价结果同步成功' }
+    return {
+      success: true,
+      message: resData?.messages || resData?.message || '计价结果同步成功'
+    }
   } catch (error: any) {
     console.error('[DEBUG] 同步至 Push_SettlementInfo 接口发生异常:')
     if (error.response) {
       console.error('[DEBUG] 异常Response状态:', error.response.status)
-      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
-      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
+      console.error(
+        '[DEBUG] 异常Response数据:',
+        JSON.stringify(error.response.data, null, 2)
+      )
+      console.error(
+        '[DEBUG] 异常Response头部:',
+        JSON.stringify(error.response.headers, null, 2)
+      )
     } else {
       console.error('[DEBUG] 异常信息:', error.message)
     }
-    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.messages ||
+      error.response?.data?.error ||
+      error.message ||
+      '网络连接异常'
     throw new Error(`同步计价结果失败: ${errorMsg}`)
   }
 }
@@ -556,19 +585,35 @@ export const syncIntermediatePaymentInfoToBudget = async (params: {
 
     const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
     if (!isSuccess) {
-      throw new Error(resData?.messages || resData?.message || '中间支付单接口返回失败状态')
+      throw new Error(
+        resData?.messages || resData?.message || '中间支付单接口返回失败状态'
+      )
     }
-    return { success: true, message: resData?.messages || resData?.message || '中间支付单同步成功' }
+    return {
+      success: true,
+      message: resData?.messages || resData?.message || '中间支付单同步成功'
+    }
   } catch (error: any) {
     console.error('[DEBUG] 同步至 Push_IntermediatePayementInfo 接口发生异常:')
     if (error.response) {
       console.error('[DEBUG] 异常Response状态:', error.response.status)
-      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
-      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
+      console.error(
+        '[DEBUG] 异常Response数据:',
+        JSON.stringify(error.response.data, null, 2)
+      )
+      console.error(
+        '[DEBUG] 异常Response头部:',
+        JSON.stringify(error.response.headers, null, 2)
+      )
     } else {
       console.error('[DEBUG] 异常信息:', error.message)
     }
-    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.messages ||
+      error.response?.data?.error ||
+      error.message ||
+      '网络连接异常'
     throw new Error(`同步中间支付单失败: ${errorMsg}`)
   }
 }
@@ -595,19 +640,35 @@ export const syncPaymentPoolToBudget = async (params: {
 
     const isSuccess = resData?.status === 'Success' || resData?.Status === 'Success'
     if (!isSuccess) {
-      throw new Error(resData?.messages || resData?.message || '待支付申报池接口返回失败状态')
+      throw new Error(
+        resData?.messages || resData?.message || '待支付申报池接口返回失败状态'
+      )
     }
-    return { success: true, message: resData?.messages || resData?.message || '待支付池同步成功' }
+    return {
+      success: true,
+      message: resData?.messages || resData?.message || '待支付池同步成功'
+    }
   } catch (error: any) {
     console.error('[DEBUG] 同步至 PushToPaymentPool 接口发生异常:')
     if (error.response) {
       console.error('[DEBUG] 异常Response状态:', error.response.status)
-      console.error('[DEBUG] 异常Response数据:', JSON.stringify(error.response.data, null, 2))
-      console.error('[DEBUG] 异常Response头部:', JSON.stringify(error.response.headers, null, 2))
+      console.error(
+        '[DEBUG] 异常Response数据:',
+        JSON.stringify(error.response.data, null, 2)
+      )
+      console.error(
+        '[DEBUG] 异常Response头部:',
+        JSON.stringify(error.response.headers, null, 2)
+      )
     } else {
       console.error('[DEBUG] 异常信息:', error.message)
     }
-    const errorMsg = error.response?.data?.message || error.response?.data?.messages || error.response?.data?.error || error.message || '网络连接异常'
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.messages ||
+      error.response?.data?.error ||
+      error.message ||
+      '网络连接异常'
     throw new Error(`同步至待支付申报池失败: ${errorMsg}`)
   }
 }

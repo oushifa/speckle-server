@@ -715,6 +715,7 @@ export const QualityAcceptanceForms = buildTableHelper('quality_acceptance_forms
   'actualFinishDate',
   'inspector',
   'attachments',
+  'processAttachments',
   'creator',
   'project_id',
   'workVolume',

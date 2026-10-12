@@ -13,25 +13,31 @@ export async function up(knex: Knex): Promise<void> {
       table.string('id', 10).primary()
       table.string('measurementId', 10).notNullable().index()
       table.specificType('acceptanceAttachments', 'text[]').nullable()
-      
+
       table.text('supervisionOpinion').nullable()
       table.string('supervisionAuditor').nullable()
       table.timestamp('supervisionDate', { useTz: true }).nullable()
-      
+
       table.text('headquartersOpinion').nullable()
       table.string('headquartersAuditor').nullable()
       table.timestamp('headquartersDate', { useTz: true }).nullable()
-      
+
       table.text('investmentOpinion').nullable()
       table.string('investmentAuditor').nullable()
       table.timestamp('investmentDate', { useTz: true }).nullable()
-      
+
       table.text('ownerOpinion').nullable()
       table.string('ownerAuditor').nullable()
       table.timestamp('ownerDate', { useTz: true }).nullable()
-      
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
+
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
     })
   }
 
@@ -45,14 +51,20 @@ export async function up(knex: Knex): Promise<void> {
       table.float('interimPayProgress').nullable().defaultTo(0)
       table.float('migrantWorkerSalary').nullable().defaultTo(0)
       table.text('interimRemark').nullable()
-      
+
       table.string('contractorSign').nullable()
       table.string('supervisionSign').nullable()
       table.string('preparerSign').nullable()
       table.timestamp('interimSignDate', { useTz: true }).nullable()
-      
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
+
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
     })
   }
 
@@ -65,7 +77,7 @@ export async function up(knex: Knex): Promise<void> {
       table.specificType('requestAttachments', 'text[]').nullable()
       table.float('lastCumulativePayment').nullable().defaultTo(0)
       table.float('contractAmount').nullable().defaultTo(0)
-      
+
       table.float('contractorPayAmt').nullable().defaultTo(0)
       table.float('supervisionPayAmt').nullable().defaultTo(0)
       table.float('headquartersPayAmt').nullable().defaultTo(0)
@@ -96,9 +108,15 @@ export async function up(knex: Knex): Promise<void> {
       table.text('reqLeaderOpinion').nullable()
       table.string('reqLeaderAuditor').nullable()
       table.timestamp('reqLeaderDate', { useTz: true }).nullable()
-      
-      table.timestamp('createdAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
-      table.timestamp('updatedAt', { precision: 3, useTz: true }).notNullable().defaultTo(knex.fn.now())
+
+      table
+        .timestamp('createdAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
+      table
+        .timestamp('updatedAt', { precision: 3, useTz: true })
+        .notNullable()
+        .defaultTo(knex.fn.now())
     })
   }
 

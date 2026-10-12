@@ -62,7 +62,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     id: '',
     slug: ''
   }
-  
+
   const excelPath = path.join(__dirname, 'test-quality-acceptance.xlsx')
 
   const generateTestExcel = (updateRows: any[] = []) => {
@@ -134,7 +134,6 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     await createTestWorkspace(workspace, user, {
       regionKey: getMainTestRegionKeyIfMultiRegion()
     })
-    
     ;({ token } = await createToken({
       userId: user.id,
       name: 'quality acceptance test token',
@@ -148,10 +147,10 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     }
     await createTestStream(stream, user)
     projectId = stream.id!
-    
+
     // 注入模拟的 3D 模型版本及 Speckle Objects 对象
     const projectDb = await getProjectDbClient({ projectId })
-    
+
     // 1. 插入 Commit (代表一个模型版本)
     await projectDb('commits').insert({
       id: 'tst_commit',
@@ -177,9 +176,9 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         streamId: projectId,
         data: JSON.stringify({
           __closure: {
-            'tst_obj_1': 1,
-            'tst_obj_2': 1,
-            'tst_prj_inf': 1
+            tst_obj_1: 1,
+            tst_obj_2: 1,
+            tst_prj_inf: 1
           }
         })
       },
@@ -254,13 +253,14 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
       .orderBy('code', 'asc')
 
     expect(records.length).to.equal(3)
-    
+
     // 校验测试验收单1 (成功匹配构件1)
     expect(records[0].name).to.equal('测试验收单1')
     expect(records[0].inspectionLotNumber).to.equal('LOT-2026-001')
     expect(records[0].approveStatus).to.be.null // 导入时不处理月度验工状态，默认为未查验（null）
 
-    const bim1 = typeof records[0].BIM === 'string' ? JSON.parse(records[0].BIM) : records[0].BIM
+    const bim1 =
+      typeof records[0].BIM === 'string' ? JSON.parse(records[0].BIM) : records[0].BIM
     expect(bim1).to.be.an('array')
     expect(bim1.length).to.equal(1)
     expect(bim1[0].modelId).to.equal('tst_commit')
@@ -269,7 +269,8 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
 
     // 校验测试验收单3 (没找到任何匹配时的兜底策略)
     expect(records[2].name).to.equal('测试验收单3')
-    const bim3 = typeof records[2].BIM === 'string' ? JSON.parse(records[2].BIM) : records[2].BIM
+    const bim3 =
+      typeof records[2].BIM === 'string' ? JSON.parse(records[2].BIM) : records[2].BIM
     expect(bim3).to.be.an('array')
     expect(bim3.length).to.equal(1)
     expect(bim3[0].modelId).to.equal('')
@@ -292,21 +293,21 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     const workbook = XLSX.read(response.body, { type: 'buffer' })
     const worksheet = workbook.Sheets[workbook.SheetNames[0]]
     const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 })
-    
+
     // Expect header row + 3 data rows
     expect(rows.length).to.equal(4)
     const headerRow = rows[0]
     expect(headerRow).to.include('关联构件ID')
     expect(headerRow).to.include('验收单ID')
     expect(headerRow).to.include('验收单名称')
-    
+
     const bimColIndex = headerRow.indexOf('关联构件ID')
     const nameColIndex = headerRow.indexOf('验收单名称')
     const idColIndex = headerRow.indexOf('验收单ID')
 
     // 动态验证，防止排序引起的影响
     const findBimIdByName = (name: string) => {
-      const row = rows.find(r => r[nameColIndex] === name)
+      const row = rows.find((r) => r[nameColIndex] === name)
       return row ? row[bimColIndex] : null
     }
 
@@ -315,7 +316,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     expect(findBimIdByName('测试验收单3')).to.equal('NON_EXISTENT_CODE')
 
     // 导出的 ID 字段应非空且为字符串
-    const test1Row = rows.find(r => r[nameColIndex] === '测试验收单1')
+    const test1Row = rows.find((r) => r[nameColIndex] === '测试验收单1')
     expect(test1Row).to.not.be.undefined
     expect(test1Row![idColIndex]).to.be.a('string').and.not.empty
   })
@@ -358,8 +359,10 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     expect(response.body.createdCount).to.equal(1)
 
     // 重新查询该行数据并验证
-    const updatedRecords = await projectDb('quality_acceptance_forms')
-      .where('id', firstRecord.id)
+    const updatedRecords = await projectDb('quality_acceptance_forms').where(
+      'id',
+      firstRecord.id
+    )
 
     expect(updatedRecords.length).to.equal(1)
     expect(updatedRecords[0].name).to.equal('测试验收单1-`已修改`'.replace(/`/g, '')) // 即：测试验收单1-已修改
@@ -380,21 +383,22 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     const workbook = XLSX.read(response.body, { type: 'buffer' })
     const worksheet = workbook.Sheets[workbook.SheetNames[0]]
     const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 })
-    
+
     // Only header row should present
     expect(rows.length).to.equal(1)
   })
 
   it('Blocks unauthenticated access', async () => {
-    const response = await request(app)
-      .get(`/api/v1/projects/${projectId}/quality-acceptance/forms/export-excel`)
+    const response = await request(app).get(
+      `/api/v1/projects/${projectId}/quality-acceptance/forms/export-excel`
+    )
 
     expect([401, 403]).to.include(response.status)
   })
 
   it('Handles single tilde range expansion and multi-version deduplication', async () => {
     const projectDb = await getProjectDbClient({ projectId })
-    
+
     // 1. 插入第二个 commit (代表另一个模型版本)
     await projectDb('commits').insert({
       id: 'tst_cmt_v2',
@@ -418,7 +422,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         streamId: projectId,
         data: JSON.stringify({
           __closure: {
-            'tst_obj_cb13_v2': 1
+            tst_obj_cb13_v2: 1
           }
         })
       },
@@ -468,7 +472,9 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     const rtData = typeof rtObj.data === 'string' ? JSON.parse(rtObj.data) : rtObj.data
     rtData.__closure['tst_obj_cb13_v1'] = 1
     rtData.__closure['tst_obj_cb123_v1'] = 1
-    await projectDb('objects').where('id', 'tst_rt_obj').update({ data: JSON.stringify(rtData) })
+    await projectDb('objects')
+      .where('id', 'tst_rt_obj')
+      .update({ data: JSON.stringify(rtData) })
 
     // 生成带有一个波浪号范围的 Excel 行
     const testRows = [
@@ -505,12 +511,17 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
 
     // 1. 校验单波浪号范围：应该匹配成功，但多版本去重
     const recordRange1 = records[0]
-    const bimRange1 = typeof recordRange1.BIM === 'string' ? JSON.parse(recordRange1.BIM) : recordRange1.BIM
-    
+    const bimRange1 =
+      typeof recordRange1.BIM === 'string'
+        ? JSON.parse(recordRange1.BIM)
+        : recordRange1.BIM
+
     // 我们检查 tst_commit 分组 of applicationIds，去重后不应当包含两个相同的 applicationId
     const commitGroup = bimRange1.find((x: any) => x.modelId === 'tst_commit')
     expect(commitGroup).to.not.be.undefined
-    const cb13AppIds = commitGroup.applicationIds.filter((id: string) => id === 'tst_obj_cb13_v1')
+    const cb13AppIds = commitGroup.applicationIds.filter(
+      (id: string) => id === 'tst_obj_cb13_v1'
+    )
     expect(cb13AppIds.length).to.equal(1)
   })
 
@@ -541,4 +552,4 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
     expect(response.body.error).to.include('关联构件ID中包含错误的连写方式')
     expect(response.body.error).to.include('连写只能包含一个波浪号')
   })
-});
+})

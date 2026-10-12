@@ -6,6 +6,7 @@ import type {
 import type { BoqItemRecord } from '@/modules/bop-item/repositories/boq'
 import { resolveSafetyMeasureBoqItemIds } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import { BadRequestError } from '@/modules/shared/errors'
+import { preciseAdd } from '@/modules/shared/helpers/preciseMath'
 import cryptoRandomString from 'crypto-random-string'
 import dayjs from 'dayjs'
 
@@ -475,7 +476,8 @@ export const createMonthlyMeasurementFromPreviewFactory =
       const rowYear = dayjs(Number(row.baseDate)).year()
 
       historyMap.set(row.boqItemId, (historyMap.get(row.boqItemId) || 0) + qty)
-      payMap.set(row.boqItemId, (payMap.get(row.boqItemId) || 0) + pay)
+      // 已付金额是"元"，累加必须走精确加法，避免浮点尾差
+      payMap.set(row.boqItemId, preciseAdd(payMap.get(row.boqItemId) || 0, pay))
       if (rowYear === currentYear) {
         yearlyMap.set(row.boqItemId, (yearlyMap.get(row.boqItemId) || 0) + qty)
       }

@@ -8,10 +8,10 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(safetyMeasureDetailsTable, (table) => {
       table.string('supervisionApproveAuditor').nullable()
       table.timestamp('supervisionApproveDate', { useTz: true }).nullable()
-      
+
       table.string('headquartersApproveAuditor').nullable()
       table.timestamp('headquartersApproveDate', { useTz: true }).nullable()
-      
+
       table.string('engineeringApproveAuditor').nullable()
       table.timestamp('engineeringApproveDate', { useTz: true }).nullable()
     })

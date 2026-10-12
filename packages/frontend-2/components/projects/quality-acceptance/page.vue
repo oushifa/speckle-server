@@ -82,7 +82,7 @@
           :columns="columns"
           :items="paginatedItems"
           empty-message="暂无验收单"
-          class="flex-grow"
+          class="flex-grow min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
         >
           <template #name="{ item }">
             <span class="text-primary font-medium">{{ item.name }}</span>
@@ -94,6 +94,23 @@
             <span class="font-medium">
               {{ formatDate(item.actualFinishDate) || '-' }}
             </span>
+          </template>
+          <template #header-actualFinishDate>
+            <button
+              type="button"
+              class="flex items-center gap-1 transition-colors hover:text-foreground"
+              :title="actualFinishDateSortTitle"
+              @click="toggleActualFinishDateSort"
+            >
+              <span>验收日期</span>
+              <component
+                :is="actualFinishDateSortIcon"
+                class="size-3 shrink-0"
+                :class="
+                  isActualFinishDateSortActive ? 'text-primary' : 'text-foreground-3'
+                "
+              />
+            </button>
           </template>
           <template #inspectionLotNumber="{ item }">
             <span class="text-sm text-foreground">{{ item.inspectionLotNumber }}</span>
@@ -139,6 +156,22 @@
                 :key="attachment.id"
                 class="text-primary hover:text-primary-muted text-left truncate max-w-full"
                 @click="() => onAttachmentNameClick(item, attachment.id)"
+              >
+                {{ attachment.fileName }}
+              </button>
+            </div>
+            <span v-else class="text-foreground">-</span>
+          </template>
+          <template #processAttachments="{ item }">
+            <div
+              v-if="item.processAttachments.length"
+              class="flex flex-col items-start gap-y-1"
+            >
+              <button
+                v-for="attachment in item.processAttachments"
+                :key="attachment.id"
+                class="text-primary hover:text-primary-muted text-left truncate max-w-full"
+                @click="() => onProcessAttachmentNameClick(item, attachment.id)"
               >
                 {{ attachment.fileName }}
               </button>
@@ -192,7 +225,7 @@
                     ? 'text-primary hover:text-primary-focus'
                     : 'text-foreground-3 cursor-not-allowed'
                 "
-                title="编辑"
+                :title="editDisabledReason(item) || '编辑'"
                 :disabled="!canEditItem(item)"
                 @click="onEditItem(item)"
               >
@@ -264,6 +297,7 @@
       :loading="createFormLoading || updateFormLoading"
       :initial-data="editingInitialData"
       :initial-attachments="editingItem?.attachments || []"
+      :initial-process-attachments="editingItem?.processAttachments || []"
       :readonly="isDialogReadonly"
       @submit="createAcceptanceItem"
     />
@@ -358,6 +392,9 @@
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  BarsArrowDownIcon,
+  BarsArrowUpIcon,
+  ChevronUpDownIcon,
   EyeIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
@@ -390,6 +427,10 @@ import type {
   UpdateQualityAcceptanceFormInput
 } from '~/lib/common/generated/gql/graphql'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import {
+  convertThrowIntoFetchResult,
+  getFirstErrorMessage
+} from '~~/lib/common/helpers/graphql'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
@@ -442,6 +483,7 @@ const columns = [
   { id: 'workVolume', header: '工程量', classes: 'col-span-1' },
   { id: 'unit', header: '单位', classes: 'col-span-1' },
   { id: 'attachments', header: '附件', classes: 'col-span-1' },
+  { id: 'processAttachments', header: '过程文件', classes: 'col-span-1' },
   { id: 'associationStatus', header: '关联状态', classes: 'col-span-1 text-sm' },
   { id: 'approveStatus', header: '月度验工', classes: 'col-span-1 text-sm' },
   { id: 'actions', header: '操作', classes: 'col-span-1 text-right text-sm' }
@@ -467,6 +509,33 @@ const selectedExportApproveStatus = computed({
 
 const currentPage = ref(1)
 const pageSize = ref(20)
+type AcceptanceSortField = 'updatedAt' | 'actualFinishDate'
+const sortBy = ref<AcceptanceSortField>('updatedAt')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+const isActualFinishDateSortActive = computed(() => sortBy.value === 'actualFinishDate')
+const actualFinishDateSortIcon = computed(() => {
+  if (!isActualFinishDateSortActive.value) return ChevronUpDownIcon
+  return sortOrder.value === 'asc' ? BarsArrowUpIcon : BarsArrowDownIcon
+})
+const actualFinishDateSortTitle = computed(() => {
+  if (!isActualFinishDateSortActive.value) return '点击按验收日期降序排列'
+  return sortOrder.value === 'asc'
+    ? '验收日期：升序，点击恢复默认排序'
+    : '验收日期：降序，点击切换为升序'
+})
+const toggleActualFinishDateSort = () => {
+  if (!isActualFinishDateSortActive.value) {
+    sortBy.value = 'actualFinishDate'
+    sortOrder.value = 'desc'
+    return
+  }
+  if (sortOrder.value === 'desc') {
+    sortOrder.value = 'asc'
+    return
+  }
+  sortBy.value = 'updatedAt'
+  sortOrder.value = 'desc'
+}
 const createDialogOpen = ref(false)
 const editingItem = ref<AcceptanceRow | null>(null)
 const dialogMode = ref<'create' | 'edit' | 'view'>('create')
@@ -483,9 +552,11 @@ const pageCursors = ref<Record<number, string | null>>({ 1: null })
 const currentCursor = computed(() => pageCursors.value[currentPage.value] || null)
 const formsResult = ref<any>(null)
 const formsLoading = ref(false)
+let loadFormsRequestId = 0
 
 const loadFormsData = async () => {
   if (!projectId.value) return
+  const requestId = ++loadFormsRequestId
   formsLoading.value = true
   try {
     const data = await $fetch<any>(
@@ -494,22 +565,28 @@ const loadFormsData = async () => {
         params: {
           search: debouncedSearchQuery.value || undefined,
           cursor: currentCursor.value || undefined,
-          limit: pageSize.value
+          limit: pageSize.value,
+          sortBy: sortBy.value,
+          sortOrder: sortOrder.value
         }
       }
     )
+    if (requestId !== loadFormsRequestId) return
     formsResult.value = data
   } catch (err) {
+    if (requestId !== loadFormsRequestId) return
     console.error('Failed to load quality acceptance forms via REST:', err)
   } finally {
-    formsLoading.value = false
+    if (requestId === loadFormsRequestId) {
+      formsLoading.value = false
+    }
   }
 }
 
 const formsRefetch = loadFormsData
 
 watch(
-  [projectId, debouncedSearchQuery, currentCursor, pageSize],
+  [projectId, debouncedSearchQuery, currentCursor, pageSize, sortBy, sortOrder],
   () => {
     void loadFormsData()
   },
@@ -531,6 +608,23 @@ type QualityAcceptanceFormNode = NonNullable<
     NonNullable<ProjectQualityAcceptanceFormsQuery['project']>['qualityAcceptanceForms']
   >['items'][number]
 >
+
+/** REST 列表已把 blob id 展开成 BlobMetadata，这里统一转成前端附件结构 */
+const mapAttachmentBlobs = (
+  blobs: QualityAcceptanceFormNode['attachments'] | null | undefined
+): QualityAcceptanceAttachment[] =>
+  (blobs || []).flatMap((attachment) =>
+    attachment
+      ? [
+          {
+            id: attachment.id,
+            fileName: attachment.fileName,
+            fileType: attachment.fileType,
+            fileSize: attachment.fileSize || null
+          }
+        ]
+      : []
+  )
 
 const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
   (formsResult.value?.items || [])
@@ -556,19 +650,8 @@ const acceptanceForms = computed<QualityAcceptanceForm[]>(() =>
         actualStartDate: Number(item.actualStartDate || 0),
         actualFinishDate: Number(item.actualFinishDate || 0),
         inspector: item.inspector?.id || item.inspectorId || '',
-        attachments: (item.attachments || []).flatMap(
-          (attachment: NonNullable<QualityAcceptanceFormNode['attachments']>[number]) =>
-            attachment
-              ? [
-                  {
-                    id: attachment.id,
-                    fileName: attachment.fileName,
-                    fileType: attachment.fileType,
-                    fileSize: attachment.fileSize || null
-                  }
-                ]
-              : []
-        ),
+        attachments: mapAttachmentBlobs(item.attachments),
+        processAttachments: mapAttachmentBlobs(item.processAttachments),
         creator: item.creator?.name || item.creator?.id || item.creatorId || '',
         workVolume: Number(item.workVolume || 0),
         unit: item.unit || '',
@@ -649,6 +732,7 @@ const editingInitialData = computed<QualityAcceptanceCreateInput | null>(() => {
     actualFinishDate: item.actualFinishDate,
     inspector: item.inspector,
     attachments: item.attachments.map((attachment) => attachment.id),
+    processAttachments: item.processAttachments.map((attachment) => attachment.id),
     creator: item.creator,
     workVolume: item.workVolume,
     unit: item.unit,
@@ -669,7 +753,7 @@ const endItemIndex = computed(() =>
   Math.min(currentPage.value * Number(pageSize.value), totalCount.value)
 )
 
-watch([projectId, debouncedSearchQuery, pageSize], () => {
+watch([projectId, debouncedSearchQuery, pageSize, sortBy, sortOrder], () => {
   currentPage.value = 1
   pageCursors.value = { 1: null }
 })
@@ -743,7 +827,10 @@ const onAttachmentDownloadClick = async () => {
   })
 }
 
-const openAttachmentsDialog = async (item: AcceptanceRow, selectedBlobId?: string) => {
+const openAttachmentsDialog = async (
+  attachments: QualityAcceptanceAttachment[],
+  selectedBlobId?: string
+) => {
   attachmentsDialogOpen.value = true
   attachmentsDialogLoading.value = true
   attachmentsDialogError.value = null
@@ -753,15 +840,9 @@ const openAttachmentsDialog = async (item: AcceptanceRow, selectedBlobId?: strin
   clearSelectedPreviewAttachmentObjectUrl()
 
   try {
-    const attachments = item.attachments
     if (!attachments.length) return
 
     previewAttachmentList.value = attachments
-
-    if (!previewAttachmentList.value.length) {
-      attachmentsDialogError.value = new Error('未找到可预览的附件')
-      return
-    }
 
     selectedPreviewAttachment.value =
       previewAttachmentList.value.find(
@@ -776,7 +857,13 @@ const openAttachmentsDialog = async (item: AcceptanceRow, selectedBlobId?: strin
 }
 
 const onAttachmentNameClick = (item: AcceptanceRow, blobId: string) => {
-  openAttachmentsDialog(item, blobId).catch((err) => {
+  openAttachmentsDialog(item.attachments, blobId).catch((err) => {
+    attachmentsDialogError.value = ensureError(err)
+  })
+}
+
+const onProcessAttachmentNameClick = (item: AcceptanceRow, blobId: string) => {
+  openAttachmentsDialog(item.processAttachments, blobId).catch((err) => {
     attachmentsDialogError.value = ensureError(err)
   })
 }
@@ -802,8 +889,23 @@ const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined =>
   ]
 })
 
-const canEditItem = (item: AcceptanceRow) =>
-  !item.approveStatus && !item.occupiedMeasurementId
+// 查验中 / 已查验的质量验收单禁止编辑与上传附件；被月度验工占用的同样禁止
+const LOCKED_ACCEPTANCE_APPROVE_STATUSES = ['PENDING', 'APPROVED']
+const normalizeApproveStatus = (status?: string | null) =>
+  (status || '').trim().toUpperCase()
+const isAcceptanceStatusLocked = (item: AcceptanceRow) =>
+  LOCKED_ACCEPTANCE_APPROVE_STATUSES.includes(
+    normalizeApproveStatus(item.approveStatus)
+  )
+const isAcceptanceLocked = (item: AcceptanceRow) =>
+  isAcceptanceStatusLocked(item) || !!item.occupiedMeasurementId
+const canEditItem = (item: AcceptanceRow) => !isAcceptanceLocked(item)
+
+const editDisabledReason = (item: AcceptanceRow) => {
+  if (isAcceptanceStatusLocked(item)) return '查验中或已查验，不可编辑或上传附件'
+  if (item.occupiedMeasurementId) return '已被月度验工关联，不可编辑'
+  return ''
+}
 
 const canDeleteItem = (item: AcceptanceRow) => {
   const status = (item.approveStatus || '').toUpperCase()
@@ -1030,7 +1132,15 @@ const removeAcceptanceItem = async (id: string) => {
 const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
   if (!projectId.value || createFormLoading.value || updateFormLoading.value) return
   if (editingItem.value) {
-    await updateFormMutate({
+    if (isAcceptanceLocked(editingItem.value)) {
+      createDialogOpen.value = false
+      notify(
+        '该质量验收单处于查验中或已查验状态，不可编辑或上传附件',
+        ToastNotificationType.Danger
+      )
+      return
+    }
+    const result = await updateFormMutate({
       input: {
         projectId: projectId.value,
         id: editingItem.value.id,
@@ -1044,16 +1154,26 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         actualFinishDate: payload.actualFinishDate,
         inspector: payload.inspector,
         attachments: payload.attachments,
+        processAttachments: payload.processAttachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
         BIM: payload.BIM,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
       } as UpdateQualityAcceptanceFormInput
-    })
+    }).catch(convertThrowIntoFetchResult)
+    // 服务端也会拦截查验中/已查验的编辑（含附件变更），这里把原因展示给用户
+    if (result?.errors?.length) {
+      notify(
+        '保存失败',
+        ToastNotificationType.Danger,
+        getFirstErrorMessage(result.errors)
+      )
+      return
+    }
     editingItem.value = null
   } else {
-    await createFormMutate({
+    const result = await createFormMutate({
       input: {
         projectId: projectId.value,
         flowId: payload.flowId || null,
@@ -1067,13 +1187,22 @@ const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
         actualFinishDate: payload.actualFinishDate,
         inspector: payload.inspector,
         attachments: payload.attachments,
+        processAttachments: payload.processAttachments,
         workVolume: payload.workVolume,
         unit: payload.unit,
         BIM: payload.BIM,
         timeZone: payload.timeZone,
         approveStatus: payload.approveStatus
       } as CreateQualityAcceptanceFormInput
-    })
+    }).catch(convertThrowIntoFetchResult)
+    if (result?.errors?.length) {
+      notify(
+        '保存失败',
+        ToastNotificationType.Danger,
+        getFirstErrorMessage(result.errors)
+      )
+      return
+    }
   }
   await formsRefetch()
   if (currentPage.value !== 1) {
