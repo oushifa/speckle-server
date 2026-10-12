@@ -1043,11 +1043,26 @@ const createDefaultPaymentRequest = (): PaymentRequestState => ({
   reqLeaderDate: undefined
 })
 
+/**
+ * 金额统一四舍五入到两位小数。
+ *
+ * 「上期末累计付款」「合同金额」是 disabled 的 input[type=number]，
+ * 会把后端返回的原始数字直接渲染出来；若后端存在浮点尾差
+ * （如 230284474.99999999），页面上就会原样暴露。这里做一次兜底。
+ */
+const roundMoney = (value: unknown): number => {
+  const num = Number(value ?? 0)
+  if (!Number.isFinite(num)) return 0
+  return Math.round(num * 100) / 100
+}
+
 const normalizePaymentRequest = (
   data?: Partial<PaymentRequestState> | null
 ): PaymentRequestState => ({
   ...createDefaultPaymentRequest(),
   ...(data || {}),
+  lastCumulativePayment: roundMoney(data?.lastCumulativePayment),
+  contractAmount: roundMoney(data?.contractAmount),
   requestAttachments: data?.requestAttachments || []
 })
 

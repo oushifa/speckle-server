@@ -87,9 +87,12 @@
           您可以点击“上传文件”按钮上传新文件
         </p>
       </div>
-      <div v-else class="overflow-x-auto">
+      <div
+        v-else
+        class="max-h-[calc(100dvh_-_22rem)] min-h-[12rem] overflow-auto overscroll-x-contain"
+      >
         <table class="w-full text-left text-sm border-collapse">
-          <thead>
+          <thead class="sticky top-0 z-10 bg-white dark:bg-slate-800">
             <tr
               class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300"
             >
@@ -104,7 +107,7 @@
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
             <tr
-              v-for="item in files"
+              v-for="item in paginatedFiles"
               :key="item.id"
               class="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors"
             >
@@ -247,6 +250,13 @@
           </tbody>
         </table>
       </div>
+
+      <CommonPagination
+        v-if="!loading && files.length > 0"
+        v-model:page="currentPage"
+        v-model:page-size="pageSize"
+        :total="files.length"
+      />
     </div>
 
     <!-- Upload Dialog -->
@@ -308,6 +318,25 @@ const loading = ref(false)
 const searchQuery = ref('')
 const selectedSource = ref('')
 const selectedCategory = ref('')
+
+// 分页（前端分页，数据量不大时体验更佳）
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(files.value.length / Number(pageSize.value || 1)))
+)
+const paginatedFiles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return files.value.slice(start, start + pageSize.value)
+})
+
+// 搜索/筛选/每页条数变化时回到第一页，数据变化后校正越界页码
+watch([searchQuery, selectedSource, selectedCategory, pageSize], () => {
+  currentPage.value = 1
+})
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages
+})
 
 const showUploadDialog = ref(false)
 const showEditDialog = ref(false)

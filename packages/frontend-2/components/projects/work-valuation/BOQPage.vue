@@ -62,324 +62,338 @@
 
     <!-- Tree Table Container：固定可视高度并独立滚动，保证低分辨率下横向滚动条始终可见 -->
     <div
-      class="w-full min-w-0 max-w-full min-h-[12rem] max-h-[calc(100dvh_-_16rem)] overflow-auto overscroll-x-contain rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm"
+      class="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm flex flex-col"
     >
-      <table class="w-full text-xs text-left min-w-[1520px] border-collapse">
-        <thead
-          class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
-        >
-          <tr class="divide-x divide-outline-3/60">
-            <th class="py-2.5 px-3 w-[220px]">清单编码</th>
-            <th class="py-2.5 px-3 w-[220px]">清单名称</th>
-            <th class="py-2.5 px-3 w-[90px] text-center">类型</th>
-            <th class="py-2.5 px-3 w-[70px] text-center">计量单位</th>
-            <th class="py-2.5 px-3 w-[100px] text-right">合同工程量</th>
-            <th class="py-2.5 px-3 w-[110px] text-right">综合单价(元)</th>
-            <th class="py-2.5 px-3 w-[110px] text-right">合价(元)</th>
-            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-              复核量
-            </th>
-            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-              变更/签证量
-            </th>
-            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
-              工程量(含变更)
-            </th>
-            <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-              复核单价（元）
-            </th>
-            <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
-              复核总价（元）
-            </th>
-            <th
-              v-if="hasAnyRowAction"
-              class="py-2.5 px-3 w-[110px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
-            >
-              操作
-            </th>
-          </tr>
-        </thead>
-
-        <!-- Loading State -->
-        <tbody v-if="isInitialLoading" class="divide-y divide-outline-3 font-normal">
-          <tr>
-            <td :colspan="tableColumnCount" class="py-12 text-center text-foreground-2">
-              <div class="flex items-center justify-center gap-2">
-                <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
-                <span>加载清单数据中...</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-
-        <!-- Empty State -->
-        <tbody
-          v-else-if="!flatItems.length"
-          class="divide-y divide-outline-3 font-normal"
-        >
-          <tr>
-            <td
-              :colspan="tableColumnCount"
-              class="py-12 text-center text-foreground-2 italic"
-            >
-              <span class="block">暂无清单数据</span>
-              <span
-                v-if="canCreate"
-                class="not-italic block mt-1 text-xs text-foreground-3"
-              >
-                您可以点击“初始化清单”按钮创建清单根节点
-              </span>
-            </td>
-          </tr>
-        </tbody>
-
-        <!-- Data Rows -->
-        <tbody v-else class="divide-y divide-outline-3 font-normal">
-          <tr
-            v-for="row in flatItems"
-            :key="row.item.id"
-            class="hover:bg-highlight-1/50 transition-colors divide-x divide-outline-3/40"
+      <div
+        class="w-full min-w-0 max-w-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)] overflow-auto overscroll-x-contain"
+      >
+        <table class="w-full text-xs text-left min-w-[1520px] border-collapse">
+          <thead
+            class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
           >
-            <!-- 清单编码 -->
-            <td class="py-2 px-3">
-              <div
-                class="flex items-center"
-                :style="{ paddingLeft: `${row.depth * 20}px` }"
+            <tr class="divide-x divide-outline-3/60">
+              <th class="py-2.5 px-3 w-[220px]">清单编码</th>
+              <th class="py-2.5 px-3 w-[220px]">清单名称</th>
+              <th class="py-2.5 px-3 w-[90px] text-center">类型</th>
+              <th class="py-2.5 px-3 w-[70px] text-center">计量单位</th>
+              <th class="py-2.5 px-3 w-[100px] text-right">合同工程量</th>
+              <th class="py-2.5 px-3 w-[110px] text-right">综合单价(元)</th>
+              <th class="py-2.5 px-3 w-[110px] text-right">合价(元)</th>
+              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                复核量
+              </th>
+              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                变更/签证量
+              </th>
+              <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+                工程量(含变更)
+              </th>
+              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                复核单价（元）
+              </th>
+              <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+                复核总价（元）
+              </th>
+              <th
+                v-if="hasAnyRowAction"
+                class="py-2.5 px-3 w-[110px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
               >
-                <button
-                  v-if="row.hasChildren"
-                  type="button"
-                  class="w-4 h-4 mr-1.5 text-foreground-2 hover:text-foreground transition inline-flex items-center justify-center shrink-0"
-                  @click.stop="toggleRow(row.item)"
-                >
-                  <ChevronRightIcon
-                    class="h-3.5 w-3.5 transition-transform duration-150"
-                    :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
-                  />
-                </button>
-                <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
-                <button
-                  v-if="canEdit"
-                  type="button"
-                  class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
-                  @click="openEditDialog(row.item)"
-                >
-                  {{ row.item.code }}
-                </button>
-                <span v-else class="font-mono font-medium text-foreground truncate">
-                  {{ row.item.code }}
-                </span>
-              </div>
-            </td>
+                操作
+              </th>
+            </tr>
+          </thead>
 
-            <!-- 清单名称 -->
-            <td class="py-2 px-3">
-              <span
-                class="font-medium text-foreground truncate block max-w-[210px]"
-                :title="row.item.name"
+          <!-- Loading State -->
+          <tbody v-if="isInitialLoading" class="divide-y divide-outline-3 font-normal">
+            <tr>
+              <td
+                :colspan="tableColumnCount"
+                class="py-12 text-center text-foreground-2"
               >
-                {{ row.item.name }}
-              </span>
-            </td>
+                <div class="flex items-center justify-center gap-2">
+                  <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
+                  <span>加载清单数据中...</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
 
-            <!-- 类型 -->
-            <td class="py-2 px-3 text-center">
-              <span
-                class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-foundation-3 text-foreground-2 border border-outline-3 whitespace-nowrap"
+          <!-- Empty State -->
+          <tbody
+            v-else-if="!flatItems.length"
+            class="divide-y divide-outline-3 font-normal"
+          >
+            <tr>
+              <td
+                :colspan="tableColumnCount"
+                class="py-12 text-center text-foreground-2 italic"
               >
-                {{ childTypeLabelMap[row.item.type] }}
-              </span>
-            </td>
-
-            <!-- 计量单位 -->
-            <td class="py-2 px-3 text-center text-foreground-2">
-              {{ row.item.unit || '-' }}
-            </td>
-
-            <!-- 合同工程量 -->
-            <td class="py-2 px-3 text-right font-mono text-foreground">
-              {{ formatNumber(row.item.quantity, 2) }}
-            </td>
-
-            <!-- 综合单价 -->
-            <td class="py-2 px-3 text-right font-mono text-foreground">
-              {{ formatNumber(row.item.price, 2) }}
-            </td>
-
-            <!-- 合价 -->
-            <td class="py-2 px-3 text-right font-mono text-foreground font-medium">
-              {{ formatNumber(row.item.amount, 2) }}
-            </td>
-
-            <!-- 复核量（可编辑） -->
-            <td class="py-1 px-2 text-right bg-primary/5">
-              <div
-                v-if="row.item.type === 'ITEM' && canEdit"
-                class="flex items-center justify-end relative"
-              >
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="复核量"
-                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                  :class="[
-                    savedItemIds.has(row.item.id)
-                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                  ]"
-                  :value="getInlineReviewQuantity(row.item)"
-                  placeholder="复核量"
-                  :disabled="savingItemId === row.item.id"
-                  @input="
-                    onInlineInput(
-                      row.item,
-                      'reviewQuantity',
-                      ($event.target as HTMLInputElement).value
-                    )
-                  "
-                  @blur="saveInlineReview(row.item)"
-                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                />
-              </div>
-              <span
-                v-else-if="row.item.type === 'ITEM'"
-                class="font-mono text-foreground block text-right pr-1"
-              >
-                {{ getInlineReviewQuantity(row.item) || '-' }}
-              </span>
-              <span v-else class="text-foreground-3 block text-center">-</span>
-            </td>
-
-            <!-- 变更/签证量（可编辑） -->
-            <td class="py-1 px-2 text-right bg-primary/5">
-              <div
-                v-if="row.item.type === 'ITEM' && canEdit"
-                class="flex items-center justify-end relative"
-              >
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="变更/签证量"
-                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                  :class="[
-                    savedItemIds.has(row.item.id)
-                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                  ]"
-                  :value="getInlineChangeQuantity(row.item)"
-                  placeholder="变更量"
-                  :disabled="savingItemId === row.item.id"
-                  @input="
-                    onInlineInput(
-                      row.item,
-                      'changeQuantity',
-                      ($event.target as HTMLInputElement).value
-                    )
-                  "
-                  @blur="saveInlineReview(row.item)"
-                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                />
-              </div>
-              <span
-                v-else-if="row.item.type === 'ITEM'"
-                class="font-mono text-foreground block text-right pr-1"
-              >
-                {{ getInlineChangeQuantity(row.item) || '-' }}
-              </span>
-              <span v-else class="text-foreground-3 block text-center">-</span>
-            </td>
-
-            <!-- 工程量（含签证变更）（不可编辑计算列） -->
-            <td
-              class="py-2 px-3 text-right font-mono font-medium text-foreground bg-primary/10"
-            >
-              {{ formatNumber(computeItemTotalQuantity(row.item), 2) }}
-            </td>
-
-            <!-- 复核单价（可编辑） -->
-            <td class="py-1 px-2 text-right bg-primary/5">
-              <div
-                v-if="row.item.type === 'ITEM' && canEdit"
-                class="flex items-center justify-end relative"
-              >
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="复核单价"
-                  class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                  :class="[
-                    savedItemIds.has(row.item.id)
-                      ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                      : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                  ]"
-                  :value="getInlineReviewPrice(row.item)"
-                  placeholder="复核单价"
-                  :disabled="savingItemId === row.item.id"
-                  @input="
-                    onInlineInput(
-                      row.item,
-                      'reviewPrice',
-                      ($event.target as HTMLInputElement).value
-                    )
-                  "
-                  @blur="saveInlineReview(row.item)"
-                  @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                />
-              </div>
-              <span
-                v-else-if="row.item.type === 'ITEM'"
-                class="font-mono text-foreground block text-right pr-1"
-              >
-                {{ getInlineReviewPrice(row.item) || '-' }}
-              </span>
-              <span v-else class="text-foreground-3 block text-center">-</span>
-            </td>
-
-            <!-- 复核总价（不可编辑计算列，上级汇总） -->
-            <td
-              class="py-2 px-3 text-right font-mono font-semibold text-primary bg-primary/10"
-            >
-              {{ formatNumber(computeItemReviewAmount(row.item), 2) }}
-            </td>
-
-            <!-- 操作 -->
-            <td
-              v-if="hasAnyRowAction"
-              class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
-            >
-              <div class="flex items-center justify-end gap-1.5">
-                <FormButton
-                  v-if="canEdit"
-                  color="outline"
-                  size="sm"
-                  hide-text
-                  :icon-left="PencilSquareIcon"
-                  :disabled="rowMutationLoading"
-                  @click.stop="handleEditItem(row.item)"
-                />
-                <FormButton
-                  v-if="canDelete"
-                  color="outline"
-                  size="sm"
-                  hide-text
-                  :icon-left="TrashIcon"
-                  :disabled="rowMutationLoading"
-                  @click.stop="handleDeleteItem(row.item)"
-                />
-                <FormButton
+                <span class="block">暂无清单数据</span>
+                <span
                   v-if="canCreate"
-                  color="outline"
-                  size="sm"
-                  hide-text
-                  :icon-left="PlusIcon"
-                  :disabled="rowMutationLoading || !canCreateChild(row.item.type)"
-                  @click.stop="handleCreateChildItem(row.item)"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                  class="not-italic block mt-1 text-xs text-foreground-3"
+                >
+                  您可以点击“初始化清单”按钮创建清单根节点
+                </span>
+              </td>
+            </tr>
+          </tbody>
+
+          <!-- Data Rows -->
+          <tbody v-else class="divide-y divide-outline-3 font-normal">
+            <tr
+              v-for="row in paginatedFlatItems"
+              :key="row.item.id"
+              class="hover:bg-highlight-1/50 transition-colors divide-x divide-outline-3/40"
+            >
+              <!-- 清单编码 -->
+              <td class="py-2 px-3">
+                <div
+                  class="flex items-center"
+                  :style="{ paddingLeft: `${row.depth * 20}px` }"
+                >
+                  <button
+                    v-if="row.hasChildren"
+                    type="button"
+                    class="w-4 h-4 mr-1.5 text-foreground-2 hover:text-foreground transition inline-flex items-center justify-center shrink-0"
+                    @click.stop="toggleRow(row.item)"
+                  >
+                    <ChevronRightIcon
+                      class="h-3.5 w-3.5 transition-transform duration-150"
+                      :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
+                    />
+                  </button>
+                  <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
+                  <button
+                    v-if="canEdit"
+                    type="button"
+                    class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
+                    @click="openEditDialog(row.item)"
+                  >
+                    {{ row.item.code }}
+                  </button>
+                  <span v-else class="font-mono font-medium text-foreground truncate">
+                    {{ row.item.code }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- 清单名称 -->
+              <td class="py-2 px-3">
+                <span
+                  class="font-medium text-foreground truncate block max-w-[210px]"
+                  :title="row.item.name"
+                >
+                  {{ row.item.name }}
+                </span>
+              </td>
+
+              <!-- 类型 -->
+              <td class="py-2 px-3 text-center">
+                <span
+                  class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-foundation-3 text-foreground-2 border border-outline-3 whitespace-nowrap"
+                >
+                  {{ childTypeLabelMap[row.item.type] }}
+                </span>
+              </td>
+
+              <!-- 计量单位 -->
+              <td class="py-2 px-3 text-center text-foreground-2">
+                {{ row.item.unit || '-' }}
+              </td>
+
+              <!-- 合同工程量 -->
+              <td class="py-2 px-3 text-right font-mono text-foreground">
+                {{ formatNumber(row.item.quantity, 2) }}
+              </td>
+
+              <!-- 综合单价 -->
+              <td class="py-2 px-3 text-right font-mono text-foreground">
+                {{ formatNumber(row.item.price, 2) }}
+              </td>
+
+              <!-- 合价 -->
+              <td class="py-2 px-3 text-right font-mono text-foreground font-medium">
+                {{ formatNumber(row.item.amount, 2) }}
+              </td>
+
+              <!-- 复核量（可编辑） -->
+              <td class="py-1 px-2 text-right bg-primary/5">
+                <div
+                  v-if="row.item.type === 'ITEM' && canEdit"
+                  class="flex items-center justify-end relative"
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    aria-label="复核量"
+                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                    :class="[
+                      savedItemIds.has(row.item.id)
+                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                    ]"
+                    :value="getInlineReviewQuantity(row.item)"
+                    placeholder="复核量"
+                    :disabled="savingItemId === row.item.id"
+                    @input="
+                      onInlineInput(
+                        row.item,
+                        'reviewQuantity',
+                        ($event.target as HTMLInputElement).value
+                      )
+                    "
+                    @blur="saveInlineReview(row.item)"
+                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                  />
+                </div>
+                <span
+                  v-else-if="row.item.type === 'ITEM'"
+                  class="font-mono text-foreground block text-right pr-1"
+                >
+                  {{ getInlineReviewQuantity(row.item) || '-' }}
+                </span>
+                <span v-else class="text-foreground-3 block text-center">-</span>
+              </td>
+
+              <!-- 变更/签证量（可编辑） -->
+              <td class="py-1 px-2 text-right bg-primary/5">
+                <div
+                  v-if="row.item.type === 'ITEM' && canEdit"
+                  class="flex items-center justify-end relative"
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    aria-label="变更/签证量"
+                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                    :class="[
+                      savedItemIds.has(row.item.id)
+                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                    ]"
+                    :value="getInlineChangeQuantity(row.item)"
+                    placeholder="变更量"
+                    :disabled="savingItemId === row.item.id"
+                    @input="
+                      onInlineInput(
+                        row.item,
+                        'changeQuantity',
+                        ($event.target as HTMLInputElement).value
+                      )
+                    "
+                    @blur="saveInlineReview(row.item)"
+                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                  />
+                </div>
+                <span
+                  v-else-if="row.item.type === 'ITEM'"
+                  class="font-mono text-foreground block text-right pr-1"
+                >
+                  {{ getInlineChangeQuantity(row.item) || '-' }}
+                </span>
+                <span v-else class="text-foreground-3 block text-center">-</span>
+              </td>
+
+              <!-- 工程量（含签证变更）（不可编辑计算列） -->
+              <td
+                class="py-2 px-3 text-right font-mono font-medium text-foreground bg-primary/10"
+              >
+                {{ formatNumber(computeItemTotalQuantity(row.item), 2) }}
+              </td>
+
+              <!-- 复核单价（可编辑） -->
+              <td class="py-1 px-2 text-right bg-primary/5">
+                <div
+                  v-if="row.item.type === 'ITEM' && canEdit"
+                  class="flex items-center justify-end relative"
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    aria-label="复核单价"
+                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
+                    :class="[
+                      savedItemIds.has(row.item.id)
+                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
+                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
+                    ]"
+                    :value="getInlineReviewPrice(row.item)"
+                    placeholder="复核单价"
+                    :disabled="savingItemId === row.item.id"
+                    @input="
+                      onInlineInput(
+                        row.item,
+                        'reviewPrice',
+                        ($event.target as HTMLInputElement).value
+                      )
+                    "
+                    @blur="saveInlineReview(row.item)"
+                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
+                  />
+                </div>
+                <span
+                  v-else-if="row.item.type === 'ITEM'"
+                  class="font-mono text-foreground block text-right pr-1"
+                >
+                  {{ getInlineReviewPrice(row.item) || '-' }}
+                </span>
+                <span v-else class="text-foreground-3 block text-center">-</span>
+              </td>
+
+              <!-- 复核总价（不可编辑计算列，上级汇总） -->
+              <td
+                class="py-2 px-3 text-right font-mono font-semibold text-primary bg-primary/10"
+              >
+                {{ formatNumber(computeItemReviewAmount(row.item), 2) }}
+              </td>
+
+              <!-- 操作 -->
+              <td
+                v-if="hasAnyRowAction"
+                class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
+              >
+                <div class="flex items-center justify-end gap-1.5">
+                  <FormButton
+                    v-if="canEdit"
+                    color="outline"
+                    size="sm"
+                    hide-text
+                    :icon-left="PencilSquareIcon"
+                    :disabled="rowMutationLoading"
+                    @click.stop="handleEditItem(row.item)"
+                  />
+                  <FormButton
+                    v-if="canDelete"
+                    color="outline"
+                    size="sm"
+                    hide-text
+                    :icon-left="TrashIcon"
+                    :disabled="rowMutationLoading"
+                    @click.stop="handleDeleteItem(row.item)"
+                  />
+                  <FormButton
+                    v-if="canCreate"
+                    color="outline"
+                    size="sm"
+                    hide-text
+                    :icon-left="PlusIcon"
+                    :disabled="rowMutationLoading || !canCreateChild(row.item.type)"
+                    @click.stop="handleCreateChildItem(row.item)"
+                  />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <CommonPagination
+        v-if="!isInitialLoading && flatItems.length > 0"
+        v-model:page="currentPage"
+        v-model:page-size="pageSize"
+        :total="flatItems.length"
+      />
     </div>
 
     <!-- Edit/Delete/AddChild Dialog -->
@@ -831,6 +845,24 @@ const flatItems = computed<FlatRowItem[]>(() => {
   }
   traverse(items.value, 0)
   return rows
+})
+
+// ── 分页：对当前可见的树形行分页 ──
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(flatItems.value.length / Number(pageSize.value || 1)))
+)
+const paginatedFlatItems = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return flatItems.value.slice(start, start + pageSize.value)
+})
+
+watch([debouncedSearchQuery, pageSize], () => {
+  currentPage.value = 1
+})
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages
 })
 
 // 行内编辑数据缓存与响应式计算

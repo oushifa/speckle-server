@@ -7,7 +7,9 @@
         :key="column.id"
         :class="getHeaderClasses(column.id, colIndex)"
       >
-        {{ column.header }}
+        <slot :name="`header-${column.id}`" :column="column" :index="colIndex">
+          {{ column.header }}
+        </slot>
       </div>
     </div>
     <div :class="resultContainerClasses">

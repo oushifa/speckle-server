@@ -29,6 +29,9 @@
         @clear-search="$emit('clear-search')"
       />
       <div v-else>
+        <p v-if="isTreeSelectionActive" class="mb-2 text-body-xs text-foreground-2">
+          该目录下暂无可显示的模型，可在左侧目录树中使用「关联模型」关联已有模型。
+        </p>
         <ProjectCardImportFileArea
           v-if="project"
           :project="project"

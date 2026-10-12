@@ -27,6 +27,13 @@
         >
           {{ row.name }}
         </button>
+        <span
+          v-if="row.modelCount"
+          v-tippy="`该目录下关联了 ${row.modelCount} 个模型`"
+          class="shrink-0 rounded-full bg-primary-muted px-1.5 py-0.5 text-body-3xs text-foreground-2"
+        >
+          {{ row.modelCount }}
+        </span>
         <button
           type="button"
           class="ml-auto flex h-7 w-7 items-center justify-center rounded border border-outline-3 text-body-3xs hover:bg-foundation transition-opacity"
@@ -182,6 +189,7 @@ import { graphql } from '~~/lib/common/generated/gql'
 import { latestModelsPaginationQuery } from '~~/lib/projects/graphql/queries'
 import { useApolloClient } from '@vue/apollo-composable'
 import type { ProjectLatestModelsPaginationQuery } from '~~/lib/common/generated/gql/graphql'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
 
 type RawTreeItem = {
   id: string
@@ -198,6 +206,10 @@ type VisibleRow = {
   name: string
   level: number
   hasChildren: boolean
+  /**
+   * Amount of models directly linked to this folder (sub folders not included)
+   */
+  modelCount: number
 }
 
 const props = defineProps({
@@ -290,6 +302,15 @@ const relationModelOptions = ref<{ id: string; name: string }[]>([])
 const newChildName = ref('')
 const selectedId = ref<string>(ROOT_ID)
 const apollo = useApolloClient().client
+const { triggerNotification } = useGlobalToast()
+
+const notifyMutationFailure = (title: string, error: unknown) => {
+  triggerNotification({
+    type: ToastNotificationType.Danger,
+    title,
+    description: error instanceof Error ? error.message : String(error)
+  })
+}
 
 type RawTreeItemFromApi = {
   id: string
@@ -331,6 +352,19 @@ const childrenMap = computed(() => {
   return map
 })
 
+const itemsById = computed(() => {
+  const map = new Map<string, RawTreeItem>()
+  sourceItems.value.forEach((item) => map.set(item.id, item))
+  return map
+})
+
+/**
+ * Model ids directly linked to the passed folder. Sub folders are deliberately
+ * not included - each folder only shows the models linked to itself.
+ */
+const getDirectModelIds = (folderId: string): string[] =>
+  itemsById.value.get(folderId)?.relative || []
+
 const visibleRows = computed<VisibleRow[]>(() => {
   const rows: VisibleRow[] = []
 
@@ -342,7 +376,8 @@ const visibleRows = computed<VisibleRow[]>(() => {
         id: child.id,
         name: child.name,
         level,
-        hasChildren
+        hasChildren,
+        modelCount: getDirectModelIds(child.id).length
       })
       if (expandedIds.value.has(child.id)) {
         walk(child.id, level + 1)
@@ -355,7 +390,8 @@ const visibleRows = computed<VisibleRow[]>(() => {
     id: ROOT_ID,
     name: ROOT_NAME,
     level: 0,
-    hasChildren: rootChildren.length > 0
+    hasChildren: rootChildren.length > 0,
+    modelCount: getDirectModelIds(ROOT_ID).length
   })
 
   if (expandedIds.value.has(ROOT_ID)) {
@@ -373,8 +409,7 @@ const emitSelectedModelIds = (id: string = selectedId.value) => {
     return
   }
 
-  const ids = sourceItems.value.find((item) => item.id === id)?.relative || []
-  emit('update:selected-model-ids', ids)
+  emit('update:selected-model-ids', getDirectModelIds(id))
 }
 
 const selectRow = (id: string) => {
@@ -476,11 +511,10 @@ const toggleRelationModel = (modelId: string) => {
 const confirmRelation = async () => {
   if (!relatingForId.value) return
 
+  const folderId = relatingForId.value
   savingRelation.value = true
   try {
-    const targetFolder = sourceItems.value.find(
-      (item) => item.id === relatingForId.value
-    )
+    const targetFolder = sourceItems.value.find((item) => item.id === folderId)
     const currentIds = new Set(targetFolder?.relative || [])
     const nextIds = new Set(relationSelectedIds.value)
     const idsToAdd = [...nextIds].filter((id) => !currentIds.has(id))
@@ -493,7 +527,7 @@ const confirmRelation = async () => {
           variables: {
             input: {
               projectId: props.projectId,
-              folderId: relatingForId.value!,
+              folderId,
               modelId
             }
           }
@@ -505,7 +539,7 @@ const confirmRelation = async () => {
           variables: {
             input: {
               projectId: props.projectId,
-              folderId: relatingForId.value!,
+              folderId,
               modelId
             }
           }
@@ -514,10 +548,17 @@ const confirmRelation = async () => {
     ])
 
     await getTree()
-    if (selectedId.value === relatingForId.value) {
-      emitSelectedModelIds(relatingForId.value)
+    if (selectedId.value === folderId) {
+      emitSelectedModelIds(folderId)
     }
     cancelRelation()
+    triggerNotification({
+      type: ToastNotificationType.Success,
+      title: '模型关联已保存'
+    })
+  } catch (e) {
+    // Keep the dialog open so nothing gets lost silently when the save fails
+    notifyMutationFailure('模型关联保存失败', e)
   } finally {
     savingRelation.value = false
   }
@@ -590,6 +631,8 @@ const confirmDelete = async () => {
       [...expandedIds.value].filter((id) => !deletedIdSet.has(id))
     )
     closeDeleteModal()
+  } catch (e) {
+    notifyMutationFailure('删除目录失败', e)
   } finally {
     deleting.value = false
   }
@@ -611,19 +654,23 @@ const currentCreateParentName = computed(() => {
 const createChild = async () => {
   if (!newChildName.value || !creatingForId.value) return
 
-  await apollo.mutate({
-    mutation: createFolderMutation,
-    variables: {
-      input: {
-        projectId: props.projectId,
-        name: newChildName.value,
-        parentId: creatingForId.value === ROOT_ID ? null : creatingForId.value
+  try {
+    await apollo.mutate({
+      mutation: createFolderMutation,
+      variables: {
+        input: {
+          projectId: props.projectId,
+          name: newChildName.value,
+          parentId: creatingForId.value === ROOT_ID ? null : creatingForId.value
+        }
       }
-    }
-  })
+    })
 
-  await getTree()
-  cancelCreate()
+    await getTree()
+    cancelCreate()
+  } catch (e) {
+    notifyMutationFailure('新建目录失败', e)
+  }
 }
 
 const getTree = async () => {

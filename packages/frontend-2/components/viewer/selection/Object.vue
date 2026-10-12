@@ -40,9 +40,11 @@
         v-if="root && associatedAttachments.length"
         class="mb-3 mx-2 p-2 bg-foundation border border-outline-3 rounded-lg text-body-3xs"
       >
-        <div class="flex items-center gap-1 text-body-3xs font-semibold text-foreground mb-2">
+        <div
+          class="flex items-center gap-1 text-body-3xs font-semibold text-foreground mb-2"
+        >
           <Paperclip class="h-3 w-3 text-primary shrink-0" />
-          <span>关联质量验收附件 ({{ associatedAttachments.length }})</span>
+          <span>关联质量验收附件与过程文件 ({{ associatedAttachments.length }})</span>
         </div>
         <div class="space-y-1.5 max-h-48 overflow-y-auto simple-scrollbar">
           <div
@@ -52,6 +54,12 @@
           >
             <div class="flex items-center gap-1 min-w-0 flex-grow">
               <span class="text-foreground-2 shrink-0">[{{ item.formName }}]</span>
+              <span
+                v-if="item.isProcessFile"
+                class="shrink-0 rounded border border-primary/30 bg-primary/10 px-1 text-[10px] text-primary"
+              >
+                过程文件
+              </span>
               <button
                 type="button"
                 class="text-primary hover:underline truncate text-left"
@@ -62,7 +70,9 @@
               </button>
             </div>
             <span class="text-foreground-3 shrink-0">
-              {{ item.attachment.fileSize ? prettyFileSize(item.attachment.fileSize) : '' }}
+              {{
+                item.attachment.fileSize ? prettyFileSize(item.attachment.fileSize) : ''
+              }}
             </span>
           </div>
         </div>
@@ -138,10 +148,14 @@
       :buttons="attachmentDialogButtons"
     >
       <template #header>
-        {{ selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览' }}
+        {{
+          selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览'
+        }}
       </template>
       <template v-if="selectedPreviewAttachment">
-        <div class="w-full h-[60dvh] flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2">
+        <div
+          class="w-full h-[60dvh] flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2"
+        >
           <CommonFilePreview
             :blob-id="selectedPreviewAttachment.id"
             :project-id="projectId"
@@ -163,7 +177,10 @@ import { useInjectedViewerState } from '~~/lib/viewer/composables/setup'
 import { useHighlightedObjectsUtilities } from '~/lib/viewer/composables/ui'
 import type { KeyValuePair } from '~/components/viewer/selection/types'
 import { REVIT_PROPERTY_NAME_ZH_MAP } from '~/lib/viewer/helpers/filters/constants'
-import type { QualityAcceptanceForm, QualityAcceptanceAttachment } from '~/components/projects/quality-acceptance/types'
+import type {
+  QualityAcceptanceForm,
+  QualityAcceptanceAttachment
+} from '~/components/projects/quality-acceptance/types'
 import { useFileDownload } from '~/lib/core/composables/fileUpload'
 import { prettyFileSize } from '~/lib/core/helpers/file'
 import { Paperclip, Download } from 'lucide-vue-next'
@@ -175,7 +192,10 @@ const {
   }
 } = useInjectedViewerState()
 
-const qualityAcceptanceForms = inject<Ref<QualityAcceptanceForm[]>>('qualityAcceptanceForms', ref([]))
+const qualityAcceptanceForms = inject<Ref<QualityAcceptanceForm[]>>(
+  'qualityAcceptanceForms',
+  ref([])
+)
 
 const props = withDefaults(
   defineProps<{
@@ -403,7 +423,11 @@ watch(
 )
 
 const associatedForms = computed(() => {
-  if (!props.root || !props.object?.applicationId || !qualityAcceptanceForms.value.length) {
+  if (
+    !props.root ||
+    !props.object?.applicationId ||
+    !qualityAcceptanceForms.value.length
+  ) {
     return []
   }
   const appId = props.object.applicationId
@@ -413,15 +437,18 @@ const associatedForms = computed(() => {
 })
 
 const associatedAttachments = computed(() => {
-  const list: { formName: string; attachment: QualityAcceptanceAttachment }[] = []
+  const list: {
+    formName: string
+    attachment: QualityAcceptanceAttachment
+    isProcessFile: boolean
+  }[] = []
   for (const form of associatedForms.value) {
-    if (form.attachments && form.attachments.length) {
-      for (const att of form.attachments) {
-        list.push({
-          formName: form.name,
-          attachment: att
-        })
-      }
+    for (const att of form.attachments || []) {
+      list.push({ formName: form.name, attachment: att, isProcessFile: false })
+    }
+    // 过程文件与附件并列展示，用标签区分
+    for (const att of form.processAttachments || []) {
+      list.push({ formName: form.name, attachment: att, isProcessFile: true })
     }
   }
   return list

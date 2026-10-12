@@ -133,9 +133,12 @@
       >
         暂无进度填报记录，请点击右上角新增。
       </div>
-      <div v-else class="overflow-x-auto">
+      <div
+        v-else
+        class="max-h-[calc(100dvh_-_18rem)] min-h-[12rem] overflow-auto overscroll-x-contain"
+      >
         <table class="w-full text-left text-body-sm border-collapse">
-          <thead>
+          <thead class="sticky top-0 z-10 bg-foundation">
             <tr
               class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
             >
@@ -152,7 +155,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="rec in actualRecords"
+              v-for="rec in paginatedActualRecords"
               :key="rec.id"
               class="border-b border-outline-2 hover:bg-primary-muted/20 transition-colors"
             >
@@ -230,6 +233,13 @@
           </tbody>
         </table>
       </div>
+
+      <CommonPagination
+        v-if="!isLoadingActual && actualRecords.length > 0"
+        v-model:page="actualCurrentPage"
+        v-model:page-size="actualPageSize"
+        :total="actualRecords.length"
+      />
     </div>
 
     <!-- ── Tab 2: 里程碑管理 ── -->
@@ -249,9 +259,12 @@
       >
         暂无里程碑数据，请点击右上角新增。
       </div>
-      <div v-else class="overflow-x-auto">
+      <div
+        v-else
+        class="max-h-[calc(100dvh_-_18rem)] min-h-[12rem] overflow-auto overscroll-x-contain"
+      >
         <table class="w-full text-left text-body-sm border-collapse">
-          <thead>
+          <thead class="sticky top-0 z-10 bg-foundation">
             <tr
               class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
             >
@@ -268,7 +281,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in milestones"
+              v-for="item in paginatedMilestones"
               :key="item.id"
               class="border-b border-outline-2 hover:bg-primary-muted/20 transition-colors"
             >
@@ -376,6 +389,13 @@
           </tbody>
         </table>
       </div>
+
+      <CommonPagination
+        v-if="!isLoadingMilestones && milestones.length > 0"
+        v-model:page="milestoneCurrentPage"
+        v-model:page-size="milestonePageSize"
+        :total="milestones.length"
+      />
     </div>
 
     <!-- ── 弹窗 1: 新增/编辑进度情况 ── -->
@@ -1101,6 +1121,23 @@ const isSavingActual = ref(false)
 const actualImportInputRef = ref<HTMLInputElement | null>(null)
 const isImportingActualExcel = ref(false)
 
+// ── 进度管理分页 ──
+const actualCurrentPage = ref(1)
+const actualPageSize = ref(20)
+const actualTotalPages = computed(() =>
+  Math.max(1, Math.ceil(actualRecords.value.length / Number(actualPageSize.value || 1)))
+)
+const paginatedActualRecords = computed(() => {
+  const start = (actualCurrentPage.value - 1) * actualPageSize.value
+  return actualRecords.value.slice(start, start + actualPageSize.value)
+})
+watch(actualPageSize, () => {
+  actualCurrentPage.value = 1
+})
+watch(actualTotalPages, (pages) => {
+  if (actualCurrentPage.value > pages) actualCurrentPage.value = pages
+})
+
 const triggerActualExcelImport = () => {
   actualImportInputRef.value?.click()
 }
@@ -1341,6 +1378,23 @@ const milestoneSearchQuery = ref('')
 const milestoneDialogOpen = ref(false)
 const editingMilestone = ref<ProgressV2Milestone | null>(null)
 const isSavingMilestone = ref(false)
+
+// ── 里程碑分页 ──
+const milestoneCurrentPage = ref(1)
+const milestonePageSize = ref(20)
+const milestoneTotalPages = computed(() =>
+  Math.max(1, Math.ceil(milestones.value.length / Number(milestonePageSize.value || 1)))
+)
+const paginatedMilestones = computed(() => {
+  const start = (milestoneCurrentPage.value - 1) * milestonePageSize.value
+  return milestones.value.slice(start, start + milestonePageSize.value)
+})
+watch(milestonePageSize, () => {
+  milestoneCurrentPage.value = 1
+})
+watch(milestoneTotalPages, (pages) => {
+  if (milestoneCurrentPage.value > pages) milestoneCurrentPage.value = pages
+})
 
 const MILESTONE_STATUS_OPTIONS = [
   { value: '未开始', label: '未开始' },
@@ -1598,6 +1652,7 @@ watch(
 watch(
   () => actualSearchQuery.value,
   () => {
+    actualCurrentPage.value = 1
     debounceLoadActual()
   }
 )
@@ -1605,6 +1660,7 @@ watch(
 watch(
   () => milestoneSearchQuery.value,
   () => {
+    milestoneCurrentPage.value = 1
     debounceLoadMilestones()
   }
 )

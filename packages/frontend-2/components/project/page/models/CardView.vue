@@ -19,6 +19,9 @@
       />
     </template>
     <template v-else-if="!areQueriesLoading">
+      <p v-if="isTreeSelectionActive" class="mb-2 text-body-xs text-foreground-2">
+        该目录下暂无可显示的模型，可在左侧目录树中使用「关联模型」关联已有模型。
+      </p>
       <CommonEmptySearchState
         v-if="isFiltering"
         @clear-search="() => $emit('clear-search')"
