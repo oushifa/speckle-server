@@ -25,6 +25,20 @@ export type DtpUploadResult = {
   assetName: string
 }
 
+type ModelTransformResult = {
+  taskId?: string
+  status?: string
+  /** 中海转换当前阶段序号（RUNNING 早期可能缺失） */
+  currentStage?: number | null
+  /** 中海转换阶段总数 */
+  totalStage?: number | null
+  /** 当前阶段名/阶段码，例如 downloadFile / dsForLinux / uploadFile / 01 */
+  message?: string | null
+  /** 状态机码：RUNNING=01000000，SUCCEEDED=10000000 */
+  statusCode?: string | null
+  statusDescription?: string | null
+}
+
 type ModelTransformResponse = {
   success?: boolean
   msg?: string
@@ -32,10 +46,47 @@ type ModelTransformResponse = {
   results?: {
     taskId?: string
   }
-  result?: {
-    taskId?: string
-    status?: string
-  }
+  result?: ModelTransformResult
+}
+
+/** 中海转换轮询返回的真实进度 */
+export type DtpTransformProgress = {
+  /** 当前阶段序号，取不到为 null */
+  currentStage: number | null
+  /** 阶段总数，取不到为 null */
+  totalStage: number | null
+  /** 当前阶段名/阶段码，取不到为 null */
+  stageName: string | null
+  /** 阶段完成比例 0~1，取不到真实阶段时为 null */
+  ratio: number | null
+}
+
+/**
+ * 从中海 pipeline task 返回里解析真实进度。
+ *
+ * 实测返回（RUNNING）：
+ * `{ totalStage: 1, status: 'RUNNING', message: '01', statusCode: '01000000' }`，
+ * 转换推进后 `currentStage/totalStage` 依次为 1/2、2/3 … 8/8，成功时 status 变 SUCCEEDED。
+ */
+export const parseDtpTransformProgress = (
+  result?: ModelTransformResult
+): DtpTransformProgress => {
+  const currentStage =
+    typeof result?.currentStage === 'number' ? result.currentStage : null
+  const totalStage =
+    typeof result?.totalStage === 'number' && result.totalStage > 0
+      ? result.totalStage
+      : null
+  const stageName =
+    typeof result?.message === 'string' && result.message.trim()
+      ? result.message.trim()
+      : null
+  const ratio =
+    currentStage !== null && totalStage !== null
+      ? Math.min(1, Math.max(0, currentStage / totalStage))
+      : null
+
+  return { currentStage, totalStage, stageName, ratio }
 }
 
 const buildAssetName = (fileName: string) =>
@@ -435,16 +486,17 @@ export const pollDtpModelTransformUntilFinishedFactory =
     transformTaskId: string
     waitMs?: number
     maxAttempts?: number
-    /** 每次轮询中海转换状态前的回调（attempt 从 1 开始） */
-    onAttempt?: (params: { attempt: number }) => Promise<void> | void
+    /** 每次轮询中海转换状态后的回调（attempt 从 1 开始，progress 为中海返回的真实进度） */
+    onAttempt?: (params: {
+      attempt: number
+      progress: DtpTransformProgress
+    }) => Promise<void> | void
   }) => {
     const token = await loginToDtpFactory()(params.mobile)
     const waitMs = params.waitMs || 10000
     const maxAttempts = params.maxAttempts || 180
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await params.onAttempt?.({ attempt: attempt + 1 })
-
       const response = await fetch(
         `${THIRD_PARTY_API_BASE}/v1/daas/pipeline/task/${params.transformTaskId}`,
         {
@@ -482,6 +534,11 @@ export const pollDtpModelTransformUntilFinishedFactory =
           false
         )
       }
+
+      await params.onAttempt?.({
+        attempt: attempt + 1,
+        progress: parseDtpTransformProgress(body.result)
+      })
 
       await new Promise((resolve) => setTimeout(resolve, waitMs))
     }

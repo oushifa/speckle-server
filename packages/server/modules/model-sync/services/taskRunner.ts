@@ -57,7 +57,8 @@ import {
   getDtpUploadConfigFactory,
   pollDtpModelTransformUntilFinishedFactory,
   triggerDtpModelTransformFactory,
-  uploadBufferToDtpFactory
+  uploadBufferToDtpFactory,
+  type DtpTransformProgress
 } from '@/modules/model-sync/services/dtp'
 import {
   getRetryStatusForEntryPoint,
@@ -80,7 +81,7 @@ const PostConversionLockTimeoutMs = 30 * 60 * 1000
 
 /**
  * 中海（DTP）同步阶段的进度百分比基线，与前端进度条展示保持一致：
- * 获取上传信息成功 65% -> 上传文件到中海 70% -> 触发中海转换 80% -> 轮询每轮 +2%（上限 99%）
+ * 获取上传信息成功 65% -> 上传文件到中海 70% -> 触发中海转换 80% -> 轮询阶段映射到 80%~99%
  */
 const DtpSyncStageProgress = {
   uploadConfigReady: 65,
@@ -90,6 +91,56 @@ const DtpSyncStageProgress = {
   pollingTransformStep: 2,
   pollingTransformMax: 99
 } as const
+
+/**
+ * 计算轮询阶段的进度百分比：
+ * - 有中海真实阶段（currentStage/totalStage）时，按比例映射到
+ *   [pollingTransformStart, pollingTransformMax]；
+ * - 取不到真实阶段时退回「每轮 +2%」的老策略；
+ * - 无论哪种，进度只前进不后退（中海阶段总数会中途增长，避免进度条回跳）。
+ */
+export const resolveTransformProgressPercent = (params: {
+  attempt: number
+  ratio: number | null
+  lastPercent: number
+}) => {
+  const { attempt, ratio, lastPercent } = params
+  const fallbackPercent = Math.min(
+    DtpSyncStageProgress.pollingTransformMax,
+    DtpSyncStageProgress.pollingTransformStart +
+      attempt * DtpSyncStageProgress.pollingTransformStep
+  )
+  const realPercent =
+    ratio === null
+      ? null
+      : Math.min(
+          DtpSyncStageProgress.pollingTransformMax,
+          DtpSyncStageProgress.pollingTransformStart +
+            Math.round(
+              ratio *
+                (DtpSyncStageProgress.pollingTransformMax -
+                  DtpSyncStageProgress.pollingTransformStart)
+            )
+        )
+
+  return Math.max(lastPercent, realPercent ?? fallbackPercent)
+}
+
+export const buildTransformProgressMessage = (params: {
+  attempt: number
+  progress: DtpTransformProgress
+}) => {
+  const { attempt, progress } = params
+  const { currentStage, totalStage, stageName } = progress
+
+  if (currentStage !== null && totalStage !== null) {
+    // message 有时是阶段码（如 "01"），只在它是有意义的阶段名时才展示
+    const stageLabel = stageName && !/^\d+$/.test(stageName) ? ` ${stageName}` : ''
+    return `正在等待模型转换完成（阶段 ${currentStage}/${totalStage}${stageLabel}）`
+  }
+
+  return `正在等待模型转换完成（第 ${attempt} 次轮询）`
+}
 
 const modelSyncTaskRunnerLogger = moduleLogger.child({
   module: 'model-sync-task-runner'
@@ -642,18 +693,24 @@ export const runModelSyncTaskFactory =
         progressMessage: '正在等待模型转换完成'
       })
 
+      let lastTransformPercent: number = DtpSyncStageProgress.pollingTransformStart
+
       await pollTransform({
         mobile,
         transformTaskId,
-        onAttempt: async ({ attempt }) => {
-          // 每次轮询 +2%，上限 99%，成功后由最终阶段置为 100%
+        onAttempt: async ({ attempt, progress }) => {
+          // 优先用中海返回的真实阶段进度，取不到时每轮 +2%，上限 99%，
+          // 成功后由最终阶段置为 100%
+          const percent = resolveTransformProgressPercent({
+            attempt,
+            ratio: progress.ratio,
+            lastPercent: lastTransformPercent
+          })
+          lastTransformPercent = percent
+
           await patchTask({
-            progressPercent: Math.min(
-              DtpSyncStageProgress.pollingTransformMax,
-              DtpSyncStageProgress.pollingTransformStart +
-                attempt * DtpSyncStageProgress.pollingTransformStep
-            ),
-            progressMessage: `正在等待模型转换完成（第 ${attempt} 次轮询）`
+            progressPercent: percent,
+            progressMessage: buildTransformProgressMessage({ attempt, progress })
           })
         }
       })
