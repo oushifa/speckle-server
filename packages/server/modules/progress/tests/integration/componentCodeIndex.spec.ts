@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { expect } from 'chai'
 import cryptoRandomString from 'crypto-random-string'
 import { db } from '@/db/knex'
@@ -62,6 +63,7 @@ describe('componentCodeIndex @progress', () => {
     commitId: string
     rootObjectId: string
     createdAt: Date
+    branchId?: string
   }) => {
     await db('commits').insert({
       id: params.commitId,
@@ -69,7 +71,7 @@ describe('componentCodeIndex @progress', () => {
       createdAt: params.createdAt
     })
     await db('branch_commits').insert({
-      branchId: MODEL_ID,
+      branchId: params.branchId ?? MODEL_ID,
       commitId: params.commitId
     })
   }
@@ -262,5 +264,248 @@ describe('componentCodeIndex @progress', () => {
     const result = await rebuild({ projectId, modelId: 'ccimb' })
     expect(result.commitId).to.equal(null)
     expect(result.rowCount).to.equal(0)
+  })
+
+  it('resumes from partially written rows and keeps an incomplete slice untrusted', async () => {
+    const modelId = 'ccimr'
+    const commitId = 'ccicr'
+    const rootId = 'ccirtr'
+    const infoId = 'cciifr'
+    const compAId = 'ccicra'
+    const compBId = 'ccicrb'
+    const appIdA = 'cci_app_ra'
+    const appIdB = 'cci_app_rb'
+    const codeA = `CLS-A${SPACE_CODE}SEC-ARA1`
+    const codeB = `CLS-A${SPACE_CODE}SEC-ARB1`
+
+    await db('branches').insert({
+      id: modelId,
+      streamId: projectId,
+      projectId,
+      name: 'resume model',
+      authorId: user.id
+    })
+    await insertObject({
+      id: rootId,
+      speckleType: 'Speckle.Core.Models.Collections.Collection',
+      data: { __closure: { [infoId]: 1, [compAId]: 1, [compBId]: 1 } }
+    })
+    await insertObject({
+      id: infoId,
+      data: { name: '项目信息 - 项目信息', category: '项目信息', 空间代码: SPACE_CODE }
+    })
+    await insertObject({ id: compAId, data: componentData(appIdA, 'RA1') })
+    await insertObject({ id: compBId, data: componentData(appIdB, 'RB1') })
+    await insertVersion({
+      commitId,
+      rootObjectId: rootId,
+      createdAt: new Date('2026-10-03T00:00:00Z'),
+      branchId: modelId
+    })
+
+    const rebuild = rebuildModelComponentCodeIndexFactory({ db: projectDb })
+    const fastOptions = { batchSize: 100, pauseMs: 0, dutyCycle: 1 }
+
+    const full = await rebuild({ projectId, modelId, options: fastOptions })
+    expect(full.commitId).to.equal(commitId)
+    expect(full.rowCount).to.equal(4) // 两个构件 × (对象 id + applicationId)
+
+    // 模拟"跑到一半被打断"：状态行还没写 → 读路径必须判为不新鲜（走回退），不能信半成品
+    await db('component_code_index')
+      .where({ project_id: projectId, model_id: modelId, application_id: '' })
+      .del()
+    const afterInterrupt = await getIndexedModelCommitsFactory({ db: projectDb })({
+      projectId,
+      modelIds: [modelId]
+    })
+    expect(afterInterrupt.has(modelId)).to.equal(false)
+
+    // 再删掉 compB 的行，模拟"只写完了 compA"
+    await db('component_code_index')
+      .where({ project_id: projectId, model_id: modelId })
+      .whereIn('application_id', [compBId, appIdB])
+      .del()
+
+    const resumed = await rebuild({ projectId, modelId, options: fastOptions })
+    expect(resumed.skipped).to.be.greaterThan(0)
+    expect(resumed.commitId).to.equal(commitId)
+
+    const states = await getIndexedModelCommitsFactory({ db: projectDb })({
+      projectId,
+      modelIds: [modelId]
+    })
+    expect(states.get(modelId)?.commitId).to.equal(commitId)
+
+    const hits = await lookupApplicationIdsByComponentCodesFactory({ db: projectDb })({
+      projectId,
+      componentCodes: [codeA, codeB]
+    })
+    const applicationIds = hits.map((hit) => hit.applicationId)
+    expect(applicationIds).to.include(appIdA)
+    expect(applicationIds).to.include(appIdB)
+
+    const totalRows = await db('component_code_index')
+      .where({ project_id: projectId, model_id: modelId })
+      .whereNot('application_id', '')
+      .count<{ count: string }>('* as count')
+      .first()
+    expect(Number(totalRows?.count)).to.equal(4) // 续跑没有重复写入
+  })
+
+  it('honours the maxDepth candidate filter', async () => {
+    const modelId = 'ccimd'
+    const commitId = 'ccicd'
+    const rootId = 'ccirtd'
+    const infoId = 'cciifd'
+    const deepCompId = 'ccicpd'
+    const appId = 'cci_app_deep'
+    const code = `CLS-A${SPACE_CODE}SEC-ADP1`
+
+    await db('branches').insert({
+      id: modelId,
+      streamId: projectId,
+      projectId,
+      name: 'depth model',
+      authorId: user.id
+    })
+    await insertObject({
+      id: rootId,
+      speckleType: 'Speckle.Core.Models.Collections.Collection',
+      data: { __closure: { [infoId]: 1, cci_midd: 2, [deepCompId]: 3 } }
+    })
+    await insertObject({ id: 'cci_midd', data: { name: 'mid' } })
+    await insertObject({
+      id: infoId,
+      data: { name: '项目信息 - 项目信息', category: '项目信息', 空间代码: SPACE_CODE }
+    })
+    await insertObject({ id: deepCompId, data: componentData(appId, 'DP1') })
+    await insertVersion({
+      commitId,
+      rootObjectId: rootId,
+      createdAt: new Date('2026-10-04T00:00:00Z'),
+      branchId: modelId
+    })
+
+    const rebuild = rebuildModelComponentCodeIndexFactory({ db: projectDb })
+    const baseOptions = { batchSize: 100, pauseMs: 0, dutyCycle: 1 }
+
+    // maxDepth 卡到 1：深度 3 的构件不在候选里 —— 这正是"用之前必须先验证覆盖"的原因
+    await rebuild({ projectId, modelId, options: { ...baseOptions, maxDepth: 1 } })
+    const shallowHits = await lookupApplicationIdsByComponentCodesFactory({
+      db: projectDb
+    })({ projectId, componentCodes: [code] })
+    expect(shallowHits).to.have.lengthOf(0)
+
+    await rebuild({ projectId, modelId, options: { ...baseOptions, maxDepth: 3 } })
+    const deepHits = await lookupApplicationIdsByComponentCodesFactory({
+      db: projectDb
+    })({ projectId, componentCodes: [code] })
+    expect(deepHits.map((hit) => hit.applicationId)).to.include(appId)
+  })
+
+  it('still indexes components when the SQL prefilter is enabled', async () => {
+    const modelId = 'ccimpf'
+    const commitId = 'ccicpf'
+    const rootId = 'ccirtpf'
+    const infoId = 'cciifpf'
+    const compId = 'ccicppf'
+    const fillerId = 'ccifillpf'
+    const appId = 'cci_app_pf'
+    const code = `CLS-A${SPACE_CODE}SEC-APF1`
+
+    await db('branches').insert({
+      id: modelId,
+      streamId: projectId,
+      projectId,
+      name: 'prefilter model',
+      authorId: user.id
+    })
+    await insertObject({
+      id: rootId,
+      speckleType: 'Speckle.Core.Models.Collections.Collection',
+      data: { __closure: { [infoId]: 1, [compId]: 2, [fillerId]: 2 } }
+    })
+    await insertObject({
+      id: infoId,
+      data: { name: '项目信息 - 项目信息', category: '项目信息', 空间代码: SPACE_CODE }
+    })
+    await insertObject({ id: compId, data: componentData(appId, 'PF1') })
+    // 纯几何/参数填充对象：开启预过滤后它不该被取回 Node
+    await insertObject({
+      id: fillerId,
+      data: { name: 'filler', displayValue: { referencedId: 'x' }, bbox: [0, 1] }
+    })
+    await insertVersion({
+      commitId,
+      rootObjectId: rootId,
+      createdAt: new Date('2026-10-05T00:00:00Z'),
+      branchId: modelId
+    })
+
+    const rebuild = rebuildModelComponentCodeIndexFactory({ db: projectDb })
+    const result = await rebuild({
+      projectId,
+      modelId,
+      options: { batchSize: 100, pauseMs: 0, dutyCycle: 1, prefilter: true }
+    })
+
+    expect(result.rowCount).to.equal(2)
+    const hits = await lookupApplicationIdsByComponentCodesFactory({ db: projectDb })({
+      projectId,
+      componentCodes: [code]
+    })
+    expect(hits.map((hit) => hit.applicationId)).to.include(appId)
+  })
+
+  it('throttles between batches and still marks a component-less model as fresh', async () => {
+    const modelId = 'ccimth'
+    const commitId = 'ccicth'
+    const rootId = 'ccirtth'
+
+    await db('branches').insert({
+      id: modelId,
+      streamId: projectId,
+      projectId,
+      name: 'throttle model',
+      authorId: user.id
+    })
+    // 4 个候选（根 + 3 个成员），都是几何/填充对象，产不出构件编码
+    await insertObject({
+      id: rootId,
+      speckleType: 'Speckle.Core.Models.Collections.Collection',
+      data: { __closure: { cci_th1: 1, cci_th2: 1, cci_th3: 1 } }
+    })
+    for (const id of ['cci_th1', 'cci_th2', 'cci_th3']) {
+      await insertObject({
+        id,
+        data: { name: 'geometry', displayValue: { referencedId: id } }
+      })
+    }
+    await insertVersion({
+      commitId,
+      rootObjectId: rootId,
+      createdAt: new Date('2026-10-06T00:00:00Z'),
+      branchId: modelId
+    })
+
+    const rebuild = rebuildModelComponentCodeIndexFactory({ db: projectDb })
+    const startedAt = Date.now()
+    const result = await rebuild({
+      projectId,
+      modelId,
+      options: { batchSize: 1, pauseMs: 50, dutyCycle: 1 }
+    })
+    const elapsed = Date.now() - startedAt
+
+    // 4 批 → 至少 4 次停顿（下限 150ms，留调度余量）
+    expect(elapsed).to.be.greaterThanOrEqual(150)
+    expect(result.rowCount).to.equal(0)
+
+    // 没有构件的模型也必须写状态行，否则每次查询都会白跑一遍实时解析
+    const states = await getIndexedModelCommitsFactory({ db: projectDb })({
+      projectId,
+      modelIds: [modelId]
+    })
+    expect(states.get(modelId)?.commitId).to.equal(commitId)
   })
 })

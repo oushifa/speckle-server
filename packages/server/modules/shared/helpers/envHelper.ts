@@ -594,3 +594,17 @@ export function getOdaUserSecret() {
 
 export const areSavedViewsEnabled = (): boolean =>
   getFeatureFlags().FF_SAVED_VIEWS_ENABLED
+
+/**
+ * 构件编码索引（component_code_index）：版本导入后自动重建切片。
+ *
+ * - 默认开启；用 COMPONENT_CODE_INDEX_REBUILD_DISABLED=true 整体关掉
+ * - 重建在后台串行队列里跑，用占空比限制它最多占多少 CPU 时间（默认 0.3）
+ */
+export const isComponentCodeIndexRebuildEnabled = (): boolean =>
+  !getBooleanFromEnv('COMPONENT_CODE_INDEX_REBUILD_DISABLED')
+
+export const getComponentCodeIndexRebuildDutyCycle = (): number =>
+  Number(
+    getStringFromEnv('COMPONENT_CODE_INDEX_REBUILD_DUTY_CYCLE', { default: '0.3' })
+  )

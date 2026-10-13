@@ -19,8 +19,6 @@ import {
  */
 
 const TABLE = 'component_code_index'
-const INSERT_BATCH_SIZE = 2000
-const STREAM_HIGH_WATER_MARK = 200
 /** application_id 为 '' 的行是切片状态行（component_code 也是 ''） */
 const STATE_APPLICATION_ID = ''
 
@@ -214,25 +212,145 @@ export const lookupComponentCodesByApplicationIdsFactory =
 /**
  * 重建某个模型（branch）当前版本的构件编码切片。
  *
- * - 只物化「能解析出编码的构件」，不物化整棵对象树；
- * - 在一个事务里「删旧切片 → 流式插入 → 最后写状态行」，中途失败整体回滚，
- *   不会留下「看着新鲜其实是半份」的切片；
- * - 流式读取版本的闭包成员，内存占用与模型规模无关。
+ * 覆盖范围是**整个模型的全部构件**（不是只物化被表单引用的那些），因为业务上
+ * 随时可能给新构件补质量验收单。为了在这种情况下不把 CPU 打满，做了四件事：
+ *
+ * 1. **只取 id 列表，再分批取 data**：闭包只展开一次（只取 id，不读 data），
+ *    然后按 id 分批去捞对象的 data。旧实现是一条查询把整个模型的对象连 data
+ *    一起拉出来，等价于把模型全量重解析一遍。
+ * 2. **每批都是在"关并行 + 有超时"的事务里跑**（`max_parallel_workers_per_gather = 0`）：
+ *    大表上的并行顺序扫描会吃满所有核，这是"整机卡死"的主因之一。
+ * 3. **自适应让出 CPU**：按每批实际耗时反推停顿时间，保证占空比不超过
+ *    `dutyCycle`（默认 0.5）。批量再大也只是变慢，不会持续占满。
+ * 4. **中断可续跑**：清掉旧 commit 的切片后，本轮写入的行保留；重跑时以
+ *    `object_id` 为游标跳过已写过的部分。状态行（`application_id = ''`）
+ *    始终最后写，所以半份切片永远会被读路径判为"不新鲜"而回退，不会读错。
+ *
+ * 两个可选加速开关（默认关闭，因为都依赖数据结构假设，需先用验证 SQL 确认）：
+ * - `maxDepth`：只用闭包深度 <= N 的对象做候选。几何/网格对象都在深层，
+ *   跳过它们能大幅减少真实读取行数；
+ * - `prefilter`：只在 SQL 侧按别名预过滤（`data::text ILIKE`），不把无关对象的
+ *   data 传到 Node、也不解析。
  */
+export type ModelComponentCodeRebuildOptions = {
+  /** 每批处理多少个候选对象 */
+  batchSize?: number
+  /** 每批之后强制停顿的下限（毫秒） */
+  pauseMs?: number
+  /** CPU 占空比上限（0.05 ~ 1）。0.5 表示每干 1 秒至少歇 1 秒 */
+  dutyCycle?: number
+  /** 只用闭包深度 <= maxDepth 的对象做候选；null/不传 = 不限深度 */
+  maxDepth?: number | null
+  /** SQL 侧别名预过滤（默认关闭） */
+  prefilter?: boolean
+  onProgress?: (info: { scanned: number; total: number; inserted: number }) => void
+}
+
+export type ModelComponentCodeRebuildResult = {
+  commitId: string | null
+  /** 本次实际写入的行数（续跑时不含之前已写入的） */
+  rowCount: number
+  /** 本次扫描的候选对象数 */
+  scanned: number
+  /** 候选对象总数 */
+  candidates: number
+  /** 因续跑而跳过的候选对象数 */
+  skipped: number
+  elapsedMs: number
+}
+
+const DEFAULT_BATCH_SIZE = 2000
+const DEFAULT_PAUSE_MS = 50
+const DEFAULT_DUTY_CYCLE = 0.5
+const BATCH_STATEMENT_TIMEOUT = '60s'
+const DEPTH_EXPRESSION = `CASE WHEN d.value ~ '^[0-9]+$' THEN (d.value)::int ELSE 2147483647 END`
+
+/**
+ * 别名预过滤（分隔符容忍的超集）。
+ *
+ * 一个对象能产出编码，必然含有「直接构件编码」或「分类对象代码」之一；而
+ * `getPropertyValue` 会先把键名里的空格/下划线/点等分隔符去掉再比对，所以这里
+ * 用「单词 + %」的写法覆盖 `classification_object_code` / `componentCode` 这类变体。
+ * 中文别名本身不可能插分隔符，直接整体匹配。
+ */
+const CANDIDATE_DATA_FILTERS = [
+  '%分类对象代码%',
+  '%构件编码%',
+  '%classification%',
+  '%component%code%',
+  '%bim%code%'
+]
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** 取版本闭包内的候选对象 id（含根对象本身），只取 id，不读 data */
+const loadCandidateObjectIds = async (
+  db: Knex,
+  params: {
+    projectId: string
+    rootObjectId: string
+    maxDepth?: number | null
+  }
+): Promise<string[]> => {
+  const maxDepth = params.maxDepth ?? null
+  const depthFilter =
+    maxDepth === null
+      ? ''
+      : `AND ${DEPTH_EXPRESSION} <= ${Math.max(0, Math.floor(maxDepth))}`
+
+  return db.transaction(async (trx) => {
+    await trx.raw('SET LOCAL max_parallel_workers_per_gather = 0')
+    await trx.raw(`SET LOCAL statement_timeout = '${BATCH_STATEMENT_TIMEOUT}'`)
+
+    const res = await trx.raw(
+      `SELECT d.key AS id
+         FROM objects root
+         JOIN jsonb_each_text(root.data->'__closure') AS d ON true
+        WHERE root."streamId" = ? AND root.id = ?
+          ${depthFilter}
+        UNION
+       SELECT ? AS id`,
+      [params.projectId, params.rootObjectId, params.rootObjectId]
+    )
+
+    return ((res?.rows ?? []) as Array<{ id: string }>).map((row) => row.id).sort()
+  })
+}
+
 export const rebuildModelComponentCodeIndexFactory =
   ({ db }: { db: Knex }) =>
   async (params: {
     projectId: string
     modelId: string
-  }): Promise<{ commitId: string | null; rowCount: number }> => {
+    options?: ModelComponentCodeRebuildOptions
+  }): Promise<ModelComponentCodeRebuildResult> => {
     const { projectId, modelId } = params
+    const options = params.options ?? {}
+    const batchSize = Math.max(1, options.batchSize ?? DEFAULT_BATCH_SIZE)
+    const pauseMs = Math.max(0, options.pauseMs ?? DEFAULT_PAUSE_MS)
+    const dutyCycle = Math.min(
+      1,
+      Math.max(0.05, options.dutyCycle ?? DEFAULT_DUTY_CYCLE)
+    )
+    const prefilter = options.prefilter ?? false
+    const maxDepth = options.maxDepth ?? null
+    const startedAt = Date.now()
 
     const latest = await getLatestModelCommitsFactory({ db })({
       projectId,
       modelIds: [modelId]
     })
     const version = latest.get(modelId)
-    if (!version) return { commitId: null, rowCount: 0 }
+    if (!version) {
+      return {
+        commitId: null,
+        rowCount: 0,
+        scanned: 0,
+        candidates: 0,
+        skipped: 0,
+        elapsedMs: Date.now() - startedAt
+      }
+    }
 
     const spaceCode = await resolveSpaceCodeForCommit(
       db,
@@ -240,75 +358,127 @@ export const rebuildModelComponentCodeIndexFactory =
       version.referencedObject
     )
 
-    let rowCount = 0
+    const candidateIds = await loadCandidateObjectIds(db, {
+      projectId,
+      rootObjectId: version.referencedObject,
+      maxDepth
+    })
+
+    // 清掉旧 commit 的切片与状态行；保留本轮（同 commit）已写入的行用于续跑
     await db.transaction(async (trx) => {
-      await trx(TABLE).where({ project_id: projectId, model_id: modelId }).del()
+      await trx(TABLE)
+        .where({ project_id: projectId, model_id: modelId })
+        .andWhereNot('commit_id', version.commitId)
+        .del()
+      await trx(TABLE)
+        .where({
+          project_id: projectId,
+          model_id: modelId,
+          application_id: STATE_APPLICATION_ID
+        })
+        .del()
+    })
 
-      let batch: ComponentCodeIndexRow[] = []
-      const flush = async () => {
-        if (!batch.length) return
-        await trx(TABLE).insert(batch)
-        rowCount += batch.length
-        batch = []
-      }
+    const resumeRow = (await db(TABLE)
+      .where({ project_id: projectId, model_id: modelId, commit_id: version.commitId })
+      .whereNotNull('object_id')
+      .max('object_id as maxId')
+      .first()) as { maxId?: string | null } | undefined
+    const resumeAfter = resumeRow?.maxId ?? ''
+    const pending = resumeAfter
+      ? candidateIds.filter((id) => id > resumeAfter)
+      : candidateIds
 
-      const collect = (objectId: string, data: any) => {
+    const collectIndexRows = (
+      objects: Array<{ id: string; data?: unknown }>
+    ): ComponentCodeIndexRow[] => {
+      const rows: ComponentCodeIndexRow[] = []
+      for (const object of objects) {
+        const data = parseObjectData(object.data)
         const code = extractComponentCodeFromObjectData(data, {
           defaultSpaceCode: spaceCode || ''
         })
-        if (!code) return
+        if (!code) continue
 
         const base = {
           project_id: projectId,
           model_id: modelId,
           commit_id: version.commitId,
-          object_id: objectId,
+          object_id: object.id,
           component_code: code
         }
-        batch.push({ ...base, application_id: objectId })
+        rows.push({ ...base, application_id: object.id })
 
         const applicationId = getApplicationIdFromData(data)
-        if (applicationId && applicationId !== objectId) {
-          batch.push({ ...base, application_id: applicationId })
+        if (applicationId && applicationId !== object.id) {
+          rows.push({ ...base, application_id: applicationId })
         }
       }
+      return rows
+    }
 
-      // 根对象本身也可能被表单当作构件引用
-      const rootRow = (await trx('objects')
-        .where('streamId', projectId)
-        .andWhere('id', version.referencedObject)
-        .select('id', 'data')
-        .first()) as { id: string; data?: unknown } | undefined
-      if (rootRow) collect(rootRow.id, parseObjectData(rootRow.data))
+    let rowCount = 0
+    let scanned = 0
 
-      const stream = trx('objects as root')
-        .joinRaw(`JOIN jsonb_each_text(root.data->'__closure') AS d ON true`)
-        .join('objects as o', function (this: any) {
-          this.on('o.streamId', '=', 'root.streamId').andOn('o.id', '=', 'd.key')
-        })
-        .where('root.streamId', projectId)
-        .andWhere('root.id', version.referencedObject)
-        .select('o.id as id', 'o.data as data')
-        .stream({ highWaterMark: STREAM_HIGH_WATER_MARK })
+    for (const batch of chunkList(pending, batchSize)) {
+      const batchStartedAt = Date.now()
 
-      for await (const row of stream as any) {
-        collect(row.id, parseObjectData(row.data))
-        if (batch.length >= INSERT_BATCH_SIZE) await flush()
-      }
-      await flush()
+      const inserted = await db.transaction(async (trx) => {
+        // 关掉并行扫描：大表上并行顺序扫描会吃满所有核
+        await trx.raw('SET LOCAL max_parallel_workers_per_gather = 0')
+        await trx.raw(`SET LOCAL statement_timeout = '${BATCH_STATEMENT_TIMEOUT}'`)
 
-      // 状态行最后写：事务提交前对外不可见
-      await trx(TABLE).insert({
-        project_id: projectId,
-        model_id: modelId,
-        commit_id: version.commitId,
-        application_id: STATE_APPLICATION_ID,
-        object_id: null,
-        component_code: ''
+        const query = trx('objects').where('streamId', projectId).whereIn('id', batch)
+        if (prefilter) {
+          query.andWhere(function (this: any) {
+            for (const filter of CANDIDATE_DATA_FILTERS) {
+              this.orWhereRaw('data::text ILIKE ?', [filter])
+            }
+          })
+        }
+
+        const objects = (await query.select('id', 'data')) as Array<{
+          id: string
+          data?: unknown
+        }>
+        const indexRows = collectIndexRows(objects)
+        if (indexRows.length) {
+          // 续跑可能重复写同一对象，冲突即跳过
+          await trx(TABLE).insert(indexRows).onConflict().ignore()
+        }
+        return indexRows.length
       })
+
+      rowCount += inserted
+      scanned += batch.length
+      options.onProgress?.({ scanned, total: pending.length, inserted: rowCount })
+
+      // 自适应让出 CPU：按本批耗时反推停顿，保证占空比不超过 dutyCycle
+      const batchElapsed = Date.now() - batchStartedAt
+      const throttle =
+        dutyCycle < 1 ? Math.round(batchElapsed * (1 / dutyCycle - 1)) : 0
+      const wait = Math.max(pauseMs, throttle)
+      if (wait > 0) await sleep(wait)
+    }
+
+    // 状态行最后写：写出来才代表这份切片完整、可被读路径信任
+    await db(TABLE).insert({
+      project_id: projectId,
+      model_id: modelId,
+      commit_id: version.commitId,
+      application_id: STATE_APPLICATION_ID,
+      object_id: null,
+      component_code: ''
     })
 
-    return { commitId: version.commitId, rowCount }
+    return {
+      commitId: version.commitId,
+      rowCount,
+      scanned,
+      candidates: candidateIds.length,
+      skipped: candidateIds.length - pending.length,
+      elapsedMs: Date.now() - startedAt
+    }
   }
 
 /**
