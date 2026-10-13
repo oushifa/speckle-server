@@ -304,6 +304,21 @@ export const updateQualityAcceptanceFormMutation = graphql(`
   }
 `)
 
+/** 只改附件/过程文件，不受查验状态与月度验工占用限制 */
+export const updateQualityAcceptanceFormAttachmentsMutation = graphql(`
+  mutation UpdateQualityAcceptanceFormAttachments(
+    $input: UpdateQualityAcceptanceFormAttachmentsInput!
+  ) {
+    projectMutations {
+      qualityAcceptanceMutations {
+        updateFormAttachments(input: $input) {
+          id
+        }
+      }
+    }
+  }
+`)
+
 export const importQualityAcceptanceFormsMutation = gql`
   mutation ImportQualityAcceptanceForms($input: ImportQualityAcceptanceFormsInput!) {
     projectMutations {

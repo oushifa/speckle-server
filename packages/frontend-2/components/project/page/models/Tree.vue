@@ -29,7 +29,7 @@
         </button>
         <span
           v-if="row.modelCount"
-          v-tippy="`该目录下关联了 ${row.modelCount} 个模型`"
+          v-tippy="`该目录下共 ${row.modelCount} 个模型（含子目录）`"
           class="shrink-0 rounded-full bg-primary-muted px-1.5 py-0.5 text-body-3xs text-foreground-2"
         >
           {{ row.modelCount }}
@@ -207,7 +207,7 @@ type VisibleRow = {
   level: number
   hasChildren: boolean
   /**
-   * Amount of models directly linked to this folder (sub folders not included)
+   * Amount of models inside this folder, including the ones linked to any of its sub folders
    */
   modelCount: number
 }
@@ -359,11 +359,33 @@ const itemsById = computed(() => {
 })
 
 /**
- * Model ids directly linked to the passed folder. Sub folders are deliberately
- * not included - each folder only shows the models linked to itself.
+ * Folder id -> all model ids shown when that folder is selected: its own linked
+ * models plus the ones linked to any of its (recursively nested) sub folders.
+ * Memoized so rendering a deep tree stays linear.
  */
-const getDirectModelIds = (folderId: string): string[] =>
-  itemsById.value.get(folderId)?.relative || []
+const modelIdsByFolder = computed(() => {
+  const memo = new Map<string, string[]>()
+
+  const collect = (folderId: string): string[] => {
+    const cached = memo.get(folderId)
+    if (cached) return cached
+
+    const ids = new Set<string>(itemsById.value.get(folderId)?.relative || [])
+    ;(childrenMap.value.get(folderId) || []).forEach((child) => {
+      collect(child.id).forEach((modelId) => ids.add(modelId))
+    })
+
+    const result = [...ids]
+    memo.set(folderId, result)
+    return result
+  }
+
+  collect(ROOT_ID)
+  return memo
+})
+
+const getModelIdsInFolder = (folderId: string): string[] =>
+  modelIdsByFolder.value.get(folderId) || []
 
 const visibleRows = computed<VisibleRow[]>(() => {
   const rows: VisibleRow[] = []
@@ -377,7 +399,7 @@ const visibleRows = computed<VisibleRow[]>(() => {
         name: child.name,
         level,
         hasChildren,
-        modelCount: getDirectModelIds(child.id).length
+        modelCount: getModelIdsInFolder(child.id).length
       })
       if (expandedIds.value.has(child.id)) {
         walk(child.id, level + 1)
@@ -391,7 +413,7 @@ const visibleRows = computed<VisibleRow[]>(() => {
     name: ROOT_NAME,
     level: 0,
     hasChildren: rootChildren.length > 0,
-    modelCount: getDirectModelIds(ROOT_ID).length
+    modelCount: getModelIdsInFolder(ROOT_ID).length
   })
 
   if (expandedIds.value.has(ROOT_ID)) {
@@ -409,7 +431,7 @@ const emitSelectedModelIds = (id: string = selectedId.value) => {
     return
   }
 
-  emit('update:selected-model-ids', getDirectModelIds(id))
+  emit('update:selected-model-ids', getModelIdsInFolder(id))
 }
 
 const selectRow = (id: string) => {

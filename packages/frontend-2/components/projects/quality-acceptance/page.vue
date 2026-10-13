@@ -219,14 +219,16 @@
               </button>
               <button
                 v-if="hasFunctionalPerm('quality-check:edit')"
-                class="rounded p-1 transition-colors"
-                :class="
-                  canEditItem(item)
-                    ? 'text-primary hover:text-primary-focus'
-                    : 'text-foreground-3 cursor-not-allowed'
-                "
-                :title="editDisabledReason(item) || '编辑'"
-                :disabled="!canEditItem(item)"
+                class="rounded p-1 text-foreground-2 transition-colors hover:text-primary"
+                title="附件管理（附件 / 过程文件）"
+                @click="onManageAttachments(item)"
+              >
+                <PaperClipIcon class="h-4 w-4" />
+              </button>
+              <button
+                v-if="hasFunctionalPerm('quality-check:edit') && canEditItem(item)"
+                class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
+                title="编辑"
                 @click="onEditItem(item)"
               >
                 <PencilSquareIcon class="h-4 w-4" />
@@ -300,6 +302,15 @@
       :initial-process-attachments="editingItem?.processAttachments || []"
       :readonly="isDialogReadonly"
       @submit="createAcceptanceItem"
+    />
+    <ProjectsQualityAcceptanceAttachmentsEditDialog
+      v-model:open="manageAttachmentsOpen"
+      :project-id="projectId"
+      :form-name="manageAttachmentsItem?.name || manageAttachmentsItem?.code || ''"
+      :initial-attachments="manageAttachmentsItem?.attachments || []"
+      :initial-process-attachments="manageAttachmentsItem?.processAttachments || []"
+      :loading="updateFormAttachmentsLoading"
+      @submit="saveAttachments"
     />
     <LayoutDialog
       v-model:open="attachmentsDialogOpen"
@@ -397,6 +408,7 @@ import {
   ChevronUpDownIcon,
   EyeIcon,
   MagnifyingGlassIcon,
+  PaperClipIcon,
   PencilSquareIcon,
   PlusIcon,
   TrashIcon
@@ -419,11 +431,13 @@ import {
   createQualityAcceptanceFormMutation,
   deleteQualityAcceptanceFormMutation,
   importQualityAcceptanceFormsMutation,
+  updateQualityAcceptanceFormAttachmentsMutation,
   updateQualityAcceptanceFormMutation
 } from '~/lib/projects/graphql/mutations'
 import type {
   CreateQualityAcceptanceFormInput,
   ProjectQualityAcceptanceFormsQuery,
+  UpdateQualityAcceptanceFormAttachmentsInput,
   UpdateQualityAcceptanceFormInput
 } from '~/lib/common/generated/gql/graphql'
 import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
@@ -510,7 +524,8 @@ const selectedExportApproveStatus = computed({
 const currentPage = ref(1)
 const pageSize = ref(20)
 type AcceptanceSortField = 'updatedAt' | 'actualFinishDate'
-const sortBy = ref<AcceptanceSortField>('updatedAt')
+// 默认按验收日期倒序，最新的验收单排在最前
+const sortBy = ref<AcceptanceSortField>('actualFinishDate')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 const isActualFinishDateSortActive = computed(() => sortBy.value === 'actualFinishDate')
 const actualFinishDateSortIcon = computed(() => {
@@ -518,9 +533,11 @@ const actualFinishDateSortIcon = computed(() => {
   return sortOrder.value === 'asc' ? BarsArrowUpIcon : BarsArrowDownIcon
 })
 const actualFinishDateSortTitle = computed(() => {
-  if (!isActualFinishDateSortActive.value) return '点击按验收日期降序排列'
+  if (!isActualFinishDateSortActive.value) {
+    return '当前按更新时间排序，点击按验收日期降序排列'
+  }
   return sortOrder.value === 'asc'
-    ? '验收日期：升序，点击恢复默认排序'
+    ? '验收日期：升序，点击切换为按更新时间排序'
     : '验收日期：降序，点击切换为升序'
 })
 const toggleActualFinishDateSort = () => {
@@ -539,6 +556,9 @@ const toggleActualFinishDateSort = () => {
 const createDialogOpen = ref(false)
 const editingItem = ref<AcceptanceRow | null>(null)
 const dialogMode = ref<'create' | 'edit' | 'view'>('create')
+// 附件管理弹窗（单独增删附件/过程文件，不受查验状态与月度验工占用限制）
+const manageAttachmentsOpen = ref(false)
+const manageAttachmentsItem = ref<AcceptanceRow | null>(null)
 const attachmentsDialogOpen = ref(false)
 const attachmentsDialogLoading = ref(false)
 const attachmentsDialogError = ref<Nullable<Error>>(null)
@@ -601,6 +621,8 @@ const { mutate: deleteFormMutate, loading: deleteFormLoading } = useMutation(
 const { mutate: updateFormMutate, loading: updateFormLoading } = useMutation(
   updateQualityAcceptanceFormMutation
 )
+const { mutate: updateFormAttachmentsMutate, loading: updateFormAttachmentsLoading } =
+  useMutation(updateQualityAcceptanceFormAttachmentsMutation)
 const { mutate: importFormsMutate } = useMutation(importQualityAcceptanceFormsMutation)
 
 type QualityAcceptanceFormNode = NonNullable<
@@ -899,13 +921,8 @@ const isAcceptanceStatusLocked = (item: AcceptanceRow) =>
   )
 const isAcceptanceLocked = (item: AcceptanceRow) =>
   isAcceptanceStatusLocked(item) || !!item.occupiedMeasurementId
+// 不可编辑（查验中/已查验、已被月度验工占用）时直接隐藏编辑按钮，只保留附件管理与查看
 const canEditItem = (item: AcceptanceRow) => !isAcceptanceLocked(item)
-
-const editDisabledReason = (item: AcceptanceRow) => {
-  if (isAcceptanceStatusLocked(item)) return '查验中或已查验，不可编辑或上传附件'
-  if (item.occupiedMeasurementId) return '已被月度验工关联，不可编辑'
-  return ''
-}
 
 const canDeleteItem = (item: AcceptanceRow) => {
   const status = (item.approveStatus || '').toUpperCase()
@@ -960,6 +977,42 @@ const onViewItem = (item: AcceptanceRow) => {
 const onDeleteItem = async (item: AcceptanceRow) => {
   if (!canDeleteItem(item)) return
   await removeAcceptanceItem(item.id)
+}
+
+const onManageAttachments = (item: AcceptanceRow) => {
+  if (!hasFunctionalPerm('quality-check:edit')) return
+  manageAttachmentsItem.value = item
+  manageAttachmentsOpen.value = true
+}
+
+const saveAttachments = async (payload: {
+  attachments: string[]
+  processAttachments: string[]
+}) => {
+  const item = manageAttachmentsItem.value
+  if (!projectId.value || !item) return
+
+  const result = await updateFormAttachmentsMutate({
+    input: {
+      projectId: projectId.value,
+      id: item.id,
+      attachments: payload.attachments,
+      processAttachments: payload.processAttachments
+    } as UpdateQualityAcceptanceFormAttachmentsInput
+  }).catch(convertThrowIntoFetchResult)
+
+  if (result?.errors?.length) {
+    notify(
+      '附件保存失败',
+      ToastNotificationType.Danger,
+      getFirstErrorMessage(result.errors)
+    )
+    return
+  }
+
+  manageAttachmentsOpen.value = false
+  manageAttachmentsItem.value = null
+  await formsRefetch()
 }
 
 const isDialogReadonly = computed(() => dialogMode.value === 'view')

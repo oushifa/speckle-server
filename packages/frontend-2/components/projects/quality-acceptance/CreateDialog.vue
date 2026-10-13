@@ -131,222 +131,35 @@
             未关联构件
           </div>
         </div>
-        <div class="md:col-span-2 space-y-2">
-          <div class="text-body-sm font-medium">附件上传</div>
-          <!-- 已有关联附件列表 -->
-          <div v-if="existingAttachments.length" class="space-y-1.5 mb-2">
-            <div class="text-body-xs font-medium text-foreground-2">已有关联附件：</div>
-            <div class="grid grid-cols-1 gap-2">
-              <div
-                v-for="attachment in existingAttachments"
-                :key="attachment.id"
-                class="flex items-center justify-between p-2 rounded bg-foundation-2 border border-outline-3 text-body-xs"
-              >
-                <div class="flex items-center gap-1.5 truncate mr-2">
-                  <Paperclip class="h-4 w-4 text-foreground-3 flex-shrink-0" />
-                  <button
-                    type="button"
-                    class="truncate font-medium text-primary hover:text-primary-focus hover:underline text-left"
-                    :title="attachment.fileName"
-                    @click="() => handlePreviewAttachment(attachment)"
-                  >
-                    {{ attachment.fileName }}
-                  </button>
-                  <span class="text-foreground-3 flex-shrink-0 text-[11px]">
-                    ({{ formatAttachmentFileSize(attachment.fileSize) }})
-                  </span>
-                </div>
-                <div class="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    class="rounded p-1 text-foreground-2 transition-colors hover:text-primary"
-                    title="下载附件"
-                    @click="() => handleDownloadExistingAttachment(attachment)"
-                  >
-                    <ArrowDownTrayIcon class="h-4 w-4" />
-                  </button>
-                  <button
-                    v-if="!props.readonly"
-                    type="button"
-                    class="rounded p-1 text-foreground-2 transition-colors hover:text-danger"
-                    title="删除附件"
-                    @click="
-                      () => handleRemoveExistingAttachment('attachments', attachment.id)
-                    "
-                  >
-                    <TrashIcon class="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <FormFileUploadZone
-            ref="uploadZone"
-            v-slot="{ isDraggingFiles }"
-            :size-limit="maxSizeInBytes"
-            :accept="acceptValue"
-            :disabled="loading || !projectId || props.readonly"
-            multiple
-            @files-selected="onFilesSelected"
-          >
-            <div
-              class="rounded border border-dashed border-outline-3 p-3 flex items-center justify-between"
-              :class="isDraggingFiles ? 'bg-foundation-2' : ''"
-            >
-              <span class="text-body-sm text-foreground-2">
-                拖拽文件到此处，或点击右侧按钮上传
-              </span>
-              <FormButton
-                color="outline"
-                size="sm"
-                :disabled="loading || !projectId || props.readonly"
-                @click.stop="openFilePicker"
-              >
-                选择文件
-              </FormButton>
-            </div>
-          </FormFileUploadZone>
-          <FormFileUploadProgress
-            v-if="uploads.length"
-            :items="uploads"
-            :disabled="loading || props.readonly"
-            @delete="onUploadDelete"
-          />
-        </div>
-        <div class="md:col-span-2 space-y-2">
-          <div class="text-body-sm font-medium">过程文件</div>
-          <!-- 已有关联过程文件列表 -->
-          <div v-if="existingProcessAttachments.length" class="space-y-1.5 mb-2">
-            <div class="text-body-xs font-medium text-foreground-2">
-              已有关联过程文件：
-            </div>
-            <div class="grid grid-cols-1 gap-2">
-              <div
-                v-for="attachment in existingProcessAttachments"
-                :key="attachment.id"
-                class="flex items-center justify-between p-2 rounded bg-foundation-2 border border-outline-3 text-body-xs"
-              >
-                <div class="flex items-center gap-1.5 truncate mr-2">
-                  <Paperclip class="h-4 w-4 text-foreground-3 flex-shrink-0" />
-                  <button
-                    type="button"
-                    class="truncate font-medium text-primary hover:text-primary-focus hover:underline text-left"
-                    :title="attachment.fileName"
-                    @click="() => handlePreviewAttachment(attachment)"
-                  >
-                    {{ attachment.fileName }}
-                  </button>
-                  <span class="text-foreground-3 flex-shrink-0 text-[11px]">
-                    ({{ formatAttachmentFileSize(attachment.fileSize) }})
-                  </span>
-                </div>
-                <div class="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    class="rounded p-1 text-foreground-2 transition-colors hover:text-primary"
-                    title="下载附件"
-                    @click="() => handleDownloadExistingAttachment(attachment)"
-                  >
-                    <ArrowDownTrayIcon class="h-4 w-4" />
-                  </button>
-                  <button
-                    v-if="!props.readonly"
-                    type="button"
-                    class="rounded p-1 text-foreground-2 transition-colors hover:text-danger"
-                    title="删除过程文件"
-                    @click="
-                      () =>
-                        handleRemoveExistingAttachment(
-                          'processAttachments',
-                          attachment.id
-                        )
-                    "
-                  >
-                    <TrashIcon class="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <FormFileUploadZone
-            ref="processUploadZone"
-            v-slot="{ isDraggingFiles }"
-            :size-limit="maxSizeInBytes"
-            :accept="acceptValue"
-            :disabled="loading || !projectId || props.readonly"
-            multiple
-            @files-selected="onProcessFilesSelected"
-          >
-            <div
-              class="rounded border border-dashed border-outline-3 p-3 flex items-center justify-between"
-              :class="isDraggingFiles ? 'bg-foundation-2' : ''"
-            >
-              <span class="text-body-sm text-foreground-2">
-                拖拽文件到此处，或点击右侧按钮上传
-              </span>
-              <FormButton
-                color="outline"
-                size="sm"
-                :disabled="loading || !projectId || props.readonly"
-                @click.stop="openProcessFilePicker"
-              >
-                选择文件
-              </FormButton>
-            </div>
-          </FormFileUploadZone>
-          <FormFileUploadProgress
-            v-if="processUploads.length"
-            :items="processUploads"
-            :disabled="loading || props.readonly"
-            @delete="onProcessUploadDelete"
-          />
-        </div>
+        <ProjectsQualityAcceptanceAttachmentUploadField
+          ref="attachmentFieldRef"
+          v-model:existing="existingAttachments"
+          v-model:new-blob-ids="attachmentNewBlobIds"
+          label="附件"
+          :project-id="projectId"
+          :disabled="loading"
+          :readonly="props.readonly"
+          class="md:col-span-2"
+        />
+        <ProjectsQualityAcceptanceAttachmentUploadField
+          ref="processAttachmentFieldRef"
+          v-model:existing="existingProcessAttachments"
+          v-model:new-blob-ids="processNewBlobIds"
+          label="过程文件"
+          :project-id="projectId"
+          :disabled="loading"
+          :readonly="props.readonly"
+          class="md:col-span-2"
+        />
       </div>
       <div v-if="errorMessage" class="text-body-sm text-danger">{{ errorMessage }}</div>
     </div>
-    <CommonConfirmDialog
-      v-model:open="showDeleteConfirm"
-      :title="`确认删除${deleteTargetLabel}`"
-      :text="`确定要删除该${deleteTargetLabel}吗？此操作在点击“确定”保存前不会真正修改，但保存后将无法恢复。`"
-      confirm-text="删除"
-      @confirm="confirmRemoveExistingAttachment"
-    />
-    <!-- 附件预览 Dialog -->
-    <LayoutDialog
-      v-model:open="previewDialogOpen"
-      max-width="xl"
-      fullscreen="all"
-      :buttons="previewDialogButtons"
-    >
-      <template #header>
-        {{
-          selectedPreviewAttachment ? selectedPreviewAttachment.fileName : '附件预览'
-        }}
-      </template>
-      <div
-        v-if="selectedPreviewAttachment"
-        class="flex flex-col gap-y-3 h-[70vh] md:h-[75vh]"
-      >
-        <div
-          class="w-full flex-1 h-full flex flex-col justify-center text-foreground text-body-xs px-6 pb-6 pt-2"
-        >
-          <CommonFilePreview
-            :blob-id="selectedPreviewAttachment.id"
-            :project-id="props.projectId || ''"
-            :file-name="selectedPreviewAttachment.fileName"
-            :file-type="selectedPreviewAttachment.fileType"
-            :file-size="selectedPreviewAttachment.fileSize"
-            class="w-full flex-1 h-full"
-          />
-        </div>
-      </div>
-    </LayoutDialog>
   </LayoutDialog>
 </template>
 
 <script setup lang="ts">
-import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/vue/24/outline'
-import { Paperclip, X } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
+import type { Nullable } from '@speckle/shared'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import type {
   BimSelectionGroup,
@@ -355,11 +168,6 @@ import type {
 } from './types'
 import { getAlignedBimSerialCodes } from './types'
 import BoqTreeSelect from '~/components/common/checklist/BoqTreeSelect.vue'
-import { useAttachments, useFileDownload } from '~/lib/core/composables/fileUpload'
-import { isSuccessfullyUploaded } from '~/lib/core/api/blobStorage'
-import { useServerFileUploadLimit } from '~/lib/common/composables/serverInfo'
-import { UniqueFileTypeSpecifier, prettyFileSize } from '~/lib/core/helpers/file'
-import { acceptedFileExtensions } from '@speckle/shared/blobs'
 import { CommonModelObjectMultiModelSelectDrawer } from '#components'
 
 const props = withDefaults(
@@ -408,8 +216,6 @@ const createDefaultForm = (): QualityAcceptanceCreateInput => ({
 })
 
 const form = ref<QualityAcceptanceCreateInput>(createDefaultForm())
-const uploadZone = ref<{ triggerPicker: () => void } | null>(null)
-const processUploadZone = ref<{ triggerPicker: () => void } | null>(null)
 const selectedChecklistId = ref<string | null>(null)
 const actualStartDateInput = ref('')
 const actualFinishDateInput = ref('')
@@ -420,23 +226,6 @@ const bimSelections = ref<BimSelectionGroup[]>([])
 // 避免编辑保存时把存量序号码清空。
 const persistedSerialCodeByComponent = ref<Record<string, string>>({})
 const errorMessage = ref('')
-const { maxSizeInBytes } = useServerFileUploadLimit()
-const { onFilesSelected, uploads, onUploadDelete, blobIds } = useAttachments({
-  projectId: computed(() => props.projectId || '')
-})
-// 过程文件使用独立的上传队列，与附件互不影响
-const {
-  onFilesSelected: onProcessFilesSelected,
-  uploads: processUploads,
-  onUploadDelete: onProcessUploadDelete,
-  blobIds: processBlobIds
-} = useAttachments({
-  projectId: computed(() => props.projectId || '')
-})
-const acceptValue = [
-  UniqueFileTypeSpecifier.AnyImage,
-  ...acceptedFileExtensions.map((fileExtension) => `.${fileExtension}`)
-].join(',')
 
 // 与 applicationIds 按位对齐的序号码；抽屉回传 componentCodesAligned，
 // 从已保存数据回填时由 bimIds 推导，二者缺失时按位回退到紧凑编码数组，
@@ -505,100 +294,19 @@ const onChecklistSelected = (
   form.value.unit = first.unit || ''
 }
 
-const openFilePicker = () => {
-  uploadZone.value?.triggerPicker()
-}
-
-const openProcessFilePicker = () => {
-  processUploadZone.value?.triggerPicker()
-}
-
-// 附件管理相关状态与方法（附件 / 过程文件两组共用同一套处理逻辑）
-type AttachmentField = 'attachments' | 'processAttachments'
+// 附件 / 过程文件：已保存列表由本组件持有，上传队列交给 AttachmentUploadField
 const existingAttachments = ref<QualityAcceptanceAttachment[]>([])
 const existingProcessAttachments = ref<QualityAcceptanceAttachment[]>([])
-const showDeleteConfirm = ref(false)
-const attachmentToDelete = ref<{
-  field: AttachmentField
-  id: string
-} | null>(null)
-
-const { download } = useFileDownload()
-
-const handleDownloadExistingAttachment = async (
-  attachment: QualityAcceptanceAttachment
-) => {
-  if (!props.projectId) return
-  try {
-    await download({
-      blobId: attachment.id,
-      fileName: attachment.fileName,
-      projectId: props.projectId
-    })
-  } catch (err) {
-    console.error('Failed to download attachment:', err)
-  }
+// 本次新上传成功的 blob id（提交时与已保存列表合并）
+const attachmentNewBlobIds = ref<string[]>([])
+const processNewBlobIds = ref<string[]>([])
+type AttachmentFieldRef = {
+  hasPendingUploads: () => boolean
+  markUploadsInUse: () => void
+  resetUploads: () => void
 }
-
-const formatAttachmentFileSize = (size: number | null) =>
-  size ? prettyFileSize(size) : '未知大小'
-
-const handleRemoveExistingAttachment = (field: AttachmentField, id: string) => {
-  attachmentToDelete.value = { field, id }
-  showDeleteConfirm.value = true
-}
-
-const deleteTargetLabel = computed(() =>
-  attachmentToDelete.value?.field === 'processAttachments' ? '过程文件' : '附件'
-)
-
-const confirmRemoveExistingAttachment = () => {
-  const target = attachmentToDelete.value
-  if (target) {
-    const list =
-      target.field === 'processAttachments'
-        ? existingProcessAttachments
-        : existingAttachments
-    list.value = list.value.filter((a) => a.id !== target.id)
-    attachmentToDelete.value = null
-  }
-}
-
-// 附件预览状态与方法
-const previewDialogOpen = ref(false)
-const selectedPreviewAttachment = ref<QualityAcceptanceAttachment | null>(null)
-
-const handlePreviewAttachment = (attachment: QualityAcceptanceAttachment) => {
-  selectedPreviewAttachment.value = attachment
-  previewDialogOpen.value = true
-}
-
-const previewDialogButtons = computed((): LayoutDialogButton[] => {
-  if (!selectedPreviewAttachment.value) return []
-  return [
-    {
-      text: selectedPreviewAttachment.value.fileSize
-        ? prettyFileSize(selectedPreviewAttachment.value.fileSize)
-        : '下载',
-      props: {
-        iconLeft: ArrowDownTrayIcon,
-        color: 'outline'
-      },
-      onClick: () => {
-        if (selectedPreviewAttachment.value) {
-          void handleDownloadExistingAttachment(selectedPreviewAttachment.value)
-        }
-      }
-    },
-    {
-      text: '关闭',
-      props: { color: 'outline' },
-      onClick: () => {
-        previewDialogOpen.value = false
-      }
-    }
-  ]
-})
+const attachmentFieldRef = ref(null as Nullable<AttachmentFieldRef>)
+const processAttachmentFieldRef = ref(null as Nullable<AttachmentFieldRef>)
 
 const formatDateInput = (value: number) => {
   if (!value) return ''
@@ -628,12 +336,12 @@ const resetForm = () => {
   bimModelIds.value = []
   bimSelections.value = []
   persistedSerialCodeByComponent.value = {}
-  uploads.value = []
+  attachmentFieldRef.value?.resetUploads()
+  processAttachmentFieldRef.value?.resetUploads()
   existingAttachments.value = []
-  processUploads.value = []
   existingProcessAttachments.value = []
-  selectedPreviewAttachment.value = null
-  previewDialogOpen.value = false
+  attachmentNewBlobIds.value = []
+  processNewBlobIds.value = []
   errorMessage.value = ''
 }
 
@@ -669,16 +377,16 @@ const fillFormFromInitialData = (data: QualityAcceptanceCreateInput) => {
   bimModelIds.value = Array.from(
     new Set(bimSelections.value.map((group) => group.modelId).filter(Boolean))
   )
-  uploads.value = []
+  attachmentFieldRef.value?.resetUploads()
+  processAttachmentFieldRef.value?.resetUploads()
   existingAttachments.value = props.initialAttachments
     ? [...props.initialAttachments]
     : []
-  processUploads.value = []
   existingProcessAttachments.value = props.initialProcessAttachments
     ? [...props.initialProcessAttachments]
     : []
-  selectedPreviewAttachment.value = null
-  previewDialogOpen.value = false
+  attachmentNewBlobIds.value = []
+  processNewBlobIds.value = []
   errorMessage.value = ''
 }
 
@@ -698,21 +406,17 @@ const submit = () => {
     errorMessage.value = '结束时间格式不正确'
     return
   }
-  const hasPendingUploads = [...uploads.value, ...processUploads.value].some(
-    (upload) => !upload.error && !isSuccessfullyUploaded(upload)
-  )
+  const hasPendingUploads =
+    attachmentFieldRef.value?.hasPendingUploads() ||
+    processAttachmentFieldRef.value?.hasPendingUploads()
   if (hasPendingUploads) {
     errorMessage.value = '附件上传中，请稍后再提交'
     return
   }
   // 附件已随表单提交，标记为已使用，防止 useAttachments 在组件卸载/重置时
   // 把这些 blob 当作未提交的垃圾附件删除（否则切换页面后已保存的关联文件会丢失）
-  for (const upload of [...uploads.value, ...processUploads.value]) {
-    if (upload.inUse) continue
-    if (isSuccessfullyUploaded(upload)) {
-      upload.inUse = true
-    }
-  }
+  attachmentFieldRef.value?.markUploadsInUse()
+  processAttachmentFieldRef.value?.markUploadsInUse()
   emit('submit', {
     ...form.value,
     name: form.value.name.trim(),
@@ -726,12 +430,15 @@ const submit = () => {
     workVolume,
     actualFinishDate,
     attachments: Array.from(
-      new Set([...existingAttachments.value.map((a) => a.id), ...blobIds.value])
+      new Set([
+        ...existingAttachments.value.map((a) => a.id),
+        ...attachmentNewBlobIds.value
+      ])
     ),
     processAttachments: Array.from(
       new Set([
         ...existingProcessAttachments.value.map((a) => a.id),
-        ...processBlobIds.value
+        ...processNewBlobIds.value
       ])
     ),
     BIM: bimSelections.value.length

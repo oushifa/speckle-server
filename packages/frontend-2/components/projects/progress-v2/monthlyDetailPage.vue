@@ -116,7 +116,7 @@
         v-else
         :columns="taskColumns"
         :items="treeTasks"
-        class="w-full"
+        class="w-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
         expand-all-by-default
       >
         <template #taskName="{ item }">

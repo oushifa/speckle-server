@@ -27,6 +27,7 @@ import {
   createQualityAcceptanceFormEntryFactory,
   importQualityAcceptanceFormsFactory,
   normalizeApproveStatus,
+  normalizeAttachments,
   normalizeBIM,
   QUALITY_ACCEPTANCE_FORM_TABLE
 } from '@/modules/quality-acceptance-form/services/qualityAcceptanceForms'
@@ -349,6 +350,48 @@ const resolvers = {
       await recalculateProjectCostSummaryFactory({ db: projectDb })({
         projectId: args.input.projectId
       })
+      return updated
+    },
+    /**
+     * 只更新附件 / 过程文件。
+     * 与 updateForm 不同：这里**不做**"查验中/已查验""被月度验工占用"的锁定校验，
+     * 因为验收完成后经常需要补传过程文件；权限仍与其它写操作一致。
+     */
+    updateFormAttachments: async (
+      _parent: unknown,
+      args: {
+        input: {
+          projectId: string
+          id: string
+          attachments?: string[] | null
+          processAttachments?: string[] | null
+        }
+      },
+      ctx: GraphQLContext
+    ) => {
+      if (!hasServerAdminOverride(ctx)) {
+        const canUpdate = await ctx.authPolicies.project.canRead({
+          projectId: args.input.projectId,
+          userId: ctx.userId
+        })
+        throwIfAuthNotOk(canUpdate)
+      }
+
+      const projectDb = await getProjectDbClient({ projectId: args.input.projectId })
+      const existingForm = await projectDb(QUALITY_ACCEPTANCE_FORM_TABLE)
+        .where('id', args.input.id)
+        .andWhere('project_id', args.input.projectId)
+        .first()
+      if (!existingForm) throw new BadRequestError('Quality acceptance form not found')
+
+      const updated = await updateQualityAcceptanceFormFactory({ db: projectDb })(
+        args.input.id,
+        {
+          attachments: normalizeAttachments(args.input.attachments),
+          processAttachments: normalizeAttachments(args.input.processAttachments)
+        }
+      )
+      if (!updated) throw new BadRequestError('Quality acceptance form not found')
       return updated
     },
     deleteForm: async (

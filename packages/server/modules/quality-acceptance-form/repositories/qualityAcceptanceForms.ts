@@ -17,6 +17,15 @@ export type QualityAcceptanceFormsSortField =
 
 export type SortOrder = 'asc' | 'desc'
 
+/** 质量验收列表默认按验收日期倒序（无验收日期的排在最后） */
+export const DEFAULT_QUALITY_ACCEPTANCE_FORMS_SORT: {
+  sortBy: QualityAcceptanceFormsSortField
+  sortOrder: SortOrder
+} = {
+  sortBy: 'actualFinishDate',
+  sortOrder: 'desc'
+}
+
 export const normalizeQualityAcceptanceFormsSort = (params: {
   sortBy?: string | null
   sortOrder?: string | null
@@ -25,7 +34,7 @@ export const normalizeQualityAcceptanceFormsSort = (params: {
     params.sortBy as QualityAcceptanceFormsSortField
   )
     ? (params.sortBy as QualityAcceptanceFormsSortField)
-    : 'updatedAt'
+    : DEFAULT_QUALITY_ACCEPTANCE_FORMS_SORT.sortBy
   const sortOrder: SortOrder = params.sortOrder === 'asc' ? 'asc' : 'desc'
   return { sortBy, sortOrder }
 }

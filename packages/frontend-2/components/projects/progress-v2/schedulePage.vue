@@ -141,7 +141,7 @@
         v-else
         :columns="taskColumns"
         :items="treeTasks"
-        class="w-full"
+        class="w-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
         expand-all-by-default
       >
         <template #taskName="{ item }">
@@ -194,9 +194,12 @@
       >
         暂无年度计划，请点击右上角新增。
       </div>
-      <div v-else class="overflow-x-auto">
+      <div
+        v-else
+        class="max-h-[calc(100dvh_-_18rem)] min-h-[12rem] overflow-auto overscroll-x-contain"
+      >
         <table class="w-full text-left text-body-sm border-collapse">
-          <thead>
+          <thead class="sticky top-0 z-10 bg-foundation">
             <tr
               class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
             >
@@ -316,9 +319,12 @@
       >
         暂无月度计划，请点击右上角新增。
       </div>
-      <div v-else class="overflow-x-auto">
+      <div
+        v-else
+        class="max-h-[calc(100dvh_-_18rem)] min-h-[12rem] overflow-auto overscroll-x-contain"
+      >
         <table class="w-full text-left text-body-sm border-collapse">
-          <thead>
+          <thead class="sticky top-0 z-10 bg-foundation">
             <tr
               class="border-b border-outline-2 bg-foundation-page/50 text-foreground-2 font-medium"
             >

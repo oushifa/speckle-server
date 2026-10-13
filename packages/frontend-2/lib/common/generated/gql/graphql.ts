@@ -4446,6 +4446,7 @@ export type QualityAcceptanceMutations = {
   deleteForm: Scalars['Boolean']['output'];
   importForms: QualityAcceptanceImportResult;
   updateForm: QualityAcceptanceForm;
+  updateFormAttachments: QualityAcceptanceForm;
 };
 
 
@@ -4466,6 +4467,11 @@ export type QualityAcceptanceMutationsImportFormsArgs = {
 
 export type QualityAcceptanceMutationsUpdateFormArgs = {
   input: UpdateQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsUpdateFormAttachmentsArgs = {
+  input: UpdateQualityAcceptanceFormAttachmentsInput;
 };
 
 export type Query = {
@@ -5987,6 +5993,17 @@ export type UpdateMonthlyMeasurementInput = {
   measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
   projectId: Scalars['ID']['input'];
   unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+/**
+ * 仅更新附件与过程文件。与 updateForm 不同：查验中/已查验、被月度验工占用的单据
+ * 仍允许通过本接口增删附件（业务上需要在验收完成后补传过程文件）。
+ */
+export type UpdateQualityAcceptanceFormAttachmentsInput = {
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  id: Scalars['ID']['input'];
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type UpdateQualityAcceptanceFormInput = {
@@ -12705,6 +12722,7 @@ export type QualityAcceptanceMutationsFieldArgs = {
   deleteForm: QualityAcceptanceMutationsDeleteFormArgs,
   importForms: QualityAcceptanceMutationsImportFormsArgs,
   updateForm: QualityAcceptanceMutationsUpdateFormArgs,
+  updateFormAttachments: QualityAcceptanceMutationsUpdateFormAttachmentsArgs,
 }
 export type QueryFieldArgs = {
   _: {},

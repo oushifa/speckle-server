@@ -126,6 +126,17 @@ input ImportQualityAcceptanceFormsInput {
   items: [ImportQualityAcceptanceFormItemInput!]!
 }
 
+"""
+仅更新附件与过程文件。与 updateForm 不同：查验中/已查验、被月度验工占用的单据
+仍允许通过本接口增删附件（业务上需要在验收完成后补传过程文件）。
+"""
+input UpdateQualityAcceptanceFormAttachmentsInput {
+  projectId: ID!
+  id: ID!
+  attachments: [String!]
+  processAttachments: [String!]
+}
+
 type QualityAcceptanceImportResult {
   createdCount: Int!
   failedCount: Int!
@@ -135,6 +146,9 @@ type QualityAcceptanceImportResult {
 type QualityAcceptanceMutations {
   createForm(input: CreateQualityAcceptanceFormInput!): QualityAcceptanceForm!
   updateForm(input: UpdateQualityAcceptanceFormInput!): QualityAcceptanceForm!
+  updateFormAttachments(
+    input: UpdateQualityAcceptanceFormAttachmentsInput!
+  ): QualityAcceptanceForm!
   deleteForm(input: DeleteQualityAcceptanceFormInput!): Boolean!
   importForms(input: ImportQualityAcceptanceFormsInput!): QualityAcceptanceImportResult!
 }

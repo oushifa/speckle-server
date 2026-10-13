@@ -81,7 +81,7 @@ const normalizeOptionalDateValue = (value?: string | number | null): string | nu
   return trimmed.length ? trimmed : null
 }
 
-const normalizeAttachments = (attachments?: string[] | null) => {
+export const normalizeAttachments = (attachments?: string[] | null) => {
   if (!Array.isArray(attachments) || !attachments.length) return null
 
   const normalized = Array.from(

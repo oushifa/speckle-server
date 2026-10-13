@@ -4478,6 +4478,7 @@ export type QualityAcceptanceMutations = {
   deleteForm: Scalars['Boolean']['output'];
   importForms: QualityAcceptanceImportResult;
   updateForm: QualityAcceptanceForm;
+  updateFormAttachments: QualityAcceptanceForm;
 };
 
 
@@ -4498,6 +4499,11 @@ export type QualityAcceptanceMutationsImportFormsArgs = {
 
 export type QualityAcceptanceMutationsUpdateFormArgs = {
   input: UpdateQualityAcceptanceFormInput;
+};
+
+
+export type QualityAcceptanceMutationsUpdateFormAttachmentsArgs = {
+  input: UpdateQualityAcceptanceFormAttachmentsInput;
 };
 
 export type Query = {
@@ -6019,6 +6025,17 @@ export type UpdateMonthlyMeasurementInput = {
   measuredItems?: InputMaybe<Array<MonthlyMeasurementMeasuredItemInput>>;
   projectId: Scalars['ID']['input'];
   unit?: InputMaybe<Scalars['String']['input']>;
+};
+
+/**
+ * 仅更新附件与过程文件。与 updateForm 不同：查验中/已查验、被月度验工占用的单据
+ * 仍允许通过本接口增删附件（业务上需要在验收完成后补传过程文件）。
+ */
+export type UpdateQualityAcceptanceFormAttachmentsInput = {
+  attachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  id: Scalars['ID']['input'];
+  processAttachments?: InputMaybe<Array<Scalars['String']['input']>>;
+  projectId: Scalars['ID']['input'];
 };
 
 export type UpdateQualityAcceptanceFormInput = {
@@ -7892,7 +7909,7 @@ export type ResolversTypes = {
   QualityAcceptanceForm: ResolverTypeWrapper<Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector' | 'processAttachments'> & { BIM?: Maybe<Array<ResolversTypes['BimElementEntry']>>, attachments: Array<ResolversTypes['BlobMetadata']>, creator?: Maybe<ResolversTypes['LimitedUser']>, inspector?: Maybe<ResolversTypes['LimitedUser']>, processAttachments: Array<ResolversTypes['BlobMetadata']> }>;
   QualityAcceptanceFormCollection: ResolverTypeWrapper<Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversTypes['QualityAcceptanceForm']> }>;
   QualityAcceptanceImportResult: ResolverTypeWrapper<QualityAcceptanceImportResult>;
-  QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'] }>;
+  QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm' | 'updateFormAttachments'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'], updateFormAttachments: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
   ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
@@ -7972,6 +7989,7 @@ export type ResolversTypes = {
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
+  UpdateQualityAcceptanceFormAttachmentsInput: UpdateQualityAcceptanceFormAttachmentsInput;
   UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -8370,7 +8388,7 @@ export type ResolversParentTypes = {
   QualityAcceptanceForm: Omit<QualityAcceptanceForm, 'BIM' | 'attachments' | 'creator' | 'inspector' | 'processAttachments'> & { BIM?: Maybe<Array<ResolversParentTypes['BimElementEntry']>>, attachments: Array<ResolversParentTypes['BlobMetadata']>, creator?: Maybe<ResolversParentTypes['LimitedUser']>, inspector?: Maybe<ResolversParentTypes['LimitedUser']>, processAttachments: Array<ResolversParentTypes['BlobMetadata']> };
   QualityAcceptanceFormCollection: Omit<QualityAcceptanceFormCollection, 'items'> & { items: Array<ResolversParentTypes['QualityAcceptanceForm']> };
   QualityAcceptanceImportResult: QualityAcceptanceImportResult;
-  QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'] };
+  QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm' | 'updateFormAttachments'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'], updateFormAttachments: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
   ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
@@ -8443,6 +8461,7 @@ export type ResolversParentTypes = {
   UpdateFolderInput: UpdateFolderInput;
   UpdateModelInput: UpdateModelInput;
   UpdateMonthlyMeasurementInput: UpdateMonthlyMeasurementInput;
+  UpdateQualityAcceptanceFormAttachmentsInput: UpdateQualityAcceptanceFormAttachmentsInput;
   UpdateQualityAcceptanceFormInput: UpdateQualityAcceptanceFormInput;
   UpdateSavedViewGroupInput: UpdateSavedViewGroupInput;
   UpdateSavedViewInput: UpdateSavedViewInput;
@@ -10281,6 +10300,7 @@ export type QualityAcceptanceMutationsResolvers<ContextType = GraphQLContext, Pa
   deleteForm?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsDeleteFormArgs, 'input'>>;
   importForms?: Resolver<ResolversTypes['QualityAcceptanceImportResult'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsImportFormsArgs, 'input'>>;
   updateForm?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsUpdateFormArgs, 'input'>>;
+  updateFormAttachments?: Resolver<ResolversTypes['QualityAcceptanceForm'], ParentType, ContextType, RequireFields<QualityAcceptanceMutationsUpdateFormAttachmentsArgs, 'input'>>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
