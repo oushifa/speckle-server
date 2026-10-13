@@ -24,6 +24,7 @@ import {
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { emitModelSyncTaskUpdated } from '@/modules/model-sync/services/events'
 import type { ProjectModelSyncTaskRecord } from '@/modules/model-sync/repositories/tasks'
+import { runModelSyncTaskFactory } from '@/modules/model-sync/services/taskRunner'
 
 type OnFileImportResultDeps = {
   getFileInfo: GetFileInfoV2
@@ -32,6 +33,42 @@ type OnFileImportResultDeps = {
   eventEmit: EventBusEmit
   logger: Logger
   FF_NEXT_GEN_FILE_IMPORTER_ENABLED: boolean
+}
+
+/**
+ * 转换成功后继续后续的中海（DTP）同步。
+ *
+ * 新版导入器（IFC / SKP / DXF 等）转换完成时只会回写
+ * `project_model_sync_tasks` 的状态，不会再拉起同步编排，任务会永远停在
+ * `speckle_converting`（进度 100%「模型转换完成」）而进不了中海。
+ * RVT 链路在 `rvt-conversion/services/lifecycle.ts` 里有同样的续跑逻辑，
+ * 这里补齐其余走新版导入器的文件类型。
+ */
+const resumeRelatedModelSyncTasks = (
+  tasks: ProjectModelSyncTaskRecord[],
+  logger: Logger
+) => {
+  if (!tasks.length) return
+
+  const runModelSyncTask = runModelSyncTaskFactory()
+  for (const task of tasks) {
+    void runModelSyncTask({
+      projectId: task.projectId,
+      modelId: task.modelId,
+      taskId: task.id,
+      userId: task.creator
+    }).catch((error) => {
+      logger.warn(
+        {
+          err: ensureError(error),
+          taskId: task.id,
+          projectId: task.projectId,
+          modelId: task.modelId
+        },
+        '模型转换完成后续跑中海同步任务失败'
+      )
+    })
+  }
 }
 
 export const onFileImportResultFactory =
@@ -199,6 +236,8 @@ export const onFileImportResultFactory =
         for (const task of affectedTasks) {
           emitModelSyncTaskUpdated(task)
         }
+
+        resumeRelatedModelSyncTasks(affectedTasks, boundLogger)
       }
     } catch (taskSyncErr) {
       logger.warn(

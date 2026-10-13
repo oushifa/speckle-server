@@ -3,8 +3,10 @@ import {
   THIRD_PARTY_STATIC_BASE,
   convertSpeckleTokenToThirdParty
 } from '@/modules/auth/services/thirdPartyToken'
+import { getLatestDtpToken } from '@/modules/dtp-token/services/tokenStore'
 import { ModelSyncTaskError } from '@/modules/model-sync/services/errors'
 import { BadRequestError } from '@/modules/shared/errors'
+import { moduleLogger } from '@/observability/logging'
 
 const DTP_MIN_NON_LAST_CHUNK_SIZE = 8 * 1024 * 1024
 const DTP_MAX_NON_LAST_CHUNK_SIZE = 10 * 1024 * 1024
@@ -98,15 +100,65 @@ const resolveStaticUrl = (path: string) =>
     ? path
     : `${THIRD_PARTY_STATIC_BASE}${ensureLeadingSlash(path)}`
 
+/**
+ * 判断 JWT 是否已过期（解析失败时按未过期处理，交给 DTP 自己判定）
+ */
+const isJwtExpired = (token: string, now: number = Date.now()) => {
+  const payload = token.split('.')[1]
+  if (!payload) return false
+
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      exp?: number
+    }
+    return typeof parsed.exp === 'number' ? parsed.exp * 1000 <= now : false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 读取前端上报、服务器缓存的共享 DTP token（见 GET /api/dtp-token）。
+ * 不存在 / 已过期 / Redis 异常时返回 null。
+ */
+const resolveSharedDtpToken = async (): Promise<string | null> => {
+  try {
+    const record = await getLatestDtpToken()
+    const token = record?.token?.trim()
+    if (!token || isJwtExpired(token)) return null
+
+    return token
+  } catch (error) {
+    moduleLogger.warn({ err: error }, '读取共享 DTP token 失败')
+    return null
+  }
+}
+
+/**
+ * 获取 DTP token：优先按任务创建者的手机号登录，
+ * 该手机号在中海没有账号（或登录失败）时回退到共享 token，
+ * 避免整个模型同步卡在 DTP 登录这一步。
+ */
 export const loginToDtpFactory =
   () =>
   async (mobile: string): Promise<string> => {
-    const result = await convertSpeckleTokenToThirdParty(mobile)
-    const token = result.results.tokens[0]
-    if (!token) {
-      throw new ModelSyncTaskError('DTP_AUTH_FAILED', '获取 DTP token 失败', false)
+    try {
+      const result = await convertSpeckleTokenToThirdParty(mobile)
+      const token = result.results?.tokens?.[0]
+      if (!token) {
+        throw new ModelSyncTaskError('DTP_AUTH_FAILED', '获取 DTP token 失败', false)
+      }
+      return token
+    } catch (error) {
+      const sharedToken = await resolveSharedDtpToken()
+      if (!sharedToken) throw error
+
+      moduleLogger.warn(
+        { err: error, mobile },
+        '按用户登录中海失败，回退使用服务器缓存的共享 DTP token'
+      )
+      return sharedToken
     }
-    return token
   }
 
 export const getDtpUploadConfigFactory =
