@@ -589,11 +589,17 @@ const parseBimEntries = (raw: unknown): ExternalBimEntry[] => {
     }))
 }
 
-// 汇总一条进度记录的构件编码：手填编码 + 关联构件已存编码 + 反查得到的完整编码
+// 汇总一条进度记录的构件编码：手填编码 + 关联构件已存编码 + 反查得到的完整编码。
+//
+// `resolveAll` 为真时，即使关联构件已存编码也继续按构件 ID 反查完整编码：
+// 进度台账的「序号码」列存的是局部的序号码（如 `W04`），而对外查询用的是完整
+// 构件编码（如 `14-94.01.05.00.00.1NB01020102DQ1-W04`）。两者是构件上两个不同的
+// 属性，序号码并不是完整编码的截断，因此不能靠字符串比对补齐，必须反查。
 const collectRecordComponentCodes = (
   manualCode: string | null | undefined,
   bimEntries: ExternalBimEntry[],
-  bimCodesLookup: Map<string, string>
+  bimCodesLookup: Map<string, string>,
+  options: { resolveAll?: boolean } = {}
 ): string[] => {
   const codes: string[] = []
   const seen = new Set<string>()
@@ -607,8 +613,8 @@ const collectRecordComponentCodes = (
   push(manualCode)
   bimEntries.forEach((entry) => {
     entry.componentCodes.forEach(push)
-    // 关联构件未存储编码时，按构件 ID 反查第三方完整构件编码
-    if (!entry.componentCodes.length) {
+    // 关联构件未存储编码时（或调用方要求全量反查时），按构件 ID 反查第三方完整构件编码
+    if (options.resolveAll || !entry.componentCodes.length) {
       entry.applicationIds.forEach((appId) => push(bimCodesLookup.get(appId)))
     }
   })
@@ -624,7 +630,8 @@ const collectRecordComponentCodes = (
 const serializeProgressV2Record = (
   record: any,
   bimEntries: ExternalBimEntry[],
-  bimCodesLookup: Map<string, string>
+  bimCodesLookup: Map<string, string>,
+  options: { resolveAll?: boolean } = {}
 ) => ({
   id: record.id,
   projectId: record.projectId,
@@ -633,7 +640,8 @@ const serializeProgressV2Record = (
   componentCodes: collectRecordComponentCodes(
     record.componentCode,
     bimEntries,
-    bimCodesLookup
+    bimCodesLookup,
+    options
   ),
   planStartDate: toIsoStringOrNull(record.planStartDate),
   planEndDate: toIsoStringOrNull(record.planEndDate),
@@ -1359,8 +1367,6 @@ export const externalRouterFactory = (): Router => {
         if (!pId) continue
 
         bimEntries.forEach((entry) => {
-          if (entry.componentCodes.length) return
-
           const applicationIds = entry.applicationIds.filter((id) => !!id)
           if (!applicationIds.length) return
 
@@ -1389,13 +1395,16 @@ export const externalRouterFactory = (): Router => {
           (pId ? projectBimCodesLookups.get(pId) : null) || new Map<string, string>()
 
         // 先判断这条进度记录是否命中请求的编码：没命中就整条跳过，
-        // 记录序列化只会被请求的编码读取，跳过不影响响应内容
+        // 记录序列化只会被请求的编码读取，跳过不影响响应内容。
+        // 候选编码里必须包含关联构件反查出来的完整构件编码，否则按完整编码查询时，
+        // 台账里只存了序号码的记录会永远命不中。
         const matchedCodes: string[] = []
         const seenCodes = new Set<string>()
         for (const code of collectRecordComponentCodes(
           record.componentCode,
           bimEntries,
-          bimCodesLookup
+          bimCodesLookup,
+          { resolveAll: true }
         )) {
           if (seenCodes.has(code) || !requestedCodeSet.has(code)) continue
           seenCodes.add(code)
@@ -1406,7 +1415,8 @@ export const externalRouterFactory = (): Router => {
         const serializedRecord = serializeProgressV2Record(
           record,
           bimEntries,
-          bimCodesLookup
+          bimCodesLookup,
+          { resolveAll: true }
         )
 
         for (const code of matchedCodes) {

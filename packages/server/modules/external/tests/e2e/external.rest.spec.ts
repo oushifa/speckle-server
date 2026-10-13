@@ -494,10 +494,15 @@ describe('External API @external', () => {
   describe('Progress V2 Data Endpoints', () => {
     const manualCodeRecordId = 'v2act_man1'
     const resolvedCodeRecordId = 'v2act_res1'
+    const serialCodeRecordId = 'v2act_sh1'
+    const unlinkedRecordId = 'v2act_sh2'
     const milestoneRecordId = 'v2ms_ok1'
     const nonMilestoneRecordId = 'v2ms_no1'
     const linkedApplicationId = 'progress_v2_app_id_1'
     const linkedBimCode = '14-94.04.01.00.00.1NB01010101CB1-77'
+    const serialApplicationId = 'progress_v2_app_id_serial'
+    const serialFullCode = '14-94.01.05.00.00.1NB01010102W04'
+    const unlinkedFullCode = '14-94.01.05.00.00.1NB01020102DQ1-W05'
 
     before(async () => {
       process.env.EXTERNAL_API_TOKEN = testToken
@@ -552,26 +557,97 @@ describe('External API @external', () => {
           updater: user.id,
           createdAt: new Date(),
           updatedAt: new Date()
+        },
+        {
+          // 台账「序号码」列只存了 W04；该构件同时关联了构件 ID，
+          // 且它的完整构件编码是 ...NB01020102DQ1-W04，必须反查才能命中
+          id: serialCodeRecordId,
+          projectId,
+          taskName: '四平路井及1区地连墙施工W04',
+          reportDate: '2026-09-19',
+          planStartDate: new Date('2026-09-19T00:00:00.000Z'),
+          planEndDate: new Date('2026-09-21T00:00:00.000Z'),
+          actualStartDate: new Date('2026-09-19T00:00:00.000Z'),
+          actualEndDate: null,
+          progressPercent: 80,
+          componentCode: 'W04',
+          reporter: '李工',
+          remark: null,
+          BIM: JSON.stringify([
+            {
+              modelId: 'test_model_v2_1',
+              applicationIds: [serialApplicationId],
+              componentCodes: ['W04']
+            }
+          ]),
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          // 台账只写了序号码 W05，且未关联任何构件（无法反查完整编码），
+          // 因此按完整编码查询时不应被命中
+          id: unlinkedRecordId,
+          projectId,
+          taskName: '四平路井及1区地连墙施工W05',
+          reportDate: '2026-09-18',
+          planStartDate: new Date('2026-09-18T00:00:00.000Z'),
+          planEndDate: new Date('2026-09-20T00:00:00.000Z'),
+          actualStartDate: null,
+          actualEndDate: null,
+          progressPercent: 0,
+          componentCode: 'W05',
+          reporter: '李工',
+          remark: null,
+          BIM: null,
+          creator: user.id,
+          updater: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
       ])
 
       // 2. 关联构件对象（用于反查第三方完整构件编码）
-      await db('objects').insert({
-        id: 'progress_v2_object_1',
-        streamId: projectId,
-        speckleType: 'Objects.Data.DataObject',
-        data: JSON.stringify({
+      await db('objects').insert([
+        {
           id: 'progress_v2_object_1',
-          applicationId: linkedApplicationId,
-          properties: {
-            'Property Sets': {
-              文字: {
-                构件编码: linkedBimCode
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify({
+            id: 'progress_v2_object_1',
+            applicationId: linkedApplicationId,
+            properties: {
+              'Property Sets': {
+                文字: {
+                  构件编码: linkedBimCode
+                }
               }
             }
-          }
-        })
-      })
+          })
+        },
+        {
+          id: 'progress_v2_object_serial',
+          streamId: projectId,
+          speckleType: 'Objects.Data.DataObject',
+          data: JSON.stringify({
+            id: 'progress_v2_object_serial',
+            applicationId: serialApplicationId,
+            // 与现场 Revit 构件一致：没有「构件编码」属性，完整编码要靠
+            // 分类对象代码 + 空间代码 + 分部分项代码 + 序号码 拼接得到
+            properties: {
+              'Property Sets': {
+                文字: {
+                  分类对象代码: '14-94.01.05.00.00.1',
+                  分部分项代码: '0102',
+                  空间代码: 'NB0101',
+                  序号码: 'W04'
+                }
+              }
+            }
+          })
+        }
+      ])
 
       // 3. 里程碑：一条带 milestone 标签，一条仅带 key 标签（应被过滤）
       await db('project_progress_v2_milestones').insert([
@@ -618,12 +694,19 @@ describe('External API @external', () => {
       delete process.env.EXTERNAL_API_TOKEN
 
       await db('project_progress_v2_actual_records')
-        .whereIn('id', [manualCodeRecordId, resolvedCodeRecordId])
+        .whereIn('id', [
+          manualCodeRecordId,
+          resolvedCodeRecordId,
+          serialCodeRecordId,
+          unlinkedRecordId
+        ])
         .del()
       await db('project_progress_v2_milestones')
         .whereIn('id', [milestoneRecordId, nonMilestoneRecordId])
         .del()
-      await db('objects').where('id', 'progress_v2_object_1').del()
+      await db('objects')
+        .whereIn('id', ['progress_v2_object_1', 'progress_v2_object_serial'])
+        .del()
     })
 
     it('gets project progress records with the required progress info fields', async () => {
@@ -737,6 +820,39 @@ describe('External API @external', () => {
 
       expect(unmatched.status).to.equal(200)
       expect(unmatched.body.results[0].progressRecords).to.deep.equal([])
+    })
+
+    it('matches a record by the full code reverse-resolved from its linked BIM element', async () => {
+      const response = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({
+          project_id: projectId,
+          model_id: 'test_model_v2_1',
+          componentCodes: [serialFullCode]
+        })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.results[0].progressRecords).to.have.lengthOf(1)
+
+      const record = response.body.results[0].progressRecords[0]
+      expect(record.id).to.equal(serialCodeRecordId)
+      // 台账存的是序号码 W04，不是完整编码的截断，必须靠反查补全
+      expect(record.componentCode).to.equal('W04')
+      expect(record.componentCodes).to.include('W04')
+      expect(record.componentCodes).to.include(serialFullCode)
+    })
+
+    it('does not match an unlinked record by an unrelated full code', async () => {
+      // 台账只写了序号码 W05、且未关联任何构件，无法反查出完整编码，
+      // 因此不应被 ...DQ1-W05 命中（也不靠字符串后缀猜）
+      const response = await request(app)
+        .post('/api/v1/external/progress/by-component-codes')
+        .set('x-external-token', testToken)
+        .send({ project_id: projectId, componentCodes: [unlinkedFullCode] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.results[0].progressRecords).to.deep.equal([])
     })
 
     it('supports full traversal when project_id is omitted', async () => {
