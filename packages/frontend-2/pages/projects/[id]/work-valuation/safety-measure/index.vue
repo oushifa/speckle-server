@@ -23,7 +23,9 @@
           class="w-72 text-sm"
         >
           <template #input-right>
-            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+            <div
+              class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
+            >
               <MagnifyingGlassIcon class="h-5 w-5 text-foreground-2" />
             </div>
           </template>
@@ -40,15 +42,19 @@
     </div>
 
     <!-- 列表展示区域 -->
-    <div class="flex-grow overflow-hidden bg-foundation rounded-lg border border-outline-3 flex flex-col">
+    <div
+      class="flex-grow overflow-hidden bg-foundation rounded-lg border border-outline-3 flex flex-col"
+    >
       <LayoutTable
         :columns="columns"
         :items="tableItems"
-        class="h-full"
+        class="h-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
         empty-message="暂无安全文明措施费记录"
       >
         <template #index="{ item }">
-          <span class="text-sm text-foreground-2 font-mono">{{ tableItems.indexOf(item) + startItem }}</span>
+          <span class="text-sm text-foreground-2 font-mono">
+            {{ tableItems.indexOf(item) + startItem }}
+          </span>
         </template>
         <template #code="{ item }">
           <NuxtLink
@@ -105,7 +111,10 @@
               <EyeIcon class="h-4 w-4" />
             </NuxtLink>
             <NuxtLink
-              v-if="hasFunctionalPerm('safety-civilization:edit') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
+              v-if="
+                hasFunctionalPerm('safety-civilization:edit') &&
+                (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')
+              "
               :to="`/projects/${projectId}/work-valuation/safety-measure/${item.id}?mode=edit`"
               class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
               title="编辑"
@@ -113,7 +122,10 @@
               <PencilSquareIcon class="h-4 w-4" />
             </NuxtLink>
             <button
-              v-if="hasFunctionalPerm('safety-civilization:publish') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
+              v-if="
+                hasFunctionalPerm('safety-civilization:publish') &&
+                (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')
+              "
               class="rounded p-1 text-success transition-colors hover:text-success-darker"
               title="送审"
               @click="triggerSubmitItem(item)"
@@ -121,7 +133,10 @@
               <PaperAirplaneIcon class="h-4 w-4" />
             </button>
             <button
-              v-if="hasFunctionalPerm('safety-civilization:delete') && (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')"
+              v-if="
+                hasFunctionalPerm('safety-civilization:delete') &&
+                (item.approveStatus === 'START' || item.approveStatus === 'RETURNED')
+              "
               class="rounded p-1 text-danger transition-colors hover:text-danger-darker"
               title="删除"
               @click="deleteItem(item)"
@@ -133,7 +148,9 @@
       </LayoutTable>
 
       <!-- 分页控制 -->
-      <div class="flex items-center justify-between border-t border-outline-3 bg-foundation p-4 text-[13px] leading-5">
+      <div
+        class="flex items-center justify-between border-t border-outline-3 bg-foundation p-4 text-[13px] leading-5"
+      >
         <div class="text-[13px] leading-5 text-foreground-2">
           每页显示
           <label for="safety-measure-page-size" class="sr-only">每页显示条数</label>
@@ -213,7 +230,9 @@
             show-required
           />
           <div class="md:col-span-2">
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">选择分部工程 * (展开清单多选)</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">
+              选择分部工程 * (展开清单多选)
+            </label>
             <BoqTreeSelect
               v-model="createForm.boqSectionIds"
               :project-id="projectId"
@@ -240,7 +259,8 @@
         <div class="text-foreground-2">
           请确认本次送审将使用当前已启用的安全文明措施费审批流程。
           <p class="mt-2 font-semibold text-foreground">
-            单据编码：<span class="font-mono">{{ submitTargetItem.code }}</span>
+            单据编码：
+            <span class="font-mono">{{ submitTargetItem.code }}</span>
           </p>
         </div>
         <div class="rounded-lg border border-outline-3 bg-foundation p-3">
@@ -250,10 +270,14 @@
           <div v-else-if="activeSubmitFlow" class="space-y-2">
             <div class="font-medium text-foreground">
               流程名称：{{ activeSubmitFlow.name }}
-              <span class="ml-2 text-foreground-2">V{{ activeSubmitFlow.version }}</span>
+              <span class="ml-2 text-foreground-2">
+                V{{ activeSubmitFlow.version }}
+              </span>
             </div>
             <div class="text-foreground-2">
-              审批节点：{{ activeSubmitFlow.steps.map((s: any) => s.role).join(' -> ') }}
+              审批节点：{{
+                activeSubmitFlow.steps.map((s: any) => s.role).join(' -> ')
+              }}
             </div>
           </div>
           <div v-else class="text-danger">
@@ -332,8 +356,16 @@ const columns = [
   { id: 'unit', header: '施工单位', classes: 'col-span-2' },
   { id: 'roundName', header: '期数', classes: 'col-span-1' },
   { id: 'baseDate', header: '基准年月', classes: 'col-span-1 font-mono' },
-  { id: 'totalAmount', header: '本期金额(元)', classes: 'col-span-1.5 text-right pr-4 font-mono' },
-  { id: 'cumulativeAmount', header: '累计金额(元)', classes: 'col-span-1.5 text-right pr-4 font-mono' },
+  {
+    id: 'totalAmount',
+    header: '本期金额(元)',
+    classes: 'col-span-1.5 text-right pr-4 font-mono'
+  },
+  {
+    id: 'cumulativeAmount',
+    header: '累计金额(元)',
+    classes: 'col-span-1.5 text-right pr-4 font-mono'
+  },
   { id: 'status', header: '审核状态', classes: 'col-span-1' },
   { id: 'currentApprovers', header: '当前负责人', classes: 'col-span-1.5' },
   { id: 'actions', header: '操作', classes: 'col-span-1 text-right text-sm' }
@@ -390,9 +422,15 @@ watch(
   }
 )
 
-const totalPages = computed(() => Math.ceil(totalItems.value / Number(pageSize.value || 1)))
-const startItem = computed(() => totalItems.value === 0 ? 0 : (currentPage.value - 1) * Number(pageSize.value) + 1)
-const endItem = computed(() => Math.min(currentPage.value * Number(pageSize.value), totalItems.value))
+const totalPages = computed(() =>
+  Math.ceil(totalItems.value / Number(pageSize.value || 1))
+)
+const startItem = computed(() =>
+  totalItems.value === 0 ? 0 : (currentPage.value - 1) * Number(pageSize.value) + 1
+)
+const endItem = computed(() =>
+  Math.min(currentPage.value * Number(pageSize.value), totalItems.value)
+)
 
 const goPrevPage = () => {
   if (currentPage.value <= 1) return
@@ -433,7 +471,9 @@ const createDialogButtons = computed((): LayoutDialogButton[] => [
   {
     text: '取消',
     props: { color: 'outline' },
-    onClick: () => { createDialogOpen.value = false }
+    onClick: () => {
+      createDialogOpen.value = false
+    }
   },
   {
     text: '创建',
@@ -469,10 +509,13 @@ const handleCreate = async () => {
       endDate: dayjs(createForm.value.endDate).valueOf(),
       boqSectionIds: createForm.value.boqSectionIds
     }
-    const created: any = await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures`, {
-      method: 'POST',
-      body: payload
-    })
+    const created: any = await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures`,
+      {
+        method: 'POST',
+        body: payload
+      }
+    )
     triggerNotification({
       title: '创建成功',
       description: `成功创建安全文明措施费计量单 ${created.code}`,
@@ -480,7 +523,9 @@ const handleCreate = async () => {
     })
     createDialogOpen.value = false
     await loadList()
-    navigateTo(`/projects/${projectId.value}/work-valuation/safety-measure/${created.id}?mode=edit`)
+    navigateTo(
+      `/projects/${projectId.value}/work-valuation/safety-measure/${created.id}?mode=edit`
+    )
   } catch (err: any) {
     createError.value = err.data?.error || err.message || '创建失败，请重试'
   }
@@ -500,8 +545,12 @@ const triggerSubmitItem = async (item: any) => {
   submitFlowLoading.value = true
   activeSubmitFlow.value = null
   try {
-    const list = await $fetch<any[]>(`${apiOrigin}/api/projects/${projectId.value}/approval-definitions`)
-    const active = list.find((flow: any) => flow.category.id === 'SAFETY_MEASURE' && flow.isActive)
+    const list = await $fetch<any[]>(
+      `${apiOrigin}/api/projects/${projectId.value}/approval-definitions`
+    )
+    const active = list.find(
+      (flow: any) => flow.category.id === 'SAFETY_MEASURE' && flow.isActive
+    )
     activeSubmitFlow.value = active || null
   } catch (err) {
     console.error('获取审批流定义失败', err)
@@ -514,7 +563,9 @@ const submitConfirmButtons = computed((): LayoutDialogButton[] => [
   {
     text: '取消',
     props: { color: 'outline' },
-    onClick: () => { submitConfirmOpen.value = false }
+    onClick: () => {
+      submitConfirmOpen.value = false
+    }
   },
   {
     text: '确认送审',
@@ -526,12 +577,15 @@ const submitConfirmButtons = computed((): LayoutDialogButton[] => [
 const handleConfirmSubmit = async () => {
   if (!submitTargetItem.value) return
   try {
-    await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${submitTargetItem.value.id}/submit`, {
-      method: 'POST',
-      body: {
-        remark: submitRemark.value.trim()
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${submitTargetItem.value.id}/submit`,
+      {
+        method: 'POST',
+        body: {
+          remark: submitRemark.value.trim()
+        }
       }
-    })
+    )
     triggerNotification({
       title: '送审成功',
       description: '已成功送审并绑定流程配置。',
@@ -560,9 +614,12 @@ const deleteItem = (item: any) => {
 const confirmDeleteItem = async () => {
   if (!itemToDelete.value) return
   try {
-    await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${itemToDelete.value.id}`, {
-      method: 'DELETE'
-    })
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/safety-measures/${itemToDelete.value.id}`,
+      {
+        method: 'DELETE'
+      }
+    )
     triggerNotification({
       title: '删除成功',
       description: '已成功删除该条安全文明措施费记录。',
@@ -584,7 +641,10 @@ const confirmDeleteItem = async () => {
 // 辅助方法
 const formatMoney = (val: any) => {
   if (val == null) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(val).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
 }
 
 const getStatusColor = (status: string | null | undefined) => {

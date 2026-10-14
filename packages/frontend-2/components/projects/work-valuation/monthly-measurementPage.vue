@@ -36,7 +36,7 @@
         <LayoutTable
           :columns="columns"
           :items="tableItems"
-          class="h-full"
+          class="h-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
           empty-message="暂无月度验工"
         >
           <template #code="{ item }">
