@@ -45,10 +45,16 @@ import { stopModelSyncTaskFactory } from '@/modules/model-sync/services/stop'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
 import { attachImportedModelSourceFactory } from '@/modules/core/services/streams/modelLibraryImport'
+import {
+  MODEL_SYNC_BUILD_HEADER,
+  getModelSyncBuildInfo
+} from '@/modules/model-sync/services/buildInfo'
 
 const routeBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/tasks'
 const projectRouteBase = '/api/v1/projects/:projectId/model-sync/tasks'
 const globalRouteBase = '/api/v1/model-sync/tasks'
+/** 版本指纹接口：无需登录，浏览器直接打开即可确认后端版本 */
+const versionRouteBase = '/api/v1/model-sync/version'
 // 模型删除前调用：停止该模型当前阶段的转换 / 同步
 const stopRouteBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/stop'
 // 从模型库导入后：把源文件 / 中海同步标识 / 自定义属性补齐到导入模型
@@ -187,6 +193,29 @@ const runTaskInBackground = (params: {
 
 export const modelSyncRouterFactory = () => {
   const router = Router()
+  const buildTag = getModelSyncBuildInfo().buildTag
+
+  // 所有 model-sync 接口的响应都带上版本指纹：
+  // 浏览器 DevTools → Network → 任意 model-sync 请求 → Response Headers 即可看到
+  router.use((_req, res, next) => {
+    res.setHeader(MODEL_SYNC_BUILD_HEADER, buildTag)
+    next()
+  })
+
+  router.options(versionRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
+
+  /**
+   * 版本指纹：无需登录，浏览器直接打开 `/api/v1/model-sync/version` 即可确认
+   * 当前后端实际运行的代码版本（返回 404 或前端页面 = 后端不含本次改动）。
+   */
+  router.get(
+    versionRouteBase,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    (_req, res) => {
+      res.json({ data: getModelSyncBuildInfo() })
+    }
+  )
 
   router.options(routeBase, cors(), allowCrossOriginResourceAccessMiddelware())
   router.options(stopRouteBase, cors(), allowCrossOriginResourceAccessMiddelware())
