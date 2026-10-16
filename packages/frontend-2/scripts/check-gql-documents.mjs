@@ -30,6 +30,14 @@ const SKIP_DIRS = new Set([
 
 /** gql.ts 里 documents 映射表的 key（即源码模板字面量的原文） */
 const collectKnownDocuments = () => {
+  if (!fs.existsSync(generatedGqlPath)) {
+    console.error(
+      `[check-gql-documents] 找不到 codegen 产物：${generatedGqlPath}\n` +
+        '请先执行 `yarn workspace @speckle/frontend-2 gqlgen`（需要后端已加载新 schema）并提交产物。\n' +
+        '若这是在镜像构建中出现，说明构建顺序有问题：不应在 frontend-2 源码就位前触发它的 build。'
+    )
+    process.exit(1)
+  }
   const content = fs.readFileSync(generatedGqlPath, 'utf8')
   const known = new Set()
   const keyRe =

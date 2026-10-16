@@ -47,7 +47,11 @@ COPY packages/ui-components-nuxt ./packages/ui-components-nuxt/
 COPY packages/tailwind-theme ./packages/tailwind-theme/
 
 # hadolint ignore=DL3059
-RUN yarn workspaces foreach --exclude "@speckle/frontend-2" -W run build
+# 只构建 frontend-2 依赖的兄弟包。
+# 注意：不能用 `--exclude "@speckle/frontend-2" -W`——`-W`(worktree) 会把根 workspace
+# 也选进来，而根 package.json 的 build 会递归构建所有 workspace（包含 frontend-2），
+# 此时 frontend-2 的源码还没 COPY 进来，会导致构建失败。
+RUN yarn workspaces foreach -A --topological --include '{@speckle/shared,@speckle/objectloader2,@speckle/tailwind-theme,@speckle/ui-components,@speckle/viewer}' run build
 
 COPY packages/frontend-2/type-augmentations ./packages/frontend-2
 COPY packages/frontend-2 ./packages/frontend-2/
@@ -60,7 +64,8 @@ ARG SPECKLE_SERVER_VERSION=custom
 # for better hydration mismatch errors in prod (larger bundle size tho)
 ENV HYDRATION_MISMATCH_REPORTING=false
 # hadolint ignore=DL3059
-RUN yarn workspaces foreach --include "packages/frontend-2" -W run build
+# 直接指定 workspace，避免 `-W` 又递归到根 workspace 把整个仓库重复构建一遍
+RUN yarn workspace @speckle/frontend-2 run build
 
 FROM node:22-bookworm-slim@sha256:221ee67425de7a3c11ce4e81e63e50caaec82ede3a7d34599ab20e59d29a0cb5 AS production-stage
 ENV PORT=8080
