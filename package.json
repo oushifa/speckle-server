@@ -32,6 +32,7 @@
     "dev:no-server": "yarn workspaces foreach --exclude @speckle/server --parallel --interlaced --verbose --worktree --jobs unlimited run dev",
     "dev:minimal": "yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited --include '{@speckle/server,@speckle/frontend-2}' run dev",
     "gqlgen": "yarn workspaces foreach --parallel --interlaced --verbose --worktree --jobs unlimited --include '{@speckle/server,@speckle/frontend-2}' run gqlgen",
+    "gqlgen:check": "yarn gqlgen && yarn workspace @speckle/frontend-2 check:gql",
     "dev:server": "yarn workspace @speckle/server dev",
     "dev:frontend-2": "yarn workspace @speckle/frontend-2 dev",
     "dev:frontend-2:remote": "yarn workspace @speckle/frontend-2 dev:remote",

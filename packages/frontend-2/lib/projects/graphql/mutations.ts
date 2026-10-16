@@ -304,8 +304,14 @@ export const updateQualityAcceptanceFormMutation = graphql(`
   }
 `)
 
-/** 只改附件/过程文件，不受查验状态与月度验工占用限制 */
-export const updateQualityAcceptanceFormAttachmentsMutation = graphql(`
+/**
+ * 只改附件/过程文件，不受查验状态与月度验工占用限制。
+ *
+ * 这里用 gql（运行时解析）而不是 graphql()：graphql() 依赖 codegen 生成的 documents
+ * 映射表，一旦生成产物与代码不同步（映射表缺条目）它会静默返回 {} 变成空请求，
+ * 保存就只会报"附件保存失败"。附件上传是高频操作，这里牺牲一点类型推导换稳定性。
+ */
+export const updateQualityAcceptanceFormAttachmentsMutation = gql`
   mutation UpdateQualityAcceptanceFormAttachments(
     $input: UpdateQualityAcceptanceFormAttachmentsInput!
   ) {
@@ -317,7 +323,7 @@ export const updateQualityAcceptanceFormAttachmentsMutation = graphql(`
       }
     }
   }
-`)
+`
 
 export const importQualityAcceptanceFormsMutation = gql`
   mutation ImportQualityAcceptanceForms($input: ImportQualityAcceptanceFormsInput!) {
