@@ -17,7 +17,7 @@ import {
  *
  * 注意：如果第 1 条返回 404 或前端页面，说明当前后端**不含本次改动**（旧版本）。
  */
-export const MODEL_SYNC_BUILD_TAG = '2026-10-14-model-sync-v1'
+export const MODEL_SYNC_BUILD_TAG = '2026-10-14-model-sync-v2-prod'
 
 /** 版本指纹响应头名称 */
 export const MODEL_SYNC_BUILD_HEADER = 'X-Model-Sync-Build'
