@@ -592,6 +592,16 @@ const resolvers = {
       }
 
       return await projectDb.transaction(async (trx) => {
+        // 释放占用的质量验收单，并清空其月度验工审批状态，
+        // 否则单据虽然显示为未占用，却会因 approveStatus 非空而无法被
+        // 新建的月度验工再次关联。
+        await trx('quality_acceptance_forms')
+          .where('occupiedMeasurementId', args.input.id)
+          .update({
+            occupiedMeasurementId: null,
+            approveStatus: null,
+            updatedAt: new Date()
+          })
         await deleteMonthlyMeasurementItemsByMeasurementIdFactory({ db: trx })(
           args.input.id
         )

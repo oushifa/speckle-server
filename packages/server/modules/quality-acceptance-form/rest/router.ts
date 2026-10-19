@@ -1793,10 +1793,18 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       await projectDb.transaction(async (trx) => {
-        // 释放占用的质量验收单
+        // 释放占用的质量验收单，并清空其月度验工审批状态。
+        // 送审/取消/驳回时，审批流会把关联质量验收单的 approveStatus 同步为
+        // START/PENDING/REJECTED/CANCELED；如果删除时只清 occupiedMeasurementId，
+        // 单据在列表里会显示为“-”（未占用），但新建月度验工预览只纳入
+        // approveStatus 为空的质量验收单，导致这些单据无法再次被关联。
         await trx('quality_acceptance_forms')
           .where('occupiedMeasurementId', id)
-          .update({ occupiedMeasurementId: null, updatedAt: new Date() })
+          .update({
+            occupiedMeasurementId: null,
+            approveStatus: null,
+            updatedAt: new Date()
+          })
 
         await deleteMonthlyMeasurementByIdFactory({ db: trx })(id)
       })
