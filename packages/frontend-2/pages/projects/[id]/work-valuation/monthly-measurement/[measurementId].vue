@@ -102,7 +102,9 @@
           <!-- 子页面视图 -->
           <div
             class="flex-grow min-w-0"
-            :class="isEditMode ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'"
+            :class="
+              isEditMode ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'
+            "
           >
             <NuxtPage
               :item="item"
@@ -436,12 +438,13 @@
               placeholder="如：1"
             />
             <FormTextInput
-              v-model="createForm.baseDate"
+              :model-value="createForm.baseDate"
               name="monthly-measurement-base-date"
               label="年月"
               type="month"
               show-label
               show-required
+              @update:model-value="handleBaseDateChange"
             />
             <FormTextInput
               v-model="createForm.startDate"
@@ -471,9 +474,9 @@
                 class="w-full text-xs"
               >
                 <template #something-selected="{ value }">
-                  <span class="truncate text-foreground text-xs">{{
-                    (value as any)?.label || '请选择支付节点'
-                  }}</span>
+                  <span class="truncate text-foreground text-xs">
+                    {{ (value as any)?.label || '请选择支付节点' }}
+                  </span>
                 </template>
                 <template #option="{ item }">
                   <span class="truncate text-xs">{{ (item as any)?.label }}</span>
@@ -481,7 +484,9 @@
               </FormSelectBase>
             </div>
             <div class="col-span-1 md:col-span-2 space-y-1.5">
-              <div class="text-xs font-semibold text-foreground">关联安全文明措施费</div>
+              <div class="text-xs font-semibold text-foreground">
+                关联安全文明措施费
+              </div>
               <FormSelectBase
                 v-model="selectedMeasureValue"
                 :items="selectOptions"
@@ -492,10 +497,14 @@
                 class="w-full text-xs"
               >
                 <template #something-selected="{ value }">
-                  <span class="truncate text-foreground text-xs">{{ (value as any)?.label || '不关联' }}</span>
+                  <span class="truncate text-foreground text-xs">
+                    {{ (value as any)?.label || '不关联' }}
+                  </span>
                 </template>
                 <template #option="{ item }">
-                  <span class="truncate text-xs">{{ (item as any)?.label || '不关联' }}</span>
+                  <span class="truncate text-xs">
+                    {{ (item as any)?.label || '不关联' }}
+                  </span>
                 </template>
               </FormSelectBase>
             </div>
@@ -526,7 +535,10 @@
         <template #header>驳回审批</template>
         <div class="space-y-4">
           <div class="space-y-1.5">
-            <label for="monthly-measurement-reject-step" class="text-xs font-semibold text-foreground">
+            <label
+              for="monthly-measurement-reject-step"
+              class="text-xs font-semibold text-foreground"
+            >
               选择退回目标节点
             </label>
             <select
@@ -563,11 +575,17 @@
         <div class="space-y-4">
           <div
             v-if="
-              adminFlowOperation === 'reject-step' || adminFlowOperation === 'reactivate'
+              adminFlowOperation === 'reject-step' ||
+              adminFlowOperation === 'reactivate'
             "
             class="space-y-1.5"
           >
-            <label for="monthly-measurement-admin-target-step" class="text-xs font-semibold text-foreground">目标节点</label>
+            <label
+              for="monthly-measurement-admin-target-step"
+              class="text-xs font-semibold text-foreground"
+            >
+              目标节点
+            </label>
             <select
               id="monthly-measurement-admin-target-step"
               v-model="adminSelectedStep"
@@ -585,13 +603,22 @@
             </select>
           </div>
           <div v-if="adminFlowOperation === 'transfer'" class="space-y-1.5">
-            <label for="monthly-measurement-admin-target-user" class="text-xs font-semibold text-foreground">目标处理人</label>
+            <label
+              for="monthly-measurement-admin-target-user"
+              class="text-xs font-semibold text-foreground"
+            >
+              目标处理人
+            </label>
             <select
               id="monthly-measurement-admin-target-user"
               v-model="adminSelectedAssigneeId"
               class="w-full text-xs bg-foundation border border-outline-3 rounded px-3 py-2 focus:outline-none focus:border-primary text-foreground"
             >
-              <option v-for="user in projectTeamCandidates" :key="user.id" :value="user.id">
+              <option
+                v-for="user in projectTeamCandidates"
+                :key="user.id"
+                :value="user.id"
+              >
                 {{ user.name }}
               </option>
             </select>
@@ -741,12 +768,9 @@ const { result: flowResult, refetch: refetchFlow } = useQuery(
 )
 
 const flowInstance = computed(() => flowResult.value?.approvalFlowInstance || null)
-const { result: projectTeamResult } = useQuery(
-  projectTeamForAdminFlowQuery,
-  () => ({
-    id: projectId.value
-  })
-)
+const { result: projectTeamResult } = useQuery(projectTeamForAdminFlowQuery, () => ({
+  id: projectId.value
+}))
 
 // 权限校验计算属性
 const isTodoUser = computed(() => {
@@ -783,14 +807,16 @@ const adminFlowComment = ref('')
 const adminSelectedStep = ref<number | null>(null)
 const adminSelectedAssigneeId = ref('')
 
-const pendingStep = computed(() =>
-  flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING') || null
+const pendingStep = computed(
+  () => flowInstance.value?.steps?.find((s: any) => s.status === 'PENDING') || null
 )
 
 const previousStepOptions = computed(() => {
   const currentPendingStep = pendingStep.value
   if (!flowInstance.value?.steps || !currentPendingStep) return []
-  return flowInstance.value.steps.filter((s: any) => s.stepIndex < currentPendingStep.stepIndex)
+  return flowInstance.value.steps.filter(
+    (s: any) => s.stepIndex < currentPendingStep.stepIndex
+  )
 })
 
 const reactivateStepOptions = computed(() => {
@@ -823,7 +849,9 @@ const canAdminForceOperatePending = computed(
 
 const canAdminReactivate = computed(() => {
   if (!isAdminOperationMode.value || !flowInstance.value) return false
-  return ['APPROVED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(flowInstance.value.status)
+  return ['APPROVED', 'REJECTED', 'CANCELED', 'CANCELLED'].includes(
+    flowInstance.value.status
+  )
 })
 
 const adminFlowDialogTitle = computed(() => {
@@ -888,7 +916,7 @@ const handleConfirm = async () => {
 // 审批操作执行方法
 const executeApprove = async () => {
   if (!flowInstance.value) return
-  
+
   // 校验逻辑：根据当前节点，判断意见字段是否必填
   const pendingStep = flowInstance.value.steps?.find((s: any) => s.status === 'PENDING')
   const stepName = pendingStep ? (pendingStep.name || '').trim() : ''
@@ -898,7 +926,7 @@ const executeApprove = async () => {
     '现场指挥部',
     '指挥部'
   ].includes(stepName)
-  
+
   mutating.value = true
   try {
     // 获取最新的验收和支付申请详情数据
@@ -915,16 +943,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqContractorOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '支付申请理由陈述在开始节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '支付申请理由陈述在开始节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.contractorPayAmt || Number(paymentRequestData.contractorPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.contractorPayAmt ||
+        Number(paymentRequestData.contractorPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在开始节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在开始节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -934,7 +967,8 @@ const executeApprove = async () => {
       if (!acceptanceData?.supervisionOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '施工监理意见在施工监理总监节点为必填，请先填写并保存月度验工中的该项！',
+          description:
+            '施工监理意见在施工监理总监节点为必填，请先填写并保存月度验工中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -943,16 +977,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqSupervisionOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '施工监理意见在施工监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '施工监理意见在施工监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.supervisionPayAmt || Number(paymentRequestData.supervisionPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.supervisionPayAmt ||
+        Number(paymentRequestData.supervisionPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在施工监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在施工监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -962,7 +1001,8 @@ const executeApprove = async () => {
       if (!acceptanceData?.headquartersOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '现场指挥部意见在现场指挥节点为必填，请先填写并保存月度验工中的该项！',
+          description:
+            '现场指挥部意见在现场指挥节点为必填，请先填写并保存月度验工中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -971,16 +1011,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqHeadquartersOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '现场指挥部意见在现场指挥节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '现场指挥部意见在现场指挥节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.headquartersPayAmt || Number(paymentRequestData.headquartersPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.headquartersPayAmt ||
+        Number(paymentRequestData.headquartersPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在现场指挥节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在现场指挥节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -990,7 +1035,8 @@ const executeApprove = async () => {
       if (!acceptanceData?.investmentOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '投资监理意见在投资监理总监节点为必填，请先填写并保存月度验工中的该项！',
+          description:
+            '投资监理意见在投资监理总监节点为必填，请先填写并保存月度验工中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -999,16 +1045,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqInvestmentOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '投资监理意见在投资监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '投资监理意见在投资监理总监节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.investmentPayAmt || Number(paymentRequestData.investmentPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.investmentPayAmt ||
+        Number(paymentRequestData.investmentPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在投资监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在投资监理总监节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -1018,7 +1069,8 @@ const executeApprove = async () => {
       if (!acceptanceData?.ownerOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '合约部管理意见在合约管理部负责人节点为必填，请先填写并保存月度验工中的该项！',
+          description:
+            '合约部管理意见在合约管理部负责人节点为必填，请先填写并保存月度验工中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -1027,16 +1079,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqContractOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '合约管理部意见在合约管理部负责人节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '合约管理部意见在合约管理部负责人节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.contractPayAmt || Number(paymentRequestData.contractPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.contractPayAmt ||
+        Number(paymentRequestData.contractPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在合约管理部负责人节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在合约管理部负责人节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -1046,16 +1103,21 @@ const executeApprove = async () => {
       if (!paymentRequestData?.reqLeaderOpinion?.trim()) {
         triggerNotification({
           title: '校验失败',
-          description: '分管领导意见在分管领导节点为必填，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '分管领导意见在分管领导节点为必填，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
         return
       }
-      if (!paymentRequestData?.leaderPayAmt || Number(paymentRequestData.leaderPayAmt) <= 0) {
+      if (
+        !paymentRequestData?.leaderPayAmt ||
+        Number(paymentRequestData.leaderPayAmt) <= 0
+      ) {
         triggerNotification({
           title: '校验失败',
-          description: '本次申请支付金额在分管领导节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
+          description:
+            '本次申请支付金额在分管领导节点为必填且必须大于0，请先填写并保存工程费用支付申请单中的该项！',
           type: ToastNotificationType.Danger
         })
         mutating.value = false
@@ -1286,9 +1348,7 @@ const formatDate = (date?: string | number | null) => {
   if (!date) return '-'
   const num = Number(date)
   const parsed = Number.isNaN(num) ? date : num
-  return dayjs(parsed).isValid()
-    ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss')
-    : '-'
+  return dayjs(parsed).isValid() ? dayjs(parsed).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
 // 查询项目名字以实现面包屑动态渲染
@@ -1371,10 +1431,14 @@ const isTabActive = (tabId: string) => {
 
 const isEditMode = computed(() => route.path.includes('/acceptance-edit'))
 
-const isReadOnly = computed(() => route.query.mode !== 'edit' || isAdminOperationMode.value)
+const isReadOnly = computed(
+  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+)
 
 const normalizeApprovalStatus = (status?: string | null) => {
-  return String(status || 'START').trim().toUpperCase()
+  return String(status || 'START')
+    .trim()
+    .toUpperCase()
 }
 
 const currentDeleteStatus = computed(() =>
@@ -1476,7 +1540,9 @@ const openAdminFlowDialog = (operation: AdminFlowOperation) => {
       previousStepOptions.value.length > 0 ? previousStepOptions.value[0].stepIndex : 0
   } else if (operation === 'reactivate') {
     adminSelectedStep.value =
-      reactivateStepOptions.value.length > 0 ? reactivateStepOptions.value[0].stepIndex : 0
+      reactivateStepOptions.value.length > 0
+        ? reactivateStepOptions.value[0].stepIndex
+        : 0
   } else {
     adminSelectedStep.value = null
   }
@@ -1507,7 +1573,8 @@ const executeAdminFlowOperation = async () => {
   }
 
   if (
-    (adminFlowOperation.value === 'reject-step' || adminFlowOperation.value === 'reactivate') &&
+    (adminFlowOperation.value === 'reject-step' ||
+      adminFlowOperation.value === 'reactivate') &&
     adminSelectedStep.value === null
   ) {
     triggerNotification({
@@ -1617,9 +1684,12 @@ const executeAdminDelete = async () => {
   if (!item.value || !canAdminDelete.value) return
   deletingMeasurement.value = true
   try {
-    await $fetch(`${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}`, {
-      method: 'DELETE'
-    })
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${measurementId.value}`,
+      {
+        method: 'DELETE'
+      }
+    )
     deleteConfirmOpen.value = false
     triggerNotification({
       title: '删除成功',
@@ -1678,7 +1748,9 @@ const selectedMeasureValue = computed({
     const id = createForm.value.safetyMeasureId
     if (!id) return { id: 'none', label: '不关联' }
     const found = availableSafetyMeasures.value.find((m) => m.id === id)
-    return found ? { id: found.id, label: formatMeasureLabel(found) } : { id: 'none', label: '不关联' }
+    return found
+      ? { id: found.id, label: formatMeasureLabel(found) }
+      : { id: 'none', label: '不关联' }
   },
   set: (val: any) => {
     createForm.value.safetyMeasureId = val?.id === 'none' ? null : val?.id
@@ -1719,21 +1791,20 @@ const openEditDialog = () => {
   createDialogOpen.value = true
 }
 
-// 联动计算：年月改变自动算开始和结束时间
-watch(
-  () => createForm.value.baseDate,
-  (nextBaseDate, prevBaseDate) => {
-    if (!createDialogOpen.value) return
-    if (nextBaseDate === prevBaseDate) return
-    if (!nextBaseDate) return
+// 联动计算：用户修改年月时自动算开始和结束时间。
+// 注意：这里只处理"用户输入"事件，不能用 watch(createForm.baseDate)，
+// 因为打开编辑弹窗回填表单时也会改动 baseDate，watch 会把已保存的
+// 计量开始/结束时间覆盖成默认值，导致再次打开时看到的时间不正确。
+const handleBaseDateChange = (nextBaseDate: string) => {
+  createForm.value.baseDate = nextBaseDate
+  if (!nextBaseDate) return
 
-    const m = dayjs(nextBaseDate, 'YYYY-MM')
-    if (m.isValid()) {
-      createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
-      createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
-    }
+  const m = dayjs(nextBaseDate, 'YYYY-MM')
+  if (m.isValid()) {
+    createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
+    createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
   }
-)
+}
 
 watch(
   () => createForm.value.roundName,

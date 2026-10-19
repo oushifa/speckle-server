@@ -355,13 +355,14 @@
             :disabled="isViewMode"
           />
           <FormTextInput
-            v-model="createForm.baseDate"
+            :model-value="createForm.baseDate"
             name="monthly-measurement-base-date"
             label="年月"
             type="month"
             show-label
             show-required
             :disabled="isViewMode"
+            @update:model-value="handleBaseDateChange"
           />
           <FormTextInput
             v-model="createForm.startDate"
@@ -1186,22 +1187,21 @@ const openCreateDialog = () => {
   createDialogOpen.value = true
 }
 
-watch(
-  () => createForm.value.baseDate,
-  (nextBaseDate, prevBaseDate) => {
-    if (!createDialogOpen.value || isViewMode.value) return
-    if (nextBaseDate === prevBaseDate) return
+// 联动计算：用户修改年月时自动算开始和结束时间。
+// 注意：这里只处理"用户输入"事件，不能用 watch(createForm.baseDate)，
+// 因为打开弹窗回填表单时也会改动 baseDate，watch 会把已保存的
+// 计量开始/结束时间覆盖成默认值。
+const handleBaseDateChange = (nextBaseDate: string) => {
+  createForm.value.baseDate = nextBaseDate
+  if (isViewMode.value) return
+  if (!nextBaseDate) return
 
-    if (!nextBaseDate) return
-
-    // 默认开始结束时间联动计算
-    const m = dayjs(nextBaseDate, 'YYYY-MM')
-    if (m.isValid()) {
-      createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
-      createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
-    }
+  const m = dayjs(nextBaseDate, 'YYYY-MM')
+  if (m.isValid()) {
+    createForm.value.startDate = m.subtract(1, 'month').date(19).format('YYYY-MM-DD')
+    createForm.value.endDate = m.date(20).format('YYYY-MM-DD')
   }
-)
+}
 
 watch(
   () => createForm.value.roundName,
