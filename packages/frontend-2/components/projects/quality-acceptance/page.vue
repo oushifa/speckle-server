@@ -1063,6 +1063,89 @@ const handleExportExcel = async () => {
   }
 }
 
+const getRestErrorMessage = (error: unknown) => {
+  const fetchError = error as
+    | (Error & {
+        data?: { error?: string; message?: string }
+        statusMessage?: string
+      })
+    | null
+
+  const serverMessage =
+    fetchError?.data?.error || fetchError?.data?.message || fetchError?.statusMessage
+
+  if (typeof serverMessage === 'string' && serverMessage.trim().length) {
+    return serverMessage.trim()
+  }
+
+  return error instanceof Error ? error.message : String(error)
+}
+
+const IMPORT_ERROR_HINTS: Array<{ keyword: string; hint: string }> = [
+  {
+    keyword: '模板缺少必要列',
+    hint: '表头需包含：验收单名称、编码、检验批编号（或检验批编码）、区域部位、检验批内容。'
+  },
+  {
+    keyword: '缺少必要字段',
+    hint: '请按提示补齐该行缺少的字段（检验批编号、区域部位、检验批内容为必填）。'
+  },
+  {
+    keyword: '未匹配到清单项',
+    hint: '请确认“编码”或“清单项编码”是当前项目里已有的末级清单项编码。'
+  },
+  {
+    keyword: '验收日期格式不正确',
+    hint: '请把验收日期改成 2026-01-01 这类日期格式。'
+  },
+  {
+    keyword: '工程量不是有效数字',
+    hint: '工程量请填写纯数字，不要带单位或千分位逗号。'
+  },
+  {
+    keyword: '连写只能包含一个波浪号',
+    hint: '关联构件ID 的区间写法只能有一个“~”，例如 CB1-13~16。'
+  },
+  {
+    keyword: '处于查验中或已查验状态',
+    hint: '已进入查验流程的单据不能通过导入修改，请先在质量验收列表中处理该单据。'
+  },
+  {
+    keyword: '已被月度验工关联',
+    hint: '已被月度验工占用的单据不能通过导入修改，请先在月度验工中解除关联。'
+  },
+  {
+    keyword: 'parse_date_code',
+    hint: '文件里的验收日期是 Excel 数字日期，当前服务端无法解析。请把验收日期列改为文本格式（如 2026-01-01）后重试；或联系管理员升级服务端。'
+  },
+  {
+    keyword: '没有可导入的数据',
+    hint: '当前工作表只有表头，请先填写数据行（示例行请删除）。'
+  },
+  {
+    keyword: 'Unauthorized',
+    hint: '登录状态已失效，请刷新页面重新登录后再导入。'
+  },
+  {
+    keyword: 'Forbidden',
+    hint: '当前账号没有该项目的导入权限，请联系管理员。'
+  },
+  {
+    keyword: 'Payload Too Large',
+    hint: '文件超过服务器大小限制，请拆分后再导入。'
+  },
+  {
+    keyword: 'Failed to fetch',
+    hint: '无法连接服务器，请检查网络或稍后重试。'
+  }
+]
+
+const formatImportErrorMessage = (error: unknown) => {
+  const message = getRestErrorMessage(error)
+  const hint = IMPORT_ERROR_HINTS.find(({ keyword }) => message.includes(keyword))?.hint
+  return hint ? `${message}\n${hint}` : message
+}
+
 const handleImportFileChange = async (event: Event) => {
   if (!projectId.value || importingExcel.value) return
   const input = event.target as HTMLInputElement | null
@@ -1102,10 +1185,16 @@ const handleImportFileChange = async (event: Event) => {
       return
     }
 
-    const failedDetails =
-      response.failedRows && response.failedRows.length > 0
-        ? `\n${response.failedRows.slice(0, 5).join('\n')}`
-        : ''
+    const failedRows = response.failedRows || []
+    const shownFailedRows = failedRows.slice(0, 5)
+    const remainingFailedCount = failedRows.length - shownFailedRows.length
+    const failedDetails = shownFailedRows.length
+      ? `\n${shownFailedRows.join('\n')}${
+          remainingFailedCount > 0
+            ? `\n…另有 ${remainingFailedCount} 条失败，请修正后重新导入`
+            : ''
+        }`
+      : ''
 
     notify(
       '质量验收部分导入失败',
@@ -1113,7 +1202,7 @@ const handleImportFileChange = async (event: Event) => {
       `成功 ${response.createdCount} 条，失败 ${response.failedCount} 条。${failedDetails}`
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = formatImportErrorMessage(error)
     notify('质量验收导入失败', ToastNotificationType.Danger, message)
   } finally {
     importingExcel.value = false

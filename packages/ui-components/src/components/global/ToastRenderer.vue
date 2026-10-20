@@ -58,7 +58,7 @@
               </p>
               <p
                 v-if="notification.description"
-                class="text-foreground-2 text-body-2xs leading-snug"
+                class="text-foreground-2 text-body-2xs leading-snug whitespace-pre-line break-words"
               >
                 {{ notification.description }}
               </p>
