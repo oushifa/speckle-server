@@ -70,6 +70,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
       '验收单ID',
       '验收单名称',
       '编码',
+      '清单项编码',
       '检验批编号',
       '区域部位',
       '检验批内容',
@@ -84,6 +85,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         '',
         '测试验收单1',
         'QA-001',
+        'QA-BOQ-001',
         'LOT-2026-001',
         '1层主体',
         '混凝土浇筑质量验收',
@@ -97,6 +99,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         '',
         '测试验收单2',
         'QA-002',
+        'QA-BOQ-001',
         'LOT-2026-002',
         '2层结构',
         '钢筋绑扎质量验收',
@@ -110,6 +113,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         '',
         '测试验收单3',
         'QA-003',
+        'QA-BOQ-001',
         'LOT-2026-003',
         '3层结构',
         '模板安装质量验收',
@@ -150,6 +154,23 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
 
     // 注入模拟的 3D 模型版本及 Speckle Objects 对象
     const projectDb = await getProjectDbClient({ projectId })
+
+    // 质量验收单必须关联 BOQ 清单项，先插入一个末级清单项供导入匹配
+    await projectDb('boq_items').insert({
+      id: 'tst_boq1',
+      projectId,
+      parentId: null,
+      type: 'ITEM',
+      code: 'QA-BOQ-001',
+      name: '测试清单项',
+      unit: 'm³',
+      quantity: 1000,
+      price: 10,
+      sortOrder: 0,
+      depth: 4,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
 
     // 1. 插入 Commit (代表一个模型版本)
     await projectDb('commits').insert({
@@ -336,6 +357,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         firstRecord.id,
         '测试验收单1-已修改',
         'QA-001-MOD',
+        'QA-BOQ-001',
         'LOT-2026-001',
         '1层主体',
         '混凝土浇筑质量验收',
@@ -482,6 +504,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         '',
         '范围导入测试',
         'QA-RANGE-001',
+        'QA-BOQ-001',
         'LOT-2026-RANGE',
         '范围区域',
         '范围验收',
@@ -531,6 +554,7 @@ describe('Quality Acceptance Excel Import and Export REST API @quality-acceptanc
         '',
         '错误连写测试',
         'QA-RANGE-002',
+        'QA-BOQ-001',
         'LOT-2026-RANGE2',
         '范围区域2',
         '范围验收2',

@@ -96,6 +96,12 @@ import {
   publish
 } from '@/modules/shared/utils/subscriptions'
 
+// Node ESM 下 `import * as XLSX from 'xlsx'` 拿到的是 CJS 命名空间，
+// cjs-module-lexer 探测不到运行时挂载的 `SSF`，必须从 default 上兜底取，
+// 否则读取 Excel 数字日期（含日期公式的缓存值）会报
+// "Cannot read properties of undefined (reading 'parse_date_code')"。
+const XLSXSSF = ((XLSX as unknown as { default?: typeof XLSX }).default || XLSX).SSF
+
 const thirdPartyTokenHeader = 'x-file-conversion-token'
 const serviceCreator = 'quality-acceptance-import-service'
 
@@ -548,6 +554,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           '验收单ID',
           '验收单名称',
           '编码',
+          '清单项编码',
+          '清单项名称',
           '检验批编号',
           '区域部位',
           '检验批内容',
@@ -588,12 +596,21 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             })
           }
 
-          const items = await q
+          const [items, allBoqItems] = await Promise.all([
+            q,
+            getProjectBoqItemsFactory({ db: projectDb })({ projectId })
+          ])
+          const boqItemById = new Map(
+            allBoqItems
+              .filter((item) => item.type === 'ITEM')
+              .map((item) => [item.id, item])
+          )
 
           rows = items.map((item) => {
             const id = item.id
             const name = item.name || ''
             const code = item.code || ''
+            const boqItem = item.boqItemId ? boqItemById.get(item.boqItemId) : undefined
             const inspectionLotNumber = item.inspectionLotNumber || ''
             const acceptancePart = item.acceptancePart || ''
             const acceptanceContent = item.acceptanceContent || ''
@@ -610,6 +627,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               id,
               name,
               code,
+              boqItem?.code || '',
+              boqItem?.name || '',
               inspectionLotNumber,
               acceptancePart,
               acceptanceContent,
@@ -705,8 +724,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
             // 构建项目下的构件唯一编码映射表，以便补全完整的 BIM
             const projectDb = await getProjectDbClient({ projectId })
-            const bimMap = await buildBimNodesMap(projectDb, projectId)
-            const importRows = parseImportRows(sheet, bimMap)
+            const [bimMap, allBoqItems] = await Promise.all([
+              buildBimNodesMap(projectDb, projectId),
+              getProjectBoqItemsFactory({ db: projectDb })({ projectId })
+            ])
+            // 只有末级清单项才能与质量验收单关联
+            const boqItems = allBoqItems.filter((item) => item.type === 'ITEM')
+            const importRows = parseImportRows(sheet, bimMap, boqItems)
 
             const result = await importQualityAcceptanceFormsFactory({
               db,
@@ -4972,7 +4996,7 @@ const getBimIdsString = (bim: any) => {
 const parseExcelDate = (raw: any): number | null => {
   if (typeof raw === 'number') {
     if (raw > 100000000000) return raw
-    const excelDate = XLSX.SSF.parse_date_code(raw)
+    const excelDate = XLSXSSF.parse_date_code(raw)
     if (!excelDate) return null
     return new Date(
       excelDate.y,
@@ -5015,7 +5039,8 @@ const parseApproveStatus = (value: string): string | null | undefined => {
 
 const parseImportRows = (
   sheet: XLSX.WorkSheet,
-  bimMap: Map<string, Array<{ modelId: string; applicationId: string }>>
+  bimMap: Map<string, Array<{ modelId: string; applicationId: string }>>,
+  boqItems: Array<{ id: string; code?: string | null; name?: string | null }>
 ) => {
   const matrix = XLSX.utils.sheet_to_json<Array<string | number | null>>(sheet, {
     header: 1,
@@ -5033,7 +5058,15 @@ const parseImportRows = (
   const idIndex = findHeaderIndex(['验收单ID', '主键ID', 'ID', 'id'])
   const nameIndex = findHeaderIndex(['验收单名称', '名称'])
   const codeIndex = findHeaderIndex(['编码', '验收编码'])
-  const inspectionLotNumberIndex = findHeaderIndex(['检验批编号'])
+  const boqCodeIndex = findHeaderIndex(['清单项编码', '清单编码', 'BOQ编码', 'boqCode'])
+  const boqIdIndex = findHeaderIndex([
+    '清单项ID',
+    '清单项Id',
+    'BOQ清单项ID',
+    'boqItemId'
+  ])
+  // 新模板的列名是“检验批编码”，历史模板/导出是“检验批编号”，两者都兼容
+  const inspectionLotNumberIndex = findHeaderIndex(['检验批编号', '检验批编码'])
   const acceptancePartIndex = findHeaderIndex(['区域部位'])
   const acceptanceContentIndex = findHeaderIndex(['检验批内容', '验收内容'])
   const actualFinishDateIndex = findHeaderIndex(['验收日期'])
@@ -5042,13 +5075,32 @@ const parseImportRows = (
   const approveStatusIndex = findHeaderIndex(['月度验工', '验工状态', 'approveStatus'])
   const bimIdsIndex = findHeaderIndex(['关联构件ID', '关联构件', '构件ID', 'bimNodes'])
 
-  if (
-    inspectionLotNumberIndex < 0 ||
-    acceptancePartIndex < 0 ||
-    acceptanceContentIndex < 0
-  ) {
-    throw new Error('模板缺少必要列：检验批编号、区域部位、检验批内容')
+  const requiredHeaders: Array<{ name: string; index: number }> = [
+    { name: '检验批编号（或检验批编码）', index: inspectionLotNumberIndex },
+    { name: '区域部位', index: acceptancePartIndex },
+    { name: '检验批内容（或验收内容）', index: acceptanceContentIndex }
+  ]
+  const missingHeaders = requiredHeaders
+    .filter(({ index }) => index < 0)
+    .map(({ name }) => name)
+
+  if (missingHeaders.length > 0) {
+    throw new Error(
+      `模板缺少必要列：${missingHeaders.join(
+        '、'
+      )}。请使用系统“导出Excel”的模板，或补齐上述表头后重试`
+    )
   }
+
+  // 质量验收单必须挂到 BOQ 清单项，否则月度验工无法按清单项归集。
+  // 新模板优先用“清单项编码/清单项ID”列；旧模板仍兼容“编码”列恰好是
+  // 清单项编码的情况。
+  const boqItemById = new Map(boqItems.map((item) => [item.id, item]))
+  const boqItemByCode = new Map(
+    boqItems
+      .map((item) => [String(item.code ?? '').trim(), item] as const)
+      .filter(([code]) => Boolean(code))
+  )
 
   const importRows = []
 
@@ -5069,6 +5121,8 @@ const parseImportRows = (
     const id = readValue(idIndex)
     const name = readValue(nameIndex)
     const code = readValue(codeIndex)
+    const boqItemIdValue = readValue(boqIdIndex)
+    const boqItemCodeValue = readValue(boqCodeIndex)
     const inspectionLotNumber = readValue(inspectionLotNumberIndex)
     const acceptancePart = readValue(acceptancePartIndex)
     const acceptanceContent = readValue(acceptanceContentIndex)
@@ -5081,6 +5135,8 @@ const parseImportRows = (
       !id &&
       !name &&
       !code &&
+      !boqItemIdValue &&
+      !boqItemCodeValue &&
       !inspectionLotNumber &&
       !acceptancePart &&
       !acceptanceContent &&
@@ -5092,9 +5148,19 @@ const parseImportRows = (
       continue
     }
 
-    if (!inspectionLotNumber || !acceptancePart || !acceptanceContent) {
+    const missingFields = [
+      { name: '检验批编号', value: inspectionLotNumber },
+      { name: '区域部位', value: acceptancePart },
+      { name: '检验批内容', value: acceptanceContent }
+    ]
+      .filter(({ value }) => !value)
+      .map(({ name }) => name)
+
+    if (missingFields.length > 0) {
       throw new Error(
-        `第 ${rowNumber} 行缺少必要字段（检验批编号/区域部位/检验批内容）`
+        `第 ${rowNumber} 行缺少必要字段：${missingFields.join(
+          '、'
+        )}，请检查该行对应单元格是否为空`
       )
     }
 
@@ -5102,7 +5168,11 @@ const parseImportRows = (
     if (String(actualFinishDateRaw ?? '').trim()) {
       actualFinishDate = parseExcelDate(actualFinishDateRaw)
       if (!actualFinishDate) {
-        throw new Error(`第 ${rowNumber} 行验收日期格式不正确`)
+        throw new Error(
+          `第 ${rowNumber} 行验收日期格式不正确（当前值：${String(
+            actualFinishDateRaw
+          )}），请使用 2026-01-01 这类日期格式`
+        )
       }
     }
 
@@ -5110,7 +5180,9 @@ const parseImportRows = (
     if (workVolumeRaw) {
       const parsed = Number.parseFloat(workVolumeRaw)
       if (Number.isNaN(parsed)) {
-        throw new Error(`第 ${rowNumber} 行工程量不是有效数字`)
+        throw new Error(
+          `第 ${rowNumber} 行工程量不是有效数字（当前值：${workVolumeRaw}），请填写纯数字`
+        )
       }
       workVolume = parsed
     }
@@ -5168,10 +5240,28 @@ const parseImportRows = (
       }
     }
 
+    // 解析该行对应的 BOQ 清单项：清单项ID > 清单项编码 > 旧模板的“编码”
+    let boqItem = boqItemIdValue ? boqItemById.get(boqItemIdValue) : undefined
+    if (!boqItem && boqItemCodeValue) {
+      boqItem = boqItemByCode.get(boqItemCodeValue)
+    }
+    if (!boqItem && code) {
+      boqItem = boqItemByCode.get(code)
+    }
+    if (!boqItem) {
+      const enteredCode = boqItemCodeValue || code
+      throw new Error(
+        `第 ${rowNumber} 行未匹配到清单项${
+          enteredCode ? `（${enteredCode}）` : ''
+        }：请在“清单项编码”列填写项目内已有的清单项编码，或填写“清单项ID”`
+      )
+    }
+
     importRows.push({
       id: id || null,
       rowNumber,
       flowId: null,
+      boqItemId: boqItem.id,
       name: name || acceptancePart,
       code: code || null,
       inspectionLotNumber,

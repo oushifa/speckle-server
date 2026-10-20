@@ -183,7 +183,9 @@ export const createQualityAcceptanceFormEntryFactory =
       : null
 
     if (boqItemId && !boqItem) {
-      throw new BadRequestError(`BOQ item ${boqItemId} not found in project.`)
+      throw new BadRequestError(
+        `清单项（${boqItemId}）在当前项目中不存在，请刷新页面后重试`
+      )
     }
 
     const now = new Date()
@@ -268,6 +270,7 @@ export const importQualityAcceptanceFormsFactory =
     const updateQualityAcceptanceForm = updateQualityAcceptanceFormFactory({
       db: deps.projectDb
     })
+    const getBoqItem = getBoqItemFactory({ db: deps.projectDb })
 
     let createdCount = 0
     const createdItems: ImportQualityAcceptanceFormResult['createdItems'] = []
@@ -301,6 +304,19 @@ export const importQualityAcceptanceFormsFactory =
         }
 
         if (isUpdate) {
+          const nextBoqItemId = normalizeOptionalString(item.boqItemId)
+          if (nextBoqItemId) {
+            const boqItem = await getBoqItem({
+              projectId: params.projectId,
+              id: nextBoqItemId
+            })
+            if (!boqItem) {
+              throw new BadRequestError(
+                `清单项（${nextBoqItemId}）在当前项目中不存在，请刷新页面后重试`
+              )
+            }
+          }
+
           const updatePayload: any = {
             name: normalizeOptionalString(item.name),
             code: normalizeOptionalString(item.code),
@@ -315,6 +331,10 @@ export const importQualityAcceptanceFormsFactory =
                 : item.workVolume,
             unit: normalizeOptionalString(item.unit),
             BIM: normalizeBIM(item.BIM ?? null, item.BIMelement ?? null)
+          }
+          // 只有显式提供清单项时才更新，避免旧调用方漏传导致误清空关联
+          if (nextBoqItemId) {
+            updatePayload.boqItemId = nextBoqItemId
           }
 
           updatedRecord = await updateQualityAcceptanceForm(recordId, updatePayload)
