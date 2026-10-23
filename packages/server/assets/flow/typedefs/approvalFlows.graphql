@@ -303,12 +303,43 @@ extend type Query {
   approvalFlowStats(rangeDays: Int = 30): ApprovalFlowStats!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:read")
+  """
+  Unified work platform connection details for the browser-side push fallback.
+  Returns null when no static token is configured (credentials are server-only).
+  The token is a long-lived system credential: every authenticated user can read
+  it, so the platform side must be treated as an intranet-trusted system.
+  """
+  unifiedWorkClientConfig: UnifiedWorkClientConfig @hasServerRole(role: SERVER_GUEST)
+  unifiedWorkPushRequests(instanceId: ID!): [UnifiedWorkPushRequest!]!
+    @hasServerRole(role: SERVER_GUEST)
 }
 
 extend type Mutation {
   approvalMutations: ApprovalMutations!
     @hasServerRole(role: SERVER_GUEST)
     @hasScope(scope: "streams:write")
+  recordUnifiedWorkPushResult(input: RecordUnifiedWorkPushResultInput!): Boolean!
+    @hasServerRole(role: SERVER_GUEST)
+}
+
+type UnifiedWorkClientConfig {
+  host: String!
+  systemCode: String!
+  token: String!
+}
+
+type UnifiedWorkPushRequest {
+  taskId: String!
+  payload: JSONObject!
+}
+
+input RecordUnifiedWorkPushResultInput {
+  instanceId: ID!
+  taskId: String!
+  success: Boolean!
+  errorType: String
+  errorMessage: String
+  errorDetail: JSONObject
 }
 
 extend type Subscription {

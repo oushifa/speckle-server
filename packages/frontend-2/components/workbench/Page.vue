@@ -435,6 +435,7 @@ import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
 import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
+import { useUnifiedWorkBrowserPush } from '~/components/flow/unifiedWorkBrowserPush'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
@@ -622,6 +623,7 @@ type WorkbenchFlowTabState = {
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
+const { pushFromBrowser } = useUnifiedWorkBrowserPush()
 const { userId } = useActiveUser()
 const apiOrigin = useApiOrigin()
 const route = useRoute()
@@ -918,26 +920,49 @@ const loadTodoList = async (tab: WorkbenchFlowTab, options?: { silent?: boolean 
   }
 }
 
+const retryPushFromServer = async (instanceId: string) => {
+  const res = await apollo.mutate<
+    { approvalMutations: { retryUnifiedWorkPush: number } },
+    { instanceId: string }
+  >({
+    mutation: retryUnifiedWorkPushMutation,
+    variables: { instanceId },
+    fetchPolicy: 'no-cache'
+  })
+  const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
+  notify(
+    pushed > 0 ? '重新推送成功' : '重新推送完成',
+    pushed > 0
+      ? `已成功推送 ${pushed} 条待办`
+      : '本次没有待办被推送，请展开失败原因排查',
+    pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+  )
+}
+
 const retryPush = async (instanceId: string) => {
   if (retryingPushId.value) return
   retryingPushId.value = instanceId
   try {
-    const res = await apollo.mutate<
-      { approvalMutations: { retryUnifiedWorkPush: number } },
-      { instanceId: string }
-    >({
-      mutation: retryUnifiedWorkPushMutation,
-      variables: { instanceId },
-      fetchPolicy: 'no-cache'
-    })
-    const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
-    notify(
-      pushed > 0 ? '重新推送成功' : '重新推送完成',
-      pushed > 0
-        ? `已成功推送 ${pushed} 条待办`
-        : '本次没有待办被推送，请展开失败原因排查',
-      pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
-    )
+    // The server may not be able to reach the unified work platform, so try the
+    // browser first and fall back to the server-side push when it cannot.
+    const outcome = await pushFromBrowser(instanceId)
+    if (!outcome.attempted || outcome.networkError) {
+      await retryPushFromServer(instanceId)
+    } else if (outcome.pushed > 0) {
+      notify(
+        '重新推送成功',
+        `已通过浏览器推送 ${outcome.pushed} 条待办`,
+        ToastNotificationType.Success
+      )
+    } else {
+      notify(
+        '重新推送失败',
+        outcome.errors[0] || '没有可推送的待办',
+        outcome.failed > 0
+          ? ToastNotificationType.Danger
+          : ToastNotificationType.Warning
+      )
+    }
     await loadTodoList(todoTab.value, { silent: true })
   } catch (e) {
     notify('重新推送失败', (e as Error).message, ToastNotificationType.Danger)

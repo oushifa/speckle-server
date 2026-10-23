@@ -38,6 +38,9 @@ import {
 } from '@/modules/shared/utils/subscriptions'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import {
+  getUnifiedWorkBrowserPushConfig,
+  getUnifiedWorkBrowserPushRequests,
+  recordUnifiedWorkBrowserPushResult,
   scheduleApprovalFlowTodoSync,
   syncApprovalFlowTodoToUnifiedWork
 } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
@@ -153,6 +156,22 @@ export default {
       return await getApprovalFlowStatsFactory({ db })({
         rangeDays: args.rangeDays || 30,
         userId: ctx.userId || null
+      })
+    },
+    unifiedWorkClientConfig(_parent: unknown, _args: unknown, ctx: GraphQLContext) {
+      ensureUserId(ctx)
+      return getUnifiedWorkBrowserPushConfig()
+    },
+    async unifiedWorkPushRequests(
+      _parent: unknown,
+      args: { instanceId: string },
+      ctx: GraphQLContext
+    ) {
+      const userId = ensureUserId(ctx)
+      return await getUnifiedWorkBrowserPushRequests({
+        instanceId: args.instanceId,
+        userId,
+        isAdmin: isServerAdmin(ctx)
       })
     }
   },
@@ -308,7 +327,28 @@ export default {
     }
   },
   Mutation: {
-    approvalMutations: () => ({})
+    approvalMutations: () => ({}),
+    async recordUnifiedWorkPushResult(
+      _parent: unknown,
+      args: {
+        input: {
+          instanceId: string
+          taskId: string
+          success: boolean
+          errorType?: string | null
+          errorMessage?: string | null
+          errorDetail?: Record<string, unknown> | null
+        }
+      },
+      ctx: GraphQLContext
+    ) {
+      const userId = ensureUserId(ctx)
+      return await recordUnifiedWorkBrowserPushResult({
+        ...args.input,
+        userId,
+        isAdmin: isServerAdmin(ctx)
+      })
+    }
   },
   ApprovalMutations: {
     async createDefinition(

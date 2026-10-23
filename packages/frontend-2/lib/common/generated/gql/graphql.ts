@@ -2839,6 +2839,7 @@ export type Mutation = {
   /** @deprecated Part of the old API surface and will be removed in the future. */
   objectCreate: Array<Scalars['String']['output']>;
   projectMutations: ProjectMutations;
+  recordUnifiedWorkPushResult: Scalars['Boolean']['output'];
   /** (Re-)send the account verification e-mail */
   requestVerification: Scalars['Boolean']['output'];
   requestVerificationByEmail: Scalars['Boolean']['output'];
@@ -3082,6 +3083,11 @@ export type MutationInviteResendArgs = {
 
 export type MutationObjectCreateArgs = {
   objectInput: ObjectCreateInput;
+};
+
+
+export type MutationRecordUnifiedWorkPushResultArgs = {
+  input: RecordUnifiedWorkPushResultInput;
 };
 
 
@@ -4580,6 +4586,14 @@ export type Query = {
    */
   streams?: Maybe<UserStreamCollection>;
   /**
+   * Unified work platform connection details for the browser-side push fallback.
+   * Returns null when no static token is configured (credentials are server-only).
+   * The token is a long-lived system credential: every authenticated user can read
+   * it, so the platform side must be treated as an intranet-trusted system.
+   */
+  unifiedWorkClientConfig?: Maybe<UnifiedWorkClientConfig>;
+  unifiedWorkPushRequests: Array<UnifiedWorkPushRequest>;
+  /**
    * Gets the profile of a user. If no id argument is provided, will return the current authenticated user's profile (as extracted from the authorization header).
    * @deprecated To be removed in the near future! Use 'activeUser' to get info about the active user or 'otherUser' to get info about another user.
    */
@@ -4756,6 +4770,11 @@ export type QueryStreamsArgs = {
 };
 
 
+export type QueryUnifiedWorkPushRequestsArgs = {
+  instanceId: Scalars['ID']['input'];
+};
+
+
 export type QueryUserArgs = {
   id?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4815,6 +4834,15 @@ export type ReactivateApprovalFlowInput = {
   comment: Scalars['String']['input'];
   instanceId: Scalars['ID']['input'];
   targetStep: Scalars['Int']['input'];
+};
+
+export type RecordUnifiedWorkPushResultInput = {
+  errorDetail?: InputMaybe<Scalars['JSONObject']['input']>;
+  errorMessage?: InputMaybe<Scalars['String']['input']>;
+  errorType?: InputMaybe<Scalars['String']['input']>;
+  instanceId: Scalars['ID']['input'];
+  success: Scalars['Boolean']['input'];
+  taskId: Scalars['String']['input'];
 };
 
 export type RejectApprovalFlowInput = {
@@ -5938,6 +5966,13 @@ export type TriggeredAutomationsStatus = {
   statusMessage?: Maybe<Scalars['String']['output']>;
 };
 
+export type UnifiedWorkClientConfig = {
+  __typename?: 'UnifiedWorkClientConfig';
+  host: Scalars['String']['output'];
+  systemCode: Scalars['String']['output'];
+  token: Scalars['String']['output'];
+};
+
 export type UnifiedWorkPushRecord = {
   __typename?: 'UnifiedWorkPushRecord';
   account?: Maybe<Scalars['String']['output']>;
@@ -5955,6 +5990,12 @@ export type UnifiedWorkPushRecord = {
   systemCode: Scalars['String']['output'];
   taskId: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type UnifiedWorkPushRequest = {
+  __typename?: 'UnifiedWorkPushRequest';
+  payload: Scalars['JSONObject']['output'];
+  taskId: Scalars['String']['output'];
 };
 
 export const UnifiedWorkPushStatus = {
@@ -7747,6 +7788,25 @@ export type FlowStartMutationVariables = Exact<{
 
 
 export type FlowStartMutation = { __typename?: 'Mutation', approvalMutations: { __typename?: 'ApprovalMutations', start: { __typename?: 'ApprovalFlowInstance', id: string } } };
+
+export type UnifiedWorkClientConfigQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type UnifiedWorkClientConfigQuery = { __typename?: 'Query', unifiedWorkClientConfig?: { __typename?: 'UnifiedWorkClientConfig', host: string, systemCode: string, token: string } | null };
+
+export type UnifiedWorkPushRequestsQueryVariables = Exact<{
+  instanceId: Scalars['ID']['input'];
+}>;
+
+
+export type UnifiedWorkPushRequestsQuery = { __typename?: 'Query', unifiedWorkPushRequests: Array<{ __typename?: 'UnifiedWorkPushRequest', taskId: string, payload: {} }> };
+
+export type RecordUnifiedWorkPushResultMutationVariables = Exact<{
+  input: RecordUnifiedWorkPushResultInput;
+}>;
+
+
+export type RecordUnifiedWorkPushResultMutation = { __typename?: 'Mutation', recordUnifiedWorkPushResult: boolean };
 
 export type FormSelectModels_ModelFragment = { __typename?: 'Model', id: string, name: string };
 
@@ -10844,6 +10904,9 @@ export const FlowCreateDefinitionDocument = {"kind":"Document","definitions":[{"
 export const FlowSetDefinitionActiveDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowSetDefinitionActive"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setDefinitionActive"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"definitionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"definitionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"isActive"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isActive"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"isActive"}}]}}]}}]}}]} as unknown as DocumentNode<FlowSetDefinitionActiveMutation, FlowSetDefinitionActiveMutationVariables>;
 export const FlowProcessTimeoutsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowProcessTimeouts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"processTimeouts"}}]}}]}}]} as unknown as DocumentNode<FlowProcessTimeoutsMutation, FlowProcessTimeoutsMutationVariables>;
 export const FlowStartDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"FlowStart"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StartApprovalFlowInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalMutations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"start"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<FlowStartMutation, FlowStartMutationVariables>;
+export const UnifiedWorkClientConfigDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"UnifiedWorkClientConfig"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unifiedWorkClientConfig"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"host"}},{"kind":"Field","name":{"kind":"Name","value":"systemCode"}},{"kind":"Field","name":{"kind":"Name","value":"token"}}]}}]}}]} as unknown as DocumentNode<UnifiedWorkClientConfigQuery, UnifiedWorkClientConfigQueryVariables>;
+export const UnifiedWorkPushRequestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"UnifiedWorkPushRequests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"instanceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unifiedWorkPushRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"instanceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"instanceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"taskId"}},{"kind":"Field","name":{"kind":"Name","value":"payload"}}]}}]}}]} as unknown as DocumentNode<UnifiedWorkPushRequestsQuery, UnifiedWorkPushRequestsQueryVariables>;
+export const RecordUnifiedWorkPushResultDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RecordUnifiedWorkPushResult"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"RecordUnifiedWorkPushResultInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"recordUnifiedWorkPushResult"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}]}]}}]} as unknown as DocumentNode<RecordUnifiedWorkPushResultMutation, RecordUnifiedWorkPushResultMutationVariables>;
 export const FormSelectSavedView_SavedViewsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FormSelectSavedView_SavedViews"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ProjectSavedViewsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"savedViews"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"FormSelectSavedView_SavedView"}}]}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"cursor"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FormSelectSavedView_SavedView"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SavedView"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"thumbnailUrl"}}]}}]} as unknown as DocumentNode<FormSelectSavedView_SavedViewsQuery, FormSelectSavedView_SavedViewsQueryVariables>;
 export const FormSelectSavedViewGroup_SavedViewGroupsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FormSelectSavedViewGroup_SavedViewGroups"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SavedViewGroupsInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"project"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"projectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"savedViewGroups"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"FragmentSpread","name":{"kind":"Name","value":"FormSelectSavedViewGroup_SavedViewGroup"}}]}},{"kind":"Field","name":{"kind":"Name","value":"totalCount"}},{"kind":"Field","name":{"kind":"Name","value":"cursor"}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FormSelectSavedViewGroup_SavedViewGroup"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SavedViewGroup"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"isUngroupedViewsGroup"}}]}}]} as unknown as DocumentNode<FormSelectSavedViewGroup_SavedViewGroupsQuery, FormSelectSavedViewGroup_SavedViewGroupsQueryVariables>;
 export const NavigationApprovalFlowTodoCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"NavigationApprovalFlowTodoCount"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"approvalFlowStats"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"rangeDays"},"value":{"kind":"IntValue","value":"30"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"pendingForMeCount"}}]}}]}}]} as unknown as DocumentNode<NavigationApprovalFlowTodoCountQuery, NavigationApprovalFlowTodoCountQueryVariables>;
@@ -11358,7 +11421,9 @@ export type AllObjectTypes = {
   TestAutomationRunTriggerPayload: TestAutomationRunTriggerPayload,
   TokenResourceIdentifier: TokenResourceIdentifier,
   TriggeredAutomationsStatus: TriggeredAutomationsStatus,
+  UnifiedWorkClientConfig: UnifiedWorkClientConfig,
   UnifiedWorkPushRecord: UnifiedWorkPushRecord,
+  UnifiedWorkPushRequest: UnifiedWorkPushRequest,
   User: User,
   UserAutomateInfo: UserAutomateInfo,
   UserEmail: UserEmail,
@@ -12400,6 +12465,7 @@ export type MutationFieldArgs = {
   modelMutations: {},
   objectCreate: MutationObjectCreateArgs,
   projectMutations: {},
+  recordUnifiedWorkPushResult: MutationRecordUnifiedWorkPushResultArgs,
   requestVerification: {},
   requestVerificationByEmail: MutationRequestVerificationByEmailArgs,
   serverInfoMutations: {},
@@ -12824,6 +12890,8 @@ export type QueryFieldArgs = {
   streamInvite: QueryStreamInviteArgs,
   streamInvites: {},
   streams: QueryStreamsArgs,
+  unifiedWorkClientConfig: {},
+  unifiedWorkPushRequests: QueryUnifiedWorkPushRequestsArgs,
   user: QueryUserArgs,
   userPwdStrength: QueryUserPwdStrengthArgs,
   userSearch: QueryUserSearchArgs,
@@ -13155,6 +13223,11 @@ export type TriggeredAutomationsStatusFieldArgs = {
   status: {},
   statusMessage: {},
 }
+export type UnifiedWorkClientConfigFieldArgs = {
+  host: {},
+  systemCode: {},
+  token: {},
+}
 export type UnifiedWorkPushRecordFieldArgs = {
   account: {},
   approverId: {},
@@ -13171,6 +13244,10 @@ export type UnifiedWorkPushRecordFieldArgs = {
   systemCode: {},
   taskId: {},
   updatedAt: {},
+}
+export type UnifiedWorkPushRequestFieldArgs = {
+  payload: {},
+  taskId: {},
 }
 export type UserFieldArgs = {
   activeWorkspace: {},
@@ -13771,7 +13848,9 @@ export type AllObjectFieldArgTypes = {
   TestAutomationRunTriggerPayload: TestAutomationRunTriggerPayloadFieldArgs,
   TokenResourceIdentifier: TokenResourceIdentifierFieldArgs,
   TriggeredAutomationsStatus: TriggeredAutomationsStatusFieldArgs,
+  UnifiedWorkClientConfig: UnifiedWorkClientConfigFieldArgs,
   UnifiedWorkPushRecord: UnifiedWorkPushRecordFieldArgs,
+  UnifiedWorkPushRequest: UnifiedWorkPushRequestFieldArgs,
   User: UserFieldArgs,
   UserAutomateInfo: UserAutomateInfoFieldArgs,
   UserEmail: UserEmailFieldArgs,

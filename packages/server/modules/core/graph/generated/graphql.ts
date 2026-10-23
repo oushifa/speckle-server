@@ -585,6 +585,7 @@ export type ApprovalFlowInstance = {
   status: ApprovalFlowStatus;
   steps: Array<ApprovalFlowInstanceStep>;
   templateId: Scalars['ID']['output'];
+  unifiedWorkPush?: Maybe<UnifiedWorkPushRecord>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -673,6 +674,7 @@ export type ApprovalMutations = {
   reactivate: ApprovalFlowInstance;
   reject: ApprovalFlowInstance;
   resetToUnsubmitted: ApprovalFlowInstance;
+  retryUnifiedWorkPush: Scalars['Int']['output'];
   setDefinitionActive: ApprovalFlowDefinition;
   start: ApprovalFlowInstance;
   transferAssignee: Scalars['Int']['output'];
@@ -706,6 +708,11 @@ export type ApprovalMutationsRejectArgs = {
 
 export type ApprovalMutationsResetToUnsubmittedArgs = {
   input: ResetApprovalFlowToUnsubmittedInput;
+};
+
+
+export type ApprovalMutationsRetryUnifiedWorkPushArgs = {
+  instanceId: Scalars['ID']['input'];
 };
 
 
@@ -2864,6 +2871,7 @@ export type Mutation = {
   /** @deprecated Part of the old API surface and will be removed in the future. */
   objectCreate: Array<Scalars['String']['output']>;
   projectMutations: ProjectMutations;
+  recordUnifiedWorkPushResult: Scalars['Boolean']['output'];
   /** (Re-)send the account verification e-mail */
   requestVerification: Scalars['Boolean']['output'];
   requestVerificationByEmail: Scalars['Boolean']['output'];
@@ -3107,6 +3115,11 @@ export type MutationInviteResendArgs = {
 
 export type MutationObjectCreateArgs = {
   objectInput: ObjectCreateInput;
+};
+
+
+export type MutationRecordUnifiedWorkPushResultArgs = {
+  input: RecordUnifiedWorkPushResultInput;
 };
 
 
@@ -4605,6 +4618,14 @@ export type Query = {
    */
   streams?: Maybe<UserStreamCollection>;
   /**
+   * Unified work platform connection details for the browser-side push fallback.
+   * Returns null when no static token is configured (credentials are server-only).
+   * The token is a long-lived system credential: every authenticated user can read
+   * it, so the platform side must be treated as an intranet-trusted system.
+   */
+  unifiedWorkClientConfig?: Maybe<UnifiedWorkClientConfig>;
+  unifiedWorkPushRequests: Array<UnifiedWorkPushRequest>;
+  /**
    * Gets the profile of a user. If no id argument is provided, will return the current authenticated user's profile (as extracted from the authorization header).
    * @deprecated To be removed in the near future! Use 'activeUser' to get info about the active user or 'otherUser' to get info about another user.
    */
@@ -4781,6 +4802,11 @@ export type QueryStreamsArgs = {
 };
 
 
+export type QueryUnifiedWorkPushRequestsArgs = {
+  instanceId: Scalars['ID']['input'];
+};
+
+
 export type QueryUserArgs = {
   id?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4840,6 +4866,15 @@ export type ReactivateApprovalFlowInput = {
   comment: Scalars['String']['input'];
   instanceId: Scalars['ID']['input'];
   targetStep: Scalars['Int']['input'];
+};
+
+export type RecordUnifiedWorkPushResultInput = {
+  errorDetail?: InputMaybe<Scalars['JSONObject']['input']>;
+  errorMessage?: InputMaybe<Scalars['String']['input']>;
+  errorType?: InputMaybe<Scalars['String']['input']>;
+  instanceId: Scalars['ID']['input'];
+  success: Scalars['Boolean']['input'];
+  taskId: Scalars['String']['input'];
 };
 
 export type RejectApprovalFlowInput = {
@@ -5963,6 +5998,44 @@ export type TriggeredAutomationsStatus = {
   statusMessage?: Maybe<Scalars['String']['output']>;
 };
 
+export type UnifiedWorkClientConfig = {
+  __typename?: 'UnifiedWorkClientConfig';
+  host: Scalars['String']['output'];
+  systemCode: Scalars['String']['output'];
+  token: Scalars['String']['output'];
+};
+
+export type UnifiedWorkPushRecord = {
+  __typename?: 'UnifiedWorkPushRecord';
+  account?: Maybe<Scalars['String']['output']>;
+  approverId?: Maybe<Scalars['ID']['output']>;
+  attempts: Scalars['Int']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  errorDetail?: Maybe<Scalars['JSONObject']['output']>;
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  errorType?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  instanceId: Scalars['ID']['output'];
+  lastAttemptAt: Scalars['DateTime']['output'];
+  status: UnifiedWorkPushStatus;
+  stepIndex: Scalars['Int']['output'];
+  systemCode: Scalars['String']['output'];
+  taskId: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type UnifiedWorkPushRequest = {
+  __typename?: 'UnifiedWorkPushRequest';
+  payload: Scalars['JSONObject']['output'];
+  taskId: Scalars['String']['output'];
+};
+
+export const UnifiedWorkPushStatus = {
+  Failed: 'FAILED',
+  Success: 'SUCCESS'
+} as const;
+
+export type UnifiedWorkPushStatus = typeof UnifiedWorkPushStatus[keyof typeof UnifiedWorkPushStatus];
 export type UpdateAccSyncItemInput = {
   id: Scalars['ID']['input'];
   projectId: Scalars['String']['input'];
@@ -7912,6 +7985,7 @@ export type ResolversTypes = {
   QualityAcceptanceMutations: ResolverTypeWrapper<Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm' | 'updateFormAttachments'> & { createForm: ResolversTypes['QualityAcceptanceForm'], updateForm: ResolversTypes['QualityAcceptanceForm'], updateFormAttachments: ResolversTypes['QualityAcceptanceForm'] }>;
   Query: ResolverTypeWrapper<{}>;
   ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
+  RecordUnifiedWorkPushResultInput: RecordUnifiedWorkPushResultInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
@@ -7982,6 +8056,10 @@ export type ResolversTypes = {
   TokenResourceIdentifierType: TokenResourceIdentifierType;
   TransferApprovalFlowAssigneeInput: TransferApprovalFlowAssigneeInput;
   TriggeredAutomationsStatus: ResolverTypeWrapper<TriggeredAutomationsStatusGraphQLReturn>;
+  UnifiedWorkClientConfig: ResolverTypeWrapper<UnifiedWorkClientConfig>;
+  UnifiedWorkPushRecord: ResolverTypeWrapper<UnifiedWorkPushRecord>;
+  UnifiedWorkPushRequest: ResolverTypeWrapper<UnifiedWorkPushRequest>;
+  UnifiedWorkPushStatus: UnifiedWorkPushStatus;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
@@ -8391,6 +8469,7 @@ export type ResolversParentTypes = {
   QualityAcceptanceMutations: Omit<QualityAcceptanceMutations, 'createForm' | 'updateForm' | 'updateFormAttachments'> & { createForm: ResolversParentTypes['QualityAcceptanceForm'], updateForm: ResolversParentTypes['QualityAcceptanceForm'], updateFormAttachments: ResolversParentTypes['QualityAcceptanceForm'] };
   Query: {};
   ReactivateApprovalFlowInput: ReactivateApprovalFlowInput;
+  RecordUnifiedWorkPushResultInput: RecordUnifiedWorkPushResultInput;
   RejectApprovalFlowInput: RejectApprovalFlowInput;
   RemoveDepartmentMemberInput: RemoveDepartmentMemberInput;
   RemoveModelFromFolderInput: RemoveModelFromFolderInput;
@@ -8454,6 +8533,9 @@ export type ResolversParentTypes = {
   TokenResourceIdentifierInput: TokenResourceIdentifierInput;
   TransferApprovalFlowAssigneeInput: TransferApprovalFlowAssigneeInput;
   TriggeredAutomationsStatus: TriggeredAutomationsStatusGraphQLReturn;
+  UnifiedWorkClientConfig: UnifiedWorkClientConfig;
+  UnifiedWorkPushRecord: UnifiedWorkPushRecord;
+  UnifiedWorkPushRequest: UnifiedWorkPushRequest;
   UpdateAccSyncItemInput: UpdateAccSyncItemInput;
   UpdateAutomateFunctionInput: UpdateAutomateFunctionInput;
   UpdateBoqItemInput: UpdateBoqItemInput;
@@ -8884,6 +8966,7 @@ export type ApprovalFlowInstanceResolvers<ContextType = GraphQLContext, ParentTy
   status?: Resolver<ResolversTypes['ApprovalFlowStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['ApprovalFlowInstanceStep']>, ParentType, ContextType>;
   templateId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  unifiedWorkPush?: Resolver<Maybe<ResolversTypes['UnifiedWorkPushRecord']>, ParentType, ContextType>;
   updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -8941,6 +9024,7 @@ export type ApprovalMutationsResolvers<ContextType = GraphQLContext, ParentType 
   reactivate?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsReactivateArgs, 'input'>>;
   reject?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsRejectArgs, 'input'>>;
   resetToUnsubmitted?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsResetToUnsubmittedArgs, 'input'>>;
+  retryUnifiedWorkPush?: Resolver<ResolversTypes['Int'], ParentType, ContextType, RequireFields<ApprovalMutationsRetryUnifiedWorkPushArgs, 'instanceId'>>;
   setDefinitionActive?: Resolver<ResolversTypes['ApprovalFlowDefinition'], ParentType, ContextType, RequireFields<ApprovalMutationsSetDefinitionActiveArgs, 'definitionId' | 'isActive'>>;
   start?: Resolver<ResolversTypes['ApprovalFlowInstance'], ParentType, ContextType, RequireFields<ApprovalMutationsStartArgs, 'input'>>;
   transferAssignee?: Resolver<ResolversTypes['Int'], ParentType, ContextType, RequireFields<ApprovalMutationsTransferAssigneeArgs, 'input'>>;
@@ -9836,6 +9920,7 @@ export type MutationResolvers<ContextType = GraphQLContext, ParentType extends R
   modelMutations?: Resolver<ResolversTypes['ModelMutations'], ParentType, ContextType>;
   objectCreate?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType, RequireFields<MutationObjectCreateArgs, 'objectInput'>>;
   projectMutations?: Resolver<ResolversTypes['ProjectMutations'], ParentType, ContextType>;
+  recordUnifiedWorkPushResult?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationRecordUnifiedWorkPushResultArgs, 'input'>>;
   requestVerification?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   requestVerificationByEmail?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationRequestVerificationByEmailArgs, 'email'>>;
   serverInfoMutations?: Resolver<ResolversTypes['ServerInfoMutations'], ParentType, ContextType>;
@@ -10337,6 +10422,8 @@ export type QueryResolvers<ContextType = GraphQLContext, ParentType extends Reso
   streamInvite?: Resolver<Maybe<ResolversTypes['PendingStreamCollaborator']>, ParentType, ContextType, RequireFields<QueryStreamInviteArgs, 'streamId'>>;
   streamInvites?: Resolver<Array<ResolversTypes['PendingStreamCollaborator']>, ParentType, ContextType>;
   streams?: Resolver<Maybe<ResolversTypes['UserStreamCollection']>, ParentType, ContextType, RequireFields<QueryStreamsArgs, 'limit'>>;
+  unifiedWorkClientConfig?: Resolver<Maybe<ResolversTypes['UnifiedWorkClientConfig']>, ParentType, ContextType>;
+  unifiedWorkPushRequests?: Resolver<Array<ResolversTypes['UnifiedWorkPushRequest']>, ParentType, ContextType, RequireFields<QueryUnifiedWorkPushRequestsArgs, 'instanceId'>>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, Partial<QueryUserArgs>>;
   userPwdStrength?: Resolver<ResolversTypes['PasswordStrengthCheckResults'], ParentType, ContextType, RequireFields<QueryUserPwdStrengthArgs, 'pwd'>>;
   userSearch?: Resolver<ResolversTypes['UserSearchResultCollection'], ParentType, ContextType, RequireFields<QueryUserSearchArgs, 'archived' | 'emailOnly' | 'limit' | 'query'>>;
@@ -10741,6 +10828,38 @@ export type TriggeredAutomationsStatusResolvers<ContextType = GraphQLContext, Pa
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['AutomateRunStatus'], ParentType, ContextType>;
   statusMessage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type UnifiedWorkClientConfigResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['UnifiedWorkClientConfig'] = ResolversParentTypes['UnifiedWorkClientConfig']> = {
+  host?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  systemCode?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type UnifiedWorkPushRecordResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['UnifiedWorkPushRecord'] = ResolversParentTypes['UnifiedWorkPushRecord']> = {
+  account?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  approverId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  attempts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  errorDetail?: Resolver<Maybe<ResolversTypes['JSONObject']>, ParentType, ContextType>;
+  errorMessage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  errorType?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  instanceId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  lastAttemptAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['UnifiedWorkPushStatus'], ParentType, ContextType>;
+  stepIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  systemCode?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  taskId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  updatedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type UnifiedWorkPushRequestResolvers<ContextType = GraphQLContext, ParentType extends ResolversParentTypes['UnifiedWorkPushRequest'] = ResolversParentTypes['UnifiedWorkPushRequest']> = {
+  payload?: Resolver<ResolversTypes['JSONObject'], ParentType, ContextType>;
+  taskId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11460,6 +11579,9 @@ export type Resolvers<ContextType = GraphQLContext> = {
   TestAutomationRunTriggerPayload?: TestAutomationRunTriggerPayloadResolvers<ContextType>;
   TokenResourceIdentifier?: TokenResourceIdentifierResolvers<ContextType>;
   TriggeredAutomationsStatus?: TriggeredAutomationsStatusResolvers<ContextType>;
+  UnifiedWorkClientConfig?: UnifiedWorkClientConfigResolvers<ContextType>;
+  UnifiedWorkPushRecord?: UnifiedWorkPushRecordResolvers<ContextType>;
+  UnifiedWorkPushRequest?: UnifiedWorkPushRequestResolvers<ContextType>;
   User?: UserResolvers<ContextType>;
   UserAutomateInfo?: UserAutomateInfoResolvers<ContextType>;
   UserEmail?: UserEmailResolvers<ContextType>;

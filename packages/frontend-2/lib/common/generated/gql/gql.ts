@@ -65,6 +65,9 @@ type Documents = {
     "\n  mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {\n    approvalMutations {\n      setDefinitionActive(definitionId: $definitionId, isActive: $isActive) {\n        id\n        isActive\n      }\n    }\n  }\n": typeof types.FlowSetDefinitionActiveDocument,
     "\n  mutation FlowProcessTimeouts {\n    approvalMutations {\n      processTimeouts\n    }\n  }\n": typeof types.FlowProcessTimeoutsDocument,
     "\n  mutation FlowStart($input: StartApprovalFlowInput!) {\n    approvalMutations {\n      start(input: $input) {\n        id\n      }\n    }\n  }\n": typeof types.FlowStartDocument,
+    "\n  query UnifiedWorkClientConfig {\n    unifiedWorkClientConfig {\n      host\n      systemCode\n      token\n    }\n  }\n": typeof types.UnifiedWorkClientConfigDocument,
+    "\n  query UnifiedWorkPushRequests($instanceId: ID!) {\n    unifiedWorkPushRequests(instanceId: $instanceId) {\n      taskId\n      payload\n    }\n  }\n": typeof types.UnifiedWorkPushRequestsDocument,
+    "\n  mutation RecordUnifiedWorkPushResult($input: RecordUnifiedWorkPushResultInput!) {\n    recordUnifiedWorkPushResult(input: $input)\n  }\n": typeof types.RecordUnifiedWorkPushResultDocument,
     "\n  fragment FormSelectModels_Model on Model {\n    id\n    name\n  }\n": typeof types.FormSelectModels_ModelFragmentDoc,
     "\n  fragment FormSelectProjects_Project on Project {\n    id\n    name\n  }\n": typeof types.FormSelectProjects_ProjectFragmentDoc,
     "\n  fragment FormSelectSavedView_SavedView on SavedView {\n    id\n    name\n    thumbnailUrl\n  }\n": typeof types.FormSelectSavedView_SavedViewFragmentDoc,
@@ -683,6 +686,9 @@ const documents: Documents = {
     "\n  mutation FlowSetDefinitionActive($definitionId: ID!, $isActive: Boolean!) {\n    approvalMutations {\n      setDefinitionActive(definitionId: $definitionId, isActive: $isActive) {\n        id\n        isActive\n      }\n    }\n  }\n": types.FlowSetDefinitionActiveDocument,
     "\n  mutation FlowProcessTimeouts {\n    approvalMutations {\n      processTimeouts\n    }\n  }\n": types.FlowProcessTimeoutsDocument,
     "\n  mutation FlowStart($input: StartApprovalFlowInput!) {\n    approvalMutations {\n      start(input: $input) {\n        id\n      }\n    }\n  }\n": types.FlowStartDocument,
+    "\n  query UnifiedWorkClientConfig {\n    unifiedWorkClientConfig {\n      host\n      systemCode\n      token\n    }\n  }\n": types.UnifiedWorkClientConfigDocument,
+    "\n  query UnifiedWorkPushRequests($instanceId: ID!) {\n    unifiedWorkPushRequests(instanceId: $instanceId) {\n      taskId\n      payload\n    }\n  }\n": types.UnifiedWorkPushRequestsDocument,
+    "\n  mutation RecordUnifiedWorkPushResult($input: RecordUnifiedWorkPushResultInput!) {\n    recordUnifiedWorkPushResult(input: $input)\n  }\n": types.RecordUnifiedWorkPushResultDocument,
     "\n  fragment FormSelectModels_Model on Model {\n    id\n    name\n  }\n": types.FormSelectModels_ModelFragmentDoc,
     "\n  fragment FormSelectProjects_Project on Project {\n    id\n    name\n  }\n": types.FormSelectProjects_ProjectFragmentDoc,
     "\n  fragment FormSelectSavedView_SavedView on SavedView {\n    id\n    name\n    thumbnailUrl\n  }\n": types.FormSelectSavedView_SavedViewFragmentDoc,
@@ -1468,6 +1474,18 @@ export function graphql(source: "\n  mutation FlowProcessTimeouts {\n    approva
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation FlowStart($input: StartApprovalFlowInput!) {\n    approvalMutations {\n      start(input: $input) {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation FlowStart($input: StartApprovalFlowInput!) {\n    approvalMutations {\n      start(input: $input) {\n        id\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query UnifiedWorkClientConfig {\n    unifiedWorkClientConfig {\n      host\n      systemCode\n      token\n    }\n  }\n"): (typeof documents)["\n  query UnifiedWorkClientConfig {\n    unifiedWorkClientConfig {\n      host\n      systemCode\n      token\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query UnifiedWorkPushRequests($instanceId: ID!) {\n    unifiedWorkPushRequests(instanceId: $instanceId) {\n      taskId\n      payload\n    }\n  }\n"): (typeof documents)["\n  query UnifiedWorkPushRequests($instanceId: ID!) {\n    unifiedWorkPushRequests(instanceId: $instanceId) {\n      taskId\n      payload\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RecordUnifiedWorkPushResult($input: RecordUnifiedWorkPushResultInput!) {\n    recordUnifiedWorkPushResult(input: $input)\n  }\n"): (typeof documents)["\n  mutation RecordUnifiedWorkPushResult($input: RecordUnifiedWorkPushResultInput!) {\n    recordUnifiedWorkPushResult(input: $input)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

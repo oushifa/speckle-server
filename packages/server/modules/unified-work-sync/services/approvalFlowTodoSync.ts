@@ -1052,3 +1052,100 @@ export const scheduleApprovalFlowTodoSync = (params: {
 
   pendingSyncTimers.set(params.instanceId, timer)
 }
+
+/**
+ * Browser-side push fallback.
+ *
+ * The server may be deployed on a network that cannot reach the unified work
+ * platform while the user's browser can (and the other way around), so the
+ * frontend can POST the same payloads itself and report the outcome back.
+ * Only a static token can be handed out - username/password credentials must
+ * never reach the browser. The browser reuses UNIFIED_WORK_SYNC_HOST, so that
+ * address must also be reachable from the client network.
+ */
+
+export type UnifiedWorkBrowserPushConfig = {
+  host: string
+  systemCode: string
+  token: string
+}
+
+export type UnifiedWorkBrowserPushRequest = {
+  taskId: string
+  payload: UnifiedWorkPushPayload
+}
+
+export const getUnifiedWorkBrowserPushConfig =
+  (): UnifiedWorkBrowserPushConfig | null => {
+    const host = getUnifiedWorkSyncHost()
+    const token = getUnifiedWorkSyncToken()
+    if (!host || !token) return null
+
+    return {
+      host,
+      systemCode: getUnifiedWorkSyncSystemCode(),
+      token
+    }
+  }
+
+export const getUnifiedWorkBrowserPushRequests = async (params: {
+  instanceId: string
+  userId: string
+  isAdmin: boolean
+}): Promise<UnifiedWorkBrowserPushRequest[]> => {
+  const snapshot = await loadInstanceSnapshot(params.instanceId)
+  if (!snapshot) return []
+
+  const { desiredItems } = buildDesiredTasks(snapshot)
+  return desiredItems
+    .filter((item) => params.isAdmin || item.meta.approverId === params.userId)
+    .map((item) => ({
+      taskId: item.meta.taskId,
+      payload: item.payload
+    }))
+}
+
+export const recordUnifiedWorkBrowserPushResult = async (params: {
+  instanceId: string
+  taskId: string
+  userId: string
+  isAdmin: boolean
+  success: boolean
+  errorType?: string | null
+  errorMessage?: string | null
+  errorDetail?: Record<string, unknown> | null
+}): Promise<boolean> => {
+  const snapshot = await loadInstanceSnapshot(params.instanceId)
+  if (!snapshot) return false
+
+  // Recompute the expected tasks instead of trusting the client: only tasks that
+  // belong to the current step of this instance can be recorded.
+  const { desiredItems } = buildDesiredTasks(snapshot)
+  const item = desiredItems.find((entry) => entry.meta.taskId === params.taskId)
+  if (!item) return false
+  if (!params.isAdmin && item.meta.approverId !== params.userId) return false
+
+  await upsertUnifiedWorkSyncRecordFactory({ db })({
+    ...item.meta,
+    systemCode: item.payload.systemCode,
+    status: params.success
+      ? UnifiedWorkSyncStatus.Success
+      : UnifiedWorkSyncStatus.Failed,
+    errorType: params.success
+      ? null
+      : params.errorType?.trim() || 'BROWSER_PUSH_FAILED',
+    errorMessage: params.success ? null : params.errorMessage?.trim() || null,
+    errorDetail: params.success ? null : params.errorDetail || null
+  })
+
+  unifiedWorkSyncLogger.info(
+    {
+      instanceId: params.instanceId,
+      taskId: params.taskId,
+      success: params.success
+    },
+    '[WORK_SYNC] Recorded browser push result'
+  )
+
+  return true
+}
