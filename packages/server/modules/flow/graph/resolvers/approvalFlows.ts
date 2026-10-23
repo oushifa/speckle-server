@@ -37,7 +37,11 @@ import {
   publish
 } from '@/modules/shared/utils/subscriptions'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
-import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
+import {
+  scheduleApprovalFlowTodoSync,
+  syncApprovalFlowTodoToUnifiedWork
+} from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
+import { getUnifiedWorkSyncRecordForUserFactory } from '@/modules/unified-work-sync/repositories/unifiedWorkSyncRecords'
 
 const normalizeApprovalFlowResourceType = (resourceType?: string | null) => {
   if (resourceType === 'MODEL') return 'MODEL'
@@ -227,6 +231,13 @@ export default {
     },
     async steps(parent: { id: string }) {
       return await getApprovalFlowInstanceStepsFactory({ db })(parent.id)
+    },
+    async unifiedWorkPush(parent: { id: string }, _args: unknown, ctx: GraphQLContext) {
+      if (!ctx.userId) return null
+      return await getUnifiedWorkSyncRecordForUserFactory({ db })({
+        instanceId: parent.id,
+        userId: ctx.userId
+      })
     }
   },
   ApprovalFlowDefinition: {
@@ -655,6 +666,35 @@ export default {
 
       if (transferredCount > 0) await publishApprovalFlowTodoCountUpdated()
       return transferredCount
+    },
+    async retryUnifiedWorkPush(
+      _parent: unknown,
+      args: { instanceId: string },
+      ctx: GraphQLContext
+    ) {
+      const userId = ensureUserId(ctx)
+      const instance = await getApprovalFlowInstanceByIdFactory({ db })({
+        id: args.instanceId
+      })
+      if (!instance) throw new BadRequestError('Approval instance not found')
+
+      const currentStep = await getApprovalFlowCurrentStepFactory({ db })(
+        args.instanceId
+      )
+      const isAdmin = ctx.role === Roles.Server.Admin
+      const isCreator = instance.createdBy === userId
+      const isApprover =
+        !!currentStep && (currentStep.approverIds || []).includes(userId)
+      if (!isAdmin && !isCreator && !isApprover) {
+        throw new BadRequestError('You are not allowed to retry this todo push')
+      }
+
+      const result = await syncApprovalFlowTodoToUnifiedWork({
+        instanceId: args.instanceId,
+        reason: 'manual-retry'
+      })
+
+      return result.pushCount
     }
   }
 } as unknown as Resolvers

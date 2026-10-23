@@ -88,9 +88,17 @@
                   <DocumentTextIcon class="h-5 w-5" />
                 </div>
                 <div class="min-w-0">
-                  <h3 class="text-base font-semibold text-slate-900">
-                    {{ getFlowItemTitle(instance) }}
-                  </h3>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <h3 class="text-base font-semibold text-slate-900 truncate">
+                      {{ getFlowItemTitle(instance) }}
+                    </h3>
+                    <FlowPushBadge
+                      v-if="todoTab === 'pending'"
+                      :record="instance.unifiedWorkPush"
+                      :loading="retryingPushId === instance.id"
+                      @retry="retryPush(instance.id)"
+                    />
+                  </div>
                   <p
                     v-if="instance.resourceType === 'MODEL'"
                     class="mt-1 truncate text-xs text-slate-500"
@@ -418,6 +426,7 @@ import {
   CalculatorIcon
 } from '@heroicons/vue/24/outline'
 import { useApolloClient } from '@vue/apollo-composable'
+import { gql } from '@apollo/client/core'
 import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
@@ -425,6 +434,7 @@ import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
 import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
+import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
 import DynamicApprovalBasicField from '~/components/flow/fields/DynamicApprovalBasicField.vue'
 import type { DynamicFormSchemaField } from '~/components/flow/fields/types'
 import {
@@ -434,6 +444,14 @@ import {
   type FlowListItem
 } from '~/components/flow/flowInstances'
 import type { WorkbenchReviewUpdatesQuery } from '~~/lib/common/generated/gql/graphql'
+
+const retryUnifiedWorkPushMutation = gql`
+  mutation WorkbenchRetryUnifiedWorkPush($instanceId: ID!) {
+    approvalMutations {
+      retryUnifiedWorkPush(instanceId: $instanceId)
+    }
+  }
+`
 
 type DashboardStatsResponse = {
   projectCount: number
@@ -617,6 +635,7 @@ const dashboardStats = ref<DashboardStatsResponse>({
   workValuationCount: 0
 })
 const todoTab = ref<WorkbenchFlowTab>('pending')
+const retryingPushId = ref<string | null>(null)
 const recentUpdates = ref<UpdateItem[]>([])
 const totalReviewableModelCount = ref(0)
 const isStartDialogOpen = ref(false)
@@ -867,9 +886,9 @@ const todoTabQueryConfig: Record<
   }
 }
 
-const loadTodoList = async (tab: WorkbenchFlowTab) => {
+const loadTodoList = async (tab: WorkbenchFlowTab, options?: { silent?: boolean }) => {
   const state = flowTabStates[tab]
-  state.loading = true
+  if (!options?.silent) state.loading = true
   try {
     const config = todoTabQueryConfig[tab]
     const res = await apollo.query<
@@ -895,7 +914,35 @@ const loadTodoList = async (tab: WorkbenchFlowTab) => {
     state.loaded = false
     notify('加载失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
-    state.loading = false
+    if (!options?.silent) state.loading = false
+  }
+}
+
+const retryPush = async (instanceId: string) => {
+  if (retryingPushId.value) return
+  retryingPushId.value = instanceId
+  try {
+    const res = await apollo.mutate<
+      { approvalMutations: { retryUnifiedWorkPush: number } },
+      { instanceId: string }
+    >({
+      mutation: retryUnifiedWorkPushMutation,
+      variables: { instanceId },
+      fetchPolicy: 'no-cache'
+    })
+    const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
+    notify(
+      pushed > 0 ? '重新推送成功' : '重新推送完成',
+      pushed > 0
+        ? `已成功推送 ${pushed} 条待办`
+        : '本次没有待办被推送，请展开失败原因排查',
+      pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+    )
+    await loadTodoList(todoTab.value, { silent: true })
+  } catch (e) {
+    notify('重新推送失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    retryingPushId.value = null
   }
 }
 

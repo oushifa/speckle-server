@@ -170,6 +170,15 @@
                 {{ actionHint }}
               </div>
 
+              <div v-if="instance" class="mt-3 flex items-center gap-2">
+                <span class="text-body-xs text-foreground-2">第三方待办：</span>
+                <FlowPushBadge
+                  :record="instance.unifiedWorkPush"
+                  :loading="retryingPush"
+                  @retry="retryPush"
+                />
+              </div>
+
               <div v-if="canComment" class="mt-4">
                 <FormTextArea
                   v-model="reviewComment"
@@ -237,6 +246,8 @@ import { useQuery, useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
+import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
+import type { UnifiedWorkPushRecord } from '~/components/flow/flowInstances'
 
 useHead({ title: '处理流程' })
 
@@ -298,6 +309,7 @@ type FlowInstanceDetail = {
   } | null
   actions: FlowAction[]
   steps: FlowStep[]
+  unifiedWorkPush?: UnifiedWorkPushRecord | null
 }
 
 type FlowDetailQueryResult = {
@@ -375,6 +387,23 @@ const flowDetailQuery = gql`
         dueAt
         completedAt
       }
+      unifiedWorkPush {
+        id
+        instanceId
+        taskId
+        systemCode
+        stepIndex
+        approverId
+        account
+        status
+        errorType
+        errorMessage
+        errorDetail
+        attempts
+        lastAttemptAt
+        createdAt
+        updatedAt
+      }
     }
   }
 ` as unknown as TypedDocumentNode<FlowDetailQueryResult, FlowDetailQueryVariables>
@@ -412,6 +441,14 @@ const cancelMutation = gql`
   }
 `
 
+const retryUnifiedWorkPushMutation = gql`
+  mutation FlowDetailRetryUnifiedWorkPush($instanceId: ID!) {
+    approvalMutations {
+      retryUnifiedWorkPush(instanceId: $instanceId)
+    }
+  }
+`
+
 const route = useRoute()
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
@@ -419,6 +456,7 @@ const { userId } = useActiveUser()
 
 const instanceId = computed(() => String(route.params.id || ''))
 const mutating = ref(false)
+const retryingPush = ref(false)
 const reviewComment = ref('')
 
 const { result, loading, refetch } = useQuery<
@@ -620,6 +658,34 @@ const stepLineClass = (status?: string | null) => {
   if (status === 'APPROVED') return 'bg-success/40'
   if (status === 'REJECTED' || status === 'CANCELED') return 'bg-danger/40'
   return 'bg-outline-3'
+}
+
+const retryPush = async () => {
+  if (!instance.value || retryingPush.value) return
+  retryingPush.value = true
+  try {
+    const res = await apollo.mutate<
+      { approvalMutations: { retryUnifiedWorkPush: number } },
+      { instanceId: string }
+    >({
+      mutation: retryUnifiedWorkPushMutation,
+      variables: { instanceId: instance.value.id },
+      fetchPolicy: 'no-cache'
+    })
+    const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
+    notify(
+      pushed > 0 ? '重新推送成功' : '重新推送完成',
+      pushed > 0
+        ? `已成功推送 ${pushed} 条待办`
+        : '本次没有待办被推送，请展开失败原因排查',
+      pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+    )
+    await refetch()
+  } catch (e) {
+    notify('重新推送失败', (e as Error).message, ToastNotificationType.Danger)
+  } finally {
+    retryingPush.value = false
+  }
 }
 
 const onAction = (payload: {

@@ -8,8 +8,14 @@ import {
   Users
 } from '@/modules/core/dbSchema'
 import { ApprovalFlowActionType } from '@/modules/flow/repositories/approvalFlows'
-import { buildAbsoluteFrontendUrlFromPath } from '@/modules/core/helpers/routeHelper'
 import {
+  UnifiedWorkSyncStatus,
+  deleteUnifiedWorkSyncRecordFactory,
+  upsertUnifiedWorkSyncRecordFactory
+} from '@/modules/unified-work-sync/repositories/unifiedWorkSyncRecords'
+import {
+  getFrontendOrigin,
+  getServerOrigin,
   getUnifiedWorkSyncAccount,
   getUnifiedWorkSyncHost,
   getUnifiedWorkSyncPassword,
@@ -99,6 +105,32 @@ type UnifiedWorkPushPayload = {
   reviewTime: string
   route: string
   extraData: Record<string, unknown>
+}
+
+/** Everything we need in order to persist a per-approver push result. */
+type UnifiedWorkTaskMeta = {
+  instanceId: string
+  taskId: string
+  stepIndex: number
+  approverId: string | null
+  account: string | null
+}
+
+type UnifiedWorkDesiredItem = {
+  payload: UnifiedWorkPushPayload
+  meta: UnifiedWorkTaskMeta
+}
+
+type UnifiedWorkSkippedItem = {
+  meta: UnifiedWorkTaskMeta
+  errorType: string
+  errorMessage: string
+}
+
+export type UnifiedWorkSyncResult = {
+  pushCount: number
+  failCount: number
+  removeCount: number
 }
 
 const isUnifiedWorkSyncEnabled = () => Boolean(getUnifiedWorkSyncHost())
@@ -311,14 +343,30 @@ const buildRoute = (snapshot: InstanceSnapshot) => {
 export const buildApprovalFlowHandleRoute = (instanceId: string) =>
   `/flow/detail/${instanceId}`
 
-const buildApprovalFlowHandleLink = (instanceId: string) => {
-  const route = buildApprovalFlowHandleRoute(instanceId)
+/**
+ * Origin of the deployment that is currently running the sync, so the link always
+ * points at that very system (e.g. pushing from http://47.100.77.97:64482 yields
+ * a link on the same host). `FRONTEND_ORIGIN` wins, `CANONICAL_URL` is the fallback.
+ */
+const resolvePublicOrigin = () => {
   try {
-    return buildAbsoluteFrontendUrlFromPath(route)
+    return getFrontendOrigin()
   } catch {
-    // FRONTEND_ORIGIN missing/misconfigured - keep the relative route instead of
-    // failing the whole sync
-    return route
+    try {
+      return getServerOrigin()
+    } catch {
+      return ''
+    }
+  }
+}
+
+const buildApprovalFlowHandleLink = (instanceId: string) => {
+  const origin = resolvePublicOrigin()
+  if (!origin) return null
+  try {
+    return new URL(buildApprovalFlowHandleRoute(instanceId), origin).toString()
+  } catch {
+    return null
   }
 }
 
@@ -475,7 +523,8 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
 
   if (!currentStep || snapshot.instance.status !== 'PENDING') {
     return {
-      desiredItems: [] as UnifiedWorkPushPayload[],
+      desiredItems: [] as UnifiedWorkDesiredItem[],
+      skippedItems: [] as UnifiedWorkSkippedItem[],
       candidateTaskIds
     }
   }
@@ -500,6 +549,8 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
 
   const title = buildTaskTitle(snapshot)
   const route = buildRoute(snapshot)
+  // Link on the deployment that is pushing right now (FRONTEND_ORIGIN / CANONICAL_URL)
+  const handleLink = buildApprovalFlowHandleLink(snapshot.instance.id)
   const creatorUser = snapshot.userMap.get(snapshot.instance.createdBy)
   // Whoever initiated the flow owns the todo's creator field. `config.account`
   // (UNIFIED_WORK_SYNC_ACCOUNT) is a last-resort fallback so a push still goes out.
@@ -518,7 +569,8 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
   const pendingSince = currentStep.startedAt || snapshot.instance.createdAt
   const createTime = toIsoString(pendingSince)
   const reviewTime = createTime
-  const desiredItems: UnifiedWorkPushPayload[] = []
+  const desiredItems: UnifiedWorkDesiredItem[] = []
+  const skippedItems: UnifiedWorkSkippedItem[] = []
 
   for (const assigneeId of pendingAssigneeIds) {
     const assigneeUser = snapshot.userMap.get(assigneeId)
@@ -536,6 +588,16 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
         '[WORK_SYNC] Approver has no unified work account mapping, falling back to the configured account'
       )
     }
+
+    const taskId = buildTaskId(snapshot.instance.id, currentStep.stepIndex, assigneeId)
+    const meta: UnifiedWorkTaskMeta = {
+      instanceId: snapshot.instance.id,
+      taskId,
+      stepIndex: currentStep.stepIndex,
+      approverId: assigneeId,
+      account: approverAccount || null
+    }
+
     if (!approverAccount) {
       unifiedWorkSyncLogger.warn(
         {
@@ -545,50 +607,78 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
         },
         '[WORK_SYNC] Skip unified work item because no approver account could be resolved at all'
       )
+      skippedItems.push({
+        meta,
+        errorType: 'NO_ACCOUNT',
+        errorMessage: 'No unified work account could be resolved for the approver'
+      })
+      continue
+    }
+
+    if (!creatorAccount) {
+      unifiedWorkSyncLogger.warn(
+        {
+          instanceId: snapshot.instance.id,
+          createdBy: snapshot.instance.createdBy
+        },
+        '[WORK_SYNC] Skip unified work item because no creator account could be resolved at all'
+      )
+      skippedItems.push({
+        meta,
+        errorType: 'NO_CREATOR_ACCOUNT',
+        errorMessage: 'No unified work account could be resolved for the flow initiator'
+      })
       continue
     }
 
     desiredItems.push({
-      systemCode: config.systemCode,
-      taskId: buildTaskId(snapshot.instance.id, currentStep.stepIndex, assigneeId),
-      title,
-      creator: creatorAccount,
-      assignee: approverAccount,
-      reviewer: [{ user: approverAccount, status: 'pending' }],
-      createTime,
-      reviewTime,
-      route,
-      extraData: {
-        // Marks which system this todo originates from (BIM)
-        source: config.systemCode,
-        // Absolute URL to our single flow-handling page
-        link: buildApprovalFlowHandleLink(snapshot.instance.id),
-        projectId: snapshot.instance.projectId,
-        projectName: snapshot.projectName,
-        resourceType: snapshot.instance.resourceType,
-        resourceId: snapshot.instance.resourceId,
-        flowName: snapshot.flowName,
-        templateId: snapshot.templateId,
-        instanceId: snapshot.instance.id,
-        currentStep: currentStep.stepIndex,
-        dueAt: currentStep.dueAt ? currentStep.dueAt.getTime() : null,
-        status: snapshot.instance.status,
-        creatorId: snapshot.instance.createdBy,
-        creatorAccount,
-        approverId: assigneeId,
-        approverName: assigneeUser?.name || null,
-        approverAccount
-      }
+      payload: {
+        systemCode: config.systemCode,
+        taskId,
+        title,
+        creator: creatorAccount,
+        assignee: approverAccount,
+        reviewer: [{ user: approverAccount, status: 'pending' }],
+        createTime,
+        reviewTime,
+        route,
+        extraData: {
+          // Marks which system this todo originates from (BIM)
+          source: config.systemCode,
+          // Absolute URL on the pushing deployment's own origin
+          ...(handleLink ? { link: handleLink } : {}),
+          projectId: snapshot.instance.projectId,
+          projectName: snapshot.projectName,
+          resourceType: snapshot.instance.resourceType,
+          resourceId: snapshot.instance.resourceId,
+          flowName: snapshot.flowName,
+          templateId: snapshot.templateId,
+          instanceId: snapshot.instance.id,
+          currentStep: currentStep.stepIndex,
+          dueAt: currentStep.dueAt ? currentStep.dueAt.getTime() : null,
+          status: snapshot.instance.status,
+          creatorId: snapshot.instance.createdBy,
+          creatorAccount,
+          approverId: assigneeId,
+          approverName: assigneeUser?.name || null,
+          approverAccount
+        }
+      },
+      meta
     })
   }
 
   return {
     desiredItems,
+    skippedItems,
     candidateTaskIds
   }
 }
 
-const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) => {
+const removeUnifiedWorkItem = async (params: {
+  token: string
+  taskId: string
+}): Promise<unknown> => {
   const config = getSyncConfig()
   const response = await axios.post(
     `${config.host}/api/v1/unifiedWork/removeWorkItem`,
@@ -604,7 +694,7 @@ const removeUnifiedWorkItem = async (params: { token: string; taskId: string }) 
       timeout: REQUEST_TIMEOUT_MS
     }
   )
-  return response.data
+  return response.data as unknown
 }
 
 /**
@@ -617,7 +707,7 @@ const isRemoveSuccess = (data: unknown) =>
 const pushUnifiedWorkItem = async (params: {
   token: string
   payload: UnifiedWorkPushPayload
-}) => {
+}): Promise<unknown> => {
   const config = getSyncConfig()
   const response = await axios.post(
     `${config.host}/api/v1/unifiedWork/work-item/push`,
@@ -630,13 +720,19 @@ const pushUnifiedWorkItem = async (params: {
       timeout: REQUEST_TIMEOUT_MS
     }
   )
-  return response.data
+  return response.data as unknown
 }
 
 export const syncApprovalFlowTodoToUnifiedWork = async (params: {
   instanceId: string
   reason: string
-}) => {
+}): Promise<UnifiedWorkSyncResult> => {
+  const result: UnifiedWorkSyncResult = {
+    pushCount: 0,
+    failCount: 0,
+    removeCount: 0
+  }
+
   if (!isUnifiedWorkSyncEnabled()) {
     unifiedWorkSyncLogger.debug(
       {
@@ -645,7 +741,7 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       },
       '[WORK_SYNC] Unified work sync is disabled (UNIFIED_WORK_SYNC_HOST not set)'
     )
-    return
+    return result
   }
 
   unifiedWorkSyncLogger.info(
@@ -665,14 +761,46 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       },
       '[WORK_SYNC] Skip unified work sync because approval flow instance was not found'
     )
-    return
+    return result
   }
 
-  const { desiredItems, candidateTaskIds } = buildDesiredTasks(snapshot)
-  const desiredTaskIds = new Set(desiredItems.map((item) => item.taskId))
+  const config = getSyncConfig()
+  const { desiredItems, skippedItems, candidateTaskIds } = buildDesiredTasks(snapshot)
+  const desiredTaskIds = new Set(desiredItems.map((item) => item.meta.taskId))
   const removableTaskIds = candidateTaskIds.filter(
     (taskId) => !desiredTaskIds.has(taskId)
   )
+
+  const upsertRecord = upsertUnifiedWorkSyncRecordFactory({ db })
+  const deleteRecord = deleteUnifiedWorkSyncRecordFactory({ db })
+
+  // Persisting the status must never break the sync itself.
+  const recordResult = async (record: Parameters<typeof upsertRecord>[0]) => {
+    try {
+      await upsertRecord(record)
+    } catch (err) {
+      unifiedWorkSyncLogger.error(
+        {
+          error: formatErrorDetails(err),
+          instanceId: params.instanceId,
+          taskId: record.taskId
+        },
+        '[WORK_SYNC] Failed to persist unified work push status'
+      )
+    }
+  }
+
+  for (const skipped of skippedItems) {
+    result.failCount += 1
+    await recordResult({
+      ...skipped.meta,
+      systemCode: config.systemCode,
+      status: UnifiedWorkSyncStatus.Failed,
+      errorType: skipped.errorType,
+      errorMessage: skipped.errorMessage,
+      errorDetail: null
+    })
+  }
 
   if (!desiredItems.length && !removableTaskIds.length) {
     unifiedWorkSyncLogger.info(
@@ -684,11 +812,29 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       },
       '[WORK_SYNC] Skip unified work sync because there are no push or remove actions needed'
     )
-    return
+    return result
   }
 
   const token = await getAuthToken()
   if (!token) {
+    const authDetail = {
+      host: config.host,
+      hasStaticToken: Boolean(config.token),
+      hasCredentials: Boolean(config.username && config.password),
+      systemCode: config.systemCode
+    }
+    for (const item of desiredItems) {
+      result.failCount += 1
+      await recordResult({
+        ...item.meta,
+        systemCode: config.systemCode,
+        status: UnifiedWorkSyncStatus.Failed,
+        errorType: 'AUTH_UNAVAILABLE',
+        errorMessage:
+          'Could not obtain a unified work access token (check UNIFIED_WORK_SYNC_TOKEN or the configured credentials)',
+        errorDetail: authDetail
+      })
+    }
     unifiedWorkSyncLogger.warn(
       {
         instanceId: params.instanceId,
@@ -696,10 +842,9 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
       },
       '[WORK_SYNC] Skip unified work sync because auth token is unavailable'
     )
-    return
+    return result
   }
 
-  let removedCount = 0
   for (const taskId of removableTaskIds) {
     try {
       const res = await removeUnifiedWorkItem({
@@ -707,7 +852,19 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
         taskId
       })
       if (isRemoveSuccess(res)) {
-        removedCount += 1
+        result.removeCount += 1
+        try {
+          await deleteRecord({ taskId })
+        } catch (err) {
+          unifiedWorkSyncLogger.error(
+            {
+              error: formatErrorDetails(err),
+              instanceId: params.instanceId,
+              taskId
+            },
+            '[WORK_SYNC] Failed to delete unified work push status after removal'
+          )
+        }
         unifiedWorkSyncLogger.info(
           {
             instanceId: params.instanceId,
@@ -742,11 +899,21 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
     }
   }
 
-  for (const payload of desiredItems) {
+  for (const item of desiredItems) {
+    const { payload, meta } = item
     try {
       const res = await pushUnifiedWorkItem({
         token,
         payload
+      })
+      result.pushCount += 1
+      await recordResult({
+        ...meta,
+        systemCode: payload.systemCode,
+        status: UnifiedWorkSyncStatus.Success,
+        errorType: null,
+        errorMessage: null,
+        errorDetail: null
       })
       unifiedWorkSyncLogger.info(
         {
@@ -756,12 +923,25 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
           assignee: payload.assignee,
           title: payload.title,
           route: payload.route,
+          link: payload.extraData.link || null,
           responseData: res
         },
         '[WORK_SYNC] Successfully pushed unified work item'
       )
     } catch (err) {
       const errorDetails = formatErrorDetails(err)
+      result.failCount += 1
+      await recordResult({
+        ...meta,
+        systemCode: payload.systemCode,
+        status: UnifiedWorkSyncStatus.Failed,
+        errorType:
+          typeof errorDetails.status === 'number'
+            ? `HTTP_${errorDetails.status}`
+            : errorDetails.code || 'UNKNOWN',
+        errorMessage: errorDetails.message,
+        errorDetail: errorDetails as unknown as Record<string, unknown>
+      })
       unifiedWorkSyncLogger.error(
         {
           error: errorDetails,
@@ -780,14 +960,17 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
     {
       instanceId: params.instanceId,
       reason: params.reason,
-      pushCount: desiredItems.length,
-      removeCount: removedCount,
+      pushCount: result.pushCount,
+      failCount: result.failCount,
+      removeCount: result.removeCount,
       attemptedRemoveCount: removableTaskIds.length,
-      pushedTaskIds: desiredItems.map((item) => item.taskId),
+      pushedTaskIds: desiredItems.map((item) => item.meta.taskId),
       removedTaskIds: removableTaskIds
     },
     '[WORK_SYNC] Completed unified work sync for approval flow instance'
   )
+
+  return result
 }
 
 const runScheduledSync = async (params: {

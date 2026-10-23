@@ -691,6 +691,24 @@ export const ApprovalFlowInstanceStepFormSnapshots = buildTableHelper(
   ]
 )
 
+export const UnifiedWorkSyncRecords = buildTableHelper('unified_work_sync_records', [
+  'id',
+  'instanceId',
+  'taskId',
+  'systemCode',
+  'stepIndex',
+  'approverId',
+  'account',
+  'status',
+  'errorType',
+  'errorMessage',
+  'errorDetail',
+  'attempts',
+  'lastAttemptAt',
+  'createdAt',
+  'updatedAt'
+])
+
 export const Branches = buildTableHelper('branches', [
   'id',
   'streamId',

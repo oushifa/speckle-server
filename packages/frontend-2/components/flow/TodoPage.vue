@@ -19,8 +19,15 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div>
             <div class="text-body-xs text-foreground-2">名称</div>
-            <div class="text-body-sm font-medium truncate">
-              {{ instance.definition?.name || '未命名流程' }}
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="text-body-sm font-medium truncate">
+                {{ instance.definition?.name || '未命名流程' }}
+              </div>
+              <FlowPushBadge
+                :record="instance.unifiedWorkPush"
+                :loading="retryingId === instance.id"
+                @retry="retryPush(instance.id)"
+              />
             </div>
             <div
               v-if="instance.resourceType === 'MODEL'"
@@ -57,14 +64,29 @@
 </template>
 
 <script setup lang="ts">
+import { gql } from '@apollo/client/core'
 import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import FlowPushBadge from './FlowPushBadge.vue'
 import {
   flowInstancesQuery,
   type FlowInstancesQueryResult,
   type FlowInstancesQueryVariables,
   type FlowListItem
 } from './flowInstances'
+
+const retryUnifiedWorkPushMutation = gql`
+  mutation FlowRetryUnifiedWorkPush($instanceId: ID!) {
+    approvalMutations {
+      retryUnifiedWorkPush(instanceId: $instanceId)
+    }
+  }
+`
+
+type RetryUnifiedWorkPushResult = {
+  approvalMutations: { retryUnifiedWorkPush: number }
+}
+type RetryUnifiedWorkPushVariables = { instanceId: string }
 
 defineEmits<{
   (e: 'open-instance', instance: FlowListItem): void
@@ -74,6 +96,7 @@ const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 
 const loading = ref(false)
+const retryingId = ref<string | null>(null)
 const instances = ref<FlowListItem[]>([])
 const cursor = ref<string | null>(null)
 const totalCount = ref(0)
@@ -108,8 +131,11 @@ const getCurrentApprovers = (instance: FlowListItem) => {
   return step.approverIds.length ? step.approverIds.join('、') : '任意审批人'
 }
 
-const loadInstances = async (nextCursor?: string | null) => {
-  loading.value = true
+const loadInstances = async (
+  nextCursor?: string | null,
+  options?: { silent?: boolean }
+) => {
+  if (!options?.silent) loading.value = true
   try {
     const res = await apollo.query<
       FlowInstancesQueryResult,
@@ -137,12 +163,45 @@ const loadInstances = async (nextCursor?: string | null) => {
     }
     notifyLoadError(e)
   } finally {
-    loading.value = false
+    if (!options?.silent) loading.value = false
   }
 }
 
 const refresh = async () => {
   await loadInstances()
+}
+
+const retryPush = async (instanceId: string) => {
+  if (retryingId.value) return
+  retryingId.value = instanceId
+  try {
+    const res = await apollo.mutate<
+      RetryUnifiedWorkPushResult,
+      RetryUnifiedWorkPushVariables
+    >({
+      mutation: retryUnifiedWorkPushMutation,
+      variables: { instanceId },
+      fetchPolicy: 'no-cache'
+    })
+    const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
+    triggerNotification({
+      title: pushed > 0 ? '重新推送成功' : '重新推送完成',
+      description:
+        pushed > 0
+          ? `已成功推送 ${pushed} 条待办`
+          : '本次没有待办被推送，请展开失败原因排查',
+      type: pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+    })
+    await loadInstances(null, { silent: true })
+  } catch (e) {
+    triggerNotification({
+      title: '重新推送失败',
+      description: (e as Error).message,
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    retryingId.value = null
+  }
 }
 
 defineExpose({ refresh })

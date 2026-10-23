@@ -97,6 +97,29 @@ type ApprovalFlowInstanceStep {
   createdAt: DateTime!
 }
 
+enum UnifiedWorkPushStatus {
+  SUCCESS
+  FAILED
+}
+
+type UnifiedWorkPushRecord {
+  id: ID!
+  instanceId: ID!
+  taskId: String!
+  systemCode: String!
+  stepIndex: Int!
+  approverId: ID
+  account: String
+  status: UnifiedWorkPushStatus!
+  errorType: String
+  errorMessage: String
+  errorDetail: JSONObject
+  attempts: Int!
+  lastAttemptAt: DateTime!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 type ApprovalFlowInstance {
   id: ID!
   definitionId: ID
@@ -118,6 +141,7 @@ type ApprovalFlowInstance {
   updatedAt: DateTime!
   actions: [ApprovalFlowAction!]!
   steps: [ApprovalFlowInstanceStep!]!
+  unifiedWorkPush: UnifiedWorkPushRecord
 }
 
 type ApprovalFlowFormField {
@@ -246,6 +270,7 @@ type ApprovalMutations {
   resetToUnsubmitted(input: ResetApprovalFlowToUnsubmittedInput!): ApprovalFlowInstance!
   transferAssignee(input: TransferApprovalFlowAssigneeInput!): Int!
     @hasServerRole(role: SERVER_ADMIN)
+  retryUnifiedWorkPush(instanceId: ID!): Int!
   processTimeouts: Int!
 }
 

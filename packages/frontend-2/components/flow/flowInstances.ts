@@ -1,6 +1,24 @@
 import type { TypedDocumentNode } from '@apollo/client/core'
 import { gql } from '@apollo/client/core'
 
+export type UnifiedWorkPushRecord = {
+  id: string
+  instanceId: string
+  taskId: string
+  systemCode: string
+  stepIndex: number
+  approverId?: string | null
+  account?: string | null
+  status: string
+  errorType?: string | null
+  errorMessage?: string | null
+  errorDetail?: Record<string, unknown> | null
+  attempts: number
+  lastAttemptAt: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type FlowListItem = {
   id: string
   projectId?: string | null
@@ -15,6 +33,7 @@ export type FlowListItem = {
   createdByUser?: { id: string; name: string } | null
   createdAt: string
   updatedAt: string
+  unifiedWorkPush?: UnifiedWorkPushRecord | null
   definition?: {
     id: string
     name: string
@@ -144,6 +163,23 @@ export const flowInstancesQuery = gql`
           startedAt
           dueAt
           completedAt
+        }
+        unifiedWorkPush {
+          id
+          instanceId
+          taskId
+          systemCode
+          stepIndex
+          approverId
+          account
+          status
+          errorType
+          errorMessage
+          errorDetail
+          attempts
+          lastAttemptAt
+          createdAt
+          updatedAt
         }
       }
     }
