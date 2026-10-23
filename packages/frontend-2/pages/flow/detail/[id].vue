@@ -1,6 +1,156 @@
 <template>
   <div class="min-h-screen w-full bg-foundation p-4 md:p-8">
-    <div v-if="loading" class="text-body-sm text-foreground-2">加载中...</div>
+    <!-- 第三方免登中 -->
+    <div
+      v-if="isTokenLoggingIn"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foundation overflow-hidden"
+    >
+      <!-- 环境光渐变背景 -->
+      <div
+        class="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-primary/10 rounded-full blur-[100px] opacity-70"
+      ></div>
+      <div
+        class="pointer-events-none absolute -bottom-20 right-1/4 w-[400px] h-[300px] bg-primary/5 rounded-full blur-[90px] opacity-50"
+      ></div>
+
+      <div
+        class="relative w-full max-w-lg rounded-3xl border border-outline-3 bg-foundation/90 backdrop-blur-xl p-8 md:p-10 shadow-2xl shadow-primary/5 text-center flex flex-col items-center"
+      >
+        <!-- 顶部微状态胶囊 -->
+        <div
+          class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-muted text-body-2xs font-medium text-primary mb-6"
+        >
+          <span class="relative flex h-2 w-2">
+            <span
+              class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"
+            ></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          <span>第三方单点免密通道</span>
+        </div>
+
+        <!-- 视觉徽章 -->
+        <div class="relative mb-6">
+          <div
+            class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/20 via-primary/10 to-primary/5 border border-primary/25 shadow-lg shadow-primary/15 flex items-center justify-center backdrop-blur-sm"
+          >
+            <LockClosedIcon class="w-8 h-8 text-primary animate-pulse" />
+          </div>
+          <div
+            class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-foundation border-2 border-primary/30 flex items-center justify-center shadow"
+          >
+            <CommonLoadingIcon class="w-4 h-4 text-primary animate-spin" />
+          </div>
+        </div>
+
+        <!-- 文字层级 -->
+        <h2
+          class="text-heading-base md:text-heading-lg font-bold text-foreground tracking-tight"
+        >
+          正在建立安全登录会话...
+        </h2>
+        <p class="text-body-xs text-foreground-2 mt-2 max-w-sm leading-relaxed">
+          已成功接收第三方待办凭据，正在验证用户身份并加载审批流程
+        </p>
+
+        <!-- 动态动效进度线 -->
+        <div class="w-full max-w-xs mt-6">
+          <div
+            class="h-1.5 w-full bg-outline-3/60 rounded-full overflow-hidden relative"
+          >
+            <div
+              class="absolute inset-0 h-full w-1/2 bg-gradient-to-r from-primary/30 via-primary to-primary/30 rounded-full animate-indeterminate"
+            ></div>
+          </div>
+        </div>
+
+        <!-- 底部安全提示 -->
+        <div
+          class="mt-8 pt-5 border-t border-outline-3/60 w-full flex items-center justify-center gap-3 text-body-2xs text-foreground-3"
+        >
+          <span class="flex items-center gap-1.5">
+            <ShieldCheckIcon class="w-4 h-4 text-success" />
+            安全加密通道
+          </span>
+          <span>•</span>
+          <span>SSO Token 鉴权</span>
+          <span>•</span>
+          <span class="font-mono">#{{ instanceId }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 第三方免登失败 -->
+    <div
+      v-else-if="tokenLoginStatus === TokenLoginStatus.Failed"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foundation overflow-hidden"
+    >
+      <div
+        class="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-danger/10 rounded-full blur-[100px] opacity-70"
+      ></div>
+
+      <div
+        class="relative w-full max-w-lg rounded-3xl border border-danger/25 bg-foundation/90 backdrop-blur-xl p-8 md:p-10 shadow-2xl shadow-danger/5 text-center flex flex-col items-center"
+      >
+        <!-- 顶部微状态胶囊 -->
+        <div
+          class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-danger-muted border border-danger/20 text-body-2xs font-medium text-danger mb-6"
+        >
+          <ExclamationTriangleIcon class="w-3.5 h-3.5" />
+          <span>第三方免登验证失败</span>
+        </div>
+
+        <!-- 视觉徽章 -->
+        <div class="relative mb-6">
+          <div
+            class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-danger/20 via-danger/10 to-danger/5 border border-danger/30 shadow-lg shadow-danger/15 flex items-center justify-center backdrop-blur-sm"
+          >
+            <ShieldExclamationIcon class="w-9 h-9 text-danger" />
+          </div>
+        </div>
+
+        <h2
+          class="text-heading-base md:text-heading-lg font-bold text-foreground tracking-tight"
+        >
+          免登录凭证校验未通过
+        </h2>
+        <p class="text-body-xs text-foreground-2 mt-2 max-w-sm leading-relaxed">
+          第三方传入的跳转 Token 无法完成身份验证，可能已失效或无权访问该流程
+        </p>
+
+        <!-- 错误详情盒子 -->
+        <div
+          class="w-full rounded-2xl bg-danger-muted/30 border border-danger/20 p-4 mt-5 text-left"
+        >
+          <div class="text-body-2xs text-danger/80 font-medium">失败原因：</div>
+          <div class="text-body-xs text-danger font-mono break-all mt-1">
+            {{ tokenLoginError || 'Token 验证失败，请确认凭证是否有效或已过期' }}
+          </div>
+        </div>
+
+        <!-- 操作按钮组 -->
+        <div class="grid grid-cols-2 gap-3 w-full mt-6">
+          <FormButton size="lg" color="subtle" full-width @click="retryTokenLogin">
+            <ArrowPathIcon class="w-4 h-4 mr-1.5 inline" />
+            重新验证
+          </FormButton>
+          <FormButton size="lg" full-width :to="loginRoute">账号密码登录</FormButton>
+        </div>
+
+        <!-- 底部说明 -->
+        <div
+          class="mt-6 pt-5 border-t border-outline-3/60 w-full flex items-center justify-between text-body-2xs text-foreground-3"
+        >
+          <span>
+            流程 ID：
+            <span class="font-mono text-foreground-2">{{ instanceId }}</span>
+          </span>
+          <span>如持续失败请联系系统管理员</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="loading" class="text-body-sm text-foreground-2">加载中...</div>
 
     <div
       v-else-if="!instance"
@@ -245,6 +395,16 @@ import type { TypedDocumentNode } from '@apollo/client/core'
 import { useQuery, useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { CommonLoadingIcon, FormButton } from '@speckle/ui-components'
+import {
+  ExclamationTriangleIcon,
+  ShieldCheckIcon,
+  ShieldExclamationIcon,
+  LockClosedIcon,
+  ArrowPathIcon
+} from '@heroicons/vue/24/outline'
+import { loginRoute } from '~~/lib/common/helpers/route'
+import { useAuthManager } from '~/lib/auth/composables/auth'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
 import type { UnifiedWorkPushRecord } from '~/components/flow/flowInstances'
@@ -255,7 +415,7 @@ useHead({ title: '处理流程' })
 definePageMeta({
   // 独立页面：不套用后台布局（不要顶栏 / 侧边栏），只呈现流程本身
   layout: 'empty',
-  middleware: ['auth']
+  middleware: ['flow-detail-auth']
 })
 
 type FlowAction = {
@@ -450,11 +610,125 @@ const retryUnifiedWorkPushMutation = gql`
   }
 `
 
+const router = useRouter()
 const route = useRoute()
+const apiOrigin = useApiOrigin()
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { userId } = useActiveUser()
 const { pushFromBrowser } = useUnifiedWorkBrowserPush()
+const { loginWithToken } = useAuthManager()
+
+enum TokenLoginStatus {
+  Idle = 'idle',
+  LoggingIn = 'logging-in',
+  Success = 'success',
+  Failed = 'failed'
+}
+
+const parseTokenInput = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (!trimmed.includes('://')) return trimmed
+
+  try {
+    const parsedUrl = new URL(trimmed)
+    return parsedUrl.searchParams.get('token')?.trim() || trimmed
+  } catch {
+    return trimmed
+  }
+}
+
+const tokenFromQuery = computed(() => {
+  const token = route.query.token
+  if (Array.isArray(token)) return token[0] || ''
+  return (token as string) || ''
+})
+
+const tokenLoginStatus = ref<TokenLoginStatus>(
+  parseTokenInput(tokenFromQuery.value)
+    ? TokenLoginStatus.LoggingIn
+    : TokenLoginStatus.Idle
+)
+const tokenLoginError = ref('')
+
+const isTokenLoggingIn = computed(
+  () => tokenLoginStatus.value === TokenLoginStatus.LoggingIn
+)
+
+const runTokenLogin = async (inputToken: string) => {
+  const token = parseTokenInput(inputToken)
+  if (!token) {
+    tokenLoginStatus.value = TokenLoginStatus.Failed
+    tokenLoginError.value = 'URL 中的 Token 为空'
+    return
+  }
+
+  tokenLoginStatus.value = TokenLoginStatus.LoggingIn
+  tokenLoginError.value = ''
+
+  const requestHeaders = new Headers()
+  requestHeaders.append('Content-Type', 'application/json')
+  const requestBody = JSON.stringify({ token })
+  const loginUrl = new URL('/auth/sso/token-login', apiOrigin).toString()
+
+  try {
+    const ssoResponse = await fetch(loginUrl, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: requestBody,
+      redirect: 'follow'
+    }).then((res) => res.json())
+
+    const spToken = ssoResponse.token as string | undefined
+    if (!spToken) {
+      tokenLoginStatus.value = TokenLoginStatus.Failed
+      tokenLoginError.value =
+        ssoResponse.err ||
+        ssoResponse.message ||
+        'Token 验证失败，请检查 token 是否正确'
+      return
+    }
+
+    await loginWithToken({
+      token: spToken,
+      skipRedirect: true
+    })
+
+    tokenLoginStatus.value = TokenLoginStatus.Success
+
+    // 移除 URL 中的 token，防止刷新时重复校验或凭据泄漏
+    const nextQuery = { ...route.query }
+    delete nextQuery.token
+    await router.replace({ query: nextQuery })
+
+    await refetch()
+  } catch (error) {
+    tokenLoginStatus.value = TokenLoginStatus.Failed
+    tokenLoginError.value =
+      error instanceof Error ? error.message : '网络异常，请稍后重试'
+  }
+}
+
+const retryTokenLogin = () => {
+  const token = tokenFromQuery.value
+  if (token) {
+    void runTokenLogin(token)
+  }
+}
+
+onMounted(() => {
+  const token = tokenFromQuery.value
+  if (token) {
+    void runTokenLogin(token)
+  }
+})
+
+watch(tokenFromQuery, (newToken) => {
+  if (newToken && tokenLoginStatus.value !== TokenLoginStatus.LoggingIn) {
+    void runTokenLogin(newToken)
+  }
+})
 
 const instanceId = computed(() => String(route.params.id || ''))
 const mutating = ref(false)
@@ -465,7 +739,7 @@ const { result, loading, refetch } = useQuery<
   FlowDetailQueryResult,
   FlowDetailQueryVariables
 >(flowDetailQuery, () => ({ id: instanceId.value }), {
-  enabled: computed(() => !!instanceId.value),
+  enabled: computed(() => !!instanceId.value && !isTokenLoggingIn.value),
   fetchPolicy: 'network-only'
 })
 
@@ -763,3 +1037,21 @@ const submitReviewAction = async (payload: {
   }
 }
 </script>
+
+<style scoped>
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-indeterminate {
+  animation: indeterminate 1.8s ease-in-out infinite;
+}
+</style>
