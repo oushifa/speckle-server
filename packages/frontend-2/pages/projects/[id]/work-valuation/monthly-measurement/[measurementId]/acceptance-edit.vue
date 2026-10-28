@@ -657,6 +657,10 @@ import { FormButton } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { getMonthlyMeasurementPermissions } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import type {
+  ApprovalFlowInstance,
+  ApprovalFlowInstanceStep
+} from '~~/lib/common/generated/gql/graphql'
 
 type MonthlyMeasurementNode = {
   id: string
@@ -680,11 +684,11 @@ type MonthlyMeasurementNode = {
 const props = defineProps<{
   item: MonthlyMeasurementNode | null
   projectId: string
-  flowInstance?: any
+  flowInstance?: ApprovalFlowInstance | null
 }>()
 
 const apiOrigin = useApiOrigin()
-const { userId } = useActiveUser()
+const { userId, isAdmin } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
 const route = useRoute()
 
@@ -732,7 +736,9 @@ const isAdminOperationMode = computed(() => route.query.adminMode === '1')
 const isEditableAsStartApprover = computed(() => {
   const flow = props.flowInstance
   if (!flow || flow.status !== 'PENDING') return false
-  const pendingStep = flow.steps?.find((s: any) => s.status === 'PENDING')
+  const pendingStep = flow.steps?.find(
+    (s: ApprovalFlowInstanceStep) => s.status === 'PENDING'
+  )
   if (!pendingStep) return false
   const isStartStep =
     Number(pendingStep.stepIndex) === 0 || (pendingStep.name || '').trim() === '开始'
@@ -742,10 +748,12 @@ const isEditableAsStartApprover = computed(() => {
   return (pendingStep.approverIds || []).includes(currentUserId)
 })
 
+// 服务器管理员拥有与当前待办人相同的编辑权限，不受 URL mode 参数限制
 const isReadOnly = computed(
   () =>
-    (route.query.mode !== 'edit' && !isEditableAsStartApprover.value) ||
-    isAdminOperationMode.value
+    !isAdmin.value &&
+    ((route.query.mode !== 'edit' && !isEditableAsStartApprover.value) ||
+      isAdminOperationMode.value)
 )
 
 const permissions = computed(() => {
@@ -768,7 +776,7 @@ const permissions = computed(() => {
 
   if (isDraft) {
     const creatorId = props.item?.creator?.id
-    if (creatorId === currentUserId) {
+    if (creatorId === currentUserId || isAdmin.value) {
       result.contractor = true
     }
     return result
@@ -776,13 +784,14 @@ const permissions = computed(() => {
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
     const pendingStep = props.flowInstance.steps?.find(
-      (s: any) => s.status === 'PENDING'
+      (s: ApprovalFlowInstanceStep) => s.status === 'PENDING'
     )
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
       const approverIds = pendingStep.approverIds || []
 
-      if (approverIds.includes(currentUserId)) {
+      // 管理员视为当前待办人，按当前步骤获得相同角色权限
+      if (approverIds.includes(currentUserId) || isAdmin.value) {
         const isStep = (names: string[]) => names.includes(stepName)
         // 流程回退到开始节点后，待办步骤为「开始」，视为发起人重新填报，等同施工方权限
         const isStartStep = Number(pendingStep.stepIndex) === 0 || isStep(['开始'])
@@ -822,15 +831,16 @@ const isCurrentApprover = computed(() => {
   const currentUserId = userId.value
   if (!currentUserId) return false
 
+  // 服务器管理员拥有与当前待办人相同的编辑权限
+  if (isAdmin.value) return isDraft || props.flowInstance?.status === 'PENDING'
+
   if (isDraft) {
     const creatorId = props.item?.creator?.id
     return creatorId === currentUserId
   }
 
   if (props.flowInstance && props.flowInstance.status === 'PENDING') {
-    const pendingStep = props.flowInstance.steps?.find(
-      (s: any) => s.status === 'PENDING'
-    )
+    const pendingStep = props.flowInstance.steps?.find((s) => s.status === 'PENDING')
     if (pendingStep) {
       const approverIds = pendingStep.approverIds || []
       return approverIds.includes(currentUserId)

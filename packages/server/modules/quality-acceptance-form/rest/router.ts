@@ -786,10 +786,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 月度验工调整：多副表 REST 接口与权限/聚合逻辑
   // -------------------------------------------------------------
 
+  interface ApprovalFlowPendingStepRow {
+    id: string
+    instanceId: string
+    stepIndex: number
+    name: string
+    status: string
+    approverIds: string[] | null
+  }
+
   const checkEditableBeforeFlowEnd = async (
     projectDb: any,
     measurementId: string,
-    userId: string
+    userId: string,
+    isAdminOverride = false
   ) => {
     const measurement = await projectDb('monthly_measurements')
       .where('id', measurementId)
@@ -807,17 +817,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     }
 
     if (measurement.flowInstanceId) {
-      const pendingStep = await db('approval_flow_instance_steps')
+      const pendingStep = (await db('approval_flow_instance_steps')
         .where('instanceId', measurement.flowInstanceId)
         .andWhere('status', 'PENDING')
         .orderBy('stepIndex', 'asc')
-        .first()
+        .first()) as ApprovalFlowPendingStepRow | undefined
 
       if (!pendingStep) {
         throw new BadRequestError('当前无可编辑的审批流节点')
       }
 
-      if (pendingStep.approverIds && pendingStep.approverIds.length > 0) {
+      // 管理员拥有与当前待办人相同的权限：跳过「必须是当前步骤审批负责人」的校验，
+      // 但仍受当前步骤角色列（checkWritePermission 中步骤名匹配）约束
+      if (
+        !isAdminOverride &&
+        pendingStep.approverIds &&
+        pendingStep.approverIds.length > 0
+      ) {
         if (!pendingStep.approverIds.includes(userId)) {
           throw new BadRequestError('您不是当前步骤的审批负责人')
         }
@@ -843,12 +859,14 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       | 'investment'
       | 'contract'
       | 'leader'
-      | 'owner'
+      | 'owner',
+    isAdminOverride = false
   ) => {
     const { measurement, pendingStep } = await checkEditableBeforeFlowEnd(
       projectDb,
       measurementId,
-      userId
+      userId,
+      isAdminOverride
     )
     const isDraft = !measurement.approveStatus || measurement.approveStatus === 'START'
     if (isDraft) {
@@ -922,9 +940,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   const checkWriteBeforeFlowEndPermission = async (
     projectDb: any,
     measurementId: string,
-    userId: string
+    userId: string,
+    isAdminOverride = false
   ) => {
-    await checkEditableBeforeFlowEnd(projectDb, measurementId, userId)
+    await checkEditableBeforeFlowEnd(projectDb, measurementId, userId, isAdminOverride)
     return true
   }
 
@@ -2089,7 +2108,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const existing = await getMonthlyMeasurementDetailsFactory({ db: projectDb })(id)
       const roles = ['supervision', 'headquarters', 'investment', 'owner'] as const
-      const changedRoles = new Set<string>()
+      const changedRoles = new Set<(typeof roles)[number]>()
 
       for (const role of roles) {
         const opinionKey = `${role}Opinion`
@@ -2121,7 +2140,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       const requiredRole = Array.from(changedRoles)[0]
       if (requiredRole) {
-        await checkWritePermission(projectDb, id, userId, requiredRole as any)
+        await checkWritePermission(
+          projectDb,
+          id,
+          userId,
+          requiredRole,
+          hasServerAdminOverride(req)
+        )
       }
 
       for (const role of roles) {
@@ -2286,7 +2311,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           { key: 'contractPayAmt', role: 'contract' as const },
           { key: 'leaderPayAmt', role: 'leader' as const }
         ]
-        const changedRoles = new Set<string>()
+        const changedRoles = new Set<(typeof keys)[number]['role']>()
         for (const patch of patches) {
           const idKey = patch?.prepaymentItemId
           if (typeof idKey !== 'string' || !idKey.trim().length) continue
@@ -2307,7 +2332,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
         const requiredRole = Array.from(changedRoles)[0]
         if (requiredRole) {
-          await checkWritePermission(projectDb, id, userId, requiredRole as any)
+          await checkWritePermission(
+            projectDb,
+            id,
+            userId,
+            requiredRole,
+            hasServerAdminOverride(req)
+          )
         }
 
         const updatedMap = new Map<string, any>(existingMap)
@@ -2347,13 +2378,25 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
       // 承包人签字在未送审时由施工单位填写
       if ('contractorSign' in body) {
-        await checkWritePermission(projectDb, id, userId, 'contractor')
+        await checkWritePermission(
+          projectDb,
+          id,
+          userId,
+          'contractor',
+          hasServerAdminOverride(req)
+        )
         fieldsToSave.contractorSign = body.contractorSign
       }
 
       // 监理审定在监理步骤填写
       if ('supervisionSign' in body) {
-        await checkWritePermission(projectDb, id, userId, 'supervision')
+        await checkWritePermission(
+          projectDb,
+          id,
+          userId,
+          'supervision',
+          hasServerAdminOverride(req)
+        )
         fieldsToSave.supervisionSign = body.supervisionSign
       }
 
@@ -2367,12 +2410,23 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         }
       }
       if (hasAmountField) {
-        await checkWriteBeforeFlowEndPermission(projectDb, id, userId)
+        await checkWriteBeforeFlowEndPermission(
+          projectDb,
+          id,
+          userId,
+          hasServerAdminOverride(req)
+        )
         fieldsToSave.interimSignDate = new Date()
       }
 
       if ('preparerSign' in body) {
-        await checkWritePermission(projectDb, id, userId, 'investment')
+        await checkWritePermission(
+          projectDb,
+          id,
+          userId,
+          'investment',
+          hasServerAdminOverride(req)
+        )
         fieldsToSave.preparerSign = body.preparerSign
         fieldsToSave.interimSignDate = new Date()
       }
@@ -2574,7 +2628,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         for (const role of changedRoles) {
           try {
-            await checkWritePermission(projectDb, id, userId, role as any)
+            await checkWritePermission(
+              projectDb,
+              id,
+              userId,
+              role,
+              hasServerAdminOverride(req)
+            )
             hasPermission = true
           } catch (err) {
             if (!firstError) {
@@ -2842,7 +2902,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
         { key: 'leaderPayAmt', role: 'leader' as const }
       ]
 
-      const changedRoles = new Set<string>()
+      const changedRoles = new Set<(typeof fieldRoleMap)[number]['role']>()
 
       for (const item of items) {
         const boqItemId = item.boqItemId
@@ -2866,7 +2926,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         for (const role of changedRoles) {
           try {
-            await checkWritePermission(projectDb, id, userId, role as any)
+            await checkWritePermission(
+              projectDb,
+              id,
+              userId,
+              role,
+              hasServerAdminOverride(req)
+            )
             hasPermission = true
             break
           } catch (err) {
@@ -2889,7 +2955,12 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       })
 
       if (remarkChanged) {
-        await checkEditableBeforeFlowEnd(projectDb, id, userId)
+        await checkEditableBeforeFlowEnd(
+          projectDb,
+          id,
+          userId,
+          hasServerAdminOverride(req)
+        )
       }
 
       const itemsToUpdate = items.map((item: any) => {
@@ -2939,7 +3010,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       }
 
       // 3. 校验当前用户是否有 contractor（草稿期修改）权限
-      await checkWritePermission(projectDb, id, userId, 'contractor')
+      await checkWritePermission(
+        projectDb,
+        id,
+        userId,
+        'contractor',
+        hasServerAdminOverride(req)
+      )
 
       // 4. 获取要解除的质量验收表单并确认已被当前验工单占用
       const form = await projectDb('quality_acceptance_forms')

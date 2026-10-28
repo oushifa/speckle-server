@@ -1436,7 +1436,7 @@ const isEditMode = computed(() => route.path.includes('/acceptance-edit'))
 const isEditableAsStartApprover = computed(() => {
   const flow = flowInstance.value
   if (!flow || flow.status !== 'PENDING') return false
-  const pendingStep = flow.steps?.find((s: any) => s.status === 'PENDING')
+  const pendingStep = flow.steps?.find((s) => s.status === 'PENDING')
   if (!pendingStep) return false
   const isStartStep =
     Number(pendingStep.stepIndex) === 0 || (pendingStep.name || '').trim() === '开始'
@@ -1446,10 +1446,12 @@ const isEditableAsStartApprover = computed(() => {
   return (pendingStep.approverIds || []).includes(currentUserId)
 })
 
+// 服务器管理员拥有与当前待办人相同的编辑权限，不受 URL mode 参数限制
 const isReadOnly = computed(
   () =>
-    (route.query.mode !== 'edit' && !isEditableAsStartApprover.value) ||
-    isAdminOperationMode.value
+    !isServerAdmin.value &&
+    ((route.query.mode !== 'edit' && !isEditableAsStartApprover.value) ||
+      isAdminOperationMode.value)
 )
 
 const normalizeApprovalStatus = (status?: string | null) => {
