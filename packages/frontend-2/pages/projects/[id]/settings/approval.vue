@@ -914,6 +914,14 @@ const approvalTemplates: ApprovalTemplate[] = [
       '合约管理部负责人',
       '分管领导'
     ]
+  },
+  {
+    id: 'BOQ_REVIEW_TEMPLATE_1',
+    name: '清单审核（模版1）',
+    categoryId: 'BOQ_REVIEW',
+    description:
+      '标准清单复核与签证变更审批流程模板（施工单位 -> 财务监理审核 -> 合约部审核）',
+    roles: ['施工单位', '财务监理审核', '合约部审核']
   }
 ]
 

@@ -136,7 +136,8 @@ export const getActiveApprovalFlowDefinitionFactory =
   }
 
 export const getApprovalFlowDefinitionsFactory =
-  (deps: { db: Knex }) => async (params: { resourceType?: string; projectId?: string | null }) => {
+  (deps: { db: Knex }) =>
+  async (params: { resourceType?: string; projectId?: string | null }) => {
     const q = tables
       .definitions(deps.db)
       .orderBy(ApprovalFlowDefinitions.col.updatedAt, 'desc')
@@ -196,15 +197,34 @@ export const setApprovalFlowDefinitionActiveStateFactory =
           searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
         } else if (normalized === 'SAFETY_MEASURE') {
           searchCategories = ['SAFETY_MEASURE', '安全文明措施费', '安全文明措施']
+        } else if (normalized === 'BOQ_REVIEW') {
+          searchCategories = [
+            'BOQ_REVIEW',
+            '清单审核',
+            '清单变更',
+            '复核工程量',
+            '签证变更'
+          ]
         } else if (normalized === 'MONTHLY_INSPECTION') {
-          searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+          searchCategories = [
+            'MONTHLY_INSPECTION',
+            '月度验工',
+            '表单',
+            '质量验收',
+            '验工计价'
+          ]
         }
 
         await tables
           .definitions(deps.db)
           .where(ApprovalFlowDefinitions.col.projectId, definition.projectId)
           .andWhere(ApprovalFlowDefinitions.col.isActive, true)
-          .whereIn(deps.db.raw(`??->>'category'`, [ApprovalFlowDefinitions.col.triggerConfig]) as any, searchCategories)
+          .whereIn(
+            deps.db.raw(`??->>'category'`, [
+              ApprovalFlowDefinitions.col.triggerConfig
+            ]) as any,
+            searchCategories
+          )
           .andWhereNot(ApprovalFlowDefinitions.col.id, definition.id)
           .update({
             isActive: false,
@@ -240,15 +260,34 @@ export const getActiveApprovalFlowByCategoryFactory =
       searchCategories = ['MODEL_REVIEW', '模型审核', '模型', '模型管理']
     } else if (normalized === 'SAFETY_MEASURE') {
       searchCategories = ['SAFETY_MEASURE', '安全文明措施费', '安全文明措施']
+    } else if (normalized === 'BOQ_REVIEW') {
+      searchCategories = [
+        'BOQ_REVIEW',
+        '清单审核',
+        '清单变更',
+        '复核工程量',
+        '签证变更'
+      ]
     } else if (normalized === 'MONTHLY_INSPECTION') {
-      searchCategories = ['MONTHLY_INSPECTION', '月度验工', '表单', '质量验收', '验工计价']
+      searchCategories = [
+        'MONTHLY_INSPECTION',
+        '月度验工',
+        '表单',
+        '质量验收',
+        '验工计价'
+      ]
     }
 
     return await tables
       .definitions(deps.db)
       .where(ApprovalFlowDefinitions.col.projectId, params.projectId)
       .andWhere(ApprovalFlowDefinitions.col.isActive, true)
-      .whereIn(deps.db.raw(`??->>'category'`, [ApprovalFlowDefinitions.col.triggerConfig]) as any, searchCategories)
+      .whereIn(
+        deps.db.raw(`??->>'category'`, [
+          ApprovalFlowDefinitions.col.triggerConfig
+        ]) as any,
+        searchCategories
+      )
       .orderBy(ApprovalFlowDefinitions.col.version, 'desc')
       .first()
   }

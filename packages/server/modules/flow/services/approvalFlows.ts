@@ -39,6 +39,7 @@ import {
 } from '@/modules/quality-acceptance-form/repositories/monthlyMeasurements'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 import { syncSafetyMeasureFromMonthlyMeasurement } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
+import { applyBoqReviewRecordToBoqItemsFactory } from '@/modules/bop-item/services/boqReviewApply'
 import { BadRequestError } from '@/modules/shared/errors'
 import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 import type { Knex } from 'knex'
@@ -241,8 +242,10 @@ const resolveDefinitionEffectConfig = (params: {
     (params.resourceId && params.resourceId.startsWith('monthly_measurements:'))
   const isSafetyMeasure =
     params.resourceId && params.resourceId.startsWith('safety_measures:')
+  const isBoqReview =
+    params.resourceId && params.resourceId.startsWith('boq_review_records:')
 
-  if (!isMonthlyMeasurement && !isSafetyMeasure) {
+  if (!isMonthlyMeasurement && !isSafetyMeasure && !isBoqReview) {
     return params.effectConfig
   }
 
@@ -399,6 +402,33 @@ const updateResourceByHookAction = async (params: {
         .where('id', parsed.formId)
         .update({
           ...safetyPayload,
+          updatedAt: new Date()
+        })
+    }
+    if (parsed.formTable === 'boq_review_records') {
+      const boqReviewPayload: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(payload)) {
+        boqReviewPayload[key] =
+          key === 'approveStatus' && typeof value === 'string'
+            ? mapFlowStatusToMonthlyMeasurementApproveStatus(
+                value,
+                params.instance.currentStep
+              )
+            : value
+      }
+      if (boqReviewPayload.approveStatus === 'APPROVED') {
+        await applyBoqReviewRecordToBoqItemsFactory({ db: params.trx })({
+          recordId: parsed.formId,
+          projectId: params.instance.projectId,
+          actorId: params.actorId
+        })
+        return
+      }
+      await params
+        .trx('boq_review_records')
+        .where('id', parsed.formId)
+        .update({
+          ...boqReviewPayload,
           updatedAt: new Date()
         })
     }

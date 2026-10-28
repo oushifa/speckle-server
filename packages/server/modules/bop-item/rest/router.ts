@@ -28,6 +28,7 @@ import {
   updateBoqItemReviewFactory
 } from '@/modules/bop-item/services/boq'
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
+import { registerBoqReviewRoutes } from '@/modules/bop-item/rest/boqReviewRouter'
 
 const boqTypeByLabel: Record<string, BoqItemType> = {
   PROJECT: 'PROJECT',
@@ -399,6 +400,9 @@ export const bopItemRouterFactory = (): Router => {
       })
     }
   )
+
+  // 4. 清单复核/签证变更与审核流程追溯相关接口
+  registerBoqReviewRoutes(app)
 
   return app
 }

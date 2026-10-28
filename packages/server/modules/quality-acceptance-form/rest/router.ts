@@ -861,7 +861,10 @@ export const qualityAcceptanceRouterFactory = (): Router => {
     if (pendingStep) {
       const stepName = (pendingStep.name || '').trim()
       const isStep = (names: string[]) => names.includes(stepName)
-      if (requiredRole === 'contractor' && isStep(['施工单位'])) return true
+      // 流程回退到开始节点后，待办步骤为「开始」，视为发起人重新填报，等同施工方权限
+      const isStartStep = Number(pendingStep.stepIndex) === 0 || isStep(['开始'])
+      if (requiredRole === 'contractor' && (isStep(['施工单位']) || isStartStep))
+        return true
       if (
         requiredRole === 'supervision' &&
         isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理'])

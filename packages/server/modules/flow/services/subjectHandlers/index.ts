@@ -4,6 +4,10 @@ import { modelVersionApprovalSubjectHandler } from '@/modules/flow/services/subj
 import { monthlyMeasurementApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers/formRecords/monthlyMeasurements'
 import { safetyMeasuresApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers/formRecords/safetyMeasures'
 import {
+  BOQ_REVIEW_RECORDS_TABLE,
+  boqReviewsApprovalSubjectHandler
+} from '@/modules/flow/services/subjectHandlers/formRecords/boqReviews'
+import {
   getApprovalSubjectHandlerKey,
   type ApprovalSubjectDescriptor,
   type ApprovalSubjectHandler
@@ -50,6 +54,13 @@ const approvalSubjectHandlers = new Map<string, ApprovalSubjectHandler>([
       subjectTable: 'safety_measures'
     }),
     safetyMeasuresApprovalSubjectHandler
+  ],
+  [
+    getApprovalSubjectHandlerKey({
+      subjectType: 'FORM_RECORD',
+      subjectTable: BOQ_REVIEW_RECORDS_TABLE
+    }),
+    boqReviewsApprovalSubjectHandler
   ]
 ])
 
@@ -59,5 +70,3 @@ export const getApprovalSubjectHandler = (params: {
 }) =>
   approvalSubjectHandlers.get(getApprovalSubjectHandlerKey(params)) ||
   genericApprovalSubjectHandler
-
-

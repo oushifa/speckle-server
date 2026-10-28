@@ -381,8 +381,7 @@ const syncBindingStatusFromInstance = async (params: {
 }
 
 export const syncBindingStatusFromInstanceFactory =
-  (deps: { db: Knex }) =>
-  async (params: { instanceId: string; updater: string }) => {
+  (deps: { db: Knex }) => async (params: { instanceId: string; updater: string }) => {
     return await syncBindingStatusFromInstance({
       trx: deps.db,
       instanceId: params.instanceId,
@@ -794,6 +793,17 @@ export const returnApprovalInstanceToStartFactory =
         instanceId: params.instanceId,
         updater: params.actorUserId
       })
+
+      if (instance.bindingId) {
+        const getBindingById = getApprovalFlowBindingRecordByIdFactory({ db: trx })
+        const binding = await getBindingById(instance.bindingId)
+        if (binding && binding.subjectTable === 'boq_review_records') {
+          await trx('boq_review_records').where('id', binding.subjectId).update({
+            approveStatus: 'RETURNED',
+            updatedAt: new Date()
+          })
+        }
+      }
 
       return result
     })

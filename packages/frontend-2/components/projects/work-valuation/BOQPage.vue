@@ -1,573 +1,584 @@
 <template>
   <div class="flex min-w-0 flex-col gap-4">
-    <!-- Header & Toolbar -->
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-heading-lg text-foreground mt-3">清单管理</h1>
-      <div class="flex min-w-0 flex-wrap items-center gap-3">
-        <div class="flex min-w-0 items-center gap-2">
-          <FormTextInput
-            v-model="searchQuery"
-            name="search"
-            placeholder="搜索清单"
-            class="w-40 sm:w-64"
+    <!-- 顶部 3-Tab 导航 -->
+    <div class="border-b border-outline-3 bg-foundation">
+      <div class="flex items-center space-x-1 sm:space-x-2">
+        <button
+          type="button"
+          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
+          :class="[
+            activeTab === 'bill'
+              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
+              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
+          ]"
+          @click="switchTab('bill')"
+        >
+          <DocumentTextIcon class="w-4 h-4 shrink-0" />
+          <span>清单管理</span>
+        </button>
+
+        <button
+          type="button"
+          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
+          :class="[
+            activeTab === 'review'
+              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
+              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
+          ]"
+          @click="switchTab('review')"
+        >
+          <ClipboardDocumentCheckIcon class="w-4 h-4 shrink-0" />
+          <span>复核工程量管理</span>
+        </button>
+
+        <button
+          type="button"
+          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
+          :class="[
+            activeTab === 'change'
+              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
+              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
+          ]"
+          @click="switchTab('change')"
+        >
+          <ArrowPathRoundedSquareIcon class="w-4 h-4 shrink-0" />
+          <span>签证变更管理</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab 1: 清单管理主表区域 -->
+    <div v-if="activeTab === 'bill'" class="flex min-w-0 flex-col gap-4">
+      <!-- Header & Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-heading-lg text-foreground mt-3">清单管理</h1>
+        <div class="flex min-w-0 flex-wrap items-center gap-3">
+          <div class="flex min-w-0 items-center gap-2">
+            <FormTextInput
+              v-model="searchQuery"
+              name="search"
+              placeholder="搜索清单"
+              class="w-40 sm:w-64"
+            />
+            <FormButton color="subtle" :icon-left="MagnifyingGlassIcon" hide-text />
+          </div>
+          <FormButton
+            v-if="canExport"
+            color="outline"
+            :icon-left="ArrowDownTrayIcon"
+            :disabled="boqItemsLoading || exportingExcel || !allItems.length"
+            @click="handleExportExcel"
+          >
+            导出Excel
+          </FormButton>
+          <FormButton
+            v-if="canImportOrUpload"
+            color="outline"
+            :icon-left="ArrowUpTrayIcon"
+            :disabled="rowMutationLoading || importingExcel"
+            @click="triggerImportExcel"
+          >
+            导入Excel
+          </FormButton>
+          <FormButton
+            v-if="canDownloadTemplate"
+            color="outline"
+            :icon-left="DocumentTextIcon"
+            @click="handleDownloadTemplate"
+          >
+            清单模板
+          </FormButton>
+          <FormButton
+            v-if="canInitialize"
+            color="primary"
+            :icon-left="PlusIcon"
+            :disabled="createBoqItemLoading"
+            @click="initializeBoq"
+          >
+            初始化清单
+          </FormButton>
+          <input
+            id="boq-import-excel-file"
+            ref="boqImportInputRef"
+            type="file"
+            class="hidden"
+            aria-label="导入清单Excel文件"
+            accept=".xlsx,.xls"
+            @change="handleImportFileChange"
           />
-          <FormButton color="subtle" :icon-left="MagnifyingGlassIcon" hide-text />
         </div>
-        <FormButton
-          v-if="canExport"
-          color="outline"
-          :icon-left="ArrowDownTrayIcon"
-          :disabled="boqItemsLoading || exportingExcel || !allItems.length"
-          @click="handleExportExcel"
-        >
-          导出Excel
-        </FormButton>
-        <FormButton
-          v-if="canImportOrUpload"
-          color="outline"
-          :icon-left="ArrowUpTrayIcon"
-          :disabled="rowMutationLoading || importingExcel"
-          @click="triggerImportExcel"
-        >
-          导入Excel
-        </FormButton>
-        <FormButton
-          v-if="canDownloadTemplate"
-          color="outline"
-          :icon-left="DocumentTextIcon"
-          @click="handleDownloadTemplate"
-        >
-          清单模板
-        </FormButton>
-        <FormButton
-          v-if="canInitialize"
-          color="primary"
-          :icon-left="PlusIcon"
-          :disabled="createBoqItemLoading"
-          @click="initializeBoq"
-        >
-          初始化清单
-        </FormButton>
-        <input
-          id="boq-import-excel-file"
-          ref="boqImportInputRef"
-          type="file"
-          class="hidden"
-          aria-label="导入清单Excel文件"
-          accept=".xlsx,.xls"
-          @change="handleImportFileChange"
-        />
       </div>
-    </div>
 
-    <!-- Tree Table Container：固定可视高度并独立滚动，保证低分辨率下横向滚动条始终可见 -->
-    <div
-      class="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm flex flex-col"
-    >
+      <!-- Tree Table Container：固定可视高度并独立滚动，保证低分辨率下横向滚动条始终可见 -->
       <div
-        class="w-full min-w-0 max-w-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)] overflow-auto overscroll-x-contain"
+        class="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-outline-3 bg-foundation text-sm shadow-sm flex flex-col"
       >
-        <table class="w-full text-xs text-left min-w-[1520px] border-collapse">
-          <thead
-            class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
-          >
-            <tr class="divide-x divide-outline-3/60">
-              <th class="py-2.5 px-3 w-[220px]">清单编码</th>
-              <th class="py-2.5 px-3 w-[220px]">清单名称</th>
-              <th class="py-2.5 px-3 w-[90px] text-center">类型</th>
-              <th class="py-2.5 px-3 w-[70px] text-center">计量单位</th>
-              <th class="py-2.5 px-3 w-[100px] text-right">合同工程量</th>
-              <th class="py-2.5 px-3 w-[110px] text-right">综合单价(元)</th>
-              <th class="py-2.5 px-3 w-[110px] text-right">合价(元)</th>
-              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-                复核量
-              </th>
-              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-                变更/签证量
-              </th>
-              <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
-                工程量(含变更)
-              </th>
-              <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
-                复核单价（元）
-              </th>
-              <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
-                复核总价（元）
-              </th>
-              <th
-                v-if="hasAnyRowAction"
-                class="py-2.5 px-3 w-[110px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
-              >
-                操作
-              </th>
-            </tr>
-          </thead>
-
-          <!-- Loading State -->
-          <tbody v-if="isInitialLoading" class="divide-y divide-outline-3 font-normal">
-            <tr>
-              <td
-                :colspan="tableColumnCount"
-                class="py-12 text-center text-foreground-2"
-              >
-                <div class="flex items-center justify-center gap-2">
-                  <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
-                  <span>加载清单数据中...</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-
-          <!-- Empty State -->
-          <tbody
-            v-else-if="!flatItems.length"
-            class="divide-y divide-outline-3 font-normal"
-          >
-            <tr>
-              <td
-                :colspan="tableColumnCount"
-                class="py-12 text-center text-foreground-2 italic"
-              >
-                <span class="block">暂无清单数据</span>
-                <span
-                  v-if="canCreate"
-                  class="not-italic block mt-1 text-xs text-foreground-3"
-                >
-                  您可以点击“初始化清单”按钮创建清单根节点
-                </span>
-              </td>
-            </tr>
-          </tbody>
-
-          <!-- Data Rows -->
-          <tbody v-else class="divide-y divide-outline-3 font-normal">
-            <tr
-              v-for="row in paginatedFlatItems"
-              :key="row.item.id"
-              class="hover:bg-highlight-1/50 transition-colors divide-x divide-outline-3/40"
+        <div
+          class="w-full min-w-0 max-w-full min-h-[12rem] max-h-[calc(100dvh_-_18rem)] overflow-auto overscroll-x-contain"
+        >
+          <table class="w-full text-xs text-left min-w-[1640px] border-collapse">
+            <thead
+              class="bg-foundation-2 sticky top-0 font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
             >
-              <!-- 清单编码 -->
-              <td class="py-2 px-3">
-                <div
-                  class="flex items-center"
-                  :style="{ paddingLeft: `${row.depth * 20}px` }"
+              <tr class="divide-x divide-outline-3/60">
+                <th class="py-2.5 px-3 w-[220px]">清单编码</th>
+                <th class="py-2.5 px-3 w-[220px]">清单名称</th>
+                <th class="py-2.5 px-3 w-[90px] text-center">类型</th>
+                <th class="py-2.5 px-3 w-[70px] text-center">计量单位</th>
+                <th class="py-2.5 px-3 w-[100px] text-right">合同工程量</th>
+                <th class="py-2.5 px-3 w-[110px] text-right">综合单价(元)</th>
+                <th class="py-2.5 px-3 w-[110px] text-right">合价(元)</th>
+                <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                  复核量
+                </th>
+                <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                  变更/签证量
+                </th>
+                <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+                  工程量(含变更)
+                </th>
+                <th class="py-2.5 px-3 w-[120px] text-right text-primary bg-primary/5">
+                  复核单价（元）
+                </th>
+                <th class="py-2.5 px-3 w-[130px] text-right bg-primary/10">
+                  复核总价（元）
+                </th>
+                <th
+                  v-if="hasAnyRowAction"
+                  class="py-2.5 px-3 w-[220px] text-right sticky right-0 bg-foundation-2 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
                 >
-                  <button
-                    v-if="row.hasChildren"
-                    type="button"
-                    class="w-4 h-4 mr-1.5 text-foreground-2 hover:text-foreground transition inline-flex items-center justify-center shrink-0"
-                    @click.stop="toggleRow(row.item)"
-                  >
-                    <ChevronRightIcon
-                      class="h-3.5 w-3.5 transition-transform duration-150"
-                      :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
-                    />
-                  </button>
-                  <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
-                  <button
-                    v-if="canEdit"
-                    type="button"
-                    class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
-                    @click="openEditDialog(row.item)"
-                  >
-                    {{ row.item.code }}
-                  </button>
-                  <span v-else class="font-mono font-medium text-foreground truncate">
-                    {{ row.item.code }}
-                  </span>
-                </div>
-              </td>
+                  操作
+                </th>
+              </tr>
+            </thead>
 
-              <!-- 清单名称 -->
-              <td class="py-2 px-3">
-                <span
-                  class="font-medium text-foreground truncate block max-w-[210px]"
-                  :title="row.item.name"
+            <!-- Loading State -->
+            <tbody
+              v-if="isInitialLoading"
+              class="divide-y divide-outline-3 font-normal"
+            >
+              <tr>
+                <td
+                  :colspan="tableColumnCount"
+                  class="py-12 text-center text-foreground-2"
                 >
-                  {{ row.item.name }}
-                </span>
-              </td>
+                  <div class="flex items-center justify-center gap-2">
+                    <CommonLoadingIcon class="w-5 h-5 text-primary animate-spin" />
+                    <span>加载清单数据中...</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
 
-              <!-- 类型 -->
-              <td class="py-2 px-3 text-center">
-                <span
-                  class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-foundation-3 text-foreground-2 border border-outline-3 whitespace-nowrap"
+            <!-- Empty State -->
+            <tbody
+              v-else-if="!flatItems.length"
+              class="divide-y divide-outline-3 font-normal"
+            >
+              <tr>
+                <td
+                  :colspan="tableColumnCount"
+                  class="py-12 text-center text-foreground-2 italic"
                 >
-                  {{ childTypeLabelMap[row.item.type] }}
-                </span>
-              </td>
-
-              <!-- 计量单位 -->
-              <td class="py-2 px-3 text-center text-foreground-2">
-                {{ row.item.unit || '-' }}
-              </td>
-
-              <!-- 合同工程量 -->
-              <td class="py-2 px-3 text-right font-mono text-foreground">
-                {{ formatNumber(row.item.quantity, 2) }}
-              </td>
-
-              <!-- 综合单价 -->
-              <td class="py-2 px-3 text-right font-mono text-foreground">
-                {{ formatNumber(row.item.price, 2) }}
-              </td>
-
-              <!-- 合价 -->
-              <td class="py-2 px-3 text-right font-mono text-foreground font-medium">
-                {{ formatNumber(row.item.amount, 2) }}
-              </td>
-
-              <!-- 复核量（可编辑） -->
-              <td class="py-1 px-2 text-right bg-primary/5">
-                <div
-                  v-if="row.item.type === 'ITEM' && canEdit"
-                  class="flex items-center justify-end relative"
-                >
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label="复核量"
-                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                    :class="[
-                      savedItemIds.has(row.item.id)
-                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                    ]"
-                    :value="getInlineReviewQuantity(row.item)"
-                    placeholder="复核量"
-                    :disabled="savingItemId === row.item.id"
-                    @input="
-                      onInlineInput(
-                        row.item,
-                        'reviewQuantity',
-                        ($event.target as HTMLInputElement).value
-                      )
-                    "
-                    @blur="saveInlineReview(row.item)"
-                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                  />
-                </div>
-                <span
-                  v-else-if="row.item.type === 'ITEM'"
-                  class="font-mono text-foreground block text-right pr-1"
-                >
-                  {{ getInlineReviewQuantity(row.item) || '-' }}
-                </span>
-                <span v-else class="text-foreground-3 block text-center">-</span>
-              </td>
-
-              <!-- 变更/签证量（可编辑） -->
-              <td class="py-1 px-2 text-right bg-primary/5">
-                <div
-                  v-if="row.item.type === 'ITEM' && canEdit"
-                  class="flex items-center justify-end relative"
-                >
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label="变更/签证量"
-                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                    :class="[
-                      savedItemIds.has(row.item.id)
-                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                    ]"
-                    :value="getInlineChangeQuantity(row.item)"
-                    placeholder="变更量"
-                    :disabled="savingItemId === row.item.id"
-                    @input="
-                      onInlineInput(
-                        row.item,
-                        'changeQuantity',
-                        ($event.target as HTMLInputElement).value
-                      )
-                    "
-                    @blur="saveInlineReview(row.item)"
-                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                  />
-                </div>
-                <span
-                  v-else-if="row.item.type === 'ITEM'"
-                  class="font-mono text-foreground block text-right pr-1"
-                >
-                  {{ getInlineChangeQuantity(row.item) || '-' }}
-                </span>
-                <span v-else class="text-foreground-3 block text-center">-</span>
-              </td>
-
-              <!-- 工程量（含签证变更）（不可编辑计算列） -->
-              <td
-                class="py-2 px-3 text-right font-mono font-medium text-foreground bg-primary/10"
-              >
-                {{ formatNumber(computeItemTotalQuantity(row.item), 2) }}
-              </td>
-
-              <!-- 复核单价（可编辑） -->
-              <td class="py-1 px-2 text-right bg-primary/5">
-                <div
-                  v-if="row.item.type === 'ITEM' && canEdit"
-                  class="flex items-center justify-end relative"
-                >
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label="复核单价"
-                    class="w-24 px-2 py-1 text-xs font-mono text-right bg-foundation rounded border transition shadow-inner"
-                    :class="[
-                      savedItemIds.has(row.item.id)
-                        ? 'border-success ring-1 ring-success/40 bg-success-lighter/10 text-success'
-                        : 'border-outline-3 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none'
-                    ]"
-                    :value="getInlineReviewPrice(row.item)"
-                    placeholder="复核单价"
-                    :disabled="savingItemId === row.item.id"
-                    @input="
-                      onInlineInput(
-                        row.item,
-                        'reviewPrice',
-                        ($event.target as HTMLInputElement).value
-                      )
-                    "
-                    @blur="saveInlineReview(row.item)"
-                    @keydown.enter=";($event.target as HTMLInputElement).blur()"
-                  />
-                </div>
-                <span
-                  v-else-if="row.item.type === 'ITEM'"
-                  class="font-mono text-foreground block text-right pr-1"
-                >
-                  {{ getInlineReviewPrice(row.item) || '-' }}
-                </span>
-                <span v-else class="text-foreground-3 block text-center">-</span>
-              </td>
-
-              <!-- 复核总价（不可编辑计算列，上级汇总） -->
-              <td
-                class="py-2 px-3 text-right font-mono font-semibold text-primary bg-primary/10"
-              >
-                {{ formatNumber(computeItemReviewAmount(row.item), 2) }}
-              </td>
-
-              <!-- 操作 -->
-              <td
-                v-if="hasAnyRowAction"
-                class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
-              >
-                <div class="flex items-center justify-end gap-1.5">
-                  <FormButton
-                    v-if="canEdit"
-                    color="outline"
-                    size="sm"
-                    hide-text
-                    :icon-left="PencilSquareIcon"
-                    :disabled="rowMutationLoading"
-                    @click.stop="handleEditItem(row.item)"
-                  />
-                  <FormButton
-                    v-if="canDelete"
-                    color="outline"
-                    size="sm"
-                    hide-text
-                    :icon-left="TrashIcon"
-                    :disabled="rowMutationLoading"
-                    @click.stop="handleDeleteItem(row.item)"
-                  />
-                  <FormButton
+                  <span class="block">暂无清单数据</span>
+                  <span
                     v-if="canCreate"
-                    color="outline"
-                    size="sm"
-                    hide-text
-                    :icon-left="PlusIcon"
-                    :disabled="rowMutationLoading || !canCreateChild(row.item.type)"
-                    @click.stop="handleCreateChildItem(row.item)"
-                  />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                    class="not-italic block mt-1 text-xs text-foreground-3"
+                  >
+                    您可以点击“初始化清单”按钮创建清单根节点
+                  </span>
+                </td>
+              </tr>
+            </tbody>
 
-      <CommonPagination
-        v-if="!isInitialLoading && flatItems.length > 0"
-        v-model:page="currentPage"
-        v-model:page-size="pageSize"
-        :total="flatItems.length"
-      />
-    </div>
+            <!-- Data Rows -->
+            <tbody v-else class="divide-y divide-outline-3 font-normal">
+              <tr
+                v-for="row in paginatedFlatItems"
+                :key="row.item.id"
+                class="hover:bg-highlight-1/50 transition-colors divide-x divide-outline-3/40"
+              >
+                <!-- 清单编码 -->
+                <td class="py-2 px-3">
+                  <div
+                    class="flex items-center min-w-0"
+                    :style="{ paddingLeft: `${row.depth * 20}px` }"
+                  >
+                    <button
+                      v-if="row.hasChildren"
+                      type="button"
+                      class="w-4 h-4 mr-1.5 text-foreground-2 hover:text-foreground transition inline-flex items-center justify-center shrink-0"
+                      @click.stop="toggleRow(row.item)"
+                    >
+                      <ChevronRightIcon
+                        class="h-3.5 w-3.5 transition-transform duration-150"
+                        :class="[isRowExpanded(row.item) ? 'rotate-90' : '']"
+                      />
+                    </button>
+                    <span v-else class="w-4 h-4 mr-1.5 shrink-0" />
+                    <button
+                      v-if="canEdit"
+                      type="button"
+                      class="font-mono text-primary hover:underline font-medium cursor-pointer truncate text-left"
+                      @click="openEditDialog(row.item)"
+                    >
+                      {{ row.item.code }}
+                    </button>
+                    <span v-else class="font-mono font-medium text-foreground truncate">
+                      {{ row.item.code }}
+                    </span>
+                    <span
+                      v-if="getItemTraceSummary(row.item)?.createdByReview"
+                      class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200 shrink-0 ml-1.5 whitespace-nowrap"
+                      :title="`通过变更单 ${
+                        getItemTraceSummary(row.item)?.createdByRecordCode || ''
+                      } 创建`"
+                    >
+                      变更创建
+                    </span>
+                  </div>
+                </td>
 
-    <!-- Edit/Delete/AddChild Dialog -->
-    <LayoutDialog
-      v-model:open="boqDialogOpen"
-      max-width="md"
-      :buttons="boqDialogButtons"
-    >
-      <template #header>{{ boqDialogTitle }}</template>
-      <div v-if="boqDialogMode === 'delete'" class="text-body-sm text-foreground">
-        确认删除清单「{{ boqDialogTarget?.name }}」及其子级吗？
-      </div>
-      <div v-else class="flex flex-col gap-3">
-        <FormSelectBase
-          v-if="showChildTypeSelect"
-          v-model="boqDialogChildType"
-          name="boq-child-type"
-          label="下级类型"
-          show-label
-          show-required
-          :rules="[isRequired]"
-          :items="projectChildTypeOptions"
-          :allow-unset="false"
-        >
-          <template #nothing-selected>请选择下级类型</template>
-          <template #something-selected="{ value }">
-            {{
-              childTypeLabelMap[
-                (Array.isArray(value) ? value[0] : value) as UiBoqItemType
-              ]
-            }}
-          </template>
-          <template #option="{ item }">
-            {{ childTypeLabelMap[item as UiBoqItemType] }}
-          </template>
-        </FormSelectBase>
-        <FormTextInput
-          v-model="boqDialogCode"
-          class="flex-1"
-          :name="isCodePrefixLocked ? 'boq-code-suffix' : 'boq-code'"
-          :label="isCodePrefixLocked ? '编码后缀' : '清单编码'"
-          show-label
-          show-required
-          :rules="[isRequired]"
-          :placeholder="isCodePrefixLocked ? activeCodeSuffixPlaceholder : '请输入编码'"
-        >
-          <template v-if="isCodePrefixLocked" #prefix>
-            <span class="whitespace-nowrap">{{ activeCodePrefix }}</span>
-          </template>
-        </FormTextInput>
-        <div v-if="boqDialogCodeError" class="text-body-3xs text-danger">
-          {{ boqDialogCodeError }}
+                <!-- 清单名称 -->
+                <td class="py-2 px-3">
+                  <span
+                    class="font-medium text-foreground truncate block max-w-[210px]"
+                    :title="row.item.name"
+                  >
+                    {{ row.item.name }}
+                  </span>
+                </td>
+
+                <!-- 类型 -->
+                <td class="py-2 px-3 text-center">
+                  <span
+                    class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-foundation-3 text-foreground-2 border border-outline-3 whitespace-nowrap"
+                  >
+                    {{ childTypeLabelMap[row.item.type] }}
+                  </span>
+                </td>
+
+                <!-- 计量单位 -->
+                <td class="py-2 px-3 text-center text-foreground-2">
+                  {{ row.item.unit || '-' }}
+                </td>
+
+                <!-- 合同工程量 -->
+                <td class="py-2 px-3 text-right font-mono text-foreground">
+                  {{ formatNumber(row.item.quantity, 2) }}
+                </td>
+
+                <!-- 综合单价 -->
+                <td class="py-2 px-3 text-right font-mono text-foreground">
+                  {{ formatNumber(row.item.price, 2) }}
+                </td>
+
+                <!-- 合价 -->
+                <td class="py-2 px-3 text-right font-mono text-foreground font-medium">
+                  {{ formatNumber(row.item.amount, 2) }}
+                </td>
+
+                <!-- 复核量（只读展示） -->
+                <td class="py-2 px-3 text-right font-mono text-foreground bg-primary/5">
+                  <span v-if="row.item.type === 'ITEM'">
+                    {{ formatNumber(row.item.reviewQuantity, 2) }}
+                  </span>
+                  <span v-else class="text-foreground-3 block text-center">-</span>
+                </td>
+
+                <!-- 变更/签证量（只读展示） -->
+                <td class="py-2 px-3 text-right font-mono text-foreground bg-primary/5">
+                  <span v-if="row.item.type === 'ITEM'">
+                    {{ formatNumber(row.item.changeQuantity, 2) }}
+                  </span>
+                  <span v-else class="text-foreground-3 block text-center">-</span>
+                </td>
+
+                <!-- 工程量（含签证变更）（计算列） -->
+                <td
+                  class="py-2 px-3 text-right font-mono font-medium text-foreground bg-primary/10"
+                >
+                  {{ formatNumber(computeItemTotalQuantity(row.item), 2) }}
+                </td>
+
+                <!-- 复核单价（只读展示） -->
+                <td class="py-2 px-3 text-right font-mono text-foreground bg-primary/5">
+                  <span v-if="row.item.type === 'ITEM'">
+                    {{ formatNumber(row.item.reviewPrice, 2) }}
+                  </span>
+                  <span v-else class="text-foreground-3 block text-center">-</span>
+                </td>
+
+                <!-- 复核总价（计算列，上级汇总） -->
+                <td
+                  class="py-2 px-3 text-right font-mono font-semibold text-primary bg-primary/10"
+                >
+                  {{ formatNumber(computeItemReviewAmount(row.item), 2) }}
+                </td>
+
+                <!-- 操作 -->
+                <td
+                  v-if="hasAnyRowAction"
+                  class="py-2 px-3 text-right sticky right-0 bg-foundation shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]"
+                >
+                  <div class="flex items-center justify-end gap-1.5">
+                    <FormButton
+                      v-if="row.item.type === 'ITEM' && hasItemAuditTrace(row.item)"
+                      color="outline"
+                      size="sm"
+                      :icon-left="DocumentMagnifyingGlassIcon"
+                      class="text-xs px-2 py-1 font-normal text-primary hover:text-primary-focus shrink-0"
+                      title="查看审核流程追溯"
+                      @click.stop="openAuditTraceDrawer(row.item)"
+                    >
+                      审核追溯{{
+                        getItemTraceCount(row.item) > 0
+                          ? ` (${getItemTraceCount(row.item)})`
+                          : ''
+                      }}
+                    </FormButton>
+                    <FormButton
+                      v-if="canEdit"
+                      color="outline"
+                      size="sm"
+                      hide-text
+                      :icon-left="PencilSquareIcon"
+                      :disabled="rowMutationLoading"
+                      @click.stop="handleEditItem(row.item)"
+                    />
+                    <FormButton
+                      v-if="canDelete"
+                      color="outline"
+                      size="sm"
+                      hide-text
+                      :icon-left="TrashIcon"
+                      :disabled="rowMutationLoading"
+                      @click.stop="handleDeleteItem(row.item)"
+                    />
+                    <FormButton
+                      v-if="canCreate"
+                      color="outline"
+                      size="sm"
+                      hide-text
+                      :icon-left="PlusIcon"
+                      :disabled="rowMutationLoading || !canCreateChild(row.item.type)"
+                      @click.stop="handleCreateChildItem(row.item)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <FormTextInput
-          v-model="boqDialogName"
-          name="boq-name"
-          label="清单名称"
-          show-label
-          show-required
-          :rules="[isRequired]"
-          placeholder="请输入名称"
+
+        <CommonPagination
+          v-if="!isInitialLoading && flatItems.length > 0"
+          v-model:page="currentPage"
+          v-model:page-size="pageSize"
+          :total="flatItems.length"
         />
-        <template v-if="isItemDetailsRequired">
+      </div>
+
+      <!-- Edit/Delete/AddChild Dialog -->
+      <LayoutDialog
+        v-model:open="boqDialogOpen"
+        max-width="md"
+        :buttons="boqDialogButtons"
+      >
+        <template #header>{{ boqDialogTitle }}</template>
+        <div v-if="boqDialogMode === 'delete'" class="text-body-sm text-foreground">
+          确认删除清单「{{ boqDialogTarget?.name }}」及其子级吗？
+        </div>
+        <div v-else class="flex flex-col gap-3">
           <FormSelectBase
-            v-model="boqDialogUnit"
-            name="boq-unit"
-            label="计量单位"
+            v-if="showChildTypeSelect"
+            v-model="boqDialogChildType"
+            name="boq-child-type"
+            label="下级类型"
             show-label
             show-required
             :rules="[isRequired]"
-            :items="units"
+            :items="projectChildTypeOptions"
             :allow-unset="false"
           >
-            <template #nothing-selected>请选择计量单位</template>
+            <template #nothing-selected>请选择下级类型</template>
             <template #something-selected="{ value }">
-              {{ Array.isArray(value) ? value[0] : value }}
+              {{
+                childTypeLabelMap[
+                  (Array.isArray(value) ? value[0] : value) as UiBoqItemType
+                ]
+              }}
             </template>
             <template #option="{ item }">
-              {{ item }}
+              {{ childTypeLabelMap[item as UiBoqItemType] }}
             </template>
           </FormSelectBase>
-          <!-- 合同工程量/综合单价/合价：手动新增默认0，编辑时取原值，均不可编辑 -->
-          <div class="grid grid-cols-2 gap-3">
-            <FormTextInput
-              v-model="boqDialogQuantityInput"
-              name="boq-quantity"
-              label="合同工程量"
-              type="number"
-              step="any"
-              show-label
-              disabled
-              placeholder="手动新增默认0"
-            />
-            <FormTextInput
-              v-model="boqDialogPriceInput"
-              name="boq-price"
-              label="综合单价（元）"
-              type="number"
-              step="any"
-              show-label
-              disabled
-              placeholder="手动新增默认0"
-            />
-            <FormTextInput
-              v-model="boqDialogAmountInput"
-              name="boq-amount"
-              label="合价（元）"
-              type="number"
-              step="any"
-              show-label
-              disabled
-              placeholder="工程量×综合单价"
-            />
+          <FormTextInput
+            v-model="boqDialogCode"
+            class="flex-1"
+            :name="isCodePrefixLocked ? 'boq-code-suffix' : 'boq-code'"
+            :label="isCodePrefixLocked ? '编码后缀' : '清单编码'"
+            show-label
+            show-required
+            :rules="[isRequired]"
+            :placeholder="
+              isCodePrefixLocked ? activeCodeSuffixPlaceholder : '请输入编码'
+            "
+          >
+            <template v-if="isCodePrefixLocked" #prefix>
+              <span class="whitespace-nowrap">{{ activeCodePrefix }}</span>
+            </template>
+          </FormTextInput>
+          <div v-if="boqDialogCodeError" class="text-body-3xs text-danger">
+            {{ boqDialogCodeError }}
           </div>
-          <div class="grid grid-cols-2 gap-3">
-            <FormTextInput
-              v-model="boqDialogReviewQuantityInput"
-              name="boq-review-quantity"
-              label="复核量"
-              type="number"
-              step="any"
+          <FormTextInput
+            v-model="boqDialogName"
+            name="boq-name"
+            label="清单名称"
+            show-label
+            show-required
+            :rules="[isRequired]"
+            placeholder="请输入名称"
+          />
+          <template v-if="isItemDetailsRequired">
+            <FormSelectBase
+              v-model="boqDialogUnit"
+              name="boq-unit"
+              label="计量单位"
               show-label
-              placeholder="请输入复核量"
-            />
-            <FormTextInput
-              v-model="boqDialogChangeQuantityInput"
-              name="boq-change-quantity"
-              label="变更/签证量"
-              type="number"
-              step="any"
-              show-label
-              placeholder="请输入变更/签证量"
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <FormTextInput
-              v-model="boqDialogReviewPriceInput"
-              name="boq-review-price"
-              label="复核单价（元）"
-              type="number"
-              step="any"
-              show-label
-              placeholder="请输入复核单价"
-            />
-            <div
-              class="flex flex-col justify-center bg-foundation-2 p-2.5 rounded border border-outline-3"
+              show-required
+              :rules="[isRequired]"
+              :items="units"
+              :allow-unset="false"
             >
-              <span class="text-xs text-foreground-2">工程量(含变更)</span>
-              <span class="text-sm font-mono font-medium text-foreground">
-                {{ formatNumber(dialogCalculatedTotalQty, 2) }}
+              <template #nothing-selected>请选择计量单位</template>
+              <template #something-selected="{ value }">
+                {{ Array.isArray(value) ? value[0] : value }}
+              </template>
+              <template #option="{ item }">
+                {{ item }}
+              </template>
+            </FormSelectBase>
+            <!-- 合同工程量/综合单价/合价：手动新增默认0，编辑时取原值，均不可编辑 -->
+            <div class="grid grid-cols-2 gap-3">
+              <FormTextInput
+                v-model="boqDialogQuantityInput"
+                name="boq-quantity"
+                label="合同工程量"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="手动新增默认0"
+              />
+              <FormTextInput
+                v-model="boqDialogPriceInput"
+                name="boq-price"
+                label="综合单价（元）"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="手动新增默认0"
+              />
+              <FormTextInput
+                v-model="boqDialogAmountInput"
+                name="boq-amount"
+                label="合价（元）"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="工程量×综合单价"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <FormTextInput
+                v-model="boqDialogReviewQuantityInput"
+                name="boq-review-quantity"
+                label="复核量"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="通过审核流程核定"
+              />
+              <FormTextInput
+                v-model="boqDialogChangeQuantityInput"
+                name="boq-change-quantity"
+                label="变更/签证量"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="通过审核流程核定"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <FormTextInput
+                v-model="boqDialogReviewPriceInput"
+                name="boq-review-price"
+                label="复核单价（元）"
+                type="number"
+                step="any"
+                show-label
+                disabled
+                placeholder="通过审核流程核定"
+              />
+              <div
+                class="flex flex-col justify-center bg-foundation-2 p-2.5 rounded border border-outline-3"
+              >
+                <span class="text-xs text-foreground-2">工程量(含变更)</span>
+                <span class="text-sm font-mono font-medium text-foreground">
+                  {{ formatNumber(dialogCalculatedTotalQty, 2) }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="p-2.5 bg-primary/5 rounded border border-primary/20 text-xs text-foreground-2 flex items-start gap-2"
+            >
+              <InformationCircleIcon class="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <span>
+                复核量、变更/签证量与复核单价通过「复核工程量管理」或「签证变更管理」审批核定，不可直接手动修改。
               </span>
             </div>
-          </div>
-          <div
-            class="p-2.5 bg-primary/10 rounded border border-primary/20 flex justify-between items-center"
-          >
-            <span class="text-xs text-primary font-medium">复核总价预估</span>
-            <span class="text-base font-mono font-semibold text-primary">
-              <template v-if="dialogCalculatedReviewAmount !== null">
-                {{ formatNumber(dialogCalculatedReviewAmount, 2) }} 元
-              </template>
-              <template v-else>-</template>
-            </span>
-          </div>
-          <div v-if="boqDialogNumericError" class="text-body-3xs text-danger">
-            {{ boqDialogNumericError }}
-          </div>
-        </template>
-      </div>
-    </LayoutDialog>
+            <div
+              class="p-2.5 bg-primary/10 rounded border border-primary/20 flex justify-between items-center"
+            >
+              <span class="text-xs text-primary font-medium">复核总价预估</span>
+              <span class="text-base font-mono font-semibold text-primary">
+                <template v-if="dialogCalculatedReviewAmount !== null">
+                  {{ formatNumber(dialogCalculatedReviewAmount, 2) }} 元
+                </template>
+                <template v-else>-</template>
+              </span>
+            </div>
+            <div v-if="boqDialogNumericError" class="text-body-3xs text-danger">
+              {{ boqDialogNumericError }}
+            </div>
+          </template>
+        </div>
+      </LayoutDialog>
+    </div>
+
+    <!-- Tab 2 & 3: 复核工程量管理 / 签证变更管理 -->
+    <div v-else class="min-w-0">
+      <BoqReviewList :project-id="projectId" :kind="activeTab" />
+    </div>
+
+    <!-- 审核流程追溯抽屉 -->
+    <BoqItemAuditTraceDrawer
+      v-model:open="traceDrawerOpen"
+      :project-id="projectId"
+      :boq-item="tracingBoqItem"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   MagnifyingGlassIcon,
   DocumentTextIcon,
@@ -576,9 +587,13 @@ import {
   PlusIcon,
   PencilSquareIcon,
   TrashIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  ClipboardDocumentCheckIcon,
+  ArrowPathRoundedSquareIcon,
+  DocumentMagnifyingGlassIcon,
+  InformationCircleIcon
 } from '@heroicons/vue/24/outline'
-import { CommonLoadingIcon } from '@speckle/ui-components'
+import { CommonLoadingIcon, FormButton } from '@speckle/ui-components'
 import { useMutation, useQuery } from '@vue/apollo-composable'
 import { useDebounceFn } from '@vueuse/core'
 import type {
@@ -597,18 +612,144 @@ import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { useApiOrigin } from '~~/composables/env'
+import BoqReviewList from './boq-review/BoqReviewList.vue'
+import BoqItemAuditTraceDrawer from './boq-review/BoqItemAuditTraceDrawer.vue'
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
+const router = useRouter()
 const route = useRoute()
 const { hasFunctionalPerm } = useCustomPermissions()
 const projectId = computed(() => route.params.id as string)
+const authToken = useAuthCookie()
+const apiOrigin = useApiOrigin()
+
+// ── 顶部 3-Tab 状态与路由 query 同步 ──
+const validTabs = ['bill', 'review', 'change'] as const
+type TabType = (typeof validTabs)[number]
+
+const getTabFromRoute = (): TabType => {
+  const queryTab = route.query.tab as string | undefined
+  if (queryTab && (validTabs as readonly string[]).includes(queryTab)) {
+    return queryTab as TabType
+  }
+  return 'bill'
+}
+
+const activeTab = ref<TabType>(getTabFromRoute())
+
+watch(
+  () => route.query.tab,
+  () => {
+    const routeTab = getTabFromRoute()
+    if (activeTab.value !== routeTab) {
+      activeTab.value = routeTab
+    }
+  }
+)
+
+const switchTab = (tab: TabType) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  router.push({
+    query: {
+      ...route.query,
+      tab: tab === 'bill' ? undefined : tab
+    }
+  })
+}
+
+// ── 审核追溯汇总信息（trace-summary） ──
+export interface BoqItemTraceSummaryItem {
+  itemId?: string
+  code?: string
+  totalCount: number
+  approvedCount: number
+  pendingCount: number
+  returnedCount: number
+  draftCount: number
+  createdByReview?: boolean
+  createdByRecordCode?: string
+}
+
+export interface BoqTraceSummaryResponse {
+  summaryByItemId?: Record<string, BoqItemTraceSummaryItem>
+  summaryByCode?: Record<string, BoqItemTraceSummaryItem>
+}
+
+const traceSummaryByItemId = ref<Record<string, BoqItemTraceSummaryItem>>({})
+const traceSummaryByCode = ref<Record<string, BoqItemTraceSummaryItem>>({})
+const traceSummaryLoading = ref(false)
+
+const fetchTraceSummary = async () => {
+  if (!projectId.value) return
+  traceSummaryLoading.value = true
+  try {
+    const res = await $fetch<BoqTraceSummaryResponse>(
+      `${apiOrigin}/api/v1/projects/${projectId.value}/boq/trace-summary`,
+      {
+        headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
+      }
+    )
+    traceSummaryByItemId.value = res?.summaryByItemId || {}
+    traceSummaryByCode.value = res?.summaryByCode || {}
+  } catch (err) {
+    devLog('获取清单审核追溯汇总失败:', err)
+  } finally {
+    traceSummaryLoading.value = false
+  }
+}
+
+const getItemTraceSummary = (
+  item: BoqTreeItem
+): BoqItemTraceSummaryItem | undefined => {
+  return (
+    traceSummaryByItemId.value[item.id] ||
+    (item.code ? traceSummaryByCode.value[item.code] : undefined)
+  )
+}
+
+const getItemTraceCount = (item: BoqTreeItem): number => {
+  const summary = getItemTraceSummary(item)
+  return summary?.totalCount || 0
+}
+
+const hasItemAuditTrace = (item: BoqTreeItem): boolean => {
+  if (item.type !== 'ITEM') return false
+  const summary = getItemTraceSummary(item)
+  if (summary && summary.totalCount > 0) return true
+  if (summary?.createdByReview) return true
+  if (item.reviewQuantity !== null && item.reviewQuantity !== undefined) return true
+  if (item.changeQuantity !== null && item.changeQuantity !== undefined) return true
+  if (item.reviewPrice !== null && item.reviewPrice !== undefined) return true
+  return false
+}
+
+// ── 审核流程追溯抽屉控制 ──
+const traceDrawerOpen = ref(false)
+const tracingBoqItem = ref<BoqTreeItem | null>(null)
+
+const openAuditTraceDrawer = (item: BoqTreeItem) => {
+  tracingBoqItem.value = item
+  traceDrawerOpen.value = true
+}
+
+onMounted(() => {
+  if (activeTab.value === 'bill') {
+    fetchTraceSummary()
+  }
+})
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'bill') {
+    refreshBoq()
+  }
+})
+
 const { triggerNotification } = useGlobalToast()
 const boqImportInputRef = ref<HTMLInputElement | null>(null)
 const exportingExcel = ref(false)
 const importingExcel = ref(false)
-const authToken = useAuthCookie()
-const apiOrigin = useApiOrigin()
 
 const notify = (title: string, type: ToastNotificationType, description?: string) => {
   triggerNotification({
@@ -726,14 +867,18 @@ const canImportOrUpload = computed(
 const canInitialize = computed(() => canInitializeBoq.value && canCreate.value)
 // 清单模板（下载）：无新增权限或清单非空时，按下载权限展示
 const canDownloadTemplate = computed(() => canDownload.value && !canInitialize.value)
-// 行操作列：无任何行级操作权限时整列隐藏
+// 行操作列：只要有行级修改权限，或者存在清单项（可查看审核追溯），均显示操作列，确保只读用户亦可查看追溯
 const hasAnyRowAction = computed(
-  () => canCreate.value || canEdit.value || canDelete.value
+  () =>
+    canCreate.value ||
+    canEdit.value ||
+    canDelete.value ||
+    allItems.value.some((item) => item.type === 'ITEM')
 )
 const tableColumnCount = computed(() => (hasAnyRowAction.value ? 13 : 12))
 
 const refreshBoq = async () => {
-  await boqItemsRefetch()
+  await Promise.allSettled([boqItemsRefetch(), fetchTraceSummary()])
 }
 
 const initializeBoq = async () => {
@@ -865,105 +1010,29 @@ watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
 
-// 行内编辑数据缓存与响应式计算
-const inlineEditValues = reactive<
-  Record<
-    string,
-    {
-      reviewQuantity?: string
-      changeQuantity?: string
-      reviewPrice?: string
-    }
-  >
->({})
-const localItemOverrides = reactive<
-  Record<
-    string,
-    {
-      reviewQuantity?: number | null
-      changeQuantity?: number | null
-      totalQuantityWithChanges?: number | null
-      reviewPrice?: number | null
-      reviewAmount?: number | null
-    }
-  >
->({})
-const savingItemId = ref<string | null>(null)
-const savedItemIds = ref<Set<string>>(new Set())
-
-const getInlineReviewQuantity = (item: BoqTreeItem): string => {
-  if (inlineEditValues[item.id]?.reviewQuantity !== undefined) {
-    return inlineEditValues[item.id].reviewQuantity!
-  }
-  const override = localItemOverrides[item.id]?.reviewQuantity
-  if (override !== undefined && override !== null) {
-    return `${override}`
-  }
-  if (item.reviewQuantity !== null && item.reviewQuantity !== undefined) {
-    return `${item.reviewQuantity}`
-  }
-  // 不再兜底显示合同工程量：未录入复核量时如实显示为空
-  return ''
-}
-
-const getInlineChangeQuantity = (item: BoqTreeItem): string => {
-  if (inlineEditValues[item.id]?.changeQuantity !== undefined) {
-    return inlineEditValues[item.id].changeQuantity!
-  }
-  const override = localItemOverrides[item.id]?.changeQuantity
-  if (override !== undefined && override !== null) {
-    return `${override}`
-  }
-  if (item.changeQuantity !== null && item.changeQuantity !== undefined) {
-    return `${item.changeQuantity}`
-  }
-  // 不再兜底显示 0：未录入变更/签证量时如实显示为空
-  return ''
-}
-
-const getInlineReviewPrice = (item: BoqTreeItem): string => {
-  if (inlineEditValues[item.id]?.reviewPrice !== undefined) {
-    return inlineEditValues[item.id].reviewPrice!
-  }
-  const override = localItemOverrides[item.id]?.reviewPrice
-  if (override !== undefined && override !== null) {
-    return `${override}`
-  }
-  if (item.reviewPrice !== null && item.reviewPrice !== undefined) {
-    return `${item.reviewPrice}`
-  }
-  // 不再兜底显示综合单价：未录入复核单价时如实显示为空
-  return ''
-}
-
-const onInlineInput = (
-  item: BoqTreeItem,
-  field: 'reviewQuantity' | 'changeQuantity' | 'reviewPrice',
-  value: string
-) => {
-  if (!inlineEditValues[item.id]) {
-    inlineEditValues[item.id] = {}
-  }
-  inlineEditValues[item.id][field] = value
-}
-
+// ── 计算列：工程量(含变更) 与 复核总价 ──
 const computeItemTotalQuantity = (item: BoqTreeItem): number | null => {
   if (item.type !== 'ITEM') return null
-  const rqStr = getInlineReviewQuantity(item)
-  const cqStr = getInlineChangeQuantity(item)
-  if (rqStr === '' && cqStr === '') return null
-  const rq = rqStr === '' ? 0 : Number.parseFloat(rqStr)
-  const cq = cqStr === '' ? 0 : Number.parseFloat(cqStr)
+  const rqVal = item.reviewQuantity
+  const cqVal = item.changeQuantity
+  if (
+    (rqVal === null || rqVal === undefined) &&
+    (cqVal === null || cqVal === undefined)
+  ) {
+    return null
+  }
+  const rq = rqVal !== null && rqVal !== undefined ? Number(rqVal) : 0
+  const cq = cqVal !== null && cqVal !== undefined ? Number(cqVal) : 0
   if (Number.isNaN(rq) || Number.isNaN(cq)) return null
   return Number((rq + cq).toFixed(6))
 }
 
 const computeItemReviewAmount = (item: BoqTreeItem): number | null => {
   if (item.type === 'ITEM') {
-    const rpStr = getInlineReviewPrice(item)
+    const rpVal = item.reviewPrice
     const totalQty = computeItemTotalQuantity(item)
-    if (rpStr === '' || totalQty === null) return null
-    const rp = Number.parseFloat(rpStr)
+    if (rpVal === null || rpVal === undefined || totalQty === null) return null
+    const rp = Number(rpVal)
     if (Number.isNaN(rp)) return null
     return Number((rp * totalQty).toFixed(2))
   }
@@ -983,82 +1052,7 @@ const computeItemReviewAmount = (item: BoqTreeItem): number | null => {
     walk(item.children as (BoqTreeItem | null | undefined)[])
     return hasVal ? Number(sum.toFixed(2)) : null
   }
-  const overrideAmount = localItemOverrides[item.id]?.reviewAmount
-  if (overrideAmount !== undefined && overrideAmount !== null) {
-    return overrideAmount
-  }
   return item.reviewAmount ?? null
-}
-
-const saveInlineReview = async (item: BoqTreeItem) => {
-  if (item.type !== 'ITEM') return
-  if (!canEdit.value) return notifyNoPermission('编辑')
-  const currentEdit = inlineEditValues[item.id]
-  if (!currentEdit) return
-
-  const rqStr = getInlineReviewQuantity(item)
-  const cqStr = getInlineChangeQuantity(item)
-  const rpStr = getInlineReviewPrice(item)
-
-  const parseVal = (str: string) => {
-    if (str.trim() === '') return null
-    const parsed = Number.parseFloat(str.trim())
-    return Number.isNaN(parsed) ? null : parsed
-  }
-
-  const reviewQuantity = parseVal(rqStr)
-  const changeQuantity = parseVal(cqStr)
-  const reviewPrice = parseVal(rpStr)
-
-  try {
-    savingItemId.value = item.id
-    const res = await $fetch<{
-      success: boolean
-      item: {
-        reviewQuantity?: number | null
-        changeQuantity?: number | null
-        totalQuantityWithChanges?: number | null
-        reviewPrice?: number | null
-        reviewAmount?: number | null
-      }
-    }>(`${apiOrigin}/api/v1/projects/${projectId.value}/boq/items/${item.id}/review`, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${authToken.value}`,
-        'Content-Type': 'application/json'
-      },
-      body: {
-        reviewQuantity,
-        changeQuantity,
-        reviewPrice
-      }
-    })
-    if (res?.success && res.item) {
-      // 1. 使用 localItemOverrides 就地响应，完全避开直接向 Apollo 冻结对象属性赋值
-      localItemOverrides[item.id] = {
-        reviewQuantity: res.item.reviewQuantity,
-        changeQuantity: res.item.changeQuantity,
-        totalQuantityWithChanges: res.item.totalQuantityWithChanges,
-        reviewPrice: res.item.reviewPrice,
-        reviewAmount: res.item.reviewAmount
-      }
-      delete inlineEditValues[item.id]
-
-      // 2. 触发微状态成功动画（轻微绿框提示），无需任何粗暴弹窗
-      savedItemIds.value.add(item.id)
-      setTimeout(() => {
-        savedItemIds.value.delete(item.id)
-      }, 1500)
-
-      // 3. 在后台静默触发数据拉取以同步上级汇总，不重新销毁/卸载表格
-      boqItemsRefetch?.().catch(() => {})
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    notify('保存失败', ToastNotificationType.Danger, message)
-  } finally {
-    savingItemId.value = null
-  }
 }
 
 const getRequestErrorMessage = (error: unknown) => {
@@ -1537,17 +1531,24 @@ const submitBoqDialog = async () => {
     nextPrice = price
     nextAmount = Number(amount.toFixed(2))
 
-    if (boqDialogReviewQuantity.value.trim().length) {
-      const parsed = Number.parseFloat(boqDialogReviewQuantity.value.trim())
-      if (!Number.isNaN(parsed)) nextReviewQuantity = parsed
-    }
-    if (boqDialogChangeQuantity.value.trim().length) {
-      const parsed = Number.parseFloat(boqDialogChangeQuantity.value.trim())
-      if (!Number.isNaN(parsed)) nextChangeQuantity = parsed
-    }
-    if (boqDialogReviewPrice.value.trim().length) {
-      const parsed = Number.parseFloat(boqDialogReviewPrice.value.trim())
-      if (!Number.isNaN(parsed)) nextReviewPrice = parsed
+    // 复核量、变更量、复核单价通过审核流程核定，编辑弹窗保留目标原值不变
+    if (boqDialogMode.value === 'edit') {
+      nextReviewQuantity =
+        target.reviewQuantity !== null && target.reviewQuantity !== undefined
+          ? Number(target.reviewQuantity)
+          : null
+      nextChangeQuantity =
+        target.changeQuantity !== null && target.changeQuantity !== undefined
+          ? Number(target.changeQuantity)
+          : null
+      nextReviewPrice =
+        target.reviewPrice !== null && target.reviewPrice !== undefined
+          ? Number(target.reviewPrice)
+          : null
+    } else {
+      nextReviewQuantity = null
+      nextChangeQuantity = null
+      nextReviewPrice = null
     }
   }
 

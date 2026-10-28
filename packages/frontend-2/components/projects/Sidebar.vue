@@ -262,6 +262,7 @@
                     'project-sidebar-group-wrapper',
                     isProjectSectionActive([
                       '/work-valuation/BOQ',
+                      '/work-valuation/boq-review',
                       '/work-valuation/monthly-measurement',
                       '/work-valuation/safety-measure'
                     ]) && 'project-sidebar-group-wrapper-active'
@@ -283,7 +284,8 @@
                     <LayoutSidebarMenuGroupItem
                       :class="[
                         'py-2',
-                        isProjectActive('/work-valuation/BOQ') &&
+                        (isProjectActive('/work-valuation/BOQ') ||
+                          isProjectActive('/work-valuation/boq-review')) &&
                           'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
                         'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"

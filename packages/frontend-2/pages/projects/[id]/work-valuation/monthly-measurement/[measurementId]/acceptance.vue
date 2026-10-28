@@ -1553,8 +1553,26 @@ const modelViewerOpen = ref(false)
 
 const route = useRoute()
 const isAdminOperationMode = computed(() => route.query.adminMode === '1')
+
+// 流程回退到开始节点后，「开始」步骤重新变为待办，其审批人（通常为发起人）
+// 应恢复编辑权限。此时即便 URL 未带 mode=edit，也不应再被当作只读。
+const isEditableAsStartApprover = computed(() => {
+  const flow = props.flowInstance
+  if (!flow || flow.status !== 'PENDING') return false
+  const pendingStep = flow.steps?.find((s: any) => s.status === 'PENDING')
+  if (!pendingStep) return false
+  const isStartStep =
+    Number(pendingStep.stepIndex) === 0 || (pendingStep.name || '').trim() === '开始'
+  if (!isStartStep) return false
+  const currentUserId = userId.value
+  if (!currentUserId) return false
+  return (pendingStep.approverIds || []).includes(currentUserId)
+})
+
 const isReadOnly = computed(
-  () => route.query.mode !== 'edit' || isAdminOperationMode.value
+  () =>
+    (route.query.mode !== 'edit' && !isEditableAsStartApprover.value) ||
+    isAdminOperationMode.value
 )
 
 const permissions = computed(() => {
@@ -1593,8 +1611,10 @@ const permissions = computed(() => {
 
       if (approverIds.includes(currentUserId)) {
         const isStep = (names: string[]) => names.includes(stepName)
+        // 流程回退到开始节点后，待办步骤为「开始」，视为发起人重新填报，等同施工方权限
+        const isStartStep = Number(pendingStep.stepIndex) === 0 || isStep(['开始'])
 
-        if (isStep(['施工单位'])) result.contractor = true
+        if (isStep(['施工单位']) || isStartStep) result.contractor = true
         if (isStep(['施工监理经办人', '施工监理总监', '施工监理', '监理', '专业监理']))
           result.supervision = true
         if (

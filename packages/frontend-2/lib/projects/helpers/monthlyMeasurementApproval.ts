@@ -23,7 +23,8 @@ export type MonthlyMeasurementFlowStepName =
   (typeof monthlyMeasurementFlowStepOrder)[number]
 
 export const monthlyMeasurementPermissionStepMap = {
-  contractor: ['施工单位'],
+  // 「开始」步骤 = 流程回退到开始节点后由发起人重新填报，等同施工方权限
+  contractor: ['施工单位', '开始'],
   supervision: ['施工监理经办人', '施工监理总监'],
   headquarters: ['现场指挥部经办人', '现场指挥'],
   investment: ['投资监理经办人', '投资监理总监'],
