@@ -471,7 +471,10 @@ export const flowRouterFactory = (): Router => {
 
     const existingDefinition = await db('approval_flow_definitions')
       .where('projectId', projectId)
-      .whereIn(db.raw(`"triggerConfig"->>'category'`), searchCategories)
+      .whereIn(
+        db.raw(`"triggerConfig"->>'category'`) as unknown as string,
+        searchCategories
+      )
       .first()
 
     if (existingDefinition) {
@@ -544,7 +547,11 @@ export const flowRouterFactory = (): Router => {
       })
     }
 
-    const id = normalizeCategory(def.triggerConfig?.category)
+    const categoryValue =
+      typeof def.triggerConfig?.category === 'string'
+        ? def.triggerConfig.category
+        : undefined
+    const id = normalizeCategory(categoryValue)
     const categoryInfo = ApprovalFlowCategory[id]
     const description = def.triggerConfig?.description || ''
 
