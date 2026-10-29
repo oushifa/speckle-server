@@ -66,41 +66,56 @@
               </div>
             </div>
             <!-- 清单树单选列表 -->
-            <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5">
+            <div class="flex-1 min-h-0 overflow-auto p-2 space-y-0.5">
+              <div
+                class="grid grid-cols-[minmax(270px,1fr)_60px_105px_105px] gap-2 min-w-[650px] px-2 py-1.5 text-[11px] font-semibold text-foreground-2 bg-foundation-2 sticky top-0 z-10"
+              >
+                <span>清单编码 / 名称</span>
+                <span class="text-center">单位</span>
+                <span class="text-right">合同工程量</span>
+                <span class="text-right">综合单价</span>
+              </div>
               <label
                 v-for="row in filteredCreateTreeRows"
                 :key="row.id"
-                class="flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer text-xs transition-colors hover:bg-highlight-1/40"
+                class="grid grid-cols-[minmax(270px,1fr)_60px_105px_105px] gap-2 min-w-[650px] items-center py-1.5 px-2 rounded cursor-pointer text-xs transition-colors hover:bg-highlight-1/40"
                 :class="
                   selectedSourceItem?.id === row.id
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-foreground'
                 "
-                :style="{ paddingLeft: `${Math.max(8, row.depth * 16 + 8)}px` }"
               >
-                <input
-                  type="radio"
-                  name="source-boq"
-                  :checked="selectedSourceItem?.id === row.id"
-                  class="accent-primary shrink-0"
-                  @change="selectSourceItem(row.item)"
-                />
-                <span class="font-mono text-primary font-medium shrink-0">
-                  {{ row.item.code }}
-                </span>
-                <span class="truncate flex-1" :title="row.item.name">
-                  {{ row.item.name }}
-                </span>
                 <span
-                  v-if="row.item.unit"
-                  class="text-foreground-3 text-[11px] shrink-0"
+                  class="flex items-center gap-2 min-w-0"
+                  :style="{ paddingLeft: `${row.depth * 16}px` }"
                 >
-                  ({{ row.item.unit }})
+                  <input
+                    type="radio"
+                    name="source-boq"
+                    :checked="selectedSourceItem?.id === row.id"
+                    class="accent-primary shrink-0"
+                    @change="selectSourceItem(row.item)"
+                  />
+                  <span class="font-mono text-primary font-medium shrink-0">
+                    {{ row.item.code }}
+                  </span>
+                  <span class="truncate" :title="row.item.name">
+                    {{ row.item.name }}
+                  </span>
+                  <span
+                    class="text-[10px] text-foreground-3 shrink-0 bg-foundation-3 px-1 rounded"
+                  >
+                    {{ boqTypeLabel(row.item.type) }}
+                  </span>
                 </span>
-                <span
-                  class="text-[10px] text-foreground-3 shrink-0 bg-foundation-3 px-1 rounded"
-                >
-                  {{ row.item.type }}
+                <span class="text-center text-foreground-2">
+                  {{ row.item.unit || '—' }}
+                </span>
+                <span class="text-right font-mono">
+                  {{ formatNumber(row.item.quantity) }}
+                </span>
+                <span class="text-right font-mono">
+                  {{ formatNumber(row.item.price) }}
                 </span>
               </label>
             </div>
@@ -214,7 +229,7 @@
               </div>
 
               <!-- 工程量输入 -->
-              <div class="grid grid-cols-2 gap-3">
+              <div :class="isChange ? 'grid grid-cols-2 gap-3' : ''">
                 <div>
                   <label
                     for="pick-review-qty"
@@ -232,7 +247,7 @@
                     class="w-full px-2.5 py-1.5 text-xs font-mono text-right bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
                   />
                 </div>
-                <div>
+                <div v-if="isChange">
                   <label
                     for="pick-change-qty"
                     class="block text-xs font-medium text-foreground mb-1"
@@ -358,7 +373,6 @@
                   <th class="w-20 py-2 px-3 text-center">单位</th>
                   <th class="w-28 py-2 px-3 text-right">合同工程量</th>
                   <th class="w-28 py-2 px-3 text-right">综合单价</th>
-                  <th class="w-28 py-2 px-3 text-right">原变更量</th>
                   <th class="w-24 py-2 px-3 text-center">状态</th>
                 </tr>
               </thead>
@@ -396,7 +410,7 @@
                     {{ row.item.name }}
                   </td>
                   <td class="py-2 px-3 text-center text-foreground-3 text-[11px]">
-                    {{ row.item.type }}
+                    {{ boqTypeLabel(row.item.type) }}
                   </td>
                   <td class="py-2 px-3 text-center text-foreground-2">
                     {{ row.item.unit || '—' }}
@@ -406,9 +420,6 @@
                   </td>
                   <td class="py-2 px-3 text-right font-mono text-foreground">
                     {{ formatNumber(row.item.price) }}
-                  </td>
-                  <td class="py-2 px-3 text-right font-mono text-foreground-2">
-                    {{ formatNumber(row.item.changeQuantity) }}
                   </td>
                   <td class="py-2 px-3 text-center">
                     <span
@@ -568,6 +579,7 @@ import {
   collectBoqCodes,
   collectBoqLeafItems,
   flattenBoqTree,
+  boqTypeLabel,
   formatNumber,
   suggestCreatedCode,
   toNum,
@@ -694,10 +706,12 @@ const selectSourceItem = (item: BoqTreeItem) => {
   createForm.value.code = suggestedCode
   createForm.value.name = item.name ? `${item.name}-增` : ''
   createForm.value.unit = item.unit || '项'
-  createForm.value.reviewUnitPrice = String(item.reviewPrice ?? item.price ?? 0)
+  createForm.value.reviewUnitPrice = isChange.value
+    ? String(item.reviewPrice ?? item.price ?? 0)
+    : '0'
   createForm.value.reviewQty = isChange.value
-    ? '0'
-    : String(item.reviewQuantity ?? item.quantity ?? 0)
+    ? String(item.reviewQuantity ?? item.quantity ?? 0)
+    : '0'
   createForm.value.changeQty = '0'
 }
 
@@ -753,6 +767,10 @@ const handleCreateRow = (keepOpen: boolean) => {
       allCodesSet.value
     )
     createForm.value.code = nextCode
+    if (!isChange.value) {
+      createForm.value.reviewQty = '0'
+      createForm.value.reviewUnitPrice = '0'
+    }
   } else {
     handleClose()
   }
@@ -915,6 +933,14 @@ watch(
       selectedImportCodes.value = new Set()
       selectedSourceItem.value = null
       createError.value = ''
+      createForm.value = {
+        code: '',
+        name: '',
+        unit: '',
+        reviewQty: '0',
+        changeQty: '0',
+        reviewUnitPrice: '0'
+      }
     }
   }
 )

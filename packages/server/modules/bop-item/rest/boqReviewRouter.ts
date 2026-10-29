@@ -1,5 +1,5 @@
-import { Router, json } from 'express'
-import type { Request, Response } from 'express'
+import { json } from 'express'
+import type { Request, Response, Router } from 'express'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
 import {
   streamReadPermissionsPipelineFactory,
@@ -25,12 +25,14 @@ import {
   syncBindingStatusFromInstanceFactory
 } from '@/modules/flow/services/approvalBindings'
 import { updateApprovalFlowStatusFactory } from '@/modules/flow/services/approvalFlows'
+import { isAssignedApprover } from '@/modules/flow/helpers/approverIdentity'
 import {
   ApprovalFlowSubscriptions,
   publish
 } from '@/modules/shared/utils/subscriptions'
 import {
   BOQ_REVIEW_RECORDS_TABLE,
+  normalizeNumberText,
   validateReviewRows,
   type BoqReviewKind,
   type BoqReviewRowInput
@@ -42,11 +44,112 @@ import {
   getBoqItemsTraceSummaryFactory,
   getBoqReviewRecordDetailFactory,
   listBoqReviewRecordsFactory,
-  saveBoqReviewRecordFactory
+  saveBoqReviewRecordFactory,
+  type BoqReviewRecordDetailDto
 } from '@/modules/bop-item/repositories/boqReviews'
 
 const hasServerAdminOverride = (req: Request) =>
   adminOverrideEnabled() && req.context.role === Roles.Server.Admin
+
+const isServerAdmin = (req: Request) => req.context.role === Roles.Server.Admin
+
+const getUserProfile = async (
+  userId: string
+): Promise<{ email: string | null; name: string | null }> => {
+  const user = await db('users').where('id', userId).select('email', 'name').first()
+  return {
+    email: user?.email ? String(user.email).trim().toLowerCase() : null,
+    name: user?.name ? String(user.name).trim() : null
+  }
+}
+
+const isDraftStatus = (status: string | null | undefined) =>
+  ['START', 'DRAFT', 'RETURNED'].includes(normalizeApprovalStatus(status))
+
+const canEditDraft = (
+  detail: BoqReviewRecordDetailDto,
+  userId: string,
+  isAdmin: boolean
+) => isDraftStatus(detail.approveStatus) && (isAdmin || detail.applicantId === userId)
+
+const canApproveCurrentStep = (
+  detail: BoqReviewRecordDetailDto,
+  userId: string,
+  isAdmin: boolean,
+  email?: string | null,
+  name?: string | null
+) => {
+  if (!['PENDING', 'IN_REVIEW'].includes(normalizeApprovalStatus(detail.approveStatus)))
+    return false
+  const step = detail.steps.find((item) => item.status === 'PENDING')
+  return (
+    !!step && (isAdmin || isAssignedApprover(step.approverIds, userId, email, name))
+  )
+}
+
+const getStageEditableField = (
+  detail: BoqReviewRecordDetailDto
+):
+  | 'reviewQtySupervisor'
+  | 'changeQtySupervisor'
+  | 'reviewQtyContract'
+  | 'changeQtyContract'
+  | null => {
+  const step = detail.steps.find((item) => item.status === 'PENDING')
+  const stepName = step?.name || detail.currentStepName || ''
+  if (
+    detail.currentStage === 'supervisor' ||
+    /监理|财务|投资|指挥|工管/.test(stepName)
+  ) {
+    return detail.kind === 'change' ? 'changeQtySupervisor' : 'reviewQtySupervisor'
+  }
+  if (detail.currentStage === 'contract' || /合约|合同|造价|审定|终审/.test(stepName)) {
+    return detail.kind === 'change' ? 'changeQtyContract' : 'reviewQtyContract'
+  }
+  return null
+}
+
+const approvalRowsForStage = (
+  detail: BoqReviewRecordDetailDto,
+  submitted: BoqReviewRowInput[]
+): BoqReviewRowInput[] | null => {
+  const field = getStageEditableField(detail)
+  if (!field || submitted.length !== detail.rows.length) return null
+  const byId = new Map(submitted.map((row) => [row.id, row]))
+  if (byId.size !== detail.rows.length) return null
+  if (detail.rows.some((row) => !byId.has(row.id))) return null
+  if (
+    detail.rows.some((row) => {
+      const value = byId.get(row.id)?.[field]
+      return value === null || value === undefined || !normalizeNumberText(value)
+    })
+  )
+    return null
+  return detail.rows.map((row) => ({ ...row, [field]: byId.get(row.id)![field] }))
+}
+
+const draftRowsForContractor = (
+  detail: BoqReviewRecordDetailDto,
+  submitted: BoqReviewRowInput[]
+): BoqReviewRowInput[] => {
+  const existingById = new Map(detail.rows.map((r) => [r.id, r]))
+  return submitted.map((row) => {
+    const existing = row.id ? existingById.get(row.id) : null
+    if (detail.kind === 'change') {
+      return {
+        ...row,
+        changeQtySupervisor: existing?.changeQtySupervisor ?? undefined,
+        changeQtyContract: existing?.changeQtyContract ?? undefined
+      }
+    } else {
+      return {
+        ...row,
+        reviewQtySupervisor: existing?.reviewQtySupervisor ?? undefined,
+        reviewQtyContract: existing?.reviewQtyContract ?? undefined
+      }
+    }
+  })
+}
 
 const normalizeApprovalStatus = (status: string | null | undefined) =>
   String(status || 'START')
@@ -117,6 +220,8 @@ export const registerBoqReviewRoutes = (app: Router): void => {
       })
     ),
     async (req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      res.setHeader('Pragma', 'no-cache')
       const { projectId } = req.params
       const userId = req.context.userId
       if (!userId) {
@@ -152,6 +257,8 @@ export const registerBoqReviewRoutes = (app: Router): void => {
       })
     ),
     async (req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      res.setHeader('Pragma', 'no-cache')
       const { projectId, itemId } = req.params
       const userId = req.context.userId
       if (!userId) {
@@ -325,9 +432,21 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           return res.status(404).json({ error: '清单审核单据不存在' })
         }
 
+        const profile = await getUserProfile(userId)
+        const permissions = {
+          canEditDraft: canEditDraft(detail, userId, isServerAdmin(req)),
+          canApprove: canApproveCurrentStep(
+            detail,
+            userId,
+            isServerAdmin(req),
+            profile.email,
+            profile.name
+          )
+        }
         return res.status(200).json({
-          record: detail,
-          ...detail
+          record: { ...detail, ...permissions },
+          ...detail,
+          ...permissions
         })
       } catch (e) {
         req.log.error(ensureError(e), 'Get BOQ review detail error')
@@ -373,19 +492,65 @@ export const registerBoqReviewRoutes = (app: Router): void => {
         }
 
         const body = req.body || {}
+        const detail = await getBoqReviewRecordDetailFactory({
+          db: projectDb,
+          mainDb: db
+        })({ projectId, recordId })
+        if (!detail) return res.status(404).json({ error: '清单审核单据不存在' })
+
+        const profile = await getUserProfile(userId)
+        const draft = canEditDraft(detail, userId, isServerAdmin(req))
+        const reviewer = canApproveCurrentStep(
+          detail,
+          userId,
+          isServerAdmin(req),
+          profile.email,
+          profile.name
+        )
+        const isDraft = isDraftStatus(detail.approveStatus)
+
+        if (isDraft) {
+          if (!draft) {
+            return res
+              .status(403)
+              .json({ error: '仅单据发起人或管理员可编辑草稿/退回状态单据' })
+          }
+        } else {
+          if (!reviewer) {
+            return res
+              .status(403)
+              .json({ error: '当前用户不是该节点的审批人，无权修改审核数据' })
+          }
+        }
+
+        const approvalRows =
+          reviewer && !isDraft && Array.isArray(body.rows)
+            ? approvalRowsForStage(detail, body.rows as BoqReviewRowInput[])
+            : undefined
+        if (reviewer && !isDraft && Array.isArray(body.rows) && !approvalRows) {
+          return res
+            .status(400)
+            .json({ error: '审核明细无效，请只修改本阶段工程量并填写有效数值' })
+        }
+        if (reviewer && !isDraft && !Array.isArray(body.rows)) {
+          return res.status(400).json({ error: '请提供待保存的审核明细' })
+        }
+
         const updated = await saveBoqReviewRecordFactory({
           db: projectDb,
           mainDb: db
         })({
           projectId,
           recordId,
-          reason: body.reason,
-          applicant: body.applicant,
-          applyDate: body.applyDate,
-          attachments: body.attachments,
-          history: body.history,
-          appendHistoryAction: body.appendHistoryAction,
-          rows: Array.isArray(body.rows) ? body.rows : undefined
+          reason: isDraft && draft ? body.reason : undefined,
+          applicant: isDraft && draft ? body.applicant : undefined,
+          applyDate: isDraft && draft ? body.applyDate : undefined,
+          attachments: isDraft && draft ? body.attachments : undefined,
+          rows:
+            approvalRows ||
+            (isDraft && draft && Array.isArray(body.rows)
+              ? draftRowsForContractor(detail, body.rows as BoqReviewRowInput[])
+              : undefined)
         })
 
         return res.status(200).json({
@@ -504,6 +669,16 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           return res.status(404).json({ error: '清单审核单据不存在' })
         }
 
+        const initialDetail = await getBoqReviewRecordDetailFactory({
+          db: projectDb,
+          mainDb: db
+        })({ projectId, recordId })
+        if (
+          !initialDetail ||
+          !canEditDraft(initialDetail, userId, isServerAdmin(req))
+        ) {
+          return res.status(403).json({ error: '当前用户无权提交该单据' })
+        }
         const body = req.body || {}
         // 若送审时请求体带了最新表单与明细数据，先保存更新
         if (
@@ -521,7 +696,7 @@ export const registerBoqReviewRoutes = (app: Router): void => {
             applyDate: body.applyDate,
             attachments: body.attachments,
             rows: Array.isArray(body.rows)
-              ? (body.rows as BoqReviewRowInput[])
+              ? draftRowsForContractor(initialDetail, body.rows as BoqReviewRowInput[])
               : undefined
           })
         }
@@ -543,7 +718,9 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           .where('projectId', projectId)
           .select('code')
         const existingBoqCodes = new Set<string>(
-          boqCodesRows.map((r: any) => String(r.code || '').trim()).filter(Boolean)
+          boqCodesRows
+            .map((r: { code?: string | null }) => String(r.code || '').trim())
+            .filter(Boolean)
         )
 
         const validationIssues = validateReviewRows(
@@ -643,8 +820,12 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           const instanceSteps = await db('approval_flow_instance_steps')
             .where('instanceId', instanceId)
             .orderBy('stepIndex', 'asc')
-          const firstApprovalStep = instanceSteps.find((s: any) => s.stepIndex === 1)
-          const hasNextApprovalStep = instanceSteps.some((s: any) => s.stepIndex > 1)
+          const firstApprovalStep = instanceSteps.find(
+            (s: { stepIndex: number }) => s.stepIndex === 1
+          )
+          const hasNextApprovalStep = instanceSteps.some(
+            (s: { stepIndex: number }) => s.stepIndex > 1
+          )
 
           if (
             firstApprovalStep &&
@@ -730,14 +911,6 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           (typeof body.remark === 'string' && body.remark.trim()) ||
           null
 
-        if (Array.isArray(body.rows)) {
-          await saveBoqReviewRecordFactory({ db: projectDb, mainDb: db })({
-            projectId,
-            recordId,
-            rows: body.rows as BoqReviewRowInput[]
-          })
-        }
-
         const detailBefore = await getBoqReviewRecordDetailFactory({
           db: projectDb,
           mainDb: db
@@ -751,12 +924,47 @@ export const registerBoqReviewRoutes = (app: Router): void => {
         if (!detailBefore.flowInstanceId) {
           return res.status(400).json({ error: '该单据尚未关联审批流程实例' })
         }
+        const profile = await getUserProfile(userId)
+        if (
+          !canApproveCurrentStep(
+            detailBefore,
+            userId,
+            isServerAdmin(req),
+            profile.email,
+            profile.name
+          )
+        ) {
+          return res.status(403).json({ error: '当前用户不是该审核节点的审批人' })
+        }
+        if (Array.isArray(body.rows)) {
+          const approvedRows = approvalRowsForStage(
+            detailBefore,
+            body.rows as BoqReviewRowInput[]
+          )
+          if (!approvedRows) {
+            return res
+              .status(400)
+              .json({ error: '审核明细无效，请只修改本阶段工程量并填写有效数值' })
+          }
+          await saveBoqReviewRecordFactory({ db: projectDb, mainDb: db })({
+            projectId,
+            recordId,
+            rows: approvedRows
+          })
+        }
 
-        const userRow = await db('users').where('id', userId).select('name').first()
-        const actorName = userRow?.name
-          ? String(userRow.name)
+        const actorName = profile.name
+          ? profile.name
           : detailBefore.currentStepName || '审批人'
 
+        await approveApprovalInstanceFactory({ db })({
+          instanceId: detailBefore.flowInstanceId,
+          comment,
+          actorUserId: userId,
+          actorEmail: profile.email,
+          actorName: profile.name,
+          forceByAdmin: isServerAdmin(req)
+        })
         await saveBoqReviewRecordFactory({ db: projectDb, mainDb: db })({
           projectId,
           recordId,
@@ -765,12 +973,6 @@ export const registerBoqReviewRoutes = (app: Router): void => {
             action: `${detailBefore.currentStepName || '节点'}审核通过`,
             ...(comment ? { reason: comment } : {})
           }
-        })
-
-        await approveApprovalInstanceFactory({ db })({
-          instanceId: detailBefore.flowInstanceId,
-          comment,
-          actorUserId: userId
         })
 
         const refreshed = await getBoqReviewRecordDetailFactory({
@@ -817,14 +1019,6 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           return res.status(400).json({ error: '请填写退回/驳回原因' })
         }
 
-        if (Array.isArray(body.rows)) {
-          await saveBoqReviewRecordFactory({ db: projectDb, mainDb: db })({
-            projectId,
-            recordId,
-            rows: body.rows as BoqReviewRowInput[]
-          })
-        }
-
         const detailBefore = await getBoqReviewRecordDetailFactory({
           db: projectDb,
           mainDb: db
@@ -838,10 +1032,37 @@ export const registerBoqReviewRoutes = (app: Router): void => {
         if (!detailBefore.flowInstanceId) {
           return res.status(400).json({ error: '该单据尚未关联审批流程实例' })
         }
+        const profile = await getUserProfile(userId)
+        if (
+          !canApproveCurrentStep(
+            detailBefore,
+            userId,
+            isServerAdmin(req),
+            profile.email,
+            profile.name
+          )
+        ) {
+          return res.status(403).json({ error: '当前用户不是该审核节点的审批人' })
+        }
+        if (Array.isArray(body.rows)) {
+          const approvedRows = approvalRowsForStage(
+            detailBefore,
+            body.rows as BoqReviewRowInput[]
+          )
+          if (!approvedRows) {
+            return res
+              .status(400)
+              .json({ error: '审核明细无效，请只修改本阶段工程量并填写有效数值' })
+          }
+          await saveBoqReviewRecordFactory({ db: projectDb, mainDb: db })({
+            projectId,
+            recordId,
+            rows: approvedRows
+          })
+        }
 
-        const userRow = await db('users').where('id', userId).select('name').first()
-        const actorName = userRow?.name
-          ? String(userRow.name)
+        const actorName = profile.name
+          ? profile.name
           : detailBefore.currentStepName || '审批人'
 
         const targetStep =
@@ -854,20 +1075,26 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           await rejectApprovalInstanceFactory({ db })({
             instanceId: detailBefore.flowInstanceId,
             comment,
-            actorUserId: userId
+            actorUserId: userId,
+            actorEmail: profile.email,
+            actorName: profile.name
           })
         } else if (targetStep > 0) {
           await returnApprovalInstanceToStepFactory({ db })({
             instanceId: detailBefore.flowInstanceId,
             targetStep,
             comment,
-            actorUserId: userId
+            actorUserId: userId,
+            actorEmail: profile.email,
+            actorName: profile.name
           })
         } else {
           await returnApprovalInstanceToStartFactory({ db })({
             instanceId: detailBefore.flowInstanceId,
             comment,
-            actorUserId: userId
+            actorUserId: userId,
+            actorEmail: profile.email,
+            actorName: profile.name
           })
         }
 

@@ -333,13 +333,15 @@
               </span>
             </template>
             <template v-else-if="c.key === 'reviewTotal'">
-              <span class="font-mono text-right w-full text-primary font-bold pr-1">
+              <span
+                class="font-mono text-right w-full text-primary font-bold pr-1 whitespace-nowrap"
+              >
                 ¥ {{ formatMoney(summarySums.reviewTotal) }}
               </span>
             </template>
             <template v-else-if="c.key === 'changeAmount'">
               <span
-                class="font-mono text-right w-full font-bold pr-1"
+                class="font-mono text-right w-full font-bold pr-1 whitespace-nowrap"
                 :class="summarySums.changeAmount < 0 ? 'text-danger' : 'text-success'"
               >
                 ¥ {{ summarySums.changeAmount > 0 ? '+' : ''
@@ -433,8 +435,8 @@ function buildCols(kind: ReviewKind): ColDef[] {
       { key: 'changeQtyTotal', label: '累计签证量', w: 95, align: 'center' },
       { key: 'finAuditQty', label: '工程量(含变更)', w: 105, align: 'center' },
       { key: 'reviewUnitPrice', label: '复核单价(元)', w: 100, align: 'right' },
-      { key: 'reviewTotal', label: '复核总价(元)', w: 115, align: 'right' },
-      { key: 'changeAmount', label: '本次变更金额(元)', w: 120, align: 'right' },
+      { key: 'reviewTotal', label: '复核总价(元)', w: 175, align: 'right' },
+      { key: 'changeAmount', label: '本次变更金额(元)', w: 175, align: 'right' },
       { key: 'op', label: '操作', w: 55, align: 'center' }
     ]
   }
@@ -451,7 +453,7 @@ function buildCols(kind: ReviewKind): ColDef[] {
     { key: 'changeBase', label: '变更/签证量(现值)', w: 110, align: 'center' },
     { key: 'finAuditQty', label: '工程量(含变更)', w: 110, align: 'center' },
     { key: 'reviewUnitPrice', label: '复核单价(元)', w: 105, align: 'right' },
-    { key: 'reviewTotal', label: '复核总价(元)', w: 125, align: 'right' },
+    { key: 'reviewTotal', label: '复核总价(元)', w: 175, align: 'right' },
     { key: 'op', label: '操作', w: 55, align: 'center' }
   ]
 }
@@ -480,7 +482,9 @@ const onMouseMove = (e: MouseEvent) => {
   if (!resizing.value) return
   const delta = e.clientX - resizing.value.startX
   const newWidth = Math.max(48, resizing.value.startWidth + delta)
-  colWidths.value[resizing.value.colIndex] = newWidth
+  const key = cols.value[resizing.value.colIndex]?.key
+  colWidths.value[resizing.value.colIndex] =
+    key === 'reviewTotal' || key === 'changeAmount' ? Math.max(175, newWidth) : newWidth
 }
 
 const onMouseUp = () => {

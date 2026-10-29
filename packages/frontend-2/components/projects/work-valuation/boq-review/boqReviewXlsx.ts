@@ -25,11 +25,21 @@ const ALIASES: Record<string, string[]> = {
 }
 
 const EXPORT_HEADERS: Record<ReviewKind, readonly string[]> = {
-  review: ['清单编码', '清单名称', '计量单位', '复核量', '复核单价（元）'],
+  review: [
+    '清单编码',
+    '清单名称',
+    '单位',
+    '合同工程量',
+    '综合单价',
+    '复核量',
+    '复核单价（元）'
+  ],
   change: [
     '清单编码',
     '清单名称',
-    '计量单位',
+    '单位',
+    '合同工程量',
+    '综合单价',
     '原变更签证量',
     '本次签证变更量',
     '复核单价（元）'
@@ -63,6 +73,8 @@ export function exportReviewTemplateXlsx(
     const name = node.name || ''
     const unit = isLeaf ? node.unit || '' : ''
     const price = isLeaf ? toNum(node.reviewPrice ?? node.price) : ''
+    const contractQty = isLeaf ? toNum(node.quantity) : ''
+    const contractPrice = isLeaf ? toNum(node.price) : ''
     const baseChg = isLeaf ? toNum(node.changeQuantity) : ''
     const revQty = isLeaf ? toNum(node.reviewQuantity ?? node.quantity) : ''
 
@@ -70,7 +82,9 @@ export function exportReviewTemplateXlsx(
       return {
         清单编码: code,
         清单名称: name,
-        计量单位: unit,
+        单位: unit,
+        合同工程量: contractQty,
+        综合单价: contractPrice,
         原变更签证量: isLeaf ? baseChg : '',
         本次签证变更量: isLeaf ? 0 : '',
         '复核单价（元）': price
@@ -80,7 +94,9 @@ export function exportReviewTemplateXlsx(
     return {
       清单编码: code,
       清单名称: name,
-      计量单位: unit,
+      单位: unit,
+      合同工程量: contractQty,
+      综合单价: contractPrice,
       复核量: isLeaf ? revQty : '',
       '复核单价（元）': price
     }

@@ -672,13 +672,12 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { Portal } from 'portal-vue'
+import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
+import type { LayoutDialogButton } from '@speckle/ui-components'
 
 definePageMeta({
   middleware: ['admin']
 })
-import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/toast'
-import type { LayoutDialogButton } from '@speckle/ui-components'
-import dayjs from 'dayjs'
 
 // Route setup
 const route = useRoute()
@@ -731,8 +730,8 @@ const loadAllUsers = async () => {
       Array<{ id: string; name: string; avatar: string | null }>
     >(`${apiOrigin}/api/users`)
     dbUsers.value = data || []
-  } catch (err) {
-    console.error('Failed to load users from REST API:', err)
+  } catch {
+    notify('加载失败', '无法加载用户列表', ToastNotificationType.Danger)
   }
 }
 
@@ -740,8 +739,8 @@ const loadCategories = async () => {
   try {
     const data = await $fetch<Category[]>(`${apiOrigin}/api/approval-categories`)
     categories.value = data || []
-  } catch (err) {
-    console.error('Failed to load categories:', err)
+  } catch {
+    notify('加载失败', '无法加载审批分类', ToastNotificationType.Danger)
   }
 }
 
@@ -751,8 +750,8 @@ const loadApprovalFlows = async () => {
       `${apiOrigin}/api/projects/${projectId.value}/approval-definitions`
     )
     flows.value = data || []
-  } catch (err) {
-    console.error('Failed to load approval flows:', err)
+  } catch {
+    notify('加载失败', '无法加载审批流程', ToastNotificationType.Danger)
   }
 }
 
@@ -835,8 +834,7 @@ const deleteFlow = async () => {
       `已成功删除审批流 “${originalName}” (V${version})`,
       ToastNotificationType.Success
     )
-  } catch (err) {
-    console.error(err)
+  } catch {
     notify('删除失败', `无法删除审批流 “${originalName}”`, ToastNotificationType.Danger)
   }
   isDeleteConfirmOpen.value = false
@@ -861,8 +859,7 @@ const toggleFlowStatus = async (flow: ApprovalFlow) => {
       `“${flow.name}” (V${flow.version}) ${statusMessage}`,
       nextIsActive ? ToastNotificationType.Success : ToastNotificationType.Info
     )
-  } catch (err) {
-    console.error(err)
+  } catch {
     notify(
       '操作失败',
       `无法更改审批流 “${flow.name}” 的状态`,
@@ -916,7 +913,7 @@ const approvalTemplates: ApprovalTemplate[] = [
     ]
   },
   {
-    id: 'BOQ_REVIEW_TEMPLATE_1',
+    id: 'f74fd496a9',
     name: '清单审核（模版1）',
     categoryId: 'BOQ_REVIEW',
     description:
@@ -928,10 +925,20 @@ const approvalTemplates: ApprovalTemplate[] = [
 const selectedTemplateId = ref<string>('')
 
 const applyTemplate = () => {
-  if (!selectedTemplateId.value) return
-  const tpl = approvalTemplates.find((t) => t.id === selectedTemplateId.value)
+  if (!selectedTemplateId.value) {
+    formFlow.value.templateId = undefined
+    return
+  }
+  const targetId =
+    selectedTemplateId.value === 'BOQ_REVIEW_TEMPLATE_1'
+      ? 'f74fd496a9'
+      : selectedTemplateId.value
+  const tpl = approvalTemplates.find(
+    (t) => t.id === targetId || t.id === selectedTemplateId.value
+  )
   if (!tpl) return
 
+  formFlow.value.templateId = tpl.id
   formFlow.value.name = tpl.name
   formFlow.value.category = tpl.categoryId
   formFlow.value.description = tpl.description
@@ -989,6 +996,7 @@ const openCreateModal = (categoryId?: string) => {
     selectedTemplateId.value = matchingTemplate.id
     formFlow.value = {
       id: `flow-${Date.now()}`,
+      templateId: matchingTemplate.id,
       name: matchingTemplate.name,
       category: matchingTemplate.categoryId,
       isActive: true,
@@ -1004,6 +1012,7 @@ const openCreateModal = (categoryId?: string) => {
     selectedTemplateId.value = ''
     formFlow.value = {
       id: `flow-${Date.now()}`,
+      templateId: undefined,
       name: '',
       category: targetCategory,
       isActive: true,
@@ -1025,15 +1034,17 @@ const openEditModal = (flow: ApprovalFlow) => {
   isEditMode.value = true
   isNewVersion.value = false
   selectedFlow.value = flow
-  selectedTemplateId.value = ''
+  const mappedTemplateId =
+    flow.templateId === 'BOQ_REVIEW_TEMPLATE_1' ? 'f74fd496a9' : flow.templateId
+  selectedTemplateId.value = mappedTemplateId || ''
   formFlow.value = {
     id: flow.id,
-    templateId: flow.templateId,
+    templateId: mappedTemplateId,
     name: flow.name,
     category: flow.category.id,
     isActive: flow.isActive,
     description: flow.description,
-    steps: flow.steps.map((s: any) => ({
+    steps: flow.steps.map((s: Step) => ({
       id: s.id,
       role: s.role,
       selectedApprovers:
@@ -1111,7 +1122,7 @@ const saveFlowForm = async () => {
 
   const payload = {
     id: isEditMode.value ? formFlow.value.id : undefined,
-    templateId: isEditMode.value ? formFlow.value.templateId : undefined,
+    templateId: formFlow.value.templateId || undefined,
     name,
     category: formFlow.value.category,
     isActive: formFlow.value.isActive,
@@ -1132,8 +1143,7 @@ const saveFlowForm = async () => {
     )
     isFormModalOpen.value = false
     selectedFlow.value = null
-  } catch (err) {
-    console.error(err)
+  } catch {
     notify('保存失败', `无法保存审批流 “${name}”`, ToastNotificationType.Danger)
   }
 }

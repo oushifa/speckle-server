@@ -5,10 +5,12 @@
     <!-- 面包屑导航 -->
     <Portal to="current-page">
       <div class="flex items-center space-x-1.5 text-xs text-foreground-2">
-        <NuxtLink :to="`/projects/${projectId}/work-valuation/BOQ`">验工计价</NuxtLink>
+        <NuxtLink :to="`/projects/${projectId}/work-valuation/boq/bill`">
+          验工计价
+        </NuxtLink>
         <span>/</span>
         <NuxtLink
-          :to="`/projects/${projectId}/work-valuation/BOQ?tab=${currentKind}`"
+          :to="`/projects/${projectId}/work-valuation/boq/${currentKind}`"
           class="hover:text-primary transition-colors"
         >
           {{ meta.tabLabel }}
@@ -54,6 +56,13 @@
         >
           {{ currentStageLabel }}
         </span>
+        <!-- 只读查看提示 -->
+        <span
+          v-if="!canAct"
+          class="px-2 py-0.5 rounded text-[11px] font-medium bg-foundation-2 text-foreground-3 border border-outline-3"
+        >
+          只读查看
+        </span>
       </div>
 
       <!-- 右侧快捷按钮 -->
@@ -65,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 主体左右分栏布局 -->
+    <!-- 单据信息与明细保持完整宽度；审批面板悬浮于右侧 -->
     <div class="flex-1 min-h-0 flex overflow-hidden">
       <!-- ── 左侧主内容区（单据信息 + 明细表） ── -->
       <div class="flex-1 min-w-0 flex flex-col p-4 gap-3 overflow-hidden">
@@ -329,7 +338,7 @@
           <div
             class="p-3 bg-foundation-2 rounded-lg border border-outline-3 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs text-foreground"
           >
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-wrap">
               <span>
                 明细总数：
                 <b class="text-foreground">{{ rows.length }}</b>
@@ -338,6 +347,7 @@
               <span v-if="isChange">
                 本次签证金额合计：
                 <b
+                  class="whitespace-nowrap"
                   :class="
                     summaryTotals.changeAmount < 0 ? 'text-danger' : 'text-success'
                   "
@@ -348,280 +358,241 @@
               </span>
               <span>
                 复核总价合计：
-                <b class="text-primary text-sm font-bold">
+                <b class="text-primary text-sm font-bold whitespace-nowrap">
                   ¥ {{ formatMoney(summaryTotals.reviewTotal) }}
                 </b>
               </span>
             </div>
 
             <!-- 底部保存/送审提示 -->
-            <div class="text-foreground-3 text-[11px]">
-              <span v-if="record?.status === 'APPROVED'">
-                已完成终审，数据已写回正式工程清单
-              </span>
-              <span v-else-if="activeEditableStage === 'supervisor'">
-                财务监理审核阶段：请核定复核/签证量并点击右侧通过
-              </span>
-              <span v-else-if="activeEditableStage === 'contract'">
-                合约部终审阶段：确认审定后将自动生效并写回清单
-              </span>
-              <span v-else>草稿填报阶段：请核对清单后在右侧送审</span>
+            <div class="flex items-center gap-3">
+              <FormButton
+                v-if="canCurrentUserApprove"
+                color="outline"
+                size="sm"
+                :loading="savingReview"
+                :disabled="!isDirty || approvingFlow || returningFlow"
+                @click="handleSaveReview"
+              >
+                保存审核数据
+              </FormButton>
+              <div class="text-foreground-3 text-[11px]">
+                <span v-if="record?.approveStatus === 'APPROVED'">
+                  已完成终审，数据已写回正式工程清单
+                </span>
+                <span v-else-if="activeEditableStage === 'supervisor'">
+                  财务监理审核阶段：请核定复核/签证量并点击右侧通过
+                </span>
+                <span v-else-if="activeEditableStage === 'contract'">
+                  合约部终审阶段：确认审定后将自动生效并写回清单
+                </span>
+                <span v-else>草稿填报阶段：请核对清单后在右侧送审</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- ── 右侧项目标准审批流程面板 ── -->
+    <!-- 审批面板与月度验工一致，浮在页面右侧而不压缩明细 -->
+    <div
+      v-if="isSidebarOpen"
+      class="fixed right-0 top-12 bottom-0 z-40 w-[320px] border-l border-outline-3 bg-foundation flex flex-col shadow-2xl"
+    >
+      <!-- 审批面板标题栏 -->
       <div
-        v-if="isSidebarOpen"
-        class="w-[360px] shrink-0 border-l border-outline-3 bg-foundation flex flex-col min-h-0 shadow-lg transition-all"
+        class="p-4 border-b border-outline-3 flex items-center justify-between shrink-0 bg-foundation-2"
       >
-        <!-- 审批面板标题栏 -->
-        <div
-          class="p-4 border-b border-outline-3 flex items-center justify-between shrink-0 bg-foundation-2"
-        >
-          <div class="flex items-center gap-2">
-            <QueueListIcon class="w-4 h-4 text-primary" />
-            <h3 class="text-sm font-bold text-foreground">审批流程与待办</h3>
-          </div>
-          <button
-            type="button"
-            class="text-foreground-2 hover:text-foreground p-1 rounded"
-            title="收起面板"
-            @click="isSidebarOpen = false"
-          >
-            <ChevronRightIcon class="w-4 h-4" />
-          </button>
+        <div class="flex items-center gap-2">
+          <QueueListIcon class="w-4 h-4 text-primary" />
+          <h3 class="text-sm font-bold text-foreground">审批流程与待办</h3>
         </div>
+        <button
+          type="button"
+          class="text-foreground-2 hover:text-foreground p-1 rounded"
+          title="收起面板"
+          @click="isSidebarOpen = false"
+        >
+          <ChevronRightIcon class="w-4 h-4" />
+        </button>
+      </div>
 
-        <!-- 审批面板可滚动区域 -->
-        <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
-          <!-- 流程状态卡片 -->
-          <div class="p-3 bg-foundation-2 border border-outline-3 rounded-lg space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-foreground-3">当前流程状态</span>
-              <span
-                class="px-2 py-0.5 rounded text-[11px] font-medium border"
-                :class="statusBadge.class"
-              >
-                {{ statusBadge.label }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-foreground-3">流程定义</span>
-              <span class="text-foreground font-medium">清单审核（模版1）</span>
-            </div>
-            <div
-              v-if="record?.currentStepName"
-              class="flex items-center justify-between text-xs"
+      <!-- 审批面板可滚动区域 -->
+      <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+        <!-- 审批动作操作区 -->
+        <div
+          class="p-3.5 border border-outline-3 rounded-lg bg-foundation space-y-3 shadow-sm"
+        >
+          <h4
+            class="text-xs font-bold text-foreground flex items-center justify-between"
+          >
+            <span>业务操作</span>
+            <span v-if="canAct" class="text-[11px] text-success font-normal">
+              ● 您拥有当前操作权限
+            </span>
+            <span v-else class="text-[11px] text-foreground-3 font-normal">
+              只读查看
+            </span>
+          </h4>
+
+          <!-- 1. 草稿 / 退回阶段：保存草稿 与 提交审核 -->
+          <div v-if="isDraftEditable" class="space-y-2.5">
+            <FormButton
+              color="outline"
+              size="sm"
+              class="w-full justify-center"
+              :loading="savingDraft"
+              @click="handleSaveDraft"
             >
-              <span class="text-foreground-3">当前待办节点</span>
-              <span class="text-primary font-bold">{{ record.currentStepName }}</span>
-            </div>
-            <div
-              v-if="record?.currentStepApprovers?.length"
-              class="flex items-center justify-between text-xs"
+              保存草稿
+            </FormButton>
+
+            <FormButton
+              color="primary"
+              size="sm"
+              class="w-full justify-center"
+              :loading="submittingFlow"
+              @click="openSubmitConfirm"
             >
-              <span class="text-foreground-3">待审批人</span>
-              <span
-                class="text-foreground font-mono truncate max-w-[180px]"
-                :title="record.currentStepApprovers.join('、')"
-              >
-                {{ record.currentStepApprovers.join('、') }}
-              </span>
-            </div>
+              提交审核 (进入流程)
+            </FormButton>
           </div>
 
-          <!-- 审批动作操作区 -->
-          <div
-            class="p-3.5 border border-outline-3 rounded-lg bg-foundation space-y-3 shadow-sm"
-          >
-            <h4
-              class="text-xs font-bold text-foreground flex items-center justify-between"
-            >
-              <span>业务操作</span>
-              <span v-if="canAct" class="text-[11px] text-success font-normal">
-                ● 您拥有当前操作权限
-              </span>
-              <span v-else class="text-[11px] text-foreground-3 font-normal">
-                只读查看
-              </span>
-            </h4>
-
-            <!-- 1. 草稿 / 退回阶段：保存草稿 与 提交审核 -->
-            <div v-if="isDraftEditable" class="space-y-2.5">
-              <FormButton
-                color="outline"
-                size="sm"
-                class="w-full justify-center"
-                :loading="savingDraft"
-                @click="handleSaveDraft"
+          <!-- 2. 审批中阶段且当前用户具备审批权限：审批通过 与 退回 -->
+          <div v-else-if="canCurrentUserApprove" class="space-y-3">
+            <div>
+              <label
+                class="block text-xs font-medium text-foreground mb-1"
+                for="approval-comment-input"
               >
-                保存草稿
-              </FormButton>
+                审批意见 / 批注
+              </label>
+              <textarea
+                id="approval-comment-input"
+                v-model="approvalComment"
+                rows="3"
+                placeholder="请输入您的审核意见..."
+                class="w-full px-2.5 py-1.5 text-xs bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground resize-none"
+              />
+            </div>
 
+            <div class="flex flex-col gap-2">
               <FormButton
                 color="primary"
                 size="sm"
                 class="w-full justify-center"
-                :loading="submittingFlow"
-                @click="openSubmitConfirm"
+                :loading="approvingFlow"
+                @click="openApproveConfirm"
               >
-                提交审核 (进入流程)
+                同意
+              </FormButton>
+
+              <FormButton
+                color="outline"
+                size="sm"
+                class="w-full justify-center"
+                :disabled="approvingFlow || returningFlow"
+                @click="openReturnDialog"
+              >
+                回退
               </FormButton>
             </div>
+          </div>
 
-            <!-- 2. 审批中阶段且当前用户具备审批权限：审批通过 与 退回 -->
-            <div v-else-if="canCurrentUserApprove" class="space-y-3">
-              <div>
-                <label
-                  class="block text-xs font-medium text-foreground mb-1"
-                  for="approval-comment-input"
-                >
-                  审批意见 / 批注
-                </label>
-                <textarea
-                  id="approval-comment-input"
-                  v-model="approvalComment"
-                  rows="3"
-                  placeholder="请输入您的审核意见..."
-                  class="w-full px-2.5 py-1.5 text-xs bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground resize-none"
-                />
-              </div>
+          <!-- 3. 已通过 / 无权限 / 纯查看模式 -->
+          <div v-else class="text-xs text-foreground-3 text-center py-2">
+            <span v-if="record?.approveStatus === 'APPROVED'">
+              单据已通过审核并生效
+            </span>
+            <span v-else>当前节点由其他指定人员审批（只读查看）</span>
+          </div>
+        </div>
 
-              <div class="flex flex-col gap-2">
-                <FormButton
-                  color="primary"
-                  size="sm"
-                  class="w-full justify-center"
-                  :loading="approvingFlow"
-                  @click="openApproveConfirm"
+        <!-- 审批步骤节点进度列表（steps） -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-foreground">流程节点进度</h4>
+          <div
+            class="space-y-2 border border-outline-3 rounded-lg p-2.5 bg-foundation-2/40"
+          >
+            <div
+              v-for="(step, sIdx) in flowSteps"
+              :key="step.id || sIdx"
+              class="p-2 rounded border text-xs space-y-1 transition-all"
+              :class="[
+                step.status === 'APPROVED'
+                  ? 'border-success/30 bg-success-lighter/10'
+                  : step.status === 'PENDING'
+                  ? 'border-primary/40 bg-primary/10 ring-1 ring-primary/30'
+                  : 'border-outline-3/60 bg-foundation text-foreground-3'
+              ]"
+            >
+              <div class="flex items-center justify-between font-medium">
+                <span class="flex items-center gap-1.5">
+                  <span class="font-mono text-[11px] text-foreground-3">
+                    #{{ step.stepIndex }}
+                  </span>
+                  <span class="font-bold text-foreground">{{ step.name }}</span>
+                </span>
+                <span
+                  class="text-[10px] px-1.5 py-0.2 rounded font-medium"
+                  :class="[
+                    step.status === 'APPROVED'
+                      ? 'bg-success text-white'
+                      : step.status === 'PENDING'
+                      ? 'bg-primary text-white'
+                      : 'bg-foundation-3 text-foreground-3'
+                  ]"
                 >
                   {{
-                    isFinalStep
-                      ? '最终审定并通过（正式生效）'
-                      : '审核通过，流转下一节点'
+                    step.status === 'APPROVED'
+                      ? '已通过'
+                      : step.status === 'PENDING'
+                      ? '待审核'
+                      : '未到达'
                   }}
-                </FormButton>
-
-                <div class="grid grid-cols-2 gap-2">
-                  <FormButton
-                    color="outline"
-                    size="sm"
-                    class="justify-center text-warning-darker border-warning/50 hover:bg-warning-lighter/20"
-                    :disabled="approvingFlow || returningFlow"
-                    @click="openReturnDialog(0)"
-                  >
-                    退回发起人
-                  </FormButton>
-                  <FormButton
-                    color="outline"
-                    size="sm"
-                    class="justify-center text-danger border-danger/50 hover:bg-danger/10"
-                    :disabled="approvingFlow || returningFlow"
-                    @click="openReturnDialog(-1)"
-                  >
-                    驳回流程
-                  </FormButton>
-                </div>
+                </span>
               </div>
-            </div>
-
-            <!-- 3. 已通过 / 无权限 / 纯查看模式 -->
-            <div v-else class="text-xs text-foreground-3 text-center py-2">
-              <span v-if="record?.approveStatus === 'APPROVED'">
-                单据已通过审核并生效
-              </span>
-              <span v-else>当前节点由其他指定人员审批</span>
-            </div>
-          </div>
-
-          <!-- 审批步骤节点进度列表（steps） -->
-          <div class="space-y-2">
-            <h4 class="text-xs font-bold text-foreground">流程节点进度</h4>
-            <div
-              class="space-y-2 border border-outline-3 rounded-lg p-2.5 bg-foundation-2/40"
-            >
               <div
-                v-for="(step, sIdx) in flowSteps"
-                :key="step.id || sIdx"
-                class="p-2 rounded border text-xs space-y-1 transition-all"
-                :class="[
-                  step.status === 'APPROVED'
-                    ? 'border-success/30 bg-success-lighter/10'
-                    : step.status === 'PENDING'
-                    ? 'border-primary/40 bg-primary/10 ring-1 ring-primary/30'
-                    : 'border-outline-3/60 bg-foundation text-foreground-3'
-                ]"
+                class="text-[11px] text-foreground-2 flex items-center justify-between"
               >
-                <div class="flex items-center justify-between font-medium">
-                  <span class="flex items-center gap-1.5">
-                    <span class="font-mono text-[11px] text-foreground-3">
-                      #{{ step.stepIndex }}
-                    </span>
-                    <span class="font-bold text-foreground">{{ step.name }}</span>
-                  </span>
-                  <span
-                    class="text-[10px] px-1.5 py-0.2 rounded font-medium"
-                    :class="[
-                      step.status === 'APPROVED'
-                        ? 'bg-success text-white'
-                        : step.status === 'PENDING'
-                        ? 'bg-primary text-white'
-                        : 'bg-foundation-3 text-foreground-3'
-                    ]"
-                  >
-                    {{
-                      step.status === 'APPROVED'
-                        ? '已通过'
-                        : step.status === 'PENDING'
-                        ? '待审核'
-                        : '未到达'
-                    }}
-                  </span>
-                </div>
-                <div
-                  class="text-[11px] text-foreground-2 flex items-center justify-between"
-                >
-                  <span>审批人：{{ step.approverNames?.join('、') || '—' }}</span>
-                  <span v-if="step.completedAt" class="font-mono text-foreground-3">
-                    {{ formatDate(step.completedAt) }}
-                  </span>
-                </div>
+                <span>审批人：{{ step.approverNames?.join('、') || '—' }}</span>
+                <span v-if="step.completedAt" class="font-mono text-foreground-3">
+                  {{ formatDate(step.completedAt) }}
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 审批流转日志时间线（actions） -->
-          <div class="space-y-2">
-            <h4 class="text-xs font-bold text-foreground">审批流转日志</h4>
+        <!-- 审批流转日志时间线（actions） -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-foreground">审批流转日志</h4>
+          <div
+            class="space-y-2 border border-outline-3 rounded-lg p-2.5 bg-foundation-2/40 max-h-56 overflow-y-auto"
+          >
             <div
-              class="space-y-2 border border-outline-3 rounded-lg p-2.5 bg-foundation-2/40 max-h-56 overflow-y-auto"
+              v-if="!flowActions.length"
+              class="text-xs text-foreground-3 text-center py-2"
             >
-              <div
-                v-if="!flowActions.length"
-                class="text-xs text-foreground-3 text-center py-2"
-              >
-                暂无审批流转记录
+              暂无审批流转记录
+            </div>
+            <div
+              v-for="act in flowActions"
+              :key="act.id"
+              class="text-xs border-l-2 border-primary/40 pl-2.5 py-1 space-y-0.5"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-foreground">{{ act.actorName }}</span>
+                <span class="text-[10px] text-foreground-3 font-mono">
+                  {{ formatDate(act.createdAt) }}
+                </span>
               </div>
+              <div class="text-primary font-medium text-[11px]">{{ act.action }}</div>
               <div
-                v-for="act in flowActions"
-                :key="act.id"
-                class="text-xs border-l-2 border-primary/40 pl-2.5 py-1 space-y-0.5"
+                v-if="act.comment"
+                class="text-foreground-2 text-[11px] bg-foundation p-1.5 rounded border border-outline-3/60"
               >
-                <div class="flex items-center justify-between">
-                  <span class="font-bold text-foreground">{{ act.actorName }}</span>
-                  <span class="text-[10px] text-foreground-3 font-mono">
-                    {{ formatDate(act.createdAt) }}
-                  </span>
-                </div>
-                <div class="text-primary font-medium text-[11px]">{{ act.action }}</div>
-                <div
-                  v-if="act.comment"
-                  class="text-foreground-2 text-[11px] bg-foundation p-1.5 rounded border border-outline-3/60"
-                >
-                  “{{ act.comment }}”
-                </div>
+                “{{ act.comment }}”
               </div>
             </div>
           </div>
@@ -734,8 +705,8 @@ const markDirty = () => {
 // 单据基本信息折叠状态
 const isInfoExpanded = ref(true)
 
-// 侧边栏与弹窗状态
-const isSidebarOpen = ref(true)
+// 审批浮层与弹窗状态
+const isSidebarOpen = ref(false)
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
 }
@@ -744,6 +715,7 @@ const validationIssues = ref<ReviewValidationIssue[]>([])
 
 // 异步提交状态
 const savingDraft = ref(false)
+const savingReview = ref(false)
 const submittingFlow = ref(false)
 const approvingFlow = ref(false)
 const returningFlow = ref(false)
@@ -810,13 +782,19 @@ const displayCode = computed(() => {
 
 const isDraftEditable = computed(() => {
   if (isNew.value) return true
-  const s = String(record.value?.approveStatus || 'START').toUpperCase()
-  return s === 'START' || s === 'DRAFT' || s === 'RETURNED'
+  return record.value?.canEditDraft === true
+})
+
+const canCurrentUserApprove = computed(() => {
+  return !isNew.value && record.value?.canApprove === true
+})
+
+const canAct = computed(() => {
+  return isDraftEditable.value || canCurrentUserApprove.value
 })
 
 const isReadOnlyView = computed(() => {
-  if (isDraftEditable.value) return false
-  return !canCurrentUserApprove.value
+  return !canAct.value
 })
 
 const statusBadge = computed(() => {
@@ -843,7 +821,11 @@ const statusBadge = computed(() => {
 })
 
 const currentStageLabel = computed(() => {
-  if (isNew.value || isDraftEditable.value) return '填报角色：施工单位'
+  const stage = record.value?.currentStage
+  if (isNew.value || isDraftEditable.value || stage === 'contractor')
+    return '当前阶段：施工单位填报'
+  if (stage === 'supervisor') return '当前核定：财务监理'
+  if (stage === 'contract') return '当前审定：合约部'
   const stepName = record.value?.currentStepName || ''
   if (/监理|财务|投资/.test(stepName)) return '当前核定：财务监理'
   if (/合约|合同|造价/.test(stepName)) return '当前审定：合约部'
@@ -851,31 +833,15 @@ const currentStageLabel = computed(() => {
 })
 
 const activeEditableStage = computed<ReviewStage | null>(() => {
+  if (!canAct.value) return null
   if (isDraftEditable.value) return 'contractor'
+  if (!canCurrentUserApprove.value) return null
+  const stage = record.value?.currentStage
+  if (stage === 'supervisor' || stage === 'contract') return stage
   const stepName = record.value?.currentStepName || ''
   if (/监理|财务|投资/.test(stepName)) return 'supervisor'
   if (/合约|合同|造价/.test(stepName)) return 'contract'
   return null
-})
-
-const canCurrentUserApprove = computed(() => {
-  if (isNew.value || isDraftEditable.value) return false
-  const s = String(record.value?.approveStatus || '').toUpperCase()
-  if (s !== 'PENDING' && s !== 'IN_REVIEW') return false
-
-  const currentUserName = activeUser.value?.name
-  const currentUserId = activeUser.value?.id
-  const approvers = record.value?.currentStepApprovers || []
-
-  return (
-    (currentUserName && approvers.includes(currentUserName)) ||
-    (currentUserId && approvers.includes(currentUserId)) ||
-    activeUser.value?.role === 'server:admin'
-  )
-})
-
-const canAct = computed(() => {
-  return isDraftEditable.value || canCurrentUserApprove.value
 })
 
 const flowSteps = computed<BoqReviewStepChainItem[]>(() => {
@@ -949,7 +915,7 @@ const loadDetail = async () => {
 const handleRowChange = (
   rowId: string,
   field: keyof BoqReviewRow,
-  value: string | number
+  value: string | number | null | undefined
 ) => {
   const idx = rows.value.findIndex((r) => r.id === rowId)
   if (idx >= 0) {
@@ -1106,6 +1072,35 @@ const handleSaveDraft = async () => {
     })
   } finally {
     savingDraft.value = false
+  }
+}
+
+const handleSaveReview = async () => {
+  if (!canCurrentUserApprove.value || !isDirty.value) return
+  savingReview.value = true
+  try {
+    await $fetch(
+      `${apiOrigin}/api/v1/projects/${props.projectId}/boq/reviews/${props.recordId}`,
+      {
+        method: 'PUT',
+        headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {},
+        body: { rows: rows.value }
+      }
+    )
+    await loadDetail()
+    triggerNotification({
+      title: '保存成功',
+      description: '当前审核节点的工程量已保存，流程尚未推进',
+      type: ToastNotificationType.Success
+    })
+  } catch (err) {
+    triggerNotification({
+      title: '保存失败',
+      description: getErrorDescription(err, '审核数据保存失败'),
+      type: ToastNotificationType.Danger
+    })
+  } finally {
+    savingReview.value = false
   }
 }
 
@@ -1270,24 +1265,20 @@ const executeApprove = async () => {
   }
 }
 
-// ── 退回 / 驳回 ──
-const openReturnDialog = (targetStep: number) => {
+// ── 回退发起人 ──
+const openReturnDialog = () => {
   if (!approvalComment.value.trim()) {
     triggerNotification({
       title: '缺少意见',
-      description: '退回或驳回时，必须在上方填写原因/意见',
+      description: '回退时必须在上方填写原因/意见',
       type: ToastNotificationType.Warning
     })
     return
   }
 
-  const isReject = targetStep === -1
-  const title = isReject ? '确认驳回流程' : '确认退回发起人'
-  const text = isReject
-    ? `确定驳回该单据吗？审批流将被终止。驳回意见：“${approvalComment.value.trim()}”`
-    : `确定退回给施工单位重新修改吗？退回意见：“${approvalComment.value.trim()}”`
+  const text = `确定退回给施工单位重新修改吗？回退意见：“${approvalComment.value.trim()}”`
 
-  triggerConfirm(title, text, async () => {
+  triggerConfirm('确认回退', text, async () => {
     returningFlow.value = true
     try {
       await $fetch(
@@ -1298,8 +1289,8 @@ const openReturnDialog = (targetStep: number) => {
             ? { Authorization: `Bearer ${authToken.value}` }
             : {},
           body: {
-            mode: isReject ? 'reject' : 'return',
-            targetStep: targetStep > 0 ? targetStep : 0,
+            mode: 'return',
+            targetStep: 0,
             comment: approvalComment.value.trim(),
             rows: rows.value
           }
@@ -1308,8 +1299,8 @@ const openReturnDialog = (targetStep: number) => {
       confirmDialogOpen.value = false
       approvalComment.value = ''
       triggerNotification({
-        title: isReject ? '流程已驳回' : '已退回修改',
-        description: isReject ? '单据流程已终止' : '已退回施工单位重新修改',
+        title: '已退回修改',
+        description: '已退回施工单位重新修改',
         type: ToastNotificationType.Success
       })
       await loadDetail()
@@ -1326,7 +1317,7 @@ const openReturnDialog = (targetStep: number) => {
 }
 
 const handleBack = () => {
-  navigateTo(`/projects/${props.projectId}/work-valuation/BOQ?tab=${currentKind.value}`)
+  navigateTo(`/projects/${props.projectId}/work-valuation/boq/${currentKind.value}`)
 }
 
 onMounted(() => {

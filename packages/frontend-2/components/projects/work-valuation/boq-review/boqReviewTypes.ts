@@ -123,6 +123,8 @@ export interface BoqReviewRecord {
   currentStep?: number | null
   currentStepName?: string
   currentStepApprovers?: string[]
+  canEditDraft?: boolean
+  canApprove?: boolean
   currentStage: ReviewStage
   approvalChain?: BoqReviewStepChainItem[]
   steps?: BoqReviewStepChainItem[]
@@ -679,6 +681,17 @@ export interface BoqTreeItem {
   parentId?: string | null
   parentCode?: string | null
 }
+
+const boqTypeLabels: Record<string, string> = {
+  PROJECT: '单位工程',
+  SUBPROJECT: '子单位工程',
+  CATEGORY: '分类工程',
+  SECTION: '分部工程',
+  SUBSECTION: '分项工程',
+  ITEM: '清单项'
+}
+
+export const boqTypeLabel = (type: string): string => boqTypeLabels[type] || type
 
 export function flattenBoqTree(tree: BoqTreeItem[] = []): BoqTreeItem[] {
   const result: BoqTreeItem[] = []

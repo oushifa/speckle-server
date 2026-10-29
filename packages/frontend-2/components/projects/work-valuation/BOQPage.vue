@@ -1,54 +1,10 @@
 <template>
   <div class="flex min-w-0 flex-col gap-4">
     <!-- 顶部 3-Tab 导航 -->
-    <div class="border-b border-outline-3 bg-foundation">
-      <div class="flex items-center space-x-1 sm:space-x-2">
-        <button
-          type="button"
-          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
-          :class="[
-            activeTab === 'bill'
-              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
-              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
-          ]"
-          @click="switchTab('bill')"
-        >
-          <DocumentTextIcon class="w-4 h-4 shrink-0" />
-          <span>清单管理</span>
-        </button>
+    <BoqNavTabs :project-id="projectId" active-tab="bill" />
 
-        <button
-          type="button"
-          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
-          :class="[
-            activeTab === 'review'
-              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
-              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
-          ]"
-          @click="switchTab('review')"
-        >
-          <ClipboardDocumentCheckIcon class="w-4 h-4 shrink-0" />
-          <span>复核工程量管理</span>
-        </button>
-
-        <button
-          type="button"
-          class="px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 whitespace-nowrap"
-          :class="[
-            activeTab === 'change'
-              ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-md'
-              : 'border-transparent text-foreground-2 hover:text-foreground hover:border-outline-2'
-          ]"
-          @click="switchTab('change')"
-        >
-          <ArrowPathRoundedSquareIcon class="w-4 h-4 shrink-0" />
-          <span>签证变更管理</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Tab 1: 清单管理主表区域 -->
-    <div v-if="activeTab === 'bill'" class="flex min-w-0 flex-col gap-4">
+    <!-- 清单管理主表区域 -->
+    <div class="flex min-w-0 flex-col gap-4">
       <!-- Header & Toolbar -->
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-heading-lg text-foreground mt-3">清单管理</h1>
@@ -562,11 +518,6 @@
       </LayoutDialog>
     </div>
 
-    <!-- Tab 2 & 3: 复核工程量管理 / 签证变更管理 -->
-    <div v-else class="min-w-0">
-      <BoqReviewList :project-id="projectId" :kind="activeTab" />
-    </div>
-
     <!-- 审核流程追溯抽屉 -->
     <BoqItemAuditTraceDrawer
       v-model:open="traceDrawerOpen"
@@ -577,8 +528,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted, onActivated } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   MagnifyingGlassIcon,
   DocumentTextIcon,
@@ -588,8 +539,6 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ChevronRightIcon,
-  ClipboardDocumentCheckIcon,
-  ArrowPathRoundedSquareIcon,
   DocumentMagnifyingGlassIcon,
   InformationCircleIcon
 } from '@heroicons/vue/24/outline'
@@ -612,52 +561,16 @@ import { ToastNotificationType, useGlobalToast } from '~/lib/common/composables/
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { useApiOrigin } from '~~/composables/env'
-import BoqReviewList from './boq-review/BoqReviewList.vue'
+import BoqNavTabs from './boq-review/BoqNavTabs.vue'
 import BoqItemAuditTraceDrawer from './boq-review/BoqItemAuditTraceDrawer.vue'
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
-const router = useRouter()
 const route = useRoute()
 const { hasFunctionalPerm } = useCustomPermissions()
 const projectId = computed(() => route.params.id as string)
 const authToken = useAuthCookie()
 const apiOrigin = useApiOrigin()
-
-// ── 顶部 3-Tab 状态与路由 query 同步 ──
-const validTabs = ['bill', 'review', 'change'] as const
-type TabType = (typeof validTabs)[number]
-
-const getTabFromRoute = (): TabType => {
-  const queryTab = route.query.tab as string | undefined
-  if (queryTab && (validTabs as readonly string[]).includes(queryTab)) {
-    return queryTab as TabType
-  }
-  return 'bill'
-}
-
-const activeTab = ref<TabType>(getTabFromRoute())
-
-watch(
-  () => route.query.tab,
-  () => {
-    const routeTab = getTabFromRoute()
-    if (activeTab.value !== routeTab) {
-      activeTab.value = routeTab
-    }
-  }
-)
-
-const switchTab = (tab: TabType) => {
-  if (activeTab.value === tab) return
-  activeTab.value = tab
-  router.push({
-    query: {
-      ...route.query,
-      tab: tab === 'bill' ? undefined : tab
-    }
-  })
-}
 
 // ── 审核追溯汇总信息（trace-summary） ──
 export interface BoqItemTraceSummaryItem {
@@ -686,7 +599,9 @@ const fetchTraceSummary = async () => {
   traceSummaryLoading.value = true
   try {
     const res = await $fetch<BoqTraceSummaryResponse>(
-      `${apiOrigin}/api/v1/projects/${projectId.value}/boq/trace-summary`,
+      `${apiOrigin}/api/v1/projects/${
+        projectId.value
+      }/boq/trace-summary?_t=${Date.now()}`,
       {
         headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
       }
@@ -734,18 +649,6 @@ const openAuditTraceDrawer = (item: BoqTreeItem) => {
   traceDrawerOpen.value = true
 }
 
-onMounted(() => {
-  if (activeTab.value === 'bill') {
-    fetchTraceSummary()
-  }
-})
-
-watch(activeTab, (newTab) => {
-  if (newTab === 'bill') {
-    refreshBoq()
-  }
-})
-
 const { triggerNotification } = useGlobalToast()
 const boqImportInputRef = ref<HTMLInputElement | null>(null)
 const exportingExcel = ref(false)
@@ -791,7 +694,32 @@ const {
     search: debouncedSearchQuery.value || null
   }),
   {
-    enabled: computed(() => !!projectId.value)
+    enabled: computed(() => !!projectId.value),
+    fetchPolicy: 'cache-and-network'
+  }
+)
+
+const reloadAllBoqData = async () => {
+  await Promise.allSettled([
+    fetchTraceSummary(),
+    boqItemsRefetch ? boqItemsRefetch() : Promise.resolve()
+  ])
+}
+
+onMounted(() => {
+  reloadAllBoqData()
+})
+
+onActivated(() => {
+  reloadAllBoqData()
+})
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.includes('/work-valuation/boq/bill')) {
+      reloadAllBoqData()
+    }
   }
 )
 const { mutate: createBoqItem, loading: createBoqItemLoading } =
@@ -878,7 +806,7 @@ const hasAnyRowAction = computed(
 const tableColumnCount = computed(() => (hasAnyRowAction.value ? 13 : 12))
 
 const refreshBoq = async () => {
-  await Promise.allSettled([boqItemsRefetch(), fetchTraceSummary()])
+  await reloadAllBoqData()
 }
 
 const initializeBoq = async () => {

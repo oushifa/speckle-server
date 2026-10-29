@@ -98,12 +98,17 @@ export type ApproveApprovalInstanceParams = {
   instanceId: string
   comment?: string | null
   actorUserId: string
+  actorEmail?: string | null
+  actorName?: string | null
+  forceByAdmin?: boolean
 }
 
 export type ReturnApprovalInstanceToStartParams = {
   instanceId: string
   comment: string
   actorUserId: string
+  actorEmail?: string | null
+  actorName?: string | null
 }
 
 export type ReturnApprovalInstanceToStepParams = {
@@ -111,12 +116,16 @@ export type ReturnApprovalInstanceToStepParams = {
   targetStep: number
   comment: string
   actorUserId: string
+  actorEmail?: string | null
+  actorName?: string | null
 }
 
 export type RejectApprovalInstanceParams = {
   instanceId: string
   comment: string
   actorUserId: string
+  actorEmail?: string | null
+  actorName?: string | null
 }
 
 export type CancelApprovalInstanceParams = {
@@ -707,7 +716,10 @@ export const approveApprovalInstanceFactory =
         instanceId: params.instanceId,
         userId: params.actorUserId,
         targetStatus: ApprovalFlowInstanceStatus.Approved,
-        comment: params.comment || null
+        comment: params.comment || null,
+        actorEmail: params.actorEmail,
+        actorName: params.actorName,
+        forceByAdmin: params.forceByAdmin
       })
       return await syncBindingStatusFromInstance({
         trx,
@@ -828,7 +840,9 @@ export const returnApprovalInstanceToStepFactory =
         userId: params.actorUserId,
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
         comment: params.comment,
-        rollbackToStep: params.targetStep
+        rollbackToStep: params.targetStep,
+        actorEmail: params.actorEmail,
+        actorName: params.actorName
       })
       const insertAction = insertApprovalFlowActionFactory({ db: trx })
       await insertAction({
@@ -860,7 +874,9 @@ export const rejectApprovalInstanceFactory =
         instanceId: params.instanceId,
         userId: params.actorUserId,
         targetStatus: ApprovalFlowInstanceStatus.Rejected,
-        comment: params.comment
+        comment: params.comment,
+        actorEmail: params.actorEmail,
+        actorName: params.actorName
       })
       return await syncBindingStatusFromInstance({
         trx,

@@ -21,12 +21,7 @@ import {
   getActiveApprovalFlowByCategoryFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import { createApprovalFlowDefinitionWithStepsFactory } from '@/modules/flow/services/approvalFlows'
-import {
-  BadRequestError,
-  UnauthorizedError,
-  ForbiddenError
-} from '@/modules/shared/errors'
-import { Roles } from '@speckle/shared'
+import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
 import {
   normalizeCategory,
   ApprovalFlowCategory
@@ -365,7 +360,9 @@ export const flowRouterFactory = (): Router => {
 
       const stepsWithUsers = []
       for (const step of steps) {
-        const approvers = await db('users')
+        const approvers = await db<{ id: string; name: string; avatar: string | null }>(
+          'users'
+        )
           .select('id', 'name', 'avatar')
           .whereIn('id', step.approverIds || [])
 
@@ -419,15 +416,21 @@ export const flowRouterFactory = (): Router => {
 
     const createWithSteps = createApprovalFlowDefinitionWithStepsFactory({ db })
 
-    const steps = (body.steps || []).map((s: any) => {
-      const approverIds = (s.selectedApprovers || []).map((u: any) => u.id)
-      return {
-        name: s.role || '审批节点',
-        approverIds,
-        requiredApprovals: s.mode === 'OR' ? 1 : approverIds.length,
-        timeoutHours: null
+    const steps = (body.steps || []).map(
+      (s: {
+        role?: string
+        selectedApprovers?: Array<{ id: string }>
+        mode?: string
+      }) => {
+        const approverIds = (s.selectedApprovers || []).map((u) => u.id)
+        return {
+          name: s.role || '审批节点',
+          approverIds,
+          requiredApprovals: s.mode === 'OR' ? 1 : approverIds.length,
+          timeoutHours: null
+        }
       }
-    })
+    )
 
     const triggerConfig = {
       category: categoryConfig.id,
@@ -437,6 +440,9 @@ export const flowRouterFactory = (): Router => {
     let templateId = body.templateId || body.id
     if (templateId && templateId.startsWith('flow-')) {
       templateId = null
+    }
+    if (templateId === 'BOQ_REVIEW_TEMPLATE_1') {
+      templateId = 'f74fd496a9'
     }
 
     // Enforce unique workflow template/family per category within a project
@@ -465,7 +471,7 @@ export const flowRouterFactory = (): Router => {
 
     const existingDefinition = await db('approval_flow_definitions')
       .where('projectId', projectId)
-      .whereIn(db.raw(`"triggerConfig"->>'category'`) as any, searchCategories)
+      .whereIn(db.raw(`"triggerConfig"->>'category'`), searchCategories)
       .first()
 
     if (existingDefinition) {
@@ -519,7 +525,9 @@ export const flowRouterFactory = (): Router => {
 
     const stepsWithUsers = []
     for (const step of steps) {
-      const approvers = await db('users')
+      const approvers = await db<{ id: string; name: string; avatar: string | null }>(
+        'users'
+      )
         .select('id', 'name', 'avatar')
         .whereIn('id', step.approverIds || [])
 
@@ -536,7 +544,7 @@ export const flowRouterFactory = (): Router => {
       })
     }
 
-    const id = normalizeCategory((def.triggerConfig as any)?.category)
+    const id = normalizeCategory(def.triggerConfig?.category)
     const categoryInfo = ApprovalFlowCategory[id]
     const description = def.triggerConfig?.description || ''
 

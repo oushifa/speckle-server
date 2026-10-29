@@ -40,6 +40,7 @@ import {
 import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 import { syncSafetyMeasureFromMonthlyMeasurement } from '@/modules/quality-acceptance-form/services/safetyMeasureSync'
 import { applyBoqReviewRecordToBoqItemsFactory } from '@/modules/bop-item/services/boqReviewApply'
+import { isAssignedApprover } from '@/modules/flow/helpers/approverIdentity'
 import { BadRequestError } from '@/modules/shared/errors'
 import { scheduleApprovalFlowTodoSync } from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
 import type { Knex } from 'knex'
@@ -988,6 +989,8 @@ export const updateApprovalFlowStatusFactory =
     comment?: string | null
     rollbackToStep?: number | null
     nextStepApproverIds?: string[] | null
+    actorEmail?: string | null
+    actorName?: string | null
     forceByAdmin?: boolean
   }) => {
     const updatedInstance = await deps.db.transaction(async (trx) => {
@@ -1020,9 +1023,25 @@ export const updateApprovalFlowStatusFactory =
       if (!currentStep) {
         throw new BadRequestError('No active approval step found')
       }
+      let actorEmail = params.actorEmail
+      let actorName = params.actorName
+      if ((!actorEmail || !actorName) && params.userId) {
+        const user = await trx('users')
+          .where('id', params.userId)
+          .select('email', 'name')
+          .first()
+        if (user) {
+          if (!actorEmail && user.email) actorEmail = user.email
+          if (!actorName && user.name) actorName = user.name
+        }
+      }
       if (
-        currentStep.approverIds?.length &&
-        !currentStep.approverIds.includes(params.userId) &&
+        !isAssignedApprover(
+          currentStep.approverIds || [],
+          params.userId,
+          actorEmail,
+          actorName
+        ) &&
         !params.forceByAdmin
       ) {
         throw new BadRequestError('Current user is not assigned to this approval step')

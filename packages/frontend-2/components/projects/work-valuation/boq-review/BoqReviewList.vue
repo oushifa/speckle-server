@@ -262,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   MagnifyingGlassIcon,
   ArrowPathIcon,
@@ -357,16 +357,29 @@ const buildApprovalHoverTitle = (record: BoqReviewRecord) => {
 
 const canCurrentUserApprove = (record: BoqReviewRecord) => {
   if (!isPending(record)) return false
+  if (activeUser.value?.role === 'server:admin') return true
+
   const currentUserName = activeUser.value?.name
   const currentUserId = activeUser.value?.id
-  if (!currentUserName && !currentUserId) return false
+  const currentUserEmail = activeUser.value?.email
+  if (!currentUserName && !currentUserId && !currentUserEmail) return false
 
-  const approvers = record.currentStepApprovers || []
-  return (
-    approvers.includes(currentUserName!) ||
-    approvers.includes(currentUserId!) ||
-    activeUser.value?.role === 'server:admin'
-  )
+  const approvers = (record.currentStepApprovers || []).map((s) => String(s).trim())
+  const normUserId = currentUserId ? String(currentUserId).trim() : ''
+  const normEmail = currentUserEmail
+    ? String(currentUserEmail).trim().toLowerCase()
+    : ''
+  const normName = currentUserName ? String(currentUserName).trim().toLowerCase() : ''
+
+  return approvers.some((id) => {
+    if (!id) return false
+    const trimmed = id.toLowerCase()
+    return (
+      (normUserId && id === normUserId) ||
+      (normEmail && trimmed === normEmail) ||
+      (normName && trimmed === normName)
+    )
+  })
 }
 
 const formatDate = (val: string | null | undefined) => {
@@ -455,6 +468,14 @@ const executeDelete = async () => {
     deleting.value = false
   }
 }
+
+watch(
+  () => props.kind,
+  () => {
+    searchQuery.value = ''
+    loadRecords()
+  }
+)
 
 onMounted(() => {
   loadRecords()

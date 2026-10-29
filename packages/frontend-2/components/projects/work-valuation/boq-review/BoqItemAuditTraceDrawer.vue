@@ -157,7 +157,9 @@
                 <!-- 审核状态徽标 -->
                 <span
                   class="px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                  :class="badgeClass(rec.approveStatus, rec.currentStepName)"
+                  :class="
+                    badgeClass(rec.approveStatus, rec.currentStepName ?? undefined)
+                  "
                 >
                   {{
                     formatApproveStatusBadge(rec.approveStatus, rec.currentStepName)
