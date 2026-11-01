@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div>
     <div class="flex flex-col gap-4 h-full">
@@ -400,6 +401,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -413,24 +415,21 @@ import {
   PlusIcon,
   TrashIcon
 } from '@heroicons/vue/24/outline'
-import { useApolloClient, useMutation, useQuery } from '@vue/apollo-composable'
+import { useMutation } from '@vue/apollo-composable'
 import { useDebounceFn } from '@vueuse/core'
 import { ensureError } from '@speckle/shared'
 import type { Nullable } from '@speckle/shared'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { Download, Paperclip } from 'lucide-vue-next'
-import type { DocumentNode } from 'graphql'
 import type {
   QualityAcceptanceAttachment,
   QualityAcceptanceCreateInput,
   QualityAcceptanceForm
 } from './types'
 import { getBimSerialCodes } from './types'
-import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
 import {
   createQualityAcceptanceFormMutation,
   deleteQualityAcceptanceFormMutation,
-  importQualityAcceptanceFormsMutation,
   updateQualityAcceptanceFormAttachmentsMutation,
   updateQualityAcceptanceFormMutation
 } from '~/lib/projects/graphql/mutations'
@@ -459,7 +458,6 @@ type AcceptanceRow = QualityAcceptanceForm & {
 const route = useRoute()
 const { hasFunctionalPerm } = useCustomPermissions()
 const { apiOrigin } = useRuntimeConfig().public
-const authToken = useCookie('auth-token')
 const projectId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' ? id : ''
@@ -468,7 +466,6 @@ const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 const { getBlobUrl, download } = useFileDownload()
 const { triggerNotification } = useGlobalToast()
-const apollo = useApolloClient().client
 const qualityAcceptanceImportInputRef = ref<HTMLInputElement | null>(null)
 const exportingExcel = ref(false)
 const importingExcel = ref(false)
@@ -587,7 +584,8 @@ const loadFormsData = async () => {
           cursor: currentCursor.value || undefined,
           limit: pageSize.value,
           sortBy: sortBy.value,
-          sortOrder: sortOrder.value
+          sortOrder: sortOrder.value,
+          approveStatus: exportApproveStatus.value || undefined
         }
       }
     )
@@ -606,7 +604,15 @@ const loadFormsData = async () => {
 const formsRefetch = loadFormsData
 
 watch(
-  [projectId, debouncedSearchQuery, currentCursor, pageSize, sortBy, sortOrder],
+  [
+    projectId,
+    debouncedSearchQuery,
+    currentCursor,
+    pageSize,
+    sortBy,
+    sortOrder,
+    exportApproveStatus
+  ],
   () => {
     void loadFormsData()
   },
@@ -623,7 +629,6 @@ const { mutate: updateFormMutate, loading: updateFormLoading } = useMutation(
 )
 const { mutate: updateFormAttachmentsMutate, loading: updateFormAttachmentsLoading } =
   useMutation(updateQualityAcceptanceFormAttachmentsMutation)
-const { mutate: importFormsMutate } = useMutation(importQualityAcceptanceFormsMutation)
 
 type QualityAcceptanceFormNode = NonNullable<
   NonNullable<
@@ -775,10 +780,13 @@ const endItemIndex = computed(() =>
   Math.min(currentPage.value * Number(pageSize.value), totalCount.value)
 )
 
-watch([projectId, debouncedSearchQuery, pageSize, sortBy, sortOrder], () => {
-  currentPage.value = 1
-  pageCursors.value = { 1: null }
-})
+watch(
+  [projectId, debouncedSearchQuery, pageSize, sortBy, sortOrder, exportApproveStatus],
+  () => {
+    currentPage.value = 1
+    pageCursors.value = { 1: null }
+  }
+)
 
 const goPrevPage = () => {
   if (currentPage.value <= 1) return

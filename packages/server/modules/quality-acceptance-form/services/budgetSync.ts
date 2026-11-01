@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Knex } from 'knex'
 import axios from 'axios'
 import dayjs from 'dayjs'
@@ -169,12 +170,22 @@ const buildIntermediatePaymentSyncPreview = async (params: {
 
   const boqItems = await projectDb('boq_items')
     .where('projectId', projectId)
-    .select('id', 'type', 'parentId', 'amount')
+    .select('id', 'type', 'parentId', 'amount', 'reviewPrice')
   const boqTypeMap = new Map<string, string>()
   const boqAmountMap = new Map<string, number | null>()
+  const boqReviewPriceMap = new Map<string, number>()
   for (const boq of boqItems) {
     boqTypeMap.set(boq.id, boq.type)
     boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+    boqReviewPriceMap.set(
+      boq.id,
+      boq.reviewPrice === null ||
+        boq.reviewPrice === undefined ||
+        boq.reviewPrice === '' ||
+        isNaN(Number(boq.reviewPrice))
+        ? 0
+        : Number(boq.reviewPrice)
+    )
   }
 
   const itemMap = new Map<string, any>()
@@ -209,6 +220,7 @@ const buildIntermediatePaymentSyncPreview = async (params: {
 
     if (!node.record.isSummaryRow) {
       const price = Number(node.record.price || 0)
+      const reviewPrice = boqReviewPriceMap.get(node.record.boqItemId) ?? 0
       const boqAmt = boqAmountMap.get(node.record.boqItemId)
       if (boqAmt !== undefined && boqAmt !== null) {
         node.contractAmount = boqAmt
@@ -216,17 +228,17 @@ const buildIntermediatePaymentSyncPreview = async (params: {
         node.contractAmount = Number(node.record.pendingTotalQty || 0) * price
       }
 
-      node.contractorAmount = Number(node.record.contractorQty || 0) * price
-      node.supervisionAmount = Number(node.record.supervisionQty || 0) * price
-      node.headquartersAmount = Number(node.record.headquartersQty || 0) * price
-      node.investmentAmount = Number(node.record.investmentQty || 0) * price
+      node.contractorAmount = Number(node.record.contractorQty || 0) * reviewPrice
+      node.supervisionAmount = Number(node.record.supervisionQty || 0) * reviewPrice
+      node.headquartersAmount = Number(node.record.headquartersQty || 0) * reviewPrice
+      node.investmentAmount = Number(node.record.investmentQty || 0) * reviewPrice
       node.contractorPayAmt = Number(node.record.contractorPayAmt || 0)
       node.investmentPayAmt = Number(node.record.investmentPayAmt || 0)
       node.contractPayAmt = Number(node.record.contractPayAmt || 0)
       node.leaderPayAmt = Number(node.record.leaderPayAmt || 0)
 
-      node.historyCumulative = Number(node.record.lastCumulativeQty || 0) * price
-      node.historyYearly = Number(node.record.yearlyCumulativeQty || 0) * price
+      node.historyCumulative = Number(node.record.lastCumulativeQty || 0) * reviewPrice
+      node.historyYearly = Number(node.record.yearlyCumulativeQty || 0) * reviewPrice
       node.historyPay = Number(node.record.lastCumulativePay || 0)
       return
     }

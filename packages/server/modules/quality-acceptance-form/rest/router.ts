@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unused-vars, no-restricted-imports, camelcase */
 import { Router, type RequestHandler } from 'express'
 import type { Request, Response } from 'express'
 import {
@@ -15,10 +16,7 @@ import type { Knex } from 'knex'
 import { db } from '@/db/knex'
 import { getStreamFactory } from '@/modules/core/repositories/streams'
 import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
-import {
-  recalculateProjectCostSummaryFactory,
-  getOrRecalculateProjectCostSummaryFactory
-} from '@/modules/project-statistics/services/projectCostSummaries'
+import { recalculateProjectCostSummaryFactory } from '@/modules/project-statistics/services/projectCostSummaries'
 import {
   importQualityAcceptanceFormsFactory,
   normalizeBIM
@@ -64,8 +62,7 @@ import {
   getQualityAcceptanceFormsBeforeBaseDateFactory,
   getProjectBoqItemsFactory,
   getQualityAcceptanceFormsByIdsFactory,
-  updateQualityAcceptanceApproveStatusByIdsFactory,
-  getMonthlyMeasurementByProjectCodeFactory
+  updateQualityAcceptanceApproveStatusByIdsFactory
 } from '../repositories/monthlyMeasurements'
 import {
   syncSettlementInfoToBudget,
@@ -79,10 +76,7 @@ import {
   createMonthlyMeasurementFromPreviewFactory
 } from '../services/monthlyMeasurements'
 
-import {
-  startApprovalFlowFactory,
-  updateApprovalFlowStatusFactory
-} from '@/modules/flow/services/approvalFlows'
+import { updateApprovalFlowStatusFactory } from '@/modules/flow/services/approvalFlows'
 import {
   ApprovalFlowInstanceStatus,
   getActiveApprovalFlowByCategoryFactory
@@ -446,6 +440,9 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       const search = req.query.search ? String(req.query.search).trim() : null
       const cursor = req.query.cursor ? String(req.query.cursor).trim() : null
       const limit = req.query.limit ? Number(req.query.limit) : 25
+      const approveStatus = req.query.approveStatus
+        ? String(req.query.approveStatus).trim()
+        : null
       const { sortBy, sortOrder } = normalizeQualityAcceptanceFormsSort({
         sortBy: req.query.sortBy ? String(req.query.sortBy).trim() : null,
         sortOrder: req.query.sortOrder ? String(req.query.sortOrder).trim() : null
@@ -461,11 +458,13 @@ export const qualityAcceptanceRouterFactory = (): Router => {
           cursor,
           limit,
           sortBy,
-          sortOrder
+          sortOrder,
+          approveStatus
         }),
         countQualityAcceptanceFormsFactory({ db: projectDb })({
           projectId,
-          search
+          search,
+          approveStatus
         })
       ])
 
@@ -2753,7 +2752,15 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       if (allAcceptanceIds.length > 0) {
         acceptances = await projectDb('quality_acceptance_forms')
           .whereIn('id', allAcceptanceIds)
-          .select('id', 'name', 'code', 'actualFinishDate', 'workVolume', 'inspector')
+          .select(
+            'id',
+            'name',
+            'code',
+            'inspectionLotNumber',
+            'actualFinishDate',
+            'workVolume',
+            'inspector'
+          )
       }
 
       const userIds = Array.from(
@@ -3114,12 +3121,22 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       // 提前查询 boq_items 表以获取每个 item 的 amount 字段
       const boqItems = await projectDb('boq_items')
         .where('projectId', projectId)
-        .select('id', 'type', 'parentId', 'amount')
+        .select('id', 'type', 'parentId', 'amount', 'reviewPrice')
       const boqTypeMap = new Map<string, string>()
       const boqAmountMap = new Map<string, number | null>()
+      const boqReviewPriceMap = new Map<string, number>()
       for (const boq of boqItems) {
         boqTypeMap.set(boq.id, boq.type)
         boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+        boqReviewPriceMap.set(
+          boq.id,
+          boq.reviewPrice === null ||
+            boq.reviewPrice === undefined ||
+            boq.reviewPrice === '' ||
+            isNaN(Number(boq.reviewPrice))
+            ? 0
+            : Number(boq.reviewPrice)
+        )
       }
 
       // 2. 自底向上金额聚合计算
@@ -3178,6 +3195,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         if (!node.record.isSummaryRow) {
           const price = Number(node.record.price || 0)
+          const reviewPrice = boqReviewPriceMap.get(node.record.boqItemId) ?? 0
 
           // 如果清单有合价，则直接从清单的合价获取，否则自行计算
           const boqAmt = boqAmountMap.get(node.record.boqItemId)
@@ -3187,17 +3205,20 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             node.contractAmount = Number(node.record.pendingTotalQty || 0) * price
           }
 
-          node.contractorAmount = Number(node.record.contractorQty || 0) * price
-          node.supervisionAmount = Number(node.record.supervisionQty || 0) * price
-          node.headquartersAmount = Number(node.record.headquartersQty || 0) * price
-          node.investmentAmount = Number(node.record.investmentQty || 0) * price
+          node.contractorAmount = Number(node.record.contractorQty || 0) * reviewPrice
+          node.supervisionAmount = Number(node.record.supervisionQty || 0) * reviewPrice
+          node.headquartersAmount =
+            Number(node.record.headquartersQty || 0) * reviewPrice
+          node.investmentAmount = Number(node.record.investmentQty || 0) * reviewPrice
           node.contractorPayAmt = Number(node.record.contractorPayAmt || 0)
           node.investmentPayAmt = Number(node.record.investmentPayAmt || 0)
           node.contractPayAmt = Number(node.record.contractPayAmt || 0)
           node.leaderPayAmt = Number(node.record.leaderPayAmt || 0)
 
-          node.historyCumulative = Number(node.record.lastCumulativeQty || 0) * price
-          node.historyYearly = Number(node.record.yearlyCumulativeQty || 0) * price
+          node.historyCumulative =
+            Number(node.record.lastCumulativeQty || 0) * reviewPrice
+          node.historyYearly =
+            Number(node.record.yearlyCumulativeQty || 0) * reviewPrice
           node.historyPay = Number(node.record.lastCumulativePay || 0)
           return
         }

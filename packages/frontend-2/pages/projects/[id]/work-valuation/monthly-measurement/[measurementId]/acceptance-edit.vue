@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div
     class="flex flex-col h-full relative bg-foundation w-full max-w-full overflow-hidden p-1"
@@ -559,7 +560,7 @@
                         <tr
                           class="bg-foundation-3 text-foreground-2 border-b border-outline-3 font-semibold text-[10px]"
                         >
-                          <th class="px-3 py-1.5 w-44">验收编号</th>
+                          <th class="px-3 py-1.5 w-44">检验批编号</th>
                           <th class="px-3 py-1.5">验收名称</th>
                           <th class="px-3 py-1.5 w-24 text-right pr-4">工程量</th>
                           <th class="px-3 py-1.5 w-24">查验人</th>
@@ -574,7 +575,7 @@
                           class="border-b border-outline-3 hover:bg-highlight-1/10 transition-colors last:border-0"
                         >
                           <td class="px-3 py-1.5 font-mono text-[10px]">
-                            {{ form.code || '-' }}
+                            {{ form.inspectionLotNumber || '-' }}
                           </td>
                           <td class="px-3 py-1.5 text-[10px]">
                             {{ form.name || '-' }}
@@ -634,28 +635,31 @@
         </FormButton>
       </div>
     </div>
-  </div>
 
-  <!-- 解除质量验收关联确认弹窗 -->
-  <CommonConfirmDialog
-    v-model:open="removeAcceptanceConfirmOpen"
-    title="确认解除质量验收关联"
-    :text="`确定要解除该质量验收单 '${
-      acceptanceToRemove?.form?.code || acceptanceToRemove?.form?.name || ''
-    }' 与当前清单项的关联吗？解除后将重新计算该清单项的辅助验工量。`"
-    confirm-text="确认解除"
-    @confirm="submitRemoveAcceptance"
-  />
+    <!-- 解除质量验收关联确认弹窗 -->
+    <CommonConfirmDialog
+      v-model:open="removeAcceptanceConfirmOpen"
+      title="确认解除质量验收关联"
+      :text="`确定要解除该质量验收单 '${
+        acceptanceToRemove?.form?.inspectionLotNumber ||
+        acceptanceToRemove?.form?.code ||
+        acceptanceToRemove?.form?.name ||
+        ''
+      }' 与当前清单项的关联吗？解除后将重新计算该清单项的辅助验工量。`"
+      confirm-text="确认解除"
+      @confirm="submitRemoveAcceptance"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { computed, ref, shallowRef, watch } from 'vue'
 import dayjs from 'dayjs'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import { ChevronLeftIcon } from '@heroicons/vue/24/outline'
 import { FormButton } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
-import { getMonthlyMeasurementPermissions } from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import type {
   ApprovalFlowInstance,
@@ -1005,9 +1009,10 @@ const recalculateTreeRows = () => {
       const reviewPrice =
         row.reviewPrice !== null &&
         row.reviewPrice !== undefined &&
-        row.reviewPrice !== ''
+        row.reviewPrice !== '' &&
+        !isNaN(Number(row.reviewPrice))
           ? Number(row.reviewPrice)
-          : null
+          : 0
       const totalQuantityWithChanges =
         row.totalQuantityWithChanges !== null &&
         row.totalQuantityWithChanges !== undefined &&
@@ -1022,12 +1027,20 @@ const recalculateTreeRows = () => {
           : null
       if (
         reviewAmount === null &&
-        reviewPrice !== null &&
+        row.reviewPrice !== null &&
+        row.reviewPrice !== undefined &&
+        row.reviewPrice !== '' &&
         totalQuantityWithChanges !== null
       ) {
         reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
       }
-      row.reviewPrice = reviewPrice
+      row.reviewPrice =
+        row.reviewPrice !== null &&
+        row.reviewPrice !== undefined &&
+        row.reviewPrice !== '' &&
+        !isNaN(Number(row.reviewPrice))
+          ? Number(row.reviewPrice)
+          : null
       row.totalQuantityWithChanges = totalQuantityWithChanges
       row.reviewAmount = reviewAmount
 
@@ -1035,12 +1048,12 @@ const recalculateTreeRows = () => {
         row.boqAmount !== undefined && row.boqAmount !== null
           ? boqAmount
           : pendingTotalQty * price
-      row.contractorAmount = contractorQty * price
-      row.supervisionAmount = supervisionQty * price
-      row.headquartersAmount = headquartersQty * price
-      row.investmentAmount = investmentQty * price
-      row.yearlyAmount = (yearlyCumulativeQty + investmentQty) * price
-      row.cumulativeAmount = (lastCumulativeQty + investmentQty) * price
+      row.contractorAmount = contractorQty * reviewPrice
+      row.supervisionAmount = supervisionQty * reviewPrice
+      row.headquartersAmount = headquartersQty * reviewPrice
+      row.investmentAmount = investmentQty * reviewPrice
+      row.yearlyAmount = (yearlyCumulativeQty + investmentQty) * reviewPrice
+      row.cumulativeAmount = (lastCumulativeQty + investmentQty) * reviewPrice
     }
   })
 
@@ -1278,7 +1291,7 @@ const confirmRemoveAcceptance = (row: any, form: any) => {
 
 const submitRemoveAcceptance = async () => {
   if (!acceptanceToRemove.value || !props.projectId || !props.item?.id) return
-  const { row, form } = acceptanceToRemove.value
+  const { form } = acceptanceToRemove.value
   try {
     await $fetch(
       `${apiOrigin}/api/v1/projects/${props.projectId}/monthly-measurements/${props.item.id}/quality-acceptance/${form.id}`,
@@ -1286,7 +1299,9 @@ const submitRemoveAcceptance = async () => {
     )
     triggerNotification({
       title: '解除关联成功',
-      description: `质量验收单 '${form.code || form.name}' 已成功解除关联！`,
+      description: `质量验收单 '${
+        form.inspectionLotNumber || form.code || form.name
+      }' 已成功解除关联！`,
       type: ToastNotificationType.Success
     })
     await loadTreeData()

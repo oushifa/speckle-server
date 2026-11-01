@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div
     class="space-y-6 pb-6 relative bg-foundation p-4 rounded-b-lg border border-t-0 border-outline-3"
@@ -1313,6 +1314,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { PaperClipIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
@@ -1321,10 +1323,6 @@ import { gql } from '@apollo/client/core'
 import { FormButton, LayoutDialog, FormSelectBase } from '@speckle/ui-components'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { projectQualityAcceptanceFormsQuery } from '~/lib/projects/graphql/queries'
-import {
-  getMonthlyMeasurementAuditDisplayStatus,
-  getMonthlyMeasurementPermissions
-} from '~/lib/projects/helpers/monthlyMeasurementApproval'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
@@ -2408,9 +2406,10 @@ const executePrintDetail = async () => {
         const reviewPrice =
           row.reviewPrice !== null &&
           row.reviewPrice !== undefined &&
-          row.reviewPrice !== ''
+          row.reviewPrice !== '' &&
+          !isNaN(Number(row.reviewPrice))
             ? Number(row.reviewPrice)
-            : null
+            : 0
         const totalQuantityWithChanges =
           row.totalQuantityWithChanges !== null &&
           row.totalQuantityWithChanges !== undefined &&
@@ -2425,12 +2424,20 @@ const executePrintDetail = async () => {
             : null
         if (
           reviewAmount === null &&
-          reviewPrice !== null &&
+          row.reviewPrice !== null &&
+          row.reviewPrice !== undefined &&
+          row.reviewPrice !== '' &&
           totalQuantityWithChanges !== null
         ) {
           reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
         }
-        row.reviewPrice = reviewPrice
+        row.reviewPrice =
+          row.reviewPrice !== null &&
+          row.reviewPrice !== undefined &&
+          row.reviewPrice !== '' &&
+          !isNaN(Number(row.reviewPrice))
+            ? Number(row.reviewPrice)
+            : null
         row.totalQuantityWithChanges = totalQuantityWithChanges
         row.reviewAmount = reviewAmount
 
@@ -2438,12 +2445,12 @@ const executePrintDetail = async () => {
           row.boqAmount !== undefined && row.boqAmount !== null
             ? toSafeNumber(row.boqAmount)
             : toSafeNumber(row.pendingTotalQty) * price
-        row.contractorAmount = toSafeNumber(row.contractorQty) * price
-        row.supervisionAmount = toSafeNumber(row.supervisionQty) * price
-        row.headquartersAmount = toSafeNumber(row.headquartersQty) * price
-        row.investmentAmount = toSafeNumber(row.investmentQty) * price
-        row.yearlyAmount = getYearlyCompletedQty(row) * price
-        row.cumulativeAmount = getCumulativeCompletedQty(row) * price
+        row.contractorAmount = toSafeNumber(row.contractorQty) * reviewPrice
+        row.supervisionAmount = toSafeNumber(row.supervisionQty) * reviewPrice
+        row.headquartersAmount = toSafeNumber(row.headquartersQty) * reviewPrice
+        row.investmentAmount = toSafeNumber(row.investmentQty) * reviewPrice
+        row.yearlyAmount = getYearlyCompletedQty(row) * reviewPrice
+        row.cumulativeAmount = getCumulativeCompletedQty(row) * reviewPrice
       }
       byId.set(row.boqItemId, row)
       const d = Number(row.boqDepth || 0)

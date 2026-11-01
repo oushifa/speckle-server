@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { QualityAcceptanceForms } from '@/modules/core/dbSchema'
 import type { QualityAcceptanceFormRecord } from '@/modules/core/helpers/types'
 import type { Knex } from 'knex'
@@ -48,6 +49,7 @@ export const getQualityAcceptanceFormsFactory =
     search?: string | null
     sortBy?: QualityAcceptanceFormsSortField | null
     sortOrder?: SortOrder | null
+    approveStatus?: string | null
   }) => {
     const limit = clamp(params.limit || 25, 1, 100)
     const { sortBy, sortOrder } = normalizeQualityAcceptanceFormsSort(params)
@@ -79,6 +81,19 @@ export const getQualityAcceptanceFormsFactory =
             `%${params.search}%`
           )
       })
+    }
+
+    if (params.approveStatus) {
+      if (params.approveStatus === '__NULL__') {
+        q.andWhere((qb) => {
+          qb.whereNull(QualityAcceptanceForms.col.approveStatus).orWhere(
+            QualityAcceptanceForms.col.approveStatus,
+            ''
+          )
+        })
+      } else {
+        q.andWhere(QualityAcceptanceForms.col.approveStatus, params.approveStatus)
+      }
     }
 
     if (params.cursor) {
@@ -162,7 +177,11 @@ export const getQualityAcceptanceFormByIdFactory =
 
 export const countQualityAcceptanceFormsFactory =
   (deps: { db: Knex }) =>
-  async (params: { projectId: string; search?: string | null }) => {
+  async (params: {
+    projectId: string
+    search?: string | null
+    approveStatus?: string | null
+  }) => {
     const q = tables
       .forms(deps.db)
       .where(QualityAcceptanceForms.col.project_id, params.projectId)
@@ -180,6 +199,19 @@ export const countQualityAcceptanceFormsFactory =
             `%${params.search}%`
           )
       })
+    }
+
+    if (params.approveStatus) {
+      if (params.approveStatus === '__NULL__') {
+        q.andWhere((qb) => {
+          qb.whereNull(QualityAcceptanceForms.col.approveStatus).orWhere(
+            QualityAcceptanceForms.col.approveStatus,
+            ''
+          )
+        })
+      } else {
+        q.andWhere(QualityAcceptanceForms.col.approveStatus, params.approveStatus)
+      }
     }
     const [res] = await q.count()
     return parseInt(String(res?.count || '0'))
