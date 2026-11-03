@@ -26,6 +26,11 @@ import {
   getStreamFactory
 } from '@/modules/core/repositories/streams'
 import { updateCommitAndNotifyFactory } from '@/modules/core/services/commit/management'
+import {
+  getObjectFactory,
+  getStreamObjectsFactory,
+  storeObjectsIfNotFoundFactory
+} from '@/modules/core/repositories/objects'
 import { FileUploads } from '@/modules/core/dbSchema'
 import { notifyChangeInFileStatus } from '@/modules/fileuploads/services/management'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
@@ -295,4 +300,74 @@ export const attachImportedModelSourceFactory =
     }
 
     return result
+  }
+
+export type CopyModelObjectTreeResult = {
+  referencedObject: string
+  objectCount: number
+}
+
+/**
+ * 从模型库导入时，按源模型最新版本 root 对象的 `__closure` 把整棵对象树
+ * （root + 全部子孙对象）复制到目标项目。
+ *
+ * 为什么需要它：导入若走 `/objects` 列表接口逐页拷贝，会受 depth 过滤影响
+ * 只复制到一小部分对象（root 声明了 N 个孩子，实际只写入几十个），
+ * 前端 objectloader2 下载时因缺对象直接抛错，表现为模型一直加载不出来。
+ * 这里直接以 closure 为准，从源项目库里把对象按批搬运到目标项目，保证完整。
+ */
+export const copyModelObjectTreeFactory =
+  () =>
+  async (params: {
+    sourceProjectId: string
+    sourceModelId: string
+    targetProjectId: string
+  }): Promise<CopyModelObjectTreeResult> => {
+    const { sourceProjectId, sourceModelId, targetProjectId } = params
+
+    const [sourceDb, targetDb] = await Promise.all([
+      getProjectDbClient({ projectId: sourceProjectId }),
+      getProjectDbClient({ projectId: targetProjectId })
+    ])
+
+    const [sourceVersion] = await getBranchLatestCommitsFactory({ db: sourceDb })(
+      [sourceModelId],
+      sourceProjectId,
+      { limit: 1 }
+    )
+    if (!sourceVersion?.referencedObject) {
+      throw new Error('Source model has no published version')
+    }
+
+    const referencedObject = sourceVersion.referencedObject
+    const getSourceObject = getObjectFactory({ db: sourceDb })
+    const rootObject = await getSourceObject(referencedObject, sourceProjectId)
+    if (!rootObject) {
+      throw new Error('Source root object not found')
+    }
+
+    const closure = (rootObject.data?.__closure ?? {}) as Record<string, unknown>
+    const allObjectIds = [referencedObject, ...Object.keys(closure)]
+
+    const getSourceObjects = getStreamObjectsFactory({ db: sourceDb })
+    const storeTargetObjects = storeObjectsIfNotFoundFactory({ db: targetDb })
+
+    const batchSize = 1000
+    let objectCount = 0
+
+    for (let start = 0; start < allObjectIds.length; start += batchSize) {
+      const ids = allObjectIds.slice(start, start + batchSize)
+      const records = await getSourceObjects(sourceProjectId, ids)
+      if (!records.length) continue
+
+      const insertion = records
+        .map((record) => ({ ...record, streamId: targetProjectId }))
+        // 按 id 排序后再插入，避免并发插入时的死锁
+        .sort((a, b) => (a.id > b.id ? 1 : -1))
+
+      await storeTargetObjects(insertion)
+      objectCount += insertion.length
+    }
+
+    return { referencedObject, objectCount }
   }

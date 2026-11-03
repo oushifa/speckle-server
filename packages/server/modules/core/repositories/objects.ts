@@ -262,7 +262,9 @@ export const getObjectChildrenFactory =
           objectId
         ])
       )
-      .andWhere(knex.raw('object_children_closure.mindepth < ?', [depth]))
+      // mindepth 来自 jsonb_each_text，类型是 text；必须显式转 numeric，
+      // 否则与数字 depth 比较会退化成字符串字典序，导致大量对象被错误过滤
+      .andWhere(knex.raw('object_children_closure.mindepth::numeric < ?', [depth]))
       .andWhere(knex.raw('id > ?', [cursor ? cursor : '0']))
       .orderBy('objects.id')
       .limit(limit)
@@ -377,7 +379,8 @@ export const getObjectChildrenQueryFactory =
           })
           .where('object_children_closure.streamId', streamId)
           .andWhere('parent', objectId)
-          .andWhere('mindepth', '<', depth)
+          // mindepth 是 text，需显式转 numeric，避免字符串字典序比较
+          .andWhere(knex.raw('mindepth::numeric < ?', [depth]))
 
         // Add user provided filters/queries.
         if (Array.isArray(query) && query.length > 0) {

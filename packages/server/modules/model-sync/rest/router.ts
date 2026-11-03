@@ -44,7 +44,10 @@ import { enrichTasksWithQueuePosition } from '@/modules/model-sync/services/queu
 import { stopModelSyncTaskFactory } from '@/modules/model-sync/services/stop'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
 import { FileUploadConvertedStatus } from '@/modules/fileuploads/helpers/types'
-import { attachImportedModelSourceFactory } from '@/modules/core/services/streams/modelLibraryImport'
+import {
+  attachImportedModelSourceFactory,
+  copyModelObjectTreeFactory
+} from '@/modules/core/services/streams/modelLibraryImport'
 import {
   MODEL_SYNC_BUILD_HEADER,
   getModelSyncBuildInfo
@@ -60,6 +63,9 @@ const stopRouteBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/st
 // 从模型库导入后：把源文件 / 中海同步标识 / 自定义属性补齐到导入模型
 const importLibrarySourceRouteBase =
   '/api/v1/projects/:projectId/models/:modelId/import-library-source'
+// 从模型库导入：把源模型整棵对象树（root + 全部子对象）复制到目标项目
+const importObjectTreeRouteBase =
+  '/api/v1/projects/:projectId/models/:modelId/import-object-tree'
 
 const modelSyncErrHandler = (
   err: unknown,
@@ -474,6 +480,52 @@ export const modelSyncRouterFactory = () => {
           modelId,
           userId,
           reason: reason || undefined
+        })
+
+        res.json({ data: result })
+      } catch (err) {
+        next(err)
+      }
+    }
+  )
+
+  /**
+   * 从模型库导入：把源模型最新版本的整棵对象树（root + 全部子对象）
+   * 服务端直接复制到目标项目。必须在创建导入版本之前调用，因为创建版本时
+   * 会校验 referencedObject 在目标项目中已存在。
+   */
+  router.post(
+    importObjectTreeRouteBase,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware(),
+    async (req, res, next) => {
+      try {
+        const projectId = req.params.projectId
+        const userId = req.context.userId
+        await requireVersionCreate(req, projectId)
+
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated.' })
+        }
+
+        const sourceProjectId =
+          typeof req.body?.sourceProjectId === 'string'
+            ? req.body.sourceProjectId.trim()
+            : ''
+        const sourceModelId =
+          typeof req.body?.sourceModelId === 'string'
+            ? req.body.sourceModelId.trim()
+            : ''
+        if (!sourceProjectId || !sourceModelId) {
+          throw new BadRequestError('sourceProjectId and sourceModelId are required')
+        }
+
+        await requireProjectRead(req, sourceProjectId)
+
+        const result = await copyModelObjectTreeFactory()({
+          sourceProjectId,
+          sourceModelId,
+          targetProjectId: projectId
         })
 
         res.json({ data: result })
