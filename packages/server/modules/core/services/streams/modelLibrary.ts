@@ -133,7 +133,8 @@ export const ensureModelLibraryModelFactory =
       MODEL_LIBRARY_PROJECT_ID,
       normalizedName
     )
-    if (existingModel) return existingModel
+    // existed 用于前端区分「新建模型」与「命中同名已有模型」，并据此提示用户是否更新版本
+    if (existingModel) return { model: existingModel, existed: true }
 
     const createBranchAndNotify = createBranchAndNotifyFactory({
       getStreamBranchByName,
@@ -141,7 +142,7 @@ export const ensureModelLibraryModelFactory =
       eventEmit
     })
 
-    return (await createBranchAndNotify(
+    const model = (await createBranchAndNotify(
       {
         projectId: MODEL_LIBRARY_PROJECT_ID,
         name: normalizedName,
@@ -149,4 +150,6 @@ export const ensureModelLibraryModelFactory =
       },
       params.userId
     )) as BranchRecord
+
+    return { model, existed: false }
   }

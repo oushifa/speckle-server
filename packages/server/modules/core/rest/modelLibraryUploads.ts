@@ -42,10 +42,7 @@ import {
   getServerOrigin
 } from '@/modules/shared/helpers/envHelper'
 import { getEventBus } from '@/modules/shared/services/eventBus'
-import {
-  getBlobFactory,
-  updateBlobFactory
-} from '@/modules/blobstorage/repositories'
+import { getBlobFactory, updateBlobFactory } from '@/modules/blobstorage/repositories'
 import {
   insertNewUploadAndNotifyFactory,
   insertNewUploadAndNotifyFactoryV2
@@ -59,7 +56,10 @@ import {
   storeTokenScopesFactory,
   storeUserServerAppTokenFactory
 } from '@/modules/core/repositories/tokens'
-import { saveUploadFileFactory, saveUploadFileFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
+import {
+  saveUploadFileFactory,
+  saveUploadFileFactoryV2
+} from '@/modules/fileuploads/repositories/fileUploads'
 import { registerMultipartUploadCompleteAndStartFileImportFactory } from '@/modules/fileuploads/services/multipart'
 import { getBranchesByIdsFactory } from '@/modules/core/repositories/branches'
 import { getFileInfoFactoryV2 } from '@/modules/fileuploads/repositories/fileUploads'
@@ -104,16 +104,36 @@ export default (app: Router) => {
   const ensureModelLibraryProject = ensureModelLibraryProjectFactory({ db })
   const ensureModelLibraryProjectAccess = ensureModelLibraryProjectAccessFactory({ db })
 
-  app.options(`${route}/models/ensure`, cors(), allowCrossOriginResourceAccessMiddelware())
-  app.options(`${route}/uploads/prepare`, cors(), allowCrossOriginResourceAccessMiddelware())
-  app.options(`${route}/uploads/import`, cors(), allowCrossOriginResourceAccessMiddelware())
+  app.options(
+    `${route}/models/ensure`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  app.options(
+    `${route}/uploads/prepare`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  app.options(
+    `${route}/uploads/import`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
   app.options(
     `${route}/uploads/part-upload-url`,
     cors(),
     allowCrossOriginResourceAccessMiddelware()
   )
-  app.options(`${route}/uploads/parts`, cors(), allowCrossOriginResourceAccessMiddelware())
-  app.options(`${route}/uploads/abort`, cors(), allowCrossOriginResourceAccessMiddelware())
+  app.options(
+    `${route}/uploads/parts`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
+  app.options(
+    `${route}/uploads/abort`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
 
   app.post(
     `${route}/models/ensure`,
@@ -130,8 +150,10 @@ export default (app: Router) => {
           throw new BadRequestError('Model name is required')
         }
 
-        const projectDb = await getProjectDbClient({ projectId: MODEL_LIBRARY_PROJECT_ID })
-        const model = await ensureModelLibraryModelFactory({
+        const projectDb = await getProjectDbClient({
+          projectId: MODEL_LIBRARY_PROJECT_ID
+        })
+        const { model, existed } = await ensureModelLibraryModelFactory({
           db: projectDb,
           eventEmit: getEventBus().emit
         })({
@@ -144,7 +166,8 @@ export default (app: Router) => {
           data: {
             projectId: MODEL_LIBRARY_PROJECT_ID,
             projectName: MODEL_LIBRARY_PROJECT_NAME,
-            model
+            model,
+            existed
           }
         })
       } catch (err) {
@@ -176,7 +199,7 @@ export default (app: Router) => {
           getProjectObjectStorage({ projectId: MODEL_LIBRARY_PROJECT_ID })
         ])
 
-        const model = await ensureModelLibraryModelFactory({
+        const { model } = await ensureModelLibraryModelFactory({
           db: projectDb,
           eventEmit: getEventBus().emit
         })({
@@ -267,14 +290,19 @@ export default (app: Router) => {
           eventEmit: getEventBus().emit
         })
         const resolvedModel = modelId
-          ? (await getBranchesByIdsFactory({ db: projectDb })([modelId], {
-              streamId: MODEL_LIBRARY_PROJECT_ID
-            }))[0]
-          : await ensureModelLibraryModel({
-              name: modelName,
-              description: typeof modelDescription === 'string' ? modelDescription : null,
-              userId
-            })
+          ? (
+              await getBranchesByIdsFactory({ db: projectDb })([modelId], {
+                streamId: MODEL_LIBRARY_PROJECT_ID
+              })
+            )[0]
+          : (
+              await ensureModelLibraryModel({
+                name: modelName,
+                description:
+                  typeof modelDescription === 'string' ? modelDescription : null,
+                userId
+              })
+            ).model
 
         if (!resolvedModel) {
           throw new BadRequestError('Model not found')
@@ -287,9 +315,10 @@ export default (app: Router) => {
           createAppToken: createAppTokenFactory({
             storeApiToken: storeApiTokenFactory({ db }),
             storeTokenScopes: storeTokenScopesFactory({ db }),
-            storeTokenResourceAccessDefinitions: storeTokenResourceAccessDefinitionsFactory({
-              db
-            }),
+            storeTokenResourceAccessDefinitions:
+              storeTokenResourceAccessDefinitionsFactory({
+                db
+              }),
             storeUserServerAppToken: storeUserServerAppTokenFactory({ db })
           })
         })
@@ -343,7 +372,9 @@ export default (app: Router) => {
           uploadId,
           parts: parts.map((part: { partNumber?: unknown; etag?: unknown }) => ({
             partNumber:
-              typeof part.partNumber === 'number' ? part.partNumber : Number(part.partNumber),
+              typeof part.partNumber === 'number'
+                ? part.partNumber
+                : Number(part.partNumber),
             etag: typeof part.etag === 'string' ? part.etag : String(part.etag || '')
           })),
           maximumFileSize: getFileSizeLimit()
@@ -421,7 +452,9 @@ export default (app: Router) => {
           throw new BadRequestError('uploadId is required')
         }
         if (!Number.isInteger(partNumber) || partNumber < 1) {
-          throw new BadRequestError('partNumber is required and must be a positive integer')
+          throw new BadRequestError(
+            'partNumber is required and must be a positive integer'
+          )
         }
 
         const [projectDb, projectStorage] = await Promise.all([
@@ -465,7 +498,8 @@ export default (app: Router) => {
         await ensureModelLibraryProjectAccess({ userId })
 
         const fileId = typeof req.query.fileId === 'string' ? req.query.fileId : ''
-        const uploadId = typeof req.query.uploadId === 'string' ? req.query.uploadId : ''
+        const uploadId =
+          typeof req.query.uploadId === 'string' ? req.query.uploadId : ''
         if (!fileId) {
           throw new BadRequestError('fileId is required')
         }

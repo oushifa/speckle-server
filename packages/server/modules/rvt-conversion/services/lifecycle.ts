@@ -45,7 +45,9 @@ const isTerminalRvtJob = (job: RvtConversionJob) =>
 
 const isTerminalFileUploadStatus = (
   status: FileUploadRecord['convertedStatus'] | FileUploadConvertedStatus | undefined
-) => status === FileUploadConvertedStatus.Completed || status === FileUploadConvertedStatus.Error
+) =>
+  status === FileUploadConvertedStatus.Completed ||
+  status === FileUploadConvertedStatus.Error
 
 const hasChanged = <T>(current: T, next: T) => current !== next
 type FileUploadTerminalGuardState = Pick<
@@ -72,7 +74,8 @@ const applyTerminalGuardToFileUploadState = (
     if (!isTerminalFileUploadStatus(next.convertedStatus)) {
       ignoredTerminalStatusRegression = true
     }
-    next.convertedStatus = current.convertedStatus || FileUploadConvertedStatus.Completed
+    next.convertedStatus =
+      current.convertedStatus || FileUploadConvertedStatus.Completed
     next.convertedMessage = current.convertedMessage
     next.convertedCommitId = current.convertedCommitId
     next.progressPercent = 100
@@ -142,8 +145,10 @@ const applyTerminalGuardToModelSyncTaskPatch = (
   ) {
     ignoredTerminalPhaseRegression = true
     nextPatch.progressPhase = current.progressPhase
-    if ('progressPercent' in nextPatch) nextPatch.progressPercent = current.progressPercent
-    if ('progressMessage' in nextPatch) nextPatch.progressMessage = current.progressMessage
+    if ('progressPercent' in nextPatch)
+      nextPatch.progressPercent = current.progressPercent
+    if ('progressMessage' in nextPatch)
+      nextPatch.progressMessage = current.progressMessage
   }
 
   return {
@@ -218,7 +223,10 @@ const syncFileUploadFromRvtJobFactory = (deps: {
     if (
       !hasChanged(fileUpload.convertedStatus, nextUploadState.next.convertedStatus) &&
       !hasChanged(fileUpload.convertedMessage, nextUploadState.next.convertedMessage) &&
-      !hasChanged(fileUpload.convertedCommitId, nextUploadState.next.convertedCommitId) &&
+      !hasChanged(
+        fileUpload.convertedCommitId,
+        nextUploadState.next.convertedCommitId
+      ) &&
       !hasChanged(fileUpload.progressPercent, nextUploadState.next.progressPercent) &&
       !hasChanged(fileUpload.progressPhase, nextUploadState.next.progressPhase) &&
       !hasChanged(fileUpload.progressMessage, nextUploadState.next.progressMessage)
@@ -328,10 +336,12 @@ const syncRelatedModelSyncTasksFromRvtJob = async (params: {
   for (const task of relatedTasks) {
     const nextTaskPatch = applyTerminalGuardToModelSyncTaskPatch(task, params.patch)
 
-    const patchChanged = Object.entries(nextTaskPatch.nextPatch).some(([key, value]) => {
-      const currentValue = task[key as keyof ProjectModelSyncTaskRecord]
-      return hasChanged(currentValue, value as typeof currentValue)
-    })
+    const patchChanged = Object.entries(nextTaskPatch.nextPatch).some(
+      ([key, value]) => {
+        const currentValue = task[key as keyof ProjectModelSyncTaskRecord]
+        return hasChanged(currentValue, value as typeof currentValue)
+      }
+    )
 
     if (!patchChanged) {
       if (
@@ -344,8 +354,7 @@ const syncRelatedModelSyncTasksFromRvtJob = async (params: {
             relatedTaskId: task.id,
             ignoredTerminalStatusRegression:
               nextTaskPatch.ignoredTerminalStatusRegression,
-            ignoredTerminalPhaseRegression:
-              nextTaskPatch.ignoredTerminalPhaseRegression
+            ignoredTerminalPhaseRegression: nextTaskPatch.ignoredTerminalPhaseRegression
           },
           'RVT_CONVERT model sync task update ignored due to terminal state guard'
         )
@@ -423,7 +432,9 @@ const resumeRelatedModelSyncTasksAfterRvtSuccess = async (params: {
     fileUploadId: params.job.sourceFileId,
     activeOnly: true
   })
-  const tasksToResume = relatedTasks.filter((task) => task.status === 'speckle_converting')
+  const tasksToResume = relatedTasks.filter(
+    (task) => task.status === 'speckle_converting'
+  )
 
   lifecycleLogger.info(
     {
@@ -792,33 +803,12 @@ export const completeRvtConversionJob = async (
     progressMessage: params.status === 'success' ? '转换完成' : null
   })
 
-  if (params.status === 'success') {
-    try {
-      await projectDb('file_uploads')
-        .where({
-          streamId: params.projectId || (updatedJob || job).projectId
-        })
-        .whereIn('convertedStatus', [
-          FileUploadConvertedStatus.Queued,
-          FileUploadConvertedStatus.Converting
-        ])
-        .whereNull('convertedCommitId')
-        .update({
-          convertedStatus: FileUploadConvertedStatus.Completed,
-          convertedCommitId: params.versionId,
-          convertedMessage: null,
-          progressPercent: 100,
-          progressPhase: 'completed',
-          progressMessage: '转换完成',
-          convertedLastUpdate: new Date()
-        })
-    } catch (err) {
-      lifecycleLogger.warn(
-        { ...buildRvtJobLogContext(job), error: err },
-        'RVT_CONVERT failed to cleanup orphan file uploads'
-      )
-    }
-  }
+  // 注意：这里曾经按 streamId 批量把同项目所有处于 Queued/Converting 且无 commitId 的
+  // file_uploads 统一置为 Completed，并写入当前任务的 versionId。批量上传时多个转换并发，
+  // 先完成的任务会把其他仍在转换的上传一并标记完成并污染其 convertedCommitId，导致后续
+  // 真实完成时被终态保护拒绝纠正、commit 的 seedId 相互覆盖。单个上传的状态回写是
+  // 唯一权威来源，即上面的 syncFileUploadFromRvtJob（按 job.sourceFileId 精确更新）。
+  // 卡住无人认领的上传由 expireOldRvtConversionJobs 定时任务逐个兜底处理。
 
   if (params.status === 'failed') {
     await syncRelatedModelSyncTasksFromRvtJob({
