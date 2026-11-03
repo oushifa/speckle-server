@@ -34,3 +34,14 @@ export const saveUserNotificationPreferencesFactory =
       .onConflict('userId')
       .merge()
   }
+
+export {
+  ensureAppNotificationsTable,
+  createAppNotificationsFactory,
+  getAppNotificationsFactory,
+  getUnreadNotificationsCountFactory,
+  markNotificationAsReadFactory,
+  markAllNotificationsAsReadFactory,
+  type AppNotificationRecord,
+  type CreateNotificationInput
+} from '@/modules/notifications/services/appNotifications'

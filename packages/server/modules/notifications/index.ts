@@ -14,6 +14,8 @@ import NewStreamAccessRequestHandler from '@/modules/notifications/services/hand
 import StreamAccessRequestApprovedHandler from '@/modules/notifications/services/handlers/streamAccessRequestApproved'
 import ActivityDigestHandler from '@/modules/notifications/services/handlers/activityDigest'
 
+import { notificationsRestRouterFactory } from '@/modules/notifications/rest/router'
+
 export async function initializeConsumption(
   customHandlers?: Partial<NotificationTypeHandlers>
 ) {
@@ -37,8 +39,11 @@ export async function initializeConsumption(
   }
 }
 
-export const init: SpeckleModule['init'] = async ({ isInitial }) => {
+export const init: SpeckleModule['init'] = async ({ isInitial, app }) => {
   moduleLogger.info('📞 Init notifications module')
+  if (app) {
+    app.use(notificationsRestRouterFactory())
+  }
   if (isInitial) {
     await initializeConsumption()
   }

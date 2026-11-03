@@ -4,13 +4,21 @@
       {{
         props.readonly
           ? '工程量申报与验收详情'
+          : props.businessFieldsLocked
+          ? '编辑工程量申报与验收（附件维护）'
           : initialData
           ? '编辑工程量申报与验收'
           : '工程量申报与验收'
       }}
     </template>
     <div class="space-y-4">
-      <div class="text-body-sm text-foreground-2">填写验批信息</div>
+      <div
+        v-if="props.businessFieldsLocked"
+        class="text-xs text-warning-darker bg-warning-lighter/40 border border-warning/30 rounded p-2"
+      >
+        当前单据处于查验中或已查验状态，表单主体字段锁定只读，支持维护并保存附件/过程文件。
+      </div>
+      <div v-else class="text-body-sm text-foreground-2">填写验批信息</div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="md:col-span-2">
           <div class="text-body-sm font-medium mb-2">
@@ -22,7 +30,7 @@
             :project-id="projectId || ''"
             :multiple="false"
             leaf="item"
-            :disabled="loading || props.readonly"
+            :disabled="loading || props.readonly || props.businessFieldsLocked"
             @selected="onChecklistSelected"
           />
         </div>
@@ -42,7 +50,7 @@
           show-label
           show-required
           placeholder="请输入检验批号"
-          :disabled="props.readonly"
+          :disabled="props.readonly || props.businessFieldsLocked"
         />
         <FormTextInput
           v-model="form.acceptancePart"
@@ -52,7 +60,7 @@
           show-required
           placeholder="请输入验收部位，如：1层主体结构"
           bordered
-          :disabled="props.readonly"
+          :disabled="props.readonly || props.businessFieldsLocked"
         />
         <FormTextArea
           v-model="form.acceptanceContent"
@@ -62,7 +70,7 @@
           show-required
           placeholder="请输入验收内容"
           bordered
-          :disabled="props.readonly"
+          :disabled="props.readonly || props.businessFieldsLocked"
         />
         <FormTextInput
           v-model="actualFinishDateInput"
@@ -71,7 +79,7 @@
           type="date"
           show-label
           show-required
-          :disabled="props.readonly"
+          :disabled="props.readonly || props.businessFieldsLocked"
         />
         <FormTextInput
           v-model="workVolumeInput"
@@ -82,7 +90,7 @@
           show-label
           show-required
           placeholder="请输入工程量"
-          :disabled="props.readonly"
+          :disabled="props.readonly || props.businessFieldsLocked"
         />
         <FormTextInput
           v-model="form.unit"
@@ -99,7 +107,7 @@
             v-model:model_ids="bimModelIds"
             v-model:selections="bimSelections"
             :project-id="props.projectId"
-            :disabled="props.loading || props.readonly"
+            :disabled="props.loading || props.readonly || props.businessFieldsLocked"
             placeholder="点击选择构件"
           />
           <!-- 已选构件序号码标签 -->
@@ -111,7 +119,7 @@
             >
               {{ code }}
               <button
-                v-if="!props.readonly"
+                v-if="!props.readonly && !props.businessFieldsLocked"
                 type="button"
                 class="hover:opacity-75"
                 :title="`移除 ${code}`"
@@ -178,13 +186,15 @@ const props = withDefaults(
     initialAttachments?: QualityAcceptanceAttachment[]
     initialProcessAttachments?: QualityAcceptanceAttachment[]
     readonly?: boolean
+    businessFieldsLocked?: boolean
   }>(),
   {
     projectId: null,
     loading: false,
     initialData: null,
     initialAttachments: () => [],
-    readonly: false
+    readonly: false,
+    businessFieldsLocked: false
   }
 )
 
@@ -316,6 +326,7 @@ const formatDateInput = (value: number) => {
 }
 
 const validate = () => {
+  if (props.businessFieldsLocked) return ''
   if (!form.value.name.trim()) return '请先选择清单项名称'
   if (!form.value.boqItemId.trim()) return '清单项不能为空'
   if (!form.value.code.trim()) return '清单项编码不能为空'

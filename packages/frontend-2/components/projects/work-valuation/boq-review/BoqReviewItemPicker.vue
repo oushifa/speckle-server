@@ -229,41 +229,39 @@
               </div>
 
               <!-- 工程量输入 -->
-              <div :class="isChange ? 'grid grid-cols-2 gap-3' : ''">
-                <div>
-                  <label
-                    for="pick-review-qty"
-                    class="block text-xs font-medium text-foreground mb-1"
-                  >
-                    复核量
-                    <span class="text-danger">*</span>
-                  </label>
-                  <input
-                    id="pick-review-qty"
-                    v-model="createForm.reviewQty"
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    class="w-full px-2.5 py-1.5 text-xs font-mono text-right bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
-                  />
-                </div>
-                <div v-if="isChange">
-                  <label
-                    for="pick-change-qty"
-                    class="block text-xs font-medium text-foreground mb-1"
-                  >
-                    {{ isChange ? '本次签证量 (+/−)' : '变更/签证量' }}
-                    <span v-if="isChange" class="text-danger">*</span>
-                  </label>
-                  <input
-                    id="pick-change-qty"
-                    v-model="createForm.changeQty"
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    class="w-full px-2.5 py-1.5 text-xs font-mono text-right bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
-                  />
-                </div>
+              <div v-if="!isChange">
+                <label
+                  for="pick-review-qty"
+                  class="block text-xs font-medium text-foreground mb-1"
+                >
+                  复核量
+                  <span class="text-danger">*</span>
+                </label>
+                <input
+                  id="pick-review-qty"
+                  v-model="createForm.reviewQty"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="0.00"
+                  class="w-full px-2.5 py-1.5 text-xs font-mono text-right bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
+                />
+              </div>
+              <div v-else>
+                <label
+                  for="pick-change-qty"
+                  class="block text-xs font-medium text-foreground mb-1"
+                >
+                  本次签证量 (+/−)
+                  <span class="text-danger">*</span>
+                </label>
+                <input
+                  id="pick-change-qty"
+                  v-model="createForm.changeQty"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="0.00"
+                  class="w-full px-2.5 py-1.5 text-xs font-mono text-right bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
+                />
               </div>
 
               <!-- 复核单价 -->
@@ -459,35 +457,135 @@
         </div>
 
         <!-- ── Tab 3: 导出 / 导入 ── -->
-        <div v-else class="h-full flex flex-col min-h-0 p-4 space-y-4 overflow-y-auto">
-          <!-- 上半部分：导出模板 -->
+        <div v-else class="h-full flex flex-col min-h-0 bg-foundation">
+          <!-- 上半部分：树形清单勾选与导出模板 -->
           <div
-            class="p-4 rounded-xl border border-outline-3 bg-foundation-2/40 space-y-3"
+            class="p-3 border-b border-outline-3 flex flex-wrap items-center justify-between gap-2 shrink-0 bg-foundation-2/50"
           >
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-bold text-foreground">① 导出导入模板</h3>
-                <p class="text-xs text-foreground-2 mt-0.5">
-                  将当前工程的清单结构导出为 .xlsx 文件，在表格中离线填报工程量后导入。
-                </p>
-              </div>
-              <FormButton color="primary" size="sm" @click="handleExportTemplate">
-                <ArrowDownTrayIcon class="w-3.5 h-3.5 mr-1" />
-                导出 Excel 模板
-              </FormButton>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-foreground">
+                ① 勾选要导出的清单项
+              </span>
+              <span class="text-[11px] text-foreground-3">
+                导出后可在表格里离线修改，再从下方导入回来
+              </span>
+            </div>
+            <div class="text-xs text-foreground-2">
+              已勾选
+              <span class="text-primary font-bold">{{ selectedExportCodes.size }}</span>
+              条
             </div>
           </div>
 
-          <!-- 下半部分：解析上传 -->
+          <!-- 工具栏：搜索、全选、清空、导出按钮 -->
           <div
-            class="p-4 rounded-xl border border-outline-3 bg-foundation-2/40 space-y-3 flex-1 flex flex-col"
+            class="px-3 py-2 border-b border-outline-3 flex flex-wrap items-center justify-between gap-2 shrink-0 bg-foundation-2/30"
           >
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-bold text-foreground">② 导入 Excel 填报文件</h3>
-                <p class="text-xs text-foreground-2 mt-0.5">
-                  选择填好的 .xlsx 文件，系统会自动校验清单编码、数值格式与必填项。
-                </p>
+            <div class="flex items-center gap-2">
+              <div class="relative w-64">
+                <input
+                  v-model="exportTreeKeyword"
+                  type="text"
+                  aria-label="搜索清单编码或名称"
+                  placeholder="搜索清单编码 / 名称"
+                  class="w-full pl-7 pr-2 py-1 text-xs bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground"
+                />
+                <MagnifyingGlassIcon
+                  class="w-3.5 h-3.5 absolute left-2 top-2 text-foreground-2"
+                />
+              </div>
+              <FormButton color="outline" size="sm" @click="selectAllExportLeaves">
+                全选
+              </FormButton>
+              <FormButton color="outline" size="sm" @click="clearExportLeaves">
+                清空
+              </FormButton>
+            </div>
+            <FormButton
+              color="primary"
+              size="sm"
+              :disabled="selectedExportCodes.size === 0"
+              @click="handleExportSelectedTemplate"
+            >
+              <ArrowDownTrayIcon class="w-3.5 h-3.5 mr-1" />
+              导出所选清单项模板 (xlsx)
+            </FormButton>
+          </div>
+
+          <!-- 清单树形表格 -->
+          <div
+            class="flex-1 min-h-[180px] max-h-[38vh] overflow-auto border-b border-outline-3"
+          >
+            <table class="w-full text-xs text-left border-collapse min-w-[900px]">
+              <thead
+                class="bg-foundation-2 sticky top-0 text-[11px] font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
+              >
+                <tr>
+                  <th class="w-12 py-2 px-3 text-center">选择</th>
+                  <th class="w-48 py-2 px-3">清单编码</th>
+                  <th class="py-2 px-3">清单名称</th>
+                  <th class="w-20 py-2 px-3 text-center">层级</th>
+                  <th class="w-20 py-2 px-3 text-center">单位</th>
+                  <th class="w-28 py-2 px-3 text-right">工程量</th>
+                  <th class="w-28 py-2 px-3 text-right">综合单价</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-outline-3/60">
+                <tr
+                  v-for="row in filteredExportTreeRows"
+                  :key="row.item.id"
+                  class="hover:bg-highlight-1/30 transition-colors"
+                  :class="[
+                    selectedExportCodes.has(row.item.code) ? 'bg-primary/5' : ''
+                  ]"
+                >
+                  <td class="py-1.5 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      :aria-label="`勾选导出 ${row.item.code}`"
+                      :checked="isExportNodeChecked(row.item)"
+                      class="accent-primary"
+                      @change="toggleExportItem(row.item)"
+                    />
+                  </td>
+                  <td class="py-1.5 px-3 font-mono font-medium text-primary">
+                    <div :style="{ paddingLeft: `${row.depth * 14}px` }">
+                      {{ row.item.code }}
+                    </div>
+                  </td>
+                  <td
+                    class="py-1.5 px-3 font-medium text-foreground truncate max-w-xs"
+                    :title="row.item.name"
+                  >
+                    {{ row.item.name }}
+                  </td>
+                  <td class="py-1.5 px-3 text-center text-foreground-3 text-[11px]">
+                    {{ boqTypeLabel(row.item.type) }}
+                  </td>
+                  <td class="py-1.5 px-3 text-center text-foreground-2">
+                    {{ row.item.unit || '—' }}
+                  </td>
+                  <td class="py-1.5 px-3 text-right font-mono text-foreground">
+                    {{ formatNumber(row.item.quantity) }}
+                  </td>
+                  <td class="py-1.5 px-3 text-right font-mono text-foreground">
+                    {{ formatNumber(row.item.price) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 下半部分：导入填报 Excel -->
+          <div
+            class="p-3 shrink-0 bg-foundation-2/30 space-y-2 border-b border-outline-3"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2 text-xs">
+                <span class="font-bold text-foreground">② 导入 xlsx</span>
+                <span class="text-[11px] text-foreground-3">
+                  请使用上方「导出 xlsx」得到的模板；清单基数取自清单，不认文件里的基数
+                </span>
               </div>
               <label class="inline-flex items-center">
                 <input
@@ -500,15 +598,15 @@
                   class="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg cursor-pointer hover:bg-primary-focus transition-colors inline-flex items-center gap-1"
                 >
                   <ArrowUpTrayIcon class="w-3.5 h-3.5" />
-                  选择 Excel 文件
+                  选择 xlsx 文件
                 </span>
               </label>
             </div>
 
             <!-- 解析状态展示 -->
-            <div v-if="parseResult" class="flex-1 min-h-0 flex flex-col space-y-3 pt-2">
+            <div v-if="parseResult" class="space-y-2 pt-1">
               <div
-                class="p-3 rounded-lg text-xs font-medium border"
+                class="p-2.5 rounded-lg text-xs font-medium border"
                 :class="[
                   parseResult.failedRows.length === 0
                     ? 'bg-success-lighter/20 border-success/30 text-success-darker'
@@ -527,14 +625,14 @@
               <!-- 失败行明细 -->
               <div
                 v-if="parseResult.failedRows.length > 0"
-                class="flex-1 min-h-0 overflow-y-auto border border-danger/20 rounded-lg p-2.5 bg-danger/5 text-xs"
+                class="max-h-28 overflow-y-auto border border-danger/20 rounded-lg p-2 bg-danger/5 text-xs"
               >
-                <div class="font-bold text-danger mb-1.5">失败原因明细：</div>
-                <div class="space-y-1">
+                <div class="font-bold text-danger mb-1">失败原因明细：</div>
+                <div class="space-y-0.5">
                   <div
                     v-for="(fail, fIdx) in parseResult.failedRows"
                     :key="fIdx"
-                    class="text-danger flex items-start gap-1"
+                    class="text-danger flex items-start gap-1 text-[11px]"
                   >
                     <span>· 第 {{ fail.rowNumber }} 行</span>
                     <span v-if="fail.code" class="font-mono">({{ fail.code }})</span>
@@ -546,8 +644,10 @@
             </div>
           </div>
 
-          <!-- 导入确定按钮 -->
-          <div class="flex items-center justify-end gap-2 pt-2">
+          <!-- 底部操作按钮栏 -->
+          <div
+            class="p-3 flex items-center justify-end gap-2 shrink-0 bg-foundation-2 mt-auto"
+          >
             <FormButton color="outline" size="sm" @click="handleClose">取消</FormButton>
             <FormButton
               color="primary"
@@ -615,9 +715,9 @@ const isChange = computed(() => props.kind === 'change')
 const tabs = [
   { key: 'create', label: '创建清单项' },
   { key: 'import', label: '引入清单项' },
-  { key: 'file', label: '导出 / 导入' }
+  { key: 'export', label: '导出 / 导入' }
 ] as const
-type TabKey = (typeof tabs)[number]['key']
+type TabKey = (typeof tabs)[number]['key'] | 'file'
 const activeTab = ref<TabKey>('create')
 
 const commonUnits = ['m', '㎡', 'm³', 't', 'kg', '项', '座', '套', '个', '组', '根']
@@ -667,7 +767,7 @@ const createPreview = computed(() => {
       name: createForm.value.name,
       unit: createForm.value.unit,
       baseChangeQty: 0,
-      reviewQty: createForm.value.reviewQty,
+      reviewQty: isChange.value ? 0 : createForm.value.reviewQty,
       changeQty: createForm.value.changeQty,
       reviewUnitPrice: createForm.value.reviewUnitPrice
     },
@@ -709,9 +809,7 @@ const selectSourceItem = (item: BoqTreeItem) => {
   createForm.value.reviewUnitPrice = isChange.value
     ? String(item.reviewPrice ?? item.price ?? 0)
     : '0'
-  createForm.value.reviewQty = isChange.value
-    ? String(item.reviewQuantity ?? item.quantity ?? 0)
-    : '0'
+  createForm.value.reviewQty = '0'
   createForm.value.changeQty = '0'
 }
 
@@ -748,7 +846,7 @@ const handleCreateRow = (keepOpen: boolean) => {
     name: createForm.value.name.trim(),
     unit: createForm.value.unit.trim(),
     baseChangeQty: 0,
-    reviewQty: toNum(createForm.value.reviewQty),
+    reviewQty: isChange.value ? 0 : toNum(createForm.value.reviewQty),
     changeQty: toNum(createForm.value.changeQty),
     reviewUnitPrice: toNum(createForm.value.reviewUnitPrice)
   })
@@ -770,6 +868,8 @@ const handleCreateRow = (keepOpen: boolean) => {
     if (!isChange.value) {
       createForm.value.reviewQty = '0'
       createForm.value.reviewUnitPrice = '0'
+    } else {
+      createForm.value.changeQty = '0'
     }
   } else {
     handleClose()
@@ -875,12 +975,91 @@ const executeBatchImport = () => {
 
 // ── Tab 3: 导出 / 导入状态 ──
 const parseResult = ref<ParseOutcome | null>(null)
+const exportTreeKeyword = ref('')
+const selectedExportCodes = ref<Set<string>>(new Set())
 
-const handleExportTemplate = () => {
-  exportReviewTemplateXlsx(props.kind, leafItems.value, '项目清单')
+const filteredExportTreeRows = computed(() => {
+  const kw = exportTreeKeyword.value.trim().toLowerCase()
+  const rows: Array<{ item: BoqTreeItem; depth: number }> = []
+
+  function walk(nodes: BoqTreeItem[], depth = 0) {
+    for (const node of nodes) {
+      const match =
+        !kw ||
+        node.code.toLowerCase().includes(kw) ||
+        node.name.toLowerCase().includes(kw)
+      if (match) {
+        rows.push({ item: node, depth })
+      }
+      if (node.children && node.children.length > 0) {
+        walk(node.children, depth + 1)
+      }
+    }
+  }
+  walk(props.allBoqItems)
+  return rows
+})
+
+const isExportNodeChecked = (node: BoqTreeItem) => {
+  const leavesUnder = collectBoqLeafItems([node])
+  if (leavesUnder.length === 0) {
+    return selectedExportCodes.value.has(node.code)
+  }
+  return leavesUnder.every((l) => selectedExportCodes.value.has(l.code))
+}
+
+const toggleExportItem = (node: BoqTreeItem) => {
+  const leavesUnder = collectBoqLeafItems([node])
+  const nextSet = new Set(selectedExportCodes.value)
+
+  if (leavesUnder.length === 0) {
+    if (nextSet.has(node.code)) {
+      nextSet.delete(node.code)
+    } else {
+      nextSet.add(node.code)
+    }
+  } else {
+    const isAllChecked = leavesUnder.every((l) => nextSet.has(l.code))
+    for (const leaf of leavesUnder) {
+      if (isAllChecked) {
+        nextSet.delete(leaf.code)
+      } else {
+        nextSet.add(leaf.code)
+      }
+    }
+  }
+  selectedExportCodes.value = nextSet
+}
+
+const selectAllExportLeaves = () => {
+  const nextSet = new Set<string>()
+  leafItems.value.forEach((l) => {
+    nextSet.add(l.code)
+  })
+  selectedExportCodes.value = nextSet
+}
+
+const clearExportLeaves = () => {
+  selectedExportCodes.value = new Set()
+}
+
+const handleExportSelectedTemplate = () => {
+  const selectedNodes = leafItems.value.filter((l) =>
+    selectedExportCodes.value.has(l.code)
+  )
+  if (selectedNodes.length === 0) {
+    triggerNotification({
+      title: '导出提示',
+      description: '请先勾选需要导出的清单项',
+      type: ToastNotificationType.Warning
+    })
+    return
+  }
+
+  exportReviewTemplateXlsx(props.kind, selectedNodes, '项目清单')
   triggerNotification({
     title: '导出成功',
-    description: '清单模板已下载，填写后可从下方导入',
+    description: `已成功导出 ${selectedNodes.length} 条清单项模板，填写后可从下方导入`,
     type: ToastNotificationType.Success
   })
 }
@@ -931,6 +1110,8 @@ watch(
       activeTab.value = 'create'
       parseResult.value = null
       selectedImportCodes.value = new Set()
+      selectedExportCodes.value = new Set()
+      exportTreeKeyword.value = ''
       selectedSourceItem.value = null
       createError.value = ''
       createForm.value = {

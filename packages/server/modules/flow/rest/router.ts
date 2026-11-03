@@ -437,14 +437,6 @@ export const flowRouterFactory = (): Router => {
       description: body.description || ''
     }
 
-    let templateId = body.templateId || body.id
-    if (templateId && templateId.startsWith('flow-')) {
-      templateId = null
-    }
-    if (templateId === 'BOQ_REVIEW_TEMPLATE_1') {
-      templateId = 'f74fd496a9'
-    }
-
     // Enforce unique workflow template/family per category within a project
     let searchCategories: string[]
     if (categoryId === 'MODEL_REVIEW') {
@@ -475,11 +467,10 @@ export const flowRouterFactory = (): Router => {
         db.raw(`"triggerConfig"->>'category'`) as unknown as string,
         searchCategories
       )
+      .orderBy('version', 'desc')
       .first()
 
-    if (existingDefinition) {
-      templateId = existingDefinition.templateId
-    }
+    const templateId = existingDefinition ? existingDefinition.templateId : null
 
     const definition = await createWithSteps({
       templateId,

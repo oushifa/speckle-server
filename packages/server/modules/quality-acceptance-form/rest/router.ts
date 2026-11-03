@@ -213,6 +213,32 @@ const calculatePaymentRequestAmounts = async (
     ? paymentDetails.extraPayItems
     : []
 
+  const boqIds = items.map((i: any) => i.boqItemId).filter(Boolean)
+  const boqRows =
+    boqIds.length > 0
+      ? await projectDb('boq_items')
+          .whereIn('id', boqIds)
+          .select('id', 'reviewPrice', 'price')
+      : []
+  const boqPriceMap = new Map<string, number>()
+  for (const b of boqRows) {
+    const rPrice =
+      b.reviewPrice !== null &&
+      b.reviewPrice !== undefined &&
+      b.reviewPrice !== '' &&
+      !isNaN(Number(b.reviewPrice))
+        ? Number(b.reviewPrice)
+        : b.price !== null &&
+          b.price !== undefined &&
+          b.price !== '' &&
+          !isNaN(Number(b.price))
+        ? Number(b.price)
+        : null
+    if (rPrice !== null) {
+      boqPriceMap.set(b.id, rPrice)
+    }
+  }
+
   let contractorPayAmtSum = 0
   let supervisionPayAmtSum = 0
   let headquartersPayAmtSum = 0
@@ -222,7 +248,9 @@ const calculatePaymentRequestAmounts = async (
 
   for (const item of items) {
     if (!item.isSummaryRow) {
-      const price = Number(item.price || 0)
+      const price = boqPriceMap.has(item.boqItemId)
+        ? boqPriceMap.get(item.boqItemId)!
+        : Number(item.price || 0)
       const contractorQty = Number(item.contractorQty || 0)
       const supervisionQty = Number(item.supervisionQty || 0)
       const headquartersQty = Number(item.headquartersQty || 0)
@@ -282,10 +310,38 @@ const getLeaderPayAmtSum = async (
     ? paymentDetails.extraPayItems
     : []
 
+  const boqIds = items.map((i: any) => i.boqItemId).filter(Boolean)
+  const boqRows =
+    boqIds.length > 0
+      ? await projectDb('boq_items')
+          .whereIn('id', boqIds)
+          .select('id', 'reviewPrice', 'price')
+      : []
+  const boqPriceMap = new Map<string, number>()
+  for (const b of boqRows) {
+    const rPrice =
+      b.reviewPrice !== null &&
+      b.reviewPrice !== undefined &&
+      b.reviewPrice !== '' &&
+      !isNaN(Number(b.reviewPrice))
+        ? Number(b.reviewPrice)
+        : b.price !== null &&
+          b.price !== undefined &&
+          b.price !== '' &&
+          !isNaN(Number(b.price))
+        ? Number(b.price)
+        : null
+    if (rPrice !== null) {
+      boqPriceMap.set(b.id, rPrice)
+    }
+  }
+
   let sum = 0
   for (const item of items) {
     if (!item.isSummaryRow) {
-      const price = Number(item.price || 0)
+      const price = boqPriceMap.has(item.boqItemId)
+        ? boqPriceMap.get(item.boqItemId)!
+        : Number(item.price || 0)
       const investmentQty = Number(item.investmentQty || 0)
       const amt = preciseMul(investmentQty, price)
       sum = preciseAdd(sum, amt)
@@ -326,21 +382,57 @@ const calculateContractAndCumulativePayment = async (
   )
   const boqItems = await projectDb('boq_items')
     .where('projectId', projectId)
-    .select('id', 'amount')
-  const boqAmountMap = new Map<string, number | null>()
+    .select(
+      'id',
+      'amount',
+      'price',
+      'reviewPrice',
+      'reviewQuantity',
+      'changeQuantity',
+      'reviewAmount'
+    )
+
+  const toNum = (val: unknown): number | null => {
+    if (val === null || val === undefined || val === '') return null
+    const n = Number(val)
+    return Number.isNaN(n) ? null : n
+  }
+
+  const boqContractAmountMap = new Map<string, number>()
   for (const boq of boqItems) {
-    boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
+    const rPrice = toNum(boq.reviewPrice) ?? toNum(boq.price)
+    const rQty = toNum(boq.reviewQuantity)
+    const cQty = toNum(boq.changeQuantity)
+    const totalQty = rQty !== null || cQty !== null ? (rQty ?? 0) + (cQty ?? 0) : null
+    let rAmount = toNum(boq.reviewAmount)
+    if (rAmount === null && rPrice !== null && totalQty !== null) {
+      rAmount = Number((rPrice * totalQty).toFixed(2))
+    }
+    if (
+      rAmount === null &&
+      boq.amount !== null &&
+      boq.amount !== undefined &&
+      boq.amount !== ''
+    ) {
+      rAmount = Number(boq.amount)
+    }
+    if (rAmount !== null) {
+      boqContractAmountMap.set(boq.id, rAmount)
+    }
   }
 
   let contractAmount = 0
   for (const item of items) {
     if (!item.isSummaryRow) {
       const price = Number(item.price || 0)
-      const boqAmt = boqAmountMap.get(item.boqItemId)
+      const boqAmt = boqContractAmountMap.get(item.boqItemId)
       if (boqAmt !== undefined && boqAmt !== null) {
-        contractAmount += boqAmt
+        contractAmount = preciseAdd(contractAmount, boqAmt)
       } else {
-        contractAmount += Number(item.pendingTotalQty || 0) * price
+        contractAmount = preciseAdd(
+          contractAmount,
+          Number(item.pendingTotalQty || 0) * price
+        )
       }
     }
   }
@@ -3118,25 +3210,54 @@ export const qualityAcceptanceRouterFactory = (): Router => {
       // 获取当前年
       const currentYear = dayjs(Number(measurement.baseDate)).year()
 
-      // 提前查询 boq_items 表以获取每个 item 的 amount 字段
+      // 提前查询 boq_items 表以获取每个 item 的 amount 字段及复核量数据
       const boqItems = await projectDb('boq_items')
         .where('projectId', projectId)
-        .select('id', 'type', 'parentId', 'amount', 'reviewPrice')
+        .select(
+          'id',
+          'type',
+          'parentId',
+          'amount',
+          'price',
+          'reviewPrice',
+          'reviewQuantity',
+          'changeQuantity',
+          'reviewAmount'
+        )
       const boqTypeMap = new Map<string, string>()
-      const boqAmountMap = new Map<string, number | null>()
+      const boqContractAmountMap = new Map<string, number>()
       const boqReviewPriceMap = new Map<string, number>()
+
+      const toNum = (val: unknown): number | null => {
+        if (val === null || val === undefined || val === '') return null
+        const n = Number(val)
+        return Number.isNaN(n) ? null : n
+      }
+
       for (const boq of boqItems) {
         boqTypeMap.set(boq.id, boq.type)
-        boqAmountMap.set(boq.id, boq.amount === null ? null : Number(boq.amount))
-        boqReviewPriceMap.set(
-          boq.id,
-          boq.reviewPrice === null ||
-            boq.reviewPrice === undefined ||
-            boq.reviewPrice === '' ||
-            isNaN(Number(boq.reviewPrice))
-            ? 0
-            : Number(boq.reviewPrice)
-        )
+        const rPrice = toNum(boq.reviewPrice) ?? toNum(boq.price) ?? 0
+        boqReviewPriceMap.set(boq.id, rPrice)
+
+        const rQty = toNum(boq.reviewQuantity)
+        const cQty = toNum(boq.changeQuantity)
+        const totalQty =
+          rQty !== null || cQty !== null ? (rQty ?? 0) + (cQty ?? 0) : null
+        let rAmount = toNum(boq.reviewAmount)
+        if (rAmount === null && rPrice > 0 && totalQty !== null) {
+          rAmount = Number((rPrice * totalQty).toFixed(2))
+        }
+        if (
+          rAmount === null &&
+          boq.amount !== null &&
+          boq.amount !== undefined &&
+          boq.amount !== ''
+        ) {
+          rAmount = Number(boq.amount)
+        }
+        if (rAmount !== null) {
+          boqContractAmountMap.set(boq.id, rAmount)
+        }
       }
 
       // 2. 自底向上金额聚合计算
@@ -3195,14 +3316,17 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
         if (!node.record.isSummaryRow) {
           const price = Number(node.record.price || 0)
-          const reviewPrice = boqReviewPriceMap.get(node.record.boqItemId) ?? 0
+          const reviewPrice =
+            boqReviewPriceMap.get(node.record.boqItemId) ?? (price > 0 ? price : 0)
 
-          // 如果清单有合价，则直接从清单的合价获取，否则自行计算
-          const boqAmt = boqAmountMap.get(node.record.boqItemId)
+          // 核心口径：涉及合同价一律用复核合同价基准
+          const boqAmt = boqContractAmountMap.get(node.record.boqItemId)
           if (boqAmt !== undefined && boqAmt !== null) {
             node.contractAmount = boqAmt
           } else {
-            node.contractAmount = Number(node.record.pendingTotalQty || 0) * price
+            node.contractAmount =
+              Number(node.record.pendingTotalQty || 0) *
+              (reviewPrice > 0 ? reviewPrice : price)
           }
 
           node.contractorAmount = Number(node.record.contractorQty || 0) * reviewPrice

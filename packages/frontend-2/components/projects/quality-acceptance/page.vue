@@ -297,11 +297,12 @@
     <ProjectsQualityAcceptanceCreateDialog
       v-model:open="createDialogOpen"
       :project-id="projectId"
-      :loading="createFormLoading || updateFormLoading"
+      :loading="createFormLoading || updateFormLoading || updateFormAttachmentsLoading"
       :initial-data="editingInitialData"
       :initial-attachments="editingItem?.attachments || []"
       :initial-process-attachments="editingItem?.processAttachments || []"
       :readonly="isDialogReadonly"
+      :business-fields-locked="isBusinessFieldsLocked"
       @submit="createAcceptanceItem"
     />
     <ProjectsQualityAcceptanceAttachmentsEditDialog
@@ -919,8 +920,8 @@ const attachmentDialogButtons = computed((): LayoutDialogButton[] | undefined =>
   ]
 })
 
-// 查验中 / 已查验的质量验收单禁止编辑与上传附件；被月度验工占用的同样禁止
-const LOCKED_ACCEPTANCE_APPROVE_STATUSES = ['PENDING', 'APPROVED']
+// 查验中 / 已查验的质量验收单主体业务字段锁定只读，但支持维护上传附件
+const LOCKED_ACCEPTANCE_APPROVE_STATUSES = ['PENDING', 'APPROVED', 'START', 'IN_REVIEW']
 const normalizeApproveStatus = (status?: string | null) =>
   (status || '').trim().toUpperCase()
 const isAcceptanceStatusLocked = (item: AcceptanceRow) =>
@@ -929,8 +930,8 @@ const isAcceptanceStatusLocked = (item: AcceptanceRow) =>
   )
 const isAcceptanceLocked = (item: AcceptanceRow) =>
   isAcceptanceStatusLocked(item) || !!item.occupiedMeasurementId
-// 不可编辑（查验中/已查验、已被月度验工占用）时直接隐藏编辑按钮，只保留附件管理与查看
-const canEditItem = (item: AcceptanceRow) => !isAcceptanceLocked(item)
+// 未查验与空状态可编辑全部内容；查验中与已查验同样支持点击编辑维护附件
+const canEditItem = (_item: AcceptanceRow) => true
 
 const canDeleteItem = (item: AcceptanceRow) => {
   const status = (item.approveStatus || '').toUpperCase()
@@ -1024,6 +1025,13 @@ const saveAttachments = async (payload: {
 }
 
 const isDialogReadonly = computed(() => dialogMode.value === 'view')
+const isBusinessFieldsLocked = computed(() => {
+  if (dialogMode.value === 'view') return true
+  if (dialogMode.value === 'edit' && editingItem.value) {
+    return isAcceptanceStatusLocked(editingItem.value)
+  }
+  return false
+})
 
 const onAdd = () => {
   dialogMode.value = 'create'
@@ -1225,15 +1233,15 @@ const getStatusColor = (item: AcceptanceRow) => {
   const status = item.approveStatus
   switch (status) {
     case 'START':
-      return 'bg-warning-lighter text-warning-darker'
     case 'PENDING':
+    case 'IN_REVIEW':
       return 'bg-yellow-500 text-white'
     case 'APPROVED':
       return 'bg-green-500 text-white'
     case 'REJECTED':
-      return 'bg-red-500 text-white'
+      return 'bg-warning-lighter text-warning-darker'
     case 'CANCELED':
-      return 'bg-gray-400 text-white'
+      return 'bg-warning-lighter text-warning-darker'
     case null:
     case undefined:
     case '':
@@ -1250,15 +1258,15 @@ const getStatusText = (item: AcceptanceRow) => {
   const status = item.approveStatus
   switch (status) {
     case 'START':
-      return '未查验'
     case 'PENDING':
+    case 'IN_REVIEW':
       return '查验中'
     case 'APPROVED':
       return '已查验'
     case 'REJECTED':
       return '未查验'
     case 'CANCELED':
-      return '已取消'
+      return '未查验'
     case null:
     case undefined:
     case '':
@@ -1280,16 +1288,40 @@ const removeAcceptanceItem = async (id: string) => {
 }
 
 const createAcceptanceItem = async (payload: QualityAcceptanceCreateInput) => {
-  if (!projectId.value || createFormLoading.value || updateFormLoading.value) return
+  if (
+    !projectId.value ||
+    createFormLoading.value ||
+    updateFormLoading.value ||
+    updateFormAttachmentsLoading.value
+  )
+    return
   if (editingItem.value) {
-    if (isAcceptanceLocked(editingItem.value)) {
+    // 若单据处于查验中或已查验状态，业务字段锁定，仅提交附件/过程文件变更
+    if (isBusinessFieldsLocked.value) {
+      const result = await updateFormAttachmentsMutate({
+        input: {
+          projectId: projectId.value,
+          id: editingItem.value.id,
+          attachments: payload.attachments,
+          processAttachments: payload.processAttachments
+        } as UpdateQualityAcceptanceFormAttachmentsInput
+      }).catch(convertThrowIntoFetchResult)
+
+      if (result?.errors?.length) {
+        notify(
+          '附件保存失败',
+          ToastNotificationType.Danger,
+          getFirstErrorMessage(result.errors)
+        )
+        return
+      }
+      notify('附件保存成功', ToastNotificationType.Success)
+      editingItem.value = null
       createDialogOpen.value = false
-      notify(
-        '该质量验收单处于查验中或已查验状态，不可编辑或上传附件',
-        ToastNotificationType.Danger
-      )
+      await formsRefetch()
       return
     }
+
     const result = await updateFormMutate({
       input: {
         projectId: projectId.value,

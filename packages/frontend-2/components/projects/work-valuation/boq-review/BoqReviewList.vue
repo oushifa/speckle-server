@@ -8,7 +8,7 @@
         </h2>
         <span class="text-xs text-foreground-2">
           共 {{ records.length }} 条
-          <template v-if="draftCount > 0">（草稿 {{ draftCount }} 条）</template>
+          <template v-if="draftCount > 0">（预填报 {{ draftCount }} 条）</template>
         </span>
       </div>
 
@@ -40,7 +40,12 @@
         </FormButton>
 
         <!-- 新增按钮 -->
-        <FormButton color="primary" size="sm" @click="handleCreate">
+        <FormButton
+          v-if="hasFunctionalPerm(`${permPrefix}:create`)"
+          color="primary"
+          size="sm"
+          @click="handleCreate"
+        >
           <PlusIcon class="w-3.5 h-3.5 mr-1" />
           {{ meta.createLabel }}
         </FormButton>
@@ -190,6 +195,7 @@
                 <!-- 草稿或已退回：编辑、删除 -->
                 <template v-if="isDraft(record) || record.approveStatus === 'RETURNED'">
                   <button
+                    v-if="hasFunctionalPerm(`${permPrefix}:edit`)"
                     class="text-primary hover:underline text-[12px] inline-flex items-center gap-0.5"
                     @click="goDetail(record.id)"
                   >
@@ -197,11 +203,23 @@
                     编辑 / 送审
                   </button>
                   <button
+                    v-if="hasFunctionalPerm(`${permPrefix}:delete`)"
                     class="text-danger hover:underline text-[12px] inline-flex items-center gap-0.5"
                     @click="confirmDelete(record)"
                   >
                     <TrashIcon class="w-3.5 h-3.5" />
                     删除
+                  </button>
+                  <button
+                    v-if="
+                      !hasFunctionalPerm(`${permPrefix}:edit`) &&
+                      !hasFunctionalPerm(`${permPrefix}:delete`)
+                    "
+                    class="text-foreground-2 hover:underline text-[12px] inline-flex items-center gap-0.5"
+                    @click="goDetail(record.id)"
+                  >
+                    <EyeIcon class="w-3.5 h-3.5" />
+                    查看
                   </button>
                 </template>
 
@@ -254,7 +272,7 @@
         <span class="font-bold text-foreground">{{ targetRecord?.code }}</span>
         」吗？
         <div class="text-xs text-foreground-3 mt-1">
-          提示：该操作不可撤销，删除草稿不会影响项目现有的正式清单工程量。
+          提示：该操作不可撤销，删除预填报单据不会影响项目现有的正式清单工程量。
         </div>
       </div>
     </CommonConfirmDialog>
@@ -284,6 +302,7 @@ import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { useApiOrigin } from '~~/composables/env'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 const props = defineProps<{
   projectId: string
@@ -295,6 +314,10 @@ const apiOrigin = useApiOrigin()
 const authToken = useAuthCookie()
 const { activeUser } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
+const permPrefix = computed(() =>
+  props.kind === 'change' ? 'visa-change' : 'boq-review'
+)
 
 const records = ref<BoqReviewRecord[]>([])
 const loading = ref(false)
@@ -441,6 +464,15 @@ const confirmDelete = (record: BoqReviewRecord) => {
 
 const executeDelete = async () => {
   if (!targetRecord.value) return
+  if (!hasFunctionalPerm(`${permPrefix.value}:delete`)) {
+    triggerNotification({
+      title: '操作受限',
+      description: '您没有删除该单据的权限',
+      type: ToastNotificationType.Warning
+    })
+    deleteConfirmOpen.value = false
+    return
+  }
   deleting.value = true
   try {
     await $fetch(

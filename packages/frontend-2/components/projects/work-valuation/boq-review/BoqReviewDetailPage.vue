@@ -367,7 +367,7 @@
             <!-- 底部保存/送审提示 -->
             <div class="flex items-center gap-3">
               <FormButton
-                v-if="canCurrentUserApprove"
+                v-if="canCurrentUserApprove && hasFunctionalPerm(`${permPrefix}:edit`)"
                 color="outline"
                 size="sm"
                 :loading="savingReview"
@@ -386,7 +386,7 @@
                 <span v-else-if="activeEditableStage === 'contract'">
                   合约部终审阶段：确认审定后将自动生效并写回清单
                 </span>
-                <span v-else>草稿填报阶段：请核对清单后在右侧送审</span>
+                <span v-else>预填报阶段：请核对清单后在右侧送审</span>
               </div>
             </div>
           </div>
@@ -404,8 +404,8 @@
         class="p-4 border-b border-outline-3 flex items-center justify-between shrink-0 bg-foundation-2"
       >
         <div class="flex items-center gap-2">
-          <QueueListIcon class="w-4 h-4 text-primary" />
-          <h3 class="text-sm font-bold text-foreground">审批流程与待办</h3>
+          <QueueListIcon class="h-4 w-4 text-primary" />
+          <h3 class="text-sm font-bold text-foreground">审批流程</h3>
         </div>
         <button
           type="button"
@@ -435,7 +435,7 @@
             </span>
           </h4>
 
-          <!-- 1. 草稿 / 退回阶段：保存草稿 与 提交审核 -->
+          <!-- 1. 预填报 / 退回阶段：保存预填报 与 提交审核 -->
           <div v-if="isDraftEditable" class="space-y-2.5">
             <FormButton
               color="outline"
@@ -444,7 +444,7 @@
               :loading="savingDraft"
               @click="handleSaveDraft"
             >
-              保存草稿
+              保存预填报
             </FormButton>
 
             <FormButton
@@ -465,18 +465,18 @@
                 class="block text-xs font-medium text-foreground mb-1"
                 for="approval-comment-input"
               >
-                审批意见 / 批注
+                审核意见
               </label>
               <textarea
                 id="approval-comment-input"
                 v-model="approvalComment"
                 rows="3"
-                placeholder="请输入您的审核意见..."
+                placeholder="请输入您的审核意见（选填）"
                 class="w-full px-2.5 py-1.5 text-xs bg-foundation border border-outline-3 rounded focus:outline-none focus:border-primary text-foreground resize-none"
               />
             </div>
 
-            <div class="flex flex-col gap-2">
+            <div class="grid grid-cols-2 gap-2">
               <FormButton
                 color="primary"
                 size="sm"
@@ -508,57 +508,41 @@
           </div>
         </div>
 
-        <!-- 审批步骤节点进度列表（steps） -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-bold text-foreground">流程节点进度</h4>
-          <div
-            class="space-y-2 border border-outline-3 rounded-lg p-2.5 bg-foundation-2/40"
-          >
+        <!-- 审批节点列表 (Steps Timeline) -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-bold text-foreground flex items-center gap-1">
+            <QueueListIcon class="h-4 w-4 text-foreground-2" />
+            <span>审批节点列表</span>
+          </h3>
+          <div class="space-y-2.5">
             <div
               v-for="(step, sIdx) in flowSteps"
               :key="step.id || sIdx"
-              class="p-2 rounded border text-xs space-y-1 transition-all"
-              :class="[
-                step.status === 'APPROVED'
-                  ? 'border-success/30 bg-success-lighter/10'
-                  : step.status === 'PENDING'
-                  ? 'border-primary/40 bg-primary/10 ring-1 ring-primary/30'
-                  : 'border-outline-3/60 bg-foundation text-foreground-3'
-              ]"
+              class="border rounded-lg p-3 text-xs"
+              :class="getFlowStepCardClass(step.status)"
             >
-              <div class="flex items-center justify-between font-medium">
-                <span class="flex items-center gap-1.5">
-                  <span class="font-mono text-[11px] text-foreground-3">
-                    #{{ step.stepIndex }}
-                  </span>
-                  <span class="font-bold text-foreground">{{ step.name }}</span>
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-foreground">
+                  Step {{ step.stepIndex ?? sIdx + 1 }} · {{ step.name }}
                 </span>
                 <span
-                  class="text-[10px] px-1.5 py-0.2 rounded font-medium"
-                  :class="[
-                    step.status === 'APPROVED'
-                      ? 'bg-success text-white'
-                      : step.status === 'PENDING'
-                      ? 'bg-primary text-white'
-                      : 'bg-foundation-3 text-foreground-3'
-                  ]"
+                  class="px-1.5 py-0.5 rounded-full text-[10px]"
+                  :class="getFlowStepTagClass(step.status)"
                 >
-                  {{
-                    step.status === 'APPROVED'
-                      ? '已通过'
-                      : step.status === 'PENDING'
-                      ? '待审核'
-                      : '未到达'
-                  }}
+                  {{ formatFlowStepStatusLabel(step.status) }}
                 </span>
               </div>
-              <div
-                class="text-[11px] text-foreground-2 flex items-center justify-between"
-              >
-                <span>审批人：{{ step.approverNames?.join('、') || '—' }}</span>
-                <span v-if="step.completedAt" class="font-mono text-foreground-3">
-                  {{ formatDate(step.completedAt) }}
-                </span>
+              <div class="text-foreground-2 mt-1.5">
+                审核进度:
+                {{
+                  (step.approvedByIds?.length || step.approvedByNames?.length) ??
+                  (step.status === 'APPROVED' ? step.requiredApprovals ?? 1 : 0)
+                }}
+                /
+                {{ step.requiredApprovals ?? 1 }}
+              </div>
+              <div class="text-foreground-2 mt-0.5">
+                审核人: {{ getStepApproversText(step) }}
               </div>
             </div>
           </div>
@@ -622,6 +606,22 @@
         {{ confirmDialogText }}
       </div>
     </CommonConfirmDialog>
+
+    <!-- 悬浮触发按钮（审批流程展开） -->
+    <button
+      v-if="!isSidebarOpen"
+      class="fixed right-0 top-1/2 -translate-y-1/2 z-40 rounded-l-lg bg-primary hover:bg-primary-focus text-white shadow-md px-2 py-3.5 flex flex-col items-center gap-1.5 transition-all select-none cursor-pointer"
+      title="展开审批面板"
+      @click="isSidebarOpen = true"
+    >
+      <QueueListIcon class="h-5 w-5" />
+      <span
+        class="text-[10px] font-bold tracking-widest"
+        style="writing-mode: vertical-rl"
+      >
+        审批流程
+      </span>
+    </button>
   </div>
 </template>
 
@@ -665,6 +665,7 @@ import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { useApiOrigin } from '~~/composables/env'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
 const props = withDefaults(
   defineProps<{
@@ -682,12 +683,16 @@ const apiOrigin = useApiOrigin()
 const authToken = useAuthCookie()
 const { activeUser } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
+const { hasFunctionalPerm } = useCustomPermissions()
 
 const record = ref<BoqReviewRecord | null>(null)
 const currentKind = computed<ReviewKind>(() => {
   return record.value?.kind || props.kind || 'review'
 })
 const isChange = computed(() => currentKind.value === 'change')
+const permPrefix = computed(() =>
+  currentKind.value === 'change' ? 'visa-change' : 'boq-review'
+)
 const meta = computed(() => KIND_META[currentKind.value])
 
 // 表单与明细编辑态
@@ -780,7 +785,14 @@ const displayCode = computed(() => {
   return record.value?.code || '—'
 })
 
+const canSaveOrSubmitDraft = computed(() => {
+  return isNew.value
+    ? hasFunctionalPerm(`${permPrefix.value}:create`)
+    : hasFunctionalPerm(`${permPrefix.value}:edit`)
+})
+
 const isDraftEditable = computed(() => {
+  if (!canSaveOrSubmitDraft.value) return false
   if (isNew.value) return true
   return record.value?.canEditDraft === true
 })
@@ -800,7 +812,7 @@ const isReadOnlyView = computed(() => {
 const statusBadge = computed(() => {
   if (isNew.value) {
     return {
-      label: '新建草稿',
+      label: '新建预填报',
       class: 'bg-warning-lighter/20 text-warning-darker border-warning/30'
     }
   }
@@ -868,6 +880,58 @@ const summaryTotals = computed(() => {
 const formatDate = (val: string | null | undefined) => {
   if (!val) return '—'
   return dayjs(val).format('YYYY-MM-DD HH:mm')
+}
+
+const getFlowStepCardClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'border-success bg-success/5'
+  if (status === 'PENDING') return 'border-primary bg-primary/5'
+  if (status === 'REJECTED' || status === 'CANCELED' || status === 'CANCELLED') {
+    return 'border-danger bg-danger/5'
+  }
+  return 'border-outline-3 bg-foundation'
+}
+
+const getFlowStepTagClass = (status?: string | null) => {
+  if (status === 'APPROVED') return 'bg-success/10 text-success'
+  if (status === 'PENDING') return 'bg-primary/10 text-primary'
+  if (status === 'REJECTED' || status === 'CANCELED' || status === 'CANCELLED') {
+    return 'bg-danger/10 text-danger'
+  }
+  return 'bg-foundation-2 text-foreground-2'
+}
+
+const formatFlowStepStatusLabel = (status?: string | null) => {
+  const map: Record<string, string> = {
+    WAITING: '未到达',
+    PENDING: '待审核',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    CANCELED: '已取消',
+    CANCELLED: '已取消'
+  }
+  if (!status) return '未到达'
+  return map[status] || status
+}
+
+const getStepApproversText = (
+  step: BoqReviewStepChainItem & { approvers?: Array<{ name?: string }> }
+) => {
+  if (step.approverNames?.length) {
+    return step.approverNames.filter(Boolean).join('、')
+  }
+  if (step.approverUsers?.length) {
+    return step.approverUsers
+      .map((u) => u?.name)
+      .filter(Boolean)
+      .join('、')
+  }
+  if (step.approvers?.length) {
+    return step.approvers
+      .map((u) => u?.name)
+      .filter(Boolean)
+      .join('、')
+  }
+  return '-'
 }
 
 const getErrorDescription = (err: unknown, fallback: string) => {
@@ -981,7 +1045,7 @@ const handleUploadAttachment = async (event: Event) => {
     }
     triggerNotification({
       title: '上传成功',
-      description: '附件已添加，请保存草稿',
+      description: '附件已添加，请保存预填报',
       type: ToastNotificationType.Success
     })
   } catch (err) {
@@ -1006,8 +1070,16 @@ const getBlobUrl = (att: BoqReviewAttachment) => {
   return '#'
 }
 
-// ── 保存草稿 ──
+// ── 保存预填报 ──
 const handleSaveDraft = async () => {
+  if (!canSaveOrSubmitDraft.value) {
+    triggerNotification({
+      title: '操作受限',
+      description: '您没有保存预填报的权限',
+      type: ToastNotificationType.Warning
+    })
+    return
+  }
   savingDraft.value = true
   try {
     if (isNew.value) {
@@ -1030,8 +1102,8 @@ const handleSaveDraft = async () => {
       )
       const created = res.record || res
       triggerNotification({
-        title: '保存草稿成功',
-        description: `新单据「${created.code}」草稿已保存`,
+        title: '保存预填报成功',
+        description: `新单据「${created.code}」预填报已保存`,
         type: ToastNotificationType.Success
       })
       isDirty.value = false
@@ -1041,7 +1113,7 @@ const handleSaveDraft = async () => {
       return
     }
 
-    // 更新已有草稿
+    // 更新已有预填报
     await $fetch(
       `${apiOrigin}/api/v1/projects/${props.projectId}/boq/reviews/${props.recordId}`,
       {
@@ -1058,8 +1130,8 @@ const handleSaveDraft = async () => {
     )
 
     triggerNotification({
-      title: '保存草稿成功',
-      description: '草稿与明细数据已成功保存',
+      title: '保存预填报成功',
+      description: '预填报与明细数据已成功保存',
       type: ToastNotificationType.Success
     })
     isDirty.value = false
@@ -1067,7 +1139,7 @@ const handleSaveDraft = async () => {
   } catch (err) {
     triggerNotification({
       title: '保存失败',
-      description: getErrorDescription(err, '保存草稿失败'),
+      description: getErrorDescription(err, '保存预填报失败'),
       type: ToastNotificationType.Danger
     })
   } finally {
@@ -1077,6 +1149,14 @@ const handleSaveDraft = async () => {
 
 const handleSaveReview = async () => {
   if (!canCurrentUserApprove.value || !isDirty.value) return
+  if (!hasFunctionalPerm(`${permPrefix.value}:edit`)) {
+    triggerNotification({
+      title: '操作受限',
+      description: '您没有编辑或保存审核数据的权限',
+      type: ToastNotificationType.Warning
+    })
+    return
+  }
   savingReview.value = true
   try {
     await $fetch(
@@ -1106,6 +1186,14 @@ const handleSaveReview = async () => {
 
 // ── 提交送审 ──
 const openSubmitConfirm = () => {
+  if (!canSaveOrSubmitDraft.value) {
+    triggerNotification({
+      title: '操作受限',
+      description: '您没有提交审核的权限',
+      type: ToastNotificationType.Warning
+    })
+    return
+  }
   const issues = validateReviewRows(
     rows.value,
     existingFormalCodes.value,

@@ -255,6 +255,8 @@
                 <LayoutSidebarMenuGroup
                   v-if="
                     hasMenuPerm('bill-management') ||
+                    hasMenuPerm('boq-review') ||
+                    hasMenuPerm('visa-change') ||
                     hasMenuPerm('monthly-valuation') ||
                     hasMenuPerm('safety-civilization')
                   "
@@ -285,14 +287,51 @@
                     <LayoutSidebarMenuGroupItem
                       :class="[
                         'py-2',
-                        (isProjectActive('/work-valuation/BOQ') ||
-                          isProjectActive('/work-valuation/boq') ||
-                          isProjectActive('/work-valuation/boq-review')) &&
+                        (isProjectActive('/work-valuation/boq/bill') ||
+                          isProjectActive('/work-valuation/BOQ') ||
+                          route.path ===
+                            projectBaseRoutePath + '/work-valuation/boq') &&
                           'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
                         'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
                       ]"
                       extra-padding
                       label="清单管理"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks && hasMenuPerm('boq-review')"
+                    :to="projectBaseRoutePath + '/work-valuation/boq/review'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        (isProjectActive('/work-valuation/boq/review') ||
+                          (isProjectActive('/work-valuation/boq-review') &&
+                            route.query.kind !== 'change')) &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="复核工程量管理"
+                    ></LayoutSidebarMenuGroupItem>
+                  </NuxtLink>
+                  <NuxtLink
+                    v-if="showWorkspaceLinks && hasMenuPerm('visa-change')"
+                    :to="projectBaseRoutePath + '/work-valuation/boq/change'"
+                    @click="isOpenMobile = false"
+                  >
+                    <LayoutSidebarMenuGroupItem
+                      :class="[
+                        'py-2',
+                        (isProjectActive('/work-valuation/boq/change') ||
+                          (isProjectActive('/work-valuation/boq-review') &&
+                            route.query.kind === 'change')) &&
+                          'bg-white/10 hover:!bg-white/10 border-l-4 border-blue-400',
+                        'text-white/80 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                      ]"
+                      extra-padding
+                      label="签证变更管理"
                     ></LayoutSidebarMenuGroupItem>
                   </NuxtLink>
                   <NuxtLink

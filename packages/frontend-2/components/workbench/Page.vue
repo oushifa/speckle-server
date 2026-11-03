@@ -44,19 +44,45 @@
         >
           <div class="mb-6 flex flex-col gap-4">
             <div class="flex items-center justify-between gap-3">
-              <h2 class="text-lg font-bold text-slate-900">流程列表</h2>
+              <h2 class="text-lg font-bold text-slate-900">
+                {{ todoTab === 'notification' ? '通知列表' : '流程列表' }}
+              </h2>
               <div class="flex items-center gap-3">
-                <span
-                  class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
-                >
-                  {{ activeTodoTotalCount }} 项
-                </span>
-                <NuxtLink
-                  :to="flowPageRoute"
-                  class="text-sm font-medium text-blue-600 hover:text-blue-700"
-                >
-                  进入流程页
-                </NuxtLink>
+                <template v-if="todoTab === 'notification'">
+                  <span
+                    v-if="unreadNotificationCount > 0"
+                    class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
+                  >
+                    {{ unreadNotificationCount }} 未读
+                  </span>
+                  <span
+                    v-else
+                    class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
+                  >
+                    全部已读
+                  </span>
+                  <button
+                    v-if="unreadNotificationCount > 0"
+                    type="button"
+                    class="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    @click="openReadAllConfirm"
+                  >
+                    全部标为已读
+                  </button>
+                </template>
+                <template v-else>
+                  <span
+                    class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-600"
+                  >
+                    {{ activeTodoTotalCount }} 项
+                  </span>
+                  <NuxtLink
+                    :to="flowPageRoute"
+                    class="text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    进入流程页
+                  </NuxtLink>
+                </template>
               </div>
             </div>
             <LazyLayoutTabsHorizontal
@@ -66,72 +92,149 @@
             />
           </div>
 
-          <div v-if="activeTodoLoading" class="text-sm text-slate-500">加载中...</div>
-          <div v-else-if="!activeTodoList.length" class="text-sm text-slate-500">
-            {{ activeTodoEmptyText }}
-          </div>
-          <div v-else class="space-y-4">
-            <div
-              v-for="instance in activeTodoList"
-              :key="instance.id"
-              class="flex cursor-pointer items-center justify-between rounded-lg border border-outline-3 bg-white p-4 transition-shadow hover:shadow-md"
-              role="button"
-              tabindex="0"
-              @click="openInstanceDrawer(instance)"
-              @keydown.enter="openInstanceDrawer(instance)"
-              @keydown.space.prevent="openInstanceDrawer(instance)"
-            >
-              <div class="flex items-start gap-4">
-                <div
-                  class="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-slate-100 text-slate-500"
-                >
-                  <DocumentTextIcon class="h-5 w-5" />
-                </div>
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <h3 class="text-base font-semibold text-slate-900 truncate">
-                      {{ getFlowItemTitle(instance) }}
-                    </h3>
-                    <FlowPushBadge
-                      v-if="todoTab === 'pending'"
-                      :record="instance.unifiedWorkPush"
-                      :loading="retryingPushId === instance.id"
-                      @retry="retryPush(instance.id)"
+          <template v-if="todoTab === 'notification'">
+            <div v-if="notificationsLoading" class="text-sm text-slate-500">
+              加载中...
+            </div>
+            <div v-else-if="!notifications.length" class="text-sm text-slate-500">
+              暂无通知
+            </div>
+            <div v-else class="space-y-3">
+              <div
+                v-for="item in notifications"
+                :key="item.id"
+                class="flex cursor-pointer items-start justify-between rounded-lg border border-outline-3 bg-white p-4 transition-all hover:shadow-md"
+                :class="{ 'opacity-80 bg-slate-50/60': item.isRead }"
+                role="button"
+                tabindex="0"
+                @click="handleNotificationClick(item)"
+                @keydown.enter="handleNotificationClick(item)"
+                @keydown.space.prevent="handleNotificationClick(item)"
+              >
+                <div class="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div class="mt-1 flex-shrink-0 flex items-center justify-center">
+                    <span
+                      v-if="!item.isRead"
+                      class="h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-red-100"
+                      title="未读"
+                    />
+                    <span
+                      v-else
+                      class="h-2.5 w-2.5 rounded-full bg-slate-300"
+                      title="已读"
                     />
                   </div>
-                  <p
-                    v-if="instance.resourceType === 'MODEL'"
-                    class="mt-1 truncate text-xs text-slate-500"
-                  >
-                    {{ instance.project?.name || '-' }} -
-                    {{ instance.model?.name || '-' }}
-                  </p>
-                  <div
-                    class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"
-                  >
-                    <span class="flex items-center gap-1">
-                      <UserIcon class="h-3 w-3" />
-                      发起人: {{ instance.createdByUser?.name || '-' }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                      <ClockIcon class="h-3 w-3" />
-                      发起时间: {{ formatUpdateTime(instance.createdAt) }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                      <EyeIcon class="h-3 w-3" />
-                      当前审核人: {{ getCurrentApprovers(instance) }}
-                    </span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <h3
+                        class="text-base truncate"
+                        :class="
+                          item.isRead
+                            ? 'font-medium text-slate-700'
+                            : 'font-bold text-slate-900'
+                        "
+                      >
+                        {{ item.title }}
+                      </h3>
+                      <span
+                        v-if="item.projectName"
+                        class="shrink-0 rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                      >
+                        {{ item.projectName }}
+                      </span>
+                    </div>
+                    <p class="mt-1 text-sm text-slate-600 line-clamp-2">
+                      {{ item.content }}
+                    </p>
+                    <div class="mt-2 flex items-center gap-4 text-xs text-slate-400">
+                      <span class="flex items-center gap-1">
+                        <ClockIcon class="h-3.5 w-3.5" />
+                        {{ formatUpdateTime(item.createdAt) }}
+                      </span>
+                      <span v-if="!item.isRead" class="text-red-500 font-medium">
+                        未读
+                      </span>
+                      <span v-else class="text-slate-400">已读</span>
+                    </div>
                   </div>
                 </div>
+                <div
+                  class="shrink-0 ml-3 mt-1 flex items-center text-slate-400 hover:text-blue-600"
+                >
+                  <ArrowRightIcon class="h-4 w-4" />
+                </div>
               </div>
-              <span
-                class="shrink-0 rounded px-2.5 py-1 text-xs font-medium"
-                :class="getFlowStatusClass(instance.status)"
-              >
-                {{ formatFlowStatusLabel(instance.status) }}
-              </span>
             </div>
-          </div>
+          </template>
+
+          <template v-else>
+            <div v-if="activeTodoLoading" class="text-sm text-slate-500">加载中...</div>
+            <div v-else-if="!activeTodoList.length" class="text-sm text-slate-500">
+              {{ activeTodoEmptyText }}
+            </div>
+            <div v-else class="space-y-4">
+              <div
+                v-for="instance in activeTodoList"
+                :key="instance.id"
+                class="flex cursor-pointer items-center justify-between rounded-lg border border-outline-3 bg-white p-4 transition-shadow hover:shadow-md"
+                role="button"
+                tabindex="0"
+                @click="openInstanceDrawer(instance)"
+                @keydown.enter="openInstanceDrawer(instance)"
+                @keydown.space.prevent="openInstanceDrawer(instance)"
+              >
+                <div class="flex items-start gap-4">
+                  <div
+                    class="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-slate-100 text-slate-500"
+                  >
+                    <DocumentTextIcon class="h-5 w-5" />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <h3 class="text-base font-semibold text-slate-900 truncate">
+                        {{ getFlowItemTitle(instance) }}
+                      </h3>
+                      <FlowPushBadge
+                        v-if="todoTab === 'pending'"
+                        :record="instance.unifiedWorkPush"
+                        :loading="retryingPushId === instance.id"
+                        @retry="retryPush(instance.id)"
+                      />
+                    </div>
+                    <p
+                      v-if="instance.resourceType === 'MODEL'"
+                      class="mt-1 truncate text-xs text-slate-500"
+                    >
+                      {{ instance.project?.name || '-' }} -
+                      {{ instance.model?.name || '-' }}
+                    </p>
+                    <div
+                      class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"
+                    >
+                      <span class="flex items-center gap-1">
+                        <UserIcon class="h-3 w-3" />
+                        发起人: {{ instance.createdByUser?.name || '-' }}
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <ClockIcon class="h-3 w-3" />
+                        发起时间: {{ formatUpdateTime(instance.createdAt) }}
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <EyeIcon class="h-3 w-3" />
+                        当前审核人: {{ getCurrentApprovers(instance) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <span
+                  class="shrink-0 rounded px-2.5 py-1 text-xs font-medium"
+                  :class="getFlowStatusClass(instance.status)"
+                >
+                  {{ formatFlowStatusLabel(instance.status) }}
+                </span>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div
@@ -406,6 +509,15 @@
           />
         </div>
       </CommonConfirmDialog>
+
+      <CommonConfirmDialog
+        v-model:open="isReadAllConfirmOpen"
+        title="全部标为已读"
+        text="确定要将所有未读通知标记为已读吗？"
+        confirm-text="确认标记"
+        :loading="markingAllRead"
+        @confirm="onConfirmReadAll"
+      />
     </div>
   </div>
 </template>
@@ -430,6 +542,7 @@ import { gql } from '@apollo/client/core'
 import type { TypedDocumentNode } from '@apollo/client/core'
 import { graphql } from '~~/lib/common/generated/gql'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { workbenchPendingReviewsRoute } from '~~/lib/common/helpers/route'
 import { useViewerRouteBuilder } from '~/lib/projects/composables/models'
@@ -612,8 +725,25 @@ type UpdateItem = {
   updatedAt: number
   approveStatus: string | null | undefined
 }
-type WorkbenchFlowTab = 'pending' | 'initiated' | 'handled'
-type WorkbenchFlowTabItem = { id: WorkbenchFlowTab; title: string }
+type WorkbenchFlowTab = 'pending' | 'initiated' | 'handled' | 'notification'
+type WorkbenchFlowTabItem = {
+  id: WorkbenchFlowTab
+  title: string
+  count?: number
+  tag?: string
+}
+type NotificationItem = {
+  id: string
+  userId: string
+  projectId: string
+  title: string
+  content: string
+  targetUrl: string
+  isRead: boolean
+  createdAt: string
+  updatedAt: string
+  projectName?: string
+}
 type WorkbenchFlowTabState = {
   loading: boolean
   loaded: boolean
@@ -625,6 +755,7 @@ const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { pushFromBrowser } = useUnifiedWorkBrowserPush()
 const { userId } = useActiveUser()
+const authToken = useAuthCookie()
 const apiOrigin = useApiOrigin()
 const route = useRoute()
 const loadingUpdates = ref(false)
@@ -647,16 +778,30 @@ const selectedInstance = ref<FlowListItem | null>(null)
 const titleFieldValue = ref<unknown>('')
 const detailTab = ref<FlowDetailTab>('logs')
 const reviewComment = ref('')
-const todoTabItems: WorkbenchFlowTabItem[] = [
+
+const notifications = ref<NotificationItem[]>([])
+const unreadNotificationCount = ref(0)
+const notificationsLoading = ref(false)
+const isReadAllConfirmOpen = ref(false)
+const markingAllRead = ref(false)
+
+const todoTabItems = computed<WorkbenchFlowTabItem[]>(() => [
   { id: 'pending', title: '待办' },
   { id: 'initiated', title: '我发起的' },
-  { id: 'handled', title: '我处理的' }
-]
+  { id: 'handled', title: '我处理的' },
+  {
+    id: 'notification',
+    title: '通知',
+    count: unreadNotificationCount.value > 0 ? unreadNotificationCount.value : undefined
+  }
+])
 const layoutTabs = [
   { id: 'logs' as FlowDetailTab, title: '流程日志' },
   { id: 'diagram' as FlowDetailTab, title: '流程图' }
 ]
-const flowTabStates = reactive<Record<WorkbenchFlowTab, WorkbenchFlowTabState>>({
+const flowTabStates = reactive<
+  Record<'pending' | 'initiated' | 'handled', WorkbenchFlowTabState>
+>({
   pending: {
     loading: false,
     loaded: false,
@@ -712,30 +857,50 @@ const metrics = computed(() =>
   }))
 )
 
-const activeTodoState = computed(() => flowTabStates[todoTab.value])
+const activeTodoState = computed(() => {
+  if (todoTab.value === 'notification') {
+    return {
+      loading: notificationsLoading.value,
+      loaded: true,
+      totalCount: notifications.value.length,
+      items: []
+    }
+  }
+  return flowTabStates[todoTab.value]
+})
 
 const activeTodoList = computed(() => activeTodoState.value.items)
 
 const activeTodoLoading = computed(() => activeTodoState.value.loading)
 
-const activeTodoTotalCount = computed(() => activeTodoState.value.totalCount)
+const activeTodoTotalCount = computed(() =>
+  todoTab.value === 'notification'
+    ? unreadNotificationCount.value
+    : activeTodoState.value.totalCount
+)
 
 const activeTodoTabItem = computed(
-  () => todoTabItems.find((item) => item.id === todoTab.value) || todoTabItems[0]
+  () =>
+    todoTabItems.value.find((item) => item.id === todoTab.value) ||
+    todoTabItems.value[0]
 )
 
 const activeTodoEmptyText = computed(() => {
   const emptyTextMap: Record<WorkbenchFlowTab, string> = {
     pending: '暂无待办',
     initiated: '暂无我发起的流程',
-    handled: '暂无我处理的流程'
+    handled: '暂无我处理的流程',
+    notification: '暂无通知'
   }
   return emptyTextMap[todoTab.value]
 })
 
 const flowPageRoute = computed(() => ({
   path: '/flow',
-  query: todoTab.value === 'pending' ? {} : { tab: todoTab.value }
+  query:
+    todoTab.value === 'pending' || todoTab.value === 'notification'
+      ? {}
+      : { tab: todoTab.value }
 }))
 
 const normalizeApproveStatus = (status?: string | null) => {
@@ -971,7 +1136,88 @@ const retryPush = async (instanceId: string) => {
   }
 }
 
+const loadUnreadNotificationsCount = async () => {
+  try {
+    const res = await $fetch<{ unreadCount?: number; count?: number }>(
+      `${apiOrigin}/api/v1/notifications/unread-count`,
+      {
+        headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
+      }
+    )
+    unreadNotificationCount.value = res.unreadCount ?? res.count ?? 0
+  } catch {
+    // ignore
+  }
+}
+
+const loadNotifications = async () => {
+  notificationsLoading.value = true
+  try {
+    const res = await $fetch<{ items: NotificationItem[]; unreadCount: number }>(
+      `${apiOrigin}/api/v1/notifications`,
+      {
+        headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
+      }
+    )
+    notifications.value = res.items || []
+    unreadNotificationCount.value = res.unreadCount ?? 0
+  } catch {
+    notifications.value = []
+    unreadNotificationCount.value = 0
+  } finally {
+    notificationsLoading.value = false
+  }
+}
+
+const openReadAllConfirm = () => {
+  if (unreadNotificationCount.value <= 0) return
+  isReadAllConfirmOpen.value = true
+}
+
+const onConfirmReadAll = async () => {
+  markingAllRead.value = true
+  try {
+    await $fetch(`${apiOrigin}/api/v1/notifications/read-all`, {
+      method: 'PUT',
+      headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
+    })
+    notify('操作成功', '所有通知已全部标为已读', ToastNotificationType.Success)
+    isReadAllConfirmOpen.value = false
+    await loadNotifications()
+  } catch (e) {
+    notify(
+      '操作失败',
+      (e as Error).message || '标记已读失败',
+      ToastNotificationType.Danger
+    )
+  } finally {
+    markingAllRead.value = false
+  }
+}
+
+const handleNotificationClick = async (item: NotificationItem) => {
+  if (!item.isRead) {
+    try {
+      await $fetch(`${apiOrigin}/api/v1/notifications/${item.id}/read`, {
+        method: 'PUT',
+        headers: authToken.value ? { Authorization: `Bearer ${authToken.value}` } : {}
+      })
+      item.isRead = true
+      unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - 1)
+    } catch {
+      // ignore
+    }
+  }
+  if (item.targetUrl) {
+    await navigateTo(item.targetUrl)
+  }
+}
+
 const ensureTodoTabLoaded = async (tab: WorkbenchFlowTab) => {
+  if (tab === 'notification') {
+    await loadNotifications()
+    return
+  }
   if (flowTabStates[tab].loaded || flowTabStates[tab].loading) return
   await loadTodoList(tab)
 }
@@ -1300,7 +1546,9 @@ const submitReviewAction = async (payload: {
     }
     selectedInstance.value = null
     reviewComment.value = ''
-    await loadTodoList(todoTab.value)
+    if (todoTab.value !== 'notification') {
+      await loadTodoList(todoTab.value)
+    }
   } catch (e) {
     notify('操作失败', (e as Error).message, ToastNotificationType.Danger)
   } finally {
@@ -1321,6 +1569,18 @@ watch(
 )
 
 onMounted(async () => {
-  await Promise.all([loadRecentUpdates(), loadDashboardStats()])
+  await Promise.all([
+    loadRecentUpdates(),
+    loadDashboardStats(),
+    loadUnreadNotificationsCount()
+  ])
 })
 </script>
+
+<style scoped>
+:deep([data-tab-id='notification'] .rounded-full) {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+</style>

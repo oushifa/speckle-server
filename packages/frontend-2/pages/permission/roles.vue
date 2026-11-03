@@ -1082,6 +1082,8 @@ const projectMenuTree = [
     label: '验工计价',
     children: [
       { id: 'bill-management', label: '清单管理' },
+      { id: 'boq-review', label: '复核工程量管理' },
+      { id: 'visa-change', label: '签证变更管理' },
       { id: 'monthly-valuation', label: '月度验工' },
       { id: 'safety-civilization', label: '安全文明措施费' }
     ]

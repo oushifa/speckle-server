@@ -951,6 +951,15 @@
       confirm-button-color="danger"
       @confirm="executeDelete"
     />
+
+    <!-- ── 构件重复录入拦截弹窗 (CommonConfirmDialog) ── -->
+    <CommonConfirmDialog
+      v-model:open="showDuplicateAlert"
+      title="构件重复录入拦截"
+      :text="duplicateAlertText"
+      confirm-text="我知道了"
+      @confirm="showDuplicateAlert = false"
+    />
   </div>
 </template>
 
@@ -1317,8 +1326,117 @@ const openEditActualDialog = (rec: ProgressV2ActualRecord) => {
   actualDialogOpen.value = true
 }
 
+const showDuplicateAlert = ref(false)
+const duplicateAlertText = ref('')
+
+const expandRawComponentCodes = (rawValue?: string | null): string[] => {
+  if (!rawValue) return []
+  const normalized = rawValue.replace(/\s*([~～])\s*/g, '$1')
+  const parts = normalized
+    .split(/[,，;；、\n\r\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const result: string[] = []
+  for (const part of parts) {
+    if (/[~～]/.test(part)) {
+      const subParts = part.split(/[~～]/).map((p) => p.trim())
+      if (subParts.length === 2) {
+        const [start, end] = subParts
+        const startMatch = start.match(/^(.*?)(\d+)$/)
+        const endMatch = end.match(/^(.*?)(\d+)$/)
+        if (
+          startMatch &&
+          endMatch &&
+          (endMatch[1] === '' || startMatch[1] === endMatch[1])
+        ) {
+          const prefix = startMatch[1]
+          const startNum = parseInt(startMatch[2], 10)
+          const endNum = parseInt(endMatch[2], 10)
+          if (startNum <= endNum && endNum - startNum <= 2000) {
+            const width = startMatch[2].length
+            for (let i = startNum; i <= endNum; i++) {
+              result.push(prefix + String(i).padStart(width, '0'))
+            }
+            continue
+          }
+        }
+      }
+    }
+    result.push(part)
+  }
+  return Array.from(new Set(result))
+}
+
+const findDuplicateWithExistingRecords = (): string[] => {
+  const manualCodes = expandRawComponentCodes(actualForm.componentCode)
+  const bimCodes = actualFormSelections.value.flatMap((g) => g.componentCodes || [])
+  const targetCodes = Array.from(new Set([...manualCodes, ...bimCodes].filter(Boolean)))
+  const targetAppIds = Array.from(
+    new Set(
+      actualFormSelections.value.flatMap((g) => g.applicationIds || []).filter(Boolean)
+    )
+  )
+
+  if (!targetCodes.length && !targetAppIds.length) return []
+
+  const currentId = editingActualRecord.value?.id || null
+  const occupiedCodes = new Map<string, string>()
+  const occupiedAppIds = new Map<string, string>()
+
+  for (const rec of actualRecords.value) {
+    if (currentId && rec.id === currentId) continue
+    const recManualCodes = expandRawComponentCodes(rec.componentCode)
+    const recGroups = getRecordSelections(rec)
+    const recBimCodes = recGroups.flatMap((g) => g.componentCodes || [])
+    const recCodes = [...recManualCodes, ...recBimCodes]
+    for (const c of recCodes) {
+      if (c && c.trim()) occupiedCodes.set(c.trim(), rec.id)
+    }
+    for (const g of recGroups) {
+      for (const appId of g.applicationIds || []) {
+        if (appId) occupiedAppIds.set(String(appId), rec.id)
+      }
+    }
+  }
+
+  const duplicates = new Set<string>()
+  for (const c of targetCodes) {
+    if (occupiedCodes.has(c)) {
+      duplicates.add(c)
+    }
+  }
+  for (const appId of targetAppIds) {
+    if (occupiedAppIds.has(appId)) {
+      duplicates.add(appId)
+    }
+  }
+
+  return Array.from(duplicates)
+}
+
 const handleSaveActual = async () => {
   if (!projectId.value) return
+
+  // 1. 构件重复录入校验拦截
+  const duplicateList = findDuplicateWithExistingRecords()
+  if (duplicateList.length > 0) {
+    duplicateAlertText.value = `检测到以下构件在当前工程中已存在关联：\n[${duplicateList
+      .slice(0, 8)
+      .join('、')}${
+      duplicateList.length > 8 ? '等' : ''
+    }]。\n包含重复构件的数据不予关联和入库保存，请修改后重试。`
+    showDuplicateAlert.value = true
+    triggerNotification({
+      type: ToastNotificationType.Danger,
+      title: '构件重复录入拦截',
+      description: `构件 [${duplicateList.slice(0, 5).join('、')}${
+        duplicateList.length > 5 ? '等' : ''
+      }] 已存在关联，禁止重复录入！`
+    })
+    return
+  }
+
   isSavingActual.value = true
   try {
     const saveData = {
@@ -1361,11 +1479,16 @@ const handleSaveActual = async () => {
     actualDialogOpen.value = false
     await loadActualRecords()
   } catch (err: unknown) {
+    const errorMsg = (err as Error)?.message || '保存失败'
     triggerNotification({
       type: ToastNotificationType.Danger,
       title: '保存失败',
-      description: (err as Error)?.message || '保存失败'
+      description: errorMsg
     })
+    if (errorMsg.includes('重复')) {
+      duplicateAlertText.value = errorMsg
+      showDuplicateAlert.value = true
+    }
   } finally {
     isSavingActual.value = false
   }

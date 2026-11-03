@@ -508,6 +508,18 @@ export const UserNotificationPreferences = buildTableHelper(
   ['userId', 'preferences']
 )
 
+export const AppNotifications = buildTableHelper('app_notifications', [
+  'id',
+  'userId',
+  'projectId',
+  'title',
+  'content',
+  'targetUrl',
+  'isRead',
+  'createdAt',
+  'updatedAt'
+])
+
 export const Commits = buildTableHelper('commits', [
   'id',
   'referencedObject',

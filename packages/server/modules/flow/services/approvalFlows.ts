@@ -172,16 +172,18 @@ const mapFlowStatusToQualityAcceptanceApproveStatus = (
   status: string,
   currentStep?: number | null
 ) => {
+  // 流程回退到开始节点时，状态保持为「查验中」
   if (
     status === ApprovalFlowInstanceStatus.Pending &&
     currentStep === START_STEP_INDEX
   ) {
-    return START_APPROVE_STATUS
+    return 'PENDING'
   }
   if (status === ApprovalFlowInstanceStatus.Pending) return 'PENDING'
   if (status === ApprovalFlowInstanceStatus.Approved) return 'APPROVED'
   if (status === ApprovalFlowInstanceStatus.Rejected) return 'REJECTED'
-  if (status === ApprovalFlowInstanceStatus.Canceled) return 'CANCELED'
+  // 流程被删除/撤销时，验收单状态重置为「未查验」（null）
+  if (status === ApprovalFlowInstanceStatus.Canceled) return null
   return 'PENDING'
 }
 

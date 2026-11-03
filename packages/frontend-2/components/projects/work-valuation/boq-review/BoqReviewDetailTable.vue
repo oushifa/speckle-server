@@ -165,8 +165,8 @@
 
               <!-- 5. 现值 / 基数列 (只读) -->
               <template v-else-if="c.key === 'reviewQtyRO'">
-                <span class="font-mono text-foreground-2 text-center w-full">
-                  {{ formatNumber(row.reviewQty) }}
+                <span class="font-mono text-foreground-3 text-center w-full">
+                  {{ formatNumber(props.kind === 'change' ? 0 : row.reviewQty ?? 0) }}
                 </span>
               </template>
 
@@ -186,8 +186,8 @@
                     v-if="canEditQtyColumn(c.key)"
                     :value="getQtyDisplay(row, c.key)"
                     :aria-label="c.label"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputmode="decimal"
                     class="w-full h-7 px-1 border rounded text-center font-mono text-[11px] outline-none shadow-sm transition-all"
                     :class="[
                       isCurrentActiveEditingCol(c.key)
@@ -197,6 +197,13 @@
                     ]"
                     @input="
                       handleQtyChange(
+                        row,
+                        c.key,
+                        ($event.target as HTMLInputElement).value
+                      )
+                    "
+                    @blur="
+                      handleQtyBlur(
                         row,
                         c.key,
                         ($event.target as HTMLInputElement).value
@@ -427,7 +434,7 @@ function buildCols(kind: ReviewKind): ColDef[] {
       { key: 'code', label: '清单编码', w: 140, align: 'left' },
       { key: 'name', label: '清单名称', w: 260, align: 'left' },
       { key: 'unit', label: '单位', w: 60, align: 'center' },
-      { key: 'reviewQtyRO', label: '复核量(现值)', w: 90, align: 'center' },
+      { key: 'reviewQtyRO', label: '复核量', w: 90, align: 'center' },
       { key: 'changeBase', label: '原签证量', w: 90, align: 'center' },
       { key: 'changeQty', label: '本次-施工单位', w: 105, align: 'center' },
       { key: 'changeQtySupervisor', label: '本次-财务监理', w: 105, align: 'center' },
@@ -581,7 +588,10 @@ const isChangeColumn = (key: string) => {
 
 const getQtyDisplay = (row: BoqReviewRow, key: string): string | number => {
   const val = row[key as QtyKey]
-  if (val !== undefined && val !== null && val !== '') return val
+  if (val !== undefined && val !== null) {
+    if (val === '') return ''
+    return val
+  }
   // 监理或合约列为空时，退回到施工填报值显示
   if (key === 'reviewQtySupervisor' || key === 'reviewQtyContract')
     return row.reviewQty ?? 0
@@ -626,8 +636,10 @@ const handleCellInput = (
 }
 
 const handleQtyChange = (row: BoqReviewRow, colKey: string, value: string) => {
+  // 允许输入负数、正负号、数字和小数点
+  const cleaned = value.replace(/[^0-9.+-]/g, '')
   const stage = props.editableStage || 'contractor'
-  const updatedRow = editQtyField(row, stage, value, props.kind)
+  const updatedRow = editQtyField(row, stage, cleaned, props.kind)
 
   if (props.kind === 'review') {
     emit('change', row.id, 'reviewQty', updatedRow.reviewQty)
@@ -637,6 +649,13 @@ const handleQtyChange = (row: BoqReviewRow, colKey: string, value: string) => {
     emit('change', row.id, 'changeQty', updatedRow.changeQty)
     emit('change', row.id, 'changeQtySupervisor', updatedRow.changeQtySupervisor)
     emit('change', row.id, 'changeQtyContract', updatedRow.changeQtyContract)
+  }
+}
+
+const handleQtyBlur = (row: BoqReviewRow, colKey: string, value: string) => {
+  const trimmed = (value || '').trim()
+  if (trimmed === '' || trimmed === '-' || trimmed === '+' || trimmed === '.') {
+    handleQtyChange(row, colKey, '0')
   }
 }
 

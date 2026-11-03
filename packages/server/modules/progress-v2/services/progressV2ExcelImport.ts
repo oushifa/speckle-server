@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return */
 import { compressComponentCodeRanges } from '@/modules/shared/utils/componentCodeRange'
-import { parseProgressV2ComponentCodes } from '@/modules/progress-v2/services/progressV2ComponentCodes'
+import {
+  parseProgressV2ComponentCodes,
+  extractActualRecordComponentIdentifiers
+} from '@/modules/progress-v2/services/progressV2ComponentCodes'
 import {
   createProgressV2ActualRecordFactory,
   getProgressV2ActualRecordByIdFactory,
@@ -503,6 +506,23 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
     const updateRecord = updateProgressV2ActualRecordFactory({ db: trx })
     const getRecord = getProgressV2ActualRecordByIdFactory({ db: trx })
 
+    // 查询当前工程中所有已有实际进度记录，收集已占用的构件编码与 BIM ID
+    const existingDbRecords = await trx('project_progress_v2_actual_records')
+      .where('projectId', params.projectId)
+      .select('id', 'componentCode', 'BIM')
+
+    const occupiedCodes = new Map<string, string>() // code -> recordId
+    const occupiedAppIds = new Map<string, string>() // appId -> recordId
+
+    for (const rec of existingDbRecords) {
+      const { codes, applicationIds } = extractActualRecordComponentIdentifiers(
+        rec.componentCode,
+        rec.BIM
+      )
+      for (const c of codes) occupiedCodes.set(c, rec.id)
+      for (const appId of applicationIds) occupiedAppIds.set(appId, rec.id)
+    }
+
     for (const row of rows) {
       try {
         const { codes, value: componentCodeValue } = parseProgressV2ComponentCodes(
@@ -511,6 +531,38 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
         )
         const BIM = codes.length ? resolveBimFromCodes(codes, bimMap) : null
 
+        // 已有 id 则尝试更新，否则新增
+        const existing =
+          row.id && (await getRecord({ id: row.id, projectId: params.projectId }))
+        const targetRecordId = existing ? existing.id : null
+
+        // 构件重复校验拦截
+        const rowIdent = extractActualRecordComponentIdentifiers(row.componentCode, BIM)
+        const duplicateList: string[] = []
+        for (const c of rowIdent.codes) {
+          const ownerId = occupiedCodes.get(c)
+          if (ownerId && ownerId !== targetRecordId) {
+            duplicateList.push(c)
+          }
+        }
+        for (const appId of rowIdent.applicationIds) {
+          const ownerId = occupiedAppIds.get(appId)
+          if (ownerId && ownerId !== targetRecordId) {
+            duplicateList.push(appId)
+          }
+        }
+
+        if (duplicateList.length > 0) {
+          const uniqueDups = Array.from(new Set(duplicateList))
+          throw new Error(
+            `第 ${row.rowNumber} 行包含已关联构件 [${uniqueDups
+              .slice(0, 5)
+              .join(', ')}${
+              uniqueDups.length > 5 ? '等' : ''
+            }]，与工程已有进度重复，不予导入`
+          )
+        }
+
         const planStartDate = row.planStartDate ? new Date(row.planStartDate) : null
         const planEndDate = row.planEndDate ? new Date(row.planEndDate) : null
         const actualStartDate = row.actualStartDate
@@ -518,10 +570,7 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
           : null
         const actualEndDate = row.actualEndDate ? new Date(row.actualEndDate) : null
 
-        // 已有 id 则尝试更新，否则新增
-        const existing =
-          row.id && (await getRecord({ id: row.id, projectId: params.projectId }))
-
+        let savedRecordId: string
         if (existing) {
           await updateRecord({
             id: existing.id,
@@ -539,9 +588,10 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
             BIM,
             updater: params.actorId
           })
+          savedRecordId = existing.id
           result.updatedCount += 1
         } else {
-          await createRecord({
+          const created = await createRecord({
             projectId: params.projectId,
             taskName: row.taskName,
             reportDate: row.reportDate,
@@ -557,8 +607,14 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
             creator: params.actorId,
             updater: params.actorId
           })
+          savedRecordId = created.id
           result.createdCount += 1
         }
+
+        // 保存成功后，将本行关联构件计入占用，拦截批次内后续行的重复数据
+        for (const c of rowIdent.codes) occupiedCodes.set(c, savedRecordId)
+        for (const appId of rowIdent.applicationIds)
+          occupiedAppIds.set(appId, savedRecordId)
       } catch (err) {
         result.failedRows.push({
           rowNumber: row.rowNumber,

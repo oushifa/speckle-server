@@ -170,8 +170,8 @@ export const STATUS_META: Record<
   string,
   { label: string; tone: 'warning' | 'primary' | 'success' | 'danger' | 'neutral' }
 > = {
-  START: { label: '草稿', tone: 'warning' },
-  DRAFT: { label: '草稿', tone: 'warning' },
+  START: { label: '预填报', tone: 'warning' },
+  DRAFT: { label: '预填报', tone: 'warning' },
   PENDING: { label: '审批中', tone: 'primary' },
   IN_REVIEW: { label: '审批中', tone: 'primary' },
   RETURNED: { label: '已退回', tone: 'warning' },

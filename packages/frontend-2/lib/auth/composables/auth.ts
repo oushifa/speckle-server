@@ -27,6 +27,7 @@ import { useScopedState } from '~/lib/common/composables/scopedState'
 import type { ApolloClient } from '@apollo/client/core'
 import { AuthFailedError } from '~/lib/auth/errors/errors'
 import { useAppErrorState } from '~/lib/core/composables/error'
+import { broadcastTokenLogin } from '~~/lib/auth/helpers/authSync'
 
 type UseOnAuthStateChangeCallback = (
   user: MaybeNullOrUndefined<ActiveUserMainMetadataQuery['activeUser']>,
@@ -340,6 +341,10 @@ export const useAuthManager = (
 
     // write to cookie
     authToken.value = newToken
+
+    if (newToken) {
+      broadcastTokenLogin(newToken)
+    }
 
     // reset challenge
     SafeLocalStorage.remove(LocalStorageKeys.AuthAppChallenge)

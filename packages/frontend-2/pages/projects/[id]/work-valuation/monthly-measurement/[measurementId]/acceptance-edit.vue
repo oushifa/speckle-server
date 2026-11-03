@@ -932,10 +932,10 @@ const getCumulativeCompletedQty = (row: any) => {
 }
 
 const getCumulativeRate = (row: any) => {
-  const contractQty = toSafeNumber(row.pendingTotalQty)
-  if (contractQty <= 0) return '0.00'
-  const cumulativeQty = getCumulativeCompletedQty(row)
-  return ((cumulativeQty / contractQty) * 100).toFixed(2)
+  const contractAmount = toSafeNumber(row.reviewAmount || row.contractAmount)
+  if (contractAmount <= 0) return '0.00'
+  const cumulativeAmount = toSafeNumber(row.cumulativeAmount)
+  return ((cumulativeAmount / contractAmount) * 100).toFixed(2)
 }
 
 let recalcRaf: number | null = null
@@ -1006,13 +1006,15 @@ const recalculateTreeRows = () => {
       const boqAmount = toSafeNumber(row.boqAmount)
 
       // 复核量相关
-      const reviewPrice =
+      const rawReviewPrice =
         row.reviewPrice !== null &&
         row.reviewPrice !== undefined &&
         row.reviewPrice !== '' &&
         !isNaN(Number(row.reviewPrice))
           ? Number(row.reviewPrice)
-          : 0
+          : null
+      const finalPrice = rawReviewPrice ?? (price > 0 ? price : 0)
+
       const totalQuantityWithChanges =
         row.totalQuantityWithChanges !== null &&
         row.totalQuantityWithChanges !== undefined &&
@@ -1027,33 +1029,29 @@ const recalculateTreeRows = () => {
           : null
       if (
         reviewAmount === null &&
-        row.reviewPrice !== null &&
-        row.reviewPrice !== undefined &&
-        row.reviewPrice !== '' &&
+        finalPrice > 0 &&
         totalQuantityWithChanges !== null
       ) {
-        reviewAmount = Number((reviewPrice * totalQuantityWithChanges).toFixed(2))
+        reviewAmount = Number((finalPrice * totalQuantityWithChanges).toFixed(2))
       }
-      row.reviewPrice =
-        row.reviewPrice !== null &&
-        row.reviewPrice !== undefined &&
-        row.reviewPrice !== '' &&
-        !isNaN(Number(row.reviewPrice))
-          ? Number(row.reviewPrice)
-          : null
+      if (reviewAmount === null) {
+        reviewAmount =
+          row.boqAmount !== undefined && row.boqAmount !== null
+            ? boqAmount
+            : pendingTotalQty * finalPrice
+      }
+
+      row.reviewPrice = rawReviewPrice
       row.totalQuantityWithChanges = totalQuantityWithChanges
       row.reviewAmount = reviewAmount
 
-      row.contractAmount =
-        row.boqAmount !== undefined && row.boqAmount !== null
-          ? boqAmount
-          : pendingTotalQty * price
-      row.contractorAmount = contractorQty * reviewPrice
-      row.supervisionAmount = supervisionQty * reviewPrice
-      row.headquartersAmount = headquartersQty * reviewPrice
-      row.investmentAmount = investmentQty * reviewPrice
-      row.yearlyAmount = (yearlyCumulativeQty + investmentQty) * reviewPrice
-      row.cumulativeAmount = (lastCumulativeQty + investmentQty) * reviewPrice
+      row.contractAmount = reviewAmount
+      row.contractorAmount = contractorQty * finalPrice
+      row.supervisionAmount = supervisionQty * finalPrice
+      row.headquartersAmount = headquartersQty * finalPrice
+      row.investmentAmount = investmentQty * finalPrice
+      row.yearlyAmount = (yearlyCumulativeQty + investmentQty) * finalPrice
+      row.cumulativeAmount = (lastCumulativeQty + investmentQty) * finalPrice
     }
   })
 

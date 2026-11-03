@@ -47,6 +47,7 @@ import {
   saveBoqReviewRecordFactory,
   type BoqReviewRecordDetailDto
 } from '@/modules/bop-item/repositories/boqReviews'
+import { createAppNotificationsFactory } from '@/modules/notifications/services/appNotifications'
 
 const hasServerAdminOverride = (req: Request) =>
   adminOverrideEnabled() && req.context.role === Roles.Server.Admin
@@ -385,6 +386,43 @@ export const registerBoqReviewRoutes = (app: Router): void => {
           history: Array.isArray(body.history) ? body.history : undefined,
           rows: Array.isArray(body.rows) ? body.rows : []
         })
+
+        // 业务通知触发（复核工程量 & 签证变更）
+        try {
+          const candidates = await db('custom_role_users as cru')
+            .join('custom_roles as cr', 'cru.roleId', 'cr.id')
+            .join('stream_acl as sa', 'cru.userId', 'sa.userId')
+            .where('cr.name', '复核/变更通知')
+            .where('sa.resourceId', projectId)
+            .distinct('cru.userId')
+            .select<{ userId: string }[]>('cru.userId')
+
+          const targetUserIds = Array.from(
+            new Set(candidates.map((c) => c.userId).filter(Boolean))
+          )
+
+          if (targetUserIds.length > 0) {
+            const kindName = kind === 'change' ? '签证变更管理' : '复核工程量管理'
+            const title = `${kindName}新增通知`
+            const content = `【${project.name}】有新的${kindName}申请，请知悉。`
+            const targetUrl = `/projects/${projectId}/work-valuation/boq-review/${created.id}?kind=${kind}`
+
+            await createAppNotificationsFactory({ db })(
+              targetUserIds.map((targetUserId) => ({
+                userId: targetUserId,
+                projectId,
+                title,
+                content,
+                targetUrl
+              }))
+            )
+          }
+        } catch (notifyErr) {
+          req.log.warn(
+            ensureError(notifyErr),
+            'Failed to dispatch boq review creation notifications'
+          )
+        }
 
         return res.status(201).json({
           success: true,

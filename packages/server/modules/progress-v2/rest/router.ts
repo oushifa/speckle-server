@@ -46,6 +46,7 @@ import {
   listProgressV2ActualRecordsFactory,
   updateProgressV2ActualRecordFactory
 } from '@/modules/progress-v2/repositories/progressV2ActualRecords'
+import { findDuplicateComponentIdentifiers } from '@/modules/progress-v2/services/progressV2ComponentCodes'
 import {
   createProgressV2MilestoneFactory,
   deleteProgressV2MilestoneFactory,
@@ -819,6 +820,24 @@ export const progressV2RouterFactory = (): Router => {
         const actorId = req.context?.userId || 'unknown'
         const db = await getProjectDbClient({ projectId })
 
+        // 校验构件重复关联拦截
+        const existingRecords = await db('project_progress_v2_actual_records')
+          .where('projectId', projectId)
+          .select('id', 'componentCode', 'BIM')
+
+        const duplicates = findDuplicateComponentIdentifiers(
+          { componentCode: req.body.componentCode, BIM: req.body.BIM },
+          existingRecords
+        )
+        if (duplicates.length > 0) {
+          return res.status(400).json({
+            success: false,
+            error: `构件 [${duplicates.slice(0, 5).join(', ')}${
+              duplicates.length > 5 ? '等' : ''
+            }] 在工程中已存在关联，禁止重复录入`
+          })
+        }
+
         const item = await createProgressV2ActualRecordFactory({ db })({
           projectId,
           taskName: req.body.taskName,
@@ -869,6 +888,25 @@ export const progressV2RouterFactory = (): Router => {
         const { projectId, recordId } = req.params
         const actorId = req.context?.userId || 'unknown'
         const db = await getProjectDbClient({ projectId })
+
+        // 校验构件重复关联拦截（排除自身）
+        const existingRecords = await db('project_progress_v2_actual_records')
+          .where('projectId', projectId)
+          .select('id', 'componentCode', 'BIM')
+
+        const duplicates = findDuplicateComponentIdentifiers(
+          { componentCode: req.body.componentCode, BIM: req.body.BIM },
+          existingRecords,
+          recordId
+        )
+        if (duplicates.length > 0) {
+          return res.status(400).json({
+            success: false,
+            error: `构件 [${duplicates.slice(0, 5).join(', ')}${
+              duplicates.length > 5 ? '等' : ''
+            }] 在工程中已存在关联，禁止重复录入`
+          })
+        }
 
         const updated = await updateProgressV2ActualRecordFactory({ db })({
           id: recordId,

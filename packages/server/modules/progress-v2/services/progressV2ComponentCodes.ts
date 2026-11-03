@@ -76,3 +76,95 @@ export const parseProgressV2ComponentCodes = (
 
   return { codes, value }
 }
+
+/**
+ * 从 actual record 的 componentCode 和 BIM 字段中提取所有涉及的构件编码与 applicationId
+ */
+export const extractActualRecordComponentIdentifiers = (
+  componentCode: string | null | undefined,
+  bim: unknown
+): { codes: string[]; applicationIds: string[] } => {
+  const codesSet = new Set<string>()
+  const appIdsSet = new Set<string>()
+
+  if (componentCode) {
+    try {
+      const { codes } = parseProgressV2ComponentCodes(componentCode, 0)
+      for (const c of codes) {
+        if (c && c.trim()) codesSet.add(c.trim())
+      }
+    } catch {
+      // 若解析波浪号失败，按普通逗号拆分提取
+      const rawParts = componentCode
+        .split(/[,，;；、\n\r\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      for (const p of rawParts) codesSet.add(p)
+    }
+  }
+
+  if (bim) {
+    try {
+      const bimList = typeof bim === 'string' ? JSON.parse(bim) : bim
+      if (Array.isArray(bimList)) {
+        for (const g of bimList) {
+          for (const appId of g.applicationIds || []) {
+            if (appId) appIdsSet.add(String(appId))
+          }
+          for (const c of g.componentCodes || []) {
+            if (c && String(c).trim()) codesSet.add(String(c).trim())
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return {
+    codes: Array.from(codesSet),
+    applicationIds: Array.from(appIdsSet)
+  }
+}
+
+/**
+ * 校验当前输入的构件是否与数据库中已有的实际进度构件发生重复。
+ * 若重复，返回重复的构件标识列表；若无重复，返回空数组。
+ */
+export const findDuplicateComponentIdentifiers = (
+  input: { componentCode?: string | null; BIM?: unknown },
+  existingRecords: Array<{ id: string; componentCode?: string | null; BIM?: unknown }>,
+  excludeRecordId?: string | null
+): string[] => {
+  const target = extractActualRecordComponentIdentifiers(input.componentCode, input.BIM)
+  if (!target.codes.length && !target.applicationIds.length) {
+    return []
+  }
+
+  const occupiedCodes = new Map<string, string>() // code -> recordId
+  const occupiedAppIds = new Map<string, string>() // appId -> recordId
+
+  for (const rec of existingRecords) {
+    if (excludeRecordId && rec.id === excludeRecordId) continue
+    const { codes, applicationIds } = extractActualRecordComponentIdentifiers(
+      rec.componentCode,
+      rec.BIM
+    )
+    for (const c of codes) occupiedCodes.set(c, rec.id)
+    for (const id of applicationIds) occupiedAppIds.set(id, rec.id)
+  }
+
+  const duplicates = new Set<string>()
+  for (const c of target.codes) {
+    if (occupiedCodes.has(c)) {
+      duplicates.add(c)
+    }
+  }
+  for (const id of target.applicationIds) {
+    if (occupiedAppIds.has(id)) {
+      duplicates.add(id)
+    }
+  }
+
+  return Array.from(duplicates)
+}

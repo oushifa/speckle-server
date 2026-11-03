@@ -913,7 +913,7 @@ const approvalTemplates: ApprovalTemplate[] = [
     ]
   },
   {
-    id: 'f74fd496a9',
+    id: 'BOQ_REVIEW_TEMPLATE_1',
     name: '清单审核（模版1）',
     categoryId: 'BOQ_REVIEW',
     description:
@@ -926,19 +926,11 @@ const selectedTemplateId = ref<string>('')
 
 const applyTemplate = () => {
   if (!selectedTemplateId.value) {
-    formFlow.value.templateId = undefined
     return
   }
-  const targetId =
-    selectedTemplateId.value === 'BOQ_REVIEW_TEMPLATE_1'
-      ? 'f74fd496a9'
-      : selectedTemplateId.value
-  const tpl = approvalTemplates.find(
-    (t) => t.id === targetId || t.id === selectedTemplateId.value
-  )
+  const tpl = approvalTemplates.find((t) => t.id === selectedTemplateId.value)
   if (!tpl) return
 
-  formFlow.value.templateId = tpl.id
   formFlow.value.name = tpl.name
   formFlow.value.category = tpl.categoryId
   formFlow.value.description = tpl.description
@@ -996,7 +988,7 @@ const openCreateModal = (categoryId?: string) => {
     selectedTemplateId.value = matchingTemplate.id
     formFlow.value = {
       id: `flow-${Date.now()}`,
-      templateId: matchingTemplate.id,
+      templateId: undefined,
       name: matchingTemplate.name,
       category: matchingTemplate.categoryId,
       isActive: true,
@@ -1034,12 +1026,10 @@ const openEditModal = (flow: ApprovalFlow) => {
   isEditMode.value = true
   isNewVersion.value = false
   selectedFlow.value = flow
-  const mappedTemplateId =
-    flow.templateId === 'BOQ_REVIEW_TEMPLATE_1' ? 'f74fd496a9' : flow.templateId
-  selectedTemplateId.value = mappedTemplateId || ''
+  selectedTemplateId.value = ''
   formFlow.value = {
     id: flow.id,
-    templateId: mappedTemplateId,
+    templateId: flow.templateId,
     name: flow.name,
     category: flow.category.id,
     isActive: flow.isActive,
@@ -1122,7 +1112,7 @@ const saveFlowForm = async () => {
 
   const payload = {
     id: isEditMode.value ? formFlow.value.id : undefined,
-    templateId: formFlow.value.templateId || undefined,
+    templateId: isEditMode.value ? formFlow.value.templateId || undefined : undefined,
     name,
     category: formFlow.value.category,
     isActive: formFlow.value.isActive,
