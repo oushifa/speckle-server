@@ -1,30 +1,49 @@
 import tempfile
 from pathlib import Path
 
+import numpy as np
+import pytest
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+
+from skp_importer import openskp_compat
 from skp_importer.domain import FileimportPayload, FileimportResult, FileimportSuccess
-from skp_importer.skp_parser import SkpParser
+from skp_importer.skp_parser import (
+    SkpParseError,
+    SkpParser,
+    SkpUnsupportedVersionError,
+)
 
 
-def test_skp_parser_fallback_flow():
+def test_skp_parser_rejects_file_without_version():
     with tempfile.TemporaryDirectory() as tmpdir:
         dummy_skp = Path(tmpdir) / "test.skp"
-        # Write dummy binary file
+        # Not a SketchUp model: no version header.
         dummy_skp.write_bytes(
             b"SketchUp Model dummy content for unit test testing 12345678"
         )
 
         parser = SkpParser(dummy_skp, stable_root_id="test_model_123")
-        root = parser.parse()
+        with pytest.raises(SkpParseError):
+            parser.parse()
 
-        assert root["speckle_type"] == "Objects.Organization.Collection"
-        assert root["name"] == "test.skp"
-        assert root["applicationId"] == "test_model_123"
-        assert len(root["elements"]) > 0
 
-        layer0 = root["elements"][0]
-        assert layer0["speckle_type"] == "Objects.Organization.Collection"
-        assert layer0["name"] == "Layer0"
-        assert len(layer0["elements"]) > 0
+def test_skp_parser_rejects_unsupported_version():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        legacy_skp = Path(tmpdir) / "legacy.skp"
+        # SketchUp 8 header (file version 8) - older than the oldest version
+        # openskp can decode.
+        header = b"\x00" * 8 + "{8.0.16844}".encode("utf-16-le")
+        legacy_skp.write_bytes(header + b"\x00" * 0x60)
+
+        parser = SkpParser(legacy_skp, stable_root_id="test_legacy_model")
+        with pytest.raises(SkpUnsupportedVersionError) as excinfo:
+            parser.parse()
+
+        message = str(excinfo.value)
+        # The error must name both the file's version and the supported range.
+        assert "8" in message
+        assert "13" in message
 
 
 def test_skp_parser_full_model_extraction():
@@ -92,6 +111,69 @@ def test_skp_parser_legacy_znzmo_multi_component():
         if has_material:
             break
     assert has_material, "Expected component meshes to have assigned render materials"
+
+
+# Staircase face taken from a real SketchUp model. A plain Delaunay
+# triangulation filtered by triangle centroid leaves a large gap in it.
+CONCAVE_FACE_RING = [
+    (614.1732, 110.2363),
+    (602.3622, 110.2363),
+    (602.3622, 118.1103),
+    (444.8819, 118.1103),
+    (444.8819, 88.5827),
+    (161.4173, 88.5827),
+    (161.4173, 49.2126),
+    (0.0, 49.2126),
+    (0.0, 39.3701),
+    (19.685, 39.3701),
+    (19.685, 0.0),
+    (614.1732, 0.0),
+]
+
+
+def _concave_face():
+    vertices = {
+        index: np.array([x, y, 0.0], dtype=float)
+        for index, (x, y) in enumerate(CONCAVE_FACE_RING)
+    }
+    loops = [list(range(len(CONCAVE_FACE_RING)))]
+    return vertices, loops, Polygon(CONCAVE_FACE_RING)
+
+
+def _triangulated_area(triangles):
+    covered = [
+        Polygon([CONCAVE_FACE_RING[index] for index in triangle])
+        for triangle in triangles
+    ]
+    covered = [polygon for polygon in covered if polygon.is_valid and polygon.area > 0]
+    return unary_union(covered) if covered else Polygon()
+
+
+def test_constrained_triangulation_covers_concave_face():
+    vertices, loops, face = _concave_face()
+    assert face.is_valid
+
+    triangles = openskp_compat._constrained_triangles(vertices, loops, (0.0, 0.0, 1.0))
+
+    assert triangles
+    covered = _triangulated_area(triangles)
+    assert face.difference(covered).area == pytest.approx(0.0, abs=1e-6)
+    assert covered.difference(face).area == pytest.approx(0.0, abs=1e-6)
+
+
+def test_patch_openskp_installs_constrained_triangulation():
+    import openskp._core as openskp_core
+
+    openskp_compat.patch_openskp()
+
+    patched = openskp_core.triangulate_face_3d
+    vertices, loops, face = _concave_face()
+    covered = _triangulated_area(patched(vertices, loops, (0.0, 0.0, 1.0)))
+    assert face.difference(covered).area == pytest.approx(0.0, abs=1e-6)
+
+    # Patching is idempotent, so the original reader is never wrapped twice.
+    openskp_compat.patch_openskp()
+    assert openskp_core.triangulate_face_3d is patched
 
 
 def test_fileimport_payload_validation():

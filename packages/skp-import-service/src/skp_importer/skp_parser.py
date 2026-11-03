@@ -4,16 +4,56 @@ SketchUp (.skp) parser and Speckle converter.
 
 from __future__ import annotations
 
-import math
 import re
-import struct
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from specklepy.objects.base import Base  # pyright: ignore[reportMissingTypeStubs]
 
+from skp_importer.openskp_compat import patch_openskp
+
 ProgressCallback = Callable[[int | None, str | None, str | None, bool], None]
+
+# openskp decodes the classic MFC CArchive container of SketchUp 2013-2020
+# (file versions 13-20) and the modern VFF/ZIP container of SketchUp 2021+
+# (file versions 21+). Anything older cannot be decoded reliably, so it is
+# rejected with an explicit error instead of being passed to a heuristic byte
+# scanner, which used to emit corrupted (scrambled) vertices.
+_LEGACY_MIN_VERSION = 13  # SketchUp 2013
+_VFF_MIN_VERSION = 21  # SketchUp 2021
+
+
+class SkpParseError(ValueError):
+    """Raised when a .skp file cannot be parsed into geometry."""
+
+
+class SkpUnsupportedVersionError(SkpParseError):
+    """Raised when a .skp file's SketchUp version is not supported."""
+
+
+def _sketchup_release_name(major_version: int) -> str:
+    # SketchUp used bare numbers until 2012 (e.g. "SketchUp 8") and release
+    # years from 2013 onwards.
+    if major_version >= _LEGACY_MIN_VERSION:
+        return f"SketchUp {2000 + major_version}"
+    return f"SketchUp {major_version}"
+
+
+def _read_skp_version(file_path: Path) -> tuple[int, str] | None:
+    """Return the ``(major, raw)`` SketchUp version from the file header.
+
+    The version is stored as a UTF-16LE ``{major.minor.patch}`` string in the
+    header records shared by both the legacy and the VFF containers. Returns
+    ``None`` when no version string is present (not a SketchUp model).
+    """
+    with file_path.open("rb") as handle:
+        header = handle.read(0x60)
+    text = header.replace(b"\x00", b"")  # UTF-16LE -> ASCII
+    match = re.search(rb"\{(\d+(?:\.\d+)*)\}", text)
+    if not match:
+        return None
+    raw = match.group(1).decode("ascii")
+    return int(raw.split(".")[0]), raw
 
 
 def _argb(r: int, g: int, b: int, a: int = 255) -> int:
@@ -82,34 +122,6 @@ def _create_collection(
     return col
 
 
-@dataclass
-class SkpMeshBuilder:
-    vertices: list[float] = field(default_factory=list)
-    faces: list[int] = field(default_factory=list)
-    vertex_map: dict[tuple[float, float, float], int] = field(default_factory=dict)
-
-    def add_vertex(self, x: float, y: float, z: float) -> int:
-        pt = (round(x, 6), round(y, 6), round(z, 6))
-        if pt in self.vertex_map:
-            return self.vertex_map[pt]
-        idx = len(self.vertices) // 3
-        self.vertices.extend([pt[0], pt[1], pt[2]])
-        self.vertex_map[pt] = idx
-        return idx
-
-    def add_triangle(
-        self,
-        v0: tuple[float, float, float],
-        v1: tuple[float, float, float],
-        v2: tuple[float, float, float],
-    ) -> None:
-        i0 = self.add_vertex(*v0)
-        i1 = self.add_vertex(*v1)
-        i2 = self.add_vertex(*v2)
-        if i0 != i1 and i1 != i2 and i0 != i2:
-            self.faces.extend([3, i0, i1, i2])
-
-
 class SkpParser:
     """
     Parser for SketchUp (.skp) files.
@@ -138,31 +150,37 @@ class SkpParser:
                 30, "reading_skp", "Reading SketchUp model data", True
             )
 
-        layers_map: dict[str, list[Base]] = {}
+        version = _read_skp_version(self.file_path)
+        if version is None:
+            raise SkpParseError(
+                f"Cannot read a SketchUp version from '{self.file_path.name}'. "
+                "The file does not look like a valid SketchUp model."
+            )
+        major_version, raw_version = version
+        if major_version < _LEGACY_MIN_VERSION:
+            raise SkpUnsupportedVersionError(
+                f"Unsupported SketchUp file version: "
+                f"{_sketchup_release_name(major_version)} "
+                f"(file version {major_version}, header '{raw_version}'). "
+                f"Supported versions start at "
+                f"{_sketchup_release_name(_LEGACY_MIN_VERSION)} "
+                f"(file version {_LEGACY_MIN_VERSION})."
+            )
 
-        # 1. Primary: full scene extraction (OpenSKP)
-        # (multi-component, multi-layer, multi-material)
-        parsed = self._parse_openskp(self.file_path)
-        if parsed and len(parsed) > 0:
-            layers_map = parsed
-        else:
-            # 2. Secondary: robust streaming multi-component extractor
-            layers_map = self._parse_binary_fallback(self.file_path)
+        # Full scene extraction (OpenSKP): multi-component, multi-layer,
+        # multi-material. A parse failure raises SkpParseError - we never
+        # fabricate geometry from a heuristic byte scan, which used to emit
+        # scrambled (corrupted) vertices.
+        layers_map = self._parse_openskp(self.file_path)
 
         # Clean up empty layers
         layers_map = {k: v for k, v in layers_map.items() if v}
 
         if not layers_map:
-            # Create a placeholder layer if empty to ensure valid Speckle graph
-            default_mesh = _create_mesh(
-                vertices=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-                faces=[3, 0, 1, 2],
-                units=self.units,
-                application_id=f"{self.stable_root_id}:default_geometry",
-                name="SketchUp Model Geometry",
-                layer_name="Layer0",
+            raise SkpParseError(
+                f"No geometry found in '{self.file_path.name}' "
+                f"({_sketchup_release_name(major_version)})."
             )
-            layers_map["Layer0"] = [default_mesh]
 
         if self.progress_callback:
             self.progress_callback(
@@ -198,17 +216,19 @@ class SkpParser:
         )
         return root
 
-    def _parse_openskp(self, file_path: Path) -> dict[str, list[Base]] | None:
+    def _parse_openskp(self, file_path: Path) -> dict[str, list[Base]]:
         """
         Extract full component hierarchies, primitives, materials, and layers.
         """
         try:
             import openskp
 
+            patch_openskp()
+
             file_obj = openskp.SkpFile(str(file_path))
             scene = file_obj.build_scene()
             if not scene or not getattr(scene, "glb_primitives", None):
-                return None
+                return {}
 
             mesh_index = getattr(scene, "mesh_index", {}) or {}
             gltf_materials = getattr(scene, "gltf_materials", []) or []
@@ -308,219 +328,8 @@ class SkpParser:
 
                 layers_map.setdefault(layer_name, []).append(mesh_obj)
 
-            return layers_map if layers_map else None
-        except Exception as ex:
-            print(f"OpenSKP parser notice: {ex}")
-            return None
-
-    def _extract_legacy_meta(
-        self, content: bytes
-    ) -> tuple[list[Base], list[str]]:
-        """
-        Extract real materials and layer names from legacy SKP binary stream.
-        """
-        materials: list[Base] = []
-        layers: list[str] = []
-
-        try:
-            import openskp.legacy as leg
-
-            m = re.search(
-                re.escape(b"\xff\xff")
-                + b".."
-                + re.escape(struct.pack("<H", 9) + b"CMaterial"),
-                content,
-                re.DOTALL,
-            )
-            if m:
-                start = m.start()
-                mat_count = struct.unpack_from("<I", content, start - 4)[0]
-                if 0 < mat_count <= 200:
-                    base = leg._bootstrap_two_materials(content, 20, start)
-                    r = leg._R(content)
-                    ar = leg._Archive(content, 20)
-                    ar.readers.update(leg._READERS)
-                    ar.next_slot = base
-                    ar.walk_base = base
-                    r.pos = start
-
-                    for i in range(mat_count):
-                        _, _, val = ar.read_object(r, expect="CMaterial")
-                        if isinstance(val, dict):
-                            mat_name = val.get("name") or f"Material_{i + 1}"
-                            rgba = val.get("rgba") or (200, 200, 200, 255)
-                            opacity = val.get("opacity", 1.0)
-                            if opacity <= 0:
-                                opacity = (
-                                    rgba[3] / 255.0 if len(rgba) > 3 else 1.0
-                                )
-                            mat_obj = _create_render_material(
-                                name=mat_name,
-                                r=rgba[0],
-                                g=rgba[1],
-                                b=rgba[2],
-                                opacity=opacity,
-                                application_id=f"{self.stable_root_id}:legacy_mat:{i}",
-                            )
-                            materials.append(mat_obj)
-
-                    r.u32()
-                    r.u8()
-                    layer_count = r.u32()
-                    if 0 < layer_count <= 1000:
-                        for _ in range(layer_count):
-                            _, _, val = ar.read_object(r, expect="CLayer")
-                            # Skip folder reference if present in v20+
-                            if r.peek_u16() == 0:
-                                r.pos += 2
-                            if isinstance(val, dict) and val.get("name"):
-                                l_name = val["name"]
-                                if l_name not in layers:
-                                    layers.append(l_name)
-        except Exception as e:
-            print(f"Legacy meta extraction notice: {e}")
-
-        if not layers:
-            layers = ["Layer0"]
-
-        if not materials:
-            palette = [
-                ("Wood / Finish", 180, 140, 100),
-                ("Metal / Steel", 120, 125, 130),
-                ("Glass", 210, 230, 240),
-                ("Fabric / Upholstery", 80, 90, 110),
-                ("Wall / Concrete", 220, 220, 215),
-                ("Plastic / Trim", 60, 60, 65),
-            ]
-            for idx, (p_name, pr, pg, pb) in enumerate(palette):
-                materials.append(
-                    _create_render_material(
-                        name=p_name,
-                        r=pr,
-                        g=pg,
-                        b=pb,
-                        application_id=f"{self.stable_root_id}:def_mat:{idx}",
-                    )
-                )
-
-        return materials, layers
-
-    def _parse_binary_fallback(self, file_path: Path) -> dict[str, list[Base]]:
-        """
-        Industrial-strength multi-component geometry stream extractor.
-        Segments complex furniture, rooms, and building models into
-        multiple independent component meshes with distinct materials.
-        """
-        try:
-            with open(file_path, "rb") as f:
-                content = f.read()
-
-            materials, layer_names = self._extract_legacy_meta(content)
-
-            # Find where geometry begins (past texture DIB headers)
-            v_idx = content.find(b"CVertex")
-            if v_idx > 1000:
-                geom_start = v_idx - 1000
-            else:
-                f_idx = content.find(b"CFace")
-                geom_start = f_idx - 1000 if f_idx > 1000 else 512
-
-            step = 24
-            triplets: list[tuple[float, float, float]] = []
-            for offset in range(geom_start, len(content) - 24, step):
-                try:
-                    x, y, z = struct.unpack_from("<ddd", content, offset)
-                    # Filter valid building/interior coordinate bounds (-5000m to 5000m)
-                    if (
-                        -5000.0 < x < 5000.0
-                        and -5000.0 < y < 5000.0
-                        and -5000.0 < z < 5000.0
-                        and (abs(x) > 1e-3 or abs(y) > 1e-3 or abs(z) > 1e-3)
-                        and (x == x and y == y and z == z)
-                    ):
-                        triplets.append((x, y, z))
-                except Exception:
-                    continue
-
-            if not triplets:
-                return {}
-
-            # Segment continuous triangle stream into independent component meshes
-            component_builders: list[SkpMeshBuilder] = []
-            current_builder = SkpMeshBuilder()
-            last_center: tuple[float, float, float] | None = None
-            target_min_triangles = 24
-            target_max_triangles = 200
-            dist_threshold = 25.0
-
-            for idx in range(0, len(triplets) - 2, 3):
-                v0, v1, v2 = triplets[idx], triplets[idx + 1], triplets[idx + 2]
-                cx = (v0[0] + v1[0] + v2[0]) / 3.0
-                cy = (v0[1] + v1[1] + v2[1]) / 3.0
-                cz = (v0[2] + v1[2] + v2[2]) / 3.0
-
-                tri_count = len(current_builder.faces) // 4
-                dist = 0.0
-                if last_center:
-                    dist = math.sqrt(
-                        (cx - last_center[0]) ** 2
-                        + (cy - last_center[1]) ** 2
-                        + (cz - last_center[2]) ** 2
-                    )
-
-                # Segment boundary: spatial discontinuity or maximum cluster size
-                is_boundary = (
-                    dist > dist_threshold and tri_count >= target_min_triangles
-                ) or (tri_count >= target_max_triangles)
-                if is_boundary and len(current_builder.faces) >= 12:
-                    component_builders.append(current_builder)
-                    current_builder = SkpMeshBuilder()
-
-                current_builder.add_triangle(v0, v1, v2)
-                last_center = (cx, cy, cz)
-
-            if len(current_builder.faces) >= 12:
-                component_builders.append(current_builder)
-
-            if not component_builders:
-                return {}
-
-            layers_map: dict[str, list[Base]] = {}
-            for l_name in layer_names:
-                layers_map[l_name] = []
-
-            # Assign materials and generate Speckle Meshes
-            for m_idx, builder in enumerate(component_builders):
-                assigned_mat = (
-                    materials[m_idx % len(materials)] if materials else None
-                )
-                mat_name = getattr(assigned_mat, "name", "") or ""
-                comp_num = m_idx + 1
-                comp_name = (
-                    f"Component_{comp_num:03d}"
-                    + (f" ({mat_name})" if mat_name else "")
-                )
-
-                # Distribute across layers if multiple exist, else Layer0
-                target_layer = (
-                    layer_names[m_idx % len(layer_names)]
-                    if len(layer_names) > 1
-                    else "Layer0"
-                )
-
-                mesh_obj = _create_mesh(
-                    vertices=builder.vertices,
-                    faces=builder.faces,
-                    units=self.units,
-                    application_id=f"{self.stable_root_id}:comp:{comp_num}",
-                    name=comp_name,
-                    material=assigned_mat,
-                    layer_name=target_layer,
-                )
-                layers_map.setdefault(target_layer, []).append(mesh_obj)
-
             return layers_map
-
-        except Exception as e:
-            print(f"SKP multi-component fallback extractor error: {e}")
-            return {}
+        except Exception as ex:
+            raise SkpParseError(
+                f"Failed to parse '{file_path.name}' with OpenSKP: {ex}"
+            ) from ex
