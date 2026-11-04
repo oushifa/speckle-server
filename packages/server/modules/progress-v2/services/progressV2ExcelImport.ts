@@ -35,27 +35,220 @@ const formatDateParts = (year: number, month: number, day: number) =>
     day
   ).padStart(2, '0')}`
 
-const parseExcelDate = (raw: unknown, rowNumber: number): string => {
+const MIN_DATE_YEAR = 1970
+const MAX_DATE_YEAR = 2100
+
+export const cleanErrorMessage = (err: unknown): string => {
+  if (!err) return '未知错误'
+  let raw = err instanceof Error ? err.message : String(err)
+  raw = raw.trim()
+
+  // 1. 过滤掉 Knex / pg 拼接在前面的原始 SQL（格式通常为: "SQL - 具体错误"）
+  if (raw.includes(' - ')) {
+    const parts = raw.split(' - ')
+    if (/^(insert\s+into|update|select|delete)\b/i.test(parts[0])) {
+      raw = parts.slice(1).join(' - ').trim()
+    }
+  }
+
+  // 2. 过滤 SQL 语句关键词与 values 片段，防止向前端暴露原生 SQL
+  raw = raw.replace(
+    /(insert\s+into|update|delete|select)\s+["`\w]+.*?(values|set|from)/gis,
+    ''
+  )
+  raw = raw.replace(/\bvalues\s*\(.*?\)/gis, '')
+  raw = raw.trim()
+
+  // 3. 常见数据库与系统错误转为友好业务提示
+  if (/value too long for type character varying\((\d+)\)/i.test(raw)) {
+    const match = raw.match(/value too long for type character varying\((\d+)\)/i)
+    const len = match ? match[1] : ''
+    return len ? `字段内容长度超出限制（最大 ${len} 个字符）` : '字段内容长度超出限制'
+  }
+
+  if (/value too long for type/i.test(raw)) {
+    return '字段内容长度超出限制'
+  }
+
+  if (/violates not-null constraint/i.test(raw)) {
+    const colMatch = raw.match(/column "([^"]+)" of relation/i)
+    return colMatch ? `缺少必填字段内容（${colMatch[1]}）` : '缺少必填字段内容'
+  }
+
+  if (/violates unique constraint/i.test(raw)) {
+    return '数据已存在重复记录，禁止重复录入'
+  }
+
+  if (/violates foreign key constraint/i.test(raw)) {
+    return '关联的项目或记录不存在'
+  }
+
+  if (/invalid input syntax for type (date|timestamp)/i.test(raw)) {
+    return '日期时间格式不正确或超出范围'
+  }
+
+  if (/datetime field overflow/i.test(raw)) {
+    return '日期数值超出有效范围'
+  }
+
+  if (/current transaction is aborted/i.test(raw)) {
+    return '事务处理异常，请重试'
+  }
+
+  // 去除可能重复的“第 X 行”前缀，外层会统一按行号格式化
+  raw = raw.replace(/^第\s*\d+\s*行[:：\s]*/, '')
+
+  return raw || '数据处理失败'
+}
+
+const validateAndFormatDate = (
+  year: number,
+  month: number,
+  day: number,
+  rowNumber: number,
+  fieldName: string
+): string => {
+  if (year < MIN_DATE_YEAR || year > MAX_DATE_YEAR) {
+    throw new Error(
+      `第 ${rowNumber} 行${fieldName}年份 ${year} 超出有效范围（${MIN_DATE_YEAR}~${MAX_DATE_YEAR}）`
+    )
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`第 ${rowNumber} 行${fieldName}月日数值不正确`)
+  }
+
+  // 校验日历真实性（如润年2月、小月天数）
+  const testDate = new Date(year, month - 1, day)
+  if (
+    testDate.getFullYear() !== year ||
+    testDate.getMonth() !== month - 1 ||
+    testDate.getDate() !== day
+  ) {
+    throw new Error(`第 ${rowNumber} 行${fieldName}日期不是合法的日历日期`)
+  }
+
+  return formatDateParts(year, month, day)
+}
+
+export const parseNullableExcelDate = (
+  raw: unknown,
+  rowNumber: number,
+  fieldName = '日期'
+): string | null => {
+  if (raw === null || raw === undefined) return null
+
+  // 1. 如果已是 Date 对象
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) {
+      throw new Error(`第 ${rowNumber} 行${fieldName}不是有效日期`)
+    }
+    return validateAndFormatDate(
+      raw.getFullYear(),
+      raw.getMonth() + 1,
+      raw.getDate(),
+      rowNumber,
+      fieldName
+    )
+  }
+
+  // 2. 如果是数字（Excel 标准日期序列号，如 46346）
   if (typeof raw === 'number') {
+    if (Number.isNaN(raw)) {
+      throw new Error(`第 ${rowNumber} 行${fieldName}不是有效数字`)
+    }
     const excelDate = XLSX.SSF.parse_date_code(raw)
-    if (!excelDate) throw new Error(`第 ${rowNumber} 行日期格式不正确`)
-    return formatDateParts(excelDate.y, excelDate.m, excelDate.d)
+    if (!excelDate || !excelDate.y) {
+      throw new Error(`第 ${rowNumber} 行${fieldName}格式不正确`)
+    }
+    return validateAndFormatDate(
+      excelDate.y,
+      excelDate.m,
+      excelDate.d,
+      rowNumber,
+      fieldName
+    )
   }
 
-  const normalized = normalizeCell(raw)
-  if (!normalized) throw new Error(`第 ${rowNumber} 行缺少日期`)
+  // 3. 转为字符串清洗后解析
+  const str = String(raw).trim()
+  if (!str) return null
 
-  const match = normalized.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/)
-  if (match) {
-    return formatDateParts(Number(match[1]), Number(match[2]), Number(match[3]))
+  // 3.1 纯数字字符串（4~6位数字，如 "46346" 或带时间小数 "46346.5"）
+  if (/^\d{4,6}(\.\d+)?$/.test(str)) {
+    const num = Number(str)
+    const excelDate = XLSX.SSF.parse_date_code(num)
+    if (excelDate && excelDate.y) {
+      return validateAndFormatDate(
+        excelDate.y,
+        excelDate.m,
+        excelDate.d,
+        rowNumber,
+        fieldName
+      )
+    }
   }
 
-  const parsed = new Date(normalized)
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`第 ${rowNumber} 行日期格式不正确`)
+  // 3.2 8位纯数字（如 "20261120"）
+  const m8 = str.match(/^(\d{4})(\d{2})(\d{2})$/)
+  if (m8) {
+    return validateAndFormatDate(
+      Number(m8[1]),
+      Number(m8[2]),
+      Number(m8[3]),
+      rowNumber,
+      fieldName
+    )
   }
 
-  return formatDateParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate())
+  // 3.3 中文年月日格式（如 "2026年11月20日"）
+  const mCn = str.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?/)
+  if (mCn) {
+    return validateAndFormatDate(
+      Number(mCn[1]),
+      Number(mCn[2]),
+      Number(mCn[3]),
+      rowNumber,
+      fieldName
+    )
+  }
+
+  // 3.4 常见分隔符格式：YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD（支持后跟时间）
+  const mSep = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/)
+  if (mSep) {
+    return validateAndFormatDate(
+      Number(mSep[1]),
+      Number(mSep[2]),
+      Number(mSep[3]),
+      rowNumber,
+      fieldName
+    )
+  }
+
+  // 3.5 回退尝试标准 JS Date 解析（如 ISO 字符串）
+  const parsed = new Date(str)
+  if (!Number.isNaN(parsed.getTime())) {
+    return validateAndFormatDate(
+      parsed.getFullYear(),
+      parsed.getMonth() + 1,
+      parsed.getDate(),
+      rowNumber,
+      fieldName
+    )
+  }
+
+  throw new Error(`第 ${rowNumber} 行${fieldName}格式不正确: ${str}`)
+}
+
+export const parseExcelDate = (
+  raw: unknown,
+  rowNumber: number,
+  fieldName = '日期'
+): string => {
+  const result = parseNullableExcelDate(raw, rowNumber, fieldName)
+  if (!result) {
+    throw new Error(`第 ${rowNumber} 行缺少${fieldName}`)
+  }
+  return result
 }
 
 const findHeaderIndex = (headerRow: string[], keys: string[]) =>
@@ -355,7 +548,12 @@ type ImportActualRecordRow = {
   remark: string | null
 }
 
-const parseImportRows = (workbook: WorkBook): ImportActualRecordRow[] => {
+export type ParseImportRowsResult = {
+  rows: ImportActualRecordRow[]
+  parseErrors: Array<{ rowNumber: number; error: string }>
+}
+
+export const parseImportRows = (workbook: WorkBook): ParseImportRowsResult => {
   const firstSheetName = workbook.SheetNames[0]
   if (!firstSheetName) throw new Error('Excel 中未找到工作表')
 
@@ -393,6 +591,8 @@ const parseImportRows = (workbook: WorkBook): ImportActualRecordRow[] => {
   if (reportDateIndex < 0) throw new Error('模板缺少必要列：填报日期')
 
   const rows: ImportActualRecordRow[] = []
+  const parseErrors: Array<{ rowNumber: number; error: string }> = []
+
   matrix.slice(1).forEach((row: Array<string | number | null>, index: number) => {
     const rowNumber = index + 2
     const readCell = (cellIndex: number) => {
@@ -403,42 +603,71 @@ const parseImportRows = (workbook: WorkBook): ImportActualRecordRow[] => {
     const rowValues = row.map((cell: string | number | null) => normalizeCell(cell))
     if (!rowValues.some(Boolean)) return
 
-    const readonlyDateText = normalizeCell(readCell(reportDateIndex))
-    const reportDate = readonlyDateText
-      ? parseExcelDate(readonlyDateText, rowNumber)
-      : ''
-    if (!reportDate) throw new Error(`第 ${rowNumber} 行缺少填报日期`)
+    try {
+      const reportDate = parseExcelDate(
+        readCell(reportDateIndex),
+        rowNumber,
+        '填报日期'
+      )
+      const planStartDate = parseNullableExcelDate(
+        readCell(planStartIndex),
+        rowNumber,
+        '计划开始时间'
+      )
+      const planEndDate = parseNullableExcelDate(
+        readCell(planEndIndex),
+        rowNumber,
+        '计划结束时间'
+      )
+      const actualStartDate = parseNullableExcelDate(
+        readCell(actualStartIndex),
+        rowNumber,
+        '实际开始时间'
+      )
+      const actualEndDate = parseNullableExcelDate(
+        readCell(actualEndIndex),
+        rowNumber,
+        '实际结束时间'
+      )
 
-    const progressRaw = normalizeCell(readCell(progressPercentIndex))
-    let progressPercent: number | null = null
-    if (progressRaw) {
-      const parsed = Number.parseFloat(progressRaw)
-      if (Number.isNaN(parsed)) {
-        throw new Error(`第 ${rowNumber} 行进度百分比不是有效数字`)
+      const progressRaw = normalizeCell(readCell(progressPercentIndex))
+      let progressPercent: number | null = null
+      if (progressRaw) {
+        const parsed = Number.parseFloat(progressRaw)
+        if (Number.isNaN(parsed)) {
+          throw new Error(`第 ${rowNumber} 行进度百分比不是有效数字`)
+        }
+        progressPercent = Math.min(Math.max(Math.round(parsed), 0), 100)
       }
-      progressPercent = Math.min(Math.max(Math.round(parsed), 0), 100)
-    }
 
-    const idRaw = normalizeCell(readCell(idIndex))
-    rows.push({
-      rowNumber,
-      id: idRaw || null,
-      taskName: normalizeCell(readCell(taskNameIndex)) || `进度导入-${reportDate}`,
-      reportDate,
-      planStartDate: normalizeNullableCell(readCell(planStartIndex)),
-      planEndDate: normalizeNullableCell(readCell(planEndIndex)),
-      actualStartDate: normalizeNullableCell(readCell(actualStartIndex)),
-      actualEndDate: normalizeNullableCell(readCell(actualEndIndex)),
-      progressPercent,
-      componentCode: normalizeNullableCell(readCell(componentCodeIndex)),
-      reporter: normalizeNullableCell(readCell(reporterIndex)),
-      remark: normalizeNullableCell(readCell(remarkIndex))
-    })
+      const idRaw = normalizeCell(readCell(idIndex))
+      rows.push({
+        rowNumber,
+        id: idRaw || null,
+        taskName: normalizeCell(readCell(taskNameIndex)) || `进度导入-${reportDate}`,
+        reportDate,
+        planStartDate,
+        planEndDate,
+        actualStartDate,
+        actualEndDate,
+        progressPercent,
+        componentCode: normalizeNullableCell(readCell(componentCodeIndex)),
+        reporter: normalizeNullableCell(readCell(reporterIndex)),
+        remark: normalizeNullableCell(readCell(remarkIndex))
+      })
+    } catch (err) {
+      parseErrors.push({
+        rowNumber,
+        error: cleanErrorMessage(err)
+      })
+    }
   })
 
-  if (!rows.length) throw new Error('Excel 中没有可导入的数据')
+  if (!rows.length && !parseErrors.length) {
+    throw new Error('Excel 中没有可导入的数据')
+  }
 
-  return rows
+  return { rows, parseErrors }
 }
 
 // ---------------------------------------------------------------------------
@@ -490,22 +719,22 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
   actorId: string
 }): Promise<ProgressV2ActualRecordImportResult> => {
   const workbook = XLSX.read(params.buffer, { type: 'buffer', cellDates: false })
-  const rows = parseImportRows(workbook)
+  const { rows, parseErrors } = parseImportRows(workbook)
+
+  const result: ProgressV2ActualRecordImportResult = {
+    totalCount: rows.length + parseErrors.length,
+    createdCount: 0,
+    updatedCount: 0,
+    failedRows: [...parseErrors]
+  }
+
+  if (!rows.length) {
+    return result
+  }
 
   const bimMap = await buildComponentCodeToBimNodesMap(params.db, params.projectId)
 
-  const result: ProgressV2ActualRecordImportResult = {
-    totalCount: rows.length,
-    createdCount: 0,
-    updatedCount: 0,
-    failedRows: []
-  }
-
   await params.db.transaction(async (trx) => {
-    const createRecord = createProgressV2ActualRecordFactory({ db: trx })
-    const updateRecord = updateProgressV2ActualRecordFactory({ db: trx })
-    const getRecord = getProgressV2ActualRecordByIdFactory({ db: trx })
-
     // 查询当前工程中所有已有实际进度记录，收集已占用的构件编码与 BIM ID
     const existingDbRecords = await trx('project_progress_v2_actual_records')
       .where('projectId', params.projectId)
@@ -530,95 +759,107 @@ export const importProgressV2ActualRecordsFromBuffer = async (params: {
           row.rowNumber
         )
         const BIM = codes.length ? resolveBimFromCodes(codes, bimMap) : null
-
-        // 已有 id 则尝试更新，否则新增
-        const existing =
-          row.id && (await getRecord({ id: row.id, projectId: params.projectId }))
-        const targetRecordId = existing ? existing.id : null
-
-        // 构件重复校验拦截
         const rowIdent = extractActualRecordComponentIdentifiers(row.componentCode, BIM)
-        const duplicateList: string[] = []
-        for (const c of rowIdent.codes) {
-          const ownerId = occupiedCodes.get(c)
-          if (ownerId && ownerId !== targetRecordId) {
-            duplicateList.push(c)
+
+        let savedRecordId = ''
+        let isUpdate = false
+
+        // 单行入库采用 Savepoint (subTrx)，单行失败不会污染整个外层事务
+        await trx.transaction(async (subTrx) => {
+          const createRecord = createProgressV2ActualRecordFactory({ db: subTrx })
+          const updateRecord = updateProgressV2ActualRecordFactory({ db: subTrx })
+          const getRecord = getProgressV2ActualRecordByIdFactory({ db: subTrx })
+
+          // 已有 id 则尝试更新，否则新增
+          const existing =
+            row.id && (await getRecord({ id: row.id, projectId: params.projectId }))
+          const targetRecordId = existing ? existing.id : null
+
+          // 构件重复校验拦截
+          const duplicateList: string[] = []
+          for (const c of rowIdent.codes) {
+            const ownerId = occupiedCodes.get(c)
+            if (ownerId && ownerId !== targetRecordId) {
+              duplicateList.push(c)
+            }
           }
-        }
-        for (const appId of rowIdent.applicationIds) {
-          const ownerId = occupiedAppIds.get(appId)
-          if (ownerId && ownerId !== targetRecordId) {
-            duplicateList.push(appId)
+          for (const appId of rowIdent.applicationIds) {
+            const ownerId = occupiedAppIds.get(appId)
+            if (ownerId && ownerId !== targetRecordId) {
+              duplicateList.push(appId)
+            }
           }
-        }
 
-        if (duplicateList.length > 0) {
-          const uniqueDups = Array.from(new Set(duplicateList))
-          throw new Error(
-            `第 ${row.rowNumber} 行包含已关联构件 [${uniqueDups
-              .slice(0, 5)
-              .join(', ')}${
-              uniqueDups.length > 5 ? '等' : ''
-            }]，与工程已有进度重复，不予导入`
-          )
-        }
+          if (duplicateList.length > 0) {
+            const uniqueDups = Array.from(new Set(duplicateList))
+            throw new Error(
+              `包含已关联构件 [${uniqueDups.slice(0, 5).join(', ')}${
+                uniqueDups.length > 5 ? '等' : ''
+              }]，与工程已有进度重复，不予导入`
+            )
+          }
 
-        const planStartDate = row.planStartDate ? new Date(row.planStartDate) : null
-        const planEndDate = row.planEndDate ? new Date(row.planEndDate) : null
-        const actualStartDate = row.actualStartDate
-          ? new Date(row.actualStartDate)
-          : null
-        const actualEndDate = row.actualEndDate ? new Date(row.actualEndDate) : null
+          const planStartDate = row.planStartDate ? new Date(row.planStartDate) : null
+          const planEndDate = row.planEndDate ? new Date(row.planEndDate) : null
+          const actualStartDate = row.actualStartDate
+            ? new Date(row.actualStartDate)
+            : null
+          const actualEndDate = row.actualEndDate ? new Date(row.actualEndDate) : null
 
-        let savedRecordId: string
-        if (existing) {
-          await updateRecord({
-            id: existing.id,
-            projectId: params.projectId,
-            taskName: row.taskName,
-            reportDate: row.reportDate,
-            planStartDate,
-            planEndDate,
-            actualStartDate,
-            actualEndDate,
-            progressPercent: row.progressPercent ?? undefined,
-            componentCode: componentCodeValue,
-            reporter: row.reporter,
-            remark: row.remark,
-            BIM,
-            updater: params.actorId
-          })
-          savedRecordId = existing.id
+          if (existing) {
+            await updateRecord({
+              id: existing.id,
+              projectId: params.projectId,
+              taskName: row.taskName,
+              reportDate: row.reportDate,
+              planStartDate,
+              planEndDate,
+              actualStartDate,
+              actualEndDate,
+              progressPercent: row.progressPercent ?? undefined,
+              componentCode: componentCodeValue,
+              reporter: row.reporter,
+              remark: row.remark,
+              BIM,
+              updater: params.actorId
+            })
+            savedRecordId = existing.id
+            isUpdate = true
+          } else {
+            const created = await createRecord({
+              projectId: params.projectId,
+              taskName: row.taskName,
+              reportDate: row.reportDate,
+              planStartDate,
+              planEndDate,
+              actualStartDate,
+              actualEndDate,
+              progressPercent: row.progressPercent ?? 0,
+              componentCode: componentCodeValue,
+              reporter: row.reporter,
+              remark: row.remark,
+              BIM,
+              creator: params.actorId,
+              updater: params.actorId
+            })
+            savedRecordId = created.id
+            isUpdate = false
+          }
+        })
+
+        // 仅在子事务成功保存并释放 Savepoint 后，才累加成功计数并记录构件占用
+        if (isUpdate) {
           result.updatedCount += 1
         } else {
-          const created = await createRecord({
-            projectId: params.projectId,
-            taskName: row.taskName,
-            reportDate: row.reportDate,
-            planStartDate,
-            planEndDate,
-            actualStartDate,
-            actualEndDate,
-            progressPercent: row.progressPercent ?? 0,
-            componentCode: componentCodeValue,
-            reporter: row.reporter,
-            remark: row.remark,
-            BIM,
-            creator: params.actorId,
-            updater: params.actorId
-          })
-          savedRecordId = created.id
           result.createdCount += 1
         }
-
-        // 保存成功后，将本行关联构件计入占用，拦截批次内后续行的重复数据
         for (const c of rowIdent.codes) occupiedCodes.set(c, savedRecordId)
         for (const appId of rowIdent.applicationIds)
           occupiedAppIds.set(appId, savedRecordId)
       } catch (err) {
         result.failedRows.push({
           rowNumber: row.rowNumber,
-          error: err instanceof Error ? err.message : String(err)
+          error: cleanErrorMessage(err)
         })
       }
     }

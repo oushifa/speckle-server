@@ -932,7 +932,7 @@ const getCumulativeCompletedQty = (row: any) => {
 }
 
 const getCumulativeRate = (row: any) => {
-  const contractAmount = toSafeNumber(row.reviewAmount || row.contractAmount)
+  const contractAmount = toSafeNumber(row.contractAmount)
   if (contractAmount <= 0) return '0.00'
   const cumulativeAmount = toSafeNumber(row.cumulativeAmount)
   return ((cumulativeAmount / contractAmount) * 100).toFixed(2)
@@ -1045,7 +1045,12 @@ const recalculateTreeRows = () => {
       row.totalQuantityWithChanges = totalQuantityWithChanges
       row.reviewAmount = reviewAmount
 
-      row.contractAmount = reviewAmount
+      const hasBoqAmount =
+        row.boqAmount !== undefined &&
+        row.boqAmount !== null &&
+        row.boqAmount !== '' &&
+        !isNaN(Number(row.boqAmount))
+      row.contractAmount = hasBoqAmount ? boqAmount : pendingTotalQty * price
       row.contractorAmount = contractorQty * finalPrice
       row.supervisionAmount = supervisionQty * finalPrice
       row.headquartersAmount = headquartersQty * finalPrice

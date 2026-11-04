@@ -626,7 +626,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Portal } from 'portal-vue'
 import {
   ArrowLeftIcon,
@@ -647,6 +647,7 @@ import {
   KIND_META,
   formatApproveStatusBadge,
   formatMoney,
+  parseOptionalNumber,
   sumReviewRows,
   validateReviewRows,
   type BoqReviewActionItem,
@@ -777,6 +778,53 @@ const existingFormalCodes = computed(() => {
   }
   walk(allBoqTreeItems.value)
   return set
+})
+
+const existingFormalMap = computed(() => {
+  const map = new Map<string, BoqTreeItem>()
+  function walk(nodes: BoqTreeItem[]) {
+    for (const n of nodes) {
+      if (n.code) map.set(n.code.trim(), n)
+      if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(allBoqTreeItems.value)
+  return map
+})
+
+// 当清单树异步加载完成时，若明细中存在引入项缺失复核量，自动补充
+watch(allBoqTreeItems, (tree) => {
+  if (!tree.length || !rows.value.length) return
+  let updated = false
+  const nextRows = rows.value.map((r) => {
+    if (
+      r.source === 'import' &&
+      (r.reviewQty === undefined ||
+        r.reviewQty === null ||
+        (isChange.value && Number(r.reviewQty) === 0))
+    ) {
+      const formal = existingFormalMap.value.get(r.code)
+      if (formal) {
+        const formalQty =
+          parseOptionalNumber(formal.reviewQuantity) ??
+          parseOptionalNumber(formal.quantity) ??
+          0
+        if (formalQty > 0 && Number(r.reviewQty || 0) === 0) {
+          updated = true
+          return {
+            ...r,
+            reviewQty: formalQty,
+            reviewUnitPrice:
+              r.reviewUnitPrice || formal.reviewPrice || formal.price || 0
+          }
+        }
+      }
+    }
+    return r
+  })
+  if (updated) {
+    rows.value = nextRows
+  }
 })
 
 // ── 流程与权限判定 ──
@@ -964,7 +1012,33 @@ const loadDetail = async () => {
     applicant.value = data.applicant || ''
     applyDate.value = data.applyDate || ''
     attachments.value = data.attachments || []
-    rows.value = data.rows || []
+    const rawRows = data.rows || []
+    rows.value = rawRows.map((r) => {
+      // 容错：若引入项未保存复核量或历史单据中存了 0，自动从清单库对齐已有复核量
+      if (
+        r.source === 'import' &&
+        (r.reviewQty === undefined ||
+          r.reviewQty === null ||
+          (isChange.value && Number(r.reviewQty) === 0))
+      ) {
+        const formal = existingFormalMap.value.get(r.code)
+        if (formal) {
+          const formalQty =
+            parseOptionalNumber(formal.reviewQuantity) ??
+            parseOptionalNumber(formal.quantity) ??
+            0
+          if (formalQty > 0) {
+            return {
+              ...r,
+              reviewQty: formalQty,
+              reviewUnitPrice:
+                r.reviewUnitPrice || formal.reviewPrice || formal.price || 0
+            }
+          }
+        }
+      }
+      return r
+    })
     isDirty.value = false
   } catch (err) {
     triggerNotification({

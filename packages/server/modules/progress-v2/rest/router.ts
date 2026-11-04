@@ -61,7 +61,8 @@ import {
 } from '@/modules/progress-v2/services/progressV2MppImport'
 import {
   importProgressV2ActualRecordsFromBuffer,
-  buildProgressV2ActualRecordsExportBuffer
+  buildProgressV2ActualRecordsExportBuffer,
+  cleanErrorMessage
 } from '@/modules/progress-v2/services/progressV2ExcelImport'
 import { createBusboy } from '@/modules/blobstorage/rest/busboy'
 import type Busboy from 'busboy'
@@ -1059,14 +1060,16 @@ export const progressV2RouterFactory = (): Router => {
                 totalCount: result.totalCount,
                 createdCount: result.createdCount,
                 updatedCount: result.updatedCount,
-                failedRows: result.failedRows.map(
-                  (fr) => `第 ${fr.rowNumber} 行: ${fr.error}`
+                failedRows: result.failedRows.map((fr) =>
+                  fr.error.startsWith('第')
+                    ? fr.error
+                    : `第 ${fr.rowNumber} 行: ${fr.error}`
                 )
               })
             } catch (e) {
               isFinished = true
               return res.status(400).json({
-                error: e instanceof Error ? e.message : String(e)
+                error: cleanErrorMessage(e)
               })
             }
           })

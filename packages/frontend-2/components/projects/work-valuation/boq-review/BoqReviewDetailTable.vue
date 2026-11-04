@@ -166,7 +166,7 @@
               <!-- 5. 现值 / 基数列 (只读) -->
               <template v-else-if="c.key === 'reviewQtyRO'">
                 <span class="font-mono text-foreground-3 text-center w-full">
-                  {{ formatNumber(props.kind === 'change' ? 0 : row.reviewQty ?? 0) }}
+                  {{ formatNumber(row.reviewQty ?? 0) }}
                 </span>
               </template>
 

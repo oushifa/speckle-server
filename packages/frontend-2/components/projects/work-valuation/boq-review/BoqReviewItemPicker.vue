@@ -1,3 +1,6 @@
+<!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
+<!-- eslint-disable vuejs-accessibility/no-static-element-interactions -->
+<!-- eslint-disable vuejs-accessibility/form-control-has-label -->
 <template>
   <div
     v-if="open"
@@ -49,7 +52,7 @@
                   ① 选择编码来源与挂接清单项
                 </span>
                 <span class="text-[11px] text-foreground-3">
-                  选中后自动挂接到同级分项下
+                  仅末级清单项可选，选中后挂接到同级分项下
                 </span>
               </div>
               <div class="relative">
@@ -75,31 +78,49 @@
                 <span class="text-right">合同工程量</span>
                 <span class="text-right">综合单价</span>
               </div>
-              <label
+              <div
                 v-for="row in filteredCreateTreeRows"
                 :key="row.id"
-                class="grid grid-cols-[minmax(270px,1fr)_60px_105px_105px] gap-2 min-w-[650px] items-center py-1.5 px-2 rounded cursor-pointer text-xs transition-colors hover:bg-highlight-1/40"
-                :class="
+                class="grid grid-cols-[minmax(270px,1fr)_60px_105px_105px] gap-2 min-w-[650px] items-center py-1.5 px-2 rounded text-xs transition-colors"
+                :class="[
+                  row.item.type === 'ITEM'
+                    ? 'cursor-pointer hover:bg-highlight-1/40'
+                    : 'cursor-default text-foreground-2 bg-foundation-2/20 select-none',
                   selectedSourceItem?.id === row.id
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-foreground'
-                "
+                ]"
+                @click="row.item.type === 'ITEM' && selectSourceItem(row.item)"
               >
                 <span
                   class="flex items-center gap-2 min-w-0"
                   :style="{ paddingLeft: `${row.depth * 16}px` }"
                 >
                   <input
+                    v-if="row.item.type === 'ITEM'"
                     type="radio"
                     name="source-boq"
+                    :aria-label="row.item.name || row.item.code"
                     :checked="selectedSourceItem?.id === row.id"
-                    class="accent-primary shrink-0"
-                    @change="selectSourceItem(row.item)"
+                    class="accent-primary shrink-0 cursor-pointer"
+                    @change.stop="selectSourceItem(row.item)"
                   />
-                  <span class="font-mono text-primary font-medium shrink-0">
+                  <span v-else class="w-4 shrink-0" />
+                  <span
+                    class="font-mono shrink-0 font-medium"
+                    :class="
+                      row.item.type === 'ITEM'
+                        ? 'text-primary'
+                        : 'text-foreground font-semibold'
+                    "
+                  >
                     {{ row.item.code }}
                   </span>
-                  <span class="truncate" :title="row.item.name">
+                  <span
+                    class="truncate"
+                    :class="row.item.type !== 'ITEM' ? 'font-medium' : ''"
+                    :title="row.item.name"
+                  >
                     {{ row.item.name }}
                   </span>
                   <span
@@ -112,12 +133,20 @@
                   {{ row.item.unit || '—' }}
                 </span>
                 <span class="text-right font-mono">
-                  {{ formatNumber(row.item.quantity) }}
+                  {{
+                    row.item.quantity !== undefined && row.item.quantity !== null
+                      ? formatNumber(row.item.quantity)
+                      : '—'
+                  }}
                 </span>
                 <span class="text-right font-mono">
-                  {{ formatNumber(row.item.price) }}
+                  {{
+                    row.item.price !== undefined && row.item.price !== null
+                      ? formatNumber(row.item.price)
+                      : '—'
+                  }}
                 </span>
-              </label>
+              </div>
             </div>
           </div>
 
@@ -512,10 +541,8 @@
             </FormButton>
           </div>
 
-          <!-- 清单树形表格 -->
-          <div
-            class="flex-1 min-h-[180px] max-h-[38vh] overflow-auto border-b border-outline-3"
-          >
+          <!-- 清单树形表格（自适应撑满，消除底部多余空白） -->
+          <div class="flex-1 min-h-0 overflow-auto border-b border-outline-3">
             <table class="w-full text-xs text-left border-collapse min-w-[900px]">
               <thead
                 class="bg-foundation-2 sticky top-0 text-[11px] font-semibold text-foreground-2 border-b border-outline-3 z-10 select-none"
@@ -681,6 +708,7 @@ import {
   flattenBoqTree,
   boqTypeLabel,
   formatNumber,
+  parseOptionalNumber,
   suggestCreatedCode,
   toNum,
   withQtyDefaults,
@@ -800,6 +828,7 @@ const filteredCreateTreeRows = computed(() => {
 })
 
 const selectSourceItem = (item: BoqTreeItem) => {
+  if (item.type !== 'ITEM') return
   selectedSourceItem.value = item
   createError.value = ''
   const suggestedCode = suggestCreatedCode(item.code, allCodesSet.value)
@@ -815,8 +844,8 @@ const selectSourceItem = (item: BoqTreeItem) => {
 
 const handleCreateRow = (keepOpen: boolean) => {
   createError.value = ''
-  if (!selectedSourceItem.value) {
-    createError.value = '请先在左侧选择一条清单项作为挂接参考'
+  if (!selectedSourceItem.value || selectedSourceItem.value.type !== 'ITEM') {
+    createError.value = '请先在左侧选择一条末级清单项作为挂接参考'
     return
   }
   const code = createForm.value.code.trim()
@@ -942,6 +971,14 @@ const executeBatchImport = () => {
 
   leafItems.value.forEach((item) => {
     if (selectedImportCodes.value.has(item.code) && !isAlreadyInDetail(item.code)) {
+      const refRevQty =
+        parseOptionalNumber(item.reviewQuantity) ??
+        parseOptionalNumber(item.quantity) ??
+        0
+      const refPrice =
+        parseOptionalNumber(item.reviewPrice) ?? parseOptionalNumber(item.price) ?? 0
+      const baseChg = parseOptionalNumber(item.changeQuantity) ?? 0
+
       toAdd.push(
         withQtyDefaults({
           id: `imp-${Date.now().toString(36)}-${Math.random()
@@ -953,10 +990,10 @@ const executeBatchImport = () => {
           code: item.code,
           name: item.name,
           unit: item.unit || '',
-          baseChangeQty: item.changeQuantity ?? 0,
-          reviewQty: item.reviewQuantity ?? item.quantity ?? 0,
+          baseChangeQty: baseChg,
+          reviewQty: refRevQty,
           changeQty: 0,
-          reviewUnitPrice: item.reviewPrice ?? item.price ?? 0
+          reviewUnitPrice: refPrice
         })
       )
     }

@@ -2441,10 +2441,14 @@ const executePrintDetail = async () => {
         row.totalQuantityWithChanges = totalQuantityWithChanges
         row.reviewAmount = reviewAmount
 
-        row.contractAmount =
-          row.boqAmount !== undefined && row.boqAmount !== null
-            ? toSafeNumber(row.boqAmount)
-            : toSafeNumber(row.pendingTotalQty) * price
+        const hasBoqAmount =
+          row.boqAmount !== undefined &&
+          row.boqAmount !== null &&
+          row.boqAmount !== '' &&
+          !isNaN(Number(row.boqAmount))
+        row.contractAmount = hasBoqAmount
+          ? toSafeNumber(row.boqAmount)
+          : toSafeNumber(row.pendingTotalQty) * price
         row.contractorAmount = toSafeNumber(row.contractorQty) * reviewPrice
         row.supervisionAmount = toSafeNumber(row.supervisionQty) * reviewPrice
         row.headquartersAmount = toSafeNumber(row.headquartersQty) * reviewPrice
@@ -2619,6 +2623,11 @@ const getSubtreeItemIds = (rootId: string, allItems: any[]): Set<string> => {
 }
 
 const getCumulativeRate = (row: any) => {
+  const contractAmount = toSafeNumber(row?.contractAmount)
+  if (contractAmount > 0) {
+    const cumulativeAmount = toSafeNumber(row?.cumulativeAmount)
+    return ((cumulativeAmount / contractAmount) * 100).toFixed(2)
+  }
   const contractQty = toSafeNumber(row?.pendingTotalQty)
   if (contractQty <= 0) return '0.00'
   const cumulativeQty = getCumulativeCompletedQty(row)
