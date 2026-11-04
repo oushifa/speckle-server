@@ -18,9 +18,20 @@ import {
 } from '@/modules/flow/services/approvalBindings'
 import {
   setApprovalFlowDefinitionActiveStateFactory,
-  getActiveApprovalFlowByCategoryFactory
+  getActiveApprovalFlowByCategoryFactory,
+  getApprovalFlowInstanceByIdFactory,
+  getApprovalFlowCurrentStepFactory
 } from '@/modules/flow/repositories/approvalFlows'
 import { createApprovalFlowDefinitionWithStepsFactory } from '@/modules/flow/services/approvalFlows'
+import {
+  getUnifiedWorkSyncDebugConfig,
+  debugApprovalFlowTodoPush,
+  debugUnifiedWorkMockPush,
+  debugUnifiedWorkRemove,
+  syncApprovalFlowTodoToUnifiedWork,
+  type UnifiedWorkPushPayload
+} from '@/modules/unified-work-sync/services/approvalFlowTodoSync'
+import { Roles } from '@/modules/core/helpers/mainConstants'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
 import {
   normalizeCategory,
@@ -34,6 +45,37 @@ const bindingIdParamsSchema = z.object({
 const instanceIdParamsSchema = z.object({
   instanceId: z.string().trim().min(1).max(10)
 })
+
+const configOverridesSchema = z
+  .object({
+    host: z.string().trim().optional(),
+    systemCode: z.string().trim().optional(),
+    token: z.string().trim().optional()
+  })
+  .optional()
+
+const debugPushBodySchema = z
+  .object({
+    dryRun: z.boolean().optional(),
+    configOverrides: configOverridesSchema
+  })
+  .default({})
+
+const mockPushBodySchema = z
+  .object({
+    mockData: z.record(z.string(), z.unknown()).optional(),
+    dryRun: z.boolean().optional(),
+    configOverrides: configOverridesSchema
+  })
+  .default({})
+
+const debugRemoveBodySchema = z
+  .object({
+    taskId: z.string().trim().optional(),
+    instanceId: z.string().trim().optional(),
+    configOverrides: configOverridesSchema
+  })
+  .default({})
 
 const bySubjectQuerySchema = z
   .object({
@@ -586,6 +628,160 @@ export const flowRouterFactory = (): Router => {
 
     return res.status(200).send({ success: true })
   })
+
+  app.get('/api/v1/flow/unified-work/config', async (req, res) => {
+    requireAuthenticatedUser(req)
+    const config = getUnifiedWorkSyncDebugConfig()
+    return res.status(200).send(config)
+  })
+
+  app.post(
+    '/api/v1/flow/instances/:instanceId/retry-push',
+    validateRequest({
+      params: instanceIdParamsSchema
+    }),
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const { instanceId } = instanceIdParamsSchema.parse(req.params)
+
+      const instance = await getApprovalFlowInstanceByIdFactory({ db })({
+        id: instanceId
+      })
+      if (!instance) {
+        throw new BadRequestError('Approval instance not found')
+      }
+
+      const currentStep = await getApprovalFlowCurrentStepFactory({ db })(instanceId)
+      const isAdmin = req.context.role === Roles.Server.Admin
+      const isCreator = instance.createdBy === actorUserId
+      const isApprover =
+        !!currentStep && (currentStep.approverIds || []).includes(actorUserId)
+
+      if (!isAdmin && !isCreator && !isApprover) {
+        throw new BadRequestError('You are not allowed to retry this todo push')
+      }
+
+      const result = await syncApprovalFlowTodoToUnifiedWork({
+        instanceId,
+        reason: 'manual-retry'
+      })
+
+      return res.status(200).send({
+        success: true,
+        pushed: result.pushCount,
+        failed: result.failCount,
+        removed: result.removeCount
+      })
+    }
+  )
+
+  app.post(
+    '/api/approval-instances/:instanceId/retry-push',
+    validateRequest({
+      params: instanceIdParamsSchema
+    }),
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const { instanceId } = instanceIdParamsSchema.parse(req.params)
+
+      const instance = await getApprovalFlowInstanceByIdFactory({ db })({
+        id: instanceId
+      })
+      if (!instance) {
+        throw new BadRequestError('Approval instance not found')
+      }
+
+      const currentStep = await getApprovalFlowCurrentStepFactory({ db })(instanceId)
+      const isAdmin = req.context.role === Roles.Server.Admin
+      const isCreator = instance.createdBy === actorUserId
+      const isApprover =
+        !!currentStep && (currentStep.approverIds || []).includes(actorUserId)
+
+      if (!isAdmin && !isCreator && !isApprover) {
+        throw new BadRequestError('You are not allowed to retry this todo push')
+      }
+
+      const result = await syncApprovalFlowTodoToUnifiedWork({
+        instanceId,
+        reason: 'manual-retry'
+      })
+
+      return res.status(200).send({
+        success: true,
+        pushed: result.pushCount,
+        failed: result.failCount,
+        removed: result.removeCount
+      })
+    }
+  )
+
+  app.post(
+    '/api/v1/flow/instances/:instanceId/debug-push',
+    validateRequest({
+      params: instanceIdParamsSchema,
+      body: debugPushBodySchema
+    }),
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const { instanceId } = instanceIdParamsSchema.parse(req.params)
+      const body = debugPushBodySchema.parse(req.body || {})
+      const isAdmin = req.context.role === Roles.Server.Admin
+
+      const result = await debugApprovalFlowTodoPush({
+        instanceId,
+        configOverrides: body.configOverrides,
+        dryRun: body.dryRun,
+        userId: actorUserId,
+        isAdmin
+      })
+
+      return res.status(200).send(result)
+    }
+  )
+
+  app.post(
+    '/api/v1/flow/unified-work/mock-push',
+    validateRequest({
+      body: mockPushBodySchema
+    }),
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const body = mockPushBodySchema.parse(req.body || {})
+      const isAdmin = req.context.role === Roles.Server.Admin
+
+      const result = await debugUnifiedWorkMockPush({
+        mockData: body.mockData as Partial<UnifiedWorkPushPayload>,
+        configOverrides: body.configOverrides,
+        dryRun: body.dryRun,
+        userId: actorUserId,
+        isAdmin
+      })
+
+      return res.status(200).send(result)
+    }
+  )
+
+  app.post(
+    '/api/v1/flow/unified-work/debug-remove',
+    validateRequest({
+      body: debugRemoveBodySchema
+    }),
+    async (req, res) => {
+      const actorUserId = requireAuthenticatedUser(req)
+      const body = debugRemoveBodySchema.parse(req.body || {})
+      const isAdmin = req.context.role === Roles.Server.Admin
+
+      const result = await debugUnifiedWorkRemove({
+        taskId: body.taskId,
+        instanceId: body.instanceId,
+        configOverrides: body.configOverrides,
+        userId: actorUserId,
+        isAdmin
+      })
+
+      return res.status(200).send(result)
+    }
+  )
 
   return app
 }

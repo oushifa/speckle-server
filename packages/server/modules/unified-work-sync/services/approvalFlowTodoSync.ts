@@ -1,15 +1,19 @@
 import axios from 'axios'
+import crs from 'crypto-random-string'
 import { db } from '@/db/knex'
+import { BadRequestError } from '@/modules/shared/errors'
 import {
   ApprovalFlowActions,
   ApprovalFlowInstances,
   ApprovalFlowInstanceSteps,
   Streams,
+  UnifiedWorkSyncRecords,
   Users
 } from '@/modules/core/dbSchema'
 import { ApprovalFlowActionType } from '@/modules/flow/repositories/approvalFlows'
 import {
   UnifiedWorkSyncStatus,
+  type UnifiedWorkSyncRecord,
   deleteUnifiedWorkSyncRecordFactory,
   upsertUnifiedWorkSyncRecordFactory
 } from '@/modules/unified-work-sync/repositories/unifiedWorkSyncRecords'
@@ -89,12 +93,12 @@ type InstanceSnapshot = {
   historicalApproverTaskIds: string[]
 }
 
-type UnifiedWorkReviewer = {
+export type UnifiedWorkReviewer = {
   user: string
   status: string
 }
 
-type UnifiedWorkPushPayload = {
+export type UnifiedWorkPushPayload = {
   systemCode: string
   taskId: string
   title: string
@@ -108,7 +112,7 @@ type UnifiedWorkPushPayload = {
 }
 
 /** Everything we need in order to persist a per-approver push result. */
-type UnifiedWorkTaskMeta = {
+export type UnifiedWorkTaskMeta = {
   instanceId: string
   taskId: string
   stepIndex: number
@@ -116,12 +120,12 @@ type UnifiedWorkTaskMeta = {
   account: string | null
 }
 
-type UnifiedWorkDesiredItem = {
+export type UnifiedWorkDesiredItem = {
   payload: UnifiedWorkPushPayload
   meta: UnifiedWorkTaskMeta
 }
 
-type UnifiedWorkSkippedItem = {
+export type UnifiedWorkSkippedItem = {
   meta: UnifiedWorkTaskMeta
   errorType: string
   errorMessage: string
@@ -1148,4 +1152,655 @@ export const recordUnifiedWorkBrowserPushResult = async (params: {
   )
 
   return true
+}
+
+export type UnifiedWorkConfigOverrides = {
+  host?: string
+  systemCode?: string
+  token?: string
+}
+
+export type UnifiedWorkSyncDebugConfig = {
+  host: string
+  systemCode: string
+  token: string
+  hasStaticToken: boolean
+  hasCredentials: boolean
+}
+
+export const getUnifiedWorkSyncDebugConfig = (): UnifiedWorkSyncDebugConfig => {
+  const config = getSyncConfig()
+  const staticToken = config.token || ''
+  const effectiveToken =
+    staticToken ||
+    (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()
+      ? cachedAuthToken.value
+      : '')
+
+  return {
+    host: config.host || '',
+    systemCode: config.systemCode || '',
+    token: effectiveToken,
+    hasStaticToken: Boolean(staticToken),
+    hasCredentials: Boolean(config.username && config.password)
+  }
+}
+
+export const getEffectiveUnifiedWorkConfig = (
+  overrides?: UnifiedWorkConfigOverrides
+) => {
+  const base = getSyncConfig()
+  return {
+    host: overrides?.host?.trim() || base.host || '',
+    systemCode: overrides?.systemCode?.trim() || base.systemCode || '',
+    tokenOverride: overrides?.token?.trim() || null
+  }
+}
+
+const resolveEffectiveToken = async (
+  effectiveHost: string,
+  tokenOverride?: string | null
+): Promise<string> => {
+  if (tokenOverride) return tokenOverride
+
+  const baseConfig = getSyncConfig()
+  if (
+    effectiveHost &&
+    effectiveHost !== baseConfig.host &&
+    baseConfig.username &&
+    baseConfig.password
+  ) {
+    try {
+      const response = await axios.post(
+        `${effectiveHost}/api/v1/auth/login2`,
+        {
+          username: baseConfig.username,
+          password: baseConfig.password,
+          routerId: baseConfig.routerId
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: REQUEST_TIMEOUT_MS
+        }
+      )
+      const token = extractToken(response.data)
+      if (token) return token
+    } catch (err) {
+      unifiedWorkSyncLogger.warn(
+        { error: formatErrorDetails(err), host: effectiveHost },
+        '[WORK_SYNC] Failed to login to overridden host'
+      )
+    }
+  }
+
+  return await getAuthToken()
+}
+
+export type UnifiedWorkPushDiagnosisItem = {
+  taskId: string
+  approverId: string | null
+  account: string | null
+  url: string
+  payload: UnifiedWorkPushPayload
+  dryRun: boolean
+  success: boolean
+  statusCode?: number
+  durationMs: number
+  responseBody?: unknown
+  error?: string | null
+  savedRecord: boolean
+}
+
+export type UnifiedWorkPushDiagnosisResult = {
+  instanceId: string
+  dryRun: boolean
+  effectiveConfig: {
+    host: string
+    systemCode: string
+    hasToken: boolean
+    tokenPreview?: string
+  }
+  items: UnifiedWorkPushDiagnosisItem[]
+  skippedItems: Array<{
+    meta: UnifiedWorkTaskMeta
+    errorType: string
+    errorMessage: string
+  }>
+  summary: {
+    total: number
+    successCount: number
+    failCount: number
+  }
+  message?: string
+}
+
+export const debugApprovalFlowTodoPush = async (params: {
+  instanceId: string
+  configOverrides?: UnifiedWorkConfigOverrides
+  dryRun?: boolean
+  userId: string
+  isAdmin: boolean
+}): Promise<UnifiedWorkPushDiagnosisResult> => {
+  const snapshot = await loadInstanceSnapshot(params.instanceId)
+  if (!snapshot) {
+    throw new BadRequestError('Approval instance not found')
+  }
+
+  const currentStep =
+    snapshot.steps.find((step) => step.status === 'PENDING') ||
+    snapshot.steps.find((step) => step.stepIndex === snapshot.instance.currentStep) ||
+    null
+
+  const isCreator = snapshot.instance.createdBy === params.userId
+  const isApprover =
+    !!currentStep && (currentStep.approverIds || []).includes(params.userId)
+
+  if (!params.isAdmin && !isCreator && !isApprover) {
+    throw new BadRequestError('You are not allowed to debug push this instance')
+  }
+
+  const effective = getEffectiveUnifiedWorkConfig(params.configOverrides)
+  const dryRun = Boolean(params.dryRun)
+  const upsertRecord = upsertUnifiedWorkSyncRecordFactory({ db })
+
+  const recordResult = async (record: Parameters<typeof upsertRecord>[0]) => {
+    try {
+      await upsertRecord(record)
+    } catch (err) {
+      unifiedWorkSyncLogger.error(
+        {
+          error: formatErrorDetails(err),
+          instanceId: params.instanceId,
+          taskId: record.taskId
+        },
+        '[WORK_SYNC] Failed to persist unified work push status in debug push'
+      )
+    }
+  }
+
+  const { desiredItems, skippedItems } = buildDesiredTasks(snapshot)
+
+  if (params.configOverrides?.systemCode?.trim()) {
+    const overrideCode = params.configOverrides.systemCode.trim()
+    for (const item of desiredItems) {
+      item.payload.systemCode = overrideCode
+      if (item.payload.extraData) {
+        item.payload.extraData.source = overrideCode
+      }
+    }
+  }
+
+  const diagnosisItems: UnifiedWorkPushDiagnosisItem[] = []
+  let token = ''
+
+  if (!dryRun) {
+    token = await resolveEffectiveToken(effective.host, effective.tokenOverride)
+  }
+
+  const tokenPreview = token
+    ? `${token.slice(0, 6)}...${token.slice(-4)}`
+    : effective.tokenOverride
+    ? `${effective.tokenOverride.slice(0, 6)}...${effective.tokenOverride.slice(-4)}`
+    : undefined
+
+  if (dryRun) {
+    for (const item of desiredItems) {
+      diagnosisItems.push({
+        taskId: item.meta.taskId,
+        approverId: item.meta.approverId,
+        account: item.meta.account,
+        url: `${effective.host}/api/v1/unifiedWork/work-item/push`,
+        payload: item.payload,
+        dryRun: true,
+        success: true,
+        statusCode: 200,
+        durationMs: 0,
+        responseBody: {
+          dryRun: true,
+          message: 'Dry run mode: payload prepared but not sent'
+        },
+        savedRecord: false
+      })
+    }
+  } else if (!token) {
+    for (const item of desiredItems) {
+      const errorMsg =
+        'Could not obtain a unified work access token (check UNIFIED_WORK_SYNC_TOKEN or configured credentials)'
+      await recordResult({
+        ...item.meta,
+        systemCode: item.payload.systemCode,
+        status: UnifiedWorkSyncStatus.Failed,
+        errorType: 'AUTH_UNAVAILABLE',
+        errorMessage: errorMsg,
+        errorDetail: {
+          host: effective.host,
+          systemCode: item.payload.systemCode
+        }
+      })
+      diagnosisItems.push({
+        taskId: item.meta.taskId,
+        approverId: item.meta.approverId,
+        account: item.meta.account,
+        url: `${effective.host}/api/v1/unifiedWork/work-item/push`,
+        payload: item.payload,
+        dryRun: false,
+        success: false,
+        durationMs: 0,
+        error: errorMsg,
+        responseBody: null,
+        savedRecord: true
+      })
+    }
+  } else {
+    for (const item of desiredItems) {
+      const { payload, meta } = item
+      const startTime = Date.now()
+      const url = `${effective.host}/api/v1/unifiedWork/work-item/push`
+      try {
+        const response = await axios.post(url, payload, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: REQUEST_TIMEOUT_MS
+        })
+        const durationMs = Date.now() - startTime
+        await recordResult({
+          ...meta,
+          systemCode: payload.systemCode,
+          status: UnifiedWorkSyncStatus.Success,
+          errorType: null,
+          errorMessage: null,
+          errorDetail: null
+        })
+        diagnosisItems.push({
+          taskId: meta.taskId,
+          approverId: meta.approverId,
+          account: meta.account,
+          url,
+          payload,
+          dryRun: false,
+          success: true,
+          statusCode: response.status,
+          durationMs,
+          responseBody: response.data,
+          savedRecord: true
+        })
+      } catch (err) {
+        const durationMs = Date.now() - startTime
+        const errorDetails = formatErrorDetails(err)
+        await recordResult({
+          ...meta,
+          systemCode: payload.systemCode,
+          status: UnifiedWorkSyncStatus.Failed,
+          errorType:
+            typeof errorDetails.status === 'number'
+              ? `HTTP_${errorDetails.status}`
+              : errorDetails.code || 'UNKNOWN',
+          errorMessage: errorDetails.message,
+          errorDetail: errorDetails as unknown as Record<string, unknown>
+        })
+        diagnosisItems.push({
+          taskId: meta.taskId,
+          approverId: meta.approverId,
+          account: meta.account,
+          url,
+          payload,
+          dryRun: false,
+          success: false,
+          statusCode:
+            typeof errorDetails.status === 'number' ? errorDetails.status : undefined,
+          durationMs,
+          responseBody: errorDetails.responseBody,
+          error: errorDetails.message,
+          savedRecord: true
+        })
+      }
+    }
+
+    for (const skipped of skippedItems) {
+      await recordResult({
+        ...skipped.meta,
+        systemCode: effective.systemCode,
+        status: UnifiedWorkSyncStatus.Failed,
+        errorType: skipped.errorType,
+        errorMessage: skipped.errorMessage,
+        errorDetail: null
+      })
+    }
+  }
+
+  return {
+    instanceId: params.instanceId,
+    dryRun,
+    effectiveConfig: {
+      host: effective.host,
+      systemCode: effective.systemCode,
+      hasToken: Boolean(token),
+      tokenPreview
+    },
+    items: diagnosisItems,
+    skippedItems: skippedItems.map((item) => ({
+      meta: item.meta,
+      errorType: item.errorType,
+      errorMessage: item.errorMessage
+    })),
+    summary: {
+      total: diagnosisItems.length,
+      successCount: diagnosisItems.filter((i) => i.success).length,
+      failCount: diagnosisItems.filter((i) => !i.success).length
+    },
+    message:
+      diagnosisItems.length === 0
+        ? `No desired items found (instance status: ${snapshot.instance.status}, currentStep: ${snapshot.instance.currentStep})`
+        : undefined
+  }
+}
+
+export type UnifiedWorkMockPushResult = {
+  url: string
+  payload: UnifiedWorkPushPayload
+  dryRun: boolean
+  success: boolean
+  statusCode?: number
+  durationMs: number
+  responseBody?: unknown
+  error?: string | null
+  effectiveConfig: {
+    host: string
+    systemCode: string
+    hasToken: boolean
+  }
+}
+
+export const debugUnifiedWorkMockPush = async (params: {
+  mockData?: Partial<UnifiedWorkPushPayload>
+  configOverrides?: UnifiedWorkConfigOverrides
+  dryRun?: boolean
+  userId: string
+  isAdmin: boolean
+}): Promise<UnifiedWorkMockPushResult> => {
+  const effective = getEffectiveUnifiedWorkConfig(params.configOverrides)
+  const dryRun = Boolean(params.dryRun)
+  const baseConfig = getSyncConfig()
+
+  const defaultSystemCode = effective.systemCode || 'BIM'
+  const defaultTaskId = `MOCK-${Date.now()}-${crs({ length: 6 })}`
+  const defaultUser = baseConfig.account || baseConfig.username || 'mock_user'
+  const nowIso = new Date().toISOString()
+
+  const fullPayload: UnifiedWorkPushPayload = {
+    systemCode: params.mockData?.systemCode?.trim() || defaultSystemCode,
+    taskId: params.mockData?.taskId?.trim() || defaultTaskId,
+    title: params.mockData?.title?.trim() || '测试待办任务 - Mock Push',
+    creator: params.mockData?.creator?.trim() || defaultUser,
+    assignee: params.mockData?.assignee?.trim() || defaultUser,
+    reviewer:
+      params.mockData?.reviewer && params.mockData.reviewer.length > 0
+        ? params.mockData.reviewer
+        : [
+            {
+              user: params.mockData?.assignee?.trim() || defaultUser,
+              status: 'pending'
+            }
+          ],
+    createTime: params.mockData?.createTime?.trim() || nowIso,
+    reviewTime:
+      params.mockData?.reviewTime?.trim() ||
+      params.mockData?.createTime?.trim() ||
+      nowIso,
+    route: params.mockData?.route?.trim() || '/flow',
+    extraData: params.mockData?.extraData || {
+      source: defaultSystemCode,
+      mock: true,
+      createdAt: nowIso
+    }
+  }
+
+  const url = `${effective.host}/api/v1/unifiedWork/work-item/push`
+
+  if (dryRun) {
+    return {
+      url,
+      payload: fullPayload,
+      dryRun: true,
+      success: true,
+      statusCode: 200,
+      durationMs: 0,
+      responseBody: {
+        dryRun: true,
+        message: 'Dry run mode: mock payload prepared but not pushed'
+      },
+      effectiveConfig: {
+        host: effective.host,
+        systemCode: effective.systemCode,
+        hasToken: Boolean(effective.tokenOverride || baseConfig.token)
+      }
+    }
+  }
+
+  const token = await resolveEffectiveToken(effective.host, effective.tokenOverride)
+  if (!token) {
+    return {
+      url,
+      payload: fullPayload,
+      dryRun: false,
+      success: false,
+      statusCode: 401,
+      durationMs: 0,
+      error: 'Could not obtain a unified work access token',
+      responseBody: null,
+      effectiveConfig: {
+        host: effective.host,
+        systemCode: effective.systemCode,
+        hasToken: false
+      }
+    }
+  }
+
+  const startTime = Date.now()
+  try {
+    const response = await axios.post(url, fullPayload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: REQUEST_TIMEOUT_MS
+    })
+    const durationMs = Date.now() - startTime
+    return {
+      url,
+      payload: fullPayload,
+      dryRun: false,
+      success: true,
+      statusCode: response.status,
+      durationMs,
+      responseBody: response.data,
+      effectiveConfig: {
+        host: effective.host,
+        systemCode: effective.systemCode,
+        hasToken: true
+      }
+    }
+  } catch (err) {
+    const durationMs = Date.now() - startTime
+    const errorDetails = formatErrorDetails(err)
+    return {
+      url,
+      payload: fullPayload,
+      dryRun: false,
+      success: false,
+      statusCode:
+        typeof errorDetails.status === 'number' ? errorDetails.status : undefined,
+      durationMs,
+      responseBody: errorDetails.responseBody,
+      error: errorDetails.message,
+      effectiveConfig: {
+        host: effective.host,
+        systemCode: effective.systemCode,
+        hasToken: true
+      }
+    }
+  }
+}
+
+export type UnifiedWorkRemoveDiagnosisItem = {
+  taskId: string
+  url: string
+  statusCode?: number
+  durationMs: number
+  responseBody?: unknown
+  error?: string | null
+  success: boolean
+  localRecordDeleted: boolean
+}
+
+export type UnifiedWorkRemoveDiagnosisResult = {
+  effectiveConfig: {
+    host: string
+    systemCode: string
+    hasToken: boolean
+  }
+  results: UnifiedWorkRemoveDiagnosisItem[]
+  summary: {
+    total: number
+    successCount: number
+    failCount: number
+    localDeletedCount: number
+  }
+}
+
+export const debugUnifiedWorkRemove = async (params: {
+  taskId?: string
+  instanceId?: string
+  configOverrides?: UnifiedWorkConfigOverrides
+  userId: string
+  isAdmin: boolean
+}): Promise<UnifiedWorkRemoveDiagnosisResult> => {
+  if (!params.taskId && !params.instanceId) {
+    throw new BadRequestError('Either taskId or instanceId must be provided')
+  }
+
+  const effective = getEffectiveUnifiedWorkConfig(params.configOverrides)
+  const taskIdsToRemove = new Set<string>()
+
+  if (params.taskId?.trim()) {
+    taskIdsToRemove.add(params.taskId.trim())
+  }
+
+  if (params.instanceId?.trim()) {
+    const instanceId = params.instanceId.trim()
+    const snapshot = await loadInstanceSnapshot(instanceId)
+    if (snapshot) {
+      const { candidateTaskIds } = buildDesiredTasks(snapshot)
+      for (const id of candidateTaskIds) {
+        taskIdsToRemove.add(id)
+      }
+    }
+    const syncRecords = await db<UnifiedWorkSyncRecord>(UnifiedWorkSyncRecords.name)
+      .where('instanceId', instanceId)
+      .select('taskId')
+    for (const record of syncRecords) {
+      if (record.taskId) {
+        taskIdsToRemove.add(record.taskId)
+      }
+    }
+  }
+
+  const deleteRecord = deleteUnifiedWorkSyncRecordFactory({ db })
+  const results: UnifiedWorkRemoveDiagnosisItem[] = []
+  const token = await resolveEffectiveToken(effective.host, effective.tokenOverride)
+  const url = `${effective.host}/api/v1/unifiedWork/removeWorkItem`
+
+  for (const taskId of taskIdsToRemove) {
+    if (!token) {
+      let localRecordDeleted = false
+      try {
+        await deleteRecord({ taskId })
+        localRecordDeleted = true
+      } catch {}
+      results.push({
+        taskId,
+        url,
+        durationMs: 0,
+        error: 'Could not obtain a unified work access token',
+        success: false,
+        localRecordDeleted
+      })
+      continue
+    }
+
+    const startTime = Date.now()
+    try {
+      const response = await axios.post(
+        url,
+        {
+          systemCode: effective.systemCode,
+          taskId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: REQUEST_TIMEOUT_MS
+        }
+      )
+      const durationMs = Date.now() - startTime
+      const success = isRemoveSuccess(response.data) || response.status === 200
+      let localRecordDeleted = false
+      try {
+        await deleteRecord({ taskId })
+        localRecordDeleted = true
+      } catch (delErr) {
+        unifiedWorkSyncLogger.warn(
+          { taskId, error: formatErrorDetails(delErr) },
+          '[WORK_SYNC] Failed to delete local record after remove'
+        )
+      }
+      results.push({
+        taskId,
+        url,
+        statusCode: response.status,
+        durationMs,
+        responseBody: response.data,
+        success,
+        localRecordDeleted
+      })
+    } catch (err) {
+      const durationMs = Date.now() - startTime
+      const errorDetails = formatErrorDetails(err)
+      let localRecordDeleted = false
+      try {
+        await deleteRecord({ taskId })
+        localRecordDeleted = true
+      } catch {}
+      results.push({
+        taskId,
+        url,
+        statusCode:
+          typeof errorDetails.status === 'number' ? errorDetails.status : undefined,
+        durationMs,
+        responseBody: errorDetails.responseBody,
+        error: errorDetails.message,
+        success: false,
+        localRecordDeleted
+      })
+    }
+  }
+
+  return {
+    effectiveConfig: {
+      host: effective.host,
+      systemCode: effective.systemCode,
+      hasToken: Boolean(token)
+    },
+    results,
+    summary: {
+      total: results.length,
+      successCount: results.filter((r) => r.success).length,
+      failCount: results.filter((r) => !r.success).length,
+      localDeletedCount: results.filter((r) => r.localRecordDeleted).length
+    }
+  }
 }

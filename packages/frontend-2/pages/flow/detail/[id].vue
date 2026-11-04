@@ -408,7 +408,6 @@ import { useAuthManager } from '~/lib/auth/composables/auth'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
 import type { UnifiedWorkPushRecord } from '~/components/flow/flowInstances'
-import { useUnifiedWorkBrowserPush } from '~/components/flow/unifiedWorkBrowserPush'
 
 useHead({ title: '处理流程' })
 
@@ -602,21 +601,12 @@ const cancelMutation = gql`
   }
 `
 
-const retryUnifiedWorkPushMutation = gql`
-  mutation FlowDetailRetryUnifiedWorkPush($instanceId: ID!) {
-    approvalMutations {
-      retryUnifiedWorkPush(instanceId: $instanceId)
-    }
-  }
-`
-
 const router = useRouter()
 const route = useRoute()
 const apiOrigin = useApiOrigin()
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { userId } = useActiveUser()
-const { pushFromBrowser } = useUnifiedWorkBrowserPush()
 const { loginWithToken } = useAuthManager()
 
 enum TokenLoginStatus {
@@ -936,49 +926,26 @@ const stepLineClass = (status?: string | null) => {
   return 'bg-outline-3'
 }
 
-const retryPushFromServer = async (instanceId: string) => {
-  const res = await apollo.mutate<
-    { approvalMutations: { retryUnifiedWorkPush: number } },
-    { instanceId: string }
-  >({
-    mutation: retryUnifiedWorkPushMutation,
-    variables: { instanceId },
-    fetchPolicy: 'no-cache'
-  })
-  const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
-  notify(
-    pushed > 0 ? '重新推送成功' : '重新推送完成',
-    pushed > 0
-      ? `已成功推送 ${pushed} 条待办`
-      : '本次没有待办被推送，请展开失败原因排查',
-    pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
-  )
-}
-
 const retryPush = async () => {
   if (!instance.value || retryingPush.value) return
   retryingPush.value = true
   try {
-    // The server may not be able to reach the unified work platform, so try the
-    // browser first and fall back to the server-side push when it cannot.
-    const outcome = await pushFromBrowser(instance.value.id)
-    if (!outcome.attempted || outcome.networkError) {
-      await retryPushFromServer(instance.value.id)
-    } else if (outcome.pushed > 0) {
-      notify(
-        '重新推送成功',
-        `已通过浏览器推送 ${outcome.pushed} 条待办`,
-        ToastNotificationType.Success
-      )
-    } else {
-      notify(
-        '重新推送失败',
-        outcome.errors[0] || '没有可推送的待办',
-        outcome.failed > 0
-          ? ToastNotificationType.Danger
-          : ToastNotificationType.Warning
-      )
-    }
+    const res = await $fetch<{
+      success?: boolean
+      pushed?: number
+      count?: number
+      message?: string
+    }>(`/api/v1/flow/instances/${instance.value.id}/retry-push`, {
+      method: 'POST'
+    })
+    const pushed = res?.pushed ?? res?.count ?? (res?.success ? 1 : 0)
+    notify(
+      pushed > 0 ? '重新推送成功' : '重新推送完成',
+      pushed > 0
+        ? `已成功推送 ${pushed} 条待办`
+        : res?.message || '本次没有待办被推送，请展开失败原因排查',
+      pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+    )
     await refetch()
   } catch (e) {
     notify('重新推送失败', (e as Error).message, ToastNotificationType.Danger)

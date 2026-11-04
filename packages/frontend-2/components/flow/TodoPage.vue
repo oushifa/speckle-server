@@ -64,11 +64,9 @@
 </template>
 
 <script setup lang="ts">
-import { gql } from '@apollo/client/core'
 import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import FlowPushBadge from './FlowPushBadge.vue'
-import { useUnifiedWorkBrowserPush } from './unifiedWorkBrowserPush'
 import {
   flowInstancesQuery,
   type FlowInstancesQueryResult,
@@ -76,26 +74,12 @@ import {
   type FlowListItem
 } from './flowInstances'
 
-const retryUnifiedWorkPushMutation = gql`
-  mutation FlowRetryUnifiedWorkPush($instanceId: ID!) {
-    approvalMutations {
-      retryUnifiedWorkPush(instanceId: $instanceId)
-    }
-  }
-`
-
-type RetryUnifiedWorkPushResult = {
-  approvalMutations: { retryUnifiedWorkPush: number }
-}
-type RetryUnifiedWorkPushVariables = { instanceId: string }
-
 defineEmits<{
   (e: 'open-instance', instance: FlowListItem): void
 }>()
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
-const { pushFromBrowser } = useUnifiedWorkBrowserPush()
 
 const loading = ref(false)
 const retryingId = ref<string | null>(null)
@@ -173,51 +157,27 @@ const refresh = async () => {
   await loadInstances()
 }
 
-const retryPushFromServer = async (instanceId: string) => {
-  const res = await apollo.mutate<
-    RetryUnifiedWorkPushResult,
-    RetryUnifiedWorkPushVariables
-  >({
-    mutation: retryUnifiedWorkPushMutation,
-    variables: { instanceId },
-    fetchPolicy: 'no-cache'
-  })
-  const pushed = res.data?.approvalMutations.retryUnifiedWorkPush ?? 0
-  triggerNotification({
-    title: pushed > 0 ? '重新推送成功' : '重新推送完成',
-    description:
-      pushed > 0
-        ? `已成功推送 ${pushed} 条待办`
-        : '本次没有待办被推送，请展开失败原因排查',
-    type: pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
-  })
-}
-
 const retryPush = async (instanceId: string) => {
   if (retryingId.value) return
   retryingId.value = instanceId
   try {
-    // The server may not be able to reach the unified work platform, so try the
-    // browser first and fall back to the server-side push when it cannot.
-    const outcome = await pushFromBrowser(instanceId)
-    if (!outcome.attempted || outcome.networkError) {
-      await retryPushFromServer(instanceId)
-    } else if (outcome.pushed > 0) {
-      triggerNotification({
-        title: '重新推送成功',
-        description: `已通过浏览器推送 ${outcome.pushed} 条待办`,
-        type: ToastNotificationType.Success
-      })
-    } else {
-      triggerNotification({
-        title: '重新推送失败',
-        description: outcome.errors[0] || '没有可推送的待办',
-        type:
-          outcome.failed > 0
-            ? ToastNotificationType.Danger
-            : ToastNotificationType.Warning
-      })
-    }
+    const res = await $fetch<{
+      success?: boolean
+      pushed?: number
+      count?: number
+      message?: string
+    }>(`/api/v1/flow/instances/${instanceId}/retry-push`, {
+      method: 'POST'
+    })
+    const pushed = res?.pushed ?? res?.count ?? (res?.success ? 1 : 0)
+    triggerNotification({
+      title: pushed > 0 ? '重新推送成功' : '重新推送完成',
+      description:
+        pushed > 0
+          ? `已成功推送 ${pushed} 条待办`
+          : res?.message || '本次没有待办被推送，请展开失败原因排查',
+      type: pushed > 0 ? ToastNotificationType.Success : ToastNotificationType.Warning
+    })
     await loadInstances(null, { silent: true })
   } catch (e) {
     triggerNotification({
