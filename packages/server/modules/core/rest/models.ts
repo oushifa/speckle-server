@@ -66,7 +66,7 @@ export default (app: Router) => {
           return res.status(401).json({ error: 'User not authenticated' })
         }
 
-        const { search, member, source, page, pageSize } = req.query
+        const { search, member, source, page, pageSize, streamId } = req.query
         const userId = req.context.userId
 
         // 分页参数解析
@@ -152,6 +152,10 @@ export default (app: Router) => {
         if (search && typeof search === 'string') {
           countQuery.whereILike(`${Branches.name}.name`, `%${search}%`)
         }
+        // 限定来源项目（例如模型库导入弹窗只列 models_lib 的模型）
+        if (streamId && typeof streamId === 'string') {
+          countQuery.where(`${Branches.name}.streamId`, streamId)
+        }
         if (member === 'mine' && userId) {
           countQuery.where(`${Branches.name}.authorId`, userId)
         }
@@ -172,11 +176,17 @@ export default (app: Router) => {
             `${Streams.name}.name as streamName`,
             `${Branches.name}.updatedAt`,
             knex.raw(`(${latestCommitIdQuery.toQuery()}) as "latestCommitId"`),
-            knex.raw(`(${latestVersionSeedIdQuery.toQuery()}) as "latestVersionSeedId"`),
+            knex.raw(
+              `(${latestVersionSeedIdQuery.toQuery()}) as "latestVersionSeedId"`
+            ),
             knex.raw(`(${latestSourceAppQuery.toQuery()}) as "latestSourceApp"`),
             knex.raw(`(${latestUploadIdQuery.toQuery()}) as "latestUploadId"`),
-            knex.raw(`(${latestUploadFileNameQuery.toQuery()}) as "latestUploadFileName"`),
-            knex.raw(`(${latestUploadCompleteQuery.toQuery()}) as "latestUploadComplete"`),
+            knex.raw(
+              `(${latestUploadFileNameQuery.toQuery()}) as "latestUploadFileName"`
+            ),
+            knex.raw(
+              `(${latestUploadCompleteQuery.toQuery()}) as "latestUploadComplete"`
+            ),
             knex.raw(
               `(${latestUploadConvertedStatusQuery.toQuery()}) as "latestUploadConvertedStatus"`
             ),
@@ -199,6 +209,11 @@ export default (app: Router) => {
 
         if (search && typeof search === 'string') {
           q.whereILike(`${Branches.name}.name`, `%${search}%`)
+        }
+
+        // 限定来源项目（例如模型库导入弹窗只列 models_lib 的模型）
+        if (streamId && typeof streamId === 'string') {
+          q.where(`${Branches.name}.streamId`, streamId)
         }
 
         // member 筛选：mine = 当前用户创建的模型

@@ -308,6 +308,48 @@ export type CopyModelObjectTreeResult = {
 }
 
 /**
+ * 把一批对象从源项目复制到目标项目（按 (streamId,id) 去重，已存在则跳过）。
+ * 供「从模型库导入」与历史残缺数据订正脚本复用。
+ */
+export const copyObjectsBetweenProjectsFactory =
+  () =>
+  async (params: {
+    sourceProjectId: string
+    targetProjectId: string
+    objectIds: string[]
+  }): Promise<{ objectCount: number }> => {
+    const { sourceProjectId, targetProjectId, objectIds } = params
+    if (!objectIds.length) return { objectCount: 0 }
+
+    const [sourceDb, targetDb] = await Promise.all([
+      getProjectDbClient({ projectId: sourceProjectId }),
+      getProjectDbClient({ projectId: targetProjectId })
+    ])
+
+    const getSourceObjects = getStreamObjectsFactory({ db: sourceDb })
+    const storeTargetObjects = storeObjectsIfNotFoundFactory({ db: targetDb })
+
+    const batchSize = 1000
+    let objectCount = 0
+
+    for (let start = 0; start < objectIds.length; start += batchSize) {
+      const ids = objectIds.slice(start, start + batchSize)
+      const records = await getSourceObjects(sourceProjectId, ids)
+      if (!records.length) continue
+
+      const insertion = records
+        .map((record) => ({ ...record, streamId: targetProjectId }))
+        // 按 id 排序后再插入，避免并发插入时的死锁
+        .sort((a, b) => (a.id > b.id ? 1 : -1))
+
+      await storeTargetObjects(insertion)
+      objectCount += insertion.length
+    }
+
+    return { objectCount }
+  }
+
+/**
  * 从模型库导入时，按源模型最新版本 root 对象的 `__closure` 把整棵对象树
  * （root + 全部子孙对象）复制到目标项目。
  *
@@ -325,11 +367,7 @@ export const copyModelObjectTreeFactory =
   }): Promise<CopyModelObjectTreeResult> => {
     const { sourceProjectId, sourceModelId, targetProjectId } = params
 
-    const [sourceDb, targetDb] = await Promise.all([
-      getProjectDbClient({ projectId: sourceProjectId }),
-      getProjectDbClient({ projectId: targetProjectId })
-    ])
-
+    const sourceDb = await getProjectDbClient({ projectId: sourceProjectId })
     const [sourceVersion] = await getBranchLatestCommitsFactory({ db: sourceDb })(
       [sourceModelId],
       sourceProjectId,
@@ -349,25 +387,11 @@ export const copyModelObjectTreeFactory =
     const closure = (rootObject.data?.__closure ?? {}) as Record<string, unknown>
     const allObjectIds = [referencedObject, ...Object.keys(closure)]
 
-    const getSourceObjects = getStreamObjectsFactory({ db: sourceDb })
-    const storeTargetObjects = storeObjectsIfNotFoundFactory({ db: targetDb })
-
-    const batchSize = 1000
-    let objectCount = 0
-
-    for (let start = 0; start < allObjectIds.length; start += batchSize) {
-      const ids = allObjectIds.slice(start, start + batchSize)
-      const records = await getSourceObjects(sourceProjectId, ids)
-      if (!records.length) continue
-
-      const insertion = records
-        .map((record) => ({ ...record, streamId: targetProjectId }))
-        // 按 id 排序后再插入，避免并发插入时的死锁
-        .sort((a, b) => (a.id > b.id ? 1 : -1))
-
-      await storeTargetObjects(insertion)
-      objectCount += insertion.length
-    }
+    const { objectCount } = await copyObjectsBetweenProjectsFactory()({
+      sourceProjectId,
+      targetProjectId,
+      objectIds: allObjectIds
+    })
 
     return { referencedObject, objectCount }
   }
