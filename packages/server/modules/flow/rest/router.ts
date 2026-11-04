@@ -629,8 +629,7 @@ export const flowRouterFactory = (): Router => {
     return res.status(200).send({ success: true })
   })
 
-  app.get('/api/v1/flow/unified-work/config', async (req, res) => {
-    requireAuthenticatedUser(req)
+  app.get('/api/v1/flow/unified-work/config', async (_req, res) => {
     const config = getUnifiedWorkSyncDebugConfig()
     return res.status(200).send(config)
   })

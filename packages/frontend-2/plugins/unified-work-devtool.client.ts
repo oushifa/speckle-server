@@ -43,49 +43,47 @@ export default defineNuxtPlugin(() => {
 
   let baseConfig: UnifiedWorkConfig = {}
   let overrides: Partial<UnifiedWorkConfig> = {}
+  const activeTarget: UnifiedWorkConfig = {}
+
+  const syncTarget = () => {
+    for (const key of Object.keys(activeTarget)) {
+      delete activeTarget[key]
+    }
+    Object.assign(activeTarget, baseConfig, overrides)
+  }
 
   const getEffectiveConfig = (): UnifiedWorkConfig => ({
     ...baseConfig,
     ...overrides
   })
 
-  const configProxy = new Proxy({} as UnifiedWorkConfig, {
-    get(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return undefined
+  const configProxy = new Proxy(activeTarget, {
+    get(target, prop: string | symbol) {
+      if (typeof prop !== 'string') return Reflect.get(target, prop)
       if (prop in overrides) {
-        return overrides[prop as keyof UnifiedWorkConfig]
+        return overrides[prop]
       }
-      return baseConfig[prop as keyof UnifiedWorkConfig]
+      return target[prop]
     },
-    set(_target, prop: string | symbol, value: unknown) {
+    set(target, prop: string | symbol, value: unknown) {
       if (typeof prop === 'string') {
         overrides = {
           ...overrides,
           [prop]: value
         }
+        target[prop] = value
         console.log(`[UnifiedWork DevTool] 设置配置覆盖: ${prop} =`, value)
       }
       return true
     },
-    has(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return false
-      return prop in overrides || prop in baseConfig
+    has(target, prop: string | symbol) {
+      return Reflect.has(target, prop)
     },
-    ownKeys() {
-      const keys = new Set([...Object.keys(baseConfig), ...Object.keys(overrides)])
-      return Array.from(keys)
+    ownKeys(target) {
+      return Reflect.ownKeys(target)
     },
-    getOwnPropertyDescriptor(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return undefined
-      if (prop in overrides || prop in baseConfig) {
-        return {
-          enumerable: true,
-          configurable: true,
-          value: prop in overrides ? overrides[prop] : baseConfig[prop],
-          writable: true
-        }
-      }
-      return undefined
+    getOwnPropertyDescriptor(target, prop: string | symbol) {
+      return Reflect.getOwnPropertyDescriptor(target, prop)
     }
   })
 
@@ -104,9 +102,10 @@ export default defineNuxtPlugin(() => {
           : (res as UnifiedWorkConfig) || {}
       baseConfig = { ...remoteConfig }
       overrides = {}
+      syncTarget()
       console.log(
         '🔄 [UnifiedWork DevTool] 后端环境变量配置已刷新并重置 overrides:',
-        baseConfig
+        activeTarget
       )
       return getEffectiveConfig()
     } catch (err) {
@@ -117,14 +116,19 @@ export default defineNuxtPlugin(() => {
 
   const setConfig = (newOverrides: Partial<UnifiedWorkConfig>): UnifiedWorkConfig => {
     overrides = { ...overrides, ...newOverrides }
+    syncTarget()
     console.log('✏️ [UnifiedWork DevTool] 配置覆盖已更新:', overrides)
-    console.log('👉 [UnifiedWork DevTool] 当前生效配置:', getEffectiveConfig())
+    console.log('👉 [UnifiedWork DevTool] 当前生效配置:', activeTarget)
     return getEffectiveConfig()
   }
 
   const resetConfig = (): UnifiedWorkConfig => {
     overrides = {}
-    console.log('🔄 [UnifiedWork DevTool] 配置覆盖已重置，恢复后端默认值:', baseConfig)
+    syncTarget()
+    console.log(
+      '🔄 [UnifiedWork DevTool] 配置覆盖已重置，恢复后端默认值:',
+      activeTarget
+    )
     return getEffectiveConfig()
   }
 
@@ -358,9 +362,10 @@ export default defineNuxtPlugin(() => {
 
   window.__todoPushDebug = debugObj
 
-  void refreshConfig()
-
-  console.log(
-    '💡 [UnifiedWork] 待办推送 DevTool 调试钩子已就绪，输入 __todoPushDebug 查看配置或使用 __todoPushDebug.push() 调试'
-  )
+  void refreshConfig().then(() => {
+    console.log(
+      '💡 [UnifiedWork] 待办推送 DevTool 调试钩子已就绪，当前环境变量配置:',
+      activeTarget
+    )
+  })
 })
