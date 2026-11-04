@@ -63,9 +63,9 @@ const stopRouteBase = '/api/v1/projects/:projectId/models/:modelId/model-sync/st
 // 从模型库导入后：把源文件 / 中海同步标识 / 自定义属性补齐到导入模型
 const importLibrarySourceRouteBase =
   '/api/v1/projects/:projectId/models/:modelId/import-library-source'
-// 从模型库导入：把源模型整棵对象树（root + 全部子对象）复制到目标项目
-const importObjectTreeRouteBase =
-  '/api/v1/projects/:projectId/models/:modelId/import-object-tree'
+// 从模型库导入：把源模型整棵对象树（root + 全部子对象）复制到目标项目。
+// 不绑定具体 modelId —— 导入时会先复制对象、校验通过后再创建模型与版本。
+const importObjectTreeRouteBase = '/api/v1/projects/:projectId/import-object-tree'
 
 const modelSyncErrHandler = (
   err: unknown,
@@ -490,9 +490,9 @@ export const modelSyncRouterFactory = () => {
   )
 
   /**
-   * 从模型库导入：把源模型最新版本的整棵对象树（root + 全部子对象）
-   * 服务端直接复制到目标项目。必须在创建导入版本之前调用，因为创建版本时
-   * 会校验 referencedObject 在目标项目中已存在。
+   * 从模型库导入：先校验源模型对象树是否完整，再把最新版本的整棵对象树
+   * （root + 全部子对象）复制到目标项目。源模型残缺会直接返回错误，由前端取消导入。
+   * 需在创建导入模型/版本之前调用（创建版本时会校验 referencedObject 已存在）。
    */
   router.post(
     importObjectTreeRouteBase,

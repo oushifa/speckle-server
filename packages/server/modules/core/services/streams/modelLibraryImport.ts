@@ -44,6 +44,7 @@ import {
   getViewerObjectCustomAttributesFactory
 } from '@/modules/viewer/repositories/viewerObjectCustomAttributes'
 import { getEventBus } from '@/modules/shared/services/eventBus'
+import { BadRequestError } from '@/modules/shared/errors'
 
 export type AttachImportedModelSourceResult = {
   sourceFileId: string | null
@@ -308,6 +309,33 @@ export type CopyModelObjectTreeResult = {
 }
 
 /**
+ * 统计某个项目的 root 对象下、__closure 声明的子对象里实际存在的数量。
+ * 用于判断一个模型的对象树是否完整。
+ */
+const countClosureChildrenInProject = async (
+  db: Knex,
+  streamId: string,
+  rootObjectId: string
+): Promise<{ expected: number | null; actual: number }> => {
+  const { rows } = await db.raw<{
+    rows: Array<{ expected: number | null; actual: number }>
+  }>(
+    `
+    WITH closure AS (
+      SELECT jsonb_object_keys(r.data->'__closure') AS id
+      FROM objects r
+      WHERE r."streamId" = ? AND r.id = ?
+    )
+    SELECT
+      (SELECT jsonb_object_length(r.data->'__closure') FROM objects r WHERE r."streamId" = ? AND r.id = ?) AS expected,
+      (SELECT count(*)::int FROM objects o JOIN closure k ON o.id = k.id WHERE o."streamId" = ?) AS actual
+    `,
+    [streamId, rootObjectId, streamId, rootObjectId, streamId]
+  )
+  return rows[0] ?? { expected: null, actual: 0 }
+}
+
+/**
  * 把一批对象从源项目复制到目标项目（按 (streamId,id) 去重，已存在则跳过）。
  * 供「从模型库导入」与历史残缺数据订正脚本复用。
  */
@@ -386,6 +414,19 @@ export const copyModelObjectTreeFactory =
 
     const closure = (rootObject.data?.__closure ?? {}) as Record<string, unknown>
     const allObjectIds = [referencedObject, ...Object.keys(closure)]
+
+    // 源模型自身残缺（root 声明了 N 个子对象，源项目里实际没那么多）时直接失败，
+    // 避免把残缺数据继续复制进目标项目，避免「导入了但打不开」
+    const { expected, actual } = await countClosureChildrenInProject(
+      sourceDb,
+      sourceProjectId,
+      referencedObject
+    )
+    if (expected !== null && actual < expected) {
+      throw new BadRequestError(
+        `源模型数据不完整：共声明 ${expected} 个子对象，实际只有 ${actual} 个，已取消导入`
+      )
+    }
 
     const { objectCount } = await copyObjectsBetweenProjectsFactory()({
       sourceProjectId,

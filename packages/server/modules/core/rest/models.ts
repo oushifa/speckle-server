@@ -66,7 +66,7 @@ export default (app: Router) => {
           return res.status(401).json({ error: 'User not authenticated' })
         }
 
-        const { search, member, source, page, pageSize, streamId } = req.query
+        const { search, member, source, page, pageSize, excludeStreamId } = req.query
         const userId = req.context.userId
 
         // 分页参数解析
@@ -152,9 +152,9 @@ export default (app: Router) => {
         if (search && typeof search === 'string') {
           countQuery.whereILike(`${Branches.name}.name`, `%${search}%`)
         }
-        // 限定来源项目（例如模型库导入弹窗只列 models_lib 的模型）
-        if (streamId && typeof streamId === 'string') {
-          countQuery.where(`${Branches.name}.streamId`, streamId)
+        // 排除指定来源项目（例如模型库导入弹窗排除当前项目自身）
+        if (excludeStreamId && typeof excludeStreamId === 'string') {
+          countQuery.whereNot(`${Branches.name}.streamId`, excludeStreamId)
         }
         if (member === 'mine' && userId) {
           countQuery.where(`${Branches.name}.authorId`, userId)
@@ -211,9 +211,9 @@ export default (app: Router) => {
           q.whereILike(`${Branches.name}.name`, `%${search}%`)
         }
 
-        // 限定来源项目（例如模型库导入弹窗只列 models_lib 的模型）
-        if (streamId && typeof streamId === 'string') {
-          q.where(`${Branches.name}.streamId`, streamId)
+        // 排除指定来源项目（例如模型库导入弹窗排除当前项目自身）
+        if (excludeStreamId && typeof excludeStreamId === 'string') {
+          q.whereNot(`${Branches.name}.streamId`, excludeStreamId)
         }
 
         // member 筛选：mine = 当前用户创建的模型
