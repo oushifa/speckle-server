@@ -45,29 +45,31 @@ const hasFlag = (flag: string) => process.argv.includes(flag)
 
 /**
  * root 声明的子对象数 vs. 目标项目里实际存在的子对象数。
- * expected 为 null 表示 root 对象本身在目标项目里就缺失。
+ * hasRoot 为 false 表示 root 对象本身在目标项目里就缺失。
  */
 const getClosureStats = async (
   db: Knex,
   streamId: string,
   rootObjectId: string
-): Promise<{ expected: number | null; actual: number }> => {
+): Promise<{ hasRoot: boolean; expected: number; actual: number }> => {
   const { rows } = await db.raw<{
-    rows: Array<{ expected: number | null; actual: number }>
+    rows: Array<{ hasRoot: boolean; expected: number; actual: number }>
   }>(
     `
     WITH closure AS (
-      SELECT jsonb_object_keys(r.data->'__closure') AS id
+      SELECT d.key AS id
       FROM objects r
+      JOIN jsonb_each_text(r.data->'__closure') d ON true
       WHERE r."streamId" = ? AND r.id = ?
     )
     SELECT
-      (SELECT jsonb_object_length(r.data->'__closure') FROM objects r WHERE r."streamId" = ? AND r.id = ?) AS expected,
+      EXISTS(SELECT 1 FROM objects r WHERE r."streamId" = ? AND r.id = ?) AS "hasRoot",
+      (SELECT count(*)::int FROM closure) AS expected,
       (SELECT count(*)::int FROM objects o JOIN closure k ON o.id = k.id WHERE o."streamId" = ?) AS actual
     `,
     [streamId, rootObjectId, streamId, rootObjectId, streamId]
   )
-  return rows[0] ?? { expected: null, actual: 0 }
+  return rows[0] ?? { hasRoot: false, expected: 0, actual: 0 }
 }
 
 /** 目标项目里缺失的子对象 id */
@@ -79,8 +81,9 @@ const getMissingObjectIds = async (
   const { rows } = await db.raw<{ rows: Array<{ id: string }> }>(
     `
     WITH closure AS (
-      SELECT jsonb_object_keys(r.data->'__closure') AS id
+      SELECT d.key AS id
       FROM objects r
+      JOIN jsonb_each_text(r.data->'__closure') d ON true
       WHERE r."streamId" = ? AND r.id = ?
     )
     SELECT k.id FROM closure k
@@ -178,14 +181,14 @@ const main = async () => {
     checked++
     const db = await getProjectDbClient({ projectId: model.streamId })
 
-    const { expected, actual } = await getClosureStats(
+    const { hasRoot, expected, actual } = await getClosureStats(
       db,
       model.streamId,
       model.referencedObject
     )
 
     // root 对象本身缺失：无法按 closure 判断，单独报出来
-    if (expected === null) {
+    if (!hasRoot) {
       broken++
       logger.error(
         {
