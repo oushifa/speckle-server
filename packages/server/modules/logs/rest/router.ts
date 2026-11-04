@@ -4,20 +4,35 @@ import { batchLogEventsBodySchema } from '@/modules/logs/rest/schemas'
 import { normalizeIncomingFrontendEvent } from '@/modules/logs/services/events'
 import { enqueueLogEvents } from '@/modules/logs/services/queue'
 import { db } from '@/db/knex'
-import { listLogEventsFactory } from '@/modules/logs/repositories/logs'
+import {
+  listLogEventsFactory,
+  type LogEventScope
+} from '@/modules/logs/repositories/logs'
 import { getUsersFactory } from '@/modules/core/repositories/users'
 import { Roles } from '@speckle/shared'
 import { getDepartmentUserIdsFactory } from '@/modules/organizations/services/departmentFilter'
 
 const requireAuth: RequestHandler = (req, res, next) => {
-  if (!req.context.auth) return res.status(401).send({ error: 'Authentication required.' })
+  if (!req.context.auth)
+    return res.status(401).send({ error: 'Authentication required.' })
   return next()
 }
 
-const clampLimit = (value: unknown) => {
+const clampPageSize = (value: unknown) => {
   const num = Number(value)
-  if (!Number.isFinite(num)) return 100
+  if (!Number.isFinite(num)) return 20
   return Math.min(Math.max(Math.floor(num), 1), 500)
+}
+
+const clampPage = (value: unknown) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 1
+  return Math.max(Math.floor(num), 1)
+}
+
+const parseScope = (value: unknown): LogEventScope | undefined => {
+  if (value === 'login' || value === 'model') return value
+  return undefined
 }
 
 const toRecord = (value: unknown): Record<string, unknown> =>
@@ -30,23 +45,39 @@ export const logsRouterFactory = (): Router => {
   const getDepartmentUserIds = getDepartmentUserIdsFactory({ db })
 
   app.get('/api/v1/logs/events', requireAuth, async (req, res) => {
-    const limit = clampLimit(req.query.limit)
-    
+    const pageSize = clampPageSize(req.query.pageSize ?? req.query.limit)
+    const page = clampPage(req.query.page)
+    const offset = (page - 1) * pageSize
+    const scope = parseScope(req.query.type)
+    const search =
+      typeof req.query.q === 'string' && req.query.q.trim()
+        ? req.query.q.trim()
+        : undefined
+
     // 根据用户角色决定查询范围
     let userIds: string[] | undefined
-    
+
     // 如果不是 admin,只查询所属部门用户的日志
     if (req.context.role !== Roles.Server.Admin && req.context.userId) {
       userIds = await getDepartmentUserIds(req.context.userId)
-      
+
       // 如果用户不属于任何部门,返回空列表
       if (userIds.length === 0) {
-        return res.status(200).send({ events: [] })
+        return res.status(200).send({ items: [], total: 0, page, pageSize })
       }
     }
-    
-    const rows = await listLogEvents({ limit, userIds })
-    const rowUserIds = [...new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id))]
+
+    const { items: rows, totalCount } = await listLogEvents({
+      limit: pageSize,
+      offset,
+      userIds,
+      scope,
+      search
+    })
+
+    const rowUserIds = [
+      ...new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id))
+    ]
     const users = rowUserIds.length
       ? await getUsers(rowUserIds, {
           skipClean: true
@@ -71,7 +102,7 @@ export const logsRouterFactory = (): Router => {
         source: row.source,
         who: {
           userId: row.user_id,
-          user: row.user_id ? (userById.get(row.user_id) ?? null) : null,
+          user: row.user_id ? userById.get(row.user_id) ?? null : null,
           orgId: row.org_id,
           role: row.user_role,
           ip: row.ip,
@@ -87,7 +118,9 @@ export const logsRouterFactory = (): Router => {
               ? location.route
               : null,
           api:
-            typeof location.api === 'string' || location.api === null ? location.api : null,
+            typeof location.api === 'string' || location.api === null
+              ? location.api
+              : null,
           module:
             typeof location.module === 'string' || location.module === null
               ? location.module
@@ -119,7 +152,7 @@ export const logsRouterFactory = (): Router => {
       }
     })
 
-    return res.status(200).send({ events })
+    return res.status(200).send({ items: events, total: totalCount, page, pageSize })
   })
 
   app.post(

@@ -21,8 +21,7 @@ const scheduledTasks: cron.ScheduledTask[] = []
 const logsModule: SpeckleModule = {
   init: async ({ app, isInitial }) => {
     moduleLogger.info('📋 Init logs module')
-    // 先取消后端api记录
-    // app.use(apiOperationLogMiddlewareFactory())
+    app.use(apiOperationLogMiddlewareFactory())
     app.use(logsRouterFactory())
 
     if (!isInitial) return
@@ -42,12 +41,16 @@ const logsModule: SpeckleModule = {
     const cleanupExpiredLogPartitions = cleanupExpiredLogPartitionsFactory({ db })
 
     scheduledTasks.push(
-      scheduleExecution(EveryDayAt330UTC, 'logs.partition-cleanup', async (_, context) => {
-        await cleanupExpiredLogPartitions({
-          retentionMonths: LOG_RETENTION_MONTHS,
-          logger: context.logger
-        })
-      })
+      scheduleExecution(
+        EveryDayAt330UTC,
+        'logs.partition-cleanup',
+        async (_, context) => {
+          await cleanupExpiredLogPartitions({
+            retentionMonths: LOG_RETENTION_MONTHS,
+            logger: context.logger
+          })
+        }
+      )
     )
   },
   shutdown: async () => {

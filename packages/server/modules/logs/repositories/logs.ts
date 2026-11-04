@@ -94,11 +94,21 @@ type LogEventRow = {
   metadata: Record<string, unknown> | null
 }
 
+export type LogEventScope = 'model' | 'login'
+
+export type ListLogEventsParams = {
+  limit: number
+  offset: number
+  userIds?: string[]
+  scope?: LogEventScope
+  search?: string
+}
+
 export const listLogEventsFactory =
   ({ db }: { db: Knex }) =>
-  async ({ limit, userIds }: { limit: number; userIds?: string[] }) => {
-    const query = db(SYS_LOG_TABLE)
-      .select<LogEventRow[]>(
+  async (params: ListLogEventsParams) => {
+    const buildQuery = () => {
+      const query = db(SYS_LOG_TABLE).select<LogEventRow[]>(
         'id',
         'event_time',
         'source',
@@ -121,15 +131,55 @@ export const listLogEventsFactory =
         'request_id',
         'metadata'
       )
-    
-    // 如果提供了用户ID列表,只查询这些用户的日志
-    if (userIds && userIds.length > 0) {
-      query.whereIn('user_id', userIds)
-    }
-    
-    const rows = await query
-      .orderBy('event_time', 'desc')
-      .limit(limit)
 
-    return rows
+      // 如果提供了用户ID列表,只查询这些用户的日志
+      if (params.userIds && params.userIds.length > 0) {
+        query.whereIn('user_id', params.userIds)
+      }
+
+      // 按业务范围过滤：模型/文件操作 或 用户登录
+      if (params.scope === 'model') {
+        query.whereRaw(`metadata->>'opType' IS NOT NULL`)
+        query.whereRaw(`location->>'module' = ?`, ['文件管理'])
+      } else if (params.scope === 'login') {
+        query.where((builder) => {
+          builder
+            .whereRaw(`metadata->>'opType' = ?`, ['用户登录'])
+            .orWhere('action', 'like', 'auth.login%')
+        })
+      }
+
+      if (params.search?.trim()) {
+        const term = `%${params.search.trim()}%`
+        query.andWhere((builder) => {
+          builder
+            .whereILike('ip', term)
+            .orWhereRaw(`coalesce(metadata->>'opType', '') ILIKE ?`, [term])
+            .orWhereRaw(`coalesce(metadata->>'target', '') ILIKE ?`, [term])
+            .orWhereRaw(`coalesce(metadata->>'detail', '') ILIKE ?`, [term])
+            .orWhereExists(
+              db('users')
+                .select(db.raw('1'))
+                .whereRaw(`users.id = ${SYS_LOG_TABLE}.user_id`)
+                .andWhereILike('users.name', term)
+            )
+        })
+      }
+
+      return query
+    }
+
+    const totalRow = await buildQuery()
+      .clearSelect()
+      .clearOrder()
+      .count<{ count: string | number }>('* as count')
+      .first()
+    const totalCount = Number(totalRow?.count ?? 0)
+
+    const items = await buildQuery()
+      .orderBy('event_time', 'desc')
+      .offset(params.offset)
+      .limit(params.limit)
+
+    return { items, totalCount }
   }
