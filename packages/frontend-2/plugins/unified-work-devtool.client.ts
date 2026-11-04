@@ -133,11 +133,23 @@ export default defineNuxtPlugin(() => {
   }
 
   const push = async (target?: string | MockInput, options?: PushOptions) => {
-    const isInstanceId = typeof target === 'string'
+    const resolvedInstanceId =
+      typeof target === 'string'
+        ? target.trim()
+        : target &&
+          typeof target === 'object' &&
+          ('instanceId' in target ||
+            ('id' in target && !('assignee' in target && !('status' in target))))
+        ? String(
+            (target as Record<string, unknown>).instanceId ||
+              (target as Record<string, unknown>).id
+          ).trim()
+        : null
+    const isInstanceId = Boolean(resolvedInstanceId)
     const start = performance.now()
 
-    if (isInstanceId) {
-      const url = `/api/v1/flow/instances/${target}/debug-push`
+    if (isInstanceId && resolvedInstanceId) {
+      const url = `/api/v1/flow/instances/${resolvedInstanceId}/debug-push`
       const body = {
         dryRun: options?.dryRun,
         configOverrides: getOverridesOrUndefined()
@@ -152,7 +164,7 @@ export default defineNuxtPlugin(() => {
         const items = (res?.items as Array<Record<string, unknown>> | undefined) || []
 
         console.group(
-          `🚀 [UnifiedWork DevTool] 实例 [${target}] 调试推送 (${durationMs}ms)${
+          `🚀 [UnifiedWork DevTool] 实例 [${resolvedInstanceId}] 调试推送 (${durationMs}ms)${
             options?.dryRun ? ' [Dry Run]' : ''
           }`
         )
@@ -189,7 +201,7 @@ export default defineNuxtPlugin(() => {
       } catch (err: unknown) {
         const durationMs = Math.round(performance.now() - start)
         console.group(
-          `❌ [UnifiedWork DevTool] 实例 [${target}] 推送失败 (${durationMs}ms)`
+          `❌ [UnifiedWork DevTool] 实例 [${resolvedInstanceId}] 推送失败 (${durationMs}ms)`
         )
         console.error('异常详情:', err)
         console.log('📦 请求 Body:', body)
