@@ -91,6 +91,11 @@ type InstanceSnapshot = {
    * an admin transfer. They must still be removed from the unified work platform.
    */
   historicalApproverTaskIds: string[]
+  /**
+   * Task ids historically recorded in UnifiedWorkSyncRecords for this instance.
+   * Ensures that any task ever pushed or attempted is considered for removal.
+   */
+  recordedTaskIds: string[]
 }
 
 export type UnifiedWorkReviewer = {
@@ -337,6 +342,10 @@ const buildRoute = (snapshot: InstanceSnapshot) => {
     return `/projects/${instance.projectId}/work-valuation/safety-measure/${formResource.formId}?mode=edit`
   }
 
+  if (instance.projectId && formResource?.formTable === 'boq_review_records') {
+    return `/projects/${instance.projectId}/work-valuation/boq-review/${formResource.formId}`
+  }
+
   return '/flow'
 }
 
@@ -487,6 +496,18 @@ const loadInstanceSnapshot = async (
     )
   )
 
+  const syncRecords = await db<{ taskId: string }>(UnifiedWorkSyncRecords.name)
+    .select('taskId')
+    .where('instanceId', instanceId)
+
+  const recordedTaskIds = Array.from(
+    new Set(
+      syncRecords
+        .map((r) => r.taskId?.trim())
+        .filter((taskId): taskId is string => Boolean(taskId))
+    )
+  )
+
   return {
     instance,
     steps,
@@ -494,7 +515,8 @@ const loadInstanceSnapshot = async (
     userMap: new Map(users.map((user) => [user.id, user])),
     flowName: flowName || null,
     templateId: templateId || null,
-    historicalApproverTaskIds
+    historicalApproverTaskIds,
+    recordedTaskIds
   }
 }
 
@@ -510,7 +532,8 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
             buildTaskId(snapshot.instance.id, step.stepIndex, approverId)
           )
         ),
-      ...snapshot.historicalApproverTaskIds
+      ...snapshot.historicalApproverTaskIds,
+      ...(snapshot.recordedTaskIds || [])
     ])
   )
 
@@ -555,6 +578,7 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
   const route = buildRoute(snapshot)
   // Link on the deployment that is pushing right now (FRONTEND_ORIGIN / CANONICAL_URL)
   const handleLink = buildApprovalFlowHandleLink(snapshot.instance.id)
+  const pushRoute = handleLink || route
   const creatorUser = snapshot.userMap.get(snapshot.instance.createdBy)
   // Whoever initiated the flow owns the todo's creator field. `config.account`
   // (UNIFIED_WORK_SYNC_ACCOUNT) is a last-resort fallback so a push still goes out.
@@ -645,12 +669,12 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
         reviewer: [{ user: approverAccount, status: 'pending' }],
         createTime,
         reviewTime,
-        route,
+        route: pushRoute,
         extraData: {
           // Marks which system this todo originates from (BIM)
           source: config.systemCode,
           // Absolute URL on the pushing deployment's own origin
-          ...(handleLink ? { link: handleLink } : {}),
+          ...(handleLink ? { link: handleLink, route: handleLink } : {}),
           projectId: snapshot.instance.projectId,
           projectName: snapshot.projectName,
           resourceType: snapshot.instance.resourceType,
@@ -879,6 +903,18 @@ export const syncApprovalFlowTodoToUnifiedWork = async (params: {
           '[WORK_SYNC] Successfully removed unified work item'
         )
       } else {
+        try {
+          await deleteRecord({ taskId })
+        } catch (err) {
+          unifiedWorkSyncLogger.error(
+            {
+              error: formatErrorDetails(err),
+              instanceId: params.instanceId,
+              taskId
+            },
+            '[WORK_SYNC] Failed to delete unified work push status after absent removal'
+          )
+        }
         unifiedWorkSyncLogger.debug(
           {
             instanceId: params.instanceId,

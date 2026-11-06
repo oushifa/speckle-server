@@ -1379,9 +1379,17 @@ export const updateApprovalFlowStatusFactory =
       return updatedInstance
     })
 
+    const isRollback =
+      params.targetStatus === ApprovalFlowInstanceStatus.Rejected &&
+      params.rollbackToStep !== null &&
+      params.rollbackToStep !== undefined &&
+      params.rollbackToStep >= START_STEP_INDEX
+
     scheduleApprovalFlowTodoSync({
       instanceId: params.instanceId,
-      reason: `approval-flow-status-${params.targetStatus.toLowerCase()}`
+      reason: isRollback
+        ? 'approval-flow-returned-to-step'
+        : `approval-flow-status-${params.targetStatus.toLowerCase()}`
     })
 
     return updatedInstance

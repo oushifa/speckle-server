@@ -710,7 +710,7 @@ export const resubmitApprovalBindingFactory =
 export const approveApprovalInstanceFactory =
   (deps: { db: Knex }) =>
   async (params: ApproveApprovalInstanceParams): Promise<Record<string, unknown>> => {
-    return await deps.db.transaction(async (trx) => {
+    const result = await deps.db.transaction(async (trx) => {
       const updateApprovalFlowStatus = updateApprovalFlowStatusFactory({ db: trx })
       await updateApprovalFlowStatus({
         instanceId: params.instanceId,
@@ -727,6 +727,13 @@ export const approveApprovalInstanceFactory =
         updater: params.actorUserId
       })
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-approved'
+    })
+
+    return result
   }
 
 export const returnApprovalInstanceToStartFactory =
@@ -833,7 +840,7 @@ export const returnApprovalInstanceToStepFactory =
   async (
     params: ReturnApprovalInstanceToStepParams
   ): Promise<Record<string, unknown>> => {
-    return await deps.db.transaction(async (trx) => {
+    const result = await deps.db.transaction(async (trx) => {
       const updateApprovalFlowStatus = updateApprovalFlowStatusFactory({ db: trx })
       await updateApprovalFlowStatus({
         instanceId: params.instanceId,
@@ -863,12 +870,19 @@ export const returnApprovalInstanceToStepFactory =
         updater: params.actorUserId
       })
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-returned-to-step'
+    })
+
+    return result
   }
 
 export const rejectApprovalInstanceFactory =
   (deps: { db: Knex }) =>
   async (params: RejectApprovalInstanceParams): Promise<Record<string, unknown>> => {
-    return await deps.db.transaction(async (trx) => {
+    const result = await deps.db.transaction(async (trx) => {
       const updateApprovalFlowStatus = updateApprovalFlowStatusFactory({ db: trx })
       await updateApprovalFlowStatus({
         instanceId: params.instanceId,
@@ -884,12 +898,19 @@ export const rejectApprovalInstanceFactory =
         updater: params.actorUserId
       })
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-rejected'
+    })
+
+    return result
   }
 
 export const cancelApprovalInstanceFactory =
   (deps: { db: Knex }) =>
   async (params: CancelApprovalInstanceParams): Promise<Record<string, unknown>> => {
-    return await deps.db.transaction(async (trx) => {
+    const result = await deps.db.transaction(async (trx) => {
       const updateApprovalFlowStatus = updateApprovalFlowStatusFactory({ db: trx })
       await updateApprovalFlowStatus({
         instanceId: params.instanceId,
@@ -903,4 +924,11 @@ export const cancelApprovalInstanceFactory =
         updater: params.actorUserId
       })
     })
+
+    scheduleApprovalFlowTodoSync({
+      instanceId: params.instanceId,
+      reason: 'approval-flow-canceled'
+    })
+
+    return result
   }

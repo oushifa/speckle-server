@@ -1,45 +1,104 @@
 <template>
   <div class="min-h-screen w-full bg-foundation p-4 md:p-8">
-    <!-- 第三方免登中 -->
+    <!-- 第三方免登中 / 免登验证通过跳转中 -->
     <div
-      v-if="isTokenLoggingIn"
+      v-if="showTokenOverlay"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foundation overflow-hidden"
     >
       <!-- 环境光渐变背景 -->
       <div
-        class="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-primary/10 rounded-full blur-[100px] opacity-70"
+        class="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] rounded-full blur-[100px] opacity-70"
+        :class="
+          tokenLoginStatus === TokenLoginStatus.Success
+            ? 'bg-success/10'
+            : 'bg-primary/10'
+        "
       ></div>
       <div
-        class="pointer-events-none absolute -bottom-20 right-1/4 w-[400px] h-[300px] bg-primary/5 rounded-full blur-[90px] opacity-50"
+        class="pointer-events-none absolute -bottom-20 right-1/4 w-[400px] h-[300px] rounded-full blur-[90px] opacity-50"
+        :class="
+          tokenLoginStatus === TokenLoginStatus.Success
+            ? 'bg-success/5'
+            : 'bg-primary/5'
+        "
       ></div>
 
       <div
-        class="relative w-full max-w-lg rounded-3xl border border-outline-3 bg-foundation/90 backdrop-blur-xl p-8 md:p-10 shadow-2xl shadow-primary/5 text-center flex flex-col items-center"
+        class="relative w-full max-w-lg rounded-3xl border border-outline-3 bg-foundation/90 backdrop-blur-xl p-8 md:p-10 shadow-2xl text-center flex flex-col items-center"
+        :class="
+          tokenLoginStatus === TokenLoginStatus.Success
+            ? 'shadow-success/5'
+            : 'shadow-primary/5'
+        "
       >
         <!-- 顶部微状态胶囊 -->
         <div
-          class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary-muted text-body-2xs font-medium text-primary mb-6"
+          class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-body-2xs font-medium mb-6"
+          :class="
+            tokenLoginStatus === TokenLoginStatus.Success
+              ? 'bg-success/10 text-success'
+              : 'bg-primary-muted text-primary'
+          "
         >
           <span class="relative flex h-2 w-2">
             <span
-              class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"
+              class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+              :class="
+                tokenLoginStatus === TokenLoginStatus.Success
+                  ? 'bg-success'
+                  : 'bg-primary'
+              "
             ></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            <span
+              class="relative inline-flex rounded-full h-2 w-2"
+              :class="
+                tokenLoginStatus === TokenLoginStatus.Success
+                  ? 'bg-success'
+                  : 'bg-primary'
+              "
+            ></span>
           </span>
-          <span>第三方单点免密通道</span>
+          <span>
+            {{
+              tokenLoginStatus === TokenLoginStatus.Success
+                ? '凭证校验通过'
+                : '第三方单点免密通道'
+            }}
+          </span>
         </div>
 
         <!-- 视觉徽章 -->
         <div class="relative mb-6">
           <div
-            class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/20 via-primary/10 to-primary/5 border border-primary/25 shadow-lg shadow-primary/15 flex items-center justify-center backdrop-blur-sm"
+            class="w-20 h-20 rounded-2xl border shadow-lg flex items-center justify-center backdrop-blur-sm"
+            :class="
+              tokenLoginStatus === TokenLoginStatus.Success
+                ? 'bg-gradient-to-tr from-success/20 via-success/10 to-success/5 border-success/25 shadow-success/15'
+                : 'bg-gradient-to-tr from-primary/20 via-primary/10 to-primary/5 border-primary/25 shadow-primary/15'
+            "
           >
-            <LockClosedIcon class="w-8 h-8 text-primary animate-pulse" />
+            <ShieldCheckIcon
+              v-if="tokenLoginStatus === TokenLoginStatus.Success"
+              class="w-8 h-8 text-success animate-pulse"
+            />
+            <LockClosedIcon v-else class="w-8 h-8 text-primary animate-pulse" />
           </div>
           <div
-            class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-foundation border-2 border-primary/30 flex items-center justify-center shadow"
+            class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-foundation border-2 flex items-center justify-center shadow"
+            :class="
+              tokenLoginStatus === TokenLoginStatus.Success
+                ? 'border-success/30'
+                : 'border-primary/30'
+            "
           >
-            <CommonLoadingIcon class="w-4 h-4 text-primary animate-spin" />
+            <CommonLoadingIcon
+              class="w-4 h-4 animate-spin"
+              :class="
+                tokenLoginStatus === TokenLoginStatus.Success
+                  ? 'text-success'
+                  : 'text-primary'
+              "
+            />
           </div>
         </div>
 
@@ -47,10 +106,18 @@
         <h2
           class="text-heading-base md:text-heading-lg font-bold text-foreground tracking-tight"
         >
-          正在建立安全登录会话...
+          {{
+            tokenLoginStatus === TokenLoginStatus.Success
+              ? '凭证校验通过，正在跳转至单据详情...'
+              : '正在建立安全登录会话...'
+          }}
         </h2>
         <p class="text-body-xs text-foreground-2 mt-2 max-w-sm leading-relaxed">
-          已成功接收第三方待办凭据，正在验证用户身份并加载审批流程
+          {{
+            tokenLoginStatus === TokenLoginStatus.Success
+              ? '身份验证成功，正在读取流程关联的单据信息并为您跳转'
+              : '已成功接收第三方待办凭据，正在验证用户身份并加载审批流程'
+          }}
         </p>
 
         <!-- 动态动效进度线 -->
@@ -59,7 +126,12 @@
             class="h-1.5 w-full bg-outline-3/60 rounded-full overflow-hidden relative"
           >
             <div
-              class="absolute inset-0 h-full w-1/2 bg-gradient-to-r from-primary/30 via-primary to-primary/30 rounded-full animate-indeterminate"
+              class="absolute inset-0 h-full w-1/2 rounded-full animate-indeterminate"
+              :class="
+                tokenLoginStatus === TokenLoginStatus.Success
+                  ? 'bg-gradient-to-r from-success/30 via-success to-success/30'
+                  : 'bg-gradient-to-r from-primary/30 via-primary to-primary/30'
+              "
             ></div>
           </div>
         </div>
@@ -150,7 +222,13 @@
       </div>
     </div>
 
-    <div v-else-if="loading" class="text-body-sm text-foreground-2">加载中...</div>
+    <div
+      v-else-if="loading || isRedirecting"
+      class="flex flex-col items-center justify-center min-h-[50vh] text-body-sm text-foreground-2 gap-3"
+    >
+      <CommonLoadingIcon class="w-6 h-6 text-primary animate-spin" />
+      <span>{{ isRedirecting ? '正在跳转至单据详情...' : '加载中...' }}</span>
+    </div>
 
     <div
       v-else-if="!instance"
@@ -646,6 +724,28 @@ const isTokenLoggingIn = computed(
   () => tokenLoginStatus.value === TokenLoginStatus.LoggingIn
 )
 
+const cleanUrlToken = async () => {
+  if (route.query.token) {
+    const nextQuery = { ...route.query }
+    delete nextQuery.token
+    await router.replace({ query: nextQuery })
+  }
+}
+
+const isRedirecting = ref(false)
+const hasAttemptedRedirect = ref(false)
+
+const showTokenOverlay = computed(() => {
+  if (tokenLoginStatus.value === TokenLoginStatus.LoggingIn) {
+    return true
+  }
+  if (tokenLoginStatus.value === TokenLoginStatus.Success) {
+    if (isRedirecting.value) return true
+    if (!hasAttemptedRedirect.value) return true
+  }
+  return false
+})
+
 const runTokenLogin = async (inputToken: string) => {
   const token = parseTokenInput(inputToken)
   if (!token) {
@@ -688,19 +788,28 @@ const runTokenLogin = async (inputToken: string) => {
     tokenLoginStatus.value = TokenLoginStatus.Success
 
     // 移除 URL 中的 token，防止刷新时重复校验或凭据泄漏
-    const nextQuery = { ...route.query }
-    delete nextQuery.token
-    await router.replace({ query: nextQuery })
-
-    await refetch()
+    await cleanUrlToken()
   } catch (error) {
     tokenLoginStatus.value = TokenLoginStatus.Failed
     tokenLoginError.value =
       error instanceof Error ? error.message : '网络异常，请稍后重试'
+    return
+  }
+
+  try {
+    await refetch()
+    await tryAutoRedirect()
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('加载流程实例失败:', error)
+    hasAttemptedRedirect.value = true
+    isRedirecting.value = false
   }
 }
 
 const retryTokenLogin = () => {
+  hasAttemptedRedirect.value = false
+  isRedirecting.value = false
   const token = tokenFromQuery.value
   if (token) {
     void runTokenLogin(token)
@@ -818,14 +927,38 @@ const stepApprovers = (step: FlowStep) => {
 }
 
 const getFormResource = () => {
-  const resourceId = instance.value?.resourceId
-  if (!resourceId) return null
-  const separatorIndex = resourceId.indexOf(':')
-  if (separatorIndex === -1) return null
-  return {
-    formTable: resourceId.slice(0, separatorIndex),
-    formId: resourceId.slice(separatorIndex + 1)
+  const item = instance.value
+  if (!item) return null
+
+  const resourceId = typeof item.resourceId === 'string' ? item.resourceId.trim() : ''
+  if (resourceId) {
+    const separatorIndex = resourceId.indexOf(':')
+    if (separatorIndex !== -1) {
+      const formTable = resourceId.slice(0, separatorIndex).trim().toLowerCase()
+      const formId = resourceId.slice(separatorIndex + 1).trim()
+      if (formTable && formId) {
+        return { formTable, formId }
+      }
+    }
   }
+
+  const formData = item.formData
+  if (formData && typeof formData === 'object') {
+    const rawTable = (formData as Record<string, unknown>).formTable
+    const rawId = (formData as Record<string, unknown>).formId
+    const formTable = typeof rawTable === 'string' ? rawTable.trim().toLowerCase() : ''
+    const formId =
+      typeof rawId === 'string'
+        ? rawId.trim()
+        : typeof rawId === 'number'
+        ? String(rawId)
+        : ''
+    if (formTable && formId) {
+      return { formTable, formId }
+    }
+  }
+
+  return null
 }
 
 const resourceRoute = computed(() => {
@@ -833,14 +966,72 @@ const resourceRoute = computed(() => {
   const formResource = getFormResource()
   if (!item || !item.projectId || !formResource) return null
 
-  if (formResource.formTable === 'monthly_measurements') {
+  if (
+    formResource.formTable === 'monthly_measurements' ||
+    formResource.formTable === 'monthly_measurement'
+  ) {
     return `/projects/${item.projectId}/work-valuation/monthly-measurement/${formResource.formId}/acceptance?mode=edit`
   }
-  if (formResource.formTable === 'safety_measures') {
+  if (
+    formResource.formTable === 'safety_measures' ||
+    formResource.formTable === 'safety_measure'
+  ) {
     return `/projects/${item.projectId}/work-valuation/safety-measure/${formResource.formId}?mode=edit`
+  }
+  if (
+    formResource.formTable === 'boq_review_records' ||
+    formResource.formTable === 'boq_reviews' ||
+    formResource.formTable === 'boq_review'
+  ) {
+    return `/projects/${item.projectId}/work-valuation/boq-review/${formResource.formId}`
   }
   return null
 })
+
+const tryAutoRedirect = async () => {
+  if (hasAttemptedRedirect.value || isRedirecting.value) return
+  if (!instance.value) return
+
+  if (tokenLoginStatus.value === TokenLoginStatus.LoggingIn) return
+  if (tokenLoginStatus.value === TokenLoginStatus.Failed) return
+
+  if (resourceRoute.value) {
+    isRedirecting.value = true
+    hasAttemptedRedirect.value = true
+    try {
+      await cleanUrlToken()
+      await navigateTo(resourceRoute.value, { replace: true })
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('跳转业务单据失败:', error)
+      isRedirecting.value = false
+    }
+  } else {
+    hasAttemptedRedirect.value = true
+  }
+}
+
+watch(
+  [
+    () => instance.value,
+    () => resourceRoute.value,
+    () => tokenLoginStatus.value,
+    () => loading.value
+  ],
+  ([inst, _routeVal, status, isLoading]) => {
+    if (isLoading || status === TokenLoginStatus.LoggingIn) return
+
+    if (!inst) {
+      if (status === TokenLoginStatus.Success) {
+        hasAttemptedRedirect.value = true
+      }
+      return
+    }
+
+    void tryAutoRedirect()
+  },
+  { immediate: true }
+)
 
 const openResourceInNewWindow = () => {
   if (!resourceRoute.value) return
