@@ -32,10 +32,7 @@ import {
 } from '@/modules/quality-acceptance-form/repositories/qualityAcceptanceForms'
 import { getBlobsFactory } from '@/modules/blobstorage/repositories'
 import { authMiddlewareCreator } from '@/modules/shared/middleware'
-import {
-  streamWritePermissionsPipelineFactory,
-  streamReadPermissionsPipelineFactory
-} from '@/modules/shared/authz'
+import { streamReadPermissionsPipelineFactory } from '@/modules/shared/authz'
 import { createBusboy } from '@/modules/blobstorage/rest/busboy'
 import { BadRequestError, UnauthorizedError } from '@/modules/shared/errors'
 import { adminOverrideEnabled } from '@/modules/shared/helpers/envHelper'
@@ -745,7 +742,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   app.post(
     '/api/v1/projects/:projectId/quality-acceptance/forms/import-excel',
     authMiddlewareCreator(
-      streamWritePermissionsPipelineFactory({
+      streamReadPermissionsPipelineFactory({
         getStream
       })
     ),
@@ -1358,7 +1355,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 5.2 创建月度验工
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId } = req.params
       const userId = req.context.userId!
@@ -1505,7 +1502,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 5.3 修改月度验工
   app.put(
     '/api/v1/projects/:projectId/monthly-measurements/:id',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const body = req.body || {}
@@ -1883,7 +1880,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 6. 删除月度验工
   app.delete(
     '/api/v1/projects/:projectId/monthly-measurements/:id',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const isAdminOverride = hasServerAdminOverride(req)
@@ -1947,7 +1944,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 6.5 关联安全文明措施费
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/associate-safety-measure',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const body = req.body || {}
@@ -2044,7 +2041,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   //     只更新并入配置与清单项标记，不重建明细，避免冲掉已录入的各方数量。
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/safety-measure-merge',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const body = req.body || {}
@@ -2167,7 +2164,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/acceptance',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!
@@ -2355,7 +2352,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/payment-details',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!
@@ -2639,7 +2636,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/payment-requests',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!
@@ -2948,7 +2945,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
   app.patch(
     '/api/v1/projects/:projectId/monthly-measurements/:id/detail-items',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!
@@ -3069,7 +3066,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 10.1 解除月度验工与质量验收的关联接口 (开始节点删除质量验收)
   app.delete(
     '/api/v1/projects/:projectId/monthly-measurements/:id/quality-acceptance/:acceptanceId',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id, acceptanceId } = req.params
       const userId = req.context.userId!
@@ -3413,7 +3410,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 12. 送审接口，二次确认后触发，启动流程实例
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/submit',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId
@@ -3516,7 +3513,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 12.2 同步数据到预算系统接口
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/sync-preview',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const { type } = req.body || {}
@@ -3551,7 +3548,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 12.3 同步数据到预算系统接口
   app.post(
     '/api/v1/projects/:projectId/monthly-measurements/:id/sync',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const { type } = req.body || {}
@@ -4496,7 +4493,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 5. 新增安全文明措施费 (递归初始化清单明细)
   app.post(
     '/api/v1/projects/:projectId/safety-measures',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId } = req.params
       const userId = req.context.userId!
@@ -4703,7 +4700,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 6. 保存安全文明措施费（支持各方数量编辑和意见、附件保存）
   app.put(
     '/api/v1/projects/:projectId/safety-measures/:id',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!
@@ -4980,7 +4977,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 7. 删除安全文明措施费
   app.delete(
     '/api/v1/projects/:projectId/safety-measures/:id',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const isAdminOverride = hasServerAdminOverride(req)
@@ -5047,7 +5044,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
   // 8. 送审安全文明措施费 (发起工作流实例)
   app.post(
     '/api/v1/projects/:projectId/safety-measures/:id/submit',
-    authMiddlewareCreator(streamWritePermissionsPipelineFactory({ getStream })),
+    authMiddlewareCreator(streamReadPermissionsPipelineFactory({ getStream })),
     async (req: Request, res: Response) => {
       const { projectId, id } = req.params
       const userId = req.context.userId!

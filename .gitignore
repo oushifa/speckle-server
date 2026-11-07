@@ -92,5 +92,6 @@ packages/*/.tshy/
 AGENTS.md
 .trae/
 ignores/
+.agents/
 
 packages/frontend-2/.test_files/
