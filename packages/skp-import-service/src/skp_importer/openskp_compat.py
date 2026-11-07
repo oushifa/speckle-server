@@ -146,7 +146,7 @@ def _constrained_triangles(
 
 
 def patch_openskp() -> None:
-    """Replace OpenSKP's per-face triangulation with a constrained one."""
+    """Replace OpenSKP's per-face triangulation with a constrained one and normalize Layer0 color."""
     global _PATCHED
     if _PATCHED:
         return
@@ -168,4 +168,103 @@ def patch_openskp() -> None:
         return triangles
 
     openskp_core.triangulate_face_3d = triangulate_face_3d
+
+    # SketchUp stores Tag/Layer colors as Layer_<name> materials (e.g. Layer_Layer0 = #FF5454).
+    # In SketchUp, these are only inspection colors used when "Color by Tag" is active,
+    # never the actual rendering material. OpenSKP falls back to layer_colors when a face
+    # has no painted material, causing untextured white-box geometry to turn bright red/pink.
+    # Reset Layer0 / default tag fallback color to SketchUp's standard neutral default
+    # material color (warm off-white: 235, 235, 230).
+    original_full_parse = getattr(openskp_core, "full_parse", None)
+    if original_full_parse is not None:
+
+        def full_parse(path: str) -> dict[str, Any]:
+            parsed = original_full_parse(path)
+            if isinstance(parsed, dict) and "layer_colors" in parsed:
+                layer_colors = parsed["layer_colors"]
+                if isinstance(layer_colors, dict) and "Layer0" in layer_colors:
+                    layer_colors["Layer0"] = (235, 235, 230)
+            return parsed
+
+        openskp_core.full_parse = full_parse
+
+    # Speckle Viewer renders all meshes with DoubleSide (no backface culling).
+    # When OpenSKP splits a face into two single-sided meshes for differing front and back
+    # materials, the two meshes end up at the exact same spatial coordinates with reversed
+    # normals, causing severe Z-fighting and erroneous color bleed (e.g. backface grass green
+    # covering frontface road gray).
+    # Deduplicate by emitting each face once with its primary design material as DoubleSide.
+    try:
+        import openskp._face_groups as fg
+        import openskp.instanced_scene as isc
+        import openskp.scene as sc
+
+        def deduplicated_build_local_face_groups(
+            builder: Any, ctx: Any
+        ) -> dict[Any, dict[str, Any]]:
+            face_groups: dict[Any, dict[str, Any]] = {}
+            for _f_id, f_data in builder.faces.items():
+                front_mat = fg.resolve_material(
+                    f_data.get("material_id"),
+                    ctx.material_id_to_name,
+                    ctx.materials,
+                    ctx.materials_by_folder,
+                )
+                back_mat = fg.resolve_material(
+                    f_data.get("back_material_id"),
+                    ctx.material_id_to_name,
+                    ctx.materials,
+                    ctx.materials_by_folder,
+                )
+                front_color = fg.resolve_color(front_mat) or ctx.fallback_color
+                back_color = fg.resolve_color(back_mat) or ctx.fallback_color
+
+                loops = []
+                for loop in f_data["loops"]:
+                    loop_verts = fg.reconstruct_loop_vertices(loop, builder.edges)
+                    if loop_verts:
+                        loops.append(loop_verts)
+                if not loops:
+                    continue
+
+                triangles = fg._core.triangulate_face_3d(
+                    builder.vertices, loops, f_data["normal"]
+                )
+                fn = f_data["normal"]
+                xr, yr = fg.face_uv_basis(fn)
+
+                chosen_color = front_color
+                chosen_mat = front_mat
+                chosen_uv = f_data.get("uv_transform")
+                reverse = False
+
+                # Prefer explicitly painted material; if front is unpainted but back is painted, use back.
+                if front_mat is None and back_mat is not None:
+                    chosen_color = back_color
+                    chosen_mat = back_mat
+                    chosen_uv = f_data.get("uv_transform_back")
+                    reverse = True
+
+                fg._add_face_side(
+                    face_groups,
+                    builder,
+                    triangles,
+                    fn,
+                    chosen_color,
+                    True,
+                    reverse,
+                    chosen_mat,
+                    chosen_uv,
+                    xr,
+                    yr,
+                    ctx.texture_index_for,
+                )
+            return face_groups
+
+        fg.build_local_face_groups = deduplicated_build_local_face_groups
+        sc.build_local_face_groups = deduplicated_build_local_face_groups
+        isc.build_local_face_groups = deduplicated_build_local_face_groups
+    except Exception as e:
+        print(f"OpenSKP compat notice: could not patch face deduplication: {e}")
+
     _PATCHED = True

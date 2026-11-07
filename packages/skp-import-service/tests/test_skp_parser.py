@@ -203,3 +203,115 @@ def test_fileimport_payload_validation():
     dumped = success_result.model_dump_json(by_alias=True)
     assert "downloadDurationSeconds" in dumped
     assert "versionId" in dumped
+
+
+def test_openskp_patch_normalizes_layer0_color():
+    import openskp._core as openskp_core
+
+    openskp_compat.patch_openskp()
+    # Mock full_parse returning a dict with layer_colors
+    dummy_path = "/tmp/non_existent.skp"
+    if hasattr(openskp_core, "full_parse"):
+        orig = openskp_core.full_parse
+        try:
+            openskp_core.full_parse = lambda p: {"layer_colors": {"Layer0": (255, 84, 84)}}
+            openskp_compat._PATCHED = False
+            openskp_compat.patch_openskp()
+            res = openskp_core.full_parse(dummy_path)
+            assert res["layer_colors"]["Layer0"] == (235, 235, 230)
+        finally:
+            openskp_core.full_parse = orig
+
+
+def test_skp_parser_restores_z_up_coordinates():
+    # Verify the mapping (gx, gy, gz) -> (gx, -gz, gy)
+    # where glTF (Y-up) baked coords have gy=Z_height, gz=-Y_depth
+    gx, gy, gz = 1.0, 10.0, -5.0
+    positions = [gx, gy, gz]
+    vertices = []
+    for v_idx in range(0, len(positions), 3):
+        vx = float(positions[v_idx])
+        vy = float(positions[v_idx + 1])
+        vz = float(positions[v_idx + 2])
+        vertices.extend([vx, -vz, vy])
+
+    # Restored Speckle Z-up coords should have:
+    # X = gx = 1.0
+    # Y = -gz = 5.0 (original Y_depth)
+    # Z = gy = 10.0 (original Z_height)
+    assert vertices == [1.0, 5.0, 10.0]
+
+
+def test_face_deduplication_patch_avoids_duplicate_mesh():
+    import openskp._face_groups as fg
+
+    openskp_compat._PATCHED = False
+    openskp_compat.patch_openskp()
+
+    # Create dummy builder and ctx
+    class DummyBuilder:
+        vertices = {0: (0.0, 0.0, 0.0), 1: (1.0, 0.0, 0.0), 2: (1.0, 1.0, 0.0)}
+        edges = {0: (0, 1), 1: (1, 2), 2: (2, 0)}
+        faces = {
+            0: {
+                "material_id": 1,
+                "back_material_id": 2,
+                "loops": [[(0, 0), (1, 0), (2, 0)]],
+                "normal": (0.0, 0.0, 1.0),
+            }
+        }
+
+    class DummyCtx:
+        material_id_to_name = {1: "MatFront", 2: "MatBack"}
+        materials = {
+            "MatFront": {"color": {"r": 114, "g": 114, "b": 114}},
+            "MatBack": {"color": {"r": 138, "g": 158, "b": 69}},
+        }
+        materials_by_folder = {}
+        fallback_color = (200, 200, 200)
+        definition_id = "def1"
+
+        @staticmethod
+        def texture_index_for(_tex):
+            return None
+
+    groups = fg.build_local_face_groups(DummyBuilder(), DummyCtx())
+    # Should only emit 1 group (the front material), NOT 2 groups!
+    assert len(groups) == 1
+    key = list(groups.keys())[0]
+    color, double_sided, _tex, _trans = key
+    assert color == (114, 114, 114)
+    assert double_sided is True
+
+
+def test_skp_collection_and_mesh_detachment():
+    from specklepy.serialization.base_object_serializer import BaseObjectSerializer
+    from specklepy.transports.memory import MemoryTransport
+    from skp_importer.skp_parser import (
+        _create_collection,
+        _create_mesh,
+        _create_render_material,
+    )
+
+    mat = _create_render_material("TestMat", 100, 150, 200)
+    mesh = _create_mesh(
+        vertices=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        faces=[3, 0, 1, 2],
+        application_id="mesh_1",
+        material=mat,
+    )
+    layer = _create_collection("Layer0", [mesh], "layer_0", collection_type="Layer")
+    root = _create_collection("Model.skp", [layer], "root_model", collection_type="Model")
+
+    transport = MemoryTransport()
+    serializer = BaseObjectSerializer(write_transports=[transport])
+    _root_id, serialized_root = serializer.traverse_base(root)
+
+    closure = serialized_root.get("__closure", {})
+    assert len(closure) >= 2, f"Expected detached child objects in closure, got {len(closure)}"
+    assert serialized_root.get("totalChildrenCount", 0) >= 2
+    assert serialized_root["elements"][0]["speckle_type"] == "reference"
+    assert len(transport.objects) >= 3
+
+
+

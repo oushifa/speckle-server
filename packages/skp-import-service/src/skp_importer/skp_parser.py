@@ -91,10 +91,18 @@ def _create_mesh(
     name: str | None = None,
     material: Base | None = None,
     layer_name: str | None = None,
+    vertex_normals: list[float] | None = None,
 ) -> Base:
     mesh = Base()
     mesh["speckle_type"] = "Objects.Geometry.Mesh"
     mesh["applicationId"] = application_id
+    mesh._chunkable = {
+        "vertices": 31250,
+        "faces": 62500,
+        "colors": 62500,
+        "vertexNormals": 31250,
+    }
+    mesh._detachable = {"vertices", "faces", "colors", "vertexNormals"}
     if name:
         mesh["name"] = name
     if layer_name:
@@ -104,6 +112,8 @@ def _create_mesh(
     mesh["faces"] = faces
     if material:
         mesh["renderMaterial"] = material
+    if vertex_normals:
+        mesh["vertexNormals"] = vertex_normals
     return mesh
 
 
@@ -118,6 +128,7 @@ def _create_collection(
     col["name"] = name
     col["collectionType"] = collection_type
     col["applicationId"] = application_id
+    col._detachable = {"elements"}
     col["elements"] = elements
     return col
 
@@ -292,7 +303,27 @@ class SkpParser:
                         comp_name = f"{comp_name} ({defn_name})"
                     path_str = getattr(meta, "path", "") or ""
 
-                vertices: list[float] = [float(v) for v in positions]
+                # OpenSKP emits positions baked in glTF's Y-up convention:
+                # gx = x_skp, gy = z_skp (height), gz = -y_skp (depth).
+                # Speckle (like SketchUp/Revit/IFC) is Z-up, so we restore the
+                # coordinates to SketchUp world space: (x, y, z) = (gx, -gz, gy).
+                vertices: list[float] = []
+                for v_idx in range(0, len(positions), 3):
+                    gx = float(positions[v_idx])
+                    gy = float(positions[v_idx + 1])
+                    gz = float(positions[v_idx + 2])
+                    vertices.extend([gx, -gz, gy])
+
+                # Transform smooth normals if available to prevent excessive wireframe edge lines
+                raw_normals = getattr(prim, "normals", None)
+                vertex_normals: list[float] | None = None
+                if raw_normals and len(raw_normals) == len(positions):
+                    vertex_normals = []
+                    for n_idx in range(0, len(raw_normals), 3):
+                        gnx = float(raw_normals[n_idx])
+                        gny = float(raw_normals[n_idx + 1])
+                        gnz = float(raw_normals[n_idx + 2])
+                        vertex_normals.extend([gnx, -gnz, gny])
 
                 # Convert triangle indices to Speckle faces format: [3, i0, i1, i2, ...]
                 faces: list[int] = []
@@ -322,6 +353,7 @@ class SkpParser:
                     name=comp_name,
                     material=assigned_mat,
                     layer_name=layer_name,
+                    vertex_normals=vertex_normals,
                 )
                 if path_str:
                     mesh_obj["sketchupPath"] = path_str

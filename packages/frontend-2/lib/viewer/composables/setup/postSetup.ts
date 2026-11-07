@@ -43,7 +43,6 @@ import {
 } from '~~/lib/viewer/composables/commentManagement'
 import { getCacheId } from '~~/lib/common/helpers/graphql'
 import {
-  useViewerIsolateObjects,
   useViewerOpenedThreadUpdateEmitter,
   useViewerThreadTracking
 } from '~~/lib/viewer/composables/commentBubbles'
@@ -76,7 +75,6 @@ import {
   HighlightExtension
 } from '~/lib/viewer/composables/setup/highlighting'
 import { useProjectSavedViewsUpdateTracking } from '~/lib/viewer/composables/savedViews/subscriptions'
-import { boolean } from 'zod'
 
 function useViewerLoadCompleteEventHandler() {
   const state = useInjectedViewerState()
@@ -125,6 +123,11 @@ function useViewerObjectAutoLoading() {
   viewer.on(ViewerEvent.LoadComplete, (id) => {
     delete loadingProgressMap[id]
     consolidateProgressInternal({ id, progress: 1 })
+    if (Object.values(loadingProgressMap).every((p) => p >= 1)) {
+      for (const k of Object.keys(loadingProgressMap)) {
+        delete loadingProgressMap[k]
+      }
+    }
   })
 
   const consolidateProgressInternal = (args: { progress: number; id: string }) => {
@@ -148,6 +151,8 @@ function useViewerObjectAutoLoading() {
     if (unload) {
       return viewer.unloadObject(objectUrl)
     } else {
+      consolidateProgressInternal({ id: objectUrl, progress: 0 })
+
       const loader = new SpeckleLoader(
         viewer.getWorldTree(),
         objectUrl,
@@ -158,6 +163,15 @@ function useViewerObjectAutoLoading() {
 
       loader.on(LoaderEvent.LoadProgress, (args) => {
         consolidateProgressThorttled(args)
+      })
+      loader.on(LoaderEvent.Converted, () => {
+        const current = loadingProgressMap[objectUrl] ?? 0
+        if (current >= 0.5 && current < 0.95) {
+          consolidateProgressThorttled({
+            id: objectUrl,
+            progress: Math.min(0.95, current + 0.05)
+          })
+        }
       })
       loader.on(LoaderEvent.LoadCancelled, (id) => {
         delete loadingProgressMap[id]
