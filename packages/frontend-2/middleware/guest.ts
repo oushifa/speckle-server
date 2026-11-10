@@ -3,7 +3,7 @@ import { useApolloClientFromNuxt } from '~~/lib/common/composables/graphql'
 import { convertThrowIntoFetchResult } from '~~/lib/common/helpers/graphql'
 import { homeRoute } from '~~/lib/common/helpers/route'
 
-const exclusionList = ['authorize-app', 'reset-password']
+const exclusionList = ['authorize-app', 'reset-password', 'token-login']
 
 /**
  * Apply this to a page to prevent authenticated access

@@ -177,24 +177,36 @@ const useResetAuthState = (
         if (import.meta.server) {
           logger().error('attempting to resetStore from SSR')
         } else {
-          await client.resetStore()
+          try {
+            await client.resetStore()
+          } catch (e) {
+            logger().warn('client.resetStore() failed during auth reset', e)
+          }
         }
 
-        // wait till active user is reloaded
-        const { data: activeUserRes } = await client
-          .query({
-            query: activeUserQuery,
-            fetchPolicy: 'network-only'
-          })
-          .catch(convertThrowIntoFetchResult)
-        user = activeUserRes?.activeUser
+        try {
+          // wait till active user is reloaded
+          const { data: activeUserRes } = await client
+            .query({
+              query: activeUserQuery,
+              fetchPolicy: 'network-only'
+            })
+            .catch(convertThrowIntoFetchResult)
+          user = activeUserRes?.activeUser
+        } catch (e) {
+          logger().warn('Failed to re-query activeUser during auth reset', e)
+        }
       })()
     }
 
-    resetPromise = resetPromise.then(() => {
-      // process state change callbacks
-      cbs.forEach((cb) => cb(user, { resolveDistinctId, isReset: true }))
-    })
+    resetPromise = resetPromise
+      .then(() => {
+        // process state change callbacks
+        cbs.forEach((cb) => cb(user, { resolveDistinctId, isReset: true }))
+      })
+      .catch((err) => {
+        logger().warn('Error in auth state change callbacks during reset', err)
+      })
 
     if (!resetOptions?.lazyReset) {
       await resetPromise

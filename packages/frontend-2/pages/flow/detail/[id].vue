@@ -482,7 +482,8 @@ import {
   ArrowPathIcon
 } from '@heroicons/vue/24/outline'
 import { loginRoute } from '~~/lib/common/helpers/route'
-import { useAuthManager } from '~/lib/auth/composables/auth'
+import { useAuthManager, useAuthCookie } from '~/lib/auth/composables/auth'
+import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 import FlowPushBadge from '~/components/flow/FlowPushBadge.vue'
 import type { UnifiedWorkPushRecord } from '~/components/flow/flowInstances'
@@ -684,7 +685,9 @@ const route = useRoute()
 const apiOrigin = useApiOrigin()
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
-const { userId } = useActiveUser()
+const { userId, refetch: refetchActiveUser } = useActiveUser()
+const { initializePermissions } = useCustomPermissions()
+const authCookie = useAuthCookie()
 const { loginWithToken } = useAuthManager()
 
 enum TokenLoginStatus {
@@ -754,6 +757,9 @@ const runTokenLogin = async (inputToken: string) => {
     return
   }
 
+  // 检测原本是否存在旧 token
+  const oldToken = authCookie.value
+
   tokenLoginStatus.value = TokenLoginStatus.LoggingIn
   tokenLoginError.value = ''
 
@@ -762,6 +768,7 @@ const runTokenLogin = async (inputToken: string) => {
   const requestBody = JSON.stringify({ token })
   const loginUrl = new URL('/auth/sso/token-login', apiOrigin).toString()
 
+  let spToken: string | undefined
   try {
     const ssoResponse = await fetch(loginUrl, {
       method: 'POST',
@@ -770,7 +777,7 @@ const runTokenLogin = async (inputToken: string) => {
       redirect: 'follow'
     }).then((res) => res.json())
 
-    const spToken = ssoResponse.token as string | undefined
+    spToken = ssoResponse.token as string | undefined
     if (!spToken) {
       tokenLoginStatus.value = TokenLoginStatus.Failed
       tokenLoginError.value =
@@ -784,11 +791,6 @@ const runTokenLogin = async (inputToken: string) => {
       token: spToken,
       skipRedirect: true
     })
-
-    tokenLoginStatus.value = TokenLoginStatus.Success
-
-    // 移除 URL 中的 token，防止刷新时重复校验或凭据泄漏
-    await cleanUrlToken()
   } catch (error) {
     tokenLoginStatus.value = TokenLoginStatus.Failed
     tokenLoginError.value =
@@ -796,7 +798,35 @@ const runTokenLogin = async (inputToken: string) => {
     return
   }
 
+  // 检测原本是否存在旧 token 并且与新兑换的 spToken 是否属于不同账号/不同 token
+  if (oldToken && oldToken !== spToken) {
+    // 发生了账号切换：在将新 token 写入 Cookie 并清除 URL 中的 token query 后，
+    // 直接通过 window.location.replace(cleanUrl) 进行页面刷新重载！彻底消除 SSR 旧用户 HTML 水合残留以及旧 Apollo 缓存
+    if (import.meta.client) {
+      let cleanUrl = window.location.pathname
+      const searchParams = new URLSearchParams(window.location.search)
+      searchParams.delete('token')
+      const queryString = searchParams.toString()
+      if (queryString) {
+        cleanUrl += `?${queryString}`
+      }
+      if (window.location.hash) {
+        cleanUrl += window.location.hash
+      }
+      window.location.replace(cleanUrl)
+      return
+    }
+  }
+
+  // 如果是首登或无需整页重载的情况：
+  tokenLoginStatus.value = TokenLoginStatus.Success
+
+  // 移除 URL 中的 token，防止刷新时重复校验或凭据泄漏
+  await cleanUrlToken()
+
   try {
+    await refetchActiveUser()
+    await initializePermissions(true)
     await refetch()
     await tryAutoRedirect()
   } catch (error) {

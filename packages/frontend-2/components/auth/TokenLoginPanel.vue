@@ -39,7 +39,7 @@
         >
           {{ submitText }}
         </FormButton>
-        <FormButton v-else size="lg" full-width :to="homeRoute">进入首页</FormButton>
+        <FormButton v-else size="lg" full-width @click="onGoHome">进入首页</FormButton>
         <FormButton size="lg" color="subtle" full-width :to="loginRoute">
           返回登录页
         </FormButton>
@@ -67,6 +67,27 @@ const { loginWithToken } = useAuthManager()
 const state = ref<LoginState>(LoginState.TokenChecking)
 const currentToken = ref('')
 const errorDetails = ref('')
+
+const cleanUrlToken = () => {
+  if (import.meta.client && window.history?.replaceState) {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('token')
+    window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
+  }
+}
+
+const navigateToHomeHard = () => {
+  cleanUrlToken()
+  if (import.meta.client) {
+    window.location.href = homeRoute
+  } else {
+    void navigateTo(homeRoute, { external: true })
+  }
+}
+
+const onGoHome = () => {
+  navigateToHomeHard()
+}
 
 const parseTokenInput = (value: string) => {
   const trimmed = value.trim()
@@ -183,9 +204,15 @@ const runTokenLogin = async () => {
 
     await loginWithToken({
       token: spToken,
-      skipRedirect: false
+      skipRedirect: true
     })
     state.value = LoginState.Success
+
+    cleanUrlToken()
+
+    // 若当前已存在旧 token 且与新 token 不一致（或为了确保切换账号彻底无旧状态残留）：
+    // 跳转首页采用硬刷新，确保 SSR 和客户端完全以新账号身份重新初始化
+    navigateToHomeHard()
   } catch (error) {
     state.value = LoginState.Invalid
     errorDetails.value = error instanceof Error ? error.message : '网络异常，请稍后重试'

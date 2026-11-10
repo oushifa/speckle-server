@@ -214,7 +214,11 @@
               <tr
                 class="border-b border-outline-3 hover:bg-highlight-1/20 transition-colors text-[11px]"
                 :class="
-                  row.isSummaryRow
+                  isOverCompleted(row)
+                    ? row.isSummaryRow
+                      ? 'bg-rose-500/10 dark:bg-rose-950/25 print:!bg-transparent font-medium'
+                      : 'bg-rose-500/10 dark:bg-rose-950/25 print:!bg-transparent font-normal'
+                    : row.isSummaryRow
                     ? 'bg-highlight-1/5 font-medium'
                     : row.sourceAcceptanceIds && row.sourceAcceptanceIds.length > 0
                     ? 'bg-primary-lighter/10 dark:bg-primary-darker/5'
@@ -932,10 +936,16 @@ const getCumulativeCompletedQty = (row: any) => {
 }
 
 const getCumulativeRate = (row: any) => {
-  const contractAmount = toSafeNumber(row.contractAmount)
-  if (contractAmount <= 0) return '0.00'
+  const denominator = toSafeNumber(row.reviewAmount || row.contractAmount)
+  if (denominator <= 0) return '0.00'
   const cumulativeAmount = toSafeNumber(row.cumulativeAmount)
-  return ((cumulativeAmount / contractAmount) * 100).toFixed(2)
+  return ((cumulativeAmount / denominator) * 100).toFixed(2)
+}
+
+const isOverCompleted = (row: any) => {
+  if (!row) return false
+  const rate = Number(getCumulativeRate(row))
+  return !isNaN(rate) && rate > 100
 }
 
 let recalcRaf: number | null = null
@@ -1345,5 +1355,11 @@ const formatQty = (value: any) => {
 :deep(input[type='date']) {
   font-size: 11px;
   padding: 3px 6px;
+}
+
+@media print {
+  tr {
+    background-color: transparent !important;
+  }
 }
 </style>
