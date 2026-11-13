@@ -16,20 +16,27 @@ import {
 } from '@/modules/viewer/repositories/splitScreenConfigs'
 import { ensureError } from '@speckle/shared'
 
-const errorHandler = (err: unknown, req: Request, res: Response, next: NextFunction) => {
+const errorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   if (!err) return next()
   const error = ensureError(err)
   res.status(resolveStatusCode(error)).json({ error: error.message })
 }
 
-const normalizeDrawing = (value: unknown): SplitScreenDrawing => {
+const normalizeDrawing = (
+  value: unknown,
+  fallbackProjectId?: string
+): SplitScreenDrawing => {
   if (!value || typeof value !== 'object') {
     throw new BadRequestError('图纸信息不能为空。')
   }
 
   const drawing = value as Record<string, unknown>
   const requiredStringFields = [
-    'projectId',
     'modelId',
     'modelName',
     'versionId',
@@ -40,9 +47,23 @@ const normalizeDrawing = (value: unknown): SplitScreenDrawing => {
   ] as const
 
   for (const field of requiredStringFields) {
-    if (typeof drawing[field] !== 'string' || !drawing[field]?.trim()) {
+    if (typeof drawing[field] !== 'string' || !(drawing[field] as string)?.trim()) {
       throw new BadRequestError(`图纸字段 ${field} 不合法。`)
     }
+  }
+
+  const drawingProjectId =
+    typeof drawing.projectId === 'string' && drawing.projectId.trim()
+      ? drawing.projectId.trim()
+      : fallbackProjectId
+
+  if (!drawingProjectId) {
+    throw new BadRequestError('图纸字段 projectId 不合法。')
+  }
+
+  const versionCreatedAt = drawing.versionCreatedAt as string
+  if (Number.isNaN(new Date(versionCreatedAt).getTime())) {
+    throw new BadRequestError('图纸字段 versionCreatedAt 不是有效时间格式。')
   }
 
   const fileSize =
@@ -55,11 +76,11 @@ const normalizeDrawing = (value: unknown): SplitScreenDrawing => {
   }
 
   return {
-    projectId: drawing.projectId as string,
+    projectId: drawingProjectId,
     modelId: drawing.modelId as string,
     modelName: drawing.modelName as string,
     versionId: drawing.versionId as string,
-    versionCreatedAt: drawing.versionCreatedAt as string,
+    versionCreatedAt,
     blobId: drawing.blobId as string,
     fileName: drawing.fileName as string,
     fileType: drawing.fileType as string,
@@ -69,18 +90,22 @@ const normalizeDrawing = (value: unknown): SplitScreenDrawing => {
 
 const normalizeCameraState = (value: unknown): SplitScreenConfigCameraState | null => {
   if (value === null || value === undefined) return null
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new BadRequestError('相机状态格式不正确。')
   }
 
   const cameraState = value as Record<string, unknown>
   return {
     cad:
-      cameraState.cad && typeof cameraState.cad === 'object'
+      cameraState.cad &&
+      typeof cameraState.cad === 'object' &&
+      !Array.isArray(cameraState.cad)
         ? (cameraState.cad as Record<string, unknown>)
         : null,
     speckle:
-      cameraState.speckle && typeof cameraState.speckle === 'object'
+      cameraState.speckle &&
+      typeof cameraState.speckle === 'object' &&
+      !Array.isArray(cameraState.speckle)
         ? (cameraState.speckle as Record<string, unknown>)
         : null
   }
@@ -97,14 +122,18 @@ const normalizeInput = (projectId: string, body: Record<string, unknown>) => {
     throw new BadRequestError('分屏比例不合法。')
   }
 
-  if (body.calibrationPoints !== undefined && !Array.isArray(body.calibrationPoints)) {
+  if (
+    body.calibrationPoints !== undefined &&
+    body.calibrationPoints !== null &&
+    !Array.isArray(body.calibrationPoints)
+  ) {
     throw new BadRequestError('校准点数据格式不正确。')
   }
 
   if (
     body.transform !== undefined &&
     body.transform !== null &&
-    typeof body.transform !== 'object'
+    (typeof body.transform !== 'object' || Array.isArray(body.transform))
   ) {
     throw new BadRequestError('坐标转换数据格式不正确。')
   }
@@ -112,16 +141,17 @@ const normalizeInput = (projectId: string, body: Record<string, unknown>) => {
   if (
     body.sectionBox !== undefined &&
     body.sectionBox !== null &&
-    typeof body.sectionBox !== 'object'
+    (typeof body.sectionBox !== 'object' || Array.isArray(body.sectionBox))
   ) {
     throw new BadRequestError('剖切框数据格式不正确。')
   }
 
   return {
     name,
-    description: typeof body.description === 'string' ? body.description.trim() || null : null,
+    description:
+      typeof body.description === 'string' ? body.description.trim() || null : null,
     drawing: {
-      ...normalizeDrawing(body.drawing),
+      ...normalizeDrawing(body.drawing, projectId),
       projectId
     },
     splitRatio,
@@ -136,7 +166,11 @@ const buildRoute = (router: Router) => {
   const route = '/api/projects/:projectId/split-screen-configs'
 
   router.options(route, cors(), allowCrossOriginResourceAccessMiddelware())
-  router.options(`${route}/:configId`, cors(), allowCrossOriginResourceAccessMiddelware())
+  router.options(
+    `${route}/:configId`,
+    cors(),
+    allowCrossOriginResourceAccessMiddelware()
+  )
 
   router.get(
     route,
@@ -170,7 +204,9 @@ const buildRoute = (router: Router) => {
         const input = normalizeInput(projectId, req.body || {})
 
         const projectDb = await getProjectDbClient({ projectId })
-        const createSplitScreenConfig = createSplitScreenConfigFactory({ db: projectDb })
+        const createSplitScreenConfig = createSplitScreenConfigFactory({
+          db: projectDb
+        })
 
         const created = await createSplitScreenConfig({
           projectId,
@@ -198,7 +234,9 @@ const buildRoute = (router: Router) => {
         const input = normalizeInput(projectId, req.body || {})
 
         const projectDb = await getProjectDbClient({ projectId })
-        const updateSplitScreenConfig = updateSplitScreenConfigFactory({ db: projectDb })
+        const updateSplitScreenConfig = updateSplitScreenConfigFactory({
+          db: projectDb
+        })
         const updated = await updateSplitScreenConfig({
           configId,
           projectId,
@@ -228,7 +266,9 @@ const buildRoute = (router: Router) => {
         if (!req.context.userId) throw new BadRequestError('Authentication required')
 
         const projectDb = await getProjectDbClient({ projectId })
-        const deleteSplitScreenConfig = deleteSplitScreenConfigFactory({ db: projectDb })
+        const deleteSplitScreenConfig = deleteSplitScreenConfigFactory({
+          db: projectDb
+        })
         const deleted = await deleteSplitScreenConfig({ configId, projectId })
 
         if (!deleted) {
@@ -243,6 +283,7 @@ const buildRoute = (router: Router) => {
   )
 
   router.use(route, errorHandler)
+  router.use(errorHandler)
 }
 
 export const getSplitScreenConfigsRouter = (): Router => {

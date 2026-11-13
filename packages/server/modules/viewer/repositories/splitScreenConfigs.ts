@@ -72,7 +72,11 @@ const serializeJson = (value: unknown) =>
 const parseJson = <T>(value: T | string | null): T | null => {
   if (value === null || value === undefined) return null
   if (typeof value === 'string') {
-    return JSON.parse(value) as T
+    try {
+      return JSON.parse(value) as T
+    } catch {
+      return null
+    }
   }
   return value as T
 }
@@ -91,6 +95,11 @@ const mapDrawing = (row: SplitScreenConfigRow): SplitScreenDrawing | null => {
     return null
   }
 
+  const versionCreatedAtDate = new Date(row.versionCreatedAt)
+  const versionCreatedAt = !Number.isNaN(versionCreatedAtDate.getTime())
+    ? versionCreatedAtDate.toISOString()
+    : String(row.versionCreatedAt)
+
   return {
     // Split screen drawings currently always come from the shared drawings library,
     // while row.projectId stores the project owning the split-screen config itself.
@@ -98,7 +107,7 @@ const mapDrawing = (row: SplitScreenConfigRow): SplitScreenDrawing | null => {
     modelId: row.modelId,
     modelName: row.modelName,
     versionId: row.versionId,
-    versionCreatedAt: new Date(row.versionCreatedAt).toISOString(),
+    versionCreatedAt,
     blobId: row.blobId,
     fileName: row.fileName,
     fileType: row.fileType,

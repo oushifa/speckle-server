@@ -47,6 +47,8 @@ export const getQualityAcceptanceFormsBeforeBaseDateFactory =
     const q = tables
       .qualityForms(deps.db)
       .where(QualityAcceptanceForms.col.project_id, params.projectId)
+      .whereNotNull(QualityAcceptanceForms.col.boqItemId)
+      .andWhere(QualityAcceptanceForms.col.boqItemId, '!=', '')
 
     if (params.startDate || params.endDate) {
       q.andWhere((qb) => {

@@ -86,10 +86,10 @@
           class="flex-grow min-h-[12rem] max-h-[calc(100dvh_-_18rem)]"
         >
           <template #name="{ item }">
-            <span class="text-primary font-medium">{{ item.name }}</span>
+            <span class="text-primary font-medium">{{ item.name || '-' }}</span>
           </template>
           <template #code="{ item }">
-            <span class="text-primary font-medium">{{ item.code }}</span>
+            <span class="text-primary font-medium">{{ item.code || '-' }}</span>
           </template>
           <template #actualFinishDate="{ item }">
             <span class="font-medium">
@@ -114,13 +114,28 @@
             </button>
           </template>
           <template #inspectionLotNumber="{ item }">
-            <span class="text-sm text-foreground">{{ item.inspectionLotNumber }}</span>
+            <span class="text-sm text-foreground">
+              {{ item.inspectionLotNumber || '-' }}
+            </span>
           </template>
           <template #acceptancePart="{ item }">
-            <span class="text-sm text-foreground">{{ item.acceptancePart }}</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-sm text-foreground">
+                {{ item.acceptancePart || '-' }}
+              </span>
+              <span
+                v-if="!item.boqItemId"
+                class="inline-flex items-center rounded border border-warning/40 bg-warning-lighter/50 px-1.5 py-0.5 text-xs text-warning-darker"
+                title="未关联清单项，请点击编辑进行关联"
+              >
+                未关联清单
+              </span>
+            </div>
           </template>
           <template #acceptanceContent="{ item }">
-            <span class="text-sm text-foreground">{{ item.acceptanceContent }}</span>
+            <span class="text-sm text-foreground">
+              {{ item.acceptanceContent || '-' }}
+            </span>
           </template>
           <template #serialCodes="{ item }">
             <div v-if="item.serialCodes.length" class="flex flex-wrap gap-1">
@@ -183,7 +198,7 @@
             <span class="text-sm text-foreground">{{ item.inspectorName }}</span>
           </template>
           <template #unit="{ item }">
-            <span class="text-sm text-foreground">{{ item.unit }}</span>
+            <span class="text-sm text-foreground">{{ item.unit || '-' }}</span>
           </template>
           <template #associationStatus="{ item }">
             <button
@@ -229,7 +244,7 @@
               <button
                 v-if="hasFunctionalPerm('quality-check:edit') && canEditItem(item)"
                 class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
-                title="编辑"
+                :title="!item.boqItemId ? '未关联清单，点击编辑关联' : '编辑'"
                 @click="onEditItem(item)"
               >
                 <PencilSquareIcon class="h-4 w-4" />

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, camelcase */
 import type {
   MonthlyMeasurementItemRecord,
   MonthlyMeasurementRecord,
@@ -200,11 +201,6 @@ export const buildMonthlyMeasurementPreviewFactory =
     }
 
     const boqById = new Map(boqItems.map((item) => [item.id, item]))
-    const boqIdByCode = new Map(
-      boqItems
-        .map((item) => [item.code?.trim(), item.id] as const)
-        .filter((pair): pair is [string, string] => Boolean(pair[0]))
-    )
 
     const grouped = new Map<
       string,
@@ -218,11 +214,8 @@ export const buildMonthlyMeasurementPreviewFactory =
     const pendingBoqIds = new Set<string>()
 
     for (const form of acceptanceForms) {
-      const resolvedBoqItemId =
-        form.boqItemId && boqById.has(form.boqItemId)
-          ? form.boqItemId
-          : boqIdByCode.get(form.code?.trim() || '')
-      if (!resolvedBoqItemId) continue
+      if (!form.boqItemId || !boqById.has(form.boqItemId)) continue
+      const resolvedBoqItemId = form.boqItemId
 
       const current = grouped.get(resolvedBoqItemId) || {
         pendingMeasuredQty: 0,

@@ -155,7 +155,7 @@ const routeParamsSchema = z.object({
 
 const importItemSchema = z.object({
   rowNumber: z.coerce.number().int().min(1).optional(),
-  boqItemId: z.string().trim().min(1).max(10),
+  boqItemId: z.string().trim().max(10).nullable().optional(),
   name: z.string().trim().max(255).optional(),
   code: z.string().trim().max(255).optional(),
   inspectionLotNumber: z.string().trim().min(1).max(255),
@@ -5438,8 +5438,8 @@ const parseImportRows = (
     if (!boqItem && code) {
       boqItem = boqItemByCode.get(code)
     }
-    if (!boqItem) {
-      const enteredCode = boqItemCodeValue || code
+    if (!boqItem && (boqItemIdValue || boqItemCodeValue)) {
+      const enteredCode = boqItemCodeValue || boqItemIdValue
       throw new Error(
         `第 ${rowNumber} 行未匹配到清单项${
           enteredCode ? `（${enteredCode}）` : ''
@@ -5451,7 +5451,7 @@ const parseImportRows = (
       id: id || null,
       rowNumber,
       flowId: null,
-      boqItemId: boqItem.id,
+      boqItemId: boqItem ? boqItem.id : null,
       name: name || acceptancePart,
       code: code || null,
       inspectionLotNumber,
