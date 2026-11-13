@@ -18,7 +18,7 @@ import { Streams } from '@/modules/core/dbSchema'
  * Base config that always needs to be loaded, cause it sets up core primitives
  */
 const buildBaseConfig = async (): Promise<SpeckleModuleMocksConfig> => {
-  // Async import so that we only import this when envs actually have mocks on
+  // Async import so that we only import this when envs actually have mocks on //** */
   const { faker } = await import('@faker-js/faker')
 
   return {

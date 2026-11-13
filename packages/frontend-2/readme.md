@@ -86,3 +86,5 @@ yarn build
 You can serve the production build locally by running `yarn preview` afterwards.
 
 Checkout the [deployment documentation](https://v3.nuxtjs.org/guide/deploy/presets) for more information.
+
+--
