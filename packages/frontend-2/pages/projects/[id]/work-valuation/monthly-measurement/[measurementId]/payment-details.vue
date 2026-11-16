@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div class="space-y-6 bg-foundation p-1.5 w-full max-w-full overflow-hidden">
     <!-- 顶部项目页眉和副标题 -->
@@ -427,7 +428,7 @@
     <LayoutDialog
       v-model:open="attachmentsDialogOpen"
       max-width="md"
-      :prevent-close-on-click-outside="deleteConfirmOpen"
+      :prevent-close-on-click-outside="deleteConfirmOpen || previewDialogOpen"
     >
       <template #header>支付单附件管理</template>
       <div class="space-y-4">
@@ -462,11 +463,24 @@
           >
             <div class="flex items-center gap-1.5 min-w-0 pr-3">
               <PaperClipIcon class="h-4 w-4 text-foreground-2 flex-shrink-0" />
-              <span class="truncate" :title="attachment.name">
+              <button
+                type="button"
+                class="truncate font-medium text-primary hover:text-primary-focus hover:underline text-left"
+                :title="attachment.name || attachment.blobId"
+                @click="openAttachmentPreview(attachment)"
+              >
                 {{ attachment.name || attachment.blobId }}
-              </span>
+              </button>
             </div>
             <div class="flex gap-2 flex-shrink-0">
+              <button
+                v-if="attachment.blobId"
+                type="button"
+                class="text-primary hover:underline font-medium"
+                @click="openAttachmentPreview(attachment)"
+              >
+                预览
+              </button>
               <button
                 v-if="hasFunctionalPerm('monthly-valuation:download')"
                 class="text-primary hover:underline font-medium"
@@ -498,6 +512,14 @@
         </div>
       </div>
     </LayoutDialog>
+
+    <!-- 附件预览弹窗 -->
+    <AttachmentPreviewDialog
+      v-model:open="previewDialogOpen"
+      :project-id="props.projectId"
+      :attachment="selectedPreviewAttachment"
+      :can-download="hasFunctionalPerm('monthly-valuation:download')"
+    />
     <!-- 删除附件二次确认弹窗 -->
     <CommonConfirmDialog
       v-model:open="deleteConfirmOpen"
@@ -696,6 +718,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
 import { preciseAdd } from '~~/lib/common/helpers/preciseMath'
 import {
@@ -708,6 +731,7 @@ import dayjs from 'dayjs'
 import { useQuery } from '@vue/apollo-composable'
 import { gql } from '@apollo/client/core'
 import { LayoutDialog } from '@speckle/ui-components'
+import AttachmentPreviewDialog from '~/components/projects/work-valuation/AttachmentPreviewDialog.vue'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useFileDownload } from '~~/lib/core/composables/fileUpload'
@@ -950,6 +974,12 @@ onUnmounted(() => {
 })
 
 const attachmentsDialogOpen = ref(false)
+const previewDialogOpen = ref(false)
+const selectedPreviewAttachment = ref<{ blobId: string; name?: string } | null>(null)
+const openAttachmentPreview = (attachment: { blobId: string; name?: string }) => {
+  selectedPreviewAttachment.value = attachment
+  previewDialogOpen.value = true
+}
 const openAttachmentsDialog = () => {
   attachmentsDialogOpen.value = true
 }

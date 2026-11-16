@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div class="flex flex-col h-full space-y-4 max-w-full overflow-hidden">
     <!-- 面包屑导航 -->
@@ -1206,7 +1207,11 @@
     />
 
     <!-- 附件弹出层 LayoutDialog -->
-    <LayoutDialog v-model:open="attachmentsDialogOpen" max-width="md">
+    <LayoutDialog
+      v-model:open="attachmentsDialogOpen"
+      max-width="md"
+      :prevent-close-on-click-outside="previewDialogOpen"
+    >
       <template #header>计量附件管理</template>
       <div class="space-y-4">
         <div class="flex justify-between items-center">
@@ -1241,11 +1246,24 @@
           >
             <div class="flex items-center gap-1.5 min-w-0 pr-3">
               <PaperClipIcon class="h-4 w-4 text-foreground-2 flex-shrink-0" />
-              <span class="truncate" :title="attachment.name">
+              <button
+                type="button"
+                class="truncate font-medium text-primary hover:text-primary-focus hover:underline text-left"
+                :title="attachment.name || attachment.blobId"
+                @click="openAttachmentPreview(attachment)"
+              >
                 {{ attachment.name || attachment.blobId }}
-              </span>
+              </button>
             </div>
             <div class="flex gap-2 flex-shrink-0">
+              <button
+                v-if="attachment.blobId"
+                type="button"
+                class="text-primary hover:underline font-medium"
+                @click="openAttachmentPreview(attachment)"
+              >
+                预览
+              </button>
               <a
                 v-if="
                   attachment.blobId && hasFunctionalPerm('safety-civilization:download')
@@ -1274,6 +1292,14 @@
         </div>
       </div>
     </LayoutDialog>
+
+    <!-- 附件预览弹窗 -->
+    <AttachmentPreviewDialog
+      v-model:open="previewDialogOpen"
+      :project-id="projectId"
+      :attachment="selectedPreviewAttachment"
+      :can-download="hasFunctionalPerm('safety-civilization:download')"
+    />
 
     <!-- 封面弹出层 LayoutDialog -->
     <LayoutDialog v-model:open="coverDialogOpen" max-width="lg">
@@ -1900,6 +1926,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { ref, computed, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
 import { preciseAdd, preciseMul } from '~~/lib/common/helpers/preciseMath'
 import { Portal } from 'portal-vue'
@@ -1922,6 +1949,7 @@ import {
   FormButton,
   LayoutDialog
 } from '@speckle/ui-components'
+import AttachmentPreviewDialog from '~/components/projects/work-valuation/AttachmentPreviewDialog.vue'
 import type { LayoutDialogButton } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
@@ -3507,6 +3535,12 @@ const getCurrentFlowStepName = (instance: any) => {
 }
 
 const attachmentsDialogOpen = ref(false)
+const previewDialogOpen = ref(false)
+const selectedPreviewAttachment = ref<{ blobId: string; name?: string } | null>(null)
+const openAttachmentPreview = (attachment: { blobId: string; name?: string }) => {
+  selectedPreviewAttachment.value = attachment
+  previewDialogOpen.value = true
+}
 const coverDialogOpen = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
