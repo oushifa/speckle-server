@@ -198,11 +198,9 @@
 </template>
 
 <script setup lang="ts">
-import { gql } from '@apollo/client/core'
-import type { TypedDocumentNode } from '@apollo/client/core'
-import { useQuery, useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import { CommonLoadingIcon, FormTextArea } from '@speckle/ui-components'
 import FlowOpButtons from '~/components/flow/FlowOpButtons.vue'
 
@@ -260,10 +258,12 @@ type FlowInstanceDetail = {
   steps: FlowStep[]
 }
 
-type FlowDetailQueryResult = {
-  approvalFlowInstance?: FlowInstanceDetail | null
+type FlowInstanceApiResponse = {
+  instance?: Omit<FlowInstanceDetail, 'steps' | 'actions'> | null
+  binding?: unknown
+  steps?: FlowStep[] | null
+  actions?: FlowAction[] | null
 }
-type FlowDetailQueryVariables = { id: string }
 
 type ReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'logs' | 'diagram'
@@ -273,116 +273,14 @@ const props = defineProps<{
   instanceId: string
 }>()
 
-const flowDetailQuery = gql`
-  query FlowModelApprovePage($id: ID!) {
-    approvalFlowInstance(id: $id) {
-      id
-      projectId
-      resourceType
-      resourceId
-      status
-      currentStep
-      createdBy
-      createdAt
-      updatedAt
-      templateId
-      formData
-      project {
-        id
-        name
-      }
-      model {
-        id
-        name
-      }
-      createdByUser {
-        id
-        name
-      }
-      definition {
-        id
-        name
-        resourceType
-        isActive
-        templateId
-      }
-      actions {
-        id
-        stepId
-        action
-        fromStatus
-        toStatus
-        comment
-        metadata
-        actorId
-        createdAt
-        actor {
-          id
-          name
-        }
-      }
-      steps {
-        id
-        name
-        stepIndex
-        status
-        requiredApprovals
-        approverIds
-        approvers {
-          id
-          name
-        }
-        approvedByIds
-        approvedBy {
-          id
-          name
-        }
-        startedAt
-        dueAt
-        completedAt
-      }
-    }
-  }
-` as unknown as TypedDocumentNode<FlowDetailQueryResult, FlowDetailQueryVariables>
-
-const approveMutation = gql`
-  mutation FlowModelApproveAction($input: ApproveApprovalFlowInput!) {
-    approvalMutations {
-      approve(input: $input) {
-        id
-        status
-      }
-    }
-  }
-`
-
-const rejectMutation = gql`
-  mutation FlowModelRejectAction($input: RejectApprovalFlowInput!) {
-    approvalMutations {
-      reject(input: $input) {
-        id
-        status
-      }
-    }
-  }
-`
-
-const cancelMutation = gql`
-  mutation FlowModelCancelAction($input: CancelApprovalFlowInput!) {
-    approvalMutations {
-      cancel(input: $input) {
-        id
-        status
-      }
-    }
-  }
-`
-
-const apollo = useApolloClient().client
+const apiOrigin = useApiOrigin()
+const authCookie = useAuthCookie()
 const { triggerNotification } = useGlobalToast()
 const { userId } = useActiveUser()
 
 const mutating = ref(false)
+const loading = ref(false)
+const instance = ref<FlowInstanceDetail | null>(null)
 const reviewComment = ref('')
 const detailTab = ref<FlowDetailTab>('logs')
 
@@ -399,15 +297,111 @@ const onDetailTabChange = (item: { id: string }) => {
   detailTab.value = item.id as FlowDetailTab
 }
 
-const { result, loading, refetch } = useQuery<
-  FlowDetailQueryResult,
-  FlowDetailQueryVariables
->(flowDetailQuery, () => ({ id: props.instanceId }), {
-  enabled: computed(() => !!props.instanceId),
-  fetchPolicy: 'network-only'
-})
+const getHeaders = (includeJsonContentType = false): Record<string, string> => {
+  const headers: Record<string, string> = {}
+  if (includeJsonContentType) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (authCookie.value) {
+    headers.Authorization = `Bearer ${authCookie.value}`
+  }
+  return headers
+}
 
-const instance = computed(() => result.value?.approvalFlowInstance || null)
+const extractErrorMessage = async (res: Response, fallback: string) => {
+  try {
+    const text = await res.text()
+    if (!text) return `${fallback} (${res.status})`
+    try {
+      const parsed = JSON.parse(text) as
+        | { message?: string; error?: string; err?: string }
+        | Array<{ message?: string }>
+      if (Array.isArray(parsed)) {
+        const msg = parsed
+          .map((item) => item?.message)
+          .filter(Boolean)
+          .join('; ')
+        if (msg) return msg
+      } else if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.message === 'string' && parsed.message.trim()) {
+          return parsed.message
+        }
+        if (typeof parsed.error === 'string' && parsed.error.trim()) {
+          return parsed.error
+        }
+        if (typeof parsed.err === 'string' && parsed.err.trim()) {
+          return parsed.err
+        }
+      }
+    } catch {
+      // 非 JSON 文本直接返回
+    }
+    return text
+  } catch {
+    return `${fallback} (${res.status})`
+  }
+}
+
+let latestFetchSeq = 0
+
+const refetch = async () => {
+  const id = props.instanceId?.trim()
+  if (!id) {
+    instance.value = null
+    loading.value = false
+    return
+  }
+
+  const seq = ++latestFetchSeq
+  loading.value = true
+  try {
+    const res = await fetch(
+      `${apiOrigin}/api/approval-instances/${encodeURIComponent(id)}`,
+      {
+        method: 'GET',
+        headers: getHeaders(),
+        credentials: 'include'
+      }
+    )
+
+    if (!res.ok) {
+      if (seq !== latestFetchSeq) return
+      instance.value = null
+      return
+    }
+
+    const text = await res.text()
+    const data = text ? (JSON.parse(text) as FlowInstanceApiResponse | null) : null
+    if (seq !== latestFetchSeq) return
+
+    if (data?.instance) {
+      instance.value = {
+        ...data.instance,
+        steps: data.steps || [],
+        actions: data.actions || []
+      }
+    } else {
+      instance.value = null
+    }
+  } catch (e) {
+    if (seq !== latestFetchSeq) return
+    // eslint-disable-next-line no-console
+    console.error('加载模型审批详情失败:', e)
+    instance.value = null
+  } finally {
+    if (seq === latestFetchSeq) {
+      loading.value = false
+    }
+  }
+}
+
+watch(
+  () => props.instanceId,
+  () => {
+    void refetch()
+  },
+  { immediate: true }
+)
 
 const modelViewerResources = computed(() => {
   const item = instance.value
@@ -520,39 +514,54 @@ const submitReviewAction = async (payload: {
   rollbackToStep: number | null
 }) => {
   if (!instance.value) return
+  const comment = reviewComment.value.trim() || null
+  if (payload.action === 'reject' && !comment) {
+    notify('提示', '请输入审核意见后再拒绝或驳回', ToastNotificationType.Warning)
+    return
+  }
+
   mutating.value = true
   try {
-    const comment = reviewComment.value.trim() || null
+    const id = encodeURIComponent(instance.value.id)
+    let url = ''
+    let body: Record<string, unknown> = { comment }
+    let successMsg = ''
+
     if (payload.action === 'approve') {
-      await apollo.mutate({
-        mutation: approveMutation,
-        variables: { input: { instanceId: instance.value.id, comment } }
-      })
-      notify('操作成功', '审批已通过', ToastNotificationType.Success)
-      try {
-        await apollo.resetStore()
-      } catch {
-        // resetStore 可能因活跃订阅抛出，忽略即可
-      }
+      url = `${apiOrigin}/api/approval-instances/${id}/approve`
+      body = { comment }
+      successMsg = '审批已通过'
     } else if (payload.action === 'reject') {
-      await apollo.mutate({
-        mutation: rejectMutation,
-        variables: {
-          input: {
-            instanceId: instance.value.id,
-            comment: comment || '',
-            rollbackToStep: payload.rollbackToStep
-          }
-        }
-      })
-      notify('操作成功', '审批已驳回', ToastNotificationType.Success)
+      if (payload.rollbackToStep === 0) {
+        url = `${apiOrigin}/api/approval-instances/${id}/return-to-start`
+        body = { comment }
+      } else if (payload.rollbackToStep && payload.rollbackToStep > 0) {
+        url = `${apiOrigin}/api/approval-instances/${id}/return-to-step`
+        body = { targetStep: payload.rollbackToStep, comment }
+      } else {
+        url = `${apiOrigin}/api/approval-instances/${id}/reject`
+        body = { comment }
+      }
+      successMsg = '审批已驳回'
     } else {
-      await apollo.mutate({
-        mutation: cancelMutation,
-        variables: { input: { instanceId: instance.value.id, comment } }
-      })
-      notify('操作成功', '审批已取消', ToastNotificationType.Success)
+      url = `${apiOrigin}/api/approval-instances/${id}/cancel`
+      body = { comment }
+      successMsg = '审批已取消'
     }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify(body)
+    })
+
+    if (!res.ok) {
+      const errorMessage = await extractErrorMessage(res, '操作失败')
+      throw new Error(errorMessage)
+    }
+
+    notify('操作成功', successMsg, ToastNotificationType.Success)
     reviewComment.value = ''
     await refetch()
   } catch (e) {

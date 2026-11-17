@@ -1,4 +1,9 @@
 import type { Knex } from 'knex'
+import { getStreamFactory } from '@/modules/core/repositories/streams'
+import { getBranchByIdFactory } from '@/modules/core/repositories/branches'
+import { getCommitBranchFactory } from '@/modules/core/repositories/commits'
+import { getUsersFactory } from '@/modules/core/repositories/users'
+import { getProjectDbClient } from '@/modules/multiregion/utils/dbSelector'
 import { getApprovalSubjectHandler } from '@/modules/flow/services/subjectHandlers'
 import {
   createApprovalFlowBindingFactory,
@@ -433,6 +438,99 @@ export const listApprovalInstancesByBindingIdFactory =
     return records.map(mapInstanceRecord)
   }
 
+type SimpleIdName = { id: string; name: string }
+
+const normalizeApprovalFlowResourceType = (resourceType?: string | null) => {
+  if (resourceType === 'MODEL') return 'MODEL'
+  return 'FORMS'
+}
+
+const resolveApprovalInstanceProject = async (
+  db: Knex,
+  projectId: string | null
+): Promise<SimpleIdName | null> => {
+  if (!projectId) return null
+  const stream = await getStreamFactory({ db })({ streamId: projectId })
+  return stream ? { id: stream.id, name: stream.name } : null
+}
+
+const resolveApprovalInstanceModel = async (params: {
+  instance: ApprovalFlowInstanceRecord
+  binding: ApprovalFlowBindingRecord | null
+}): Promise<SimpleIdName | null> => {
+  const { instance, binding } = params
+  if (
+    instance.resourceType !== 'MODEL' ||
+    !instance.resourceId ||
+    !instance.projectId
+  ) {
+    return null
+  }
+
+  const projectDb = await getProjectDbClient({ projectId: instance.projectId })
+  const getBranchById = getBranchByIdFactory({ db: projectDb })
+  const getCommitBranch = getCommitBranchFactory({ db: projectDb })
+
+  let branch = await getBranchById(instance.resourceId)
+  if (!branch) {
+    branch = await getCommitBranch(instance.resourceId)
+  }
+
+  if (!branch) {
+    const fallbackModelId =
+      binding?.subjectType === 'MODEL_VERSION' && binding.subjectId
+        ? binding.subjectId
+        : instance.resourceId.startsWith('model_version:')
+        ? instance.resourceId.slice('model_version:'.length)
+        : null
+    if (fallbackModelId) {
+      branch =
+        (await getBranchById(fallbackModelId)) ||
+        (await getCommitBranch(fallbackModelId))
+    }
+  }
+
+  return branch ? { id: branch.id, name: branch.name } : null
+}
+
+const resolveApprovalInstanceDefinition = async (
+  db: Knex,
+  instance: ApprovalFlowInstanceRecord
+): Promise<Record<string, unknown> | null> => {
+  if (instance.definitionId) {
+    const definition = await getApprovalFlowDefinitionByIdFactory({ db })(
+      instance.definitionId
+    )
+    if (definition) {
+      return {
+        ...definition,
+        resourceType: normalizeApprovalFlowResourceType(definition.resourceType)
+      }
+    }
+  }
+
+  const snapshot = instance.flowSnapshot
+  if (!snapshot || typeof snapshot !== 'object') return null
+
+  return {
+    id: String(snapshot.definitionId || ''),
+    templateId: String(snapshot.templateId || ''),
+    name: String(snapshot.name || ''),
+    resourceType: normalizeApprovalFlowResourceType(
+      String(snapshot.resourceType || 'MODEL')
+    ),
+    isActive: false,
+    version: Number(snapshot.version || 1),
+    previousVersionId: null,
+    effectConfig:
+      snapshot.effectConfig && typeof snapshot.effectConfig === 'object'
+        ? snapshot.effectConfig
+        : null,
+    formSchema: Array.isArray(snapshot.formSchema) ? snapshot.formSchema : [],
+    steps: Array.isArray(snapshot.steps) ? snapshot.steps : []
+  }
+}
+
 export const getApprovalInstanceDetailsFactory =
   (deps: { db: Knex }) =>
   async (instanceId: string): Promise<Record<string, unknown> | null> => {
@@ -440,21 +538,70 @@ export const getApprovalInstanceDetailsFactory =
     const getSteps = getApprovalFlowInstanceStepsFactory({ db: deps.db })
     const getActions = getApprovalFlowActionsFactory({ db: deps.db })
     const getBindingById = getApprovalFlowBindingRecordByIdFactory({ db: deps.db })
+    const getUsers = getUsersFactory({ db: deps.db })
 
     const instance = await getInstanceById({ id: instanceId })
     if (!instance) return null
 
-    const [steps, actions, binding] = await Promise.all([
+    const [steps, actions, binding, project, definition] = await Promise.all([
       getSteps(instanceId),
       getActions(instanceId),
-      instance.bindingId ? getBindingById(instance.bindingId) : Promise.resolve(null)
+      instance.bindingId ? getBindingById(instance.bindingId) : Promise.resolve(null),
+      resolveApprovalInstanceProject(deps.db, instance.projectId),
+      resolveApprovalInstanceDefinition(deps.db, instance)
     ])
 
+    const userIdSet = new Set<string>()
+    const addUserId = (id?: string | null) => {
+      if (id && id !== 'system') userIdSet.add(id)
+    }
+
+    addUserId(instance.createdBy)
+    for (const step of steps) {
+      for (const id of step.approverIds || []) addUserId(id)
+      for (const id of step.approvedByIds || []) addUserId(id)
+    }
+    for (const action of actions) {
+      addUserId(action.actorId)
+    }
+
+    const userIds = Array.from(userIdSet)
+    const [model, users] = await Promise.all([
+      resolveApprovalInstanceModel({ instance, binding: binding || null }),
+      userIds.length > 0 ? getUsers(userIds) : Promise.resolve([])
+    ])
+
+    const userMap = new Map<string, SimpleIdName>()
+    for (const user of users) {
+      userMap.set(user.id, { id: user.id, name: user.name })
+    }
+    const toSimpleUser = (id?: string | null): SimpleIdName | null =>
+      id && id !== 'system' ? userMap.get(id) ?? null : null
+
+    const enrichedSteps = steps.map((step) => ({
+      ...step,
+      approverIds: step.approverIds || [],
+      approvedByIds: step.approvedByIds || [],
+      approvers: (step.approverIds || []).map((id) => toSimpleUser(id)),
+      approvedBy: (step.approvedByIds || []).map((id) => toSimpleUser(id))
+    }))
+
+    const enrichedActions = actions.map((action) => ({
+      ...action,
+      actor: toSimpleUser(action.actorId)
+    }))
+
     return {
-      instance,
+      instance: {
+        ...instance,
+        project,
+        model,
+        createdByUser: toSimpleUser(instance.createdBy),
+        definition
+      },
       binding,
-      steps,
-      actions
+      steps: enrichedSteps,
+      actions: enrichedActions
     }
   }
 

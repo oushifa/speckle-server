@@ -53,9 +53,6 @@
 </template>
 
 <script setup lang="ts">
-import { gql } from '@apollo/client/core'
-import type { TypedDocumentNode } from '@apollo/client/core'
-import { useQuery } from '@vue/apollo-composable'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { CommonLoadingIcon } from '@speckle/ui-components'
 import { useAuthManager, useAuthCookie } from '~/lib/auth/composables/auth'
@@ -77,22 +74,12 @@ type FlowInstanceDetail = {
   formData?: Record<string, unknown> | null
 }
 
-type FlowDetailQueryResult = {
-  approvalFlowInstance?: FlowInstanceDetail | null
+type FlowDetailApiResponse = {
+  instance?: FlowInstanceDetail | null
+  binding?: unknown
+  steps?: unknown[]
+  actions?: unknown[]
 }
-type FlowDetailQueryVariables = { id: string }
-
-const flowDetailQuery = gql`
-  query FlowDetailPage($id: ID!) {
-    approvalFlowInstance(id: $id) {
-      id
-      projectId
-      resourceType
-      resourceId
-      formData
-    }
-  }
-` as unknown as TypedDocumentNode<FlowDetailQueryResult, FlowDetailQueryVariables>
 
 const router = useRouter()
 const route = useRoute()
@@ -252,21 +239,84 @@ watch(tokenFromQuery, (newToken) => {
 })
 
 const instanceId = computed(() => String(route.params.id || ''))
+const queryEnabled = computed(
+  () =>
+    !!instanceId.value &&
+    !isTokenLoggingIn.value &&
+    tokenLoginStatus.value !== TokenLoginStatus.Failed
+)
 
-const { result, loading, refetch } = useQuery<
-  FlowDetailQueryResult,
-  FlowDetailQueryVariables
->(flowDetailQuery, () => ({ id: instanceId.value }), {
-  enabled: computed(
-    () =>
-      !!instanceId.value &&
-      !isTokenLoggingIn.value &&
-      tokenLoginStatus.value !== TokenLoginStatus.Failed
-  ),
-  fetchPolicy: 'network-only'
-})
+const instance = ref<FlowInstanceDetail | null>(null)
+const loading = ref(false)
+let latestFetchSeq = 0
 
-const instance = computed(() => result.value?.approvalFlowInstance || null)
+const fetchInstanceDetail = async () => {
+  const id = instanceId.value.trim()
+  if (!id || !queryEnabled.value) {
+    if (!id) {
+      instance.value = null
+    }
+    loading.value = false
+    return
+  }
+
+  const seq = ++latestFetchSeq
+  loading.value = true
+  try {
+    const headers: Record<string, string> = {}
+    if (authCookie.value) {
+      headers.Authorization = `Bearer ${authCookie.value}`
+    }
+
+    const res = await fetch(
+      `${apiOrigin}/api/approval-instances/${encodeURIComponent(id)}`,
+      {
+        method: 'GET',
+        headers,
+        credentials: 'include'
+      }
+    )
+
+    if (!res.ok) {
+      if (seq !== latestFetchSeq) return
+      instance.value = null
+      return
+    }
+
+    const text = await res.text()
+    const data = text ? (JSON.parse(text) as FlowDetailApiResponse | null) : null
+    if (seq !== latestFetchSeq) return
+    instance.value = data?.instance || null
+  } catch (error) {
+    if (seq !== latestFetchSeq) return
+    // eslint-disable-next-line no-console
+    console.error('加载流程实例失败:', error)
+    instance.value = null
+  } finally {
+    if (seq === latestFetchSeq) {
+      loading.value = false
+    }
+  }
+}
+
+const refetch = async () => {
+  await fetchInstanceDetail()
+}
+
+watch(
+  [instanceId, queryEnabled],
+  ([id, isEnabled]) => {
+    if (!id || !isEnabled) {
+      if (!id) {
+        instance.value = null
+      }
+      loading.value = false
+      return
+    }
+    void fetchInstanceDetail()
+  },
+  { immediate: true }
+)
 
 const getFormResource = () => {
   const item = instance.value
