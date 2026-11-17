@@ -18,34 +18,44 @@ import {
   upsertUnifiedWorkSyncRecordFactory
 } from '@/modules/unified-work-sync/repositories/unifiedWorkSyncRecords'
 import {
-  getFrontendOrigin,
-  getServerOrigin,
-  getUnifiedWorkSyncAccount,
   getUnifiedWorkSyncHost,
-  getUnifiedWorkSyncPassword,
-  getUnifiedWorkSyncRouterId,
   getUnifiedWorkSyncSystemCode,
-  getUnifiedWorkSyncToken,
-  getUnifiedWorkSyncUsername
+  getUnifiedWorkSyncToken
 } from '@/modules/shared/helpers/envHelper'
-import { moduleLogger } from '@/observability/logging'
+import {
+  REQUEST_TIMEOUT_MS,
+  buildPublicRouteLink,
+  extractToken,
+  formatErrorDetails,
+  getAuthToken,
+  getCachedAuthToken,
+  getSyncConfig,
+  isRecord,
+  isRemoveSuccess,
+  isUnifiedWorkSyncEnabled,
+  pushUnifiedWorkItem,
+  removeUnifiedWorkItem,
+  resolveExternalUserCode,
+  unifiedWorkSyncLogger,
+  type ExternalUserRow,
+  type UnifiedWorkPushPayload,
+  type UnifiedWorkReviewer,
+  type UnifiedWorkSyncResult,
+  type UnifiedWorkTaskMeta
+} from '@/modules/unified-work-sync/services/unifiedWorkClient'
 
-const unifiedWorkSyncLogger = moduleLogger.child({
-  module: 'unified-work-sync'
-})
+export type {
+  UnifiedWorkReviewer,
+  UnifiedWorkPushPayload,
+  UnifiedWorkTaskMeta,
+  UnifiedWorkSyncResult
+}
 
 const SYNC_DEBOUNCE_MS = 500
 const SYNC_RETRY_DELAY_MS = 2000
-const TOKEN_CACHE_MS = 20 * 60 * 1000
-const REQUEST_TIMEOUT_MS = 60 * 1000
 const START_STEP_INDEX = 0
 
 const pendingSyncTimers = new Map<string, ReturnType<typeof setTimeout>>()
-
-let cachedAuthToken: {
-  value: string
-  expiresAt: number
-} | null = null
 
 type ApprovalFlowInstanceRow = {
   id: string
@@ -73,11 +83,7 @@ type ApprovalFlowInstanceStepRow = {
   completedAt: Date | null
 }
 
-type UserRow = {
-  id: string
-  name: string | null
-  email: string | null
-}
+type UserRow = ExternalUserRow
 
 type InstanceSnapshot = {
   instance: ApprovalFlowInstanceRow
@@ -98,33 +104,6 @@ type InstanceSnapshot = {
   recordedTaskIds: string[]
 }
 
-export type UnifiedWorkReviewer = {
-  user: string
-  status: string
-}
-
-export type UnifiedWorkPushPayload = {
-  systemCode: string
-  taskId: string
-  title: string
-  creator: string
-  assignee: string
-  reviewer: UnifiedWorkReviewer[]
-  createTime: string
-  reviewTime: string
-  route: string
-  extraData: Record<string, unknown>
-}
-
-/** Everything we need in order to persist a per-approver push result. */
-export type UnifiedWorkTaskMeta = {
-  instanceId: string
-  taskId: string
-  stepIndex: number
-  approverId: string | null
-  account: string | null
-}
-
 export type UnifiedWorkDesiredItem = {
   payload: UnifiedWorkPushPayload
   meta: UnifiedWorkTaskMeta
@@ -136,183 +115,13 @@ export type UnifiedWorkSkippedItem = {
   errorMessage: string
 }
 
-export type UnifiedWorkSyncResult = {
-  pushCount: number
-  failCount: number
-  removeCount: number
-}
-
-const isUnifiedWorkSyncEnabled = () => Boolean(getUnifiedWorkSyncHost())
-
-const getSyncConfig = () => ({
-  host: getUnifiedWorkSyncHost(),
-  systemCode: getUnifiedWorkSyncSystemCode(),
-  token: getUnifiedWorkSyncToken(),
-  username: getUnifiedWorkSyncUsername(),
-  password: getUnifiedWorkSyncPassword(),
-  routerId: getUnifiedWorkSyncRouterId(),
-  account: getUnifiedWorkSyncAccount()
-})
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value)
-
 const toIsoString = (date: Date | null | undefined) => {
   if (!date) return ''
   return date.toISOString()
 }
 
-const extractToken = (value: unknown): string => {
-  if (typeof value === 'string') return value.trim()
-  if (!isRecord(value)) return ''
-
-  const directKeys = ['token', 'accessToken', 'access_token']
-  for (const key of directKeys) {
-    const token = value[key]
-    if (typeof token === 'string' && token.trim()) return token.trim()
-    // The platform nests the token as { token: { accessToken, ... } }
-    if (isRecord(token)) {
-      const nestedToken = extractToken(token)
-      if (nestedToken) return nestedToken
-    }
-  }
-
-  const nestedKeys = ['data', 'result', 'payload']
-  for (const key of nestedKeys) {
-    const token = extractToken(value[key])
-    if (token) return token
-  }
-
-  return ''
-}
-
-const formatErrorDetails = (err: unknown) => {
-  if (axios.isAxiosError(err)) {
-    return {
-      message: err.message,
-      code: err.code,
-      url: err.config?.url,
-      method: err.config?.method?.toUpperCase(),
-      status: err.response?.status,
-      statusText: err.response?.statusText,
-      responseBody: err.response?.data
-    }
-  }
-  if (err instanceof Error) {
-    return {
-      message: err.message,
-      name: err.name,
-      stack: err.stack
-    }
-  }
-  return { message: String(err) }
-}
-
-const getAuthToken = async () => {
-  const config = getSyncConfig()
-
-  if (config.token) {
-    unifiedWorkSyncLogger.debug('[WORK_SYNC] Using static token from configuration')
-    return config.token
-  }
-
-  if (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()) {
-    unifiedWorkSyncLogger.debug('[WORK_SYNC] Using cached auth token')
-    return cachedAuthToken.value
-  }
-
-  if (!config.username || !config.password) {
-    unifiedWorkSyncLogger.warn(
-      {
-        hasUsername: Boolean(config.username),
-        hasPassword: Boolean(config.password)
-      },
-      '[WORK_SYNC] Skip unified work sync because auth credentials (username/password) are incomplete'
-    )
-    return ''
-  }
-
-  try {
-    unifiedWorkSyncLogger.info(
-      {
-        host: config.host,
-        username: config.username,
-        routerId: config.routerId
-      },
-      '[WORK_SYNC] Requesting login to unified work platform'
-    )
-
-    const response = await axios.post(
-      `${config.host}/api/v1/auth/login2`,
-      {
-        username: config.username,
-        password: config.password,
-        routerId: config.routerId
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: REQUEST_TIMEOUT_MS
-      }
-    )
-
-    const token = extractToken(response.data)
-    if (!token) {
-      unifiedWorkSyncLogger.error(
-        {
-          responseData: response.data
-        },
-        '[WORK_SYNC] Unified work login succeeded but token was not found in response'
-      )
-      return ''
-    }
-
-    cachedAuthToken = {
-      value: token,
-      expiresAt: Date.now() + TOKEN_CACHE_MS
-    }
-
-    unifiedWorkSyncLogger.info(
-      '[WORK_SYNC] Unified work auth token obtained successfully'
-    )
-
-    return token
-  } catch (err) {
-    const errorDetails = formatErrorDetails(err)
-    unifiedWorkSyncLogger.error(
-      {
-        error: errorDetails,
-        host: config.host,
-        username: config.username
-      },
-      `[WORK_SYNC] Failed to log in to unified work platform: ${errorDetails.message}`
-    )
-    return ''
-  }
-}
-
 const buildTaskId = (instanceId: string, stepIndex: number, assigneeId: string) =>
   `SPK-${instanceId}-S${stepIndex}-${assigneeId}`
-
-/**
- * Maps a local user onto the unified work platform account name.
- *
- * The platform account name lives in the local `email` column (the column keeps
- * its legacy name, but the value is the account name, not an email address), so
- * the value is used as-is without splitting on `@`.
- */
-const resolveExternalUserCode = (user: UserRow | undefined | null) => {
-  if (!user) return ''
-
-  const account = user.email?.trim()
-  if (account) return account
-
-  const name = user.name?.trim()
-  if (name) return name
-
-  return ''
-}
 
 const getFormResource = (resourceId: string | null | undefined) => {
   if (!resourceId) return null
@@ -356,32 +165,8 @@ const buildRoute = (snapshot: InstanceSnapshot) => {
 export const buildApprovalFlowHandleRoute = (instanceId: string) =>
   `/flow/detail/${instanceId}`
 
-/**
- * Origin of the deployment that is currently running the sync, so the link always
- * points at that very system (e.g. pushing from http://47.100.77.97:64482 yields
- * a link on the same host). `FRONTEND_ORIGIN` wins, `CANONICAL_URL` is the fallback.
- */
-const resolvePublicOrigin = () => {
-  try {
-    return getFrontendOrigin()
-  } catch {
-    try {
-      return getServerOrigin()
-    } catch {
-      return ''
-    }
-  }
-}
-
-const buildApprovalFlowHandleLink = (instanceId: string) => {
-  const origin = resolvePublicOrigin()
-  if (!origin) return null
-  try {
-    return new URL(buildApprovalFlowHandleRoute(instanceId), origin).toString()
-  } catch {
-    return null
-  }
-}
+const buildApprovalFlowHandleLink = (instanceId: string) =>
+  buildPublicRouteLink(buildApprovalFlowHandleRoute(instanceId))
 
 const buildTaskTitle = (snapshot: InstanceSnapshot) => {
   const { instance, projectName, flowName } = snapshot
@@ -701,54 +486,6 @@ const buildDesiredTasks = (snapshot: InstanceSnapshot) => {
     skippedItems,
     candidateTaskIds
   }
-}
-
-const removeUnifiedWorkItem = async (params: {
-  token: string
-  taskId: string
-}): Promise<unknown> => {
-  const config = getSyncConfig()
-  const response = await axios.post(
-    `${config.host}/api/v1/unifiedWork/removeWorkItem`,
-    {
-      systemCode: config.systemCode,
-      taskId: params.taskId
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${params.token}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: REQUEST_TIMEOUT_MS
-    }
-  )
-  return response.data as unknown
-}
-
-/**
- * The platform answers `{ payload: { success: boolean } }`: HTTP 200 with
- * `success: false` means the task was not there in the first place.
- */
-const isRemoveSuccess = (data: unknown) =>
-  isRecord(data) && isRecord(data.payload) && data.payload.success === true
-
-const pushUnifiedWorkItem = async (params: {
-  token: string
-  payload: UnifiedWorkPushPayload
-}): Promise<unknown> => {
-  const config = getSyncConfig()
-  const response = await axios.post(
-    `${config.host}/api/v1/unifiedWork/work-item/push`,
-    params.payload,
-    {
-      headers: {
-        Authorization: `Bearer ${params.token}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: REQUEST_TIMEOUT_MS
-    }
-  )
-  return response.data as unknown
 }
 
 export const syncApprovalFlowTodoToUnifiedWork = async (params: {
@@ -1207,11 +944,7 @@ export type UnifiedWorkSyncDebugConfig = {
 export const getUnifiedWorkSyncDebugConfig = (): UnifiedWorkSyncDebugConfig => {
   const config = getSyncConfig()
   const staticToken = config.token || ''
-  const effectiveToken =
-    staticToken ||
-    (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()
-      ? cachedAuthToken.value
-      : '')
+  const effectiveToken = staticToken || getCachedAuthToken()
 
   return {
     host: config.host || '',

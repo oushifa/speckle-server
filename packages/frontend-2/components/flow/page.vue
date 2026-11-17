@@ -24,6 +24,11 @@
         ref="handledPageRef"
         @open-instance="openInstanceDrawer"
       />
+      <NotificationPage
+        v-else-if="currentTag === 'notification'"
+        ref="notificationPageRef"
+        @unread-count-change="onUnreadCountChange"
+      />
       <AllFlowsPage v-else ref="allPageRef" @open-instance="openInstanceDrawer" />
     </div>
 
@@ -194,10 +199,12 @@ import { graphql } from '~~/lib/common/generated/gql'
 import { useApolloClient } from '@vue/apollo-composable'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
+import { useAuthCookie } from '~~/lib/auth/composables/auth'
 import FlowOpButtons from './FlowOpButtons.vue'
 import TodoPage from './TodoPage.vue'
 import InitiatedPage from './InitiatedPage.vue'
 import HandledPage from './HandledPage.vue'
+import NotificationPage from './NotificationPage.vue'
 import AllFlowsPage from './AllFlowsPage.vue'
 import type { FlowListItem } from './flowInstances'
 
@@ -236,15 +243,17 @@ const cancelFlowMutation = graphql(`
 
 type FlowReviewAction = 'approve' | 'reject' | 'cancel'
 type FlowDetailTab = 'logs' | 'diagram'
-type FlowHeaderTag = 'pending' | 'initiated' | 'handled' | 'all'
+type FlowHeaderTag = 'pending' | 'initiated' | 'handled' | 'notification' | 'all'
 type FlowOpActionKey = 'approve' | 'rollback' | 'reject' | 'cancel'
-type FlowHeaderTabItem = { id: FlowHeaderTag; title: string }
+type FlowHeaderTabItem = { id: FlowHeaderTag; title: string; count?: number }
 type FlowDetailTabItem = { id: FlowDetailTab; title: string }
 type RefreshablePage = { refresh: () => Promise<void> }
 
 const apollo = useApolloClient().client
 const { triggerNotification } = useGlobalToast()
 const { userId, isAdmin } = useActiveUser()
+const apiOrigin = useApiOrigin()
+const authCookie = useAuthCookie()
 const route = useRoute()
 const router = useRouter()
 
@@ -253,9 +262,11 @@ const currentTag = ref<FlowHeaderTag>('pending')
 const selectedInstance = ref<FlowListItem | null>(null)
 const detailTab = ref<FlowDetailTab>('logs')
 const reviewComment = ref('')
+const unreadNotificationCount = ref(0)
 const todoPageRef = ref<RefreshablePage | null>(null)
 const initiatedPageRef = ref<RefreshablePage | null>(null)
 const handledPageRef = ref<RefreshablePage | null>(null)
+const notificationPageRef = ref<RefreshablePage | null>(null)
 const allPageRef = ref<RefreshablePage | null>(null)
 
 const formatDate = (date?: string | null) => {
@@ -327,7 +338,13 @@ const headerTags = computed(() => {
   const tabs: FlowHeaderTabItem[] = [
     { id: 'pending', title: '待办' },
     { id: 'initiated', title: '我发起的' },
-    { id: 'handled', title: '我处理的' }
+    { id: 'handled', title: '我处理的' },
+    {
+      id: 'notification',
+      title: '通知',
+      count:
+        unreadNotificationCount.value > 0 ? unreadNotificationCount.value : undefined
+    }
   ]
   if (isAdmin.value) tabs.push({ id: 'all', title: '全部流程' })
   return tabs
@@ -365,6 +382,7 @@ const getRouteFlowTag = (value: unknown) => {
     value === 'pending' ||
     value === 'initiated' ||
     value === 'handled' ||
+    value === 'notification' ||
     value === 'all'
   ) {
     return value as FlowHeaderTag
@@ -414,6 +432,26 @@ const onDetailTabChange = (item: { id: string }) => {
   detailTab.value = item.id as FlowDetailTab
 }
 
+const onUnreadCountChange = (count: number) => {
+  unreadNotificationCount.value = count
+}
+
+const loadUnreadNotificationCount = async () => {
+  try {
+    const res = await $fetch<{ unreadCount?: number; count?: number }>(
+      `${apiOrigin}/api/v1/notifications/unread-count`,
+      {
+        headers: authCookie.value
+          ? { Authorization: `Bearer ${authCookie.value}` }
+          : undefined
+      }
+    )
+    unreadNotificationCount.value = res.unreadCount ?? res.count ?? 0
+  } catch {
+    // ignore
+  }
+}
+
 const refreshCurrentTagPage = async () => {
   if (currentTag.value === 'pending') {
     await todoPageRef.value?.refresh()
@@ -425,6 +463,10 @@ const refreshCurrentTagPage = async () => {
   }
   if (currentTag.value === 'handled') {
     await handledPageRef.value?.refresh()
+    return
+  }
+  if (currentTag.value === 'notification') {
+    await notificationPageRef.value?.refresh()
     return
   }
   if (currentTag.value === 'all') {
@@ -602,4 +644,16 @@ const submitReviewAction = async (payload: {
     mutating.value = false
   }
 }
+
+onMounted(() => {
+  void loadUnreadNotificationCount()
+})
 </script>
+
+<style scoped>
+:deep([data-tab-id='notification'] .rounded-full) {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+</style>

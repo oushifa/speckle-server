@@ -1,13 +1,16 @@
 import { Router, type RequestHandler } from 'express'
 import { db } from '@/db/knex'
 import { corsMiddlewareFactory } from '@/modules/core/configs/cors'
+import { BadRequestError, NotFoundError } from '@/modules/shared/errors'
 import {
   ensureAppNotificationsTable,
+  getAppNotificationByIdFactory,
   getAppNotificationsFactory,
   getUnreadNotificationsCountFactory,
   markNotificationAsReadFactory,
   markAllNotificationsAsReadFactory
 } from '@/modules/notifications/services/appNotifications'
+import { retryNotificationPushToUnifiedWork } from '@/modules/unified-work-sync/services/notificationTodoSync'
 
 export const notificationsRestRouterFactory = (): Router => {
   const router = Router()
@@ -66,7 +69,23 @@ export const notificationsRestRouterFactory = (): Router => {
     }
   })
 
-  // 4. 单条标记为已读
+  // 4. 获取单条通知详情
+  router.get('/api/v1/notifications/:id', async (req, res) => {
+    try {
+      const userId = req.context.userId!
+      const { id } = req.params
+      const notification = await getAppNotificationByIdFactory({ db })({ id, userId })
+      if (!notification) {
+        return res.status(404).json({ error: 'Notification not found' })
+      }
+      return res.status(200).json(notification)
+    } catch (err) {
+      req.log.error(err, 'Get notification detail failed')
+      return res.status(500).json({ error: 'Failed to get notification' })
+    }
+  })
+
+  // 5. 单条标记为已读
   router.put('/api/v1/notifications/:id/read', async (req, res) => {
     try {
       const userId = req.context.userId!
@@ -76,6 +95,28 @@ export const notificationsRestRouterFactory = (): Router => {
     } catch (err) {
       req.log.error(err, 'Mark notification read failed')
       return res.status(500).json({ error: 'Failed to mark notification as read' })
+    }
+  })
+
+  // 6. 手动重试推送单条未读通知到第三方统一待办系统
+  router.post('/api/v1/notifications/:id/retry-push', async (req, res) => {
+    try {
+      const userId = req.context.userId!
+      const { id } = req.params
+      const result = await retryNotificationPushToUnifiedWork({
+        notificationId: id,
+        userId
+      })
+      return res.status(200).json(result)
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: err.message })
+      }
+      if (err instanceof BadRequestError) {
+        return res.status(400).json({ error: err.message })
+      }
+      req.log.error(err, 'Retry notification push failed')
+      return res.status(500).json({ error: 'Failed to retry notification push' })
     }
   })
 

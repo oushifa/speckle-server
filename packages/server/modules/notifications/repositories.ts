@@ -39,9 +39,11 @@ export {
   ensureAppNotificationsTable,
   createAppNotificationsFactory,
   getAppNotificationsFactory,
+  getAppNotificationByIdFactory,
   getUnreadNotificationsCountFactory,
   markNotificationAsReadFactory,
   markAllNotificationsAsReadFactory,
   type AppNotificationRecord,
-  type CreateNotificationInput
+  type CreateNotificationInput,
+  type NotificationUnifiedWorkPushInfo
 } from '@/modules/notifications/services/appNotifications'
