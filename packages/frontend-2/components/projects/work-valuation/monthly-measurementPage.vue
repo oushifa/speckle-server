@@ -1270,8 +1270,9 @@ const viewItem = (item: any) => {
 }
 
 const canApproveItem = (item: any) => {
+  const status = String(item?.approveStatus || '').toUpperCase()
   return (
-    String(item?.approveStatus || '').toUpperCase() === 'PENDING' &&
+    (status === 'PENDING' || status === 'IN_REVIEW') &&
     Boolean(userId.value) &&
     Array.isArray(item?.currentStepApproverIds) &&
     item.currentStepApproverIds.includes(userId.value)
