@@ -248,28 +248,29 @@
                 <ClipboardDocumentCheckIcon class="h-4 w-4" />
               </button>
               <button
-                v-if="hasFunctionalPerm('monthly-valuation:publish')"
-                class="rounded p-1 text-success transition-colors hover:text-success-darker disabled:cursor-not-allowed disabled:opacity-40"
+                v-if="
+                  hasFunctionalPerm('monthly-valuation:publish') && !isSubmitted(item)
+                "
+                class="rounded p-1 text-success transition-colors hover:text-success-darker"
                 title="送审"
-                :disabled="isSubmitted(item)"
                 @click="triggerSubmitItem(item)"
               >
                 <PaperAirplaneIcon class="h-4 w-4" />
               </button>
               <button
-                v-if="hasFunctionalPerm('monthly-valuation:edit')"
-                class="rounded p-1 text-warning transition-colors hover:text-warning-darker disabled:cursor-not-allowed disabled:opacity-40"
+                v-if="hasFunctionalPerm('monthly-valuation:edit') && !isSubmitted(item)"
+                class="rounded p-1 text-warning transition-colors hover:text-warning-darker"
                 title="编辑"
-                :disabled="isSubmitted(item)"
                 @click="editItem(item)"
               >
                 <PencilSquareIcon class="h-4 w-4" />
               </button>
               <button
-                v-if="hasFunctionalPerm('monthly-valuation:delete')"
-                class="rounded p-1 text-danger transition-colors hover:text-danger-darker disabled:cursor-not-allowed disabled:opacity-40"
+                v-if="
+                  hasFunctionalPerm('monthly-valuation:delete') && !isSubmitted(item)
+                "
+                class="rounded p-1 text-danger transition-colors hover:text-danger-darker"
                 title="删除"
-                :disabled="isSubmitted(item)"
                 @click="deleteItem(item)"
               >
                 <TrashIcon class="h-4 w-4" />
