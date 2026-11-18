@@ -1098,6 +1098,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
           // 3. 查询当前负责人
           let currentStepApprovers: string[] = []
+          let currentStepApproverIds: string[] = []
           if (actualFlowInstanceId) {
             const pendingStep = await db('approval_flow_instance_steps')
               .where('instanceId', actualFlowInstanceId)
@@ -1109,6 +1110,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               pendingStep.approverIds &&
               pendingStep.approverIds.length > 0
             ) {
+              currentStepApproverIds = pendingStep.approverIds
               const users = await db<{ name: string | null }>('users')
                 .whereIn('id', pendingStep.approverIds)
                 .select('name')
@@ -1125,7 +1127,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             flowInstanceId: actualFlowInstanceId,
             creator: creatorUser,
             totalAmount,
-            currentStepApprovers
+            currentStepApprovers,
+            currentStepApproverIds
           }
         })
       )
@@ -3961,6 +3964,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
 
           // 获取当前步骤负责人
           let currentStepApprovers: string[] = []
+          let currentStepApproverIds: string[] = []
           let actualApproveStatus = item.approveStatus || 'START'
           let actualFlowInstanceId = item.flowInstanceId
 
@@ -3982,6 +3986,7 @@ export const qualityAcceptanceRouterFactory = (): Router => {
               .orderBy('stepIndex', 'asc')
               .first()
             if (pendingStep?.approverIds?.length) {
+              currentStepApproverIds = pendingStep.approverIds
               const users = await db('users')
                 .whereIn('id', pendingStep.approverIds)
                 .select('name')
@@ -3996,7 +4001,8 @@ export const qualityAcceptanceRouterFactory = (): Router => {
             creator: creatorUser,
             totalAmount,
             cumulativeAmount,
-            currentStepApprovers
+            currentStepApprovers,
+            currentStepApproverIds
           }
         })
       )

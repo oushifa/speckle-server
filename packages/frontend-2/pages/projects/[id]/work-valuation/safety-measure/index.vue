@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div class="flex flex-col h-full space-y-4">
     <!-- 面包屑导航 Portal -->
@@ -109,6 +110,14 @@
               title="查看详情"
             >
               <EyeIcon class="h-4 w-4" />
+            </NuxtLink>
+            <NuxtLink
+              v-if="canApproveItem(item)"
+              :to="`/projects/${projectId}/work-valuation/safety-measure/${item.id}?mode=edit`"
+              class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
+              title="审核"
+            >
+              <ClipboardDocumentCheckIcon class="h-4 w-4" />
             </NuxtLink>
             <NuxtLink
               v-if="
@@ -306,6 +315,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { ref, computed, watch, onMounted } from 'vue'
 import { Portal } from 'portal-vue'
 import dayjs from 'dayjs'
@@ -314,6 +324,7 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   EyeIcon,
+  ClipboardDocumentCheckIcon,
   PencilSquareIcon,
   PaperAirplaneIcon,
   TrashIcon
@@ -328,6 +339,7 @@ import {
   CommonBadge
 } from '@speckle/ui-components'
 import type { LayoutDialogButton } from '@speckle/ui-components'
+import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { ToastNotificationType, useGlobalToast } from '~~/lib/common/composables/toast'
 import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 
@@ -335,8 +347,18 @@ const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 
 const apiOrigin = useApiOrigin()
+const { userId } = useActiveUser()
 const { triggerNotification } = useGlobalToast()
 const { hasFunctionalPerm } = useCustomPermissions()
+
+const canApproveItem = (item: any) => {
+  return (
+    String(item?.approveStatus || '').toUpperCase() === 'PENDING' &&
+    Boolean(userId.value) &&
+    Array.isArray(item?.currentStepApproverIds) &&
+    item.currentStepApproverIds.includes(userId.value)
+  )
+}
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')

@@ -1,129 +1,65 @@
 <template>
-  <div class="mx-auto max-w-3xl py-4">
-    <Portal to="navigation">
-      <div>通知详情</div>
-    </Portal>
-
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foundation">
     <!-- Token 校验失败 -->
     <div
       v-if="tokenLoginStatus === TokenLoginStatus.Failed"
-      class="flex flex-col items-center justify-center rounded-xl border border-outline-3 bg-foundation p-8 text-center"
+      class="flex flex-col items-center justify-center loading-stopped"
     >
-      <ExclamationTriangleIcon class="h-10 w-10 text-danger" />
-      <h2 class="mt-3 text-heading-sm text-foreground">身份验证失败</h2>
-      <p class="mt-2 max-w-md break-words text-body-sm text-foreground-2">
+      <CommonLoadingIcon class="w-8 h-8 text-primary" />
+      <p
+        class="mt-4 text-body-xs text-foreground-2 text-center max-w-md px-4 break-words"
+      >
         {{ tokenLoginError || 'Token 验证失败，请确认凭证是否有效或已过期' }}
-      </p>
-      <div class="mt-6">
-        <FormButton color="outline" @click="goBackToList">返回通知列表</FormButton>
-      </div>
-    </div>
-
-    <!-- 加载中 / 解析 Token -->
-    <div
-      v-else-if="isTokenLoggingIn || loading"
-      class="flex flex-col items-center justify-center rounded-xl border border-outline-3 bg-foundation p-12"
-    >
-      <CommonLoadingIcon class="h-8 w-8 text-primary animate-spin" />
-      <p class="mt-3 text-body-sm text-foreground-2">
-        {{ isTokenLoggingIn ? '正在验证访问凭证...' : '正在加载通知详情...' }}
       </p>
     </div>
 
     <!-- 通知不存在或无权限 -->
     <div
       v-else-if="notFound"
-      class="flex flex-col items-center justify-center rounded-xl border border-outline-3 bg-foundation p-8 text-center"
+      class="flex flex-col items-center justify-center loading-stopped"
     >
-      <BellSlashIcon class="h-10 w-10 text-foreground-2" />
-      <h2 class="mt-3 text-heading-sm text-foreground">通知不存在或无权限查看</h2>
-      <p class="mt-2 max-w-md break-words text-body-sm text-foreground-2">
+      <CommonLoadingIcon class="w-8 h-8 text-primary" />
+      <p
+        class="mt-4 text-body-xs text-foreground-2 text-center max-w-md px-4 break-words"
+      >
         未找到该通知（通知 ID：{{ notificationId }}），可能已被删除或您没有查看权限
       </p>
-      <div class="mt-6">
-        <FormButton color="outline" @click="goBackToList">返回通知列表</FormButton>
-      </div>
     </div>
 
-    <!-- 其他加载错误 -->
+    <!-- 请求 / 标记已读 / 跳转失败 -->
     <div
       v-else-if="loadError"
-      class="flex flex-col items-center justify-center rounded-xl border border-outline-3 bg-foundation p-8 text-center"
+      class="flex flex-col items-center justify-center loading-stopped"
     >
-      <ExclamationTriangleIcon class="h-10 w-10 text-danger" />
-      <h2 class="mt-3 text-heading-sm text-foreground">加载通知详情失败</h2>
-      <p class="mt-2 max-w-md break-words text-body-sm text-foreground-2">
+      <CommonLoadingIcon class="w-8 h-8 text-primary" />
+      <p
+        class="mt-4 text-body-xs text-foreground-2 text-center max-w-md px-4 break-words"
+      >
         {{ loadError }}
       </p>
-      <div class="mt-6 flex items-center gap-3">
-        <FormButton color="primary" @click="loadNotificationDetail">重试</FormButton>
-        <FormButton color="outline" @click="goBackToList">返回通知列表</FormButton>
-      </div>
     </div>
 
-    <!-- 通知详情卡片 -->
+    <!-- 通知未配置关联业务跳转地址 -->
     <div
-      v-else-if="notification"
-      class="rounded-xl border border-outline-3 bg-foundation p-6 shadow-sm space-y-5"
+      v-else-if="missingTargetUrl"
+      class="flex flex-col items-center justify-center loading-stopped"
     >
-      <div
-        class="flex flex-wrap items-start justify-between gap-3 border-b border-outline-3 pb-4"
+      <CommonLoadingIcon class="w-8 h-8 text-primary" />
+      <p
+        class="mt-4 text-body-xs text-foreground-2 text-center max-w-md px-4 break-words"
       >
-        <div class="space-y-2 min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-heading-md font-semibold text-foreground break-words">
-              {{ notification.title || '未命名通知' }}
-            </h1>
-            <span
-              v-if="notification.projectName"
-              class="shrink-0 rounded bg-primary/10 px-2.5 py-0.5 text-body-xs font-medium text-primary"
-            >
-              {{ notification.projectName }}
-            </span>
-          </div>
-          <div class="flex items-center gap-2 text-body-xs text-foreground-2">
-            <ClockIcon class="h-4 w-4" />
-            <span>发送时间：{{ formatDate(notification.createdAt) }}</span>
-          </div>
-        </div>
+        该通知未配置关联业务跳转地址（通知 ID：{{ notificationId }}）
+      </p>
+    </div>
 
-        <span
-          class="shrink-0 rounded-full px-3 py-1 text-body-xs font-medium"
-          :class="
-            notification.isRead
-              ? 'bg-success/10 text-success'
-              : 'bg-danger/10 text-danger'
-          "
-        >
-          {{ notification.isRead ? '已读' : '未读' }}
-        </span>
-      </div>
-
-      <div class="rounded-lg bg-foundation-2 p-4">
-        <div class="text-body-xs font-medium text-foreground-2 mb-2">通知内容</div>
-        <div
-          class="whitespace-pre-wrap break-words text-body-sm text-foreground leading-relaxed"
-        >
-          {{ notification.content || '（无详细内容）' }}
-        </div>
-      </div>
-
-      <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
-        <FormButton color="outline" @click="goBackToList">返回通知列表</FormButton>
-        <FormButton v-if="hasTargetUrl" color="primary" @click="goToTarget">
-          前往查看关联业务
-        </FormButton>
-      </div>
+    <!-- 正常加载 / Token 校验 / 标记已读 / 跳转中 -->
+    <div v-else class="flex flex-col items-center justify-center">
+      <CommonLoadingIcon class="w-8 h-8 text-primary animate-spin" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  BellSlashIcon,
-  ClockIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/vue/24/outline'
 import { CommonLoadingIcon } from '@speckle/ui-components'
 import { useActiveUser } from '~~/lib/auth/composables/activeUser'
 import { useAuthCookie, useAuthManager } from '~/lib/auth/composables/auth'
@@ -132,6 +68,8 @@ import { useCustomPermissions } from '~~/lib/auth/composables/customPermissions'
 useHead({ title: '通知详情' })
 
 definePageMeta({
+  // 独立中转页面：不套用后台布局（不要顶栏 / 侧边栏），支持第三方免登后标记已读并跳转
+  layout: 'empty',
   middleware: ['flow-detail-auth']
 })
 
@@ -203,22 +141,13 @@ const isTokenLoggingIn = computed(
   () => tokenLoginStatus.value === TokenLoginStatus.LoggingIn
 )
 
-const loading = ref(false)
 const notFound = ref(false)
 const loadError = ref('')
-const notification = ref<NotificationDetail | null>(null)
-
-const hasTargetUrl = computed(() => Boolean(notification.value?.targetUrl?.trim()))
+const missingTargetUrl = ref(false)
+let latestProcessSeq = 0
 
 const getAuthHeaders = (): Record<string, string> | undefined =>
   authCookie.value ? { Authorization: `Bearer ${authCookie.value}` } : undefined
-
-const formatDate = (date?: string | null) => {
-  if (!date) return '-'
-  const parsed = new Date(date)
-  if (Number.isNaN(parsed.getTime())) return '-'
-  return parsed.toLocaleString()
-}
 
 const cleanUrlToken = async () => {
   if (route.query.token) {
@@ -240,66 +169,92 @@ const extractNotification = (
 }
 
 const markNotificationAsRead = async (id: string) => {
-  try {
-    await $fetch(`${apiOrigin}/api/v1/notifications/${id}/read`, {
-      method: 'PUT',
-      headers: getAuthHeaders()
-    })
-    if (notification.value && notification.value.id === id) {
-      notification.value = {
-        ...notification.value,
-        isRead: true
-      }
-    }
-  } catch {
-    // 标记已读失败不影响详情展示
-  }
+  await $fetch(`${apiOrigin}/api/v1/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  })
 }
 
-const loadNotificationDetail = async () => {
+const processNotificationAndRedirect = async () => {
   const id = notificationId.value.trim()
+  const seq = ++latestProcessSeq
+  notFound.value = false
+  loadError.value = ''
+  missingTargetUrl.value = false
+
   if (!id) {
     notFound.value = true
-    notification.value = null
     return
   }
 
-  loading.value = true
-  notFound.value = false
-  loadError.value = ''
-
+  let detail: NotificationDetail | null = null
   try {
     const res = await $fetch<NotificationDetailResponse>(
-      `${apiOrigin}/api/v1/notifications/${id}`,
+      `${apiOrigin}/api/v1/notifications/${encodeURIComponent(id)}`,
       {
         headers: getAuthHeaders()
       }
     )
-    const detail = extractNotification(res)
+    if (seq !== latestProcessSeq) return
+    detail = extractNotification(res)
     if (!detail) {
       notFound.value = true
-      notification.value = null
       return
     }
-    notification.value = detail
-    if (!detail.isRead) {
-      await markNotificationAsRead(detail.id)
-    }
   } catch (err) {
+    if (seq !== latestProcessSeq) return
     const statusCode =
-      (err as { statusCode?: number; status?: number; response?: { status?: number } })
-        ?.statusCode ??
+      (
+        err as {
+          statusCode?: number
+          status?: number
+          response?: { status?: number }
+        }
+      )?.statusCode ??
       (err as { status?: number })?.status ??
       (err as { response?: { status?: number } })?.response?.status
-    notification.value = null
     if (statusCode === 404 || statusCode === 403) {
       notFound.value = true
     } else {
       loadError.value =
         err instanceof Error ? err.message : '获取通知详情失败，请稍后重试'
     }
-  } finally {
-    loading.value = false
+    return
+  }
+
+  if (!detail.isRead) {
+    try {
+      await markNotificationAsRead(detail.id)
+    } catch (err) {
+      if (seq !== latestProcessSeq) return
+      // eslint-disable-next-line no-console
+      console.error('标记通知已读失败:', err)
+      loadError.value =
+        err instanceof Error ? err.message : '标记通知已读失败，请稍后重试'
+      return
+    }
+    if (seq !== latestProcessSeq) return
+  }
+
+  const targetUrl = detail.targetUrl?.trim()
+  if (!targetUrl) {
+    missingTargetUrl.value = true
+    return
+  }
+
+  try {
+    await cleanUrlToken()
+    if (/^https?:\/\//i.test(targetUrl)) {
+      await navigateTo(targetUrl, { external: true, replace: true })
+    } else {
+      await navigateTo(targetUrl, { replace: true })
+    }
+  } catch (err) {
+    if (seq !== latestProcessSeq) return
+    // eslint-disable-next-line no-console
+    console.error('跳转关联业务页面失败:', err)
+    loadError.value =
+      err instanceof Error ? err.message : '跳转关联业务页面失败，请稍后重试'
   }
 }
 
@@ -378,21 +333,7 @@ const runTokenLogin = async (inputToken: string) => {
     // ignore permission refresh error and proceed to fetch notification detail
   }
 
-  await loadNotificationDetail()
-}
-
-const goToTarget = () => {
-  const url = notification.value?.targetUrl?.trim()
-  if (!url) return
-  if (/^https?:\/\//i.test(url)) {
-    void navigateTo(url, { external: true })
-    return
-  }
-  void navigateTo(url)
-}
-
-const goBackToList = () => {
-  void navigateTo('/flow?tab=notification')
+  await processNotificationAndRedirect()
 }
 
 onMounted(() => {
@@ -401,7 +342,7 @@ onMounted(() => {
     void runTokenLogin(token)
     return
   }
-  void loadNotificationDetail()
+  void processNotificationAndRedirect()
 })
 
 watch(tokenFromQuery, (newToken) => {
@@ -417,7 +358,14 @@ watch(notificationId, (newId, oldId) => {
     !isTokenLoggingIn.value &&
     tokenLoginStatus.value !== TokenLoginStatus.Failed
   ) {
-    void loadNotificationDetail()
+    void processNotificationAndRedirect()
   }
 })
 </script>
+
+<style scoped>
+.loading-stopped :deep(.spinner),
+.loading-stopped :deep(.path) {
+  animation: none;
+}
+</style>

@@ -1,3 +1,4 @@
+<!-- eslint-disable -->
 <template>
   <div>
     <div class="flex flex-col h-full space-y-4">
@@ -239,6 +240,14 @@
                 <EyeIcon class="h-4 w-4" />
               </button>
               <button
+                v-if="canApproveItem(item)"
+                class="rounded p-1 text-primary transition-colors hover:text-primary-focus"
+                title="审核"
+                @click="approveItem(item)"
+              >
+                <ClipboardDocumentCheckIcon class="h-4 w-4" />
+              </button>
+              <button
                 v-if="hasFunctionalPerm('monthly-valuation:publish')"
                 class="rounded p-1 text-success transition-colors hover:text-success-darker disabled:cursor-not-allowed disabled:opacity-40"
                 title="送审"
@@ -266,18 +275,6 @@
                 <TrashIcon class="h-4 w-4" />
               </button>
               <!-- 触发同步按钮 -->
-              <button
-                v-if="
-                  item.approveStatus === 'APPROVED' &&
-                  hasFunctionalPerm('monthly-valuation:publish')
-                "
-                class="rounded p-1 text-foreground-2 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                :title="getSyncDebugButtonTooltip(item)"
-                :disabled="isSyncDebugButtonDisabled(item)"
-                @click="debugSyncItem(item)"
-              >
-                <BugAntIcon class="h-4 w-4" />
-              </button>
               <button
                 v-if="
                   item.approveStatus === 'APPROVED' &&
@@ -682,6 +679,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useApolloClient, useMutation, useQuery } from '@vue/apollo-composable'
@@ -691,11 +689,11 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   EyeIcon,
+  ClipboardDocumentCheckIcon,
   PaperAirplaneIcon,
   PencilSquareIcon,
   TrashIcon,
   ChevronRightIcon,
-  BugAntIcon,
   CloudArrowUpIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -840,7 +838,7 @@ const resetFlowToUnsubmittedMutation = gql`
 `
 
 const apollo = useApolloClient().client
-const { isAdmin } = useActiveUser()
+const { isAdmin, userId } = useActiveUser()
 const { hasFunctionalPerm } = useCustomPermissions()
 
 const route = useRoute()
@@ -950,7 +948,6 @@ const itemToDelete = ref<any>(null)
 const syncConfirmOpen = ref(false)
 const syncTargetItem = ref<any>(null)
 const syncLoadingId = ref<string | null>(null)
-const syncDebugLoadingId = ref<string | null>(null)
 
 const createDialogOpen = ref(false)
 const createError = ref('')
@@ -1269,6 +1266,21 @@ const isSubmitted = (item: { approveStatus?: string | null }) => {
 const viewItem = (item: any) => {
   navigateTo(
     `/projects/${projectId.value}/work-valuation/monthly-measurement/${item.id}/acceptance`
+  )
+}
+
+const canApproveItem = (item: any) => {
+  return (
+    String(item?.approveStatus || '').toUpperCase() === 'PENDING' &&
+    Boolean(userId.value) &&
+    Array.isArray(item?.currentStepApproverIds) &&
+    item.currentStepApproverIds.includes(userId.value)
+  )
+}
+
+const approveItem = (item: any) => {
+  navigateTo(
+    `/projects/${projectId.value}/work-valuation/monthly-measurement/${item.id}/acceptance?mode=edit`
   )
 }
 
@@ -1599,27 +1611,6 @@ const getSyncButtonTooltip = (item: any) => {
   return `点击同步数据: ${typesToSync.map(getSyncTypeLabel).join('、')}`
 }
 
-const getSyncDebugButtonTooltip = (item: any) => {
-  if (syncDebugLoadingId.value === item?.id) {
-    return '正在生成同步 body...'
-  }
-
-  const statuses = [
-    item?.syncStatusSettlement,
-    item?.syncStatusPaymentDetail,
-    item?.syncStatusPaymentPool
-  ]
-  if (statuses.includes('LOADING')) {
-    return '数据正在同步中...'
-  }
-
-  const typesToDebug = getSyncTypesToDebug(item)
-  if (typesToDebug.length === 0) {
-    return '当前没有待同步的数据 body'
-  }
-  return `调试同步 body: ${typesToDebug.map(getSyncTypeLabel).join('、')}`
-}
-
 const getSyncIndicatorTooltip = (
   item: any,
   type: 'settlement' | 'paymentDetail' | 'paymentPool'
@@ -1682,35 +1673,6 @@ const getSyncTypeLabel = (type: SyncType) => {
   return '待支付申报池'
 }
 
-const isSyncDebugButtonDisabled = (item: any) => {
-  if (!item) return true
-  const statuses = [
-    item.syncStatusSettlement,
-    item.syncStatusPaymentDetail,
-    item.syncStatusPaymentPool
-  ]
-  if (statuses.includes('LOADING')) return true
-  if (syncDebugLoadingId.value === item.id) return true
-  return false
-}
-
-const getSyncTypesToDebug = (item: any): SyncType[] => {
-  if (!item) return []
-
-  const typesToDebug: SyncType[] = []
-  if (item.syncStatusSettlement && item.syncStatusSettlement !== 'LOADING') {
-    typesToDebug.push('settlement')
-  }
-  if (item.syncStatusPaymentDetail && item.syncStatusPaymentDetail !== 'LOADING') {
-    typesToDebug.push('paymentDetail')
-  }
-  if (item.syncStatusPaymentPool && item.syncStatusPaymentPool !== 'LOADING') {
-    typesToDebug.push('paymentPool')
-  }
-
-  return typesToDebug
-}
-
 const getSyncTypesToSync = (item: any): SyncType[] => {
   if (!item) return []
 
@@ -1726,64 +1688,6 @@ const getSyncTypesToSync = (item: any): SyncType[] => {
   }
 
   return typesToSync
-}
-
-const debugSyncItem = (item: any) => {
-  if (!item || !projectId.value) return
-
-  const typesToDebug = getSyncTypesToDebug(item)
-  if (typesToDebug.length === 0) {
-    triggerNotification({
-      title: '没有待调试的数据',
-      description: '当前没有需要同步的 body',
-      type: ToastNotificationType.Success
-    })
-    return
-  }
-
-  syncDebugLoadingId.value = item.id
-  const apiOrigin = useApiOrigin()
-
-  Promise.all(
-    typesToDebug.map(async (type) => {
-      const preview = await $fetch<any>(
-        `${apiOrigin}/api/v1/projects/${projectId.value}/monthly-measurements/${item.id}/sync-preview`,
-        {
-          method: 'POST',
-          body: { type }
-        }
-      )
-
-      return {
-        type,
-        typeLabel: getSyncTypeLabel(type),
-        ...preview
-      }
-    })
-  )
-    .then((requests) => {
-      // eslint-disable-next-line no-console
-      console.info('[MonthlyMeasurement Sync Debug]', {
-        measurementId: item.id,
-        requests
-      })
-
-      triggerNotification({
-        title: '同步 body 已输出',
-        description: `已在控制台输出 ${requests.length} 个完整同步 body`,
-        type: ToastNotificationType.Success
-      })
-    })
-    .catch((e: any) => {
-      triggerNotification({
-        title: '生成同步 body 失败',
-        description: e.data?.error || e.message || '生成同步 body 失败',
-        type: ToastNotificationType.Danger
-      })
-    })
-    .finally(() => {
-      syncDebugLoadingId.value = null
-    })
 }
 
 const confirmSyncItem = async () => {

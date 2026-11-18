@@ -32,11 +32,22 @@
             <PortalTarget name="navigation"></PortalTarget>
           </ClientOnly> -->
         </div>
-        <div class="flex items-center justify-end gap-2.5 sm:gap-2 lg:w-52">
+        <div
+          class="flex items-center justify-end gap-2.5 sm:gap-2 lg:min-w-52 shrink-0"
+        >
           <ClientOnly>
             <PortalTarget name="secondary-actions"></PortalTarget>
             <PortalTarget name="primary-actions"></PortalTarget>
           </ClientOnly>
+          <FormButton
+            to="https://sznb.shgltz.com:10003/#/Admin/nbtdWorkbenchManage"
+            external
+            color="outline"
+            size="sm"
+            class="shrink-0 whitespace-nowrap"
+          >
+            返回上级系统
+          </FormButton>
           <HeaderNavNotifications v-if="isLoggedIn" />
           <div v-if="!hideUserNav" class="flex justify-end items-center gap-x-2">
             <FormButton
@@ -69,7 +80,6 @@ const isWorkspacesEnabled = useIsWorkspacesEnabled()
 const { activeUser, isLoggedIn } = useActiveUser()
 const route = useRoute()
 const router = useRouter()
-const currentProjectName = useState<string>('current-project-name', () => '')
 
 const token = computed(() => route.query.token as Optional<string>)
 
